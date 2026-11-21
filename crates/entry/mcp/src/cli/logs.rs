@@ -3,16 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Args, ValueEnum};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
+use super::app_paths;
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum LogLevel {
@@ -65,11 +64,11 @@ pub struct LogsArgs {
     pub level: Option<LogLevel>,
 }
 
-async fn default_logs_dir(host: &dyn KernelHost) -> Result<PathBuf> {
-    Ok(app_context(host).await?.app_paths().system().logs())
+async fn default_logs_dir(host: &dyn CommandHost) -> Result<PathBuf> {
+    Ok(app_paths(host).await?.system().logs())
 }
 
-pub(super) async fn execute(args: LogsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: LogsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let prompter = host.prompter();
     let config = host.output();
     let logs_path = match args.logs_dir.as_ref() {

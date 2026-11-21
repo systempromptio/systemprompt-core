@@ -1,27 +1,38 @@
-//! MCP client for `plugins mcp call`.
+//! MCP client for `plugins mcp tools` and `plugins mcp call`.
+//!
+//! Connects to a running server at its direct address (an internal server's
+//! local port, an external server's endpoint), presenting the caller's own
+//! session token when one is given, and lists or calls its tools within a
+//! deadline.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::commands::shared::mcp_tools::cli_limits;
+use std::time::Duration;
+
 use anyhow::{Context, Result, anyhow};
 use rmcp::ServiceExt;
 use rmcp::model::{
     CallToolRequestParams, ClientCapabilities, ClientConfig, ContentBlock, Implementation,
-    ProtocolVersion,
+    PaginatedRequestParams, ProtocolVersion,
 };
 use rmcp::service::{RoleClient, RunningService};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
-use std::time::Duration;
-use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
-use systemprompt_mcp::services::client::HttpClientWithContext;
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, JwtToken, McpServerId, McpToolName, SessionId, SessionToken,
+    TraceId, UserId,
+};
+use systemprompt_manifest::services::{McpConfig, ResilienceSettings};
+use systemprompt_mcp::McpServerConfig;
+use systemprompt_mcp::services::SpawnTarget;
+use systemprompt_mcp::services::client::{HttpClientWithContext, McpClientLimits};
 use systemprompt_models::ai::tools::CallToolResult;
+use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 
-use super::types::McpToolContent;
-use crate::session::CliSessionContext;
+use super::types::{McpToolContent, ToolInfo};
 
 #[derive(Debug)]
 pub struct ToolCallParams<'a> {
@@ -30,8 +41,22 @@ pub struct ToolCallParams<'a> {
     pub tool_name: &'a McpToolName,
     // JSON: MCP tool-call arguments are the tool's own JSON object.
     pub arguments: Option<serde_json::Value>,
-    pub session_ctx: &'a CliSessionContext,
+    pub token: &'a SessionToken,
     pub timeout_secs: u64,
+}
+
+pub fn direct_url(server: &McpServerConfig) -> Result<String> {
+    if server.is_external() {
+        return Ok(server.remote_endpoint.clone());
+    }
+    Ok(format!("http://127.0.0.1:{}/mcp", server.spawn_port()?))
+}
+
+pub fn cli_limits(timeout_secs: u64) -> McpClientLimits {
+    McpClientLimits::from(&ResilienceSettings {
+        request_timeout_ms: timeout_secs.saturating_mul(1000),
+        ..McpConfig::default().resilience
+    })
 }
 
 pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolResult> {
@@ -52,90 +77,100 @@ async fn call_tool(params: ToolCallParams<'_>) -> Result<CallToolResult> {
         url,
         tool_name,
         arguments,
-        session_ctx,
+        token,
         timeout_secs,
     } = params;
 
-    let client = connect(server_name, url, session_ctx, timeout_secs).await?;
+    let client = connect(server_name, url, Some(token), timeout_secs).await?;
 
-    let mut params = CallToolRequestParams::new(String::from(tool_name));
-    params.arguments = arguments.and_then(|v| v.as_object().cloned());
+    let mut request = CallToolRequestParams::new(String::from(tool_name));
+    request.arguments = arguments.and_then(|v| v.as_object().cloned());
 
-    let result = client.call_tool(params).await.map_err(|e| {
-        anyhow!(
-            "MCP tool '{}' on '{}' rejected the call: {}",
-            tool_name,
-            server_name,
-            e
-        )
+    let result = client.call_tool(request).await.map_err(|e| {
+        anyhow!("MCP tool '{tool_name}' on '{server_name}' rejected the call: {e}")
     })?;
 
     client.cancel().await?;
     Ok(result)
 }
 
-pub async fn list_available_tools(
+pub async fn list_tools(
     server_name: &McpServerId,
     url: &str,
-    session_ctx: &CliSessionContext,
+    token: Option<&SessionToken>,
     timeout_secs: u64,
-) -> Result<Vec<String>> {
+) -> Result<Vec<ToolInfo>> {
     let limit = Duration::from_secs(timeout_secs);
-    timeout(
-        limit,
-        list_tools(server_name, url, session_ctx, timeout_secs),
-    )
-    .await
-    .map_err(|elapsed| {
-        anyhow!(
-            "Listing tools on '{server_name}' did not finish within {}s ({elapsed})",
-            limit.as_secs()
-        )
-    })?
+    timeout(limit, fetch_tools(server_name, url, token, timeout_secs))
+        .await
+        .map_err(|elapsed| {
+            anyhow!(
+                "Listing tools on '{server_name}' did not finish within {}s ({elapsed})",
+                limit.as_secs()
+            )
+        })?
 }
 
-async fn list_tools(
+async fn fetch_tools(
     server_name: &McpServerId,
     url: &str,
-    session_ctx: &CliSessionContext,
+    token: Option<&SessionToken>,
     timeout_secs: u64,
-) -> Result<Vec<String>> {
-    let client = connect(server_name, url, session_ctx, timeout_secs).await?;
+) -> Result<Vec<ToolInfo>> {
+    let client = connect(server_name, url, token, timeout_secs).await?;
 
     let tools_response = client
         // Why: rmcp serialises a `None` params as `"params": null`, which a
         // strict server (Google's MCP) refuses with -32602; send `{}`.
-        .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
+        .list_tools(Some(PaginatedRequestParams::default()))
         .await
         .context("Failed to list tools")?;
 
-    let tool_names: Vec<String> = tools_response
+    let tools = tools_response
         .tools
         .into_iter()
-        .map(|t| t.name.to_string())
+        .map(ToolInfo::from_tool)
         .collect();
 
     client.cancel().await?;
-    Ok(tool_names)
+    Ok(tools)
+}
+
+fn request_context(server_name: &McpServerId, token: Option<&SessionToken>) -> RequestContext {
+    let context = RequestContext::new(
+        SessionId::new(format!("cli-{server_name}")),
+        TraceId::generate(),
+        ContextId::derived_from_cli_probe(server_name),
+        AgentName::system(),
+        Actor::anonymous(UserId::generate()),
+    );
+    match token {
+        Some(token) => context.with_auth_token(JwtToken::new(token.as_str())),
+        None => context,
+    }
 }
 
 async fn connect(
     server_name: &McpServerId,
     url: &str,
-    session_ctx: &CliSessionContext,
+    token: Option<&SessionToken>,
     timeout_secs: u64,
 ) -> Result<RunningService<RoleClient, ClientConfig>> {
-    let agent_name = AgentName::try_new(format!("cli-{server_name}"))
-        .context("MCP server name does not form a valid agent name")?;
-    let request_context = session_ctx.to_request_context(agent_name);
-    let http_client = HttpClientWithContext::new(request_context, cli_limits(timeout_secs))?;
-    let config = StreamableHttpClientTransportConfig::with_uri(url)
-        .auth_header(session_ctx.session_token().as_str().to_owned());
+    let http_client = HttpClientWithContext::new(
+        request_context(server_name, token),
+        cli_limits(timeout_secs),
+    )?;
+    let config = match token {
+        Some(token) => {
+            StreamableHttpClientTransportConfig::with_uri(url).auth_header(token.as_str().to_owned())
+        },
+        None => StreamableHttpClientTransportConfig::with_uri(url),
+    };
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientConfig::new(
         ClientCapabilities::default(),
-        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
+        Implementation::new(format!("systemprompt-cli-{server_name}"), "1.0.0"),
     )
     .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
 

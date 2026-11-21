@@ -1,18 +1,16 @@
-//! DB-backed tests for the pool-seamed `admin agents logs` and `plugins mcp
-//! logs` database modes, driving `execute_db_mode_with_pool` against a fixture
-//! pool with seeded log rows.
+//! DB-backed tests for the pool-seamed `plugins mcp logs` database mode,
+//! driving `execute_db_mode_with_pool` against a fixture pool with seeded
+//! log rows.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::agents::{logs as agent_logs, logs_db as agent_logs_db};
-use systemprompt_cli::plugins::mcp::{logs as mcp_logs, logs_db as mcp_logs_db};
 use systemprompt_database::DbPool;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
+use systemprompt_mcp_entry::cli::{logs as mcp_logs, logs_db as mcp_logs_db};
 use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use uuid::Uuid;
-
 
 fn services() -> systemprompt_manifest::ServicesConfig {
     systemprompt_test_fixtures::ensure_test_bootstrap()
@@ -21,13 +19,9 @@ fn services() -> systemprompt_manifest::ServicesConfig {
         .expect("services config")
 }
 
-fn cfg() -> CliConfig {
-    CliConfig::new().with_interactive(false)
-}
-
 async fn seed_log(pool: &DbPool, module: &str, message: &str) {
     let actor = LogActor::new(
-        unique_user_id("clilogsdb"),
+        unique_user_id("mcplogsdb"),
         SessionId::generate(),
         TraceId::generate(),
     );
@@ -39,16 +33,6 @@ fn contains(out: &CommandOutput, needle: &str) -> bool {
     serde_json::to_string(&serde_json::to_value(out.artifact()).unwrap())
         .unwrap()
         .contains(needle)
-}
-
-fn agent_args(agent: &str) -> agent_logs::LogsArgs {
-    agent_logs::LogsArgs {
-        agent: Some(agent.to_owned()),
-        lines: 50,
-        follow: false,
-        disk: false,
-        logs_dir: None,
-    }
 }
 
 fn mcp_args(server: &str, level: Option<mcp_logs::LogLevel>) -> mcp_logs::LogsArgs {
@@ -63,32 +47,15 @@ fn mcp_args(server: &str, level: Option<mcp_logs::LogLevel>) -> mcp_logs::LogsAr
 }
 
 #[tokio::test]
-async fn agent_logs_db_returns_matching_entries() {
-    let pool = test_db_pool().await;
-    let token = format!("covagent{}", Uuid::new_v4().simple());
-    let msg = format!("agent-log-needle-{}", Uuid::new_v4().simple());
-    seed_log(&pool, &format!("agent.{token}"), &msg).await;
-
-    let out =
-        agent_logs_db::execute_db_mode_with_pool(&agent_args(&token), &pool, &services(), &cfg())
-            .await
-            .unwrap();
-
-    assert!(contains(&out, &msg));
-    assert!(contains(&out, "database"));
-}
-
-#[tokio::test]
 async fn mcp_logs_db_returns_matching_entries() {
     let pool = test_db_pool().await;
     let token = format!("covmcp{}", Uuid::new_v4().simple());
     let msg = format!("mcp-log-needle-{}", Uuid::new_v4().simple());
     seed_log(&pool, &format!("mcp.{token}"), &msg).await;
 
-    let out =
-        mcp_logs_db::execute_db_mode_with_pool(&mcp_args(&token, None), &pool, &services(), &cfg())
-            .await
-            .unwrap();
+    let out = mcp_logs_db::execute_db_mode_with_pool(&mcp_args(&token, None), &pool, &services())
+        .await
+        .unwrap();
 
     assert!(contains(&out, &msg));
     assert!(contains(&out, "database"));
@@ -105,7 +72,6 @@ async fn mcp_logs_db_level_filter_keeps_error() {
         &mcp_args(&token, Some(mcp_logs::LogLevel::Error)),
         &pool,
         &services(),
-        &cfg(),
     )
     .await
     .unwrap();

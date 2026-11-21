@@ -1,11 +1,12 @@
-//! Tests for `plugins mcp list` server summaries and binary status.
+//! Tests for `plugins mcp list` server summaries and binary status, read
+//! under a build target directory (`<target>/<profile>/<binary>`).
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::fs;
 use std::path::Path;
 
-use systemprompt_cli::plugins::mcp::list::{determine_status, get_binary_info, summarize_server};
+use systemprompt_mcp_entry::cli::list::{determine_status, get_binary_info, summarize_server};
 use systemprompt_models::mcp::Deployment;
 
 fn deployment(yaml: &str) -> Deployment {
@@ -24,8 +25,8 @@ fn external(enabled: bool) -> Deployment {
     ))
 }
 
-fn touch_binary(root: &Path, profile: &str, name: &str) {
-    let dir = root.join("target").join(profile);
+fn touch_binary(target: &Path, profile: &str, name: &str) {
+    let dir = target.join(profile);
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join(name), "bin").unwrap();
 }
@@ -40,7 +41,7 @@ fn determine_status_covers_every_combination() {
 }
 
 #[test]
-fn get_binary_info_without_root_or_binary_is_empty() {
+fn get_binary_info_without_target_or_binary_is_empty() {
     assert_eq!(get_binary_info(None, "svc", false), (None, None));
 
     let tmp = tempfile::tempdir().unwrap();
@@ -53,7 +54,7 @@ fn get_binary_info_reports_path_and_timestamp() {
     touch_binary(tmp.path(), "debug", "svc");
 
     let (path, created) = get_binary_info(Some(tmp.path()), "svc", false);
-    assert!(path.unwrap().ends_with("target/debug/svc"));
+    assert_eq!(path.as_deref(), tmp.path().join("debug").join("svc").to_str());
     assert!(created.is_some());
 }
 

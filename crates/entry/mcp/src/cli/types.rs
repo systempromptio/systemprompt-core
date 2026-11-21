@@ -3,7 +3,9 @@
 //! These structs are the serialisable shapes rendered by the list, status,
 //! validate, tools, call, and logs subcommands. They carry no behaviour beyond
 //! `serde`/`JsonSchema` derivation and exist to give each subcommand a typed,
-//! schema-backed result the shared renderer can format.
+//! schema-backed result the shared renderer can format. [`ToolInfo`] is one
+//! tool as a server advertises it; [`McpToolEntry`] is the row `tools`
+//! renders from it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +14,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{McpServerId, McpToolName, ServiceName};
 
-use crate::commands::shared::mcp_tools::McpToolEntry;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpListOutput {
@@ -141,4 +142,78 @@ pub struct McpToolContent {
     pub mime_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ToolInfo {
+    pub name: String,
+    pub description: Option<String>,
+    pub parameters_count: usize,
+    // JSON: MCP `inputSchema` — JSON Schema owned by the server.
+    pub input_schema: Option<serde_json::Value>,
+    // JSON: MCP `outputSchema` — JSON Schema owned by the server.
+    pub output_schema: Option<serde_json::Value>,
+}
+
+impl ToolInfo {
+    pub fn from_tool(tool: rmcp::model::Tool) -> Self {
+        let input_schema = match serde_json::to_value(&tool.input_schema) {
+            Ok(schema) => Some(schema),
+            Err(e) => {
+                tracing::debug!(tool = %tool.name, error = %e, "Failed to serialize input schema");
+                None
+            },
+        };
+        let output_schema =
+            tool.output_schema
+                .as_ref()
+                .and_then(|s| match serde_json::to_value(s.as_ref()) {
+                    Ok(schema) => Some(schema),
+                    Err(e) => {
+                        tracing::debug!(tool = %tool.name, error = %e, "Failed to serialize output schema");
+                        None
+                    },
+                });
+        let parameters_count = input_schema
+            .as_ref()
+            .and_then(|s| s.get("properties"))
+            .and_then(|p| p.as_object())
+            .map_or(0, serde_json::Map::len);
+
+        Self {
+            name: tool.name.to_string(),
+            description: tool.description.map(|d| d.to_string()),
+            parameters_count,
+            input_schema,
+            output_schema,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct McpToolEntry {
+    pub name: String,
+    pub server: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub parameters_count: usize,
+    // JSON: MCP `inputSchema` — JSON Schema owned by the server.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_schema: Option<serde_json::Value>,
+    // JSON: MCP `outputSchema` — JSON Schema owned by the server.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_schema: Option<serde_json::Value>,
+}
+
+impl McpToolEntry {
+    pub fn from_probe(tool: ToolInfo, server: String, with_schemas: bool) -> Self {
+        Self {
+            name: tool.name,
+            server,
+            description: tool.description,
+            parameters_count: tool.parameters_count,
+            input_schema: with_schemas.then_some(tool.input_schema).flatten(),
+            output_schema: with_schemas.then_some(tool.output_schema).flatten(),
+        }
+    }
 }

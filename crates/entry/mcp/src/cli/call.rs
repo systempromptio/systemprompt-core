@@ -1,25 +1,23 @@
 //! `plugins mcp call` command invoking one tool on a running server.
 //!
+//! The server must be configured and recorded as running; the command
+//! connects with the caller's own session and never starts a server.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use std::sync::Arc;
-
-use crate::commands::shared::mcp_tools::direct_url;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use systemprompt_identifiers::{McpServerId, McpToolName};
-use systemprompt_mcp::services::McpOrchestrator;
+use systemprompt_extension::cli::{CommandError, CommandHost, CommandOutput, Prompter, resolve_required};
+use systemprompt_identifiers::{McpServerId, McpToolName, SessionToken};
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_models::ai::tools::CallToolResult;
 
 use super::call_client::{
-    ToolCallParams, convert_content, execute_tool_call, list_available_tools,
+    ToolCallParams, convert_content, direct_url, execute_tool_call, list_tools,
 };
 use super::types::{McpCallOutput, McpToolContent};
-use crate::commands::shared::app_context;
-use crate::session::{CliSessionContext, get_or_create_session};
-use systemprompt_extension::cli::{CommandOutput, Prompter, resolve_required};
+use super::{observer, services_config};
 
 #[derive(Debug, Args)]
 #[command(
@@ -47,32 +45,31 @@ pub struct CallArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: CallArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
-    let services_config = app_context(host)
+    let services_config = services_config(host)
         .await
-        .context("Failed to load services configuration")?
-        .services_config();
-    let session_ctx = get_or_create_session(host).await?;
+        .context("Failed to load services configuration")?;
 
-    let server_arg = args.server.clone();
-    let tool_arg = args.tool.clone();
     let timeout_secs = args.timeout;
 
-    let server_name = resolve_required(server_arg, "server", config, || {
+    let server_name = resolve_required(args.server.clone(), "server", config, || {
         prompt_server_selection(prompter, &services_config)
     })?;
 
-    let _server_config = services_config
-        .mcp_servers
-        .get(server_name.as_str())
-        .ok_or_else(|| anyhow!("MCP server '{}' not found in configuration", server_name))?;
+    if !services_config.mcp_servers.contains_key(server_name.as_str()) {
+        return Err(anyhow!(
+            "MCP server '{server_name}' not found in configuration"
+        ));
+    }
 
     let url = resolve_running_url(&server_name, host).await?;
+    let session = host.caller_session().await?;
+    let token = session.token();
 
-    let tool_name = resolve_required(tool_arg, "tool", config, || {
-        prompt_tool_selection(prompter, &server_name, &url, &session_ctx, timeout_secs)
+    let tool_name = resolve_required(args.tool.clone(), "tool", config, || {
+        prompt_tool_selection(prompter, &server_name, &url, token, timeout_secs)
     })?;
 
     let tool_args: Option<serde_json::Value> = args
@@ -89,12 +86,12 @@ pub(super) async fn execute(args: CallArgs, host: &dyn KernelHost) -> Result<Com
         url: &url,
         tool_name: &tool_name,
         arguments: tool_args,
-        session_ctx: &session_ctx,
+        token,
         timeout_secs,
     })
     .await;
 
-    let execution_time_ms = start_time.elapsed().as_millis() as u64;
+    let execution_time_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
     let (output, failure) = match result {
         Ok(tool_result) => {
@@ -103,38 +100,31 @@ pub(super) async fn execute(args: CallArgs, host: &dyn KernelHost) -> Result<Com
         Err(e) => failure_outcome(e.to_string(), &server_name, &tool_name, execution_time_ms),
     };
 
-    let card = CommandOutput::card_value(format!("Tool Execution: {}", tool_name), &output);
+    let card = CommandOutput::card_value(format!("Tool Execution: {tool_name}"), &output);
 
-    if let Some(msg) = failure {
-        host.render(&card);
-        return Err(anyhow!(msg));
+    match failure {
+        Some(msg) => Err(anyhow::Error::new(
+            CommandError::new(anyhow!(msg)).with_output(card),
+        )),
+        None => Ok(card),
     }
-
-    Ok(card)
 }
 
-async fn resolve_running_url(server_name: &McpServerId, host: &dyn KernelHost) -> Result<String> {
-    let app = app_context(host)
-        .await
-        .context("Failed to initialize application context")?;
-
-    let manager = McpOrchestrator::new(
-        (**app.service_repository()).clone(),
-        Arc::clone(app.app_paths_arc()),
-        app.mcp_registry().clone(),
-        Arc::clone(app.spawner()),
-        Arc::clone(app.secrets()),
-    )
-    .context("Failed to initialize MCP manager")?;
-    let running_servers = manager
-        .get_running_servers()
+async fn resolve_running_url(server_name: &McpServerId, host: &dyn CommandHost) -> Result<String> {
+    let running_servers = observer(host)
+        .await?
+        .running_servers()
         .await
         .context("Failed to get running servers")?;
 
     let server = running_servers
         .iter()
         .find(|s| s.name == server_name.as_str())
-        .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "MCP server '{server_name}' is not running; start it with `infra services start`"
+            )
+        })?;
     direct_url(server)
 }
 
@@ -158,15 +148,9 @@ fn success_outcome(
             .collect::<Vec<_>>()
             .join("\n");
         if detail.is_empty() {
-            format!(
-                "MCP tool '{}' on '{}' reported is_error=true with no message",
-                tool_name, server_name
-            )
+            format!("MCP tool '{tool_name}' on '{server_name}' reported is_error=true with no message")
         } else {
-            format!(
-                "MCP tool '{}' on '{}' reported is_error=true: {}",
-                tool_name, server_name, detail
-            )
+            format!("MCP tool '{tool_name}' on '{server_name}' reported is_error=true: {detail}")
         }
     });
 
@@ -204,7 +188,7 @@ fn failure_outcome(
 
 pub fn prompt_server_selection(
     prompter: &dyn Prompter,
-    config: &systemprompt_manifest::ServicesConfig,
+    config: &ServicesConfig,
 ) -> Result<McpServerId> {
     let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();
@@ -221,19 +205,18 @@ fn prompt_tool_selection(
     prompter: &dyn Prompter,
     server_name: &McpServerId,
     url: &str,
-    session_ctx: &CliSessionContext,
+    token: &SessionToken,
     timeout_secs: u64,
 ) -> Result<McpToolName> {
     let rt = tokio::runtime::Handle::current();
-    let tools = rt.block_on(async {
-        list_available_tools(server_name, url, session_ctx, timeout_secs).await
-    })?;
+    let tools = rt.block_on(list_tools(server_name, url, Some(token), timeout_secs))?;
 
     if tools.is_empty() {
-        return Err(anyhow!("No tools available on server '{}'", server_name));
+        return Err(anyhow!("No tools available on server '{server_name}'"));
     }
 
-    let selection = prompter.select("Select tool to execute", &tools)?;
-    McpToolName::try_new(tools[selection].clone())
+    let names: Vec<String> = tools.into_iter().map(|tool| tool.name).collect();
+    let selection = prompter.select("Select tool to execute", &names)?;
+    McpToolName::try_new(names[selection].clone())
         .context("MCP server advertised an invalid tool name")
 }

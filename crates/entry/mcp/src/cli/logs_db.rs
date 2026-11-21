@@ -3,33 +3,29 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, pool_from_handle};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_logging::LoggingRepository;
 use systemprompt_manifest::ServicesConfig;
 
 use super::logs::{LogLevel, LogsArgs};
+use super::services_config;
 use super::types::McpLogsOutput;
-use crate::commands::shared::app_context;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 pub(super) async fn execute_db_mode(
     args: &LogsArgs,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let app = app_context(host)
-        .await
-        .context("Failed to initialize app context")?;
-    let services = app.services_config();
-    execute_db_mode_with_pool(args, app.db_pool(), &services, host.output()).await
+    let services = services_config(host).await?;
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_db_mode_with_pool(args, &pool, &services).await
 }
 
 pub async fn execute_db_mode_with_pool(
     args: &LogsArgs,
     pool: &DbPool,
     services: &ServicesConfig,
-    _config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = LoggingRepository::new(pool);
 

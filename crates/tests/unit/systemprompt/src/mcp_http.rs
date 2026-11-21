@@ -1,6 +1,10 @@
 //! The reference composition admits `mcp-http` exactly as its conferral
 //! describes: one public set at `ApiBase::McpRegistry` holding only `GET /`,
-//! requiring the MCP server registry the `mcp` member provides. No install
+//! the `plugins mcp` group holding only the `caller-session` grant, and
+//! requirements on the MCP server registry and the read-only
+//! `McpServiceObserver` the `mcp` member provides. A profile disabling
+//! `mcp-http` refuses `plugins mcp` at dispatch; one disabling `mcp` refuses
+//! boot. No install holds the `plugins mcp` path or its grant. No install
 //! holds any path under `/api/v1/mcp`, the registry path included: a literal
 //! sibling or child of the registry path, a parameter or catch-all reaching
 //! the proxy's routes, a service prefix, an extension base and the registry
@@ -11,14 +15,22 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::get;
 use systemprompt::{CompositionError, reference};
+use systemprompt_cli::CliRunError;
+use systemprompt_cli::kernel::{
+    CommandRegistry, ResolvedCommand, describe_command_line, kernel_commands,
+};
+use systemprompt_cli::runner::refuse_disabled;
+use systemprompt_extension::cli::{CommandDecl, CommandDescriptor, DataImpact, KernelGrant, parents};
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::router::{
     Allowance, ApiBase, BasePath, BaseRef, RouteSet, RouteSpec, WebBase,
 };
 use systemprompt_extension::{Admitted, AuthzPolicy, ContextKind, ContributionError, RouteGroup};
+use systemprompt_mcp::services::McpServiceObserver;
 use systemprompt_traits::McpRegistryProvider;
 
-use crate::probe::{PLAIN, Probe, ProbeState, build, build_with, ok, plain_set, shape};
+use crate::cli_probe::McpGroup;
+use crate::probe::{PLAIN, Probe, ProbeState, build, build_with, ok, plain_set, profile, shape};
 
 const OWNER: &str = CoreId::McpHttp.id();
 const REGISTRY: BasePath = BasePath::Api(ApiBase::McpRegistry);
@@ -81,7 +93,138 @@ fn mcp_http_requires_the_mcp_server_registry() {
         .collect();
     assert_eq!(
         required,
-        [std::any::type_name::<Arc<dyn McpRegistryProvider>>()]
+        [
+            std::any::type_name::<Arc<dyn McpRegistryProvider>>(),
+            std::any::type_name::<Arc<McpServiceObserver>>(),
+        ]
+    );
+}
+
+fn registry() -> CommandRegistry {
+    let declared = reference()
+        .declare()
+        .expect("the reference composition declares");
+    CommandRegistry::build(&declared.commands(), &kernel_commands())
+        .expect("the registry accepts the reference commands")
+}
+
+fn describe(args: &[&str]) -> CommandDescriptor {
+    let argv: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+    describe_command_line(&registry(), &argv).unwrap_or_else(|e| panic!("{args:?}: {e}"))
+}
+
+fn resolved(args: &[&str]) -> ResolvedCommand {
+    let registry = registry();
+    let matches = systemprompt_cli::args::command(&registry)
+        .expect("the reference commands attach")
+        .try_get_matches_from(std::iter::once("systemprompt").chain(args.iter().copied()))
+        .expect("the command parses");
+    registry
+        .resolve(&matches)
+        .expect("the command resolves")
+        .expect("the command is a contributed command")
+}
+
+#[test]
+fn mcp_http_declares_plugins_mcp_with_only_the_caller_session_grant() {
+    let declared = reference()
+        .declare()
+        .expect("the reference composition declares");
+    let commands = declared.commands();
+    let owned: Vec<(Vec<&str>, &[KernelGrant])> = commands
+        .commands()
+        .iter()
+        .filter(|command| command.owner.as_str() == OWNER)
+        .map(|command| (command.decl.path(), command.decl.grants()))
+        .collect();
+    assert_eq!(
+        owned,
+        [(
+            vec!["plugins", "mcp"],
+            [KernelGrant::CallerSession].as_slice()
+        )]
+    );
+}
+
+#[test]
+fn every_plugins_mcp_command_preserves_data() {
+    for args in [
+        ["plugins", "mcp", "list"].as_slice(),
+        &["plugins", "mcp", "list-packages"],
+        &["plugins", "mcp", "status"],
+        &["plugins", "mcp", "validate", "--all"],
+        &["plugins", "mcp", "logs", "--disk"],
+        &["plugins", "mcp", "tools"],
+        &["plugins", "mcp", "call", "server", "tool"],
+    ] {
+        let descriptor = describe(args);
+        assert!(!descriptor.is_destructive(), "{args:?}");
+        assert_eq!(descriptor.data_impact(), DataImpact::Preserving, "{args:?}");
+        assert!(descriptor.database(), "{args:?}");
+    }
+}
+
+#[test]
+fn a_profile_disabling_mcp_http_refuses_plugins_mcp_at_dispatch() {
+    let command = resolved(&["plugins", "mcp", "status"]);
+    let error = refuse_disabled(&command, &profile(&[OWNER]))
+        .expect_err("the profile disables the command's owner");
+    assert!(matches!(
+        error,
+        CliRunError::CommandDisabled { path, owner }
+            if path == ["plugins", "mcp"] && owner.as_str() == OWNER
+    ));
+    assert!(
+        refuse_disabled(&command, &profile(&[])).is_ok(),
+        "negative control"
+    );
+}
+
+#[test]
+fn a_profile_disabling_mcp_while_mcp_http_stays_enabled_refuses_boot() {
+    let error = reference()
+        .build(&profile(&["mcp"]))
+        .expect_err("mcp-http requires values only mcp provides");
+    assert!(
+        error.to_string().contains("mcp"),
+        "the refusal names the disabled provider: {error}"
+    );
+    assert!(
+        reference().build(&profile(&[OWNER])).is_ok(),
+        "negative control: disabling mcp-http alone boots"
+    );
+}
+
+#[test]
+fn an_install_claiming_plugins_mcp_is_refused() {
+    let error = build_with(Probe::new("probe-install", |c| {
+        c.command(CommandDecl::group_under::<parents::Plugins, McpGroup>());
+    }))
+    .expect_err("plugins mcp is reserved to mcp-http");
+    assert!(
+        matches!(
+            error,
+            CompositionError::ReservedCliPath {
+                path: ["plugins", "mcp"],
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+
+    let error = build_with(Probe::new("probe-install", |c| {
+        c.command(
+            CommandDecl::group_under::<parents::Plugins, McpGroup>()
+                .requesting(&[KernelGrant::CallerSession]),
+        );
+    }))
+    .expect_err("an install holds neither the path nor its grant");
+    assert!(
+        matches!(
+            error,
+            CompositionError::ReservedCliPath { .. } | CompositionError::GrantNotConferred { .. }
+        ),
+        "{error:?}"
     );
 }
 

@@ -223,7 +223,7 @@ systemprompt web validate
 | `plugins config <NAME>` | Show extension configuration. |
 | `plugins capabilities jobs\|schemas\|roles` | List jobs, schemas or roles across the admitted members. |
 | `plugins seams [--member TEXT]` | List the admitted composition, member by member, with what each contributes. |
-| `plugins mcp` | MCP server management. |
+| `plugins mcp list\|status\|validate\|logs\|list-packages\|tools\|call` | Observe and exercise configured MCP servers; contributed by the `mcp-http` member. `tools`, `call` and `validate` reach only servers the service table records as running and never start, stop or signal one (`infra services` and `admin mcp` do); `tools` and `call` present the caller's own session token. |
 
 ```bash
 systemprompt plugins list

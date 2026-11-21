@@ -3,18 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use clap::Args;
-use std::fs;
-use std::path::PathBuf;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_models::mcp::{Deployment, McpServerType};
 
 use super::types::{McpListOutput, McpServerSummary};
-use crate::commands::shared::app_context;
-use systemprompt_cloud::paths::ProjectRoot;
-use systemprompt_extension::cli::CommandOutput;
-use systemprompt_models::mcp::{Deployment, McpServerType};
+use super::{build_target_dir, services_config};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
@@ -25,18 +24,11 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let services_config = app_context(host)
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let services_config = services_config(host)
         .await
-        .context("Failed to load services configuration")?
-        .services_config();
-    let project_root = match ProjectRoot::discover() {
-        Ok(root) => Some(root),
-        Err(e) => {
-            tracing::debug!(error = %e, "No project root; binary details omitted");
-            None
-        },
-    };
+        .context("Failed to load services configuration")?;
+    let target_dir = build_target_dir(host).await?;
 
     let mut servers: Vec<McpServerSummary> = services_config
         .mcp_servers
@@ -52,13 +44,7 @@ pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<Com
                 true
             }
         })
-        .map(|(name, server)| {
-            summarize_server(
-                name,
-                server,
-                project_root.as_ref().map(ProjectRoot::as_path),
-            )
-        })
+        .map(|(name, server)| summarize_server(name, server, target_dir.as_deref()))
         .collect();
 
     servers.sort_by(|a, b| a.name.cmp(&b.name));
@@ -84,7 +70,7 @@ pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<Com
 pub fn summarize_server(
     name: &str,
     server: &Deployment,
-    project_root: Option<&std::path::Path>,
+    target_dir: Option<&Path>,
 ) -> McpServerSummary {
     if server.server_type == McpServerType::External {
         return McpServerSummary {
@@ -112,8 +98,8 @@ pub fn summarize_server(
         .as_deref()
         .filter(|binary| !binary.is_empty())
         .unwrap_or(name);
-    let (binary_debug, debug_created_at) = get_binary_info(project_root, binary_name, false);
-    let (binary_release, release_created_at) = get_binary_info(project_root, binary_name, true);
+    let (binary_debug, debug_created_at) = get_binary_info(target_dir, binary_name, false);
+    let (binary_release, release_created_at) = get_binary_info(target_dir, binary_name, true);
 
     McpServerSummary {
         name: name.to_owned(),
@@ -135,23 +121,21 @@ pub fn summarize_server(
     }
 }
 
+pub fn binary_path(target_dir: Option<&Path>, binary_name: &str, profile: &str) -> Option<PathBuf> {
+    target_dir
+        .map(|dir| dir.join(profile).join(binary_name))
+        .filter(|path| path.exists())
+}
+
 pub fn get_binary_info(
-    project_root: Option<&std::path::Path>,
+    target_dir: Option<&Path>,
     binary_name: &str,
     release: bool,
 ) -> (Option<String>, Option<String>) {
-    let Some(root) = project_root else {
+    let profile = if release { "release" } else { "debug" };
+    let Some(binary_path) = binary_path(target_dir, binary_name, profile) else {
         return (None, None);
     };
-
-    let profile = if release { "release" } else { "debug" };
-    let binary_path: PathBuf = root.join("target").join(profile).join(binary_name);
-
-    if !binary_path.exists() {
-        return (None, None);
-    }
-
-    let path_str = Some(binary_path.display().to_string());
 
     let created_at = fs::metadata(&binary_path)
         .ok()
@@ -161,7 +145,7 @@ pub fn get_binary_info(
             datetime.format("%Y-%m-%d %H:%M:%S").to_string()
         });
 
-    (path_str, created_at)
+    (Some(binary_path.display().to_string()), created_at)
 }
 
 pub fn determine_status(enabled: bool, debug: Option<&str>, release: Option<&str>) -> String {

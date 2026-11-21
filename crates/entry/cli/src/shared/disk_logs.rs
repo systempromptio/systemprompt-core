@@ -1,5 +1,4 @@
-//! On-disk log-file discovery and tailing shared by the agent and MCP `logs`
-//! commands.
+//! On-disk log-file discovery and tailing for the agent `logs` commands.
 //!
 //! Log files follow the `<prefix>-<name>.log` convention; lookup also accepts
 //! bare `<name>.log` paths and substring matches over the discovered set.

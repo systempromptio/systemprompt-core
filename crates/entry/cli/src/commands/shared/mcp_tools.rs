@@ -1,5 +1,5 @@
-//! MCP tool probing shared by `admin agents tools` and `plugins mcp tools`,
-//! and the [`McpToolEntry`] row both render.
+//! MCP tool probing for `admin agents tools`, and the [`McpToolEntry`] row it
+//! renders.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

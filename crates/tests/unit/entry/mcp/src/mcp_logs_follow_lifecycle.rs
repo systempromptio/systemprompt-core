@@ -5,33 +5,11 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use systemprompt_test_fixtures::bounded_output;
 
-use clap::Parser;
-use systemprompt_cli::plugins::mcp::{self, McpCommands};
-use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_mcp_entry::cli as mcp;
 
-const HELPER: &str = "commands::mcp_logs_follow_lifecycle::mcp_logs_follow_helper";
+use crate::common::{json_cli, member, parse, rendered, with_boot};
 
-#[derive(Debug, Parser)]
-struct Harness {
-    #[command(subcommand)]
-    command: McpCommands,
-}
-
-fn parse(args: &[&str]) -> McpCommands {
-    Harness::try_parse_from(std::iter::once("mcp").chain(args.iter().copied()))
-        .expect("parse MCP logs command")
-        .command
-}
-
-fn context() -> CommandContext {
-    crate::boot_ctx::new_with_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    )
-}
+const HELPER: &str = "mcp_logs_follow_lifecycle::mcp_logs_follow_helper";
 
 #[tokio::test]
 #[ignore = "re-executed by mcp_follow_uses_the_resolved_server_log_and_surfaces_tail_failure"]
@@ -64,9 +42,11 @@ async fn mcp_logs_follow_helper() {
         std::env::remove_var("TAIL_EXIT");
     }
 
+    let context = with_boot(json_cli());
+    let host = member(&context);
     println!("BEGIN_FOLLOW");
-    crate::boot_ctx::rendered(
-        &context(),
+    rendered(
+        &host,
         mcp::execute(
             parse(&[
                 "logs",
@@ -75,7 +55,7 @@ async fn mcp_logs_follow_helper() {
                 "--logs-dir",
                 logs.to_str().unwrap(),
             ]),
-            &context(),
+            &host,
         )
         .await,
     )
@@ -94,7 +74,7 @@ async fn mcp_logs_follow_helper() {
             "--logs-dir",
             logs.to_str().unwrap(),
         ]),
-        &context(),
+        &host,
     )
     .await
     .expect_err("a failed tail process must be reported");
