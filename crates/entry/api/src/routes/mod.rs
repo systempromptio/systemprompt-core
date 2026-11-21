@@ -19,6 +19,7 @@ pub mod internal;
 pub mod issues;
 #[cfg(feature = "bridge")]
 pub mod managed;
+pub(crate) mod managed_state;
 pub mod oauth;
 pub mod proxy;
 pub mod sso;

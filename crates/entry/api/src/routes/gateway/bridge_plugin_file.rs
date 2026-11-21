@@ -26,7 +26,7 @@ use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::bridge_plugin_archive::ArchiveMemo;
 use super::{bridge_plugin_archive, bridge_resolved};
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
-use crate::routes::managed::state::marketplace_cache;
+use crate::routes::managed_state::marketplace_cache;
 
 pub async fn handle(
     memo: ArchiveMemo,

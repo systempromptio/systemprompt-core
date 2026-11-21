@@ -13,7 +13,7 @@ use systemprompt_runtime::AppContext;
 
 use super::super::bridge_data;
 use super::super::bridge_error::BridgeError;
-use crate::routes::managed::state::managed_repository;
+use crate::routes::managed_state::managed_repository;
 
 // Why: the recorded grant is the consumer's reach — a manifest whose grants
 // could not be written must not serve the skills it would grant.

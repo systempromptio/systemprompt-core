@@ -14,7 +14,7 @@ use axum::{Json, Router};
 use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, SessionBindingRequest};
 use systemprompt_runtime::AppContext;
 
-use super::state::managed_repository;
+use crate::routes::managed_state::managed_repository;
 use error::ConsumerHttpError;
 use systemprompt_models::ApiPaths;
 

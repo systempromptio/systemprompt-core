@@ -28,7 +28,7 @@ use systemprompt_marketplace::{
 };
 use systemprompt_runtime::AppContext;
 
-use crate::routes::managed::state::{managed_repository, marketplace_cache, marketplace_filter};
+use crate::routes::managed_state::{managed_repository, marketplace_cache, marketplace_filter};
 
 /// Whether a resolution may be served from the per-user memo.
 ///

@@ -13,7 +13,7 @@ use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 use systemprompt_runtime::AppContext;
 
 use super::error::ConsumerHttpError;
-use crate::routes::managed::state::managed_repository;
+use crate::routes::managed_state::managed_repository;
 
 pub(super) fn credential(headers: &HeaderMap) -> Result<&str, ConsumerHttpError> {
     headers

@@ -46,6 +46,13 @@ impl Extension for ContentHttpExtension {
         }
     }
 
+    #[cfg_attr(
+        not(any(feature = "http", feature = "cli")),
+        expect(
+            unused_variables,
+            reason = "the member contributes its routes only with the http feature and its commands only with the cli feature"
+        )
+    )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "http")]
         routes::contribute(c);
