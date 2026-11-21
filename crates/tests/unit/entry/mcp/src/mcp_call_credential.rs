@@ -93,7 +93,10 @@ fn an_internal_server_is_presented_the_caller_session() {
 #[test]
 fn an_external_server_without_a_credential_requirement_is_presented_nothing() {
     let server = external("open", "https://mcp.example.com/mcp");
-    assert_eq!(server_credential(&server).unwrap(), ServerCredential::Withheld);
+    assert_eq!(
+        server_credential(&server).unwrap(),
+        ServerCredential::Withheld
+    );
 
     let caller = caller();
     let target = McpTarget::resolve(&server, Some(&caller)).unwrap();
@@ -222,7 +225,9 @@ async fn a_platform_hosted_server_is_called_as_the_caller() {
         .map(|(_, value)| value.to_str().unwrap_or_default().to_owned())
         .collect();
     assert!(
-        headers.iter().any(|value| value == &format!("Bearer {TOKEN}")),
+        headers
+            .iter()
+            .any(|value| value == &format!("Bearer {TOKEN}")),
         "the caller's token is presented: {headers:?}"
     );
     for id in ["sess-caller", CALLER_CONTEXT] {

@@ -62,7 +62,11 @@ const fn routing_name(class: RoutingClass) -> &'static str {
 fn every_member_leaf_has_a_recorded_routing_class() {
     let leaves = member_leaves();
     let recorded: BTreeSet<&str> = rows().iter().map(|row| row.path).collect();
-    assert!(leaves.len() > 90, "the command baseline was read: {}", leaves.len());
+    assert!(
+        leaves.len() > 90,
+        "the command baseline was read: {}",
+        leaves.len()
+    );
     let missing: Vec<&&str> = leaves.difference(&recorded).collect();
     let stale: Vec<&&str> = recorded.difference(&leaves).collect();
     assert!(

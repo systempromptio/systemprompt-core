@@ -61,10 +61,10 @@ domain_error! {
         #[error("owner reassignment of {table}.{column} declared by '{owner}' failed")]
         OwnerReassignment {
             owner: ExtensionId,
-            table: String,
-            column: String,
+            table: &'static str,
+            column: &'static str,
             #[source]
-            source: sqlx::Error,
+            source: Box<sqlx::Error>,
         },
     }
 }

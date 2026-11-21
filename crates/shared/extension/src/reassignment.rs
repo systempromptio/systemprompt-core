@@ -43,14 +43,13 @@ pub struct OwnerReassignment {
 ///
 /// - `Update` rewrites the column to the target; `touch` names a timestamp
 ///   column set to the current time, and `keep_target_on` names the columns
-///   that, with the user column, identify a row: a source row whose
-///   counterpart the target already holds is left in place rather than
-///   colliding with it.
+///   that, with the user column, identify a row: a source row whose counterpart
+///   the target already holds is left in place rather than colliding with it.
 /// - `Delete` removes the source user's rows (credentials or counters minted
 ///   for that user, which must not be rebound), optionally narrowed by a
 ///   [`PurgePredicate`].
-/// - `ReplaceInArray` replaces the source id with the target id inside an
-///   array column.
+/// - `ReplaceInArray` replaces the source id with the target id inside an array
+///   column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReassignAction {
     Update {

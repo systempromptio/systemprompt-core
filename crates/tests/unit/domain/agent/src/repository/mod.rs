@@ -96,4 +96,3 @@ pub(crate) fn make_task(
         last_modified: Some(chrono::Utc::now()),
     }
 }
-

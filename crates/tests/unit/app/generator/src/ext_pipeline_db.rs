@@ -364,8 +364,8 @@ async fn get_templates_path_falls_back_when_configured_path_missing() {
         std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
         &boot.app_paths,
     )
-        .await
-        .expect("web config");
+    .await
+    .expect("web config");
     cfg.paths.templates = "/nonexistent/configured/templates".to_owned();
     assert_eq!(
         get_templates_path(&cfg, &boot.app_paths),

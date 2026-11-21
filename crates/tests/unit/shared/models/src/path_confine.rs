@@ -50,7 +50,10 @@ fn confine_within_refuses_a_symlink_that_leaves_the_root() {
 fn confine_within_reports_a_missing_candidate_as_not_found() {
     let root = tempfile::tempdir().unwrap();
     let err = confine_within(root.path(), &root.path().join("absent")).unwrap_err();
-    assert!(matches!(err, PathConfinementError::Unresolved { .. }), "{err}");
+    assert!(
+        matches!(err, PathConfinementError::Unresolved { .. }),
+        "{err}"
+    );
 }
 
 #[test]

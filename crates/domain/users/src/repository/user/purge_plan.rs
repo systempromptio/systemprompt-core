@@ -208,9 +208,8 @@ pub(super) fn reassign_sql(reassignment: &OwnerReassignment) -> Result<ReassignS
             }
             text.push_str(&format!(" WHERE {column} = $1"));
             if !keep_target_on.is_empty() {
-                let mut kept = format!(
-                    " AND NOT EXISTS (SELECT 1 FROM {table} kept WHERE kept.{column} = $2"
-                );
+                let mut kept =
+                    format!(" AND NOT EXISTS (SELECT 1 FROM {table} kept WHERE kept.{column} = $2");
                 for key in keep_target_on {
                     let key = identifier("kept key column", key)?;
                     kept.push_str(&format!(" AND kept.{key} = {table}.{key}"));

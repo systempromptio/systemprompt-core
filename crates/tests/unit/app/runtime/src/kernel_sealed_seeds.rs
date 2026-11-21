@@ -113,7 +113,10 @@ async fn a_sealed_provide_is_withheld_from_every_member_runtime_context() {
 
     assert!(state.is_sealed::<DynInventoryPublisher>());
     assert!(state.is_sealed::<DynManagedSkillResolver>());
-    assert!(state.get::<DynInventoryPublisher>().is_ok(), "the kernel reads it");
+    assert!(
+        state.get::<DynInventoryPublisher>().is_ok(),
+        "the kernel reads it"
+    );
     assert!(kernel.resolved().get::<DynInventoryPublisher>().is_ok());
 
     let runtime = kernel.runtime_state();

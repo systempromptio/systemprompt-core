@@ -36,7 +36,7 @@ pub struct AgentRunRetention {
 
 impl AgentRunRetention {
     #[must_use]
-    pub fn of(config: &Config) -> Self {
+    pub const fn of(config: &Config) -> Self {
         Self {
             days: config.retention.agent_run_dirs_days,
         }

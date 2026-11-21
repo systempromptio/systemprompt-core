@@ -54,8 +54,7 @@ impl UserRepository {
         let mut tx = conn.begin().await?;
         Self::lock_unless_held(&mut tx, source_id).await?;
 
-        let moved =
-            Self::reassign_owned_rows(&mut tx, source_id, target_id, reassignments).await?;
+        let moved = Self::reassign_owned_rows(&mut tx, source_id, target_id, reassignments).await?;
         let tasks = moved
             .iter()
             .filter(|(table, _)| *table == "agent_tasks")

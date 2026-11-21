@@ -109,7 +109,9 @@ pub fn generate_plugin(
 ) -> Result<PluginGenerateOutput> {
     let config_path = confine_within(
         ctx.plugins_path,
-        &ctx.plugins_path.join(plugin_id.as_str()).join("config.yaml"),
+        &ctx.plugins_path
+            .join(plugin_id.as_str())
+            .join("config.yaml"),
     )?;
     let plugin_file = super::read_plugin_config(&config_path)?;
     let plugin = &plugin_file.plugin;

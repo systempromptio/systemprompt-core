@@ -12,7 +12,10 @@ async fn exec(pool: &sqlx::PgPool, sql: &str, binds: &[&str]) {
     for bind in binds {
         query = query.bind(*bind);
     }
-    query.execute(pool).await.unwrap_or_else(|e| panic!("{sql}: {e}"));
+    query
+        .execute(pool)
+        .await
+        .unwrap_or_else(|e| panic!("{sql}: {e}"));
 }
 
 async fn count(pool: &sqlx::PgPool, sql: &str, owner: &UserId) -> i64 {
@@ -43,7 +46,12 @@ async fn seed_owned_rows(pool: &sqlx::PgPool, owner: &UserId, suffix: &str) {
         pool,
         "INSERT INTO task_messages(task_id,message_id,role,context_id,user_id,sequence_number) \
          VALUES($1,$2,'user',$3,$4,0)",
-        &[&task, &format!("message-{suffix}"), &context, owner.as_str()],
+        &[
+            &task,
+            &format!("message-{suffix}"),
+            &context,
+            owner.as_str(),
+        ],
     )
     .await;
     exec(

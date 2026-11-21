@@ -42,7 +42,11 @@ impl DoctorCheck for Recording {
     }
 
     async fn check(&self, ctx: DoctorContext<'_>) -> DoctorOutcome {
-        let sources = ctx.probes.git_credential_sources().await.map_or(0, |s| s.len());
+        let sources = ctx
+            .probes
+            .git_credential_sources()
+            .await
+            .map_or(0, |s| s.len());
         *self.seen.lock().expect("lock") = Some((ctx.secrets.is_present("present"), sources));
         DoctorOutcome::pass("seen")
     }

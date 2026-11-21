@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use systemprompt_provider_contracts::DoctorCheck;
 use systemprompt_provider_contracts::governance::GovernancePolicy;
-use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::RunnerService;
+use systemprompt_traits::authz::SubjectAttributeProvider;
 
 use super::resolved::Factory;
 use crate::asset::{AssetDefinition, AssetPaths};

@@ -92,7 +92,9 @@ fn copy_scripts_refuses_a_source_outside_the_plugin_directory() {
     fs::write(plugins.path().join("loot.sh"), "echo loot").unwrap();
 
     let yaml = format!("{PLUGIN_YAML}  scripts:\n    - name: run.sh\n      source: ../loot.sh\n");
-    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml).unwrap().plugin;
+    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml)
+        .unwrap()
+        .plugin;
     let out = tempfile::tempdir().unwrap();
     let mut files = Vec::new();
 
@@ -117,7 +119,9 @@ fn copy_scripts_refuses_a_destination_name_that_is_not_one_segment() {
     let yaml = format!(
         "{PLUGIN_YAML}  scripts:\n    - name: ../../escaped.sh\n      source: scripts/run.sh\n"
     );
-    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml).unwrap().plugin;
+    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml)
+        .unwrap()
+        .plugin;
     let out = tempfile::tempdir().unwrap();
     let mut files = Vec::new();
 

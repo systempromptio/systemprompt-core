@@ -81,9 +81,11 @@ impl<'a> McpTarget<'a> {
     pub fn resolve(server: &McpServerConfig, session: Option<&'a CallerSession>) -> Result<Self> {
         let session = match server_credential(server)? {
             ServerCredential::CallerSession => {
-                Some(session.ok_or_else(|| CredentialRefused::MissingCallerSession {
-                    server: server.server_id(),
-                })?)
+                Some(
+                    session.ok_or_else(|| CredentialRefused::MissingCallerSession {
+                        server: server.server_id(),
+                    })?,
+                )
             },
             ServerCredential::Withheld => None,
         };

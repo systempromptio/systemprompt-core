@@ -27,9 +27,7 @@ use tracing::warn;
 
 pub(crate) use super::purge_plan::USERS_OWNER;
 pub use super::purge_plan::{PurgeCount, PurgeOutcome, SkippedPurge};
-use super::purge_plan::{
-    PurgeStep, RecordedPurge, plan_steps, reassign_sql, sweep_sql, table_sql,
-};
+use super::purge_plan::{PurgeStep, RecordedPurge, plan_steps, reassign_sql, sweep_sql, table_sql};
 use crate::error::{Result, UserError};
 use crate::repository::UserRepository;
 
@@ -259,9 +257,9 @@ impl UserRepository {
                 .await
                 .map_err(|source| UserError::OwnerReassignment {
                     owner: owned.owner.clone(),
-                    table: declared.table.to_owned(),
-                    column: declared.column.to_owned(),
-                    source,
+                    table: declared.table,
+                    column: declared.column,
+                    source: Box::new(source),
                 })?
                 .rows_affected();
             moved.push((declared.table, rows));

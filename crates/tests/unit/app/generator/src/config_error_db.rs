@@ -266,8 +266,8 @@ async fn load_web_config_missing_file_is_io_error() {
         std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
         &boot.app_paths,
     )
-        .await
-        .expect_err("missing web config");
+    .await
+    .expect_err("missing web config");
     assert!(
         matches!(
             err,
@@ -289,8 +289,8 @@ async fn load_web_config_rejects_nonexistent_templates_path() {
         std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
         &boot.app_paths,
     )
-        .await
-        .expect_err("nonexistent templates path must be rejected");
+    .await
+    .expect_err("nonexistent templates path must be rejected");
     assert!(
         matches!(err, PublishError::WebConfig(systemprompt_models::WebConfigError::PathNotFound { ref field, .. }) if field == "paths.templates"),
         "unexpected error: {err:?}"
@@ -310,8 +310,8 @@ async fn get_templates_path_prefers_existing_configured_path() {
         std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
         &boot.app_paths,
     )
-        .await
-        .expect("web config");
+    .await
+    .expect("web config");
     assert_eq!(get_templates_path(&cfg, &boot.app_paths), tmp.path());
 }
 
@@ -324,8 +324,8 @@ async fn get_templates_path_falls_back_to_web_root_when_unconfigured() {
         std::path::Path::new(&ensure_test_bootstrap().boot_config().web_config_path),
         &boot.app_paths,
     )
-        .await
-        .expect("web config");
+    .await
+    .expect("web config");
     assert_eq!(
         get_templates_path(&cfg, &boot.app_paths),
         boot.app_paths.web().root().join("templates")

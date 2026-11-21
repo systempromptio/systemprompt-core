@@ -36,7 +36,8 @@ async fn every_admitted_core_job_resolves_its_context_under_the_seal() {
     let mut unresolved = Vec::new();
     for name in names {
         let job = JobName::new(name);
-        let Ok(report) = tokio::time::timeout(PER_JOB, service.run_job(&job, &HashMap::new())).await
+        let Ok(report) =
+            tokio::time::timeout(PER_JOB, service.run_job(&job, &HashMap::new())).await
         else {
             continue;
         };

@@ -45,12 +45,13 @@ pub fn confine_within(root: &Path, candidate: &Path) -> Result<PathBuf, PathConf
                 root: root.to_path_buf(),
                 source,
             })?;
-    let canonical = candidate
-        .canonicalize()
-        .map_err(|source| PathConfinementError::Unresolved {
-            path: candidate.to_path_buf(),
-            source,
-        })?;
+    let canonical =
+        candidate
+            .canonicalize()
+            .map_err(|source| PathConfinementError::Unresolved {
+                path: candidate.to_path_buf(),
+                source,
+            })?;
     if canonical.starts_with(&canonical_root) {
         Ok(canonical)
     } else {

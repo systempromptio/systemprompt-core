@@ -52,9 +52,7 @@ pub use extension::LoggingExtension;
 
 pub use layer::{DatabaseLayer, LogWriterHandle, LogWriterShutdownError};
 pub use models::{LogActor, LogEntry, LogFilter, LogLevel};
-pub use repository::{
-    AnalyticsEvent, AnalyticsRepository, LoggingRepository,
-};
+pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
 pub use runtime::{LogSink, LoggingRuntime};
 #[cfg(feature = "cli")]
 pub use services::CliService;

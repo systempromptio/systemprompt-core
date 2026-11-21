@@ -15,8 +15,14 @@ const REFUSED: [&str; 9] = [
 #[test]
 fn services_tree_ids_refuse_values_that_are_not_one_path_segment() {
     for value in REFUSED {
-        assert!(SkillId::try_new(value).is_err(), "SkillId accepted {value:?}");
-        assert!(PluginId::try_new(value).is_err(), "PluginId accepted {value:?}");
+        assert!(
+            SkillId::try_new(value).is_err(),
+            "SkillId accepted {value:?}"
+        );
+        assert!(
+            PluginId::try_new(value).is_err(),
+            "PluginId accepted {value:?}"
+        );
         assert!(
             MarketplaceId::try_new(value).is_err(),
             "MarketplaceId accepted {value:?}"

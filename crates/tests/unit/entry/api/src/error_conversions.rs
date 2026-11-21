@@ -158,9 +158,9 @@ fn user_error_maps_every_class() {
     assert_eq!(
         code_of(UserError::OwnerReassignment {
             owner: systemprompt_identifiers::ExtensionId::new("content"),
-            table: "link_clicks".to_owned(),
-            column: "user_id".to_owned(),
-            source: sqlx::Error::RowNotFound,
+            table: "link_clicks",
+            column: "user_id",
+            source: Box::new(sqlx::Error::RowNotFound),
         })
         .code,
         ErrorCode::InternalError

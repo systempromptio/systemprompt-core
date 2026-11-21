@@ -43,8 +43,8 @@
 //! - [`cli`] — [`cli::KernelGrant`]; with the `cli` feature, command
 //!   declarations and the [`cli::CommandHost`] surface.
 //! - [`protection`], [`authz`] — the protection a mounted group carries.
-//! - [`metadata`], [`migration`], [`seed`], [`purge`], [`reassignment`], [`retention`],
-//!   [`projection`] — the data a member declares.
+//! - [`metadata`], [`migration`], [`seed`], [`purge`], [`reassignment`],
+//!   [`retention`], [`projection`] — the data a member declares.
 //! - [`build`] — build-script helper that generates the migration list from
 //!   `schema/migrations/*.sql`, read with [`extension_migrations!`].
 //! - [`brain`], [`notifications`] — the seam traits those capabilities' slots
