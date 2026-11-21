@@ -140,7 +140,7 @@ async fn a_fault_in_one_declared_table_rolls_back_the_whole_merge_and_a_rerun_co
         matches!(
             &error,
             UserError::OwnerReassignment { owner, table, column, .. }
-                if owner.as_str() == "agent" && table == "task_messages" && column == "user_id"
+                if owner.as_str() == "agent" && *table == "task_messages" && *column == "user_id"
         ),
         "{error:?}"
     );

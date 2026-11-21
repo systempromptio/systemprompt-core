@@ -62,7 +62,9 @@ fn api_http_error_into_inner_round_trips() {
 #[test]
 fn marketplace_error_variants_classify() {
     assert_eq!(
-        status_of(MarketplaceError::NotFound("m".to_owned().into()).into()),
+        status_of(
+            MarketplaceError::NotFound(systemprompt_identifiers::MarketplaceId::new("m")).into()
+        ),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
