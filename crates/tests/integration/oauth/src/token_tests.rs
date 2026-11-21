@@ -85,6 +85,7 @@ async fn test_authorization_code_lifecycle() {
         scope: scopes,
         code_challenge: &challenge,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
     };
     repo.store_authorization_code(params)
         .await
@@ -161,6 +162,7 @@ async fn test_authorization_code_pkce() {
         scope: "openid",
         code_challenge: &challenge,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
     };
     repo.store_authorization_code(params)
         .await
@@ -208,6 +210,7 @@ async fn test_authorization_code_pkce_invalid_verifier() {
         scope: "openid",
         code_challenge: &challenge,
         resource: None,
+        authenticated_at: chrono::Utc::now(),
     };
     repo.store_authorization_code(params)
         .await
@@ -258,6 +261,7 @@ async fn test_refresh_token_lifecycle() {
         expires_at,
         resource: None,
         authenticated_at: chrono::Utc::now(),
+        session_started_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()
@@ -309,6 +313,7 @@ async fn test_refresh_token_expiration() {
         expires_at,
         resource: None,
         authenticated_at: chrono::Utc::now(),
+        session_started_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()
@@ -352,6 +357,7 @@ async fn test_refresh_token_revocation() {
         expires_at,
         resource: None,
         authenticated_at: chrono::Utc::now(),
+        session_started_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
             "fam-{}",
             uuid::Uuid::new_v4()

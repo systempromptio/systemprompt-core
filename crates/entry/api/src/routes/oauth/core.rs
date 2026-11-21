@@ -1,5 +1,9 @@
 //! Core OAuth router assembly.
 //!
+//! `/revoke` is its own router because it is the one authenticated OAuth
+//! route mounted behind the context middleware that admits a person's UI
+//! session, so a `person_ui` client can sign its own grant out.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,6 +19,7 @@ pub fn router(jwks: Arc<JwksCache>) -> Router<OAuthState> {
     Router::new()
         .merge(public_router(jwks))
         .merge(authenticated_router())
+        .merge(revocation_router())
 }
 
 pub fn public_router(jwks: Arc<JwksCache>) -> Router<OAuthState> {
@@ -78,9 +83,10 @@ pub fn authenticated_router() -> Router<OAuthState> {
             "/introspect",
             post(endpoints::introspect::handle_introspect),
         )
-        .route("/revoke", post(endpoints::revoke::handle_revoke))
         .route("/logout", post(endpoints::logout::handle_logout))
         .route("/userinfo", get(endpoints::userinfo::handle_userinfo))
-        .route("/consent", get(endpoints::consent::handle_consent_get))
-        .route("/consent", post(endpoints::consent::handle_consent_post))
+}
+
+pub fn revocation_router() -> Router<OAuthState> {
+    Router::new().route("/revoke", post(endpoints::revoke::handle_revoke))
 }

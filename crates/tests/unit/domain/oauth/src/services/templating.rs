@@ -163,3 +163,18 @@ fn test_load_link_passkey_template() {
     assert!(!template.is_empty());
     assert!(template.contains("<!DOCTYPE html>") || template.contains("<html"));
 }
+
+#[test]
+fn passkey_templates_post_binary_fields_as_base64url() {
+    for template in [
+        TemplateService::load_webauthn_oauth_template(),
+        TemplateService::load_link_passkey_template(),
+    ] {
+        assert!(template.contains("function bufferToBase64url("));
+        assert!(template.contains("rawId: bufferToBase64url(credential.rawId)"));
+        assert!(
+            !template.contains("Array.from(new Uint8Array("),
+            "webauthn-rs reads binary credential fields as base64url strings, not byte arrays"
+        );
+    }
+}

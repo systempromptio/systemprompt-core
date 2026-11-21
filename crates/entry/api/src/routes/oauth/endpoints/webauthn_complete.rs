@@ -14,15 +14,16 @@ use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
+
+use super::authorize::issue::{CodeGrant, code_redirect_target, mint_code, response_issuer};
 use serde::{Deserialize, Serialize};
 
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::request_base_url::RequestBaseUrl;
 use systemprompt_identifiers::{ClientId, UserId};
-use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::{MintAuthCodeParams, OAuthRepository};
+use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::is_browser_request;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
 
@@ -114,31 +115,35 @@ pub async fn handle_webauthn_complete(
         .client_id
         .as_ref()
         .ok_or_else(|| OAuthHttpError::invalid_request("client_id is required"))?;
-    let authorization_code = repo
-        .mint_authorization_code(MintAuthCodeParams {
-            client_id,
-            user_id: &params.user_id,
-            redirect_uri: &redirect_uri,
-            scope: params.scope.as_deref(),
-            code_challenge: params.code_challenge.as_deref().unwrap_or_default(),
-            code_challenge_method: params.code_challenge_method.as_deref().unwrap_or_default(),
-            resource: params.resource.as_deref(),
-        })
-        .await?;
+    let grant = CodeGrant {
+        client_id,
+        user_id: &params.user_id,
+        redirect_uri: &redirect_uri,
+        scope: params.scope.as_deref(),
+        code_challenge: params.code_challenge.as_deref().unwrap_or_default(),
+        code_challenge_method: params.code_challenge_method.as_deref().unwrap_or_default(),
+        resource: params.resource.as_deref(),
+        state: params.state.as_deref(),
+        authenticated_at: chrono::Utc::now(),
+    };
+    let code = mint_code(&repo, &grant).await?;
+    let issuer = response_issuer(&base);
 
-    // Why: RFC 9207 requires `iss` to match the issuer advertised by discovery.
-    let issuer = OAuthServerConfig::from_api_server_url(base.as_str()).issuer;
-
-    Ok(create_successful_response(
-        &headers,
-        &CompletedAuthorization {
-            redirect_uri: &redirect_uri,
-            authorization_code: authorization_code.as_str(),
-            client_id,
-            state: params.state.as_deref(),
-        },
-        &issuer,
-    ))
+    if is_browser_request(&headers) {
+        return Ok(Redirect::to(&code_redirect_target(&grant, &code, &issuer)).into_response());
+    }
+    Ok(Json(WebAuthnCompleteResponse {
+        authorization_code: code.to_string(),
+        state: params
+            .state
+            .as_deref()
+            .filter(|state| !state.is_empty())
+            .unwrap_or_default()
+            .to_owned(),
+        redirect_uri: redirect_uri.clone(),
+        client_id: client_id.clone(),
+    })
+    .into_response())
 }
 
 #[derive(Debug, Serialize)]
@@ -147,47 +152,4 @@ pub struct WebAuthnCompleteResponse {
     pub state: String,
     pub redirect_uri: String,
     pub client_id: ClientId,
-}
-
-struct CompletedAuthorization<'a> {
-    redirect_uri: &'a str,
-    authorization_code: &'a str,
-    client_id: &'a ClientId,
-    state: Option<&'a str>,
-}
-
-fn create_successful_response(
-    headers: &HeaderMap,
-    completed: &CompletedAuthorization<'_>,
-    issuer: &str,
-) -> Response {
-    let CompletedAuthorization {
-        redirect_uri,
-        authorization_code,
-        client_id,
-        state,
-    } = *completed;
-    let state = state.filter(|s| !s.is_empty());
-
-    if is_browser_request(headers) {
-        let mut target = format!(
-            "{redirect_uri}?code={authorization_code}&client_id={}",
-            urlencoding::encode(client_id.as_str())
-        );
-
-        if let Some(state_val) = state {
-            target.push_str(&format!("&state={}", urlencoding::encode(state_val)));
-        }
-        target.push_str(&format!("&iss={}", urlencoding::encode(issuer)));
-        Redirect::to(&target).into_response()
-    } else {
-        let response_data = WebAuthnCompleteResponse {
-            authorization_code: authorization_code.to_owned(),
-            state: state.unwrap_or("").to_owned(),
-            redirect_uri: redirect_uri.to_owned(),
-            client_id: client_id.clone(),
-        };
-
-        Json(response_data).into_response()
-    }
 }

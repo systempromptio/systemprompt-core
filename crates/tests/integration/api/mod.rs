@@ -291,12 +291,12 @@ mod routes_slack_more;
 mod routes_teams;
 
 #[cfg(test)]
-#[path = "routes_oauth_consent.rs"]
-mod routes_oauth_consent;
-
-#[cfg(test)]
 #[path = "routes_oauth_authorize.rs"]
 mod routes_oauth_authorize;
+
+#[cfg(test)]
+#[path = "routes_oauth_authorize_session.rs"]
+mod routes_oauth_authorize_session;
 
 #[cfg(test)]
 #[path = "routes_oauth_logout.rs"]
@@ -485,6 +485,9 @@ mod routes_oauth_introspect_revoke;
 mod routes_oauth_person_ui;
 #[cfg(test)]
 mod routes_oauth_revoke_refresh;
+
+#[cfg(test)]
+mod routes_oauth_ui_revoke;
 
 #[cfg(test)]
 #[path = "routes_oauth_userinfo.rs"]

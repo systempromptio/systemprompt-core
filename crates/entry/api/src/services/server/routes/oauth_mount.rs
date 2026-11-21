@@ -2,7 +2,9 @@
 //!
 //! Builds the `OAuthState` (with `WebAuthn` when configured) and nests the
 //! public and authenticated OAuth routers and the SSO router under their
-//! `ApiPaths` bases. While the `identity` config plane is file-managed, the
+//! `ApiPaths` bases. `/revoke` alone is mounted behind the context middleware
+//! that admits a person's UI session; every other authenticated OAuth route
+//! refuses one. While the `identity` config plane is file-managed, the
 //! authenticated client-management writes (`POST`/`PUT`/`DELETE` under
 //! `/clients`) are refused with 409: the declaration under
 //! `services/identity/` is the source of truth.
@@ -104,7 +106,7 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
         .with_auth(*public_middleware, AuthzPolicy::public())
         .merge(
             crate::routes::oauth::authenticated_router()
-                .with_state(oauth_state)
+                .with_state(oauth_state.clone())
                 .layer(axum::middleware::from_fn({
                     let ctx = ctx.clone();
                     move |req: Request, next: Next| {
@@ -113,6 +115,12 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
                 }))
                 .with_rate_limit(limits, rate_config.oauth_auth_per_second, "oauth_auth")?
                 .with_auth(user_middleware.clone(), AuthzPolicy::user()),
+        )
+        .merge(
+            crate::routes::oauth::revocation_router()
+                .with_state(oauth_state)
+                .with_rate_limit(limits, rate_config.oauth_auth_per_second, "oauth_auth")?
+                .with_auth(mount.ui_session_middleware.clone(), AuthzPolicy::user()),
         );
     router = router.nest(ApiPaths::OAUTH_BASE, oauth);
     router = router.nest(crate::routes::sso::SSO_BASE, sso);

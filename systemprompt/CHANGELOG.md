@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.85.0] - 2026-11-21
+
+### Added
+
+- `systemprompt::sso` re-exports `SsoReauth`.
+
 ## [0.82.0] - 2026-11-16
 
 ### Added

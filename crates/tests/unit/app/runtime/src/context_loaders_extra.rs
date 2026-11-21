@@ -62,6 +62,8 @@ fn cfg_without_geoip() -> Config {
         allow_dynamic_client_registration: true,
         api_key_max_lifetime_days: None,
         login_page_url: None,
+        ui_session: Default::default(),
+        authorize: Default::default(),
         system_admin_username: "admin".to_string(),
         system_admin_email: None,
     }

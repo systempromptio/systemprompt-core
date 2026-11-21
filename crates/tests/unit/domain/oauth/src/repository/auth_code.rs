@@ -55,6 +55,7 @@ async fn store_code(ctx: &Ctx, scope: &str, resource: Option<&str>) -> Authoriza
             scope,
             code_challenge: &ctx.pkce.challenge,
             resource,
+            authenticated_at: chrono::Utc::now(),
         })
         .await
         .expect("store");
@@ -250,6 +251,7 @@ async fn store_rejects_an_empty_challenge() {
             scope: "openid",
             code_challenge: "",
             resource: None,
+            authenticated_at: chrono::Utc::now(),
         })
         .await
         .expect_err("a code without a PKCE challenge must not be stored");
@@ -266,6 +268,7 @@ async fn mint_rejects_a_missing_challenge_or_a_non_s256_method() {
         code_challenge: &ctx.pkce.challenge,
         code_challenge_method: "S256",
         resource: None,
+        authenticated_at: chrono::Utc::now(),
     };
 
     ctx.repo
@@ -313,6 +316,7 @@ fn code_refresh_token<'a>(
         expires_at: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
         resource: None,
         authenticated_at: chrono::Utc::now(),
+        session_started_at: chrono::Utc::now(),
         lineage: RefreshTokenLineage::AuthorizationCode(code),
     }
 }

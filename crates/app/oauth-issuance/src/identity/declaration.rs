@@ -8,10 +8,10 @@
 //! the rows it produced compare equal exactly when they mean the same thing.
 //!
 //! `person_ui` marks a client as a person's own UI: its code grant mints a UI
-//! session (see [`systemprompt_models::auth::ui_session`]). Only this file can
-//! set it, and only on a public client limited to the `authorization_code` and
-//! `refresh_token` grants whose redirects are loopback or private-use-scheme
-//! (RFC 8252), never on a platform client.
+//! session (see [`systemprompt_manifest::profile::UiSessionConfig`]). Only this
+//! file can set it, and only on a public client limited to the
+//! `authorization_code` and `refresh_token` grants whose redirects are loopback
+//! or private-use-scheme (RFC 8252), never on a platform client.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

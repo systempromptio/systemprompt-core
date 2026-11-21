@@ -147,8 +147,13 @@ impl SsoProvider for FakeProvider {
         };
         Ok(SsoRedirect {
             url: format!(
-                "https://idp.test/authorize?state={state}&redirect_uri={}",
-                input.callback_url
+                "https://idp.test/authorize?state={state}&redirect_uri={}&force={}&max_age={}",
+                input.callback_url,
+                input.reauth.force,
+                input
+                    .reauth
+                    .max_age
+                    .map_or_else(String::new, |age| age.to_string()),
             ),
             seed: SsoStateSeed {
                 nonce: Some(nonce_for(&state)),
@@ -187,6 +192,10 @@ impl SsoProvider for FakeProvider {
             tenant_id: None,
             assertion_id: ret.param("assertion").map(SsoAssertionId::new),
             assertion_expires_at: None,
+            authenticated_at: ret
+                .param("auth_time")
+                .and_then(|at| at.parse::<i64>().ok())
+                .and_then(|at| chrono::DateTime::from_timestamp(at, 0)),
             raw_claims: serde_json::Value::Null,
         })
     }

@@ -94,7 +94,7 @@ fn build_routes(
 
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
-    let documents_middleware =
+    let ui_session_middleware =
         UserOnlyContextMiddleware::new(jwt_extractor.clone().admitting_ui_sessions());
     let a2a_middleware = A2AContextMiddleware::new(
         jwt_extractor.clone(),
@@ -111,7 +111,7 @@ fn build_routes(
         limits: &limits,
         public_middleware: &public_middleware,
         user_middleware: &user_middleware,
-        documents_middleware: &documents_middleware,
+        ui_session_middleware: &ui_session_middleware,
     };
     if serves(RouteGroup::Oauth) {
         router = oauth_mount::mount_oauth(router, &mount)?;

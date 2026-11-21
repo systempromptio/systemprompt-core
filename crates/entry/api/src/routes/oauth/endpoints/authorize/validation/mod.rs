@@ -241,6 +241,15 @@ fn validate_display_and_prompt(params: &AuthorizeQuery) -> Result<(), AuthorizeP
     }
 
     if let Some(prompt) = &params.prompt {
+        // Why: OIDC Core §3.1.2.1 makes `none` beside any other prompt value
+        // an error.
+        if prompt.split_whitespace().any(|value| value == "none")
+            && prompt.split_whitespace().count() > 1
+        {
+            return Err(AuthorizeParamError::Invalid(
+                "prompt 'none' must not be combined with any other prompt value".to_owned(),
+            ));
+        }
         for prompt_value in prompt.split_whitespace() {
             match prompt_value {
                 "none" | "login" | "consent" | "select_account" | "passkey" => {},

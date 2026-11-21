@@ -1,5 +1,5 @@
 //! Profile `security:` block: signing keys, trusted issuers, resource
-//! audiences.
+//! audiences, UI-session lifetimes, authorization-endpoint policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -35,6 +35,18 @@ pub const DEFAULT_ID_JAG_TTL_SECS: i64 = 300;
 
 const fn default_id_jag_ttl_secs() -> i64 {
     DEFAULT_ID_JAG_TTL_SECS
+}
+
+const fn default_ui_session_access_ttl_secs() -> i64 {
+    300
+}
+
+const fn default_ui_session_absolute_secs() -> i64 {
+    12 * 60 * 60
+}
+
+const fn default_ui_session_step_up_max_age_secs() -> i64 {
+    600
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -75,6 +87,92 @@ pub struct SecurityConfig {
 
     #[serde(default, skip_serializing_if = "ApiKeyPolicyConfig::is_default")]
     pub api_keys: ApiKeyPolicyConfig,
+
+    #[serde(default, skip_serializing_if = "UiSessionConfig::is_default")]
+    pub ui_session: UiSessionConfig,
+
+    #[serde(default, skip_serializing_if = "AuthorizeConfig::is_default")]
+    pub authorize: AuthorizeConfig,
+}
+
+/// Policy of the authorization endpoint for a person already signed in to the
+/// browser (`security.authorize`).
+///
+/// `/authorize` issues a code without any page when the person holds a browser
+/// session and has already allowed the requesting operator-declared client
+/// the requested scopes. A client whose `redirect_uri` is a loopback address
+/// or a private-use scheme cannot prove its identity (RFC 8252 §8.6): any
+/// process on the person's machine can open the same authorization URL and
+/// receive the code. For such a redirect the endpoint therefore always shows
+/// the one-click consent page, whatever consent is remembered.
+/// `silent_native_clients: true` removes that page for native redirects too;
+/// the person then has no chance to notice a local process impersonating the
+/// client, and PKCE alone decides who can redeem the code.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct AuthorizeConfig {
+    #[serde(default)]
+    pub silent_native_clients: bool,
+}
+
+impl AuthorizeConfig {
+    #[must_use]
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// Lifetimes, in seconds, of a person's UI session (`security.ui_session`):
+/// the bearer token a first-party client the operator declared `person_ui`
+/// holds for the person who signed in through it.
+///
+/// Only the authorization-code + PKCE grant for such a client mints one, and
+/// only refreshing that grant's own refresh token renews it. The access token
+/// lives `access_ttl_secs`; its `auth_time` is the sign-in, carried unchanged
+/// through every refresh until `absolute_secs` after the grant's authorization
+/// code was issued, when the session ends whatever the refreshes. A high-impact
+/// document action wants a sign-in no older than `step_up_max_age_secs` (RFC
+/// 9470).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "every field is a duration in seconds; the `_secs` suffix is the profile YAML \
+              vocabulary shared with `id_jag_ttl_secs`"
+)]
+pub struct UiSessionConfig {
+    #[serde(default = "default_ui_session_access_ttl_secs")]
+    pub access_ttl_secs: i64,
+
+    #[serde(default = "default_ui_session_absolute_secs")]
+    pub absolute_secs: i64,
+
+    #[serde(default = "default_ui_session_step_up_max_age_secs")]
+    pub step_up_max_age_secs: i64,
+}
+
+impl Default for UiSessionConfig {
+    fn default() -> Self {
+        Self {
+            access_ttl_secs: default_ui_session_access_ttl_secs(),
+            absolute_secs: default_ui_session_absolute_secs(),
+            step_up_max_age_secs: default_ui_session_step_up_max_age_secs(),
+        }
+    }
+}
+
+impl UiSessionConfig {
+    #[must_use]
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+
+    #[must_use]
+    pub const fn step_up_required(&self, auth_time: i64, now: i64) -> bool {
+        now.saturating_sub(auth_time) > self.step_up_max_age_secs
+    }
 }
 
 /// Issuance policy for personal access tokens (`security.api_keys`).

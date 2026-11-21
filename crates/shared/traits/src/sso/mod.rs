@@ -58,10 +58,24 @@ impl CookieSameSite {
     }
 }
 
+/// What a sign-in asks of the identity provider beyond identifying the person.
+///
+/// `force` demands that the person present a credential again whatever
+/// session the identity provider holds, and `max_age` bounds, in seconds, how
+/// old the authentication it reports may be. A provider whose protocol can
+/// carry them sends them (OIDC `prompt=login` and `max_age`, SAML
+/// `ForceAuthn`); the default asks for neither.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SsoReauth {
+    pub force: bool,
+    pub max_age: Option<i64>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SsoStart<'a> {
     pub return_to: &'a str,
     pub callback_url: &'a str,
+    pub reauth: SsoReauth,
 }
 
 /// What the provider needs remembered between `start` and `finish`. `state`
@@ -106,6 +120,10 @@ pub struct SsoStateContext {
 }
 
 /// A validated identity as the identity provider asserted it.
+///
+/// `authenticated_at` is when the identity provider says the person presented
+/// a credential to it (the OIDC `auth_time` claim, a SAML `AuthnInstant`), and
+/// `None` when it asserts nothing; the sign-in then counts from the return.
 #[derive(Debug, Clone)]
 pub struct ExternalIdentity {
     pub subject: String,
@@ -117,6 +135,7 @@ pub struct ExternalIdentity {
     pub tenant_id: Option<IdpTenantId>,
     pub assertion_id: Option<SsoAssertionId>,
     pub assertion_expires_at: Option<DateTime<Utc>>,
+    pub authenticated_at: Option<DateTime<Utc>>,
     // JSON: the IdP's claim set is provider-defined; kept verbatim for audit.
     pub raw_claims: serde_json::Value,
 }

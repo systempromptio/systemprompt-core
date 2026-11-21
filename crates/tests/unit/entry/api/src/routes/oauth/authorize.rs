@@ -23,6 +23,8 @@ fn create_valid_authorize_query() -> AuthorizeQuery {
         max_age: None,
         ui_locales: None,
         resource: None,
+        login_hint: None,
+        reauth_since: None,
     }
 }
 
@@ -36,8 +38,7 @@ fn create_valid_authorize_request() -> AuthorizeRequest {
         code_challenge: Some("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk".to_string()),
         code_challenge_method: Some("S256".to_string()),
         user_consent: Some("allow".to_string()),
-        username: Some("testuser".to_string()),
-        password: Some("testpass".to_string()),
+        consent_token: Some("consent-token".to_string()),
         resource: None,
     }
 }
@@ -209,8 +210,7 @@ fn test_authorize_request_deserialize_all_fields() {
         "code_challenge": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
         "code_challenge_method": "S256",
         "user_consent": "allow",
-        "username": "testuser",
-        "password": "testpass",
+        "consent_token": "consent-token",
         "resource": "https://api.example.com"
     });
 
@@ -230,8 +230,7 @@ fn test_authorize_request_deserialize_all_fields() {
     );
     assert_eq!(request.code_challenge_method.as_deref(), Some("S256"));
     assert_eq!(request.user_consent.as_deref(), Some("allow"));
-    assert_eq!(request.username.as_deref(), Some("testuser"));
-    assert_eq!(request.password.as_deref(), Some("testpass"));
+    assert_eq!(request.consent_token.as_deref(), Some("consent-token"));
     assert_eq!(request.resource.as_deref(), Some("https://api.example.com"));
 }
 
@@ -252,8 +251,7 @@ fn test_authorize_request_deserialize_required_fields_only() {
     assert!(request.code_challenge.is_none());
     assert!(request.code_challenge_method.is_none());
     assert!(request.user_consent.is_none());
-    assert!(request.username.is_none());
-    assert!(request.password.is_none());
+    assert!(request.consent_token.is_none());
     assert!(request.resource.is_none());
 }
 
@@ -321,8 +319,7 @@ fn test_request_has_form_specific_fields() {
     let request = create_valid_authorize_request();
 
     assert_eq!(request.user_consent.as_deref(), Some("allow"));
-    assert_eq!(request.username.as_deref(), Some("testuser"));
-    assert_eq!(request.password.as_deref(), Some("testpass"));
+    assert_eq!(request.consent_token.as_deref(), Some("consent-token"));
 }
 
 #[test]
@@ -376,4 +373,15 @@ fn test_authorize_request_with_resource_uri() {
         request.resource.as_deref(),
         Some("https://api.example.com/v1")
     );
+}
+
+#[test]
+fn test_authorize_query_reauth_since_is_kept_as_presented() {
+    let json = serde_json::json!({
+        "response_type": "code",
+        "client_id": "sp_test_client",
+        "reauth_since": "1800000000.0123abcd",
+    });
+    let query: AuthorizeQuery = serde_json::from_value(json).expect("deserializes");
+    assert_eq!(query.reauth_since.as_deref(), Some("1800000000.0123abcd"));
 }

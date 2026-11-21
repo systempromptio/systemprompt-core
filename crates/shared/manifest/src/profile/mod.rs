@@ -94,8 +94,9 @@ pub use retention::RetentionConfig;
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::{
-    ApiKeyPolicyConfig, DEFAULT_ID_JAG_TTL_SECS, DEFAULT_SIGNING_KEY_PATH,
-    GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer, default_resource_audiences,
+    ApiKeyPolicyConfig, AuthorizeConfig, DEFAULT_ID_JAG_TTL_SECS, DEFAULT_SIGNING_KEY_PATH,
+    GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer, UiSessionConfig,
+    default_resource_audiences,
 };
 pub use server::{
     ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,

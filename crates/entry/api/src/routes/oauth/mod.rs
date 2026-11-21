@@ -22,7 +22,7 @@ pub mod responses;
 pub mod webauthn;
 pub mod wellknown;
 
-pub use core::{authenticated_router, public_router, router};
+pub use core::{authenticated_router, public_router, revocation_router, router};
 pub use error::{OAuthErrorCode, OAuthHttpError};
 pub use health::*;
 pub use wellknown::wellknown_routes;

@@ -289,19 +289,3 @@ mod jwt_claims_wire {
         }
     }
 }
-
-#[test]
-fn step_up_is_required_once_the_sign_in_is_older_than_the_window() {
-    use systemprompt_models::auth::ui_session::{
-        UI_SESSION_STEP_UP_MAX_AGE_SECS, step_up_required,
-    };
-    let now = 1_900_000_000;
-    assert!(!step_up_required(
-        now - UI_SESSION_STEP_UP_MAX_AGE_SECS,
-        now
-    ));
-    assert!(step_up_required(
-        now - UI_SESSION_STEP_UP_MAX_AGE_SECS - 1,
-        now
-    ));
-}

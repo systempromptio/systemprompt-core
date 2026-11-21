@@ -5,7 +5,8 @@ use axum::body::to_bytes;
 use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_api::routes::oauth::OAuthHttpError;
-use systemprompt_api::routes::oauth::discovery::WellKnownResponse;
+use systemprompt_api::routes::oauth::discovery::{UiSessionDiscovery, WellKnownResponse};
+use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 
 #[test]
@@ -27,6 +28,7 @@ fn test_well_known_response_serialization() {
         subject_types_supported: vec!["public".to_string()],
         id_token_signing_alg_values_supported: vec!["HS256".to_string()],
         claims_supported: vec!["sub".to_string(), "email".to_string()],
+        prompt_values_supported: vec!["none".to_string(), "login".to_string()],
         authorization_response_iss_parameter_supported: true,
         subject_token_types_supported: vec![
             "urn:ietf:params:oauth:token-type:access_token".to_string(),
@@ -35,6 +37,8 @@ fn test_well_known_response_serialization() {
         authorization_grant_profiles_supported: vec![
             "urn:ietf:params:oauth:grant-profile:id-jag".to_owned(),
         ],
+        ui_session_supported: true,
+        ui_session: UiSessionDiscovery::from_config(&UiSessionConfig::default()),
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -65,12 +69,15 @@ fn test_well_known_response_optional_registration_endpoint() {
         subject_types_supported: vec![],
         id_token_signing_alg_values_supported: vec![],
         claims_supported: vec![],
+        prompt_values_supported: vec!["none".to_string(), "login".to_string()],
         authorization_response_iss_parameter_supported: true,
         subject_token_types_supported: vec![],
         issued_token_types_supported: vec![],
         authorization_grant_profiles_supported: vec![
             "urn:ietf:params:oauth:grant-profile:id-jag".to_owned(),
         ],
+        ui_session_supported: true,
+        ui_session: UiSessionDiscovery::from_config(&UiSessionConfig::default()),
     };
 
     let json = serde_json::to_value(&response).unwrap();

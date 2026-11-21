@@ -6,6 +6,7 @@
 
 mod at_rest;
 mod auth_code;
+mod consent;
 mod id_jag_replay;
 mod jti_revocation;
 mod last_used;
@@ -17,6 +18,7 @@ mod sso_state;
 pub use auth_code::{
     AuthCodeParams, AuthCodeRedemption, AuthCodeValidationResult, MintAuthCodeParams,
 };
+pub use consent::{CONSENT_TOKEN_TTL_SECS, ConsentBinding, REAUTH_MARKER_TTL_SECS, ReauthBinding};
 pub use jti_revocation::JtiRevocationCache;
 pub use refresh_token::{RefreshTokenLineage, RefreshTokenParams};
 pub use sso_replay::PostgresReplayGuard;

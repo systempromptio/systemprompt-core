@@ -100,6 +100,11 @@ fn token_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/oauth_jti_revocations.sql"),
         )
         .with_required_columns(vec!["jti".into(), "user_id".into(), "exp".into()]),
+        SchemaDefinition::new(
+            "oauth_consents",
+            include_str!("../schema/oauth_consents.sql"),
+        )
+        .with_required_columns(vec!["user_id".into(), "client_id".into(), "scopes".into()]),
         SchemaDefinition::sql_only(include_str!(
             "../schema/oauth_jti_revocations_cache_notify.sql"
         )),

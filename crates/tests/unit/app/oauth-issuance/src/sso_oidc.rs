@@ -16,7 +16,7 @@ use systemprompt_oauth_issuance::sso::oidc::{
 use systemprompt_security::keys::JwksClient;
 use systemprompt_test_fixtures::test_key;
 use systemprompt_traits::sso::{
-    SsoError, SsoProvider, SsoReturn, SsoReturnBinding, SsoStart, SsoStateContext,
+    SsoError, SsoProvider, SsoReauth, SsoReturn, SsoReturnBinding, SsoStart, SsoStateContext,
 };
 use systemprompt_traits::{
     ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretStore, SecretStoreError, SecretsStatus,
@@ -483,6 +483,7 @@ async fn provider_runs_code_flow_with_pkce_against_keycloak() {
         .start(SsoStart {
             return_to: "/admin",
             callback_url: callback,
+            reauth: SsoReauth::default(),
         })
         .await
         .unwrap();

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.85.0] - 2026-11-21
+
+### Added
+
+- `build_from_profile` carries `security.ui_session` onto `Config::ui_session`.
+- `build_from_profile` carries `security.authorize` onto `Config::authorize`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

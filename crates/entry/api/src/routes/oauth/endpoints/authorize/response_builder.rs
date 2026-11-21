@@ -1,4 +1,5 @@
-//! Authorization-response construction (code, state, iss).
+//! The `WebAuthn` sign-in page of `/authorize` and the reading of its posted
+//! form back into an authorization request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,26 +11,28 @@ use systemprompt_manifest::Config;
 use systemprompt_oauth::services::templating::TemplateService;
 use url::Url;
 
+fn stated(field: Option<&String>) -> Option<String> {
+    field.filter(|value| !value.is_empty()).cloned()
+}
+
 pub fn convert_form_to_query(form: &AuthorizeRequest) -> AuthorizeQuery {
     AuthorizeQuery {
         response_type: form.response_type.clone(),
         client_id: form.client_id.clone(),
-        redirect_uri: form.redirect_uri.clone(),
-        scope: form.scope.clone(),
+        redirect_uri: stated(form.redirect_uri.as_ref()),
+        scope: stated(form.scope.as_ref()),
         state: form.state.clone(),
-        code_challenge: form.code_challenge.clone(),
-        code_challenge_method: form.code_challenge_method.clone(),
+        code_challenge: stated(form.code_challenge.as_ref()),
+        code_challenge_method: stated(form.code_challenge_method.as_ref()),
         response_mode: None,
         display: None,
         prompt: None,
         max_age: None,
         ui_locales: None,
-        resource: form.resource.clone(),
+        resource: stated(form.resource.as_ref()),
+        login_hint: None,
+        reauth_since: None,
     }
-}
-
-pub fn is_user_consent_granted(form: &AuthorizeRequest) -> bool {
-    form.user_consent.as_deref() == Some("allow")
 }
 
 pub fn generate_webauthn_form(
@@ -81,7 +84,7 @@ fn is_http_url(value: &str) -> bool {
     Url::parse(value).is_ok_and(|u| matches!(u.scheme(), "http" | "https"))
 }
 
-fn redirect_display_host(redirect_uri: &str) -> String {
+pub(super) fn redirect_display_host(redirect_uri: &str) -> String {
     match Url::parse(redirect_uri) {
         Ok(url) if url.has_host() => {
             let host = url.host_str().unwrap_or_default();

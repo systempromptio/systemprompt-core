@@ -19,6 +19,7 @@ use super::discovery_documents::DocumentsDiscovery;
 use super::health::handle_health;
 use super::health_detail::handle_health_detail;
 use super::probes::{handle_livez, handle_readyz, readiness_layer};
+use crate::routes::oauth::discovery::UiSessionDiscovery;
 
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -42,7 +43,9 @@ pub async fn handle_root_discovery(
                     "introspect": format!("{}{}/introspect", base, ApiPaths::OAUTH_BASE),
                     "revoke": format!("{}{}/revoke", base, ApiPaths::OAUTH_BASE),
                     "webauthn": format!("{}{}/webauthn", base, ApiPaths::OAUTH_BASE)
-                }
+                },
+                "ui_session_supported": true,
+                "ui_session": UiSessionDiscovery::from_config(&ctx.config().ui_session)
             },
             "core": {
                 "href": format!("{}{}", base, ApiPaths::CORE_BASE),

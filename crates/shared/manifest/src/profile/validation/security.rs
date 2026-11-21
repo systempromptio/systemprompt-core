@@ -5,8 +5,49 @@
 
 use super::super::Profile;
 use super::super::governance::{AuditConfig, AuthzMode, QuotaConfig, UNRESTRICTED_ACKNOWLEDGEMENT};
-use super::super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;
+use super::super::security::{GATEWAY_REQUIRED_RESOURCE_AUDIENCES, UiSessionConfig};
 use systemprompt_models::auth::JwtAudience;
+
+const UI_SESSION_ACCESS_TTL_SECS: std::ops::RangeInclusive<i64> = 60..=3600;
+const UI_SESSION_ABSOLUTE_SECS: std::ops::RangeInclusive<i64> = 300..=2_592_000;
+const UI_SESSION_STEP_UP_MIN_AGE_SECS: i64 = 60;
+
+fn validate_ui_session(ui_session: &UiSessionConfig, errors: &mut Vec<String>) {
+    let UiSessionConfig {
+        access_ttl_secs,
+        absolute_secs,
+        step_up_max_age_secs,
+    } = *ui_session;
+
+    if !UI_SESSION_ACCESS_TTL_SECS.contains(&access_ttl_secs) {
+        errors.push(format!(
+            "security.ui_session.access_ttl_secs must be between {} and {} (got {access_ttl_secs})",
+            UI_SESSION_ACCESS_TTL_SECS.start(),
+            UI_SESSION_ACCESS_TTL_SECS.end()
+        ));
+    }
+    if !UI_SESSION_ABSOLUTE_SECS.contains(&absolute_secs) {
+        errors.push(format!(
+            "security.ui_session.absolute_secs must be between {} and {} (got {absolute_secs})",
+            UI_SESSION_ABSOLUTE_SECS.start(),
+            UI_SESSION_ABSOLUTE_SECS.end()
+        ));
+    }
+    if access_ttl_secs > absolute_secs {
+        errors.push(format!(
+            "security.ui_session.access_ttl_secs ({access_ttl_secs}) must not exceed \
+             security.ui_session.absolute_secs ({absolute_secs}) — an access token never outlives \
+             the session"
+        ));
+    }
+    if !(UI_SESSION_STEP_UP_MIN_AGE_SECS..=absolute_secs).contains(&step_up_max_age_secs) {
+        errors.push(format!(
+            "security.ui_session.step_up_max_age_secs must be between \
+             {UI_SESSION_STEP_UP_MIN_AGE_SECS} and security.ui_session.absolute_secs \
+             ({absolute_secs}) (got {step_up_max_age_secs})"
+        ));
+    }
+}
 
 impl Profile {
     pub(crate) fn validate_security_settings(&self, errors: &mut Vec<String>) {
@@ -25,6 +66,8 @@ impl Profile {
                     .to_owned(),
             );
         }
+
+        validate_ui_session(&self.security.ui_session, errors);
 
         if !self
             .security

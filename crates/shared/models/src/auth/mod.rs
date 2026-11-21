@@ -19,7 +19,6 @@ pub mod permission;
 pub mod roles;
 pub mod token_authority;
 pub mod types;
-pub mod ui_session;
 
 pub use actor::{RequestActor, UNNAMED_AGENT, agent_name, bearer_actor};
 pub use claims::{
