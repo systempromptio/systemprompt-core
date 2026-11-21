@@ -168,10 +168,31 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 | `allow_registration` | `allow_registration` | bool | no | `false` | Whether self-service passkey (user) registration is open. |
 | `allow_dynamic_client_registration` | `allow_dynamic_client_registration` | bool | no | `false` | Whether RFC 7591 dynamic client registration is open. Remote MCP clients that register themselves depend on it; set `true` explicitly when they connect, leave it `false` when clients are pre-provisioned. |
 | `api_keys.max_lifetime_days` | `api_keys.max_lifetime_days` | integer | no | unset | Maximum lifetime of a personal access token, in days (must be greater than 0). Applies to every issuance path (admin API, CLI, bridge sign-in, agent runs): a key issued without an expiry gets the maximum, and a longer expiry is rejected. Unset means no ceiling. |
+| `ui_session` | `ui_session` | object | no | see below | Lifetimes of a person's UI session. See [`security.ui_session`](#securityui_session). |
 | `signing_key_path` | `signing_key_path` | path | no | `signing_key.pem` | Path to the RS256 signing key (PEM). |
 | `trusted_issuers` | `trusted_issuers` | list of object | no | `[]` | Federated issuers accepted in addition to `jwt_issuer`. |
 
 Audience validation requires a nonempty policy. The first-party session policy accepts the standard first-party audience set; use resource-specific policies where narrower audience isolation is required.
+
+### `security.ui_session`
+
+Lifetimes, in seconds, of the UI session a `person_ui` client holds for the person who signed in through it (see [documents.md § First-party desktop UI](../documents.md#first-party-desktop-ui)). The block and each key are optional; an unknown key is a load error. The session's end is counted from the sign-in and does not move on refresh.
+
+| Key | Type | Default | Bounds | Meaning |
+|-----|------|---------|--------|---------|
+| `access_ttl_secs` | i64 (seconds) | `300` | `60`–`3600`, and no greater than `absolute_secs` | Lifetime of the UI session's access token. A token minted near the session's end lives only until that end. |
+| `absolute_secs` | i64 (seconds) | `43200` (12 hours) | `300`–`2592000` (30 days) | Lifetime of the session, counted from the sign-in. A refresh token never outlives it, and after it the person signs in again. |
+| `step_up_max_age_secs` | i64 (seconds) | `600` | `60`–`absolute_secs` | Greatest age of the sign-in at which sharing, transfer, delete and agent-cap writes are accepted. Past it those routes answer `401` `insufficient_user_authentication` with this value as `max_age` (RFC 9470). |
+
+A value outside its bounds fails profile validation. The values in force are advertised as `ui_session` (`access_token_lifetime`, `session_lifetime`, `step_up_max_age`) in the OAuth discovery documents and in `endpoints.oauth` of `GET /api/v1`.
+
+```yaml
+security:
+  ui_session:
+    access_ttl_secs: 300
+    absolute_secs: 86400
+    step_up_max_age_secs: 900
+```
 
 ### `security.trusted_issuers[]`
 

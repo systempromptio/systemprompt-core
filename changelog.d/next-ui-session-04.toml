@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "API"
+text = "`routes::oauth::discovery::UiSessionDiscovery::current()` is replaced by `UiSessionDiscovery::from_config(&UiSessionConfig)`. Migrate by passing `&ctx.config().ui_session`."

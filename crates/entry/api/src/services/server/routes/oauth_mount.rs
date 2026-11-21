@@ -6,7 +6,10 @@
 //! `RefuseFileManagedClientWrites` protection layer: while the `identity`
 //! config plane is file-managed, client-management writes (`POST`/`PUT`/
 //! `DELETE` under `/clients`) are refused with 409, because the declaration
-//! under `services/identity/` is the source of truth.
+//! under `services/identity/` is the source of truth. `/revoke` is its own
+//! router, protected with the `UserUi` context so a `person_ui` client can
+//! sign its own grant out; it is the one OAuth route that admits a person's UI
+//! session, and every other authenticated OAuth route refuses one.
 //!
 //! The MCP server registry that maps an authorization `resource` to its MCP
 //! scopes is read from the extension state, where the `mcp` extension
@@ -105,13 +108,23 @@ pub(super) fn mount_oauth(
         ApiPaths::OAUTH_BASE,
     )?;
     let authenticated = mount.protect(
-        crate::routes::oauth::authenticated_router().with_state(oauth_state),
+        crate::routes::oauth::authenticated_router().with_state(oauth_state.clone()),
         &RouteProtection::new(AuthzPolicy::user(), ContextKind::User)
             .with_layer(ProtectionLayer::RefuseFileManagedClientWrites)
             .with_rate_limit(RateLimit::new("oauth_auth", RateBudget::OauthAuth)),
         ApiPaths::OAUTH_BASE,
     )?;
-    router = place(router, ApiPaths::OAUTH_BASE, public.merge(authenticated));
+    let revocation = mount.protect(
+        crate::routes::oauth::revocation_router().with_state(oauth_state),
+        &RouteProtection::new(AuthzPolicy::user(), ContextKind::UserUi)
+            .with_rate_limit(RateLimit::new("oauth_auth", RateBudget::OauthAuth)),
+        ApiPaths::OAUTH_BASE,
+    )?;
+    router = place(
+        router,
+        ApiPaths::OAUTH_BASE,
+        public.merge(authenticated).merge(revocation),
+    );
     router = place(router, crate::routes::sso::SSO_BASE, sso);
     Ok(router)
 }

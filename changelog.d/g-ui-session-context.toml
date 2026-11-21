@@ -1,7 +1,7 @@
 [root]
 section = "Added"
 area = "Extension contract"
-text = "`ContextKind::UserUi` mounts a route behind the user context that also admits a person's UI session (the `ui` audience). It is conferred, never plain: an install route set declaring it is refused with `CompositionError::NotConferred` naming `Allowance::UiSession`. The documents, document-folders and uploads routes are the only ones mounted with it."
+text = "`ContextKind::UserUi` mounts a route behind the user context that also admits a person's UI session (the `ui` audience). It is conferred, never plain: an install route set declaring it is refused with `CompositionError::NotConferred` naming `Allowance::UiSession`. The documents, document-folders and uploads routes and OAuth `/revoke` are the only ones mounted with it."
 
 [[crate]]
 name = "systemprompt-extension"

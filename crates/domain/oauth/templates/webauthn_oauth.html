@@ -436,6 +436,15 @@
             return bytes.buffer;
         }
 
+        function bufferToBase64url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
         function preparePublicKeyCredentialCreationOptions(options) {
             return {
                 ...options,
@@ -530,10 +539,10 @@
                     email: email,
                     credential: {
                         id: credential.id,
-                        rawId: Array.from(new Uint8Array(credential.rawId)),
+                        rawId: bufferToBase64url(credential.rawId),
                         response: {
-                            attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
-                            clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON))
+                            attestationObject: bufferToBase64url(credential.response.attestationObject),
+                            clientDataJSON: bufferToBase64url(credential.response.clientDataJSON)
                         },
                         type: credential.type
                     }
@@ -598,12 +607,12 @@
                     challenge_id: startResponse.data.challenge_id,
                     credential: {
                         id: credential.id,
-                        rawId: Array.from(new Uint8Array(credential.rawId)),
+                        rawId: bufferToBase64url(credential.rawId),
                         response: {
-                            authenticatorData: Array.from(new Uint8Array(credential.response.authenticatorData)),
-                            clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
-                            signature: Array.from(new Uint8Array(credential.response.signature)),
-                            userHandle: credential.response.userHandle ? Array.from(new Uint8Array(credential.response.userHandle)) : null
+                            authenticatorData: bufferToBase64url(credential.response.authenticatorData),
+                            clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                            signature: bufferToBase64url(credential.response.signature),
+                            userHandle: credential.response.userHandle ? bufferToBase64url(credential.response.userHandle) : null
                         },
                         type: credential.type
                     }

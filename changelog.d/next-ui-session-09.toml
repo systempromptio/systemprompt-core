@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "API"
+text = "`routes::oauth::authenticated_router()` no longer carries `/revoke`; it is `routes::oauth::revocation_router()` (also `routes::oauth_revocation_router`). Migrate a hand-assembled router with `.merge(revocation_router())`; `routes::oauth::router()` already includes it."

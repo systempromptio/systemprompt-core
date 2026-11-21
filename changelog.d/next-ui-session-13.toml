@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "OAuth"
+text = "the sign-in time and the session start are separate. An authorization code records when the person presented a credential (`oauth_auth_codes.authenticated_at`) apart from when it was issued, and a refresh-token family records when its session began (`oauth_refresh_tokens.session_started_at`) apart from the sign-in. A UI session's absolute cap (`security.ui_session.absolute_secs`) counts from the code's issue; its `auth_time`, which the document step-up reads, is the sign-in. The passkey ceremony states the sign-in as the moment it completes, so nothing changes for a code minted there. Migration oauth `026` adds both columns and backfills each from the time its row carried."

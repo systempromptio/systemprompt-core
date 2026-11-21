@@ -5,13 +5,18 @@
 use axum::Router;
 use axum::routing::get;
 use systemprompt_api::routes::oauth;
+use systemprompt_manifest::profile::UiSessionConfig;
 use tower::ServiceExt;
 
-use super::common::{body_to_string, empty_get, setup_ctx};
+use super::common::{body_to_string, empty_get, setup_ctx, setup_ctx_customised};
 
 async fn discovery_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
-    Ok(Router::new()
+    Ok(discovery_router_over(&ctx))
+}
+
+fn discovery_router_over(ctx: &systemprompt_runtime::AppContext) -> Router {
+    Router::new()
         .route(
             "/.well-known/openid-configuration",
             get(oauth::discovery::handle_well_known),
@@ -25,7 +30,7 @@ async fn discovery_app() -> anyhow::Result<Router> {
             get(oauth::discovery::handle_oauth_protected_resource_with_path),
         )
         .with_state((*ctx).clone())
-        .layer(axum::Extension(ctx.config_arc().clone())))
+        .layer(axum::Extension(ctx.config_arc().clone()))
 }
 
 #[tokio::test]
@@ -168,6 +173,57 @@ async fn well_known_advertises_registration_while_dcr_is_open() -> anyhow::Resul
             .as_str()
             .is_some_and(|e| e.ends_with("/api/v1/core/oauth/register")),
         "{json}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn well_known_advertises_the_ui_session_capability() -> anyhow::Result<()> {
+    let app = discovery_app().await?;
+    let resp = app
+        .oneshot(empty_get("/.well-known/openid-configuration"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(json["ui_session_supported"], true, "{body}");
+    assert_eq!(
+        json["ui_session"],
+        serde_json::json!({
+            "access_token_lifetime": 300,
+            "session_lifetime": 43_200,
+            "step_up_max_age": 600,
+        }),
+        "{body}"
+    );
+    assert!(!body.contains("client_id"), "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn well_known_advertises_the_configured_ui_session_lifetimes() -> anyhow::Result<()> {
+    let (_pool, ctx) = setup_ctx_customised(|config| {
+        config.ui_session = UiSessionConfig {
+            access_ttl_secs: 120,
+            absolute_secs: 3600,
+            step_up_max_age_secs: 180,
+        };
+    })
+    .await?;
+    let resp = discovery_router_over(&ctx)
+        .oneshot(empty_get("/.well-known/openid-configuration"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(
+        json["ui_session"],
+        serde_json::json!({
+            "access_token_lifetime": 120,
+            "session_lifetime": 3600,
+            "step_up_max_age": 180,
+        }),
+        "{body}"
     );
     Ok(())
 }

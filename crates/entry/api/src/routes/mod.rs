@@ -33,6 +33,7 @@ pub mod wellknown;
 pub use agent::{artifacts_router, contexts_router, registry_router, tasks_router, webhook_router};
 pub use oauth::{
     authenticated_router as oauth_authenticated_router, public_router as oauth_public_router,
+    revocation_router as oauth_revocation_router,
 };
 pub use stream::stream_router;
 pub use sync::router as sync_router;

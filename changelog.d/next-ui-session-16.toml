@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "OAuth"
+text = "revoking a `ui`-audience access token answered `200` and left the token live, for any caller: it was verified against the configured audiences only, which never hold `ui`. It is now verified with the `ui` audience admitted and its `jti` and session are revoked."

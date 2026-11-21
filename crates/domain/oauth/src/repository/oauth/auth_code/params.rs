@@ -1,6 +1,11 @@
 //! Parameter and result types for authorization-code persistence. Every code
 //! is bound to an S256 PKCE challenge; there is no code without one.
 //!
+//! A code carries two times. `authenticated_at` is when the person presented a
+//! credential, stated by whoever mints the code and never later than the mint;
+//! the code's own issue time is when the session it opens begins. Redemption
+//! hands both back as `authenticated_at` and `issued_at`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -16,6 +21,7 @@ pub struct AuthCodeParams<'a> {
     pub scope: &'a str,
     pub code_challenge: &'a str,
     pub resource: Option<&'a str>,
+    pub authenticated_at: DateTime<Utc>,
 }
 
 /// Inputs to [`super::OAuthRepository::mint_authorization_code`].
@@ -33,6 +39,7 @@ pub struct MintAuthCodeParams<'a> {
     pub code_challenge: &'a str,
     pub code_challenge_method: &'a str,
     pub resource: Option<&'a str>,
+    pub authenticated_at: DateTime<Utc>,
 }
 
 #[derive(Debug)]
@@ -41,6 +48,7 @@ pub struct AuthCodeValidationResult {
     pub scope: String,
     pub resource: Option<String>,
     pub issued_at: DateTime<Utc>,
+    pub authenticated_at: DateTime<Utc>,
 }
 
 /// One attempt to redeem an authorization code, naming the refresh token the

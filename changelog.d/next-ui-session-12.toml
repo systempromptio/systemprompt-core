@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "OAuth"
+text = "`POST /oauth/revoke` admits a person's UI session as the caller, so a `person_ui` client signs its own session out with its own credential. A UI caller reaches only its own grant: the token must belong to the same user and the same `client_id`, and an admin role widens nothing. Revoking its refresh token also ends the bearer it presented (RFC 7009 §2.1). Every other authenticated OAuth route still refuses the `ui` audience."

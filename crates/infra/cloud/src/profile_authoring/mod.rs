@@ -74,6 +74,7 @@ fn security_config(trusted_issuers: Vec<TrustedIssuer>, open_enrolment: bool) ->
         trusted_issuers,
         id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         api_keys: systemprompt_manifest::profile::ApiKeyPolicyConfig::default(),
+        ui_session: systemprompt_manifest::profile::UiSessionConfig::default(),
     }
 }
 

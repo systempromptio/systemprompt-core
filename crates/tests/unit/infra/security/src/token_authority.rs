@@ -272,6 +272,7 @@ fn ui_request() -> UserJwtRequest {
     req.purpose = None;
     req.client_id = Some(systemprompt_identifiers::ClientId::new("desk_ui"));
     req.ui_session = true;
+    req.auth_time = Some(Utc::now().timestamp());
     req
 }
 
@@ -292,6 +293,36 @@ fn a_ui_session_mints_with_its_sign_in_time_and_only_the_ui_audience() {
             .verify_bearer(&token, JwtAudience::FIRST_PARTY)
             .is_err()
     );
+}
+
+#[test]
+fn a_person_token_is_never_minted_without_its_sign_in_time() {
+    let authority = authority();
+    let mut ui = ui_request();
+    ui.auth_time = None;
+    let mut browser = request(JwtAudience::standard(), vec![Permission::User]);
+    browser.purpose = None;
+    browser.browser_session = true;
+    for req in [&ui, &browser] {
+        assert!(matches!(
+            authority.mint_user_jwt(req),
+            Err(TokenError::SignInTimeMissing)
+        ));
+    }
+
+    let signed_in = Utc::now().timestamp() - 864_000;
+    browser.auth_time = Some(signed_in);
+    let token = authority.mint_user_jwt(&browser).expect("mint");
+    let claims = authority.verify_session_cookie(&token).expect("verify");
+    assert!(claims.custom.browser_session);
+    assert_eq!(claims.custom.auth_time, signed_in);
+
+    let service = request(vec![JwtAudience::Mcp], vec![Permission::User]);
+    let token = authority.mint_user_jwt(&service).expect("mint");
+    let claims = authority
+        .verify_bearer(&token, &[JwtAudience::Mcp])
+        .expect("verify");
+    assert_eq!(claims.custom.auth_time, claims.registered.iat);
 }
 
 #[test]

@@ -106,6 +106,10 @@ pub struct SsoStateContext {
 }
 
 /// A validated identity as the identity provider asserted it.
+///
+/// `authenticated_at` is when the identity provider says the person presented
+/// a credential to it (the OIDC `auth_time` claim, a SAML `AuthnInstant`), and
+/// `None` when it asserts nothing; the sign-in then counts from the return.
 #[derive(Debug, Clone)]
 pub struct ExternalIdentity {
     pub subject: String,
@@ -117,6 +121,7 @@ pub struct ExternalIdentity {
     pub tenant_id: Option<IdpTenantId>,
     pub assertion_id: Option<SsoAssertionId>,
     pub assertion_expires_at: Option<DateTime<Utc>>,
+    pub authenticated_at: Option<DateTime<Utc>>,
     // JSON: the IdP's claim set is provider-defined; kept verbatim for audit.
     pub raw_claims: serde_json::Value,
 }

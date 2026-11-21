@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Traits"
+text = "`sso::ExternalIdentity` gains `authenticated_at: Option<DateTime<Utc>>`. Migrate an `SsoProvider` by setting it to the time the identity provider asserts the person authenticated (OIDC `auth_time`, SAML `AuthnInstant`), or `None` when it asserts none."

@@ -5,11 +5,17 @@
 //! session, signs the access token and stores the rotated refresh token,
 //! carrying the refresh-token family forward when one is given.
 //!
+//! Every token minted here carries the grant's sign-in time as `auth_time`:
+//! the code grant takes it from the code, a refresh from the token it rotates,
+//! so a refresh never passes for a new sign-in.
+//!
 //! A grant for a client the operator declared `person_ui` mints the person's
-//! UI session instead (see [`systemprompt_models::auth::ui_session`]): exactly
-//! the `ui` audience, the `ui_session` claim, a short access lifetime, the
-//! sign-in time as `auth_time`, and a refresh token that never outlives the
-//! absolute cap counted from that sign-in.
+//! UI session instead: exactly the `ui` audience, the `ui_session` claim, and
+//! the lifetimes of the profile's [`UiSessionConfig`] — a short access token
+//! and a refresh token that never outlives the absolute cap counted from the
+//! session start, when the grant's authorization code was issued.
+//!
+//! [`UiSessionConfig`]: systemprompt_manifest::profile::UiSessionConfig
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +27,6 @@ use systemprompt_identifiers::{
     AccessTokenId, ClientId, RefreshTokenId, SessionId, SessionSource, UserId,
 };
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::ui_session::{UI_SESSION_ABSOLUTE_SECS, UI_SESSION_ACCESS_TTL_SECS};
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, parse_permissions, permissions_to_string,
 };
@@ -65,6 +70,7 @@ pub struct UserTokenParams<'a> {
     pub resource: Option<&'a str>,
     pub refresh_token: &'a MintedRefreshToken,
     pub lineage: RefreshTokenLineage<'a>,
+    pub session_started_at: DateTime<Utc>,
     pub authenticated_at: DateTime<Utc>,
     pub ui_session: bool,
     pub config: &'a Arc<Config>,
@@ -167,28 +173,30 @@ impl GrantShape {
     fn resolve(params: &UserTokenParams<'_>, now: DateTime<Utc>) -> Result<Self, UserTokenError> {
         let config = params.config.as_ref();
         let refresh_expires_at = now.timestamp() + config.jwt_refresh_token_expiration;
+        let auth_time = Some(params.authenticated_at.timestamp());
         if !params.ui_session {
             return Ok(Self {
                 audience: config.jwt_audiences.clone(),
                 access_ttl: Duration::seconds(config.jwt_access_token_expiration),
                 refresh_expires_at,
-                auth_time: None,
+                auth_time,
                 browser_session: *params.client_id == ClientId::web(),
             });
         }
         if params.resource.is_some() {
             return Err(UserTokenError::UiSessionResource);
         }
-        let session_ends = params.authenticated_at.timestamp() + UI_SESSION_ABSOLUTE_SECS;
+        let ui_session = config.ui_session;
+        let session_ends = params.session_started_at.timestamp() + ui_session.absolute_secs;
         let remaining = session_ends - now.timestamp();
         if remaining <= 0 {
             return Err(UserTokenError::UiSessionExpired);
         }
         Ok(Self {
             audience: vec![JwtAudience::Ui],
-            access_ttl: Duration::seconds(UI_SESSION_ACCESS_TTL_SECS.min(remaining)),
+            access_ttl: Duration::seconds(ui_session.access_ttl_secs.min(remaining)),
             refresh_expires_at: refresh_expires_at.min(session_ends),
-            auth_time: Some(params.authenticated_at.timestamp()),
+            auth_time,
             browser_session: false,
         })
     }
@@ -249,6 +257,7 @@ async fn create_jwt_and_refresh_token(
         expires_at: shape.refresh_expires_at,
         resource: params.resource,
         authenticated_at: params.authenticated_at,
+        session_started_at: params.session_started_at,
         lineage: params.lineage,
     })
     .await?;

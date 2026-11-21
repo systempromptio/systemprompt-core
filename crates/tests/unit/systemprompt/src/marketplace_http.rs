@@ -134,6 +134,7 @@ fn the_offline_commands_need_no_database_and_skills_does() {
         "b",
     ]);
     assert!(!import.profile() && !import.database());
+    assert!(describe(&["core", "marketplace", "explain"]).database());
     for args in [
         ["core", "skills", "list"].as_slice(),
         &["core", "skills", "show", "s"],

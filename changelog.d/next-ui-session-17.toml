@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "OAuth"
+text = "the passkey pages (`webauthn_oauth.html` on `/authorize`, `link_passkey.html` on `/auth/link-passkey`) post the credential's binary fields (`rawId`, `attestationObject`, `clientDataJSON`, `authenticatorData`, `signature`, `userHandle`) as unpadded base64url strings. Since 0.81.0 (`webauthn-rs` 0.6.2) the finish endpoints read only that form, and the pages still sent byte arrays, so registering, signing in with and linking a passkey from a browser all failed with `400 credential.rawId: invalid type: sequence, expected a base64 encoded string`."

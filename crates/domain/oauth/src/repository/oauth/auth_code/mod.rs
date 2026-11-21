@@ -58,6 +58,7 @@ impl OAuthRepository {
             scope: &scope,
             code_challenge: params.code_challenge,
             resource: params.resource,
+            authenticated_at: params.authenticated_at,
         })
         .await?;
         Ok(code)
@@ -71,6 +72,7 @@ impl OAuthRepository {
         let code_challenge_method = PkceMethod::S256.as_str();
         let expires_at = Utc::now() + chrono::Duration::seconds(600);
         let now = Utc::now();
+        let authenticated_at = params.authenticated_at.min(now);
         let code_hash = self.hash_at_rest(params.code.as_str())?;
         let client_id = params.client_id.as_str();
         let user_id = params.user_id.as_str();
@@ -78,8 +80,8 @@ impl OAuthRepository {
         sqlx::query!(
             "INSERT INTO oauth_auth_codes
              (code, client_id, user_id, redirect_uri, scope, expires_at, code_challenge,
-             code_challenge_method, resource, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+             code_challenge_method, resource, created_at, authenticated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
             code_hash,
             client_id,
             user_id,
@@ -89,7 +91,8 @@ impl OAuthRepository {
             params.code_challenge,
             code_challenge_method,
             params.resource,
-            now
+            now,
+            authenticated_at
         )
         .execute(self.write_pool_ref())
         .await?;
@@ -132,7 +135,7 @@ impl OAuthRepository {
              SET used_at = $1, refresh_token_id = $3
              WHERE code = $2 AND used_at IS NULL
              RETURNING client_id, user_id, scope, expires_at, redirect_uri, code_challenge,
-                       code_challenge_method, resource, created_at",
+                       code_challenge_method, resource, created_at, authenticated_at",
             now,
             code_hash,
             refresh_token_id_hash
@@ -190,6 +193,7 @@ impl OAuthRepository {
             scope: row.scope,
             resource: row.resource,
             issued_at: row.created_at,
+            authenticated_at: row.authenticated_at,
         })
     }
 
