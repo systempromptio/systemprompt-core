@@ -1,10 +1,12 @@
 //! Tests for `core marketplace explain`.
 //!
-//! `explain` dry-runs the bridge manifest assembly against the profile's
-//! services tree and reports, per catalogue entry, whether it was delivered
-//! and which stage dropped it. It touches no database — only the profile, the
-//! services config and the tempdir the bootstrap fixture populates — so the
-//! whole arm is reachable by seeding files.
+//! `explain` dry-runs the bridge manifest assembly against the services tree
+//! and reports, per catalogue entry, whether it was delivered and which stage
+//! dropped it. It runs on the detached command kernel through the
+//! services-tree grant, touching no database — only the services tree, the
+//! loaded services config and the tempdir the bootstrap fixture populates — so
+//! the whole arm is reachable by seeding files. Without the grant it is
+//! refused.
 //!
 //! These assert on the returned `CommandOutput` rather than on `execute`,
 //! which only renders to stdout. An earlier draft drove `execute` and checked
@@ -16,7 +18,8 @@
 use std::path::PathBuf;
 
 use serde_json::Value;
-use systemprompt_cli::core::marketplace::{ExplainArgs, explain};
+use systemprompt_extension::cli::CommandDescriptor;
+use systemprompt_marketplace_entry::cli::marketplace::{ExplainArgs, explain};
 
 const PLUGIN_YAML: &str = r#"plugin:
   id: explainplugin
@@ -66,7 +69,8 @@ fn args(skill: Option<&str>, plugin: Option<&str>) -> ExplainArgs {
 }
 
 async fn rows(args: &ExplainArgs) -> Vec<Value> {
-    let output = explain(args, &crate::boot_ctx::bootstrap_ctx())
+    let ctx = crate::common::services_tree_ctx();
+    let output = explain(args, &crate::common::granted(&ctx))
         .await
         .expect("explain");
     let artifact = serde_json::to_value(output.artifact()).expect("serialise artifact");
@@ -185,5 +189,23 @@ async fn an_unknown_id_selects_nothing_rather_than_erroring() {
             .await
             .is_empty(),
         "an unknown id is an empty report, not a failure"
+    );
+}
+
+#[tokio::test]
+async fn explain_without_the_services_tree_grant_is_refused() {
+    seed_catalogue();
+    let ctx = crate::common::services_tree_ctx();
+    let host = systemprompt_cli::kernel::MemberHost::new(
+        &ctx,
+        CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+    );
+
+    let error = explain(&args(None, None), &host)
+        .await
+        .expect_err("a host without the grant serves no services tree");
+    assert!(
+        format!("{error:#}").contains("services-tree"),
+        "the refusal names the grant: {error:#}"
     );
 }

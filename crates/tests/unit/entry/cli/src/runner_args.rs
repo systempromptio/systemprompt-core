@@ -137,14 +137,14 @@ fn global_flags_after_the_subcommand_stay_where_they_were() {
 #[test]
 fn the_profile_flag_is_dropped_in_both_spellings_wherever_it_appears() {
     for args in [
-        vec!["--profile", "prod", "core", "skills", "list"],
-        vec!["--profile=prod", "core", "skills", "list"],
-        vec!["core", "skills", "list", "--profile", "prod"],
-        vec!["core", "skills", "--profile=prod", "list"],
+        vec!["--profile", "prod", "core", "hooks", "list"],
+        vec!["--profile=prod", "core", "hooks", "list"],
+        vec!["core", "hooks", "list", "--profile", "prod"],
+        vec!["core", "hooks", "--profile=prod", "list"],
     ] {
         assert_eq!(
             forwarded(&args),
-            vec!["core", "skills", "list"],
+            vec!["core", "hooks", "list"],
             "{args:?}: the local profile name means nothing on the tenant"
         );
     }
@@ -209,8 +209,8 @@ fn tokens_after_a_terminator_are_never_edited() {
 #[test]
 fn positional_arguments_survive_in_order() {
     assert_eq!(
-        forwarded(&["core", "skills", "list"]),
-        vec!["core", "skills", "list"]
+        forwarded(&["core", "hooks", "list"]),
+        vec!["core", "hooks", "list"]
     );
 }
 
@@ -221,7 +221,7 @@ fn positional_arguments_survive_in_order() {
 #[test]
 fn the_export_flag_is_only_local_for_a_command_declaring_local_export() {
     let exporter = local_export_descriptor();
-    let other = descriptor_of(&cli(&["core", "skills", "list"]));
+    let other = descriptor_of(&cli(&["core", "hooks", "list"]));
     let args = owned(&["systemprompt", "fprobe", "report", "--export"]);
 
     assert!(exporter.local_export());

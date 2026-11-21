@@ -183,10 +183,6 @@ async fn core_commands_render_through_the_terminal_renderer() {
     let ctx = table_ctx();
 
     for args in [
-        vec!["skills", "list"],
-        vec!["skills", "show", "covtableskill"],
-        vec!["plugins", "list"],
-        vec!["plugins", "validate"],
         vec!["hooks", "list"],
         vec!["hooks", "validate"],
     ] {

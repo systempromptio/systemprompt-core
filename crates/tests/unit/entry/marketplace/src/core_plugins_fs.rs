@@ -5,13 +5,13 @@
 use std::fs;
 use std::path::Path;
 
-use systemprompt_cli::core::plugins::generate::agents::generate_agents;
-use systemprompt_cli::core::plugins::generate::mcp::generate_mcp_json;
-use systemprompt_cli::core::plugins::generate::skills::generate_skills;
-use systemprompt_cli::core::plugins::generate::{
+use systemprompt_marketplace_entry::cli::plugins::generate::agents::generate_agents;
+use systemprompt_marketplace_entry::cli::plugins::generate::mcp::generate_mcp_json;
+use systemprompt_marketplace_entry::cli::plugins::generate::skills::generate_skills;
+use systemprompt_marketplace_entry::cli::plugins::generate::{
     PluginGenerateContext, generate_plugin, marketplace,
 };
-use systemprompt_cli::core::plugins::{generate, validate};
+use systemprompt_marketplace_entry::cli::plugins::{self, validate};
 use systemprompt_identifiers::PluginId;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::{PluginConfig, PluginConfigFile};
@@ -50,8 +50,7 @@ fn write_plugin_dir(root: &Path, id: &str, yaml: &str) {
 #[test]
 fn collect_plugin_ids_handles_missing_and_mixed_dirs() {
     let missing = Path::new("/nonexistent/plugins-dir");
-    assert!(validate::collect_plugin_ids(missing).unwrap().is_empty());
-    assert!(generate::collect_plugin_ids(missing).unwrap().is_empty());
+    assert!(plugins::collect_plugin_ids(missing).unwrap().is_empty());
 
     let tmp = tempfile::tempdir().unwrap();
     write_plugin_dir(tmp.path(), "zeta", PLUGIN_YAML);
@@ -59,9 +58,8 @@ fn collect_plugin_ids_handles_missing_and_mixed_dirs() {
     fs::create_dir_all(tmp.path().join("no-config")).unwrap();
     fs::write(tmp.path().join("stray.txt"), "x").unwrap();
 
-    let ids = validate::collect_plugin_ids(tmp.path()).unwrap();
+    let ids = plugins::collect_plugin_ids(tmp.path()).unwrap();
     assert_eq!(ids, vec![PluginId::new("alpha"), PluginId::new("zeta")]);
-    assert_eq!(generate::collect_plugin_ids(tmp.path()).unwrap(), ids);
 }
 
 #[test]
@@ -494,7 +492,7 @@ fn generate_plugin_errors_on_missing_config() {
 
 #[test]
 fn extract_install_command_parses_github_repo_paths() {
-    use systemprompt_cli::core::plugins::generate::extract_install_command;
+    use systemprompt_marketplace_entry::cli::plugins::generate::extract_install_command;
 
     assert_eq!(extract_install_command(None), None);
     assert_eq!(

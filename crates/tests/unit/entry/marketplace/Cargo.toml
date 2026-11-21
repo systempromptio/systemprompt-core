@@ -4,13 +4,19 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Route tests for the systemprompt-marketplace-entry crate"
+description = "Route and command tests for the systemprompt-marketplace-entry crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
+systemprompt-cli = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli"] }
+systemprompt-identifiers = { workspace = true }
+systemprompt-loader = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 systemprompt-marketplace-entry = { workspace = true, features = ["cli", "http"] }
 systemprompt-runtime = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
@@ -21,8 +27,12 @@ systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
+clap = { workspace = true }
 http = { workspace = true }
 http-body-util = "0.1"
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
 uuid = { workspace = true }

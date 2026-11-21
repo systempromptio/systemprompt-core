@@ -1,12 +1,18 @@
+//! DB-backed tests for `core skills` over a managed skill of the
+//! organization's inventory: the command resolves the owner-bound
+//! `Arc<OrganizationSkillResolver>` the `managed_resources` member provides,
+//! so a published managed skill replaces the same-keyed disk skill and a
+//! withheld one suppresses it.
+
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::BTreeMap;
 
 use clap::Parser;
-use systemprompt_cli::core::skills::list::show_resolved_skill;
-use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_cli::CommandContext;
+use systemprompt_extension::cli::CommandDescriptor;
+use systemprompt_marketplace_entry::cli::skills::list::show_resolved_skill;
+use systemprompt_marketplace_entry::cli::skills::{self, SkillsCommands};
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ComparisonEvidence, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
@@ -19,7 +25,7 @@ use uuid::Uuid;
 #[derive(Debug, Parser)]
 struct Harness {
     #[command(subcommand)]
-    command: CoreCommands,
+    command: SkillsCommands,
 }
 
 struct ManagedSkillFixture {
@@ -29,8 +35,8 @@ struct ManagedSkillFixture {
     revision: systemprompt_identifiers::ResourceRevisionId,
 }
 
-fn command(args: &[&str]) -> CoreCommands {
-    Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
+fn command(args: &[&str]) -> SkillsCommands {
+    Harness::try_parse_from(std::iter::once("skills").chain(args.iter().copied()))
         .unwrap()
         .command
 }
@@ -138,13 +144,7 @@ async fn fixture() -> ManagedSkillFixture {
         .await
         .unwrap();
     ManagedSkillFixture {
-        ctx: crate::boot_ctx::with_app_boot(
-            CliConfig::new()
-                .with_interactive(false)
-                .with_output_format(OutputFormat::Json),
-            EnvOverrides::default(),
-            app,
-        ),
+        ctx: crate::common::app_ctx(app),
         key,
         resource,
         revision,
@@ -200,15 +200,15 @@ async fn published_managed_skill_detail_replaces_same_named_filesystem_content()
     let fixture = fixture().await;
     publish(&fixture).await;
 
-    core::execute(
-        command(&["skills", "show", fixture.key.as_str()]),
-        &fixture.ctx,
+    skills::execute(
+        command(&["show", fixture.key.as_str()]),
+        &host(&fixture),
     )
     .await
     .unwrap();
     let output = show_resolved_skill(
         &systemprompt_identifiers::SkillId::new(fixture.key.as_str()),
-        &fixture.ctx,
+        &host(&fixture),
     )
     .await
     .unwrap();
@@ -226,9 +226,9 @@ async fn published_managed_skill_detail_replaces_same_named_filesystem_content()
 async fn never_adopted_managed_skill_suppresses_same_named_disk_skill() {
     let fixture = fixture().await;
 
-    let error = core::execute(
-        command(&["skills", "show", fixture.key.as_str()]),
-        &fixture.ctx,
+    let error = skills::execute(
+        command(&["show", fixture.key.as_str()]),
+        &host(&fixture),
     )
     .await
     .unwrap_err();
@@ -244,9 +244,9 @@ async fn withdrawn_managed_skill_hides_disk_fallback_and_named_lookup_errors() {
     publish(&fixture).await;
     withdraw(&fixture).await;
 
-    let error = core::execute(
-        command(&["skills", "show", fixture.key.as_str()]),
-        &fixture.ctx,
+    let error = skills::execute(
+        command(&["show", fixture.key.as_str()]),
+        &host(&fixture),
     )
     .await
     .unwrap_err();
@@ -256,7 +256,11 @@ async fn withdrawn_managed_skill_hides_disk_fallback_and_named_lookup_errors() {
     assert!(!message.contains("filesystem instructions"), "{message}");
 }
 
-const LIST_HELPER: &str = "commands::core_managed_skills_db::managed_list_output_helper";
+const LIST_HELPER: &str = "core_managed_skills_db::managed_list_output_helper";
+
+fn host(fixture: &ManagedSkillFixture) -> systemprompt_cli::kernel::MemberHost<'_> {
+    crate::common::granted_with(&fixture.ctx, CommandDescriptor::FULL)
+}
 
 #[tokio::test]
 #[ignore = "re-executed by managed_list_output_reflects_publication_lifecycle"]
@@ -266,18 +270,18 @@ async fn managed_list_output_helper() {
 
     println!("FIXTURE_KEY={}", fixture.key);
     println!("BEGIN_PUBLISHED_LIST");
-    crate::boot_ctx::rendered(
-        &fixture.ctx,
-        core::execute(command(&["skills", "list"]), &fixture.ctx).await,
+    crate::common::rendered(
+        &host(&fixture),
+        skills::execute(command(&["list"]), &host(&fixture)).await,
     )
     .expect("published managed skill list");
     println!("END_PUBLISHED_LIST");
 
     withdraw(&fixture).await;
     println!("BEGIN_WITHDRAWN_LIST");
-    crate::boot_ctx::rendered(
-        &fixture.ctx,
-        core::execute(command(&["skills", "list"]), &fixture.ctx).await,
+    crate::common::rendered(
+        &host(&fixture),
+        skills::execute(command(&["list"]), &host(&fixture)).await,
     )
     .expect("withdrawn managed skill list");
     println!("END_WITHDRAWN_LIST");
