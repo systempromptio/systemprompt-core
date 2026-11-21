@@ -19,7 +19,7 @@ fn isolated_home() -> tempfile::TempDir {
 }
 
 fn session_probe_args() -> [&'static str; 4] {
-    ["plugins", "mcp", "call", "no_such_server_for_session"]
+    ["core", "contexts", "show", "no_such_context_for_session"]
 }
 
 fn find_session_store(home: &Path) -> Option<PathBuf> {
