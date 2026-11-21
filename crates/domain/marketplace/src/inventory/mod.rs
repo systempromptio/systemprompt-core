@@ -27,4 +27,5 @@ pub use installation_coverage::InstallationCoverage;
 mod job;
 pub use job::InventoryRefreshJob;
 mod refresh;
+pub(crate) use refresh::MemberRefresher;
 pub use refresh::{InventoryRefresher, InventoryRefresherParts};

@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::Path;
 
-use systemprompt_cli::core::plugins::list::scan_plugins;
+use systemprompt_marketplace_entry::cli::plugins::list::scan_plugins;
 
 const PLUGIN_YAML: &str = r#"
 plugin:

@@ -31,6 +31,7 @@ macro_rules! probe_group {
 probe_group!(AnalyticsGroup, "analytics");
 probe_group!(CloudGroup, "cloud");
 probe_group!(ProbeGroup, "probe-tools");
+probe_group!(SkillsGroup, "skills");
 
 #[derive(Debug, Clone, clap::Subcommand)]
 pub(crate) enum DirectProbeGroup {

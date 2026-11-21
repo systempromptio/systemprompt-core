@@ -3,12 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
 use systemprompt_identifiers::PluginId;
@@ -19,8 +18,8 @@ pub struct ShowArgs {
     pub id: PluginId,
 }
 
-pub(super) fn execute(args: &ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let plugins_path = host.services_root()?.path.join("plugins");
+pub(super) fn execute(args: &ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let plugins_path = host.services_tree()?.plugins();
     execute_with_path(args, &plugins_path)
 }
 
@@ -36,7 +35,7 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
         return Err(anyhow!("Plugin '{}' has no config.yaml file", args.id));
     }
 
-    let plugin_file = parse_plugin_config(&config_path)?;
+    let plugin_file = super::read_plugin_config(&config_path)?;
     let plugin = &plugin_file.plugin;
 
     let output = PluginDetailOutput {
@@ -68,12 +67,4 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
         format!("Plugin: {}", args.id),
         &output,
     ))
-}
-
-fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_manifest::PluginConfigFile> {
-    let content = std::fs::read_to_string(config_path)
-        .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let plugin_file: systemprompt_manifest::PluginConfigFile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse {}", config_path.display()))?;
-    Ok(plugin_file)
 }

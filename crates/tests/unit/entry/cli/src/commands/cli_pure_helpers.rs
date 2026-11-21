@@ -8,7 +8,6 @@
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::admin::setup::SetupArgs;
-use systemprompt_cli::core::skills::types::parse_skill_from_config;
 
 #[derive(Debug, Parser)]
 struct SetupHarness {
@@ -36,63 +35,6 @@ fn explicit_database_identifiers_win_over_the_environment_default() {
 
     assert_eq!(args.effective_db_user("staging"), "custom_user");
     assert_eq!(args.effective_db_name("staging"), "custom_db");
-}
-
-#[test]
-fn a_skill_is_parsed_from_its_config_and_content_file() {
-    let dir = tempfile::tempdir().unwrap();
-    let skill = dir.path().join("covskill");
-    std::fs::create_dir_all(&skill).unwrap();
-    std::fs::write(
-        skill.join("config.yaml"),
-        "id: covskill\nname: Coverage Skill\ndescription: Parsed from disk\nenabled: \
-         true\ntags:\n  - alpha\n  - beta\ncategory: tools\n",
-    )
-    .unwrap();
-    std::fs::write(
-        skill.join("index.md"),
-        "---\ntitle: ignored frontmatter\n---\n\nThe real instructions.\n",
-    )
-    .unwrap();
-
-    let parsed = parse_skill_from_config(&skill.join("config.yaml"), &skill).unwrap();
-
-    assert_eq!(parsed.name, "Coverage Skill");
-    assert_eq!(parsed.description, "Parsed from disk");
-    assert!(parsed.enabled);
-    assert_eq!(parsed.tags, vec!["alpha".to_owned(), "beta".to_owned()]);
-    assert_eq!(parsed.category.as_deref(), Some("tools"));
-    assert!(parsed.instructions.contains("The real instructions."));
-    assert!(!parsed.instructions.contains("ignored frontmatter"));
-}
-
-#[test]
-fn a_skill_without_a_content_file_parses_with_empty_instructions() {
-    let dir = tempfile::tempdir().unwrap();
-    let skill = dir.path().join("bare");
-    std::fs::create_dir_all(&skill).unwrap();
-    std::fs::write(
-        skill.join("config.yaml"),
-        "id: bare\nname: Bare Skill\ndescription: No content file\n",
-    )
-    .unwrap();
-
-    let parsed = parse_skill_from_config(&skill.join("config.yaml"), &skill).unwrap();
-    assert_eq!(parsed.name, "Bare Skill");
-    assert!(parsed.instructions.is_empty());
-}
-
-#[test]
-fn an_unreadable_or_invalid_skill_config_names_the_file() {
-    let dir = tempfile::tempdir().unwrap();
-    let missing = dir.path().join("absent/config.yaml");
-    let err = parse_skill_from_config(&missing, dir.path()).unwrap_err();
-    assert!(format!("{err:#}").contains("config.yaml"));
-
-    let broken = dir.path().join("config.yaml");
-    std::fs::write(&broken, "name: [unterminated\n").unwrap();
-    let err = parse_skill_from_config(&broken, dir.path()).unwrap_err();
-    assert!(format!("{err:#}").contains("config.yaml"));
 }
 
 #[test]

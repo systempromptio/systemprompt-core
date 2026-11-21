@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "`core marketplace`, `core plugins` and `core skills` are contributed by the `marketplace-http` composition member (`systemprompt-marketplace-entry`, feature `cli`) under the `services-tree` grant; a profile that disables `marketplace-http` refuses the three groups at dispatch. `core plugins` and `core marketplace explain` read the loaded services configuration instead of reloading it from the profile and need no database. `core skills` boots the application context (it is a full, remote-eligible command) and reads managed skills through the organization skill resolver the `managed_resources` member provides; with no reachable database it lists disk skills only. A failing `core plugins validate` returns its report with the error, rendered once."
+
+[[crate]]
+name = "systemprompt-marketplace-entry"
+section = "Added"
+text = "The `core marketplace`, `core plugins` and `core skills` commands under `cli` (`systemprompt_marketplace_entry::cli`: `MarketplaceCommands`, `PluginsCommands`, `SkillsCommands`), contributed by `MarketplaceHttpExtension` with `KernelGrant::ServicesTree`. `plugins::collect_plugin_ids` and `plugins::read_plugin_config` are the one plugin-directory scan and config reader."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`systemprompt_cli::core::{marketplace, plugins, skills}` and `CoreCommands::{Marketplace, Plugins, Skills}` are removed; the commands are `systemprompt_marketplace_entry::cli`. `plugins::generate::collect_plugin_ids` and `plugins::validate::collect_plugin_ids` are one `plugins::collect_plugin_ids`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Added"
+text = "`OrganizationSkillResolver::{owned_skills, resolve_owned}` and `OwnedSkill`: the owner's managed skills, read without handing out the owner id. `managed_resources` also provides the resolver as `Arc<OrganizationSkillResolver>`."

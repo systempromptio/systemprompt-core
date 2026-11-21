@@ -64,7 +64,7 @@ pub(crate) use tree::capture_inventory_files;
 
 
 mod organization_resolver;
-pub use organization_resolver::OrganizationSkillResolver;
+pub use organization_resolver::{OrganizationSkillResolver, OwnedSkill};
 
 pub use source_sync::{
     CapturedGitSource, GitCaptureRequest, GitSourceCapture, GitSynchronizationService,

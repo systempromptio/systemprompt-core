@@ -4,8 +4,9 @@
 //! subject-dimension check and slots, the analytics-http and content-http
 //! members as the reference composition admits them, the brain and
 //! notifications capability slots and routes, the files and marketplace
-//! slots, the MCP, MCP-host and agent-runs slots and routes, and the
-//! reserved paths every install def is compared with.
+//! slots, the marketplace-http commands, the MCP, MCP-host and agent-runs
+//! slots and routes, and the reserved paths every install def is compared
+//! with.
 
 #[cfg(test)]
 mod admitted_views;
@@ -61,6 +62,8 @@ mod install_reserved;
 mod install_services;
 #[cfg(test)]
 mod kernel_reserved;
+#[cfg(test)]
+mod marketplace_http;
 #[cfg(test)]
 mod mcp_http;
 #[cfg(test)]

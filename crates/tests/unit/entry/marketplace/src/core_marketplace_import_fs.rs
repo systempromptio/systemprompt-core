@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_cli::core::marketplace::import::{ImportArgs, execute};
+use systemprompt_marketplace_entry::cli::marketplace::import::{ImportArgs, execute};
 
 fn fixture_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

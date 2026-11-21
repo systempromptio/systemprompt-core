@@ -40,8 +40,9 @@ Configuration comes from the active profile unless `--profile` or `--database-ur
 | `core content` | — | Content management and analytics. |
 | `core files` | `list`, `show`, `search`, `stats`, `upload`, `delete`, `validate`, `config`, `ai` | File management and uploads, contributed by the `files-http` member (`crates/entry/files/src/cli/`). `list`, `show`, `search` and `stats` also run with `--database-url` alone. |
 | `core contexts` | `list`, `show`, `create`, `rename`, `delete`, `use`, `create-and-use` | Context management. |
-| `core skills` | `list`, `show` | Skill management and database sync. |
-| `core plugins` | — | Plugin management and marketplace generation. |
+| `core skills` | `list`, `show` | Disk skills of the services tree and the organization's managed skills, contributed by the `marketplace-http` member (`crates/entry/marketplace/src/cli/`). A published managed skill replaces the same-keyed disk skill and a withheld one hides it; with no reachable database only disk skills are listed. |
+| `core plugins` | `list`, `show`, `validate`, `generate` | Plugin management and marketplace generation over the services tree, contributed by the `marketplace-http` member. Needs no database. A failing `validate` returns its report with the error. |
+| `core marketplace` | `explain`, `import` | Manifest-assembly diagnostics and Anthropic-format import, contributed by the `marketplace-http` member. Needs no database. |
 | `core hooks` | — | Hook validation and inspection. |
 
 ```bash

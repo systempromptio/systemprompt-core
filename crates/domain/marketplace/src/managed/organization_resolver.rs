@@ -1,5 +1,10 @@
 //! Explicit organization authority with consumer-scoped grants.
 //!
+//! [`OrganizationSkillResolver`] is bound to one owner: a consumer's skill
+//! resolves through the owner's grants, and [`OrganizationSkillResolver::owned_skills`]
+//! and [`OrganizationSkillResolver::resolve_owned`] read the owner's own
+//! managed skills without handing the owner id to the caller.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,6 +17,13 @@ use super::{
     ManagedRepository, ManagedResolution, ManagedResourceResolver, ManagedSkillResolution,
     ResourceKind, Result,
 };
+
+/// One managed skill key of the owner's inventory and how it resolves.
+#[derive(Debug)]
+pub struct OwnedSkill {
+    pub key: String,
+    pub resolution: ManagedSkillResolution,
+}
 
 #[derive(Debug, Clone)]
 pub struct OrganizationSkillResolver {
@@ -51,6 +63,34 @@ impl OrganizationSkillResolver {
             )));
         }
         Ok(resolved)
+    }
+
+    pub async fn resolve_owned(&self, key: &str) -> Result<ManagedSkillResolution> {
+        self.resolver.resolve_skill(&self.owner, key).await
+    }
+
+    pub async fn owned_skills(&self) -> Result<Vec<OwnedSkill>> {
+        let repository = self.resolver.repository();
+        let mut owned = Vec::new();
+        let mut offset = 0;
+        loop {
+            let page = repository.list_resources(&self.owner, offset).await?;
+            for resource in page
+                .items
+                .into_iter()
+                .filter(|resource| resource.kind == ResourceKind::Skill)
+            {
+                let resolution = self.resolve_owned(&resource.resource_key).await?;
+                owned.push(OwnedSkill {
+                    key: resource.resource_key,
+                    resolution,
+                });
+            }
+            if !page.has_more {
+                return Ok(owned);
+            }
+            offset += ManagedRepository::PAGE_SIZE;
+        }
     }
 
     async fn granted(&self, consumer: &UserId, key: &str) -> Result<bool> {

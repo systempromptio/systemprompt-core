@@ -10,7 +10,6 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::AgentsCommands;
-use systemprompt_cli::core::CoreCommands;
 use systemprompt_cli::web::WebCommands;
 use systemprompt_cli::{CommandContext, EnvOverrides, ScriptedPrompter};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
@@ -47,12 +46,6 @@ struct WebHarness {
 }
 
 #[derive(Debug, Parser)]
-struct CoreHarness {
-    #[command(subcommand)]
-    cmd: CoreCommands,
-}
-
-#[derive(Debug, Parser)]
 struct AgentsHarness {
     #[command(subcommand)]
     cmd: AgentsCommands,
@@ -60,12 +53,6 @@ struct AgentsHarness {
 
 fn web(args: &[&str]) -> WebCommands {
     WebHarness::try_parse_from(std::iter::once("web").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
-}
-
-fn core(args: &[&str]) -> CoreCommands {
-    CoreHarness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
         .unwrap()
         .cmd
 }
@@ -111,56 +98,6 @@ async fn an_unparseable_content_config_is_reported_by_every_web_reader() {
             "{argv:?}: {rendered}"
         );
     }
-}
-
-#[tokio::test]
-async fn a_plugin_missing_its_referenced_skill_is_reported_as_invalid() {
-    let root = services_root();
-    let plugin = root.join("plugins/covinvalid");
-    std::fs::create_dir_all(&plugin).unwrap();
-    std::fs::write(
-        plugin.join("config.yaml"),
-        "plugin:\n  id: covinvalid\n  name: Coverage Invalid\n  description: References a \
-         missing skill\n  version: 1.0.0\n  author:\n    name: Tester\n    email: \
-         tester@example.com\n  keywords: [demo]\n  license: MIT\n  category: tools\n  skills:\n    \
-         source: explicit\n    include: [cov_absent_skill]\n  agents:\n    source: explicit\n    \
-         include: []\n",
-    )
-    .unwrap();
-
-    let err = systemprompt_cli::core::execute(core(&["plugins", "validate"]), &ctx())
-        .await
-        .unwrap_err();
-    assert!(
-        format!("{err:#}").contains("Plugin validation failed"),
-        "{err:#}"
-    );
-
-    // `validate` takes the id positionally, and an unknown one is a hard error.
-    let err = systemprompt_cli::core::execute(
-        core(&["plugins", "validate", "cov_absent_plugin"]),
-        &ctx(),
-    )
-    .await
-    .unwrap_err();
-    assert!(format!("{err:#}").contains("cov_absent_plugin"));
-}
-
-#[tokio::test]
-async fn an_unparseable_plugin_config_is_reported_by_the_generator() {
-    let root = services_root();
-    let plugin = root.join("plugins/covunparseable");
-    std::fs::create_dir_all(&plugin).unwrap();
-    std::fs::write(plugin.join("config.yaml"), "plugin: [not a mapping\n").unwrap();
-
-    let err = systemprompt_cli::core::execute(
-        core(&["plugins", "generate", "--id", "covunparseable"]),
-        &ctx(),
-    )
-    .await
-    .unwrap_err();
-
-    assert!(format!("{err:#}").contains("covunparseable"), "{err:#}");
 }
 
 #[tokio::test]

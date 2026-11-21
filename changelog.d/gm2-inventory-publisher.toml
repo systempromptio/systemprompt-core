@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "The configured-inventory refresh is reachable outside the marketplace member only as `DynInventoryPublisher` (`publish_latest` with the caller as the actor). `Arc<InventoryRefresher>` is no longer a provided value; the member's own `managed_inventory_refresh` job resolves it under a type private to `systemprompt-marketplace`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`InventoryPublisher`, `DynInventoryPublisher` and `InventoryPublishError`: configured-inventory publication without naming the marketplace domain."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`managed_resources` provides `DynInventoryPublisher` in place of `Arc<InventoryRefresher>`; `InventoryRefresher` implements `InventoryPublisher` and is still built with `InventoryRefresher::new`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "`POST /api/v1/admin/services/refresh` publishes the inventory through the provided `DynInventoryPublisher` and no longer names `systemprompt_marketplace`."

@@ -41,7 +41,6 @@ async fn profile_only_groups_are_refused_under_a_database_scope() {
     let ctx = ctx(&pool);
 
     for args in [
-        vec!["skills", "list"],
         vec!["hooks", "list"],
         vec!["contexts", "list"],
     ] {

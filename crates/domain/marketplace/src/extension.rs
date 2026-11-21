@@ -13,13 +13,16 @@
 //!   plugin bundles;
 //! - the per-process `Arc<Mutex<PublishGuard>>` that serializes inventory
 //!   publication passes;
-//! - after governance, the `Arc<InventoryRefresher>` the
-//!   `managed_inventory_refresh` job (contributed here) and the admin services
-//!   refresh run, built from the sealed bundle sources, services root and
-//!   system admin;
-//! - after governance, the organization skill resolver
-//!   (`DynManagedSkillResolver`), which resolves managed skills against the
-//!   system admin's managed inventory.
+//! - after governance, the inventory refresher, built from the sealed bundle
+//!   sources, services root and system admin. It is provided as the
+//!   crate-private `MemberRefresher` the `managed_inventory_refresh` job
+//!   (contributed here) resolves, and as the open `DynInventoryPublisher`
+//!   the admin services refresh runs: publish the latest configured skills
+//!   with the caller as the actor, and nothing else;
+//! - after governance, the organization skill resolver, bound to the system
+//!   admin's managed inventory: as `Arc<OrganizationSkillResolver>` (the
+//!   `core skills` commands list and resolve the owner's skills through it
+//!   without learning the owner) and as `DynManagedSkillResolver`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,13 +35,13 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
-use systemprompt_traits::DynManagedSkillResolver;
+use systemprompt_traits::{DynInventoryPublisher, DynManagedSkillResolver};
 use tokio::sync::Mutex;
 
 use crate::catalog::MarketplaceCache;
 use crate::contract::{MarketplaceSeams, MarketplaceSlot};
 use crate::inventory::{
-    InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, PublishGuard,
+    InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, MemberRefresher, PublishGuard,
 };
 use crate::managed::{
     GitCredentialCheck, ManagedRepository, OrganizationSkillResolver, PublicationPolicy,
@@ -103,23 +106,33 @@ fn provide_state(c: &mut Contributions<'_>) {
             ))
         })
         .provide_after_governance(|r: &Resolved<'_>| {
-            Ok(Arc::new(InventoryRefresher::new(InventoryRefresherParts {
+            Ok(MemberRefresher(Arc::new(InventoryRefresher::new(InventoryRefresherParts {
                 repository: r.get::<Arc<ManagedRepository>>()?,
                 guard: r.get::<Arc<Mutex<PublishGuard>>>()?,
                 bundles: r.get::<BundleSources>()?,
                 active_root: r.get::<ActiveServicesRoot>()?,
                 services: r.get::<ServicesView>()?,
                 owner: r.get::<SystemAdmin>()?.id().clone(),
-            })))
+            }))))
+        })
+        .provide_after_governance(
+            |r: &Resolved<'_>| -> Result<DynInventoryPublisher, ProvideError> {
+                let MemberRefresher(refresher) = r.get::<MemberRefresher>()?;
+                Ok(refresher)
+            },
+        )
+        .provide_after_governance(|r: &Resolved<'_>| {
+            let repository = r.get::<Arc<ManagedRepository>>()?;
+            let owner = r.get::<SystemAdmin>()?;
+            Ok(Arc::new(OrganizationSkillResolver::new(
+                repository.as_ref().clone(),
+                owner.id().clone(),
+            )))
         })
         .provide_after_governance(
             |r: &Resolved<'_>| -> Result<DynManagedSkillResolver, ProvideError> {
-                let repository = r.get::<Arc<ManagedRepository>>()?;
-                let owner = r.get::<SystemAdmin>()?;
-                Ok(Arc::new(OrganizationSkillResolver::new(
-                    repository.as_ref().clone(),
-                    owner.id().clone(),
-                )))
+                let resolver = r.get::<Arc<OrganizationSkillResolver>>()?;
+                Ok(resolver)
             },
         );
 }

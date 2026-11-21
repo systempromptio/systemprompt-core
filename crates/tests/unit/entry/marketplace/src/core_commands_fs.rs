@@ -1,0 +1,334 @@
+//! Tests that drive the `core skills` and `core plugins` groups through
+//! their dispatchers on the detached command kernel, served through a member
+//! host holding the services-tree grant.
+//!
+//! Both groups read the services tree, so the bootstrap fixture's tempdir is
+//! populated per test and each arm is entered with real content behind it.
+//! A host without the grant is refused before any file is read.
+
+#![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+
+use std::path::PathBuf;
+
+use clap::Parser;
+use systemprompt_cli::kernel::MemberHost;
+use systemprompt_extension::cli::{CommandDescriptor, CommandOutput};
+use systemprompt_marketplace_entry::cli::{PluginsCommands, SkillsCommands, plugins, skills};
+
+const PLUGIN_YAML: &str = r#"plugin:
+  id: covplugin
+  name: Coverage Plugin
+  description: Fixture plugin
+  version: 1.0.0
+  author:
+    name: Tester
+    email: tester@example.com
+  keywords: [demo]
+  license: MIT
+  category: tools
+  skills:
+    source: explicit
+    include: [covskill]
+  agents:
+    source: explicit
+    include: []
+"#;
+
+#[derive(Debug, Parser)]
+enum Harness {
+    #[command(subcommand)]
+    Skills(SkillsCommands),
+    #[command(subcommand)]
+    Plugins(PluginsCommands),
+}
+
+fn parse(args: &[&str]) -> Harness {
+    Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied())).unwrap()
+}
+
+async fn run_on(args: &[&str], host: &MemberHost<'_>) -> anyhow::Result<CommandOutput> {
+    match parse(args) {
+        Harness::Skills(cmd) => skills::execute(cmd, host).await,
+        Harness::Plugins(cmd) => plugins::execute(cmd, host).await,
+    }
+}
+
+fn services_root() -> PathBuf {
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    boot.services_path.clone()
+}
+
+fn seed_skill() -> PathBuf {
+    let root = services_root();
+    let skill = root.join("skills/covskill");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::write(
+        skill.join("config.yaml"),
+        "id: covskill\nname: Coverage Skill\ndescription: A fixture skill\n",
+    )
+    .unwrap();
+    std::fs::write(skill.join("index.md"), "# Coverage Skill\n\nBody.\n").unwrap();
+    root
+}
+
+fn seed_plugin() -> PathBuf {
+    let root = seed_skill();
+    let plugin = root.join("plugins/covplugin");
+    std::fs::create_dir_all(&plugin).unwrap();
+    std::fs::write(plugin.join("config.yaml"), PLUGIN_YAML).unwrap();
+    root
+}
+
+async fn run(args: &[&str]) -> anyhow::Result<()> {
+    let ctx = crate::common::services_tree_ctx();
+    run_on(args, &crate::common::granted(&ctx)).await.map(drop)
+}
+
+#[tokio::test]
+async fn a_host_without_the_services_tree_grant_is_refused_by_every_group() {
+    seed_plugin();
+    let ctx = crate::common::services_tree_ctx();
+    let host = MemberHost::new(&ctx, CommandDescriptor::PROFILE_SECRETS_AND_PATHS);
+
+    for args in [
+        ["plugins", "list"].as_slice(),
+        &["plugins", "validate"],
+        &["skills", "list"],
+    ] {
+        let error = run_on(args, &host)
+            .await
+            .expect_err("no services tree is served without the grant");
+        assert!(
+            format!("{error:#}").contains("services-tree"),
+            "{args:?}: {error:#}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn skills_arms_list_and_show_a_seeded_skill() {
+    seed_skill();
+
+    run(&["skills", "list"]).await.unwrap();
+    run(&["skills", "show", "covskill"]).await.unwrap();
+}
+
+#[tokio::test]
+async fn skills_show_rejects_an_unknown_skill() {
+    seed_skill();
+
+    let err = run(&["skills", "show", "cov_no_such_skill"])
+        .await
+        .unwrap_err();
+    assert!(format!("{err:#}").contains("cov_no_such_skill"));
+}
+
+#[tokio::test]
+async fn plugins_arms_list_show_and_validate_a_seeded_plugin() {
+    seed_plugin();
+
+    run(&["plugins", "list"]).await.unwrap();
+    run(&["plugins", "show", "covplugin"]).await.unwrap();
+    run(&["plugins", "validate"]).await.unwrap();
+}
+
+#[tokio::test]
+async fn plugins_generate_materialises_output_for_a_seeded_plugin() {
+    let root = seed_plugin();
+    let out = tempfile::tempdir().unwrap();
+
+    run(&[
+        "plugins",
+        "generate",
+        "--id",
+        "covplugin",
+        "--output-dir",
+        out.path().to_str().unwrap(),
+    ])
+    .await
+    .unwrap();
+
+    assert!(out.path().join(".claude-plugin/plugin.json").exists());
+    assert!(root.join("plugins/covplugin/config.yaml").exists());
+}
+
+#[tokio::test]
+async fn plugins_generate_rejects_an_unknown_id() {
+    seed_plugin();
+
+    let err = run(&["plugins", "generate", "--id", "cov_absent_plugin"])
+        .await
+        .unwrap_err();
+    assert!(format!("{err:#}").contains("cov_absent_plugin"));
+}
+
+#[tokio::test]
+async fn plugins_generate_materialises_enabled_and_default_marketplace_catalogs() {
+    let root = seed_plugin();
+    std::fs::write(
+        root.join("config/config.yaml"),
+        r#"
+settings:
+  default_marketplace_id: primary
+marketplaces:
+  primary:
+    id: primary
+    name: Primary
+    description: Primary plugin catalog
+    version: 2.0.0
+    enabled: true
+    author: { name: Catalog Owner, email: owner@example.com }
+    license: MIT
+    plugins:
+      source: explicit
+      include: [covplugin]
+  disabled:
+    id: disabled
+    name: Disabled
+    description: Disabled plugin catalog
+    version: 1.0.0
+    enabled: false
+    author: { name: Catalog Owner, email: owner@example.com }
+    license: MIT
+    plugins:
+      source: explicit
+      include: [covplugin]
+"#,
+    )
+    .unwrap();
+    let out = tempfile::tempdir().unwrap();
+
+    run(&[
+        "plugins",
+        "generate",
+        "--id",
+        "covplugin",
+        "--output-dir",
+        out.path().to_str().unwrap(),
+    ])
+    .await
+    .expect("generate plugin and configured marketplace catalogs");
+
+    let catalog_dir = root
+        .parent()
+        .unwrap()
+        .join("storage/files/plugins/.claude-plugin");
+    let named = catalog_dir.join("marketplace-primary.json");
+    let default = catalog_dir.join("marketplace.json");
+    assert!(named.exists(), "enabled named catalog must be generated");
+    assert_eq!(
+        std::fs::read(&named).unwrap(),
+        std::fs::read(&default).unwrap(),
+        "the configured default catalog must also own marketplace.json"
+    );
+    assert!(
+        !catalog_dir.join("marketplace-disabled.json").exists(),
+        "a disabled catalog must not be published"
+    );
+    let manifest: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(named).unwrap()).unwrap();
+    assert_eq!(manifest["name"], "primary", "{manifest}");
+    assert_eq!(manifest["owner"]["name"], "Catalog Owner", "{manifest}");
+    assert_eq!(manifest["metadata"]["version"], "2.0.0", "{manifest}");
+    let plugins = manifest["plugins"].as_array().expect("catalog plugins");
+    assert_eq!(plugins.len(), 1, "{manifest}");
+    assert_eq!(plugins[0]["name"], "covplugin", "{manifest}");
+}
+
+#[tokio::test]
+async fn plugins_generate_preserves_an_existing_catalog_path_when_marketplace_publish_fails() {
+    let root = seed_plugin();
+    std::fs::write(
+        root.join("config/config.yaml"),
+        r#"
+marketplaces:
+  primary:
+    id: primary
+    name: Primary
+    description: Primary plugin catalog
+    version: 2.0.0
+    enabled: true
+    author: { name: Catalog Owner, email: owner@example.com }
+    license: MIT
+    plugins:
+      source: explicit
+      include: [covplugin]
+"#,
+    )
+    .unwrap();
+    let output = tempfile::tempdir().unwrap();
+    let catalog_parent = root.parent().unwrap().join("storage/files/plugins");
+    std::fs::create_dir_all(&catalog_parent).unwrap();
+    let blocked = catalog_parent.join(".claude-plugin");
+    std::fs::write(&blocked, "operator-owned sentinel\n").unwrap();
+
+    let error = run(&[
+        "plugins",
+        "generate",
+        "--id",
+        "covplugin",
+        "--output-dir",
+        output.path().to_str().unwrap(),
+    ])
+    .await
+    .expect_err("a file at the catalog directory must prevent marketplace publication");
+    assert!(
+        matches!(error.downcast_ref::<std::io::Error>(), Some(io) if io.kind() == std::io::ErrorKind::AlreadyExists),
+        "{error:#}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&blocked).unwrap(),
+        "operator-owned sentinel\n",
+        "failed publication must not replace an operator-owned path"
+    );
+    assert!(
+        output.path().join(".claude-plugin/plugin.json").exists(),
+        "the requested plugin artifact is complete before catalog publication is attempted"
+    );
+}
+
+#[tokio::test]
+async fn a_plugin_missing_its_referenced_skill_is_reported_as_invalid() {
+    let plugin = services_root().join("plugins/covinvalid");
+    std::fs::create_dir_all(&plugin).unwrap();
+    std::fs::write(
+        plugin.join("config.yaml"),
+        "plugin:\n  id: covinvalid\n  name: Coverage Invalid\n  description: References a \
+         missing skill\n  version: 1.0.0\n  author:\n    name: Tester\n    email: \
+         tester@example.com\n  keywords: [demo]\n  license: MIT\n  category: tools\n  skills:\n    \
+         source: explicit\n    include: [cov_absent_skill]\n  agents:\n    source: explicit\n    \
+         include: []\n",
+    )
+    .unwrap();
+
+    let err = run(&["plugins", "validate"]).await.unwrap_err();
+    assert!(
+        format!("{err:#}").contains("Plugin validation failed"),
+        "{err:#}"
+    );
+    let report = err
+        .downcast_ref::<systemprompt_extension::cli::CommandError>()
+        .and_then(systemprompt_extension::cli::CommandError::output)
+        .expect("a failing validation carries its report");
+    let wire = serde_json::to_value(report.artifact()).unwrap().to_string();
+    assert!(wire.contains("cov_absent_skill"), "{wire}");
+
+    // `validate` takes the id positionally, and an unknown one is a hard error.
+    let err = run(&["plugins", "validate", "cov_absent_plugin"])
+        .await
+        .unwrap_err();
+    assert!(format!("{err:#}").contains("cov_absent_plugin"));
+}
+
+#[tokio::test]
+async fn an_unparseable_plugin_config_is_reported_by_the_generator() {
+    let plugin = services_root().join("plugins/covunparseable");
+    std::fs::create_dir_all(&plugin).unwrap();
+    std::fs::write(plugin.join("config.yaml"), "plugin: [not a mapping\n").unwrap();
+
+    let err = run(&["plugins", "generate", "--id", "covunparseable"])
+        .await
+        .unwrap_err();
+
+    assert!(format!("{err:#}").contains("covunparseable"), "{err:#}");
+}

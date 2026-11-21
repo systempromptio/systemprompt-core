@@ -7,13 +7,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
+use super::collect_plugin_ids;
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;
 
@@ -26,10 +26,10 @@ pub struct ValidateArgs {
     pub id: Option<PluginId>,
 }
 
-pub(super) fn execute(args: ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
-    let services_root = &host.services_root()?.path;
-    let plugins_path = services_root.join("plugins");
-    let skills_path = services_root.join("skills");
+pub(super) fn execute(args: ValidateArgs, host: &dyn CommandHost) -> Result<(CommandOutput, bool)> {
+    let tree = host.services_tree()?;
+    let plugins_path = tree.plugins();
+    let skills_path = tree.skills();
 
     let plugin_ids = match args.id {
         Some(id) => {
@@ -60,25 +60,6 @@ pub(super) fn execute(args: ValidateArgs, host: &dyn KernelHost) -> Result<(Comm
         .with_title("Plugin Validation Results"),
         valid,
     ))
-}
-
-pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<PluginId>> {
-    if !plugins_path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut ids = Vec::new();
-    for entry in std::fs::read_dir(plugins_path)? {
-        let entry = entry?;
-        if entry.path().is_dir()
-            && entry.path().join("config.yaml").exists()
-            && let Some(name) = entry.file_name().to_str()
-        {
-            ids.push(PluginId::new(name));
-        }
-    }
-    ids.sort();
-    Ok(ids)
 }
 
 pub fn validate_plugin(

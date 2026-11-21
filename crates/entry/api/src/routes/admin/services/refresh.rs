@@ -22,7 +22,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Json;
@@ -33,12 +32,11 @@ use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
-use systemprompt_marketplace::inventory::InventoryRefresher;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 use systemprompt_runtime::{AppContext, RuntimeError};
-use systemprompt_traits::CacheDomain;
+use systemprompt_traits::{CacheDomain, DynInventoryPublisher};
 
 use super::{
     RefreshLock, ServicesRefreshResponse, composed_hash_of, provenance_view, source_views,
@@ -111,14 +109,14 @@ pub async fn refresh(
 }
 
 async fn refresh_inventory(ctx: &AppContext, actor: &UserId) {
-    match ctx.kernel().state().get::<Arc<InventoryRefresher>>() {
-        Ok(refresher) => {
-            if let Err(error) = refresher.publish_latest(actor).await {
+    match ctx.kernel().state().get::<DynInventoryPublisher>() {
+        Ok(publisher) => {
+            if let Err(error) = publisher.publish_latest(actor).await {
                 tracing::warn!(%error, "Inventory refresh after services import failed; the scheduled pass will retry");
             }
         },
         Err(error) => {
-            tracing::warn!(%error, "Inventory refresher is not provided; the inventory was not refreshed");
+            tracing::warn!(%error, "Inventory publisher is not provided; the inventory was not refreshed");
         },
     }
 }

@@ -1,20 +1,49 @@
 use std::sync::Arc;
 
 use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_loader::bundle::BundleSources;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_marketplace::inventory::{
-    InventoryRefreshJob, InventoryRefresher, LatestPublicationStatus,
+    InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, LatestPublicationStatus,
+    PublishGuard,
 };
+use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{init_isolated_bootstrap, test_app_context_on, test_db_pool};
 use systemprompt_traits::{Job, JobContext};
 
-fn refresher(ctx: &AppContext) -> Arc<InventoryRefresher> {
-    Arc::clone(
-        ctx.kernel()
-            .state()
-            .get::<Arc<InventoryRefresher>>()
-            .expect("the managed_resources member provides the inventory refresher"),
-    )
+fn refresher(ctx: &AppContext) -> InventoryRefresher {
+    let state = ctx.kernel().state();
+    InventoryRefresher::new(InventoryRefresherParts {
+        repository: Arc::clone(
+            state
+                .get::<Arc<ManagedRepository>>()
+                .expect("the managed_resources member provides the repository"),
+        ),
+        guard: Arc::clone(
+            state
+                .get::<Arc<tokio::sync::Mutex<PublishGuard>>>()
+                .expect("the managed_resources member provides the publish guard"),
+        ),
+        bundles: state
+            .get::<BundleSources>()
+            .expect("the kernel seeds the bundle sources")
+            .clone(),
+        active_root: state
+            .get::<ActiveServicesRoot>()
+            .expect("the kernel seeds the active services root")
+            .clone(),
+        services: state
+            .get::<ServicesView>()
+            .expect("the kernel seeds the services view")
+            .clone(),
+        owner: state
+            .get::<SystemAdmin>()
+            .expect("the kernel seeds the system admin")
+            .id()
+            .clone(),
+    })
 }
 
 fn skill(root: &std::path::Path, body: &str) {

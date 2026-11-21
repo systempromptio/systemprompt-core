@@ -4,9 +4,13 @@
 //! The `managed_resources` member builds one refresher in its provide fn
 //! from the provided repository and publish guard, the sealed system admin,
 //! active services root and [`BundleSources`] kernel seeds, and the open
-//! services view. A job or a kernel route resolves the refresher by type and
-//! never reads the profile, the configuration or a secret: everything a
-//! refresh reads from the profile is the [`BundleSources`] value inside it.
+//! services view. The refresher is provided only as the member's own
+//! [`MemberRefresher`], a type no other crate can name, so only the
+//! member's `managed_inventory_refresh` job resolves it. A kernel route
+//! reaches the refresher only as the open `DynInventoryPublisher`
+//! (`publish_latest` with the caller as the actor). Neither reads the
+//! profile, the configuration or a secret: everything a refresh reads from
+//! the profile is the [`BundleSources`] value inside it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,14 +18,17 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_traits::{InventoryPublishError, InventoryPublisher};
 use tokio::sync::Mutex;
 
 use super::{
-    BaselineScope, InventoryService, InventoryStatus, LatestPublication, PublishGuard,
+    BaselineScope, InventoryService, InventoryStatus, LatestPublication, LatestPublicationStatus,
+    PublishGuard,
     SourcesContext, configured_inventory_fingerprint,
 };
 use crate::managed::{ManagedRepository, Result};
@@ -109,3 +116,19 @@ impl InventoryRefresher {
             .await
     }
 }
+
+#[async_trait]
+impl InventoryPublisher for InventoryRefresher {
+    async fn publish_latest(&self, actor: &UserId) -> std::result::Result<usize, InventoryPublishError> {
+        let outcomes = Self::publish_latest(self, actor)
+            .await
+            .map_err(|error| InventoryPublishError::Failed(Box::new(error)))?;
+        Ok(outcomes
+            .iter()
+            .filter(|outcome| outcome.status == LatestPublicationStatus::Published)
+            .count())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct MemberRefresher(pub(crate) Arc<InventoryRefresher>);

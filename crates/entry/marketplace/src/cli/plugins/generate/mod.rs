@@ -1,7 +1,7 @@
 //! Generation of Claude Code plugin output from `config.yaml` definitions.
 //!
-//! `execute` reads one or all plugin configs under the profile's plugins
-//! path and materialises skill, agent, MCP, script, and marketplace artifacts
+//! `execute` reads one or all plugin configs under the services tree's
+//! plugins directory and materialises skill, agent, MCP, script, and marketplace artifacts
 //! into the plugins storage directory. The per-component generators live in the
 //! `agents`, `mcp`, `skills`, and `marketplace` submodules.
 //!
@@ -13,15 +13,14 @@ pub mod marketplace;
 pub mod mcp;
 pub mod skills;
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::{Path, PathBuf};
 
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::PluginId;
-use systemprompt_manifest::PluginConfigFile;
 
+use super::collect_plugin_ids;
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};
 
 const DEFAULT_AGENT_TOOLS: &str = "Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch";
@@ -47,11 +46,11 @@ pub struct PluginGenerateContext<'a> {
     pub output_dir_override: Option<&'a str>,
 }
 
-pub(super) fn execute(args: &GenerateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let profile = host.profile()?;
-    let services_path = host.services_root()?.path;
-    let plugins_path = services_path.join("plugins");
-    let skills_path = services_path.join("skills");
+pub(super) async fn execute(args: &GenerateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let tree = host.services_tree()?;
+    let services_path = tree.root().to_path_buf();
+    let plugins_path = tree.plugins();
+    let skills_path = tree.skills();
 
     let plugin_ids = match &args.id {
         Some(id) => {
@@ -83,9 +82,12 @@ pub(super) fn execute(args: &GenerateArgs, host: &dyn KernelHost) -> Result<Comm
         .join("storage")
         .join("files")
         .join("plugins");
-    marketplace::generate_marketplace_json(profile, &services_path, &plugins_output_path)?;
+    let services = crate::cli::services_config(host)
+        .await
+        .context("Failed to load services config")?;
+    marketplace::generate_marketplace_json(&services, &plugins_output_path)?;
 
-    let install_hint = extract_install_command(profile.site.github_link.as_deref());
+    let install_hint = extract_install_command(tree.site_github_link());
 
     let output = PluginGenerateAllOutput {
         results,
@@ -98,25 +100,6 @@ pub(super) fn execute(args: &GenerateArgs, host: &dyn KernelHost) -> Result<Comm
     ))
 }
 
-pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<PluginId>> {
-    if !plugins_path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut ids = Vec::new();
-    for entry in std::fs::read_dir(plugins_path)? {
-        let entry = entry?;
-        if entry.path().is_dir()
-            && entry.path().join("config.yaml").exists()
-            && let Some(name) = entry.file_name().to_str()
-        {
-            ids.push(PluginId::new(name));
-        }
-    }
-    ids.sort();
-    Ok(ids)
-}
-
 pub fn generate_plugin(
     plugin_id: &PluginId,
     ctx: &PluginGenerateContext<'_>,
@@ -125,10 +108,7 @@ pub fn generate_plugin(
         .plugins_path
         .join(plugin_id.as_str())
         .join("config.yaml");
-    let content = std::fs::read_to_string(&config_path)
-        .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let plugin_file: PluginConfigFile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse {}", config_path.display()))?;
+    let plugin_file = super::read_plugin_config(&config_path)?;
     let plugin = &plugin_file.plugin;
 
     let output_dir = ctx.output_dir_override.map_or_else(

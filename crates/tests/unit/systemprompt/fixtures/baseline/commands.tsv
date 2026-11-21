@@ -298,14 +298,14 @@ core files validate	leaf	-	files-http
 core hooks	group	-	kernel
 core hooks list	leaf	-	kernel
 core hooks validate	leaf	-	kernel
-core marketplace	group	-	kernel
-core marketplace explain	leaf	-	kernel
-core marketplace import	leaf	-	kernel
-core plugins	group	-	kernel
-core plugins generate	leaf	-	kernel
-core plugins list	leaf	-	kernel
-core plugins show	leaf	-	kernel
-core plugins validate	leaf	-	kernel
+core marketplace	group	ServicesTree	marketplace-http
+core marketplace explain	leaf	ServicesTree	marketplace-http
+core marketplace import	leaf	ServicesTree	marketplace-http
+core plugins	group	ServicesTree	marketplace-http
+core plugins generate	leaf	ServicesTree	marketplace-http
+core plugins list	leaf	ServicesTree	marketplace-http
+core plugins show	leaf	ServicesTree	marketplace-http
+core plugins validate	leaf	ServicesTree	marketplace-http
 core services	group	-	kernel
 core services bundle	leaf	-	kernel
 core services inspect	leaf	-	kernel
@@ -313,9 +313,9 @@ core services keygen	leaf	-	kernel
 core services publish	leaf	-	kernel
 core services refresh	leaf	-	kernel
 core services validate	leaf	-	kernel
-core skills	group	-	kernel
-core skills list	leaf	-	kernel
-core skills show	leaf	-	kernel
+core skills	group	ServicesTree	marketplace-http
+core skills list	leaf	ServicesTree	marketplace-http
+core skills show	leaf	ServicesTree	marketplace-http
 infra	group	-	kernel
 infra db	group	-	kernel
 infra db assign-admin	leaf	-	kernel

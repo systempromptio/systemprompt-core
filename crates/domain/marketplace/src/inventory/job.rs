@@ -29,7 +29,7 @@ use async_trait::async_trait;
 use systemprompt_database::{DbPool, projection};
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
-use super::{InventoryRefresher, LatestPublicationStatus};
+use super::{LatestPublicationStatus, MemberRefresher};
 
 const FORCE_AFTER: Duration = Duration::from_hours(1);
 const COVERAGE_PROJECTION: &str = "managed_installation_coverage";
@@ -82,7 +82,7 @@ impl Job for InventoryRefreshJob {
         JobScope::Node
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let refresher = ctx.get::<Arc<InventoryRefresher>>()?;
+        let MemberRefresher(refresher) = ctx.get::<MemberRefresher>()?;
         let fingerprint = refresher
             .fingerprint()
             .inspect_err(|error| tracing::debug!(%error, "Inventory fingerprint unavailable"))
