@@ -75,8 +75,10 @@ fn resolve_agents(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<Str
         return Ok(plugin.agents.include.clone());
     }
 
-    let Some(agents_config_path) =
-        locate_within(services_path, &services_path.join("config").join("config.yaml"))?
+    let Some(agents_config_path) = locate_within(
+        services_path,
+        &services_path.join("config").join("config.yaml"),
+    )?
     else {
         return Ok(Vec::new());
     };

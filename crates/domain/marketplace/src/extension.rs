@@ -22,14 +22,14 @@
 //!   nothing else. It publishes as the system admin, so it is provided sealed:
 //!   no member job, runner service, config plane, command or route state can
 //!   resolve it;
-//! - after governance, two separate values bound to the system admin's
-//!   managed inventory. `Arc<OwnerSkillView>` is open: the `core skills`
-//!   commands list and resolve the owner's own skills through it, with no
-//!   consumer parameter and without learning the owner. The
-//!   `DynManagedSkillResolver` the kernel hands the agent runtime is a
-//!   separately built `OrganizationSkillResolver` provided sealed: it resolves
-//!   for a caller-named consumer, so no member runtime context resolves it, and
-//!   no open value wraps, aliases or coerces to it.
+//! - after governance, two separate values bound to the system admin's managed
+//!   inventory. `Arc<OwnerSkillView>` is open: the `core skills` commands list
+//!   and resolve the owner's own skills through it, with no consumer parameter
+//!   and without learning the owner. The `DynManagedSkillResolver` the kernel
+//!   hands the agent runtime is a separately built `OrganizationSkillResolver`
+//!   provided sealed: it resolves for a caller-named consumer, so no member
+//!   runtime context resolves it, and no open value wraps, aliases or coerces
+//!   to it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -11,12 +11,14 @@ use std::fs;
 
 use systemprompt_identifiers::{PluginId, SkillId};
 use systemprompt_manifest::PluginConfigFile;
+use systemprompt_marketplace_entry::cli::plugins::collect_plugin_ids;
 use systemprompt_marketplace_entry::cli::plugins::generate::marketplace;
 use systemprompt_marketplace_entry::cli::plugins::generate::skills::generate_skills;
 use systemprompt_marketplace_entry::cli::plugins::list::scan_plugins;
 use systemprompt_marketplace_entry::cli::plugins::validate::validate_plugin;
-use systemprompt_marketplace_entry::cli::plugins::collect_plugin_ids;
-use systemprompt_marketplace_entry::cli::skills::list::{ListArgs, execute_with_path, show_skill_detail};
+use systemprompt_marketplace_entry::cli::skills::list::{
+    ListArgs, execute_with_path, show_skill_detail,
+};
 use systemprompt_marketplace_entry::cli::skills::types::parse_skill_from_config;
 
 const PLUGIN_YAML: &str = r#"
@@ -193,7 +195,9 @@ fn generate_refuses_an_enumerated_skill_linked_outside_the_tree() {
         "  skills:\n    source: explicit\n    include: []\n",
         "  skills:\n    source: instance\n",
     );
-    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml).unwrap().plugin;
+    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml)
+        .unwrap()
+        .plugin;
     let out = tempfile::tempdir().unwrap();
     let mut files = Vec::new();
 
@@ -212,8 +216,13 @@ fn generate_refuses_a_skill_body_file_linked_outside_the_tree() {
     fs::create_dir_all(&skill).unwrap();
     fs::write(skill.join("config.yaml"), "name: inner\n").unwrap();
     std::os::unix::fs::symlink(outside.path().join("secret.md"), skill.join("index.md")).unwrap();
-    let yaml = PLUGIN_YAML.replace("    include: []\n  agents", "    include: [inner]\n  agents");
-    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml).unwrap().plugin;
+    let yaml = PLUGIN_YAML.replace(
+        "    include: []\n  agents",
+        "    include: [inner]\n  agents",
+    );
+    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml)
+        .unwrap()
+        .plugin;
     let out = tempfile::tempdir().unwrap();
     let mut files = Vec::new();
 

@@ -111,7 +111,15 @@ impl Sink {
         src: &Path,
         rel: &Path,
     ) -> Result<(), MarketplaceError> {
-        self.copy_filtered(CopyRoots { tree: root, filter: src }, src, rel, None)
+        self.copy_filtered(
+            CopyRoots {
+                tree: root,
+                filter: src,
+            },
+            src,
+            rel,
+            None,
+        )
     }
 
     pub(super) fn copy_skill_tree(

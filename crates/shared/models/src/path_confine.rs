@@ -104,10 +104,7 @@ pub struct ConfinedEntry {
     pub is_dir: bool,
 }
 
-pub fn entries_within(
-    root: &Path,
-    dir: &Path,
-) -> Result<Vec<ConfinedEntry>, PathConfinementError> {
+pub fn entries_within(root: &Path, dir: &Path) -> Result<Vec<ConfinedEntry>, PathConfinementError> {
     let resolved = confine_within(root, dir)?;
     let read = std::fs::read_dir(&resolved).map_err(|source| PathConfinementError::Read {
         path: resolved.clone(),

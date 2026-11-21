@@ -65,8 +65,7 @@ pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {
         if !entry.is_dir {
             continue;
         }
-        let Some(config_path) = locate_within(&entry.path, &entry.path.join("config.yaml"))?
-        else {
+        let Some(config_path) = locate_within(&entry.path, &entry.path.join("config.yaml"))? else {
             continue;
         };
 

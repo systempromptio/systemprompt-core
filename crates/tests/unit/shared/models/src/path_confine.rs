@@ -80,7 +80,10 @@ fn entries_within_lists_every_entry_resolved_inside_the_root() {
     fs::write(root.path().join("a.yaml"), "x").unwrap();
 
     let entries = entries_within(root.path(), root.path()).unwrap();
-    let names: Vec<_> = entries.iter().map(|e| e.name.to_string_lossy().into_owned()).collect();
+    let names: Vec<_> = entries
+        .iter()
+        .map(|e| e.name.to_string_lossy().into_owned())
+        .collect();
     assert_eq!(names, ["a.yaml", "b"]);
     assert!(!entries[0].is_dir);
     assert!(entries[1].is_dir);
@@ -130,8 +133,16 @@ fn locate_within_is_none_for_an_absent_path_and_confines_a_present_one() {
     let root = tempfile::tempdir().unwrap();
     fs::write(root.path().join("present"), "x").unwrap();
 
-    assert!(locate_within(root.path(), &root.path().join("absent")).unwrap().is_none());
-    assert!(locate_within(root.path(), &root.path().join("present")).unwrap().is_some());
+    assert!(
+        locate_within(root.path(), &root.path().join("absent"))
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        locate_within(root.path(), &root.path().join("present"))
+            .unwrap()
+            .is_some()
+    );
 }
 
 #[cfg(unix)]
@@ -140,17 +151,27 @@ fn read_within_and_locate_within_refuse_a_file_link_out_of_the_root() {
     let root = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();
     fs::write(outside.path().join("secret"), "secret").unwrap();
-    std::os::unix::fs::symlink(outside.path().join("secret"), root.path().join("index.md")).unwrap();
+    std::os::unix::fs::symlink(outside.path().join("secret"), root.path().join("index.md"))
+        .unwrap();
 
     let read = read_within(root.path(), &root.path().join("index.md")).unwrap_err();
-    assert!(matches!(read, PathConfinementError::Escapes { .. }), "{read}");
+    assert!(
+        matches!(read, PathConfinementError::Escapes { .. }),
+        "{read}"
+    );
     let located = locate_within(root.path(), &root.path().join("index.md")).unwrap_err();
-    assert!(matches!(located, PathConfinementError::Escapes { .. }), "{located}");
+    assert!(
+        matches!(located, PathConfinementError::Escapes { .. }),
+        "{located}"
+    );
 }
 
 #[test]
 fn read_within_reads_a_file_inside_the_root() {
     let root = tempfile::tempdir().unwrap();
     fs::write(root.path().join("config.yaml"), "body").unwrap();
-    assert_eq!(read_within(root.path(), &root.path().join("config.yaml")).unwrap(), "body");
+    assert_eq!(
+        read_within(root.path(), &root.path().join("config.yaml")).unwrap(),
+        "body"
+    );
 }

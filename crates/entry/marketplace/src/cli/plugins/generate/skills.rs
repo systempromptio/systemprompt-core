@@ -94,18 +94,17 @@ fn build_skill_md(skill: &str, skill_dir: &Path) -> Result<String> {
     let index_md = locate_within(skill_dir, &skill_dir.join("index.md"))?;
     let skill_md_path = locate_within(skill_dir, &skill_dir.join("SKILL.md"))?;
 
-    let (name, description) = if let Some(config_path) =
-        locate_within(skill_dir, &skill_dir.join("config.yaml"))?
-    {
-        let cfg_text = read_within(skill_dir, &config_path)?;
-        let cfg: SkillConfigHeader = serde_yaml::from_str(&cfg_text)?;
-        (
-            cfg.name.unwrap_or_else(|| skill.to_owned()),
-            cfg.description.unwrap_or_default(),
-        )
-    } else {
-        (skill.to_owned(), String::new())
-    };
+    let (name, description) =
+        if let Some(config_path) = locate_within(skill_dir, &skill_dir.join("config.yaml"))? {
+            let cfg_text = read_within(skill_dir, &config_path)?;
+            let cfg: SkillConfigHeader = serde_yaml::from_str(&cfg_text)?;
+            (
+                cfg.name.unwrap_or_else(|| skill.to_owned()),
+                cfg.description.unwrap_or_default(),
+            )
+        } else {
+            (skill.to_owned(), String::new())
+        };
 
     let body = if let Some(index_md) = index_md {
         strip_frontmatter(&read_within(skill_dir, &index_md)?)

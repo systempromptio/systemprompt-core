@@ -41,7 +41,11 @@ async fn a_member_table_named_like_a_statement_alias_is_reassigned_by_its_own_ro
             .await
             .expect("seed user");
     }
-    for (owner, key) in [(&source, "shared"), (&source, "only-source"), (&target, "shared")] {
+    for (owner, key) in [
+        (&source, "shared"),
+        (&source, "only-source"),
+        (&target, "shared"),
+    ] {
         sqlx::query("INSERT INTO kept (owner_id, k) VALUES ($1, $2)")
             .bind(owner.as_str())
             .bind(key)

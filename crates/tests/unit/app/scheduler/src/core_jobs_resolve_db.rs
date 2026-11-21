@@ -37,7 +37,8 @@ fn missing_dependency(error: &ProviderError) -> Option<&MissingDependency> {
         if let Some(missing) = cause.downcast_ref::<MissingDependency>() {
             return Some(missing);
         }
-        if let Some(ProviderError::MissingDependency(missing)) = cause.downcast_ref::<ProviderError>()
+        if let Some(ProviderError::MissingDependency(missing)) =
+            cause.downcast_ref::<ProviderError>()
         {
             return Some(missing);
         }
