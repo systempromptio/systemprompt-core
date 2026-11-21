@@ -9864,6 +9864,7 @@ name = "systemprompt-cloud-entry"
 version = "0.84.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "clap",
  "hex",
@@ -9886,6 +9887,7 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
+ "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
@@ -11057,16 +11059,23 @@ dependencies = [
 name = "systemprompt-marketplace-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "clap",
+ "schemars 1.2.3",
+ "serde",
  "serde_json",
+ "serde_yaml_ng",
  "systemprompt-config",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-manifest",
  "systemprompt-marketplace",
  "systemprompt-models",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -11076,13 +11085,23 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "clap",
  "http",
  "http-body-util",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-cli",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
  "systemprompt-marketplace-entry",
  "systemprompt-runtime",
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
  "systemprompt-traits",
+ "tempfile",
  "tokio",
  "tower",
  "uuid",
@@ -11164,26 +11183,57 @@ dependencies = [
 name = "systemprompt-mcp-entry"
 version = "0.84.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "chrono",
+ "clap",
+ "rmcp",
+ "schemars 1.2.3",
  "serde",
+ "serde_json",
+ "systemprompt-config",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "systemprompt-mcp-entry-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
  "async-trait",
  "axum",
+ "clap",
+ "rmcp",
  "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-cli",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-mcp",
  "systemprompt-mcp-entry",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
  "systemprompt-test-hack",
  "systemprompt-traits",
+ "tempfile",
  "tokio",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]

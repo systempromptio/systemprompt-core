@@ -1,40 +1,68 @@
 //! `cloud doctor`'s contributed checks: every admitted member's
-//! [`DoctorCheck`](systemprompt_traits::DoctorCheck), run in composition
-//! order and reported under the check's own name.
+//! [`DoctorCheck`](systemprompt_traits::DoctorCheck), core and install
+//! alike, run in composition order and reported under the check's own name.
 //!
-//! The doctor opens one short-lived database pool from the checked
-//! profile's secrets (when its database is reachable) and hands each check
-//! that pool and the presence of each secret, never a secret's value. With
-//! no admitted composition the member checks are not evaluated.
+//! Every check gets the same [`DoctorContext`]: the presence of each secret,
+//! never its value, and [`TenantProbes`], the read-only facts the doctor
+//! answers itself. The probes read through one short-lived pool opened from
+//! the checked profile's secrets with `default_transaction_read_only` on;
+//! no check receives the pool. With no admitted composition the member checks
+//! are not evaluated.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use systemprompt_database::Database;
-use systemprompt_traits::{Dependencies, DoctorContext, DoctorStatus};
+use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_traits::{
+    DoctorContext, DoctorProbeError, DoctorProbes, DoctorStatus, GitCredentialSource,
+};
 
 use super::{CheckResult, CheckStatus, Composition, NEEDS_COMPOSITION};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
-async fn connect(secrets: &HashMap<String, String>) -> Option<Arc<PgPool>> {
+async fn connect_read_only(secrets: &HashMap<String, String>) -> Option<Arc<PgPool>> {
     let url = secrets
         .get("external_database_url")
         .or_else(|| secrets.get("database_url"))?;
+    let options = PgConnectOptions::from_str(url)
+        .inspect_err(|error| tracing::debug!(%error, "doctor database url unparseable"))
+        .ok()?
+        .options([("default_transaction_read_only", "on")]);
     PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(CONNECT_TIMEOUT)
-        .connect(url)
+        .connect_with(options)
         .await
         .inspect_err(|error| tracing::debug!(%error, "doctor database unreachable"))
         .ok()
         .map(Arc::new)
+}
+
+struct TenantProbes {
+    managed: Option<ManagedRepository>,
+}
+
+#[async_trait]
+impl DoctorProbes for TenantProbes {
+    async fn git_credential_sources(&self) -> Result<Vec<GitCredentialSource>, DoctorProbeError> {
+        let Some(managed) = &self.managed else {
+            return Err(DoctorProbeError::Unreachable);
+        };
+        managed
+            .git_sources_with_credentials()
+            .await
+            .map_err(|error| DoctorProbeError::Read(Box::new(error)))
+    }
 }
 
 const fn status(status: DoctorStatus) -> CheckStatus {
@@ -55,29 +83,31 @@ pub(super) async fn run_member_checks(
             NEEDS_COMPOSITION,
         )];
     };
-    let checks = views.doctor.entries();
-    if checks.is_empty() {
+    if views.doctor.entries().is_empty() {
         return Vec::new();
     }
-    let pool = connect(secrets).await;
-    let mut handles = Dependencies::new();
-    if let Some(pool) = &pool {
-        handles.insert(Arc::new(Database::from_pools(Arc::clone(pool), None)));
-    }
+    let pool = connect_read_only(secrets).await;
+    let probes = TenantProbes {
+        managed: pool.as_ref().map(|pool| {
+            ManagedRepository::new(&Arc::new(Database::from_pools(Arc::clone(pool), None)))
+        }),
+    };
     let ctx = DoctorContext {
         secrets,
-        handles: &handles,
+        probes: &probes,
     };
-    let mut results = Vec::with_capacity(checks.len());
-    for owned in checks {
-        let outcome = owned.check.check(ctx).await;
-        results.push(CheckResult {
+    let results = views
+        .doctor
+        .run(ctx)
+        .await
+        .into_iter()
+        .map(|(owned, outcome)| CheckResult {
             name: owned.check.name(),
             status: status(outcome.status),
             detail: outcome.detail,
-        });
-    }
-    drop(handles);
+        })
+        .collect();
+    drop(probes);
     if let Some(pool) = pool {
         pool.close().await;
     }
