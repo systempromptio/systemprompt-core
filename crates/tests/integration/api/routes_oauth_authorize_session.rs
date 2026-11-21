@@ -166,7 +166,7 @@ async fn codes_minted(w: &World) -> anyhow::Result<i64> {
 }
 
 fn request_pairs<'a>(w: &'a World, extra: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
-    let mut pairs = vec![
+    let base = [
         ("response_type", "code"),
         ("client_id", w.client.client_id.as_str()),
         ("redirect_uri", w.client.redirect_uri.as_str()),
@@ -175,6 +175,10 @@ fn request_pairs<'a>(w: &'a World, extra: &[(&'a str, &'a str)]) -> Vec<(&'a str
         ("code_challenge", w.pkce.challenge.as_str()),
         ("code_challenge_method", "S256"),
     ];
+    let mut pairs: Vec<(&str, &str)> = base
+        .into_iter()
+        .filter(|(key, _)| !extra.iter().any(|(overridden, _)| overridden == key))
+        .collect();
     pairs.extend_from_slice(extra);
     pairs
 }

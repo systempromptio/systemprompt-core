@@ -2,10 +2,10 @@
 //! `handle_authorize_post`. The GET path validates CSRF/state, PKCE and the
 //! OAuth parameter set, resolves the client, then renders the WebAuthn
 //! challenge form; the POST path takes a same-origin Deny (answered
-//! `access_denied`) and refuses an Allow that has no browser session. We cover the happy render (plain state and a path-shaped
-//! state echoed unchanged), and the missing-state, bad-pkce,
-//! unsupported-response-type, unknown-client, denied-consent,
-//! sessionless-allow and cross-origin branches.
+//! `access_denied`) and refuses an Allow that has no browser session. We cover
+//! the happy render (plain state and a path-shaped state echoed unchanged), and
+//! the missing-state, bad-pkce, unsupported-response-type, unknown-client,
+//! denied-consent, sessionless-allow and cross-origin branches.
 
 
 use axum::Router;
@@ -300,7 +300,10 @@ async fn authorize_post_denied_consent_returns_access_denied() -> anyhow::Result
         location.contains(&format!("state={VALID_STATE}")),
         "{location}"
     );
-    assert!(location.ends_with("&iss=http%3A%2F%2F127.0.0.1"), "{location}");
+    assert!(
+        location.ends_with("&iss=http%3A%2F%2F127.0.0.1"),
+        "{location}"
+    );
     Ok(())
 }
 
