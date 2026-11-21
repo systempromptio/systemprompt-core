@@ -22,6 +22,7 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 use systemprompt_marketplace::ManagedSkillResolution;
 use systemprompt_marketplace::managed::{ManagedSkill, OrganizationSkillResolver};
+use systemprompt_models::path_confine::confine_within;
 use systemprompt_models::text::truncate_with_ellipsis;
 
 use super::types::{SkillDetail, SkillListOutput, SkillSummary, parse_skill_from_config};
@@ -180,6 +181,7 @@ pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<Comma
     if !skill_dir.exists() {
         return Err(anyhow!("Skill '{}' not found", skill_id));
     }
+    let skill_dir = confine_within(skills_path, &skill_dir)?;
 
     let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
 
@@ -190,6 +192,7 @@ pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<Comma
             SKILL_CONFIG_FILENAME
         ));
     }
+    let config_path = confine_within(&skill_dir, &config_path)?;
 
     let parsed = parse_skill_from_config(&config_path, &skill_dir)?;
 

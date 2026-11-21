@@ -10,6 +10,7 @@ use systemprompt_identifiers::PluginId;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::{MarketplaceConfig, PluginConfig};
 use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
+use systemprompt_models::path_confine::{confine_within, single_segment};
 
 pub(super) fn generate_marketplace_json(
     services: &ServicesConfig,
@@ -155,11 +156,13 @@ pub fn copy_scripts(
     let scripts_dir = output_dir.join("scripts");
     std::fs::create_dir_all(&scripts_dir)?;
 
+    let plugin_dir = plugins_path.join(plugin_id.as_str());
     for script in &plugin.scripts {
-        let source_path = plugins_path.join(plugin_id.as_str()).join(&script.source);
-        let dest_path = scripts_dir.join(&script.name);
+        let dest_path = scripts_dir.join(single_segment("script name", &script.name)?);
+        let source_path = plugin_dir.join(&script.source);
 
         if source_path.exists() {
+            let source_path = confine_within(&plugin_dir, &source_path)?;
             std::fs::copy(&source_path, &dest_path)?;
             files_generated.push(dest_path.to_string_lossy().to_string());
         }

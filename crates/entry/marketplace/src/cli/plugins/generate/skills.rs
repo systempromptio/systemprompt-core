@@ -7,6 +7,7 @@ use anyhow::Result;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use systemprompt_manifest::{PluginConfig, strip_frontmatter};
+use systemprompt_models::path_confine::{confine_within, single_segment};
 use systemprompt_models::plugin::{ComponentFilter, ComponentSource};
 
 #[derive(Debug, Deserialize)]
@@ -42,8 +43,10 @@ fn resolve_skills(plugin: &PluginConfig, skills_path: &Path) -> Result<Vec<(Stri
 
     if plugin.skills.source == ComponentSource::Explicit {
         for skill_id in &plugin.skills.include {
-            let skill_dir = skills_path.join(skill_id);
+            let segment = single_segment("skill id", skill_id.as_str())?;
+            let skill_dir = skills_path.join(segment);
             if skill_dir.exists() {
+                confine_within(skills_path, &skill_dir)?;
                 resolved.push((skill_id.clone(), skill_dir));
             }
         }

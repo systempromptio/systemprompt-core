@@ -53,6 +53,33 @@ pub fn validate_external_id(
 }
 
 #[doc(hidden)]
+pub fn validate_path_segment(
+    id_type: &'static str,
+    value: &str,
+) -> Result<(), crate::error::IdValidationError> {
+    validate_non_empty(id_type, value)?;
+    if value.contains(['/', '\\']) {
+        return Err(crate::error::IdValidationError::invalid(
+            id_type,
+            "cannot contain a path separator",
+        ));
+    }
+    if value.contains('\0') {
+        return Err(crate::error::IdValidationError::invalid(
+            id_type,
+            "cannot contain a null byte",
+        ));
+    }
+    if value == "." || value == ".." {
+        return Err(crate::error::IdValidationError::invalid(
+            id_type,
+            "cannot be a relative path component",
+        ));
+    }
+    Ok(())
+}
+
+#[doc(hidden)]
 pub fn validate_non_empty(
     id_type: &'static str,
     value: &str,

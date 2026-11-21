@@ -16,6 +16,7 @@ use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use super::collect_plugin_ids;
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;
+use systemprompt_models::path_confine::{confine_within, single_segment};
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -37,6 +38,7 @@ pub(super) fn execute(args: ValidateArgs, host: &dyn CommandHost) -> Result<(Com
             if !plugin_dir.exists() {
                 return Err(anyhow!("Plugin '{}' not found", id));
             }
+            confine_within(&plugins_path, &plugin_dir)?;
             vec![id]
         },
         None => collect_plugin_ids(&plugins_path)?,
@@ -70,7 +72,21 @@ pub fn validate_plugin(
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
-    let config_path = plugins_path.join(plugin_id.as_str()).join("config.yaml");
+    let config_path = match confine_within(
+        plugins_path,
+        &plugins_path.join(plugin_id.as_str()).join("config.yaml"),
+    ) {
+        Ok(path) => path,
+        Err(e) => {
+            errors.push(format!("Failed to read config.yaml: {}", e));
+            return PluginValidateOutput {
+                plugin_id: plugin_id.clone(),
+                valid: false,
+                errors,
+                warnings,
+            };
+        },
+    };
     let content = match std::fs::read_to_string(&config_path) {
         Ok(c) => c,
         Err(e) => {
@@ -201,14 +217,20 @@ fn validate_scripts(
     plugin_id: &PluginId,
     errors: &mut Vec<String>,
 ) {
+    let plugin_dir = plugins_path.join(plugin_id.as_str());
     for script in &plugin.scripts {
-        let script_path = plugins_path.join(plugin_id.as_str()).join(&script.source);
+        if let Err(e) = single_segment("script name", &script.name) {
+            errors.push(format!("Script '{}': {}", script.name, e));
+        }
+        let script_path = plugin_dir.join(&script.source);
         if !script_path.exists() {
             errors.push(format!(
                 "Script '{}' not found at {}",
                 script.name,
                 script_path.display()
             ));
+        } else if let Err(e) = confine_within(&plugin_dir, &script_path) {
+            errors.push(format!("Script '{}': {}", script.name, e));
         }
     }
 }

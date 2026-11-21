@@ -589,7 +589,7 @@ fn a_description_with_yaml_metacharacters_is_quoted() {
 fn an_unsafe_skill_id_is_refused_before_anything_is_written() {
     with_codex_home(|home| {
         let mut entry = skill("legit", "Body.");
-        entry.id = SkillId::try_new("../escape").expect("id constructs");
+        entry.id = SkillId::new("../escape");
         let m = manifest_with(vec![entry], vec![], vec![]);
         let client = stub_client();
         let plugin_servers = std::collections::BTreeMap::new();
