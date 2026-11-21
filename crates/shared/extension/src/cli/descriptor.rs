@@ -26,6 +26,9 @@ use super::KernelGrant;
 /// (`cloud`, `admin session`): the runner loads the cloud credentials for it
 /// and lets it run against a cloud profile that has no remote route.
 ///
+/// `LOCAL_DATABASE` is `FULL` without remote eligibility: the command runs
+/// on this machine against the profile's own database, whatever the profile.
+///
 /// `local_export` marks a command whose `--export` flag writes a local file:
 /// when the flag is present the runner keeps it on this machine instead of
 /// forwarding it to a tenant.
@@ -80,6 +83,10 @@ impl CommandDescriptor {
 
     pub const PROFILE_SECRETS_AND_PATHS: Self = Self {
         flags: Self::FLAG_PROFILE | Self::FLAG_SECRETS | Self::FLAG_PATHS,
+    };
+
+    pub const LOCAL_DATABASE: Self = Self {
+        flags: Self::FLAG_PROFILE | Self::FLAG_SECRETS | Self::FLAG_PATHS | Self::FLAG_DATABASE,
     };
 
     pub const FULL: Self = Self {

@@ -5,8 +5,8 @@
 //! members as the reference composition admits them, the brain and
 //! notifications capability slots and routes, the files and marketplace
 //! slots, the marketplace-http commands, the MCP, MCP-host and agent-runs
-//! slots and routes, and the reserved paths every install def is compared
-//! with.
+//! slots and routes, the reserved paths every install def is compared
+//! with, and the routing class every member command keeps.
 
 #[cfg(test)]
 mod admitted_views;
@@ -22,6 +22,8 @@ mod cli_probe;
 mod command_disabled;
 #[cfg(test)]
 mod command_line_classify;
+#[cfg(test)]
+mod command_routing;
 #[cfg(test)]
 mod composition_order;
 #[cfg(test)]

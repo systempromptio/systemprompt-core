@@ -124,7 +124,7 @@ impl MarketplaceCommands {
 impl DescribeCommand for MarketplaceCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Explain(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+            Self::Explain(_) => CommandDescriptor::FULL,
             Self::Import(_) => CommandDescriptor::NONE,
         }
         .with_data_impact(self.data_impact())

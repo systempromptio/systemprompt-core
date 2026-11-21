@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_cloud::CliSession;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionToken, TraceId};
+use systemprompt_extension::cli::CallerSession;
+use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_manifest::Profile;
-use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Debug)]
 pub struct CliSessionContext {
@@ -27,15 +27,13 @@ impl CliSessionContext {
         &self.profile.server.api_external_url
     }
 
-    pub fn to_request_context(&self, agent_name: AgentName) -> RequestContext {
-        RequestContext::new(
+    pub fn caller_session(&self) -> CallerSession {
+        CallerSession::new(
+            self.session.session_token.clone(),
             self.session.session_id.clone(),
-            TraceId::generate(),
+            self.session.user_id.clone(),
             self.session.context_id.clone(),
-            agent_name,
-            Actor::user(self.session.user_id.clone()),
+            self.session.user_type,
         )
-        .with_auth_token(JwtToken::new(self.session.session_token.as_str()))
-        .with_user_type(self.session.user_type)
     }
 }
