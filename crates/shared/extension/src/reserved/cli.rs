@@ -62,7 +62,7 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
     cli(
         CoreId::AgentHttp,
         &["core", "contexts"],
-        &[KernelGrant::CallerSession],
+        &[KernelGrant::CallerSession, KernelGrant::SessionContext],
         PRESERVING,
     ),
     cli(

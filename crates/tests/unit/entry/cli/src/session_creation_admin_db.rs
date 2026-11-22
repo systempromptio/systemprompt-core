@@ -307,12 +307,29 @@ mod tenant_fallback {
 // another's.
 mod cli_context {
     use super::{pname, seed, test_db_pool};
-    use systemprompt_cli::session::creation::admin_bootstrap::{
-        create_cli_context, get_or_create_admin,
-    };
+    use systemprompt_agent::repository::context::ContextRepository;
+    use systemprompt_agent::services::ContextProviderService;
+    use systemprompt_cli::session::SessionContexts;
+    use systemprompt_cli::session::creation::admin_bootstrap::get_or_create_admin;
+    use systemprompt_identifiers::{ContextId, ProfileName};
+    use systemprompt_users::User;
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{SessionId, UserId};
     use systemprompt_test_fixtures::seed_user_session;
+
+    async fn create_cli_context(
+        pool: DbPool,
+        user: &User,
+        session: &SessionId,
+        profile: &ProfileName,
+    ) -> Result<ContextId, systemprompt_cli::session::SessionContextError> {
+        let service = std::sync::Arc::new(ContextProviderService::new(ContextRepository::new(
+            &pool,
+        )));
+        SessionContexts::new(service.clone(), service)
+            .issue(&user.id, session, profile)
+            .await
+    }
 
     async fn session_for(pool: &DbPool, user_id: &UserId) -> SessionId {
         let session = SessionId::generate();

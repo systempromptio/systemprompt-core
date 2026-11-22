@@ -17,9 +17,10 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use super::api::{create_local_session_row, load_signing_keys};
+use super::contexts::SessionContexts;
 use super::resolution::ProfileContext;
 use admin_bootstrap::{
-    SessionComponents, build_cli_session, connect_database, create_cli_context,
+    SessionComponents, build_cli_session, connect_database,
     generate_admin_token, load_secrets, resolve_admin_with_fallback,
     resolve_credentialed_user_email, resolve_local_admin, resolve_tenant_admin_with_fallback,
 };
@@ -30,8 +31,9 @@ pub(super) async fn create_local_session(
     session_key: &SessionKey,
     config: &CliConfig,
     session_email_hint: Option<&str>,
-    boot: &BootContext,
+    source: SessionSource<'_>,
 ) -> Result<CliSession> {
+    let SessionSource { boot, contexts } = source;
     let profile = boot.profile();
     profile
         .validate()
@@ -69,8 +71,9 @@ pub(super) async fn create_local_session(
     .await
     .context("Failed to create local CLI session row in the database")?;
 
-    let context_id =
-        create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
+    let context_id = contexts
+        .issue(&admin_user.id, &session_id, profile_ctx.name)
+        .await?;
     let session_token =
         generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 
@@ -93,6 +96,12 @@ pub(super) async fn create_local_session(
     )
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct SessionSource<'a> {
+    pub boot: &'a BootContext,
+    pub contexts: &'a SessionContexts,
+}
+
 pub(super) struct TenantSessionParams<'a> {
     pub creds: &'a CloudCredentials,
     pub profile: &'a Profile,
@@ -101,6 +110,7 @@ pub(super) struct TenantSessionParams<'a> {
     pub config: &'a CliConfig,
     pub session_email_hint: Option<&'a str>,
     pub boot: &'a BootContext,
+    pub contexts: &'a SessionContexts,
 }
 
 pub(super) async fn create_session_for_tenant(
@@ -114,6 +124,7 @@ pub(super) async fn create_session_for_tenant(
         config,
         session_email_hint,
         boot,
+        contexts,
     } = params;
     profile
         .validate()
@@ -143,8 +154,9 @@ pub(super) async fn create_session_for_tenant(
     .await
     .context("Failed to create local tenant CLI session row in the database")?;
 
-    let context_id =
-        create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
+    let context_id = contexts
+        .issue(&admin_user.id, &session_id, profile_ctx.name)
+        .await?;
     let session_token =
         generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 

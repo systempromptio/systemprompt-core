@@ -228,10 +228,11 @@ fn install_cloud_cli_and_grant_are_refused() {
 
 #[test]
 fn install_requesting_a_reserved_path_grant_is_refused() {
-    const REQUESTS: [&[KernelGrant]; 3] = [
+    const REQUESTS: [&[KernelGrant]; 4] = [
         &[KernelGrant::ServicesTree],
         &[KernelGrant::CallerSession],
         &[KernelGrant::BootProfile],
+        &[KernelGrant::SessionContext],
     ];
     for request in REQUESTS {
         let grant = request[0];

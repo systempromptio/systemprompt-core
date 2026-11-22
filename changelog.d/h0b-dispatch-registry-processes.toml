@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "The API's agent proxy is reachable to core member provide fns and slot builds as a sealed agent dispatch; supervised process sets are contributed through a sealed core-first slot; the MCP registry seam carries validation and the managed-server list."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`a2a::dispatch::{AgentDispatch, AgentDispatchCell, AgentDispatchError}`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`McpRegistryProvider` gains required `managed_servers` and `validate`. New: `ServiceProcessSet`, `DynServiceProcessSet`, `ServiceProcessKind`, `ServiceProcessStatus`, `ServiceProcessError`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The messaging dispatcher sends A2A through the kernel-seeded agent dispatch the API binds (`services::agent_dispatch`); `MessagingError::{Request, ResponseBody}` are replaced by `Dispatch(AgentDispatchError)` and `DispatchUnbound`."

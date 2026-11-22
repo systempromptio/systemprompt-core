@@ -43,7 +43,7 @@ async fn command(project: &Project, args: &[&str]) -> anyhow::Result<()> {
 #[tokio::test]
 async fn coverage_local_session_creation_persists_identity_and_reuses_the_session() {
     let user = admin().await;
-    let project = Project::new(user.as_str(), false);
+    let project = Project::new(user.as_str(), false).with_session_seams().await;
     let ctx = project.context(true);
     let first = get_or_create_session(&ctx).await.unwrap().session;
     assert_eq!(first.user_id, user);
@@ -66,7 +66,7 @@ async fn coverage_local_session_creation_persists_identity_and_reuses_the_sessio
 #[tokio::test]
 async fn coverage_active_profile_is_resolved_after_explicit_override_is_removed() {
     let user = admin().await;
-    let project = Project::new(user.as_str(), false);
+    let project = Project::new(user.as_str(), false).with_session_seams().await;
     let first = get_or_create_session(&project.context(false))
         .await
         .unwrap()
@@ -88,7 +88,7 @@ async fn coverage_active_profile_is_resolved_after_explicit_override_is_removed(
 #[tokio::test]
 async fn coverage_logout_removes_active_and_explicit_profile_sessions() {
     let user = admin().await;
-    let project = Project::new(user.as_str(), false);
+    let project = Project::new(user.as_str(), false).with_session_seams().await;
     for args in [
         &["logout", "--profile", "coverage", "--yes"][..],
         &["logout", "--all", "--yes"][..],
@@ -118,7 +118,7 @@ async fn coverage_logout_removes_active_and_explicit_profile_sessions() {
 #[tokio::test]
 async fn coverage_clearing_sessions_is_persisted_and_idempotent() {
     let user = admin().await;
-    let project = Project::new(user.as_str(), false);
+    let project = Project::new(user.as_str(), false).with_session_seams().await;
     get_or_create_session(&project.context(false))
         .await
         .unwrap();
@@ -143,7 +143,7 @@ async fn coverage_clearing_sessions_is_persisted_and_idempotent() {
 #[tokio::test]
 async fn coverage_tenant_session_uses_cloud_identity_and_tenant_binding() {
     let user = admin().await;
-    let project = Project::new(user.as_str(), true);
+    let project = Project::new(user.as_str(), true).with_session_seams().await;
     let email = format!("{}@example.invalid", user.as_str());
     let credentials = CloudCredentials::new(
         CloudAuthToken::new("eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjQxMDI0NDQ4MDB9.fixture"),
@@ -253,7 +253,7 @@ const LOGOUT_CONFIRM_HELPER: &str = "session_lifecycle_flows::logout_confirmatio
 #[ignore = "re-executed by logout_confirmation_preserves_sessions_and_reports_cancellation"]
 async fn logout_confirmation_helper() {
     let user = admin().await;
-    let project = Project::new(user.as_str(), false);
+    let project = Project::new(user.as_str(), false).with_session_seams().await;
     get_or_create_session(&project.context(false))
         .await
         .unwrap();

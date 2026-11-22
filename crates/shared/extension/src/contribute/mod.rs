@@ -28,6 +28,7 @@ mod resolved;
 mod sink;
 mod sink_push;
 mod slot;
+mod slot_insert;
 mod standing;
 mod view;
 

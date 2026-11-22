@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ContextId;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -32,7 +33,8 @@ use crate::kernel::{KernelHost, TargetAdmissionError, admit_target};
 /// command holds [`KernelGrant::BootProfile`],
 /// [`CommandHost::services_tree`] only under [`KernelGrant::ServicesTree`]
 /// and [`CommandHost::caller_session`] only under
-/// [`KernelGrant::CallerSession`], and [`CommandHost::export_dir`] only under
+/// [`KernelGrant::CallerSession`], [`CommandHost::use_session_context`]
+/// only under [`KernelGrant::SessionContext`], and [`CommandHost::export_dir`] only under
 /// [`KernelGrant::LocalExport`]. Its [`CommandHost::resolved`] is the one
 /// member-command resolver: it reads the command kernel's state but refuses
 /// every sealed seed as missing. A command holding
@@ -190,6 +192,17 @@ impl CommandHost for MemberHost<'_> {
                 .await
                 .map_err(CommandError::new)?;
             Ok(session.caller_session())
+        })
+    }
+
+    fn use_session_context(&self, context: ContextId) -> BoxFuture<'_, Result<(), CommandError>> {
+        if !self.descriptor.holds(KernelGrant::SessionContext) {
+            return Box::pin(async move { Err(grant_refused(KernelGrant::SessionContext)) });
+        }
+        Box::pin(async move {
+            crate::session::use_session_context(self.ctx, context)
+                .await
+                .map_err(CommandError::new)
         })
     }
 }

@@ -1,7 +1,8 @@
 //! The A2A backend leg of the messaging pipeline.
 //!
 //! Mints a per-user bearer, builds the blocking `SendMessage` request the
-//! proxy forwards to the agent service, runs it through [`ProxyService`], and
+//! proxy forwards to the agent service, sends it through the kernel's sealed
+//! agent dispatch (the API's agent proxy), and
 //! extracts the agent's reply text.
 //!
 //! This is the only part of dispatch that speaks the A2A wire protocol; the
@@ -10,21 +11,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use axum::body::{Body, to_bytes};
-use axum::extract::Request;
-use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 use systemprompt_agent::models::a2a::{
-    A2aJsonRpcRequest, Message, MessageRole, PROTOCOL_VERSION, Part, SendMessageConfiguration,
-    SendMessageParams, SendMessageResult, VERSION_HEADER,
+    A2aJsonRpcRequest, Message, MessageRole, Part, SendMessageConfiguration, SendMessageParams,
+    SendMessageResult,
 };
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, JwtToken, MessageId, ServiceName, SessionId, TraceId,
+    Actor, AgentName, ContextId, JwtToken, MessageId, SessionId, TraceId,
 };
-use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
+use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::a2a::methods;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, JwtAudience, Permission};
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
@@ -32,11 +28,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::MessagingInbound;
 use systemprompt_users::User;
 
-use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
-
 use super::MessagingError;
-
-const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
 pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
     vec![Permission::A2a, BaseRoles::permission_for(roles)]
@@ -92,7 +84,7 @@ pub(super) fn build_a2a_request(
     session_id: &SessionId,
     token: &str,
     context_id: &ContextId,
-) -> Result<Request<Body>, MessagingError> {
+) -> Result<(Vec<u8>, RequestContext), MessagingError> {
     let message = Message {
         role: MessageRole::User,
         parts: vec![Part::text(inbound.text.clone())],
@@ -121,15 +113,6 @@ pub(super) fn build_a2a_request(
     };
     let body = serde_json::to_vec(&rpc).map_err(MessagingError::Encode)?;
 
-    let mut request = Request::builder()
-        .method("POST")
-        .uri("/")
-        .header(AUTHORIZATION, format!("Bearer {token}"))
-        .header(CONTENT_TYPE, "application/json")
-        .header(VERSION_HEADER, PROTOCOL_VERSION)
-        .body(Body::from(body))
-        .map_err(MessagingError::Request)?;
-
     let req_context = RequestContext::new(
         session_id.clone(),
         TraceId::generate(),
@@ -139,36 +122,19 @@ pub(super) fn build_a2a_request(
     )
     .with_user(authed.clone())
     .with_auth_token(JwtToken::new(token));
-    request.extensions_mut().insert(req_context);
-    Ok(request)
+    Ok((body, req_context))
 }
 
 pub(super) async fn run_agent(
-    ctx: &AppContext,
-    sessions: &Arc<McpProxySessionRepository>,
+    dispatch: &dyn AgentDispatch,
     agent: &AgentName,
-    request: Request<Body>,
+    request: (Vec<u8>, RequestContext),
 ) -> Result<String, MessagingError> {
-    let service_name = ServiceName::new(agent.as_str());
-    let target = ProxyTarget {
-        service_name: &service_name,
-        path: "",
-        kind: ProxyKind::Agent,
-    };
-    let response = ProxyService::new(
-        Arc::clone(sessions),
-        Arc::clone(ctx.connector_tokens()),
-        &ctx.services_state().view(),
-        Arc::clone(ctx.config_arc()),
-        Arc::clone(ctx.secrets()),
-    )
-    .proxy_request(target, request, ctx.clone())
-    .await
-    .map_err(MessagingError::Dispatch)?;
-
-    let bytes = to_bytes(response.into_body(), MAX_A2A_RESPONSE_BYTES)
+    let (body, context) = request;
+    let bytes = dispatch
+        .send(agent, body, context)
         .await
-        .map_err(MessagingError::ResponseBody)?;
+        .map_err(MessagingError::Dispatch)?;
     let parsed: JsonRpcResponse<SendMessageResult> =
         serde_json::from_slice(&bytes).map_err(MessagingError::Response)?;
 

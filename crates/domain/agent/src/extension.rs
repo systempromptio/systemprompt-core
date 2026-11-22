@@ -1,11 +1,20 @@
-//! [`AgentExtension`]: contributes the agent tables, migrations and jobs.
+//! [`AgentExtension`]: contributes the agent tables, migrations and jobs, and
+//! provides the conversation-context seams other members and the kernel read
+//! by type: `DynContextDirectory`, `DynContextMaterializer` and
+//! `DynSessionContextIssuer`, each open (database-only).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
+use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_traits::{DynContextDirectory, DynContextMaterializer, DynSessionContextIssuer};
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
+use crate::repository::ContextRepository;
+use crate::services::ContextProviderService;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentExtension;
@@ -38,7 +47,16 @@ impl Extension for AgentExtension {
         .cross_table("ai_requests")
         .cross_table("services")
         .job(CleanupEmptyContextsJob)
-        .job(UserContextCountersRollupJob);
+        .job(UserContextCountersRollupJob)
+        .provide(|r: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
+            Ok(Arc::new(context_service(r)?))
+        })
+        .provide(|r: &Resolved<'_>| -> Result<DynContextMaterializer, ProvideError> {
+            Ok(Arc::new(context_service(r)?))
+        })
+        .provide(|r: &Resolved<'_>| -> Result<DynSessionContextIssuer, ProvideError> {
+            Ok(Arc::new(context_service(r)?))
+        });
         c.user_purge(UserPurgeTable {
             table: "agent_tasks",
             column: "user_id",
@@ -147,4 +165,9 @@ fn artifact_schemas() -> Vec<SchemaDefinition> {
         )
         .with_required_columns(vec!["id".into(), "artifact_id".into(), "part_kind".into()]),
     ]
+}
+
+fn context_service(r: &Resolved<'_>) -> Result<ContextProviderService, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(ContextProviderService::new(ContextRepository::new(&db)))
 }

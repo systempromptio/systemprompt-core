@@ -10,12 +10,11 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{
     CliSession, CloudCredentials, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey,
 };
 use systemprompt_database::{Database, DbPool, PoolConfig};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
+use systemprompt_identifiers::{ContextId, Email, SessionId, SessionToken};
 use systemprompt_loader::BootContext;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::keys::SigningKeys;
@@ -123,23 +122,6 @@ pub fn generate_admin_token(
             rate_limit_tier: RateLimitTier::Admin,
         })
         .context("Failed to generate session token")
-}
-
-pub async fn create_cli_context(
-    db_pool: DbPool,
-    user: &systemprompt_users::User,
-    session_id: &SessionId,
-    profile_name: &ProfileName,
-) -> Result<ContextId> {
-    let context_repo = ContextRepository::new(&db_pool);
-    context_repo
-        .get_or_create_cli_context(
-            &user.id,
-            session_id,
-            &format!("CLI Session - {}", profile_name),
-        )
-        .await
-        .context("Failed to create CLI context")
 }
 
 pub(super) struct SessionComponents {

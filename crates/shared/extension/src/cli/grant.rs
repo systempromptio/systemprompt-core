@@ -22,7 +22,9 @@
 /// `ServicesTree` serves the active services root and the non-secret
 /// profile values read beside it through `CommandHost::services_tree`,
 /// without a database boot; `CallerSession` serves the CLI caller's own
-/// session token through `CommandHost::caller_session`. A
+/// session token through `CommandHost::caller_session`; `SessionContext` lets
+/// the command switch the caller's stored CLI session to a context the caller
+/// owns through `CommandHost::use_session_context`. A
 /// member's command requests the grants it needs; the composition and the CLI
 /// registry refuse a request the reserved CLI paths do not list for that path
 /// and owner.
@@ -38,10 +40,11 @@ pub enum KernelGrant {
     TargetAdmission,
     ServicesTree,
     CallerSession,
+    SessionContext,
 }
 
 impl KernelGrant {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::ChildHost,
         Self::ServesApi,
         Self::CloudOperator,
@@ -52,6 +55,7 @@ impl KernelGrant {
         Self::TargetAdmission,
         Self::ServicesTree,
         Self::CallerSession,
+        Self::SessionContext,
     ];
 }
 
@@ -68,6 +72,7 @@ impl std::fmt::Display for KernelGrant {
             Self::TargetAdmission => "target-admission",
             Self::ServicesTree => "services-tree",
             Self::CallerSession => "caller-session",
+            Self::SessionContext => "session-context",
         })
     }
 }

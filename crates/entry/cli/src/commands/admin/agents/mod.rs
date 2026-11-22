@@ -116,7 +116,7 @@ pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<C
         AgentsCommands::Message(args) => Box::pin(message::execute(args, host))
             .await
             .context("Failed to send message to agent")?,
-        AgentsCommands::Task(args) => task::execute(args, host)
+        AgentsCommands::Task(args) => Box::pin(task::execute(args, host))
             .await
             .context("Failed to get task details")?,
         AgentsCommands::Tools(args) => Box::pin(tools::execute(args, host))

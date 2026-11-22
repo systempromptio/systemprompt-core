@@ -167,6 +167,14 @@ impl McpRegistryProvider for NullRegistry {
     ) -> Result<Vec<systemprompt_traits::McpServerInfo>, systemprompt_traits::RegistryError> {
         Ok(Vec::new())
     }
+    async fn managed_servers(
+        &self,
+    ) -> Result<Vec<systemprompt_traits::McpServerInfo>, systemprompt_traits::RegistryError> {
+        Ok(Vec::new())
+    }
+    async fn validate(&self) -> Result<(), systemprompt_traits::RegistryError> {
+        Ok(())
+    }
 }
 
 async fn base_state() -> OAuthState {

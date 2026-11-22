@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::{
     ContextDirectory, ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
-    EnsureContextParams, OwnedContextSummary,
+    EnsureContextParams, OwnedContextSummary, SessionContextIssuer,
 };
 
 use crate::models::context::ContextKind;
@@ -142,6 +142,21 @@ impl ContextMaterializer for ContextProviderService {
 
         self.repo
             .ensure_context(&params, kind)
+            .await
+            .map_err(|e| ContextProviderError::Database(e.into()))
+    }
+}
+
+#[async_trait]
+impl SessionContextIssuer for ContextProviderService {
+    async fn session_context(
+        &self,
+        user_id: &UserId,
+        session_id: &SessionId,
+        name: &str,
+    ) -> Result<ContextId, ContextProviderError> {
+        self.repo
+            .get_or_create_cli_context(user_id, session_id, name)
             .await
             .map_err(|e| ContextProviderError::Database(e.into()))
     }
