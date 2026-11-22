@@ -3,9 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::ContextId;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use systemprompt_identifiers::ContextId;
 
 use systemprompt_config::paths::StoragePaths;
 use systemprompt_extension::Resolved;
@@ -34,10 +34,10 @@ use crate::kernel::{KernelHost, TargetAdmissionError, admit_target};
 /// [`CommandHost::services_tree`] only under [`KernelGrant::ServicesTree`]
 /// and [`CommandHost::caller_session`] only under
 /// [`KernelGrant::CallerSession`], [`CommandHost::use_session_context`]
-/// only under [`KernelGrant::SessionContext`], and [`CommandHost::export_dir`] only under
-/// [`KernelGrant::LocalExport`]. Its [`CommandHost::resolved`] is the one
-/// member-command resolver: it reads the command kernel's state but refuses
-/// every sealed seed as missing. A command holding
+/// only under [`KernelGrant::SessionContext`], and [`CommandHost::export_dir`]
+/// only under [`KernelGrant::LocalExport`]. Its [`CommandHost::resolved`] is
+/// the one member-command resolver: it reads the command kernel's state but
+/// refuses every sealed seed as missing. A command holding
 /// [`KernelGrant::ConfigReconcile`] run where an application context is
 /// available also resolves the kernel-built `Arc<ConfigApplyService>`; no
 /// member resolves the application context. It serves

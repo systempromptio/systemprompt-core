@@ -3,9 +3,9 @@
 //!
 //! The kernel never names the agent domain: it resolves
 //! `DynContextDirectory` and `DynSessionContextIssuer` from the command
-//! kernel of the run's own profile, after that kernel resolves. With no admitted provider the session
-//! cannot be given a context and creation fails with
-//! [`SessionContextError::Unprovided`].
+//! kernel of the run's own profile, after that kernel resolves. With no
+//! admitted provider the session cannot be given a context and creation fails
+//! with [`SessionContextError::Unprovided`].
 //!
 //! `use_session_context` is the one path that rewrites a stored session's
 //! context on behalf of a command: it switches the caller's session only after
@@ -84,7 +84,11 @@ impl SessionContexts {
         profile_name: &ProfileName,
     ) -> Result<ContextId, SessionContextError> {
         self.issuer
-            .session_context(user_id, session_id, &format!("CLI Session - {profile_name}"))
+            .session_context(
+                user_id,
+                session_id,
+                &format!("CLI Session - {profile_name}"),
+            )
             .await
             .map_err(SessionContextError::Context)
     }
@@ -114,7 +118,10 @@ pub async fn use_session_context(
         .map_err(SessionContextError::Kernel)?
         .to_path_buf();
     let contexts = SessionContexts::for_profile(host, &profile_path).await?;
-    if !contexts.owns(&session_ctx.session.user_id, &context).await? {
+    if !contexts
+        .owns(&session_ctx.session.user_id, &context)
+        .await?
+    {
         return Err(SessionContextError::NotOwned(context));
     }
     let sessions_dir = systemprompt_cloud::paths::ResolvedPaths::discover().sessions_dir();

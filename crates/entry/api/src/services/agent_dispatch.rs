@@ -15,12 +15,12 @@ use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use systemprompt_agent::models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
-use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::dispatch::{AgentDispatch, AgentDispatchCell, AgentDispatchError};
 use systemprompt_models::late_bound::AlreadyBound;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 
 use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};

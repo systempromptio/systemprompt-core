@@ -28,8 +28,8 @@ use systemprompt_users::{User, UserRole};
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
-use crate::session::api::{create_local_session_row, load_signing_keys};
 use crate::session::SessionContexts;
+use crate::session::api::{create_local_session_row, load_signing_keys};
 use crate::session::resolution::extract_profile_name;
 
 #[derive(Debug, Args)]
@@ -60,7 +60,12 @@ pub struct LoginOutput {
 }
 
 pub async fn execute(args: LoginArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    login_for_profile(crate::commands::admin::state::boot(host)?.as_ref(), &args, host).await
+    login_for_profile(
+        crate::commands::admin::state::boot(host)?.as_ref(),
+        &args,
+        host,
+    )
+    .await
 }
 
 fn ensure_interactive_admin(admin_user: &User) -> Result<()> {

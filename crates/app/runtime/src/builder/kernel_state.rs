@@ -79,11 +79,11 @@ use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
+use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_models::{ContentConfigRaw, LateBound};
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
-use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{

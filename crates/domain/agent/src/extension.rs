@@ -48,15 +48,21 @@ impl Extension for AgentExtension {
         .cross_table("services")
         .job(CleanupEmptyContextsJob)
         .job(UserContextCountersRollupJob)
-        .provide(|r: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
-            Ok(Arc::new(context_service(r)?))
-        })
-        .provide(|r: &Resolved<'_>| -> Result<DynContextMaterializer, ProvideError> {
-            Ok(Arc::new(context_service(r)?))
-        })
-        .provide(|r: &Resolved<'_>| -> Result<DynSessionContextIssuer, ProvideError> {
-            Ok(Arc::new(context_service(r)?))
-        });
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
+                Ok(Arc::new(context_service(r)?))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynContextMaterializer, ProvideError> {
+                Ok(Arc::new(context_service(r)?))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynSessionContextIssuer, ProvideError> {
+                Ok(Arc::new(context_service(r)?))
+            },
+        );
         c.user_purge(UserPurgeTable {
             table: "agent_tasks",
             column: "user_id",

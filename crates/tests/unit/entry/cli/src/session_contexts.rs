@@ -26,7 +26,10 @@ async fn session_contexts_fail_typed_without_a_provider() {
     );
     let error = SessionContexts::from_resolved(&kernel.resolved())
         .expect_err("no member provides the context seams");
-    assert!(matches!(error, SessionContextError::Unprovided(_)), "{error:?}");
+    assert!(
+        matches!(error, SessionContextError::Unprovided(_)),
+        "{error:?}"
+    );
 }
 
 #[tokio::test]

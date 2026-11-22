@@ -25,8 +25,6 @@ mod child_host;
 #[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
-mod session_contexts;
-#[cfg(test)]
 mod commands;
 #[cfg(test)]
 mod config_migrate_descriptor;
@@ -104,6 +102,8 @@ mod services_serve_parsing;
 mod services_validate;
 #[cfg(test)]
 mod services_validate_flows;
+#[cfg(test)]
+mod session_contexts;
 #[cfg(test)]
 mod session_creation_admin_db;
 #[cfg(test)]
