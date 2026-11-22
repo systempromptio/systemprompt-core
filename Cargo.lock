@@ -6297,6 +6297,7 @@ dependencies = [
  "rmcp",
  "sqlx",
  "systemprompt-agent",
+ "systemprompt-agent-entry",
  "systemprompt-agent-runs",
  "systemprompt-agent-runs-entry",
  "systemprompt-ai",
@@ -6388,6 +6389,13 @@ dependencies = [
  "tokio-util",
  "tower-http 0.7.1",
  "tracing",
+]
+
+[[package]]
+name = "systemprompt-agent-entry"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
 ]
 
 [[package]]

@@ -59,6 +59,7 @@ api = [
     "systemprompt-marketplace-entry?/http",
     "systemprompt-files-entry?/http",
     "systemprompt-mcp-entry?/http",
+    "systemprompt-agent-entry?/http",
 ]
 
 # Cloud infrastructure (API client, credentials, OAuth)
@@ -73,7 +74,7 @@ client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
-cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli", "systemprompt-marketplace-entry?/cli", "systemprompt-files-entry?/cli", "systemprompt-mcp-entry?/cli"]
+cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli", "systemprompt-marketplace-entry?/cli", "systemprompt-files-entry?/cli", "systemprompt-mcp-entry?/cli", "systemprompt-agent-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
@@ -99,6 +100,10 @@ files = ["dep:systemprompt-files", "dep:systemprompt-files-entry"]
 # The hosted MCP capability: the domain crate with its routes and commands
 # from `systemprompt-mcp-entry`. `full` implies it.
 mcp-servers = ["dep:systemprompt-mcp", "dep:systemprompt-mcp-entry"]
+
+# The agent capability: the domain crate with its A2A routes and commands
+# from `systemprompt-agent-entry`. `full` implies it.
+agents = ["dep:systemprompt-agent", "dep:systemprompt-agent-entry"]
 
 # Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`
@@ -151,7 +156,7 @@ full = [
     "mcp",
     "cloud",
     "cli",
-    "dep:systemprompt-agent",
+    "agents",
     "dep:systemprompt-ai",
     "mcp-servers",
     "dep:systemprompt-oauth",
@@ -226,6 +231,7 @@ systemprompt-content-entry = { workspace = true, optional = true }
 systemprompt-marketplace-entry = { workspace = true, optional = true }
 systemprompt-files-entry = { workspace = true, optional = true }
 systemprompt-mcp-entry = { workspace = true, optional = true }
+systemprompt-agent-entry = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-analytics-entry = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
@@ -285,3 +291,6 @@ required-features = ["api"]
 [[example]]
 name = "cli"
 required-features = ["full"]
+
+[package.metadata.cargo-machete]
+ignored = ["systemprompt-agent-entry"]

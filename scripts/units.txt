@@ -45,6 +45,7 @@ systemprompt-mcp-entry             capability:mcp
 systemprompt-ai                    capability:ai
 systemprompt-gateway               capability:gateway
 systemprompt-agent                 capability:agents
+systemprompt-agent-entry           capability:agents
 systemprompt-marketplace           capability:marketplace
 systemprompt-marketplace-entry     capability:marketplace
 systemprompt-slack                 capability:slack
