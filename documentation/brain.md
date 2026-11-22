@@ -30,7 +30,7 @@ brain:
 - No outbox consumer runs and no extraction model is called.
 - The document store records no brain event. A revision lands and a comment resolves as usual.
 - The gateway injects nothing. Each request's audit row records `skipped=disabled`.
-- Built with the feature but disabled, every path under `/api/v1/brain` and `/api/v1/admin/brain` answers `404` with `error_key` `brain_disabled`. Built without the feature, those routes are not mounted and answer a plain `404`.
+- Built with the feature but disabled, every route under `/api/v1/brain` and `/api/v1/admin/brain` answers `404` with `error_key` `brain_disabled`. Built without the feature, or with the `brain-http` extension disabled in the profile, those routes are not mounted and answer a plain `404`. Disabling the `brain` extension while `brain-http` stays enabled refuses the boot.
 - The brain MCP tools cannot be composed; building them refuses with "set brain.enabled: true in the profile".
 
 An enabled brain has two hard requirements, checked at start:
@@ -422,7 +422,7 @@ The `brain_per_second` key of `rate_limits` (default `50`) bounds the brain rout
 
 ## HTTP API
 
-All `/api/v1/brain` routes require a signed-in, active user; an inactive account answers `401`. `/api/v1/admin/brain` routes require an admin. Each handler resolves the caller's current roles and the brain service authorizes the operation:
+All `/api/v1/brain` routes require a signed-in, active user; an inactive account answers `401`. `/api/v1/admin/brain` routes require an admin. The routes are contributed by the `brain-http` extension. Each handler reads the caller's current roles and the brain service authorizes the operation:
 
 - Every read (listing, a single fact, its timeline, its why-view, a subject's facts) and every dispute applies the same per-fact visibility check recall uses: scope or topic audience, granularity, and whether the caller may read the fact's source as the actor the request acts as. A browser session acts as the person; any other credential acts as an agent. A fact the caller may not see is left out of listings and answers `404` `fact_not_found` when read directly, so its existence does not leak. A `project` fact is visible only when the request names that project (the `project` query parameter).
 - A `user`-scoped fact may be governed and entered by its owner only.
