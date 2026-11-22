@@ -49,3 +49,50 @@ impl SecretsService {
         Ok(self.get().child_env(&grants)?)
     }
 }
+
+/// What spawn code reads of the platform's secrets.
+///
+/// The grant-scoped child environment, the refusal of an `env_vars`
+/// pass-through that would leak a secret, and the path of the profile the
+/// child boots against.
+///
+/// A standing capability (it resolves granted secret values), so the kernel
+/// seeds it **sealed**; only provide fns, factories and kernel code read it.
+pub trait ChildSecretEnv: Send + Sync + std::fmt::Debug {
+    fn child_env(
+        &self,
+        explicit: &[SecretGrant],
+        derived: &[String],
+    ) -> Result<Vec<(String, String)>, ChildSecretsError>;
+
+    fn refused_env_var(
+        &self,
+        env_vars: &[String],
+    ) -> Result<(), systemprompt_manifest::child_env::EnvVarRefusal>;
+
+    fn profile_path(&self) -> &std::path::Path;
+}
+
+pub type DynChildSecretEnv = std::sync::Arc<dyn ChildSecretEnv>;
+
+impl ChildSecretEnv for SecretsService {
+    fn child_env(
+        &self,
+        explicit: &[SecretGrant],
+        derived: &[String],
+    ) -> Result<Vec<(String, String)>, ChildSecretsError> {
+        Self::child_env(self, explicit, derived)
+    }
+
+    fn refused_env_var(
+        &self,
+        env_vars: &[String],
+    ) -> Result<(), systemprompt_manifest::child_env::EnvVarRefusal> {
+        self.get()
+            .refused_env_var(self.profile().secrets.as_ref(), env_vars)
+    }
+
+    fn profile_path(&self) -> &std::path::Path {
+        self.profile().path()
+    }
+}

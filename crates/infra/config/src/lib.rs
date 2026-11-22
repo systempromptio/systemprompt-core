@@ -49,7 +49,7 @@ pub mod state_dir;
 pub mod yaml_document;
 
 pub use bootstrap::{
-    BOOT_REQUIRED_SECRET_KEYS, ChildSecretsError, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES,
+    BOOT_REQUIRED_SECRET_KEYS, ChildSecretEnv, ChildSecretsError, DynChildSecretEnv, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES,
     EnvLookup, GrantedSecrets, GrantedSecretsError, KeyMaterialError, LoadedProfile,
     MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS, PreviousSigningKey, ProfileBootstrapError,
     ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SIGNING_KEY_PREVIOUS_KEYS,

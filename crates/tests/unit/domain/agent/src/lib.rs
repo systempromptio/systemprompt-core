@@ -37,12 +37,11 @@ pub(crate) fn spawn_environment()
     std::sync::Arc::new(
         systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment {
             config: std::sync::Arc::clone(bootstrap.boot_config()),
-            secrets: std::sync::Arc::clone(bootstrap.boot.secrets()),
+            secrets: bootstrap.boot.secrets().clone(),
             verification_keys: systemprompt_test_fixtures::test_signing_keys()
                 .verification_keys()
                 .clone(),
-            services: bootstrap.services.clone(),
-            profile_path: bootstrap.profile_path.clone(),
+            services: bootstrap.services.view(),
         },
     )
 }

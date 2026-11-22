@@ -38,17 +38,19 @@ use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 
 use super::error::SlotError;
 use super::resolved::Resolved;
-use super::slot_insert::insert_erased;
+use super::slot_insert::{SlotBuilt, insert_erased};
 use super::standing::StandingTag;
 use crate::state::StateRequirement;
 
 /// A contribution point owned by a capability; the kernel never names it. A
-/// `SEALED` slot's built value enters the state as a sealed provide.
+/// `SEALED` slot's built value enters the state as a sealed provide; a `LATE`
+/// slot is built after the after-governance provides.
 pub trait Slot: 'static {
     type Builder: Default + Send + 'static;
     type Built: Send + Sync + 'static;
     const ORDER: SlotOrder;
     const SEALED: bool = false;
+    const LATE: bool = false;
     fn build(
         entries: Vec<SlotEntry<Self::Builder>>,
         r: &Resolved<'_>,
@@ -87,7 +89,7 @@ impl<B> SlotEntry<B> {
 type ErasedBuilder = Box<dyn Any + Send>;
 pub(super) type ErasedBuilt = Arc<dyn Any + Send + Sync>;
 type BuildFn = fn(Vec<SlotEntry<ErasedBuilder>>, &Resolved<'_>) -> Result<ErasedBuilt, SlotError>;
-type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedBuilt) -> Result<(), DuplicateDependency>;
+pub(super) type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedBuilt) -> Result<(), DuplicateDependency>;
 
 /// One member's builder for one slot, with the slot's monomorphised build
 /// and insert functions. The builder is taken once, when the slot is built.
@@ -96,6 +98,7 @@ pub struct SlotRecord {
     slot: TypeId,
     built: StateRequirement,
     order: SlotOrder,
+    late: bool,
     builder: Mutex<Option<ErasedBuilder>>,
     build: BuildFn,
     insert: InsertFn,
@@ -107,6 +110,7 @@ impl SlotRecord {
             slot: TypeId::of::<S>(),
             built: StateRequirement::of::<Arc<S::Built>>(),
             order: S::ORDER,
+            late: S::LATE,
             builder: Mutex::new(Some(Box::new(S::Builder::default()))),
             build: build_erased::<S>,
             insert: insert_erased::<S>,
@@ -129,6 +133,11 @@ impl SlotRecord {
     #[must_use]
     pub const fn order(&self) -> SlotOrder {
         self.order
+    }
+
+    #[must_use]
+    pub const fn late(&self) -> bool {
+        self.late
     }
 
     #[must_use]
@@ -248,26 +257,6 @@ pub fn build_slot(
         insert,
         owner,
     }))
-}
-
-/// A built slot value, held until it is inserted into the extension state.
-#[doc(hidden)]
-pub struct SlotBuilt {
-    value: ErasedBuilt,
-    insert: InsertFn,
-    owner: ExtensionId,
-}
-
-impl SlotBuilt {
-    pub fn insert_into(self, state: &mut Dependencies) -> Result<(), DuplicateDependency> {
-        (self.insert)(state, &self.owner, self.value)
-    }
-}
-
-impl std::fmt::Debug for SlotBuilt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SlotBuilt").finish_non_exhaustive()
-    }
 }
 
 fn build_erased<S: Slot>(

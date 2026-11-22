@@ -20,6 +20,7 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{ChildKind, mark_child};
 
 use systemprompt_mcp::services::process::spawner::{
+    SpawnSecrets,
     SpawnEnvSpec, build_environment, rotate_log_if_needed, serialize_server_configs,
     spawn_environment,
 };
@@ -425,16 +426,19 @@ const API_HELD_NAMES: &[&str] = &[
 
 #[test]
 fn the_composed_spawn_environment_carries_no_api_held_secret_from_a_polluted_parent() {
-    let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
-    let mut global = systemprompt_test_fixtures::fixture_config(&bootstrap.database_url);
-    global.signing_key_path = bootstrap.system_path.join("signing_key.pem");
     let snapshot = secrets.get();
     let pepper = snapshot.oauth_at_rest_pepper.clone();
     let mut config = internal_mcp_config("env-composed", 9011);
     config.env_vars = vec!["MCP_EXTRA_FLAG".to_owned()];
 
-    let env = spawn_environment(&spec_for(&config), &global, &secrets, |name| {
+    let env = spawn_environment(
+        &spec_for(&config),
+        &SpawnSecrets {
+            env: &*secrets,
+            verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
+        }, |name| {
         Some(if API_HELD_NAMES.contains(&name) {
             pepper.clone()
         } else {
@@ -460,12 +464,16 @@ fn the_composed_spawn_environment_carries_no_api_held_secret_from_a_polluted_par
 
 #[test]
 fn an_env_var_naming_the_profile_path_is_refused_at_spawn() {
-    let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
-    let global = systemprompt_test_fixtures::fixture_config(&bootstrap.database_url);
     let mut config = internal_mcp_config("env-profile", 9012);
     config.env_vars = vec!["SYSTEMPROMPT_PROFILE".to_owned()];
-    let refused = spawn_environment(&spec_for(&config), &global, &secrets, nothing_set)
+    let refused = spawn_environment(
+        &spec_for(&config),
+        &SpawnSecrets {
+            env: &*secrets,
+            verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
+        }, nothing_set)
         .expect_err("the profile path names the secrets source");
     assert!(
         refused.to_string().contains("SYSTEMPROMPT_PROFILE"),
@@ -475,12 +483,16 @@ fn an_env_var_naming_the_profile_path_is_refused_at_spawn() {
 
 #[test]
 fn an_env_var_naming_the_vault_token_is_refused_at_spawn() {
-    let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
-    let global = systemprompt_test_fixtures::fixture_config(&bootstrap.database_url);
     let mut config = internal_mcp_config("env-vault", 9013);
     config.env_vars = vec!["RUST_LOG".to_owned(), "VAULT_TOKEN".to_owned()];
-    let refused = spawn_environment(&spec_for(&config), &global, &secrets, |name| {
+    let refused = spawn_environment(
+        &spec_for(&config),
+        &SpawnSecrets {
+            env: &*secrets,
+            verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
+        }, |name| {
         Some(format!("parent-{name}"))
     })
     .expect_err("a Vault token reads the whole secrets document");

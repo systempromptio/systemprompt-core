@@ -30,7 +30,7 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
                 skip_migrate,
                 kill_port_process,
             };
-            execute_start(target, flags, options, host).await?;
+            Box::pin(execute_start(target, flags, options, host)).await?;
             Ok(CommandOutput::rendered())
         },
 
@@ -46,7 +46,7 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
                 all,
                 targets: start::ServiceTargetFlags { api, agents, mcp },
             };
-            execute_stop(target, flags, force, host).await
+            Box::pin(execute_stop(target, flags, force, host)).await
         },
 
         ServicesCommands::Restart {
@@ -54,16 +54,16 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
             failed,
             agents,
             mcp,
-        } => execute_restart(target, failed, agents, mcp, host).await,
+        } => Box::pin(execute_restart(target, failed, agents, mcp, host)).await,
 
         ServicesCommands::Status {
             detailed,
             json,
             health,
-        } => super::status::execute(detailed, json, health, host).await,
+        } => Box::pin(super::status::execute(detailed, json, health, host)).await,
 
         ServicesCommands::Cleanup { yes, dry_run } => {
-            super::cleanup::execute(yes, dry_run, host).await
+            Box::pin(super::cleanup::execute(yes, dry_run, host)).await
         },
 
         ServicesCommands::Serve {
@@ -71,7 +71,7 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
             kill_port_process,
             skip_migrate,
         } => {
-            super::serve::execute(
+            Box::pin(super::serve::execute(
                 host.prompter(),
                 super::serve::ServeFlags {
                     foreground,
@@ -79,7 +79,7 @@ pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result
                     skip_migrate,
                 },
                 host,
-            )
+            ))
             .await?;
             Ok(CommandOutput::rendered())
         },
@@ -105,7 +105,7 @@ async fn execute_start(
     }
 
     let service_target = start::ServiceTarget::from_flags(flags);
-    start::execute(service_target, options, host).await
+    Box::pin(start::execute(service_target, options, host)).await
 }
 
 async fn execute_stop(
@@ -128,7 +128,7 @@ async fn execute_stop(
     }
 
     let service_target = start::ServiceTarget::from_flags(flags);
-    stop::execute(service_target, force, host).await
+    Box::pin(stop::execute(service_target, force, host)).await
 }
 
 async fn execute_restart(

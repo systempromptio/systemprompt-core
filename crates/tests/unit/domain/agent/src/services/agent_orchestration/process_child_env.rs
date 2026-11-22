@@ -57,10 +57,9 @@ fn an_agent_child_is_spawned_without_any_api_held_secret() {
     );
     let environment = SpawnEnvironment {
         config: std::sync::Arc::clone(bootstrap.boot_config()),
-        secrets: std::sync::Arc::clone(bootstrap.boot.secrets()),
+        secrets: bootstrap.boot.secrets().clone(),
         verification_keys: test_signing_keys().verification_keys().clone(),
-        services: bootstrap.services.clone(),
-        profile_path: bootstrap.profile_path.clone(),
+        services: bootstrap.services.view(),
     };
 
     let secrets_env =

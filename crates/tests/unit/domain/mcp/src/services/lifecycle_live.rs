@@ -55,10 +55,11 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
     (
         LifecycleService::new(
             ProcessService::new(
-                systemprompt_test_fixtures::test_spawner(),
-                crate::harness::config(),
-                systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
-            ),
+            systemprompt_test_fixtures::test_spawner(),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            systemprompt_test_fixtures::fixture_verification_keys(),
+        ),
             NetworkService::new(),
             database,
             MonitoringService::new(),

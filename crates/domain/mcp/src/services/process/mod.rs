@@ -17,7 +17,8 @@ use std::time::Duration;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use systemprompt_config::SecretsService;
+use systemprompt_config::DynChildSecretEnv;
+use systemprompt_security::keys::TokenVerificationKeys;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner, StopOutcome};
@@ -29,24 +30,31 @@ const STOP_GRACE: Duration = Duration::from_secs(5);
 pub struct ProcessService {
     spawner: Arc<Spawner>,
     config: Arc<Config>,
-    secrets: Arc<SecretsService>,
+    secrets: DynChildSecretEnv,
+    verification_keys: TokenVerificationKeys,
 }
 
 impl ProcessService {
     pub const fn new(
         spawner: Arc<Spawner>,
         config: Arc<Config>,
-        secrets: Arc<SecretsService>,
+        secrets: DynChildSecretEnv,
+        verification_keys: TokenVerificationKeys,
     ) -> Self {
         Self {
             spawner,
             config,
             secrets,
+            verification_keys,
         }
     }
 
     pub fn spawn_server(&self, paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
-        spawner::spawn_server(&self.spawner, &self.config, &self.secrets, paths, config)
+        let secrets = spawner::SpawnSecrets {
+            env: self.secrets.as_ref(),
+            verification_keys: &self.verification_keys,
+        };
+        spawner::spawn_server(&self.spawner, &self.config, &secrets, paths, config)
     }
 
     pub async fn is_running(pid: u32) -> bool {

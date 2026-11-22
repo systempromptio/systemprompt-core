@@ -13,12 +13,11 @@
 pub mod command;
 pub mod grants;
 
-use std::path::PathBuf;
 use std::sync::Arc;
-use systemprompt_config::SecretsService;
+use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::ServicesState;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
@@ -29,10 +28,9 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 #[derive(Debug, Clone)]
 pub struct SpawnEnvironment {
     pub config: Arc<Config>,
-    pub secrets: Arc<SecretsService>,
+    pub secrets: DynChildSecretEnv,
     pub verification_keys: TokenVerificationKeys,
-    pub services: ServicesState,
-    pub profile_path: PathBuf,
+    pub services: ServicesView,
 }
 
 pub async fn spawn_detached(
@@ -46,10 +44,11 @@ pub async fn spawn_detached(
         .map_err(|e| OrchestrationError::spawn("Failed to resolve running binary", e))?;
 
     let secrets_env = agent_child_secrets(environment, agent_name)?;
-    let profile_path = environment.profile_path.to_str().ok_or_else(|| {
+    let profile_path = environment.secrets.profile_path();
+    let profile_path = profile_path.to_str().ok_or_else(|| {
         OrchestrationError::ProcessSpawnFailed(format!(
             "profile path {} is not valid UTF-8",
-            environment.profile_path.display()
+            profile_path.display()
         ))
     })?;
 
@@ -90,7 +89,7 @@ pub fn agent_child_secrets(
             "agent {agent_name} is not declared in the services configuration"
         ))
     })?;
-    let derived = grants::model_credential_secrets(agent, environment.services.catalog());
+    let derived = grants::model_credential_secrets(agent, &environment.services.catalog);
     let mut env = environment
         .secrets
         .child_env(&agent.secrets, &derived)

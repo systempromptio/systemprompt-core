@@ -159,6 +159,7 @@ async fn start_server_rejects_external_servers() {
             systemprompt_test_fixtures::test_spawner(),
             crate::harness::config(),
             systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            systemprompt_test_fixtures::fixture_verification_keys(),
         ),
         systemprompt_mcp::services::NetworkService::new(),
         database,

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_traits::{ServiceProcessKind, StopMode};
 use crate::commands::shared::app_context;
 use crate::kernel::KernelHost;
 use anyhow::Result;
@@ -197,14 +198,15 @@ pub(super) async fn execute_individual_agent(
         CliService::section(&format!("Stopping Agent: {}", agent));
     }
 
-    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
-
-    if force {
-        orchestrator.delete_agent(&name).await?;
+    let name = ServiceName::new(agent);
+    let mode = if force {
+        StopMode::Remove
     } else {
-        orchestrator.disable_agent(&name).await?;
-    }
+        StopMode::Disable
+    };
+    lifecycle::process_set(ctx, ServiceProcessKind::Agent)?
+        .stop(Some(&name), mode)
+        .await?;
 
     let message = format!("Agent {} stopped successfully", agent);
     if !config.is_json_output() {
@@ -213,7 +215,7 @@ pub(super) async fn execute_individual_agent(
 
     let output = StopIndividualOutput {
         service_type: "agent".to_owned(),
-        service_name: ServiceName::new(name),
+        service_name: name,
         stopped: true,
         message,
     };
@@ -231,9 +233,8 @@ pub(super) async fn execute_individual_mcp(
         CliService::section(&format!("Stopping MCP Server: {}", server_name));
     }
 
-    let manager = lifecycle::mcp_orchestrator(ctx)?;
-    manager
-        .stop_services(Some(ServiceName::new(server_name.as_str())))
+    lifecycle::process_set(ctx, ServiceProcessKind::McpServer)?
+        .stop(Some(&ServiceName::new(server_name.as_str())), StopMode::Disable)
         .await?;
 
     let message = format!("MCP server {} stopped successfully", server_name);

@@ -74,8 +74,11 @@ pub(super) async fn execute(args: ToolsArgs, host: &dyn KernelHost) -> Result<Co
         (**app.service_repository()).clone(),
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),
-        Arc::clone(app.spawner()),
-        Arc::clone(app.secrets()),
+        systemprompt_mcp::McpSpawn {
+            spawner: Arc::clone(app.spawner()),
+            secrets: Arc::<systemprompt_config::SecretsService>::clone(app.secrets()),
+            verification_keys: app.signing_keys().verification_keys().clone(),
+        },
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

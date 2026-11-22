@@ -90,10 +90,9 @@ pub(super) async fn build_orchestrator(
         Arc::clone(ctx.spawner()),
         Arc::new(SpawnEnvironment {
             config: Arc::clone(ctx.config_arc()),
-            secrets: Arc::clone(ctx.secrets()),
+            secrets: Arc::<systemprompt_config::SecretsService>::clone(ctx.secrets()),
             verification_keys: ctx.signing_keys().verification_keys().clone(),
-            services: ctx.services_state().clone(),
-            profile_path: ctx.boot().profile_path().to_path_buf(),
+            services: ctx.services_state().view(),
         }),
         events,
     )

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_traits::{RestartMode, ServiceProcessKind};
 use crate::kernel::KernelHost;
 use anyhow::Result;
 use std::sync::Arc;
@@ -110,13 +111,17 @@ pub async fn execute_agent(
         CliService::section(&format!("Restarting Agent: {}", agent));
     }
 
-    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
-    let service_id = orchestrator.restart_agent(&name, None).await?;
+    let runs = lifecycle::process_set(ctx, ServiceProcessKind::Agent)?
+        .restart(Some(&ServiceName::new(agent)), RestartMode::Restart)
+        .await?;
+    let name = runs
+        .first()
+        .map_or_else(|| ServiceName::new(agent), |run| run.name.clone());
+    lifecycle::single_run(runs, agent)?;
 
     let message = format!(
         "Agent {} restarted successfully (service ID: {})",
-        agent, service_id
+        agent, name
     );
     if !quiet {
         CliService::success(&message);
@@ -124,7 +129,7 @@ pub async fn execute_agent(
 
     let output = RestartOutput {
         service_type: "agent".to_owned(),
-        service_name: Some(ServiceName::new(name)),
+        service_name: Some(name),
         restarted_count: 1,
         failed_count: 0,
         message,
@@ -150,25 +155,19 @@ pub async fn execute_mcp(
         CliService::section(&format!("{} MCP Server: {}", action, server_name));
     }
 
-    let manager = lifecycle::mcp_orchestrator(ctx)?;
-
-    if build {
-        let restarted = manager
-            .build_and_restart_services(Some(ServiceName::new(server_name.as_str())))
-            .await?;
-        if restarted == 0 {
-            anyhow::bail!("{server_name} is not a managed MCP server");
-        }
+    let mode = if build {
+        RestartMode::Rebuild
     } else {
-        let outcomes = manager
-            .restart_services(Some(ServiceName::new(server_name.as_str())))
-            .await?;
-        if outcomes.is_empty() {
-            anyhow::bail!("{server_name} is not a managed MCP server");
-        }
-        for outcome in outcomes {
-            outcome.result?;
-        }
+        RestartMode::Restart
+    };
+    let runs = lifecycle::process_set(ctx, ServiceProcessKind::McpServer)?
+        .restart(Some(&ServiceName::new(server_name.as_str())), mode)
+        .await?;
+    if runs.is_empty() {
+        anyhow::bail!("{server_name} is not a managed MCP server");
+    }
+    for run in runs {
+        run.outcome?;
     }
 
     let message = format!("MCP server {} restarted successfully", server_name);

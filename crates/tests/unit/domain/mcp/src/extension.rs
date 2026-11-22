@@ -75,12 +75,16 @@ fn the_mcp_member_provides_the_execution_lookup_the_registry_the_observer_and_th
 }
 
 #[test]
-fn the_mcp_member_opens_the_ui_and_access_recorder_slots() {
+fn the_mcp_member_opens_the_process_ui_and_access_recorder_slots() {
     let sink = contributed();
     let slots: Vec<TypeId> = sink.slots().iter().map(|record| record.slot()).collect();
     assert_eq!(
         slots,
-        [TypeId::of::<UiSlot>(), TypeId::of::<AccessRecorderSlot>()]
+        [
+            TypeId::of::<systemprompt_extension::service_process::ServiceProcessSlot>(),
+            TypeId::of::<UiSlot>(),
+            TypeId::of::<AccessRecorderSlot>(),
+        ]
     );
 }
 

@@ -99,11 +99,11 @@ pub async fn execute_with_events(
     }
 
     if let Some(early) = early {
-        systemprompt_api::services::server::run_server(
+        Box::pin(systemprompt_api::services::server::run_server(
             Arc::unwrap_or_clone(app),
             events.cloned(),
             early,
-        )
+        ))
         .await?;
     }
 

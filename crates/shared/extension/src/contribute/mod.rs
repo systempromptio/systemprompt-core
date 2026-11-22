@@ -53,7 +53,8 @@ pub use sink::{
     GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
     SubjectProviderFactory,
 };
-pub use slot::{Slot, SlotBuildInput, SlotBuilt, SlotEntry, SlotOrder, SlotRecord, build_slot};
+pub use slot::{Slot, SlotBuildInput, SlotEntry, SlotOrder, SlotRecord, build_slot};
+pub use slot_insert::SlotBuilt;
 pub use standing::StandingTag;
 pub use view::KernelView;
 

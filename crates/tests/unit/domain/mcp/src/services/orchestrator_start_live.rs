@@ -74,15 +74,18 @@ async fn live_server(prefix: &str) -> LiveServer {
     );
     let repo = ServiceRepository::new(&db, unique_instance());
     let orchestrator = McpOrchestrator::new(
-        repo.clone(),
+            repo.clone(),
         app_paths,
         RegistryService::new(
             fixture_user_id(),
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),
-        systemprompt_test_fixtures::test_spawner(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            systemprompt_mcp::McpSpawn {
+                spawner: systemprompt_test_fixtures::test_spawner(),
+                secrets: systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+                verification_keys: systemprompt_test_fixtures::fixture_verification_keys(),
+            },
     )
     .expect("orchestrator");
 

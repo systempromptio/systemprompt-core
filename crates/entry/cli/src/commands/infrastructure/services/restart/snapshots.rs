@@ -1,84 +1,58 @@
 //! Service snapshots the batch restart plans over: every agent and managed
-//! MCP server with its enabled flag and, when probed, its health.
+//! MCP server with its enabled flag and, when probed, its health, read from
+//! the supervised process sets.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
-use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_mcp::HealthStatus;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ServiceSnapshot, ServiceType};
+use systemprompt_traits::{ServiceDetail, ServiceProcessKind, StatusDepth};
 
-pub(super) async fn agent_snapshots(
-    orchestrator: &AgentOrchestrator,
-    services: &systemprompt_loader::ServicesState,
-) -> Result<Vec<ServiceSnapshot>> {
-    let agent_registry = AgentRegistry::new(&services.view());
-    let all_agents = orchestrator.list_all().await?;
+use super::super::lifecycle;
 
-    let mut snapshots = Vec::with_capacity(all_agents.len());
-    for (agent_id, status) in &all_agents {
-        let Ok(agent_config) = agent_registry.get_agent(agent_id.as_str()) else {
-            continue;
-        };
-
-        snapshots.push(ServiceSnapshot {
-            service_type: ServiceType::Agent,
-            id: agent_id.to_string(),
-            name: agent_config.name,
-            enabled: agent_config.enabled,
-            healthy: !matches!(status, AgentStatus::Failed { .. }),
-        });
-    }
-    Ok(snapshots)
+pub(super) async fn agent_snapshots(ctx: &Arc<AppContext>) -> Result<Vec<ServiceSnapshot>> {
+    let statuses =
+        lifecycle::statuses_of(ctx, ServiceProcessKind::Agent, StatusDepth::Listed).await?;
+    Ok(statuses
+        .into_iter()
+        .map(|status| {
+            let (enabled, failed) = match &status.detail {
+                ServiceDetail::Agent { enabled, failure } => (*enabled, failure.is_some()),
+                ServiceDetail::Mcp { .. } => (true, false),
+            };
+            ServiceSnapshot {
+                service_type: ServiceType::Agent,
+                id: status.name.to_string(),
+                name: status.name.to_string(),
+                enabled,
+                healthy: !failed,
+            }
+        })
+        .collect())
 }
 
 pub(super) async fn mcp_snapshots(
     ctx: &Arc<AppContext>,
     probe_health: bool,
 ) -> Result<Vec<ServiceSnapshot>> {
-    ctx.mcp_registry().validate()?;
-    let servers = ctx.mcp_registry().get_managed_servers()?;
-
-    let health_by_name: HashMap<String, HealthStatus> = if probe_health {
-        let manager = systemprompt_mcp::services::McpOrchestrator::new(
-            (**ctx.service_repository()).clone(),
-            Arc::clone(ctx.app_paths_arc()),
-            ctx.mcp_registry().clone(),
-            Arc::clone(ctx.spawner()),
-            Arc::clone(ctx.secrets()),
-        )?;
-        manager
-            .service_statuses()
-            .await?
-            .into_iter()
-            .map(|status| (String::from(status.name), status.health))
-            .collect()
+    let depth = if probe_health {
+        StatusDepth::Probed
     } else {
-        HashMap::new()
+        StatusDepth::Listed
     };
-
-    let mut snapshots = Vec::with_capacity(servers.len());
-    for server in servers {
-        let healthy = if probe_health {
-            health_by_name
-                .get(&server.name)
-                .is_some_and(|h| matches!(h, HealthStatus::Healthy | HealthStatus::Degraded))
-        } else {
-            true
-        };
-
-        snapshots.push(ServiceSnapshot {
+    let statuses = lifecycle::statuses_of(ctx, ServiceProcessKind::McpServer, depth).await?;
+    Ok(statuses
+        .into_iter()
+        .filter(|status| !matches!(status.detail, ServiceDetail::Mcp { remote: true, .. }))
+        .map(|status| ServiceSnapshot {
             service_type: ServiceType::Mcp,
-            id: server.name.clone(),
-            name: server.name.clone(),
+            id: status.name.to_string(),
+            name: status.name.to_string(),
             enabled: true,
-            healthy,
-        });
-    }
-    Ok(snapshots)
+            healthy: !probe_health || status.health.is_up(),
+        })
+        .collect())
 }

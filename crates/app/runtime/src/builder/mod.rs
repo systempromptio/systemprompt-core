@@ -147,7 +147,6 @@ impl AppContextBuilder {
             event_plane(self.event_router, &database, &config, &cache_epochs);
         drop(listener_pool);
         let background_tasks = self.background_tasks.unwrap_or_default();
-
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
         let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
@@ -176,6 +175,7 @@ impl AppContextBuilder {
             },
             signing_keys: &signing_keys,
             spawner: &spawner,
+            child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
             oauth: &seeded.oauth,
             ai: &seeded.ai,
             ai_service: ai_service.as_ref(),

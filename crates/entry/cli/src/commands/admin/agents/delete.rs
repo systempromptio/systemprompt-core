@@ -188,10 +188,9 @@ pub(super) async fn build_orchestrator(host: &dyn KernelHost) -> Result<AgentOrc
         Arc::clone(app.spawner()),
         Arc::new(SpawnEnvironment {
             config: Arc::clone(app.config_arc()),
-            secrets: Arc::clone(app.secrets()),
+            secrets: Arc::<systemprompt_config::SecretsService>::clone(app.secrets()),
             verification_keys: app.signing_keys().verification_keys().clone(),
-            services: app.services_state().clone(),
-            profile_path: app.boot().profile_path().to_path_buf(),
+            services: app.services_state().view(),
         }),
         None,
     )
