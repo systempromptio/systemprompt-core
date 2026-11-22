@@ -102,6 +102,7 @@ pub mod reserved;
 pub mod retention;
 pub mod router;
 pub mod seed;
+pub mod service_process;
 pub mod state;
 mod traits;
 

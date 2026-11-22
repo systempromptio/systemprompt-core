@@ -43,6 +43,11 @@
 
 pub mod agent_run_launcher;
 pub mod agent_server;
+pub mod service_process;
+pub use service_process::{
+    DynServiceProcessSet, ServiceProcessError, ServiceProcessKind, ServiceProcessSet,
+    ServiceProcessStatus,
+};
 pub use agent_server::{AgentServeError, AgentServer, DynAgentServer};
 pub use agent_run_launcher::{
     AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,

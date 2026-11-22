@@ -13,6 +13,14 @@ pub fn built_slot<S: Slot>(
     entries: Vec<(&str, StandingTag, S::Builder)>,
     r: &Resolved<'_>,
 ) -> Result<Arc<S::Built>, SlotError> {
+    built_slot_into::<S>(entries, r, &mut Dependencies::default())
+}
+
+pub fn built_slot_into<S: Slot>(
+    entries: Vec<(&str, StandingTag, S::Builder)>,
+    r: &Resolved<'_>,
+    state: &mut Dependencies,
+) -> Result<Arc<S::Built>, SlotError> {
     let contributed = !entries.is_empty();
     let mut inputs = Vec::new();
     for (owner, standing, builder) in entries {
@@ -33,9 +41,8 @@ pub fn built_slot<S: Slot>(
         );
         return S::build(Vec::new(), r).map(Arc::new);
     };
-    let mut state = Dependencies::default();
     built
-        .insert_into(&mut state)
+        .insert_into(state)
         .expect("an empty state holds no slot value");
     Ok(Arc::clone(
         state

@@ -40,6 +40,7 @@ pub mod secrets;
 #[cfg(test)]
 mod self_check;
 pub mod service_row;
+pub mod session_seams;
 pub mod slots;
 pub mod subprocess;
 pub mod usage;

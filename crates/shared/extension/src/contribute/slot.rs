@@ -37,15 +37,18 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 
 use super::error::SlotError;
+use super::slot_insert::insert_erased;
 use super::resolved::Resolved;
 use super::standing::StandingTag;
 use crate::state::StateRequirement;
 
-/// A contribution point owned by a capability; the kernel never names it.
+/// A contribution point owned by a capability; the kernel never names it. A
+/// `SEALED` slot's built value enters the state as a sealed provide.
 pub trait Slot: 'static {
     type Builder: Default + Send + 'static;
     type Built: Send + Sync + 'static;
     const ORDER: SlotOrder;
+    const SEALED: bool = false;
     fn build(
         entries: Vec<SlotEntry<Self::Builder>>,
         r: &Resolved<'_>,
@@ -82,7 +85,7 @@ impl<B> SlotEntry<B> {
 }
 
 type ErasedBuilder = Box<dyn Any + Send>;
-type ErasedBuilt = Arc<dyn Any + Send + Sync>;
+pub(super) type ErasedBuilt = Arc<dyn Any + Send + Sync>;
 type BuildFn = fn(Vec<SlotEntry<ErasedBuilder>>, &Resolved<'_>) -> Result<ErasedBuilt, SlotError>;
 type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedBuilt) -> Result<(), DuplicateDependency>;
 
@@ -287,14 +290,4 @@ fn build_erased<S: Slot>(
         .collect();
     let built: Arc<S::Built> = Arc::new(S::build(typed, r)?);
     Ok(built)
-}
-
-fn insert_erased<S: Slot>(
-    state: &mut Dependencies,
-    owner: &ExtensionId,
-    value: ErasedBuilt,
-) -> Result<(), DuplicateDependency> {
-    value
-        .downcast::<S::Built>()
-        .map_or(Ok(()), |built| state.provide(owner, Arc::new(built)))
 }
