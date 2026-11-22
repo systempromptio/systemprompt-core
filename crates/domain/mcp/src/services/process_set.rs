@@ -14,9 +14,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_database::ServiceRepository;
 use systemprompt_extension::{FactoryError, Resolved};
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
@@ -70,7 +70,10 @@ const fn health(status: HealthStatus) -> ServiceHealth {
 }
 
 impl McpProcessSet {
-    pub fn from_resolved(r: &Resolved<'_>) -> Result<Self, FactoryError> {
+    pub fn from_resolved(
+        r: &Resolved<'_>,
+        services: ServiceRepository,
+    ) -> Result<Self, FactoryError> {
         let (Some(spawner), Some(secrets), Some(verification_keys)) = (
             r.optional::<Arc<Spawner>>(),
             r.optional::<DynChildSecretEnv>(),
@@ -78,10 +81,9 @@ impl McpProcessSet {
         ) else {
             return Ok(Self { inputs: None });
         };
-        let db = r.get::<DbPool>()?;
         Ok(Self {
             inputs: Some(Inputs {
-                services: ServiceRepository::new(&db, r.get::<InstanceId>()?),
+                services,
                 paths: r.get::<Arc<AppPaths>>()?,
                 registry: RegistryService::new(
                     r.get::<SystemAdmin>()?.id().clone(),
