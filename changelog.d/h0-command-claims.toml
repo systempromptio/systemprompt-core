@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "A member command's routing class, data impact and `--database-url` routing are projected from its descriptor and declaration: a database command is remote-mutating and destructive unless its reserved CLI path's row confers a relaxing claim (read-only routing, local database, preserving data, direct database). An install command holds no claim, so a database command of an install refuses an implicitly arrived cloud profile and never falls back to direct database access."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CliCommandGroup::db_url_routing` and `CliCommandLeaf::db_url_routing` are removed; a declaration lists its claims with `CommandDecl::claiming(&[CommandClaim])` and `DbUrlRouting::Direct` is projected from `CommandClaim::DirectDatabase`. `ParsedCommand::granted` takes the declaration's claims. `ReservedCliPath` gains `claims`. New: `CommandClaim`, `CommandDescriptor::makes`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`RegistryError::ClaimNotListed` and `RegistryError::UndeclaredClaim`: the registry refuses a declaration listing a claim its path's row does not confer and a resolved descriptor making a claim its declaration does not list."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`CompositionError::ClaimNotConferred`: admission refuses a command claim the member's reserved CLI path does not confer."

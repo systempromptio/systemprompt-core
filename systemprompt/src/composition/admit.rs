@@ -162,6 +162,14 @@ pub(super) fn admit_commands(
                     });
                 }
             }
+            for claim in decl.claims() {
+                if !reserved.is_some_and(|reserved| conferred && reserved.claims.contains(claim)) {
+                    return Err(CompositionError::ClaimNotConferred {
+                        owner: member.id.clone(),
+                        claim: *claim,
+                    });
+                }
+            }
             if admitted.iter().any(|other| other.decl.path() == path) {
                 return Err(CompositionError::CommandConflict { path });
             }

@@ -34,6 +34,10 @@ impl Extension for CloudCliExtension {
                     systemprompt_extension::cli::KernelGrant::BootProfile,
                     systemprompt_extension::cli::KernelGrant::ConfigReconcile,
                     systemprompt_extension::cli::KernelGrant::TargetAdmission,
+                ])
+                .claiming(&[
+                    systemprompt_extension::cli::CommandClaim::ReadOnlyRouting,
+                    systemprompt_extension::cli::CommandClaim::PreservesData,
                 ]),
         );
         Ok(())

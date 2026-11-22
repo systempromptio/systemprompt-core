@@ -19,6 +19,8 @@ mod cli_help_order;
 #[cfg(test)]
 mod cli_probe;
 #[cfg(test)]
+mod command_claims;
+#[cfg(test)]
 mod command_disabled;
 #[cfg(test)]
 mod command_line_classify;

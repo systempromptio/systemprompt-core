@@ -32,7 +32,7 @@ use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use systemprompt_extension::cli::{
     CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
-    DbUrlRouting, DescribeCommand,
+    DescribeCommand,
 };
 use systemprompt_files::{FileRepository, FilesConfig};
 
@@ -153,9 +153,6 @@ impl CliCommandGroup for FilesCommands {
     const NAME: &'static str = "files";
     const ABOUT: &'static str = "File management and uploads";
 
-    fn db_url_routing(&self) -> DbUrlRouting {
-        DbUrlRouting::Direct
-    }
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         execute(self, host)

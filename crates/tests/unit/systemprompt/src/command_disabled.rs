@@ -1,10 +1,10 @@
 //! A command whose owner the profile disables is refused at dispatch with
 //! `CommandDisabled`, decided from the profile and the command's stamped
 //! owner, while the same command under a profile that enables it passes (T23).
-//! With no profile (a bare `--database-url` run) a member's command that
-//! does not declare `DbUrlRouting::Direct` is refused with `ProfileRequired`,
-//! while one that declares it, and a kernel command, admit every linked
-//! member.
+//! With no profile (a bare `--database-url` run) a member's command whose
+//! declaration holds no `CommandClaim::DirectDatabase` is refused with
+//! `ProfileRequired`, while one whose row confers it (`analytics`), and a
+//! kernel command, admit every linked member.
 
 use systemprompt::reference;
 use systemprompt_cli::CliRunError;
@@ -12,14 +12,13 @@ use systemprompt_cli::kernel::{CommandRegistry, ResolvedCommand, kernel_commands
 use systemprompt_cli::runner::{admit_unprofiled, refuse_disabled};
 use systemprompt_extension::cli::CommandDecl;
 
-use crate::cli_probe::{DirectProbeGroup, ProbeGroup};
+use crate::cli_probe::ProbeGroup;
 use crate::probe::{Probe, profile};
 
 fn declared_probe() -> systemprompt::Declared {
     reference()
         .with(Probe::new("probe-cli", |c| {
             c.command(CommandDecl::group::<ProbeGroup>());
-            c.command(CommandDecl::group::<DirectProbeGroup>());
         }))
         .declare()
         .expect("the probe group is declared")
@@ -30,12 +29,16 @@ fn resolved_probe_command() -> ResolvedCommand {
 }
 
 fn resolve_probe(group: &str) -> ResolvedCommand {
+    resolve_line(&[group, "status"])
+}
+
+fn resolve_line(line: &[&str]) -> ResolvedCommand {
     let declared = declared_probe();
     let registry = CommandRegistry::build(&declared.commands(), &kernel_commands())
         .expect("the registry accepts the probe group");
     let matches = systemprompt_cli::args::command(&registry)
         .expect("the probe group attaches")
-        .try_get_matches_from(["systemprompt", group, "status"])
+        .try_get_matches_from(std::iter::once("systemprompt").chain(line.iter().copied()))
         .expect("the probe command parses");
     registry
         .resolve(&matches)
@@ -98,9 +101,9 @@ fn admit_full(
 
 #[test]
 fn a_direct_member_command_with_no_profile_admits_the_full_composition() {
-    let resolved = resolve_probe("probe-direct");
+    let resolved = resolve_line(&["analytics", "overview"]);
     let admitted = admit_unprofiled(Some(&resolved), Box::new(admit_full))
-        .expect("a member command that declares Direct runs without a profile");
+        .expect("a member command its row confers direct-database runs without a profile");
     assert!(
         admitted
             .built()

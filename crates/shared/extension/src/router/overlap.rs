@@ -25,7 +25,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::shape::{BaseRef, GatewayPath, RouteDef, RouteMethod};
+use super::base_ref::{BaseRef, GatewayPath};
+use super::shape::{RouteDef, RouteMethod};
 use systemprompt_models::modules::ApiPaths;
 
 use crate::reserved::{

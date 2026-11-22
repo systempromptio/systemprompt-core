@@ -30,7 +30,7 @@ use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use systemprompt_extension::cli::{
     CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
-    DbUrlRouting, DescribeCommand,
+    DescribeCommand,
 };
 
 #[derive(Debug, Subcommand)]
@@ -154,9 +154,6 @@ impl CliCommandGroup for ContentCommands {
     const NAME: &'static str = "content";
     const ABOUT: &'static str = "Content management and analytics";
 
-    fn db_url_routing(&self) -> DbUrlRouting {
-        DbUrlRouting::Direct
-    }
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         execute(self, host).await.map_err(CommandError::new)

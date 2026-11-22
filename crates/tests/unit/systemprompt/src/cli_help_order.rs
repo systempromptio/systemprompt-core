@@ -5,14 +5,14 @@ use systemprompt::reference;
 use systemprompt_cli::kernel::{CommandRegistry, kernel_commands};
 use systemprompt_extension::cli::CommandDecl;
 
-use crate::cli_probe::{DirectProbeGroup, ProbeGroup};
+use crate::cli_probe::{ProbeGroup, SkillsGroup};
 use crate::probe::Probe;
 
 fn listed_groups() -> Vec<String> {
     let declared = reference()
         .with(Probe::new("probe-cli", |c| {
             c.command(CommandDecl::group::<ProbeGroup>());
-            c.command(CommandDecl::group::<DirectProbeGroup>());
+            c.command(CommandDecl::group::<SkillsGroup>());
         }))
         .declare()
         .expect("the probe groups are declared");
@@ -45,7 +45,7 @@ fn unslotted_groups_list_before_help_in_composition_order() {
             "plugins",
             "build",
             "probe-tools",
-            "probe-direct",
+            "skills",
             "help",
         ]
     );

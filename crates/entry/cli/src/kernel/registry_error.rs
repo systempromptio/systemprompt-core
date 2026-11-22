@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::cli::KernelGrant;
+use systemprompt_extension::cli::{CommandClaim, KernelGrant};
 use systemprompt_extension::reserved::CoreId;
 
 use super::registry::CommandOwner;
@@ -61,6 +61,24 @@ pub enum RegistryError {
         path: String,
         owner: CommandOwner,
         grant: KernelGrant,
+    },
+    #[error(
+        "CLI command `{path}` contributed by `{claimant}` claims `{claim}`, which the kernel \
+         does not confer on that path"
+    )]
+    ClaimNotListed {
+        path: String,
+        claimant: CommandOwner,
+        claim: CommandClaim,
+    },
+    #[error(
+        "CLI command `{path}` contributed by `{owner}` resolved a descriptor claiming \
+         `{claim}` without listing it"
+    )]
+    UndeclaredClaim {
+        path: String,
+        owner: CommandOwner,
+        claim: CommandClaim,
     },
 }
 

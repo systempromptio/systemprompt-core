@@ -10,7 +10,7 @@ use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_manifest::DisabledExtension;
 
 #[cfg(feature = "cli")]
-use systemprompt_extension::cli::KernelGrant;
+use systemprompt_extension::cli::{CommandClaim, KernelGrant};
 #[cfg(feature = "api")]
 use systemprompt_extension::router::{Allowance, BasePath, BaseRef};
 
@@ -117,6 +117,12 @@ pub enum CompositionError {
     GrantNotConferred {
         owner: ExtensionId,
         grant: KernelGrant,
+    },
+    #[cfg(feature = "cli")]
+    #[error("{owner} claims {claim} without conferral")]
+    ClaimNotConferred {
+        owner: ExtensionId,
+        claim: CommandClaim,
     },
     #[error("reserved CLI path {path:?} taken by {owner}")]
     ReservedCliPath {

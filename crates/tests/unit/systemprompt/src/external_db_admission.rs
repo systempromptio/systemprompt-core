@@ -14,14 +14,13 @@ use systemprompt_extension::cli::CommandDecl;
 use systemprompt_manifest::ExtensionsConfig;
 use systemprompt_traits::BoxedSource;
 
-use crate::cli_probe::{DirectProbeGroup, ProbeGroup};
+use crate::cli_probe::ProbeGroup;
 use crate::probe::{Probe, profile};
 
 fn declared_probe() -> systemprompt::Declared {
     reference()
         .with(Probe::new("probe-cli", |c| {
             c.command(CommandDecl::group::<ProbeGroup>());
-            c.command(CommandDecl::group::<DirectProbeGroup>());
         }))
         .declare()
         .expect("the probe group is declared")
@@ -33,7 +32,7 @@ fn resolve_direct() -> ResolvedCommand {
         .expect("the registry accepts the probe group");
     let matches = systemprompt_cli::args::command(&registry)
         .expect("the probe group attaches")
-        .try_get_matches_from(["systemprompt", "probe-direct", "status"])
+        .try_get_matches_from(["systemprompt", "analytics", "overview"])
         .expect("the probe command parses");
     registry
         .resolve(&matches)
@@ -49,10 +48,14 @@ fn admit_profiled(extensions: Option<&ExtensionsConfig>) -> Result<Admitted, Box
 }
 
 fn holds_probe(admitted: &Admitted) -> bool {
+    holds(admitted, "probe-cli")
+}
+
+fn holds(admitted: &Admitted, owner: &str) -> bool {
     admitted
         .built()
         .members()
-        .any(|member| member.owner.as_str() == "probe-cli")
+        .any(|member| member.owner.as_str() == owner)
 }
 
 #[test]
@@ -60,13 +63,13 @@ fn a_disabled_members_direct_command_is_refused_on_a_loaded_profile() {
     let resolved = resolve_direct();
     let error = admit_direct(
         Some(&resolved),
-        Some(&profile(&["probe-cli"])),
+        Some(&profile(&["analytics-http"])),
         Box::new(|_| panic!("a disabled member's command is refused before admission")),
     )
     .expect_err("the profile disables the command's owner");
     assert!(matches!(
         error,
-        CliRunError::CommandDisabled { owner, .. } if owner.as_str() == "probe-cli"
+        CliRunError::CommandDisabled { owner, .. } if owner.as_str() == "analytics-http"
     ));
 }
 
@@ -79,7 +82,7 @@ fn an_enabled_members_direct_command_runs_on_a_loaded_profile() {
         Box::new(admit_profiled),
     )
     .expect("negative control: an enabled member's command runs");
-    assert!(holds_probe(&admitted));
+    assert!(holds(&admitted, "analytics-http"));
 }
 
 #[test]
@@ -113,5 +116,5 @@ fn with_no_profile_a_direct_command_admits_every_linked_member() {
         }),
     )
     .expect("a bare --database-url run admits the full composition");
-    assert!(holds_probe(&admitted));
+    assert!(holds_probe(&admitted) && holds(&admitted, "analytics-http"));
 }

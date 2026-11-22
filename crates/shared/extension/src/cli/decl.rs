@@ -5,11 +5,12 @@
 
 use clap::{ArgMatches, Command};
 
-use super::KernelGrant;
+use super::{CommandClaim, KernelGrant};
 use super::command::{
     CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost, CommandParent,
 };
-use super::descriptor::{CommandDescriptor, DbUrlRouting};
+use super::descriptor::CommandDescriptor;
+use super::impact::DbUrlRouting;
 
 /// The kind of clap node a declaration contributes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,14 +23,15 @@ type BuildFn = fn() -> Command;
 type ResolveFn = fn(&ArgMatches) -> Result<ParsedCommand, clap::Error>;
 type RunFn = for<'a> fn(&'a ArgMatches, &'a dyn CommandHost) -> CommandFuture<'a>;
 
-/// One contributed command: where it attaches, the grants it requests, and
-/// its type-erased clap builder and resolver.
+/// One contributed command: where it attaches, the grants it requests, the
+/// claims its commands make, and its type-erased clap builder and resolver.
 #[derive(Clone, Copy)]
 pub struct CommandDecl {
     parent: &'static [&'static str],
     name: &'static str,
     kind: CommandKind,
     grants: &'static [KernelGrant],
+    claims: &'static [CommandClaim],
     command: BuildFn,
     resolve: ResolveFn,
 }
@@ -49,6 +51,7 @@ impl CommandDecl {
             name: T::NAME,
             kind: CommandKind::Leaf,
             grants: &[],
+            claims: &[],
             command: leaf_command::<T>,
             resolve: resolve_leaf::<T>,
         }
@@ -60,6 +63,7 @@ impl CommandDecl {
             name: T::NAME,
             kind: CommandKind::Group,
             grants: &[],
+            claims: &[],
             command: group_command::<T>,
             resolve: resolve_group::<T>,
         }
@@ -68,6 +72,12 @@ impl CommandDecl {
     #[must_use]
     pub const fn requesting(mut self, g: &'static [KernelGrant]) -> Self {
         self.grants = g;
+        self
+    }
+
+    #[must_use]
+    pub const fn claiming(mut self, c: &'static [CommandClaim]) -> Self {
+        self.claims = c;
         self
     }
 
@@ -99,6 +109,11 @@ impl CommandDecl {
     }
 
     #[must_use]
+    pub const fn claims(&self) -> &'static [CommandClaim] {
+        self.claims
+    }
+
+    #[must_use]
     pub fn command(&self) -> Command {
         (self.command)()
     }
@@ -115,6 +130,7 @@ impl std::fmt::Debug for CommandDecl {
             .field("name", &self.name)
             .field("kind", &self.kind)
             .field("grants", &self.grants)
+            .field("claims", &self.claims)
             .finish_non_exhaustive()
     }
 }
@@ -149,10 +165,15 @@ impl ParsedCommand {
     }
 
     #[must_use]
-    pub fn granted(mut self, grants: &[KernelGrant]) -> Self {
+    pub fn granted(mut self, grants: &[KernelGrant], claims: &[CommandClaim]) -> Self {
         self.descriptor = grants.iter().fold(self.descriptor, |descriptor, grant| {
             descriptor.with_grant(*grant)
         });
+        self.db_url_routing = if claims.contains(&CommandClaim::DirectDatabase) {
+            DbUrlRouting::Direct
+        } else {
+            DbUrlRouting::Unsupported
+        };
         self
     }
 
@@ -175,7 +196,7 @@ fn resolve_group<T: CliCommandGroup>(matches: &ArgMatches) -> Result<ParsedComma
     let parsed = T::from_arg_matches(matches)?;
     Ok(ParsedCommand {
         descriptor: parsed.descriptor(),
-        db_url_routing: parsed.db_url_routing(),
+        db_url_routing: DbUrlRouting::Unsupported,
         matches: matches.clone(),
         run: run_group::<T>,
     })
@@ -203,7 +224,7 @@ fn resolve_leaf<T: CliCommandLeaf>(matches: &ArgMatches) -> Result<ParsedCommand
     let parsed = T::from_arg_matches(matches)?;
     Ok(ParsedCommand {
         descriptor: parsed.descriptor(),
-        db_url_routing: parsed.db_url_routing(),
+        db_url_routing: DbUrlRouting::Unsupported,
         matches: matches.clone(),
         run: run_leaf::<T>,
     })

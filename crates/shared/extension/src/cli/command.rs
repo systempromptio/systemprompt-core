@@ -32,7 +32,7 @@ use systemprompt_traits::DatabaseHandle;
 
 use super::admitted_views::AdmittedViews;
 use super::child::ChildSupervisor;
-use super::descriptor::{CommandDescriptor, DbUrlRouting, DescribeCommand};
+use super::descriptor::{CommandDescriptor, DescribeCommand};
 use super::granted::{CallerSession, ServicesTree};
 use super::output::CommandOutput;
 use super::prompt::Prompter;
@@ -138,10 +138,6 @@ pub trait CliCommandGroup: Subcommand + DescribeCommand + Send + Sized + 'static
     const ABOUT: &'static str = "";
     const DISPLAY_ORDER: usize = REGISTERED_DISPLAY_ORDER;
 
-    fn db_url_routing(&self) -> DbUrlRouting {
-        DbUrlRouting::Unsupported
-    }
-
     fn run(
         self,
         host: &dyn CommandHost,
@@ -153,10 +149,6 @@ pub trait CliCommandLeaf: Args + DescribeCommand + Send + Sized + 'static {
     const NAME: &'static str;
     const ABOUT: &'static str = "";
     const DISPLAY_ORDER: usize = REGISTERED_DISPLAY_ORDER;
-
-    fn db_url_routing(&self) -> DbUrlRouting {
-        DbUrlRouting::Unsupported
-    }
 
     fn run(
         self,

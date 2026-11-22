@@ -77,7 +77,7 @@ mod routes {
 mod commands {
     use std::sync::Arc;
 
-    use systemprompt_extension::cli::{CommandDecl, KernelGrant, parents};
+    use systemprompt_extension::cli::{CommandClaim, CommandDecl, KernelGrant, parents};
     use systemprompt_extension::prelude::*;
     use systemprompt_marketplace::managed::OwnerSkillView;
 
@@ -89,7 +89,8 @@ mod commands {
         c.requires::<Arc<OwnerSkillView>>()
             .command(
                 CommandDecl::group_under::<parents::Core, MarketplaceCommands>()
-                    .requesting(SERVICES_TREE),
+                    .requesting(SERVICES_TREE)
+                    .claiming(&[CommandClaim::PreservesData]),
             )
             .command(
                 CommandDecl::group_under::<parents::Core, PluginsCommands>()
@@ -97,7 +98,8 @@ mod commands {
             )
             .command(
                 CommandDecl::group_under::<parents::Core, SkillsCommands>()
-                    .requesting(SERVICES_TREE),
+                    .requesting(SERVICES_TREE)
+                    .claiming(&[CommandClaim::LocalDatabase, CommandClaim::PreservesData]),
             );
     }
 }
