@@ -1,6 +1,7 @@
 //! Conversation context provider trait used by chat and agent surfaces.
 //!
-//! `ContextMaterializer` and `ContextDirectory` are dispatched as trait
+//! `ContextMaterializer`, `ContextDirectory` and `SessionContextIssuer` are
+//! dispatched as trait
 //! objects, so they use `#[async_trait]`; native `async fn` in traits is not
 //! yet `dyn`-compatible. `ContextProvider` is only used
 //! through concrete types and declares native `async` methods.
@@ -171,3 +172,23 @@ pub trait ContextDirectory: Send + Sync {
 }
 
 pub type DynContextDirectory = Arc<dyn ContextDirectory>;
+
+/// The conversation context a CLI session runs in.
+///
+/// For the CLI kernel, which issues a session before any command runs and
+/// cannot name the agent domain that owns the contexts table: the one context
+/// of a user's session with the given name, created on first use and returned
+/// unchanged after. Ownership checks go through [`ContextDirectory`].
+///
+/// Injected as `dyn SessionContextIssuer`, hence `#[async_trait]`.
+#[async_trait]
+pub trait SessionContextIssuer: Send + Sync {
+    async fn session_context(
+        &self,
+        user_id: &UserId,
+        session_id: &SessionId,
+        name: &str,
+    ) -> Result<ContextId, ContextProviderError>;
+}
+
+pub type DynSessionContextIssuer = Arc<dyn SessionContextIssuer>;

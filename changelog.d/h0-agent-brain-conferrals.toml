@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "Core ids `agent-http` and `brain-http` are reserved for the agent and brain entry members, with the reserved CLI paths `admin agents`, `core contexts`, `core artifacts` (agent-http) and the kernel's child-host path `admin agent-host`; route bases `ApiBase::{CoreContexts, CoreTasks, CoreArtifacts, Webhook, AgentsRegistry, Brain, AdminBrain}`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CoreId` gains `AgentHttp` and `BrainHttp` (`CoreId::ALL` holds 13); `ApiBase` gains `CoreContexts`, `CoreTasks`, `CoreArtifacts`, `Webhook`, `AgentsRegistry`, `Brain` and `AdminBrain`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`AgentServer`/`DynAgentServer`/`AgentServeError`: the seam a spawned agent process serves through; `SessionContextIssuer`/`DynSessionContextIssuer`: the CLI session's conversation context without naming the agent domain."

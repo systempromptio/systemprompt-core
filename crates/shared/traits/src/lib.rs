@@ -42,6 +42,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod agent_run_launcher;
+pub mod agent_server;
+pub use agent_server::{AgentServeError, AgentServer, DynAgentServer};
 pub use agent_run_launcher::{
     AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,
 };
@@ -148,8 +150,8 @@ pub use managed_resources::{
 
 pub use context_provider::{
     ContextDirectory, ContextMaterializer, ContextProvider, ContextProviderError, ContextStats,
-    ContextWithStats, DynContextDirectory, DynContextMaterializer, EnsureContextParams,
-    OwnedContextSummary,
+    ContextWithStats, DynContextDirectory, DynContextMaterializer, DynSessionContextIssuer,
+    EnsureContextParams, OwnedContextSummary, SessionContextIssuer,
 };
 
 pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};

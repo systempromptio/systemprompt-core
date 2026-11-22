@@ -30,6 +30,13 @@ pub enum ApiBase {
     Teams,
     Marketplace,
     McpRegistry,
+    CoreContexts,
+    CoreTasks,
+    CoreArtifacts,
+    Webhook,
+    AgentsRegistry,
+    Brain,
+    AdminBrain,
     Extension(&'static str),
 }
 
@@ -54,6 +61,13 @@ impl BasePath {
                 ApiBase::Teams => ApiPaths::TEAMS_BASE,
                 ApiBase::Marketplace => ApiPaths::MARKETPLACE_BASE,
                 ApiBase::McpRegistry => ApiPaths::MCP_REGISTRY,
+                ApiBase::CoreContexts => ApiPaths::CORE_CONTEXTS,
+                ApiBase::CoreTasks => ApiPaths::CORE_TASKS,
+                ApiBase::CoreArtifacts => ApiPaths::CORE_ARTIFACTS,
+                ApiBase::Webhook => ApiPaths::WEBHOOK,
+                ApiBase::AgentsRegistry => ApiPaths::AGENTS_REGISTRY,
+                ApiBase::Brain => ApiPaths::BRAIN,
+                ApiBase::AdminBrain => ApiPaths::ADMIN_BRAIN,
                 ApiBase::Extension(path) => path,
             },
             Self::Web(WebBase::TrackEngagement) => ApiPaths::TRACK_ENGAGEMENT,
@@ -77,28 +91,6 @@ impl BasePath {
             Self::Api(_) | Self::Web(_) => Ok(()),
         }
     }
-}
-
-/// The gateway paths a gateway route may claim; an install holds none.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum GatewayPath {
-    BridgeNotifications,
-}
-
-impl GatewayPath {
-    #[must_use]
-    pub const fn path(self) -> &'static str {
-        match self {
-            Self::BridgeNotifications => ApiPaths::BRIDGE_NOTIFICATIONS,
-        }
-    }
-}
-
-/// A privileged shape's base: an API or web base, or a gateway path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BaseRef {
-    Path(BasePath),
-    Gateway(GatewayPath),
 }
 
 /// What a route set uses beyond a plain, unreserved mount.

@@ -26,8 +26,9 @@ use axum::routing::MethodFilter;
 use systemprompt_provider_contracts::MissingDependency;
 use tower::Service;
 
+use super::base_ref::{BaseRef, GatewayPath};
 use super::shape::{
-    BasePath, BaseRef, GatewayPath, RouteDef, RouteLimits, RouteMethod, RoutePath, RouteSpec,
+    BasePath, RouteDef, RouteLimits, RouteMethod, RoutePath, RouteSpec,
     TypedSpec,
 };
 use crate::contribute::{ContributionError, FromState, Resolved};
