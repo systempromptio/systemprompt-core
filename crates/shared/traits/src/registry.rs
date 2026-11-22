@@ -88,6 +88,10 @@ pub trait McpRegistryProvider: Send + Sync {
 
     async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError>;
 
+    async fn managed_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError>;
+
+    async fn validate(&self) -> Result<(), RegistryError>;
+
     async fn server_exists(&self, name: &str) -> Result<bool, RegistryError> {
         match self.get_server(name).await {
             Ok(_) => Ok(true),

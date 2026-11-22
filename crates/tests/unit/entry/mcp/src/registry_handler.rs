@@ -31,6 +31,14 @@ impl McpRegistryProvider for Stub {
             )),
         }
     }
+
+    async fn managed_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
+        self.list_enabled_servers().await
+    }
+
+    async fn validate(&self) -> Result<(), RegistryError> {
+        self.list_enabled_servers().await.map(|_| ())
+    }
 }
 
 fn server(name: &str) -> McpServerInfo {

@@ -13,14 +13,13 @@ use systemprompt_models::mcp::McpServerType;
 
 use crate::error::{McpDomainError, McpDomainResult};
 use crate::services::deployment::DeploymentService;
-use async_trait::async_trait;
 use std::future::ready;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::{McpDeploymentProvider, ServicesView};
 use systemprompt_models::errors::{McpRegistryError, McpRegistryResult};
 use systemprompt_models::mcp::{McpRegistry, McpServerState};
-use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
+use systemprompt_traits::{McpServerInfo, RegistryError, ServiceOAuthConfig};
 
 #[derive(Debug, Clone)]
 pub struct RegistryService {
@@ -192,7 +191,7 @@ impl From<McpDomainError> for McpRegistryError {
     }
 }
 
-fn registry_error(err: McpDomainError) -> RegistryError {
+pub(super) fn registry_error(err: McpDomainError) -> RegistryError {
     match err {
         McpDomainError::ServerNotFound(what) => RegistryError::NotFound(what),
         other => RegistryError::Unavailable(Box::new(other)),
@@ -267,7 +266,7 @@ impl McpDeploymentProvider for McpDeploymentProviderImpl {
     }
 }
 
-fn server_info(server: crate::McpServerConfig) -> McpServerInfo {
+pub(super) fn server_info(server: crate::McpServerConfig) -> McpServerInfo {
     let oauth = server.oauth;
     McpServerInfo {
         name: server.name,
@@ -282,18 +281,5 @@ fn server_info(server: crate::McpServerConfig) -> McpServerInfo {
             audience: oauth.audience.to_string(),
             ema: oauth.ema,
         },
-    }
-}
-
-#[async_trait]
-impl McpRegistryProvider for RegistryService {
-    async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
-        let server = Self::get_server(self, name).map_err(registry_error)?;
-        Ok(server_info(server))
-    }
-
-    async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
-        let servers = Self::get_enabled_servers(self).map_err(registry_error)?;
-        Ok(servers.into_iter().map(server_info).collect())
     }
 }
