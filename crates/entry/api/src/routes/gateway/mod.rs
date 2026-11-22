@@ -114,13 +114,17 @@ pub fn gateway_repositories(
         Some(sessions) => repos.with_session_store(sessions),
         None => repos,
     };
-    #[cfg(feature = "brain")]
     let repos = repos.with_brain_recall(profile.brain.recall.clone());
-    #[cfg(feature = "brain")]
-    let repos = match ctx.brain() {
-        Some(brain) => {
+    let brain_sink = ctx
+        .kernel()
+        .state()
+        .find::<systemprompt_extension::DynBrainSink>()
+        .filter(|_| profile.brain.enabled)
+        .cloned();
+    let repos = match brain_sink {
+        Some(sink) => {
             repos.with_brain_session(systemprompt_gateway::audit::session::SessionCapture::new(
-                Arc::clone(brain.sink()),
+                sink,
                 profile.brain.capture.clone(),
                 Arc::clone(ctx.db_pool()),
             ))
@@ -196,12 +200,15 @@ pub fn gateway_engines(
         &kernel.resolved(),
         Arc::clone(ctx.secrets()),
     )?;
-    #[cfg(feature = "brain")]
-    let engines = match ctx.brain_recall() {
+    let recall = kernel
+        .state()
+        .find::<Arc<dyn systemprompt_extension::brain::MemoryRecall>>()
+        .filter(|_| ctx.profile().brain.enabled)
+        .cloned();
+    Ok(match recall {
         Some(recall) => engines.with_memory_recall(recall),
         None => engines,
-    };
-    Ok(engines)
+    })
 }
 
 pub fn gateway_router(

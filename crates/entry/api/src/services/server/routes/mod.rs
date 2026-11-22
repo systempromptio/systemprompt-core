@@ -20,8 +20,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "brain")]
-mod brain;
 mod documents;
 mod error;
 mod extension_mount;
@@ -275,9 +273,5 @@ fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, Rou
     router = protocol::mount_content_and_misc(router, mount)?;
     router = documents::mount_documents(router, mount)?;
     router = issues::mount_issues(router, mount)?;
-    #[cfg(feature = "brain")]
-    {
-        router = brain::mount_brain_routes(router, mount)?;
-    }
     Ok(router)
 }

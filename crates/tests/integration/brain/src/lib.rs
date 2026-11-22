@@ -1,6 +1,7 @@
 //! Database-backed tests of the brain: outbox capture into revisioned facts,
-//! the lifecycle service, the declared plane, recall with source checks, and
-//! the review and retention jobs. Each test owns a disposable database.
+//! the lifecycle service, the declared plane, recall with source checks, the
+//! review and retention jobs, and the `brain-http` route sets. Each test owns
+//! a disposable database.
 
 #[cfg(test)]
 mod alias_release;
@@ -100,6 +101,10 @@ mod review_after;
 mod review_job;
 #[cfg(test)]
 mod round_tombstone;
+#[cfg(test)]
+mod routes_facts;
+#[cfg(test)]
+mod routes_govern;
 #[cfg(test)]
 mod seams_discovery;
 #[cfg(test)]

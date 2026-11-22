@@ -74,7 +74,10 @@ pub use bootstrap::{
     TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
-pub use brain::fixture_brain;
+pub use brain::{
+    fixture_brain, fixture_brain_kernel, fixture_brain_kernel_with, fixture_brain_slot,
+    seed_brain_fact,
+};
 pub use composed::{
     empty_resolved_kernel, gateway_probe_admitted, gateway_resolved_kernel,
     offline_resolved_kernel, probe_admitted, resolved_kernel, ComposedParts, Probe,

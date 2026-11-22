@@ -1,12 +1,13 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_api::routes::brain::BrainHttpError;
+use systemprompt_brain_entry::http::BrainHttpError;
 use systemprompt_brain::BrainError;
 use systemprompt_extension::brain::RecallError;
 use systemprompt_identifiers::BrainProposalId;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::brain::{StatementError, SubjectKeyError, UnknownFactStatus};
-use systemprompt_traits::{AuthProviderError, RepositoryError};
+use systemprompt_governance::authz::AuthzError;
+use systemprompt_traits::RepositoryError;
 
 fn key_of(error: BrainHttpError) -> (Option<String>, String) {
     let api = error.into_inner();
@@ -82,8 +83,8 @@ fn a_spent_budget_is_503_unavailable() {
 }
 
 #[test]
-fn auth_lookup_failure_is_a_fixed_500() {
-    let error = BrainHttpError::from(AuthProviderError::UserNotFound);
+fn role_lookup_failure_is_a_fixed_500() {
+    let error = BrainHttpError::from(AuthzError::InvalidRuleType("bogus".to_owned()));
     let status = error.into_response().status();
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
 }

@@ -28,35 +28,6 @@ impl AppContext {
         &self.cfg.build
     }
 
-    #[cfg(feature = "brain")]
-    #[must_use]
-    pub fn brain(&self) -> Option<&Arc<systemprompt_brain::BrainHandle>> {
-        self.kernel
-            .state()
-            .find::<systemprompt_brain::BrainHandleSlot>()
-            .and_then(systemprompt_models::LateBound::get)
-    }
-
-    #[cfg(feature = "brain")]
-    #[must_use]
-    pub fn brain_recall(&self) -> Option<Arc<dyn systemprompt_extension::brain::MemoryRecall>> {
-        self.brain().map(|brain| brain.memory_recall())
-    }
-
-    #[cfg(feature = "brain")]
-    #[must_use]
-    pub fn brain_consolidation_model(
-        &self,
-    ) -> Option<Arc<dyn systemprompt_extension::brain::BrainModelClient>> {
-        self.brain().and_then(|brain| brain.consolidation_model())
-    }
-
-    #[cfg(feature = "brain")]
-    #[must_use]
-    pub fn brain_sink(&self) -> Option<systemprompt_extension::brain::DynBrainSink> {
-        self.brain().map(|brain| Arc::clone(brain.sink()))
-    }
-
     pub const fn boot(&self) -> &BootContext {
         &self.cfg.boot
     }

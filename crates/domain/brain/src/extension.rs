@@ -2,17 +2,21 @@
 //! the `brain` config plane, the brain jobs and the user-purge rows of its
 //! tables.
 //!
-//! It provides two empty late-bound handles, the [`BrainHandleSlot`] and the
-//! [`BrainConsumerSlot`]. With the profile's brain enabled the kernel's
-//! build of the [`BrainSlot`] assembles the brain over the built
-//! [`BrainSeams`](crate::contract::BrainSeams) and binds the handle; it
-//! declares no runner service, because the brain consumer needs a model
-//! client the API composes, so the API starts it from the handle and binds
-//! it into the consumer slot. Its backlog is reported on `/health/detail`,
-//! never `/readyz`.
+//! It opens the [`BrainSlot`] itself, so the slot's built value, the
+//! [`BrainHandleSlot`], is present whenever this member is admitted. The build
+//! creates the handle cell and, with the profile's brain enabled, binds the
+//! brain it assembles over the built
+//! [`BrainSeams`](crate::contract::BrainSeams); no member provides or binds
+//! the handle. The member declares no runner service, because the brain
+//! consumer needs a model client the API composes, so the API starts it from
+//! the handle. Its backlog is reported on `/health/detail`, never `/readyz`.
 //!
-//! It opens the [`BrainSlot`] itself, so the built seams are present whenever
-//! this member is admitted and absent when the profile disables it.
+//! It provides the brain's outbox sink (`DynBrainSink`, open), which the
+//! document store and the gateway's session capture read only while the
+//! profile enables the brain, and, after the slot is built, the brain's
+//! [`MemoryRecall`](systemprompt_extension::brain::MemoryRecall) (open): it
+//! recalls through the bound handle and answers `skipped=disabled` while the
+//! handle is unbound. Recall reads facts as the principal it is handed.
 //!
 //! It requires the producer `DynNotificationSink`, which the `notifications`
 //! member provides: a profile that disables notifications and keeps the
@@ -23,12 +27,17 @@
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
+use systemprompt_extension::brain::{DynBrainSink, MemoryRecall};
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
+use systemprompt_identifiers::InstanceId;
 
-use crate::consumer::{BacklogDiagnostic, BrainConsumerSlot};
+use crate::OutboxBrainSink;
+use crate::consumer::BacklogDiagnostic;
 use crate::contract::BrainSlot;
 use crate::handle::BrainHandleSlot;
+use crate::recall::BoundMemoryRecall;
 use crate::jobs::{
     BrainAnalysisJob, BrainConsolidateJob, BrainRetentionJob, BrainReviewJob, BrainUsageJob,
 };
@@ -61,20 +70,21 @@ impl Extension for BrainExtension {
             .migrations(extension_migrations!())
             .config_plane(Arc::new(BrainPlane))
             .requires::<DynNotificationSink>()
-            .provide(
-                |_: &Resolved<'_>| -> Result<BrainConsumerSlot, ProvideError> {
-                    Ok(BrainConsumerSlot::default())
-                },
-            )
-            .provide(
-                |_: &Resolved<'_>| -> Result<BrainHandleSlot, ProvideError> {
-                    Ok(BrainHandleSlot::default())
+            .provide(|r: &Resolved<'_>| -> Result<DynBrainSink, ProvideError> {
+                let db = r.get::<DbPool>()?;
+                let instance = r.get::<InstanceId>()?;
+                Ok(OutboxBrainSink::over_write_pool(&db, &instance))
+            })
+            .provide_after_governance(
+                |r: &Resolved<'_>| -> Result<Arc<dyn MemoryRecall>, ProvideError> {
+                    let brain = r.get::<Arc<BrainHandleSlot>>()?;
+                    Ok(Arc::new(BoundMemoryRecall::new(brain)))
                 },
             )
             .diagnostic(
                 |r: &Resolved<'_>| -> Result<Arc<dyn DiagnosticProbe>, FactoryError> {
-                    let slot = r.get::<BrainConsumerSlot>()?;
-                    Ok(BacklogDiagnostic::new(slot).into_probe())
+                    let brain = r.get::<Arc<BrainHandleSlot>>()?;
+                    Ok(BacklogDiagnostic::new(brain).into_probe())
                 },
             )
             .job(BrainUsageJob)

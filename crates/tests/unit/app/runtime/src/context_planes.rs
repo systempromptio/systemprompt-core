@@ -148,7 +148,6 @@ async fn plane_debug_impls_flag_optional_members() {
         governance: systemprompt_test_fixtures::default_governance_watch(),
         services: systemprompt_test_fixtures::fixture_services_state(),
         cache_epochs: systemprompt_traits::CacheEpochs::new(),
-        ai_service: None,
         artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)
             .expect("artifact ingest"),
         schema_install: Arc::new(systemprompt_runtime::SchemaState::from(

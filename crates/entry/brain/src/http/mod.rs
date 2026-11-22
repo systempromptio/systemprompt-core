@@ -2,10 +2,14 @@
 //!
 //! The user routes search, read, enter and govern facts, resolve disputes
 //! and decide proposals; the admin route simulates a recall for a chosen
-//! principal without recording it. Each handler resolves the caller's
-//! current roles and calls one operation of the brain service, which
-//! authorizes it. With no [`BrainRoutes`], or a profile whose brain is
-//! disabled, every path answers 404.
+//! principal without recording it. [`user_routes`] and [`admin_routes`] are
+//! the two route sets [`crate::extension::BrainHttpExtension`] contributes.
+//! Each handler reads the caller's current roles from the governance role
+//! directory and calls one operation of the brain service, which authorizes
+//! it. While the brain handle is unbound (the profile disables the brain)
+//! every route answers 404 `brain_disabled`: [`OpenBrain`], the first
+//! extractor of every handler, refuses before any path, query or body is
+//! read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,120 +19,111 @@ mod dto;
 mod error;
 mod facts;
 mod lifecycle;
+mod mount;
 mod proposals;
 
+use std::ops::Deref;
 use std::sync::Arc;
 
-use axum::Router;
-use axum::routing::{get, patch, post};
+use axum::extract::FromRequestParts;
+use axum::http::request::Parts;
 use systemprompt_brain::service::{BrainCaller, BrainService};
+use systemprompt_brain::{BrainHandle, BrainHandleSlot};
 use systemprompt_extension::brain::MemoryRecall;
-use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_extension::{FromState, MissingDependency, Resolved};
+use systemprompt_governance::authz::{SharedRoleDirectory, SubjectProviderSet};
+use systemprompt_governance::contract::RoleDirectories;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_traits::UserProvider;
+use systemprompt_models::auth::caller_actor;
 
 pub use dto::{
     DisputeBody, DisputeCreated, EnterAccepted, FieldsBody, LimitParams, ResolveBody,
     ResolveOutcome, RetractBody, SearchParams, SimulateBody, SimulateResponse, WhyParams,
 };
 pub use error::BrainHttpError;
+pub use mount::{admin_routes, user_routes};
 
-use crate::kernel::ApiHttpError;
-
-/// Router-scoped state of the brain routes: the brain service, the recall
-/// the admin simulator runs, the brain profile and the user provider that
-/// resolves a caller's current roles.
+/// Router-scoped state of the brain routes.
+///
+/// It holds the brain handle the slot build returned, the recall the admin
+/// simulator runs, the brain profile, the role directory a caller's current
+/// roles are read from and the subject providers.
 #[derive(Clone)]
-pub struct BrainRoutes {
-    pub(crate) service: Arc<BrainService>,
-    pub(crate) recall: Arc<dyn MemoryRecall>,
-    pub(crate) profile: Arc<BrainProfile>,
-    pub(crate) users: Arc<dyn UserProvider>,
-    pub(crate) subject_providers: SubjectProviderSet,
+pub struct BrainHttpState {
+    brain: Arc<BrainHandleSlot>,
+    recall: Arc<dyn MemoryRecall>,
+    profile: Arc<BrainProfile>,
+    roles: SharedRoleDirectory,
+    subject_providers: Arc<SubjectProviderSet>,
 }
 
-impl std::fmt::Debug for BrainRoutes {
+impl std::fmt::Debug for BrainHttpState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BrainRoutes").finish_non_exhaustive()
+        f.debug_struct("BrainHttpState")
+            .field("brain", &self.brain)
+            .finish_non_exhaustive()
     }
 }
 
-impl BrainRoutes {
-    #[must_use]
-    pub fn new(
-        service: Arc<BrainService>,
-        recall: Arc<dyn MemoryRecall>,
-        profile: Arc<BrainProfile>,
-        users: Arc<dyn UserProvider>,
-    ) -> Self {
-        Self {
-            service,
-            recall,
-            profile,
-            users,
-            subject_providers: SubjectProviderSet::default(),
-        }
-    }
-
-    #[must_use]
-    pub fn with_subject_providers(mut self, providers: SubjectProviderSet) -> Self {
-        self.subject_providers = providers;
-        self
-    }
-
-    async fn caller(&self, req_ctx: &RequestContext) -> Result<BrainCaller, BrainHttpError> {
-        let found = self.users.find_by_id(req_ctx.user_id()).await?;
-        match found {
-            Some(user) if user.is_active => Ok(BrainCaller::new(user.id, user.roles).with_actor(
-                systemprompt_runtime::documents::actor::caller_actor(req_ctx),
-            )),
-            _ => Err(ApiHttpError::unauthorized("account is not active").into()),
-        }
+impl FromState for BrainHttpState {
+    fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
+        let roles = r
+            .get::<Arc<RoleDirectories>>()?
+            .directory()
+            .ok_or_else(MissingDependency::of::<SharedRoleDirectory>)?;
+        Ok(Self {
+            brain: r.get()?,
+            recall: r.get()?,
+            profile: r.get()?,
+            roles,
+            subject_providers: r.get()?,
+        })
     }
 }
 
-fn enabled(routes: Option<BrainRoutes>) -> Option<BrainRoutes> {
-    routes.filter(|routes| routes.profile.enabled)
+impl BrainHttpState {
+    fn handle(&self) -> Result<&Arc<BrainHandle>, BrainHttpError> {
+        self.brain.get().ok_or_else(|| {
+            ApiError::not_found("the brain is not enabled")
+                .with_error_key("brain_disabled")
+                .into()
+        })
+    }
+
+    async fn open(
+        &self,
+        req_ctx: &RequestContext,
+    ) -> Result<(Arc<BrainService>, BrainCaller), BrainHttpError> {
+        let service = Arc::clone(self.handle()?.service());
+        let user = req_ctx.user_id();
+        let roles = self.roles.roles_of(user).await?;
+        let caller = BrainCaller::new(user.clone(), roles).with_actor(caller_actor(req_ctx));
+        Ok((service, caller))
+    }
 }
 
-async fn disabled() -> BrainHttpError {
-    ApiError::not_found("the brain is not enabled")
-        .with_error_key("brain_disabled")
-        .into()
+/// The brain route state of a request the brain can serve: extracting it
+/// refuses with 404 `brain_disabled` while the brain handle is unbound.
+#[derive(Debug, Clone)]
+pub struct OpenBrain(BrainHttpState);
+
+impl Deref for OpenBrain {
+    type Target = BrainHttpState;
+
+    fn deref(&self) -> &BrainHttpState {
+        &self.0
+    }
 }
 
-pub fn router(routes: Option<BrainRoutes>) -> Router {
-    let Some(state) = enabled(routes) else {
-        return Router::new().fallback(disabled);
-    };
-    Router::new()
-        .route("/facts", get(facts::search).post(facts::enter))
-        .route("/facts/{id}", get(facts::get))
-        .route("/facts/{id}/timeline", get(facts::timeline))
-        .route("/facts/{id}/why", get(facts::why))
-        .route("/subjects/{kind}/{id}", get(facts::subject))
-        .route("/facts/{id}/confirm", post(lifecycle::confirm))
-        .route("/facts/{id}/dispute", post(lifecycle::dispute))
-        .route("/facts/{id}/retract", post(lifecycle::retract))
-        .route("/facts/{id}/erase", post(lifecycle::erase))
-        .route("/facts/{id}/pin", post(lifecycle::pin))
-        .route("/facts/{id}/unpin", post(lifecycle::unpin))
-        .route("/facts/{id}/fields", patch(lifecycle::edit_fields))
-        .route("/disputes/{id}/resolve", post(lifecycle::resolve))
-        .route("/proposals", get(proposals::list))
-        .route("/proposals/{id}/approve", post(proposals::approve))
-        .route("/proposals/{id}/reject", post(proposals::reject))
-        .route("/proposals/{id}/replay", post(proposals::replay))
-        .with_state(state)
-}
+impl FromRequestParts<BrainHttpState> for OpenBrain {
+    type Rejection = BrainHttpError;
 
-pub fn admin_router(routes: Option<BrainRoutes>) -> Router {
-    let Some(state) = enabled(routes) else {
-        return Router::new().fallback(disabled);
-    };
-    Router::new()
-        .route("/simulate", post(admin::simulate))
-        .with_state(state)
+    fn from_request_parts(
+        _parts: &mut Parts,
+        state: &BrainHttpState,
+    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
+        std::future::ready(state.handle().map(|_| Self(state.clone())))
+    }
 }

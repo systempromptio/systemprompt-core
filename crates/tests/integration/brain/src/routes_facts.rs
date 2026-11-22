@@ -1,63 +1,86 @@
 //! `/api/v1/brain` fact reads, search and person-entered facts, driven
-//! through the brain router over a brain composed on the test database.
+//! through the `brain-http` user route set over a brain the users and brain
+//! members compose on the test database.
 
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
+use axum::response::Response;
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::brain::{BrainRoutes, router};
-use systemprompt_brain::{FactRepository, NewFact};
+use systemprompt_brain_entry::http::user_routes;
 use systemprompt_database::DbPool;
 use systemprompt_extension::DynNotificationSink;
-use systemprompt_identifiers::{BrainFactId, FactKindId, TopicId, UserId};
+use systemprompt_extension::router::RouteSet;
+use systemprompt_identifiers::{AgentName, BrainFactId, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_models::brain::{FactCandidate, FactScope, FactSource, FactStatus, SubjectKey};
+use systemprompt_models::RequestContext;
+use systemprompt_models::brain::FactStatus;
+use systemprompt_runtime::Kernel;
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
-use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
-use systemprompt_traits::AppContext as _;
+use systemprompt_test_fixtures::{
+    AuthedFixture, ensure_test_bootstrap, fixture_brain_kernel, seed_brain_fact,
+    seed_bridge_credential, test_app_context, test_db_pool,
+};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{read_json, request_context, setup_ctx};
-
 pub(super) struct BrainFixture {
     pub(super) pool: DbPool,
-    pub(super) routes: BrainRoutes,
+    pub(super) kernel: Kernel,
 }
 
 pub(super) async fn brain_fixture() -> Result<BrainFixture> {
-    let (pool, ctx) = setup_ctx().await?;
-    let profile = BrainProfile {
-        enabled: true,
-        ..BrainProfile::default()
-    };
+    let boot = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&boot.database_url).await;
     let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
-    let handle = systemprompt_test_fixtures::fixture_brain(
+    let kernel = fixture_brain_kernel(
         &pool,
         Some(ctx.documents()),
         notifications,
-        profile,
+        BrainProfile {
+            enabled: true,
+            ..BrainProfile::default()
+        },
+    );
+    Ok(BrainFixture { pool, kernel })
+}
+
+pub(super) fn request_context(user: &UserId) -> RequestContext {
+    RequestContext::new(
+        SessionId::generate(),
+        TraceId::generate(),
+        ContextId::generate(),
+        AgentName::try_new("brain-routes").expect("agent name"),
+        systemprompt_identifiers::Actor::user(user.clone()),
     )
-    .context("an enabled profile composes a brain")?;
-    let (service, recall, profile) = handle.routes();
-    let users = ctx.user_provider().context("user provider")?;
-    let routes = BrainRoutes::new(service, recall, profile, users);
-    Ok(BrainFixture { pool, routes })
+    .with_browser_session()
+}
+
+pub(super) fn mounted(kernel: &Kernel, set: &RouteSet, user: &UserId) -> Result<Router> {
+    Ok(set
+        .materialize(&kernel.resolved())?
+        .into_iter()
+        .fold(Router::new(), Router::merge)
+        .layer(Extension(request_context(user))))
+}
+
+pub(super) async fn read_json(response: Response) -> Result<Value> {
+    let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024).await?;
+    Ok(serde_json::from_slice(&bytes).unwrap_or(Value::Null))
 }
 
 pub(super) async fn call(
-    routes: &BrainRoutes,
+    kernel: &Kernel,
     user: &UserId,
     method: Method,
     uri: &str,
     body: Option<Value>,
 ) -> Result<(StatusCode, Value)> {
-    let app: Router = router(Some(routes.clone())).layer(Extension(
-        request_context(user.as_str()).with_browser_session(),
-    ));
+    let app = mounted(kernel, &user_routes(), user)?;
     let builder = Request::builder()
         .method(method)
         .uri(uri)
@@ -77,39 +100,7 @@ pub(super) async fn seed_personal_fact(
     status: FactStatus,
 ) -> Result<BrainFactId> {
     let subject = format!("service:svc-{}", Uuid::new_v4().simple());
-    seed_fact_on(pool, owner, status, &subject).await
-}
-
-pub(super) async fn seed_fact_on(
-    pool: &DbPool,
-    owner: &UserId,
-    status: FactStatus,
-    subject: &str,
-) -> Result<BrainFactId> {
-    let subject: SubjectKey = subject.parse()?;
-    let candidate = FactCandidate::builder(
-        FactKindId::try_new("decision")?,
-        subject.clone(),
-        FactSource::EnteredBy {
-            user_id: owner.clone(),
-        },
-    )
-    .field("owner", json!("billing"))
-    .topic(TopicId::try_new("ops")?)
-    .extractor("wp7")
-    .build();
-    let fact = NewFact::builder(
-        candidate,
-        FactScope::User(owner.clone()),
-        "Billing owns the deploy gate.",
-        format!("identity:{subject}:{}", Uuid::new_v4().simple()),
-    )
-    .status(status)
-    .importance_base(0.5)
-    .owner(owner.clone())
-    .build();
-    let mut conn = pool.write_pool().acquire().await?;
-    Ok(FactRepository::insert_candidate(&mut conn, &fact).await?.id)
+    seed_brain_fact(pool, owner, status, &subject).await
 }
 
 pub(super) async fn owner(pool: &DbPool, base: &str) -> Result<AuthedFixture> {
@@ -123,7 +114,7 @@ async fn the_owner_reads_a_personal_fact_its_timeline_and_why() -> Result<()> {
     let id = seed_personal_fact(&fx.pool, &me.user_id, FactStatus::Confirmed).await?;
 
     let (status, fact) = call(
-        &fx.routes,
+        &fx.kernel,
         &me.user_id,
         Method::GET,
         &format!("/facts/{id}"),
@@ -135,7 +126,7 @@ async fn the_owner_reads_a_personal_fact_its_timeline_and_why() -> Result<()> {
     assert_eq!(fact["statement"], json!("Billing owns the deploy gate."));
 
     let (status, timeline) = call(
-        &fx.routes,
+        &fx.kernel,
         &me.user_id,
         Method::GET,
         &format!("/facts/{id}/timeline"),
@@ -148,7 +139,7 @@ async fn the_owner_reads_a_personal_fact_its_timeline_and_why() -> Result<()> {
     assert_eq!(revisions[0]["revision"], json!(1));
 
     let uri = format!("/facts/{id}/why?project=core&client=claude-code");
-    let (status, why) = call(&fx.routes, &me.user_id, Method::GET, &uri, None).await?;
+    let (status, why) = call(&fx.kernel, &me.user_id, Method::GET, &uri, None).await?;
     assert_eq!(status, StatusCode::OK, "{why}");
     assert_eq!(why["fact"]["id"], json!(id.as_str()));
     assert!(why["terms"].is_object(), "{why}");
@@ -163,7 +154,7 @@ async fn a_stranger_reads_another_users_personal_fact_as_not_found() -> Result<(
     let id = seed_personal_fact(&fx.pool, &me.user_id, FactStatus::Confirmed).await?;
 
     let (status, _) = call(
-        &fx.routes,
+        &fx.kernel,
         &other.user_id,
         Method::GET,
         &format!("/facts/{id}"),
@@ -172,7 +163,7 @@ async fn a_stranger_reads_another_users_personal_fact_as_not_found() -> Result<(
     .await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, _) = call(
-        &fx.routes,
+        &fx.kernel,
         &other.user_id,
         Method::GET,
         &format!("/facts/{id}/timeline"),
@@ -182,7 +173,7 @@ async fn a_stranger_reads_another_users_personal_fact_as_not_found() -> Result<(
     assert_eq!(status, StatusCode::NOT_FOUND);
 
     let (status, listed) = call(
-        &fx.routes,
+        &fx.kernel,
         &other.user_id,
         Method::GET,
         "/facts?kind=decision&limit=500",
@@ -206,7 +197,7 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     let me = owner(&fx.pool, "brain-search").await?;
     let subject_kind = "service";
     let subject_id = format!("svc-{}", Uuid::new_v4().simple());
-    let id = seed_fact_on(
+    let id = seed_brain_fact(
         &fx.pool,
         &me.user_id,
         FactStatus::Confirmed,
@@ -217,7 +208,7 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     let uri = format!(
         "/facts?kind=decision&subject={subject_kind}:{subject_id}&status=confirmed,proposed&limit=0"
     );
-    let (status, listed) = call(&fx.routes, &me.user_id, Method::GET, &uri, None).await?;
+    let (status, listed) = call(&fx.kernel, &me.user_id, Method::GET, &uri, None).await?;
     assert_eq!(status, StatusCode::OK, "{listed}");
     assert_eq!(
         listed["facts"].as_array().map(Vec::len),
@@ -226,12 +217,12 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     );
 
     let uri = format!("/subjects/{subject_kind}/{subject_id}");
-    let (status, subject) = call(&fx.routes, &me.user_id, Method::GET, &uri, None).await?;
+    let (status, subject) = call(&fx.kernel, &me.user_id, Method::GET, &uri, None).await?;
     assert_eq!(status, StatusCode::OK, "{subject}");
     assert_eq!(subject["facts"][0]["id"], json!(id.as_str()));
 
     let (status, _) = call(
-        &fx.routes,
+        &fx.kernel,
         &me.user_id,
         Method::GET,
         "/facts?status=bogus",
@@ -240,7 +231,7 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     .await?;
     assert!(status.is_client_error(), "{status}");
     let (status, _) = call(
-        &fx.routes,
+        &fx.kernel,
         &me.user_id,
         Method::GET,
         "/facts?cursor=x",
@@ -249,7 +240,7 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     .await?;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, refused) = call(
-        &fx.routes,
+        &fx.kernel,
         &me.user_id,
         Method::GET,
         "/facts?after=not-a-cursor",
@@ -258,14 +249,14 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     .await?;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{refused}");
     assert_eq!(refused["error_key"], json!("invalid_cursor"));
-    let (status, page) = call(&fx.routes, &me.user_id, Method::GET, "/facts?limit=1", None).await?;
+    let (status, page) = call(&fx.kernel, &me.user_id, Method::GET, "/facts?limit=1", None).await?;
     assert_eq!(status, StatusCode::OK, "{page}");
     let token = page["next"]
         .as_str()
         .context("a full page carries a cursor")?;
     let other = owner(&fx.pool, "brain-search-other").await?;
     let (status, foreign) = call(
-        &fx.routes,
+        &fx.kernel,
         &other.user_id,
         Method::GET,
         &format!("/facts?after={token}"),
@@ -274,17 +265,6 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     .await?;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{foreign}");
     assert_eq!(foreign["error_key"], json!("invalid_cursor"));
-    Ok(())
-}
-
-#[tokio::test]
-async fn an_unknown_or_inactive_caller_is_unauthorized() -> Result<()> {
-    let fx = brain_fixture().await?;
-    let ghost = UserId::generate();
-    let (status, body) = call(&fx.routes, &ghost, Method::GET, "/facts", None).await?;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
-    let (status, _) = call(&fx.routes, &ghost, Method::GET, "/proposals", None).await?;
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
 
@@ -299,12 +279,12 @@ async fn entering_an_undeclared_kind_is_refused_and_a_missing_fact_is_404() -> R
         "scope": {"level": "user", "key": me.user_id.as_str()},
     });
     let (status, refused) =
-        call(&fx.routes, &me.user_id, Method::POST, "/facts", Some(body)).await?;
+        call(&fx.kernel, &me.user_id, Method::POST, "/facts", Some(body)).await?;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{refused}");
 
     let missing = BrainFactId::generate();
     let (status, _) = call(
-        &fx.routes,
+        &fx.kernel,
         &me.user_id,
         Method::GET,
         &format!("/facts/{missing}"),

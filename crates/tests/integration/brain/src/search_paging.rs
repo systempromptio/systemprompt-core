@@ -8,7 +8,7 @@ use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, 
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::brain::FactScope;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::brain::mcp::{BrainMcpTools, SearchHandler};
+use systemprompt_brain::mcp::{BrainMcpTools, SearchHandler};
 
 use crate::events::entered;
 use crate::harness::{Harness, Setup};

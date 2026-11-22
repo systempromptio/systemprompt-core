@@ -6614,6 +6614,8 @@ dependencies = [
  "futures",
  "hex",
  "metrics",
+ "rmcp",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -6637,7 +6639,18 @@ dependencies = [
 name = "systemprompt-brain-entry"
 version = "0.85.0"
 dependencies = [
+ "axum",
+ "chrono",
+ "serde",
+ "serde_json",
+ "systemprompt-brain",
  "systemprompt-extension",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
 ]
 
 [[package]]
@@ -7563,7 +7576,6 @@ dependencies = [
  "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
- "systemprompt-brain",
  "systemprompt-client",
  "systemprompt-config",
  "systemprompt-content",

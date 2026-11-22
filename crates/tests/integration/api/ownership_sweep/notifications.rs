@@ -36,7 +36,7 @@ fn notifications_router(ctx: &AppContext) -> Router {
     let slot = ctx
         .kernel()
         .state()
-        .get::<NotificationsServiceSlot>()
+        .get::<std::sync::Arc<NotificationsServiceSlot>>()
         .expect("notification service handle provided")
         .clone();
     let database: Arc<dyn DatabaseHandle> =

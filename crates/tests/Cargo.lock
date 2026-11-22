@@ -8866,7 +8866,7 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-analytics-entry",
  "systemprompt-api",
- "systemprompt-brain",
+ "systemprompt-brain-entry",
  "systemprompt-catalog-fixtures",
  "systemprompt-content",
  "systemprompt-content-entry",
@@ -8936,7 +8936,6 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-api",
- "systemprompt-brain",
  "systemprompt-catalog-fixtures",
  "systemprompt-config",
  "systemprompt-database",
@@ -8980,6 +8979,8 @@ dependencies = [
  "futures",
  "hex",
  "metrics",
+ "rmcp",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -9003,27 +9004,56 @@ dependencies = [
 name = "systemprompt-brain-entry"
 version = "0.85.0"
 dependencies = [
+ "axum",
+ "chrono",
+ "serde",
+ "serde_json",
+ "systemprompt-brain",
  "systemprompt-extension",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
 ]
 
 [[package]]
 name = "systemprompt-brain-entry-tests"
 version = "0.0.11"
 dependencies = [
+ "axum",
+ "serde_json",
+ "sqlx",
+ "systemprompt-brain",
  "systemprompt-brain-entry",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
  "systemprompt-test-hack",
+ "systemprompt-traits",
+ "tokio",
+ "tower",
 ]
 
 [[package]]
 name = "systemprompt-brain-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
  "async-trait",
+ "axum",
  "chrono",
  "serde",
  "serde_json",
  "sqlx",
  "systemprompt-brain",
+ "systemprompt-brain-entry",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
@@ -9038,6 +9068,8 @@ dependencies = [
  "systemprompt-users",
  "tokio",
  "tokio-util",
+ "tower",
+ "uuid",
 ]
 
 [[package]]
@@ -11821,7 +11853,6 @@ dependencies = [
  "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
- "systemprompt-brain",
  "systemprompt-client",
  "systemprompt-config",
  "systemprompt-content",
@@ -12430,6 +12461,7 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",
+ "systemprompt-storage",
  "systemprompt-test-hack",
  "systemprompt-test-migrate",
  "systemprompt-traits",

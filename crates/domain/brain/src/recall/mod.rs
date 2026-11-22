@@ -1,6 +1,9 @@
-//! The gateway read side: [`BrainRecallStore`] reads the scope-filtered
-//! retrieval tiers and records recalls, and [`BrainRecallService`] turns a
-//! recall request into the `<team_memory>` block.
+//! The gateway read side.
+//!
+//! [`BrainRecallStore`] reads the scope-filtered retrieval tiers and records
+//! recalls, [`BrainRecallService`] turns a recall request into the
+//! `<team_memory>` block, and [`BoundMemoryRecall`] is the recall the member
+//! provides over the brain handle.
 //!
 //! The pure stages are public so they can be exercised alone:
 //! [`held`] (the working-set keys a principal holds), [`admit`] (the tier
@@ -17,6 +20,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod admit;
+mod bound;
 pub mod budget;
 mod builder;
 pub mod candidate;
@@ -41,6 +45,7 @@ pub mod tiers;
 pub mod visible;
 mod visible_memo;
 
+pub use bound::BoundMemoryRecall;
 pub use builder::BrainRecallServiceBuilder;
 pub use declared::{DeclaredRecall, DeclaredSource, PlaneDeclaredSource};
 pub use held::HeldKeys;

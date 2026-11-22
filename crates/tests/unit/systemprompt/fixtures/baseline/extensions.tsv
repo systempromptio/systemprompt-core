@@ -7,6 +7,7 @@ analytics	AnalyticsExtension	systemprompt-analytics	crates/domain/analytics/src/
 analytics-http	AnalyticsHttpExtension	systemprompt-analytics-entry	crates/entry/analytics/src/extension.rs
 authz	AuthzExtension	systemprompt-governance	crates/infra/governance/src/authz/extension.rs
 brain	BrainExtension	systemprompt-brain	crates/domain/brain/src/extension.rs
+brain-http	BrainHttpExtension	systemprompt-brain-entry	crates/entry/brain/src/extension.rs
 content	ContentExtension	systemprompt-content	crates/domain/content/src/extension.rs
 content-http	ContentHttpExtension	systemprompt-content-entry	crates/entry/content/src/extension.rs
 database	DatabaseExtension	systemprompt-database	crates/infra/database/src/extension.rs

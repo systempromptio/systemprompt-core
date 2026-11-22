@@ -131,6 +131,7 @@ async fn disabling_notifications_and_its_routes_unmounts_every_group() -> anyhow
         ExtensionId::new("notifications"),
         ExtensionId::new("notifications-http"),
         ExtensionId::new("brain"),
+        ExtensionId::new("brain-http"),
     ])
     .await
 }
@@ -139,7 +140,12 @@ async fn disabling_notifications_and_its_routes_unmounts_every_group() -> anyhow
 async fn disabling_notifications_while_its_routes_stay_enabled_refuses_boot() -> anyhow::Result<()>
 {
     let refused =
-        full_router(&[ExtensionId::new("notifications"), ExtensionId::new("brain")]).await;
+        full_router(&[
+            ExtensionId::new("notifications"),
+            ExtensionId::new("brain"),
+            ExtensionId::new("brain-http"),
+        ])
+        .await;
     let error = refused.expect_err("routes requiring the notification service refuse boot");
     assert!(
         format!("{error:#}").contains("NotificationsService"),

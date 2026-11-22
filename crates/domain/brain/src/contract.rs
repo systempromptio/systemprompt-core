@@ -7,9 +7,10 @@
 //! stores a factory and runs nothing. Admission drops a disabled member's
 //! builder before any factory runs, and the kernel then builds the slot
 //! once: every factory is called against the resolved state, in composition
-//! order, and the result is the [`BrainSeams`] value the kernel inserts as
-//! `Arc<BrainSeams>`. The `brain` member always opens the slot, so the built
-//! seams are present exactly when that member is admitted.
+//! order, and the result is the [`BrainHandleSlot`] the kernel inserts as
+//! `Arc<BrainHandleSlot>`: the built [`BrainSeams`] and the read half of the
+//! brain handle cell. The `brain` member always opens the slot, so the built
+//! value is present exactly when that member is admitted.
 //!
 //! After the contributed seams the build appends the core defaults other
 //! members provide as [`CoreSeam`]s: the document source reader `files`
@@ -27,9 +28,10 @@
 //! its own; the analysis job runs the contributed analyses after the core
 //! ones; the consolidation job runs the contributed consolidators. A factory
 //! that fails, or reads a value nothing provides, refuses the build: a seam
-//! is never silently left out. With the profile's brain enabled the build
-//! then binds the [`BrainHandle`](crate::handle::BrainHandle) assembled over
-//! the finished seams.
+//! is never silently left out. The build then creates the handle cell and,
+//! with the profile's brain enabled, binds the
+//! [`BrainHandle`](crate::handle::BrainHandle) assembled over the finished
+//! seams; it reads no handle from the state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,6 +48,7 @@ use systemprompt_extension::{
 use systemprompt_traits::CoreSeam;
 use systemprompt_traits::core_seam::{DocumentSourceAccess, DocumentSourceContent};
 
+use crate::handle::BrainHandleSlot;
 use crate::pipeline::PipelineSeams;
 
 const SLOT: &str = "brain";
@@ -211,7 +214,7 @@ fn append_core_defaults(seams: &mut BrainSeams, r: &Resolved<'_>) -> Result<(), 
 
 impl Slot for BrainSlot {
     type Builder = BrainSlotBuilder;
-    type Built = BrainSeams;
+    type Built = BrainHandleSlot;
     const ORDER: SlotOrder = SlotOrder::Composition;
 
     fn build(
@@ -257,7 +260,6 @@ impl Slot for BrainSlot {
                 .extend(build_factories(SLOT, owner, &b.consolidators, r)?);
         }
         append_core_defaults(&mut seams, r)?;
-        crate::assembly::bind_handle(&seams, r)?;
-        Ok(seams)
+        crate::assembly::bind_handle(seams, r)
     }
 }

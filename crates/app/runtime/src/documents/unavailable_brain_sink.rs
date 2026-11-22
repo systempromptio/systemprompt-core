@@ -1,11 +1,15 @@
-//! The brain sink of a server built or configured without the brain: it
-//! reports itself unavailable, so the document store lands revisions and
-//! resolves comments without recording a brain fact.
+//! The brain sink the document store writes through: the `brain` member's
+//! outbox sink while the profile enables the brain, otherwise
+//! [`BrainUnavailableSink`], which reports itself unavailable, so the
+//! document store lands revisions and resolves comments without recording a
+//! brain fact.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{BrainSink, BrainSinkError};
+use std::sync::Arc;
+
+use systemprompt_extension::{BrainSink, BrainSinkError, DynBrainSink, Resolved};
 use systemprompt_identifiers::EventOutboxId;
 use systemprompt_models::brain::BrainEvent;
 
@@ -26,4 +30,11 @@ impl BrainSink for BrainUnavailableSink {
     ) -> Result<EventOutboxId, BrainSinkError> {
         Err(BrainSinkError::Unavailable)
     }
+}
+
+pub(crate) fn admitted_brain_sink(brain_enabled: bool, r: &Resolved<'_>) -> DynBrainSink {
+    brain_enabled
+        .then(|| r.optional::<DynBrainSink>())
+        .flatten()
+        .unwrap_or_else(|| Arc::new(BrainUnavailableSink))
 }

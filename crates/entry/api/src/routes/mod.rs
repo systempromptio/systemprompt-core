@@ -11,8 +11,6 @@
 
 pub mod admin;
 pub mod agent;
-#[cfg(feature = "brain")]
-pub mod brain;
 pub mod documents;
 pub mod gateway;
 pub mod internal;

@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
     BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, SessionId, UserId,
 };
 use systemprompt_models::brain::FactSource;
-use systemprompt_runtime::brain::mcp::{
+use systemprompt_brain::mcp::{
     BrainMcpTools, BrainRefusalCode, DisputeHandler, ProposeHandler, RecallPreviewHandler,
     SearchHandler, WhyHandler, refusal_code,
 };

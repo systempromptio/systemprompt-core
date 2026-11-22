@@ -1,57 +1,54 @@
-//! Mounts `/api/v1/brain` (user policy) and `/api/v1/admin/brain` (admin
-//! policy) as two declarations behind the user context and the brain rate
-//! limit. An enabled brain without a user provider fails the mount rather
-//! than serving routes that cannot resolve their callers; with no brain the
-//! routers answer 404.
+//! The two brain route sets: `/api/v1/brain` behind the user gate and
+//! `/api/v1/admin/brain` behind the admin gate, both with a user request
+//! context in the content-and-misc role group under the `brain` rate-limit
+//! scope and budget with the default body limit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::Router;
+use axum::http::Method;
+use systemprompt_extension::router::{ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec};
 use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_traits::AppContext as AppContextTrait;
 
-use super::RouteMountError;
-use super::protocol::{MountCtx, declare};
+use super::{BrainHttpState, admin, facts, lifecycle, proposals};
 
-pub(super) fn mount_brain_routes(
-    mut router: Router,
-    mount: &MountCtx<'_>,
-) -> Result<Router, RouteMountError> {
-    let ctx = mount.ctx;
-    let brain_routes = match ctx.brain() {
-        Some(brain) => {
-            let users = super::require_provider("brain", ctx.user_provider())?;
-            let (service, recall, profile) = brain.routes();
-            Some(
-                crate::routes::brain::BrainRoutes::new(service, recall, profile, users)
-                    .with_subject_providers(ctx.subject_providers().clone()),
-            )
-        },
-        None => None,
-    };
-    let brain_rate = RateLimit::new("brain", RateBudget::Brain);
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::brain::router(brain_routes.clone()),
-            ApiPaths::BRAIN,
-            AuthzPolicy::user(),
-            ContextKind::User,
-            RouteGroup::ContentAndMisc,
-        )
-        .with_rate_limit(brain_rate),
-    )?;
-    Ok(mount.mount(
-        router,
-        declare(
-            crate::routes::brain::admin_router(brain_routes),
-            ApiPaths::ADMIN_BRAIN,
-            AuthzPolicy::admin(),
-            ContextKind::User,
-            RouteGroup::ContentAndMisc,
-        )
-        .with_rate_limit(brain_rate),
-    )?)
+const LIMITS: RouteLimits = RouteLimits {
+    rate: RateLimit::new("brain", RateBudget::Brain),
+    body: BodyLimit::Default,
+};
+const USER: RouteSpec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, LIMITS);
+const ADMIN: RouteSpec = RouteSpec::new(AuthzPolicy::admin(), ContextKind::User, LIMITS);
+
+#[must_use]
+pub fn user_routes() -> RouteSet {
+    RouteSet::at::<BrainHttpState>(BasePath::Api(ApiBase::Brain), RouteGroup::ContentAndMisc)
+        .route(Method::GET, "/facts", facts::search, USER)
+        .route(Method::POST, "/facts", facts::enter, USER)
+        .route(Method::GET, "/facts/{id}", facts::get, USER)
+        .route(Method::GET, "/facts/{id}/timeline", facts::timeline, USER)
+        .route(Method::GET, "/facts/{id}/why", facts::why, USER)
+        .route(Method::GET, "/subjects/{kind}/{id}", facts::subject, USER)
+        .route(Method::POST, "/facts/{id}/confirm", lifecycle::confirm, USER)
+        .route(Method::POST, "/facts/{id}/dispute", lifecycle::dispute, USER)
+        .route(Method::POST, "/facts/{id}/retract", lifecycle::retract, USER)
+        .route(Method::POST, "/facts/{id}/erase", lifecycle::erase, USER)
+        .route(Method::POST, "/facts/{id}/pin", lifecycle::pin, USER)
+        .route(Method::POST, "/facts/{id}/unpin", lifecycle::unpin, USER)
+        .route(Method::PATCH, "/facts/{id}/fields", lifecycle::edit_fields, USER)
+        .route(Method::POST, "/disputes/{id}/resolve", lifecycle::resolve, USER)
+        .route(Method::GET, "/proposals", proposals::list, USER)
+        .route(Method::POST, "/proposals/{id}/approve", proposals::approve, USER)
+        .route(Method::POST, "/proposals/{id}/reject", proposals::reject, USER)
+        .route(Method::POST, "/proposals/{id}/replay", proposals::replay, USER)
+        .build()
+}
+
+#[must_use]
+pub fn admin_routes() -> RouteSet {
+    RouteSet::at::<BrainHttpState>(
+        BasePath::Api(ApiBase::AdminBrain),
+        RouteGroup::ContentAndMisc,
+    )
+    .route(Method::POST, "/simulate", admin::simulate, ADMIN)
+    .build()
 }

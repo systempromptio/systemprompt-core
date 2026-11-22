@@ -5,7 +5,7 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::McpToolExecutor;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
-use systemprompt_runtime::brain::mcp::{BrainMcpTools, BrainToolCall, TOOL_NAMES};
+use systemprompt_brain::mcp::{BrainMcpTools, BrainToolCall, TOOL_NAMES};
 
 use crate::brain_consumer_start::{handle_for, tools};
 use crate::documents_mcp_rig::rig;

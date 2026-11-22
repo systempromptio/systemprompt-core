@@ -5,7 +5,7 @@ use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::brain::mcp::{
+use systemprompt_brain::mcp::{
     BrainMcpTools, RecallPreviewHandler, SearchHandler, WhyHandler,
 };
 

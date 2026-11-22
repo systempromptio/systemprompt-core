@@ -113,7 +113,6 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     kernel("/api/v1/scheduler", ReservedReach::Prefix),
     kernel(ApiPaths::CORE_BASE, ReservedReach::Prefix),
     kernel(ApiPaths::ADMIN_BASE, ReservedReach::Prefix),
-    kernel(ApiPaths::BRAIN, ReservedReach::Prefix),
     kernel(ApiPaths::DOCUMENTS, ReservedReach::Prefix),
     kernel(ApiPaths::DOCUMENT_FOLDERS, ReservedReach::Prefix),
     kernel(ApiPaths::UPLOADS, ReservedReach::Prefix),
@@ -143,6 +142,8 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     held(CoreId::Cloud, ApiPaths::CLOUD_TENANTS),
     exact(CoreId::McpHttp, ApiPaths::MCP_REGISTRY),
     held(CoreId::MarketplaceHttp, ApiPaths::MARKETPLACE_BASE),
+    held(CoreId::BrainHttp, ApiPaths::BRAIN),
+    subtree(CoreId::BrainHttp, ApiPaths::ADMIN_BRAIN),
 ];
 
 pub const BUILTIN_GATEWAY_PREFIXES: &[&str; 31] = &[

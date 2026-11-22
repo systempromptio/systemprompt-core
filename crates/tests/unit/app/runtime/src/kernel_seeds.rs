@@ -190,7 +190,6 @@ const API_ONLY_SEEDS: &[&str] = &[
     "alloc::sync::Arc<systemprompt_ai::repository::AiRepositories>",
     "systemprompt_models::late_bound::LateBound<dyn systemprompt_traits::messaging::MessagingDispatcher>",
     "systemprompt_models::late_bound::LateBound<dyn systemprompt_models::a2a::dispatch::AgentDispatch>",
-    "alloc::sync::Arc<systemprompt_ai::services::core::ai_service::service::AiService>",
     "alloc::sync::Arc<maxminddb::reader::Reader<alloc::vec::Vec<u8>>>",
     "alloc::sync::Arc<systemprompt_models::content_config::ContentConfigRaw>",
 ];

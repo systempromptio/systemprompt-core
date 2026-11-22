@@ -65,10 +65,10 @@ pub(crate) fn make_job_context(
     app_context: &Arc<AppContext>,
     schedule: &AdmittedSchedule,
 ) -> JobContext {
-    let mut dependencies =
-        brain_dependencies(app_context, app_context.kernel().runtime_state()).with(
-            BudgetedDb::new(Arc::clone(app_context.db_pool()), run.budget),
-        );
+    let mut dependencies = app_context.kernel().runtime_state().with(BudgetedDb::new(
+        Arc::clone(app_context.db_pool()),
+        run.budget,
+    ));
     if is_kernel_job(schedule, run.job_name) {
         dependencies.insert(KernelJobHandles {
             app: Arc::clone(app_context),
@@ -83,20 +83,6 @@ fn is_kernel_job(schedule: &AdmittedSchedule, job_name: &JobName) -> bool {
         .is_some_and(|(owner, standing)| {
             standing == StandingTag::Core && owner.as_str() == SCHEDULER_MEMBER_ID
         })
-}
-
-#[cfg(feature = "brain")]
-fn brain_dependencies(app_context: &AppContext, dependencies: Dependencies) -> Dependencies {
-    let mut dependencies = dependencies.with(app_context.brain_consolidation_model());
-    if let Some(sink) = app_context.brain_sink() {
-        dependencies.insert(sink);
-    }
-    dependencies
-}
-
-#[cfg(not(feature = "brain"))]
-const fn brain_dependencies(_: &AppContext, dependencies: Dependencies) -> Dependencies {
-    dependencies
 }
 
 pub(crate) fn deployment_dependencies(boot: &BootContext) -> Dependencies {

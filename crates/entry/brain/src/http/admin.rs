@@ -17,30 +17,29 @@
 use std::time::Duration;
 
 use axum::Json;
-use axum::extract::State;
 use systemprompt_extension::brain::{
     RecallConversation, RecallPrincipal, RecallRequest, ReuseHint,
 };
 use systemprompt_models::auth::RequestActor;
 
 use super::dto::{SimulateBody, SimulateResponse};
-use super::{BrainHttpError, BrainRoutes};
-use crate::kernel::ApiHttpError;
+use super::{BrainHttpError, OpenBrain};
 
 const PROJECT_DIMENSION: &str = "project";
 const DEADLINE_EXCEEDED: &str = "deadline_exceeded";
 
 pub(super) async fn simulate(
-    State(state): State<BrainRoutes>,
+    state: OpenBrain,
     Json(body): Json<SimulateBody>,
 ) -> Result<Json<SimulateResponse>, BrainHttpError> {
     let project = match body.project {
         Some(project) => Some(project),
-        None => state
-            .subject_providers
-            .default_value(&body.user_id, PROJECT_DIMENSION)
-            .await
-            .map_err(ApiHttpError::from)?,
+        None => {
+            state
+                .subject_providers
+                .default_value(&body.user_id, PROJECT_DIMENSION)
+                .await?
+        },
     };
     let principal = RecallPrincipal {
         user_id: body.user_id,

@@ -9,9 +9,9 @@
 //! brain recall; without it the build is refused. A default whose
 //! owner is not admitted is absent, never replaced. The
 //! [`NotificationsService`] and [`NotificationsConsumer`] are then built
-//! from those seams and bound into the [`NotificationsServiceSlot`] and
-//! [`NotificationsConsumerSlot`] this member provides, so every reader of
-//! the slots sees the one pipeline the kernel resolved.
+//! from those seams and bound into the cells of the [`NotificationsServiceSlot`]
+//! the build creates and returns, so every reader sees the one pipeline the
+//! kernel resolved and nothing outside the build can bind either cell.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,7 +29,7 @@ use systemprompt_traits::CoreSeam;
 use systemprompt_traits::core_seam::{DocumentVisibility, IssueVisibility};
 
 use crate::channels::AguiChannel;
-use crate::consumer::{NotificationsConsumer, NotificationsConsumerSlot};
+use crate::consumer::NotificationsConsumer;
 use crate::contract::NotificationSeams;
 use crate::defaults::{DefaultPublishPolicy, DefaultRouter};
 use crate::pipeline::{NotificationPipeline, PipelineParts};
@@ -65,7 +65,12 @@ pub(crate) fn append_core_defaults(
     Ok(())
 }
 
-pub(crate) fn bind_service(seams: &NotificationSeams, r: &Resolved<'_>) -> Result<(), SlotError> {
+pub(crate) fn bind_service(
+    seams: NotificationSeams,
+    r: &Resolved<'_>,
+) -> Result<NotificationsServiceSlot, SlotError> {
+    let (slot, binder) = NotificationsServiceSlot::unbound(seams);
+    let seams = slot.seams();
     let db = r.get::<DbPool>()?;
     let profile = *r.get::<Arc<NotificationsProfile>>()?;
     let repos = Arc::new(NotificationRepositories::new(&db));
@@ -92,12 +97,8 @@ pub(crate) fn bind_service(seams: &NotificationSeams, r: &Resolved<'_>) -> Resul
         db.session_pool().as_ref().clone(),
         profile.consumer,
     ));
-    r.get::<NotificationsServiceSlot>()?
-        .bind(service)
-        .map_err(refused)?;
-    r.get::<NotificationsConsumerSlot>()?
-        .bind(consumer)
-        .map_err(refused)
+    binder.bind(service, consumer).map_err(refused)?;
+    Ok(slot)
 }
 
 fn refused(error: systemprompt_models::AlreadyBound) -> SlotError {

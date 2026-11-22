@@ -86,7 +86,6 @@ pub struct Subsystems {
     pub governance: ConfigWatch<GovernanceEngine>,
     pub services: systemprompt_loader::ServicesState,
     pub cache_epochs: CacheEpochs,
-    pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<crate::SchemaState>,
     pub event_bridge: Arc<EventBridgeHandle>,

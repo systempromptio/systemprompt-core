@@ -43,6 +43,7 @@ pub mod extension;
 pub mod handle;
 pub mod index;
 pub mod jobs;
+pub mod mcp;
 pub mod model;
 pub mod models;
 pub mod outcomes;

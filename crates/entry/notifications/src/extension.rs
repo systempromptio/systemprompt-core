@@ -14,15 +14,13 @@
 //! the bridge requests only, and the bridge handlers read the caller from it.
 //!
 //! Every set reads the notification service from the
-//! `NotificationsServiceSlot` the `notifications` member provides and the
-//! composition root binds; this member `requires` that handle:
+//! `NotificationsServiceSlot` the `notifications` member's slot build
+//! returns with the service bound; this member `requires` that value:
 //!
 //! | profile disables | user | admin | bridge inbox |
 //! |---|---|---|---|
 //! | `notifications-http` | 404 | 404 | 404 |
 //! | `notifications` | refused (unmet `NotificationsServiceSlot`) | | |
-//!
-//! A handle that is present but unbound refuses the mount.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,6 +57,8 @@ impl Extension for NotificationsHttpExtension {
 
 #[cfg(feature = "http")]
 mod routes {
+    use std::sync::Arc;
+
     use systemprompt_extension::prelude::*;
     use systemprompt_extension::router::GatewayRouteDecl;
     use systemprompt_notifications::NotificationsServiceSlot;
@@ -66,7 +66,7 @@ mod routes {
     use crate::http::{BRIDGE_LIMITS, admin_routes, bridge_routes, user_routes};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
-        c.requires::<NotificationsServiceSlot>()
+        c.requires::<Arc<NotificationsServiceSlot>>()
             .routes(user_routes())
             .routes(admin_routes())
             .gateway_route(GatewayRouteDecl {

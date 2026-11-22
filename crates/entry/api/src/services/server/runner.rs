@@ -53,21 +53,30 @@ pub async fn run_server(
         "node role"
     );
 
-    let scheduler_handle =
-        start_role_phases(&ctx, plan, events.as_ref(), early.scheduler_health()).await?;
+    let composed = super::routes::Composed {
+        admitted: ctx.admitted(),
+        kernel: ctx.kernel(),
+    };
+    let engines = super::builder::admitted_gateway_engines(&ctx, &composed)?;
+    let scheduler_handle = start_role_phases(
+        &ctx,
+        plan,
+        events.as_ref(),
+        early.scheduler_health(),
+        engines.as_ref(),
+    )
+    .await?;
     super::boot_steps::reconcile_document_folders(&ctx).await?;
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
     }
-    let router = crate::services::server::setup_api_server(
+    let router = super::builder::assemble_api_server(
         &ctx,
-        super::routes::Composed {
-            admitted: ctx.admitted(),
-            kernel: ctx.kernel(),
-        },
+        composed,
         events.as_ref(),
         early.readiness(),
+        engines.as_ref(),
     )?
     .layer(axum::Extension(Arc::clone(early.scheduler_health())));
     super::boot_steps::start_accounting_recovery(&ctx).await?;
@@ -102,6 +111,14 @@ async fn start_role_phases(
     plan: LifecyclePlan,
     events: Option<&StartupEventSender>,
     scheduler_health: &SchedulerHealth,
+    #[cfg_attr(
+        not(feature = "brain"),
+        expect(
+            unused_variables,
+            reason = "only the brain consumer's model client reads the engines"
+        )
+    )]
+    engines: Option<&Arc<systemprompt_gateway::GatewayEngines>>,
 ) -> Result<Option<SchedulerHandle>> {
     start_event_bridge(ctx);
     start_governance_watch(ctx);
@@ -129,7 +146,7 @@ async fn start_role_phases(
     };
     if plan.runner_services {
         #[cfg(feature = "brain")]
-        let brain = super::brain::brain_consumer(ctx).await?;
+        let brain = super::brain::brain_consumer(ctx, engines).await?;
         #[cfg(not(feature = "brain"))]
         let brain = None;
         start_runner_services(ctx, brain)?;

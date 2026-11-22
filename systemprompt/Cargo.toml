@@ -149,7 +149,7 @@ notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notificatio
 
 # The brain: revisioned organisational memory, its capture consumer and gateway recall. `full` implies it.
 # Without it the documents store records no brain event and the gateway injects no team memory.
-brain = ["dep:systemprompt-brain", "dep:systemprompt-brain-entry", "notifications", "systemprompt-runtime?/brain", "systemprompt-mcp-host?/brain", "systemprompt-api?/brain"]
+brain = ["dep:systemprompt-brain", "dep:systemprompt-brain-entry", "notifications", "systemprompt-api?/brain"]
 
 # Full functionality including all domain modules and CLI
 full = [
@@ -295,4 +295,4 @@ name = "cli"
 required-features = ["full"]
 
 [package.metadata.cargo-machete]
-ignored = ["systemprompt-agent-entry", "systemprompt-brain-entry"]
+ignored = ["systemprompt-agent-entry"]

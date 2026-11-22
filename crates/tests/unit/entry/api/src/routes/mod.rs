@@ -11,8 +11,6 @@ mod admin_services;
 mod admin_services_refresh;
 mod agent;
 mod agent_responses;
-mod brain_error_mapping;
-mod brain_routes;
 mod bridge_profile_models;
 mod documents_actor_scope;
 mod documents_collab_forward_path;

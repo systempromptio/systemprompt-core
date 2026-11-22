@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
-use systemprompt_extension::prelude::Dependencies;
 use systemprompt_extension::{
-    DynNotificationSink, NotificationAudienceResolver, ResourceVisibility, Slot,
+    DynNotificationSink, NotificationAudienceResolver, ResourceVisibility,
 };
 use systemprompt_files::contract::{AgentAccess, DocumentSeams};
 use systemprompt_files::documents::agents::DocumentActor;
@@ -17,16 +16,14 @@ use systemprompt_governance::authz::{
 };
 use systemprompt_manifest::profile::NotificationsProfile;
 use systemprompt_models::authz::SubjectAttributeSource;
-use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_notifications::{
-    NotificationsConsumerSlot, NotificationsService, NotificationsServiceSlot, NotificationsSlot,
-    OutboxNotificationSink,
+    NotificationsService, NotificationsServiceSlot, OutboxNotificationSink,
 };
 use systemprompt_runtime::documents::{
     DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
 };
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::core_seam::{self, RoleAudience};
+use systemprompt_traits::core_seam;
 use systemprompt_traits::{BackgroundTasks, CoreSeam, FileStorage};
 use systemprompt_users::{UserRepository, UserRoleAudienceResolver};
 
@@ -34,6 +31,11 @@ pub fn fixture_notification_sink(pool: &DbPool) -> DynNotificationSink {
     OutboxNotificationSink::over_write_pool(pool, &crate::unique_instance())
 }
 
+// The notification service over the kernel seeds a host composes: the users
+// member (its role audience) and the notifications member resolve over
+// `fixture_kernel_seed` with the test's event router; the document and issue
+// visibilities the files member provides in a host are read from the test's
+// document store.
 pub fn fixture_notifications(
     pool: &DbPool,
     event_router: &EventRouter,
@@ -46,44 +48,44 @@ pub fn fixture_notifications(
         Arc::clone(documents.access()),
         Arc::clone(documents.repositories()),
     ));
-    let issue_visibility: Arc<dyn ResourceVisibility> = Arc::new(IssueVisibility::new(
-        Arc::clone(documents.issues()),
-        Arc::clone(&roles),
+    let issue_visibility: Arc<dyn ResourceVisibility> =
+        Arc::new(IssueVisibility::new(Arc::clone(documents.issues()), roles));
+    let (documents_slot, _binder) = DocumentsHandlesSlot::unbound();
+    let mut seed = crate::app_context::fixture_kernel_seed(
+        pool,
+        crate::app_context::FixtureSeedParts {
+            file_storage: Arc::new(systemprompt_storage::LocalFileStorage::new(std::env::temp_dir())),
+            background_tasks: BackgroundTasks::new(),
+            event_router: event_router.clone(),
+            documents: documents_slot,
+        },
+    );
+    seed.insert(Arc::new(NotificationsProfile::default()));
+    seed.insert(crate::unique_instance());
+    seed.insert(CoreSeam::<dyn ResourceVisibility, core_seam::DocumentVisibility>::new(
+        document_visibility,
     ));
-    let service = NotificationsServiceSlot::default();
-    let mut seed = Dependencies::new()
-        .with(Arc::clone(pool))
-        .with(Arc::new(event_router.clone()))
-        .with(Arc::new(NotificationsProfile::default()))
-        .with(EscalationDelivery::InProcess)
-        .with(fixture_notification_sink(pool))
-        .with(service.clone())
-        .with(NotificationsConsumerSlot::default())
-        .with(CoreSeam::<dyn NotificationAudienceResolver, RoleAudience>::new(roles))
-        .with(CoreSeam::<
-            dyn ResourceVisibility,
-            core_seam::DocumentVisibility,
-        >::new(document_visibility))
-        .with(
-            CoreSeam::<dyn ResourceVisibility, core_seam::IssueVisibility>::new(issue_visibility),
-        );
-    let audiences = systemprompt_extension::AudienceResolvers::from_admitted(
-        &systemprompt_extension::BuiltState::default(),
-        &crate::app_context::fixture_kernel(pool, seed.clone()).resolved(),
-    )
-    .expect("the fixture audience set builds");
-    seed.insert(Arc::new(audiences));
-    let kernel = crate::app_context::fixture_kernel(pool, seed);
-    NotificationsSlot::build(Vec::new(), &kernel.resolved())
-        .expect("the notifications slot builds over the fixture seeds");
-    Arc::clone(service.get().expect("the slot build binds the service"))
+    seed.insert(CoreSeam::<dyn ResourceVisibility, core_seam::IssueVisibility>::new(
+        issue_visibility,
+    ));
+    let admitted = crate::app_context::fixture_admitted_of(vec![
+        Box::new(systemprompt_users::UsersExtension),
+        Box::new(systemprompt_notifications::NotificationsExtension),
+    ]);
+    let kernel = crate::composed::resolved_kernel(pool, &admitted, seed)
+        .expect("the users and notifications members resolve over the fixture seeds");
+    let slot = kernel
+        .resolved()
+        .get::<Arc<NotificationsServiceSlot>>()
+        .expect("the notifications slot build returns its service");
+    Arc::clone(slot.get().expect("the slot build binds the service"))
 }
 
 pub fn notifications_service(ctx: &AppContext) -> Arc<NotificationsService> {
     let state = ctx.kernel().state();
     let slot = state
-        .get::<NotificationsServiceSlot>()
-        .expect("the notifications extension provides its service slot");
+        .get::<Arc<NotificationsServiceSlot>>()
+        .expect("the notifications slot build returns its service");
     Arc::clone(
         slot.get()
             .expect("the fixture context binds the notification service"),

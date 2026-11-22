@@ -3,11 +3,15 @@
 //! Extraction calls models through the in-process gateway client, so a
 //! brain model call is metered, guarded, audited and failed over like any
 //! other gateway request. The client is built here, at the API composition
-//! root, from the gateway configuration, catalog, repositories and engines,
-//! acting as the `brain` service account (ensured on first start, created by
-//! the system admin). An enabled brain on a profile without a gateway (its
-//! config disabled, or the `gateway` member not admitted) fails the start
-//! rather than leaving the consumer unable to extract.
+//! root, over the one gateway engines set the server run loop built (shared
+//! with the gateway routes: one set of breakers, load gauges and upstream
+//! client), the gateway configuration, catalog, repositories and the current
+//! governance engine, acting as the `brain` service account (ensured on
+//! first start, created by the system admin). The brain handle is the one the
+//! `brain` member's slot build returned. An enabled brain on a profile
+//! without a gateway (its config disabled, or the `gateway` member not
+//! admitted) fails the start rather than leaving the consumer unable to
+//! extract.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,34 +20,47 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use systemprompt_brain::BrainHandleSlot;
 use systemprompt_extension::brain::BrainModelClient;
+use systemprompt_files::documents::BRAIN_ACTOR;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_gateway::client::principal::{ServiceIdentity, ServicePrincipal};
 use systemprompt_gateway::client::{GatewayClient, GatewayClientParts};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::brain::BRAIN_ACTOR;
 use systemprompt_traits::{AppContext as _, RunnerService};
 
 const BRAIN_SERVICE_EMAIL: &str = "brain@service.invalid";
 
-pub(super) async fn brain_consumer(ctx: &AppContext) -> Result<Option<Arc<dyn RunnerService>>> {
-    let Some(brain) = ctx.brain() else {
+pub(super) async fn brain_consumer(
+    ctx: &AppContext,
+    engines: Option<&Arc<GatewayEngines>>,
+) -> Result<Option<Arc<dyn RunnerService>>> {
+    let Some(handle) = ctx
+        .kernel()
+        .state()
+        .find::<Arc<BrainHandleSlot>>()
+        .and_then(|brain| brain.get().cloned())
+    else {
         return Ok(None);
     };
-    let model = brain_model_client(ctx).await?;
-    let consumer: Arc<dyn RunnerService> = brain.start_consumer(model)?;
+    let model = brain_model_client(ctx, engines).await?;
+    let consumer: Arc<dyn RunnerService> = handle.start_consumer(model)?;
     Ok(Some(consumer))
 }
 
-async fn brain_model_client(ctx: &AppContext) -> Result<Arc<dyn BrainModelClient>> {
+async fn brain_model_client(
+    ctx: &AppContext,
+    engines: Option<&Arc<GatewayEngines>>,
+) -> Result<Arc<dyn BrainModelClient>> {
     let gateway = ctx
         .services_config()
         .gateway_config()
-        .filter(|gateway| {
-            gateway.enabled && crate::routes::gateway::gateway_admitted(ctx.admitted())
-        })
-        .cloned()
-        .context("brain extraction requires the gateway to be enabled")?;
+        .filter(|gateway| gateway.enabled)
+        .cloned();
+    let (Some(gateway), Some(engines)) = (gateway, engines) else {
+        anyhow::bail!("brain extraction requires the gateway to be enabled");
+    };
     let sessions = ctx
         .session_provider()
         .context("brain extraction requires a session provider")?;
@@ -64,7 +81,7 @@ async fn brain_model_client(ctx: &AppContext) -> Result<Arc<dyn BrainModelClient
         catalog: Arc::clone(ctx.services_state().catalog()),
         db: Arc::clone(ctx.db_pool()),
         repos: Arc::new(crate::routes::gateway::gateway_repositories(ctx)?),
-        engines: Arc::new(crate::routes::gateway::gateway_engines(ctx, ctx.kernel())?),
+        engines: Arc::clone(engines),
         governance: ctx.governance(),
     };
     let mut client = GatewayClient::builder(parts, principal)

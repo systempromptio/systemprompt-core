@@ -33,13 +33,6 @@
 //! runtime code needs a capability derived from a sealed seed builds a narrow
 //! handle in its provide fn or factory.
 //!
-//! The process's one `AiService` (present only when inference is configured)
-//! is composed from several domains, so the composition root seeds it; an
-//! route set or factory resolves them from the built state and
-//! an absent `AiService` is a typed `MissingDependency`, never a fallback
-//! service. An absent `AiService` is still reserved for the kernel, so no
-//! extension can `provide` its own.
-//!
 //! The messaging dispatcher slot (`LateBound<dyn MessagingDispatcher>`) is
 //! seeded unbound: the dispatcher needs the API's agent proxy, which exists
 //! only after this state is built, so the API binds it while it builds its
@@ -67,7 +60,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_ai::AiService;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::GeoIpReader;
 use systemprompt_config::paths::AppPaths;
@@ -127,7 +119,6 @@ pub struct ApiKernelSeed<'a> {
     pub spawner: &'a Arc<Spawner>,
     pub oauth: &'a Arc<OAuthRepositories>,
     pub ai: &'a Arc<AiRepositories>,
-    pub ai_service: Option<&'a Arc<AiService>>,
     pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
@@ -166,7 +157,6 @@ impl std::fmt::Debug for ApiKernelSeed<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ApiKernelSeed")
             .field("base", &self.base)
-            .field("ai_service", &self.ai_service.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -207,10 +197,6 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
         .with(Arc::clone(seed.ai))
         .with(LateBound::<dyn MessagingDispatcher>::default())
         .with_sealed(AgentDispatchCell::default());
-    match seed.ai_service {
-        Some(ai) => state.insert(Arc::clone(ai)),
-        None => state.reserve::<Arc<AiService>>(),
-    }
     match seed.geoip {
         Some(reader) => state.insert(Arc::clone(reader)),
         None => state.reserve::<GeoIpReader>(),

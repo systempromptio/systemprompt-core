@@ -81,7 +81,6 @@ impl std::fmt::Debug for Subsystems {
             .field("governance", &self.governance)
             .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)
-            .field("ai_service", &self.ai_service.is_some())
             .field("artifact_ingest", &self.artifact_ingest)
             .field(
                 "schema_install_clean",
