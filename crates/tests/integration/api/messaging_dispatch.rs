@@ -45,8 +45,8 @@ pub(crate) async fn dispatch_messaging(
     ctx: &AppContext,
     inbound: MessagingInbound,
 ) -> Result<DispatchOutcome, MessagingError> {
-    systemprompt_api::services::agent_dispatch::bind_agent_dispatch(ctx)
-        .expect("the API seeds the agent dispatch cell");
+    systemprompt_api::services::messaging::bind_dispatcher(ctx)
+        .expect("the API seeds the dispatcher and agent dispatch cells");
     A2aMessagingDispatcher::new(ctx.clone()).run(inbound).await
 }
 
@@ -75,6 +75,35 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
         DispatchOutcome::Replied(text) => assert_eq!(text, "the agent replied"),
         DispatchOutcome::Denied(reason) => panic!("expected Replied, got Denied({reason})"),
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unbound_agent_dispatch_refuses_typed_and_sends_nothing() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
+    let ctx = test_app_context(&b.database_url).await;
+
+    let backend = MockServer::start().await;
+    mount_reply(&backend, "never sent").await;
+    seed_agent_backend(&ctx, &backend).await?;
+
+    let user = format!("U_{}", Uuid::new_v4().simple());
+    let error = A2aMessagingDispatcher::new(ctx.as_ref().clone())
+        .run(inbound(&user, "hi"))
+        .await
+        .expect_err("no agent dispatch is bound");
+    assert!(
+        matches!(error, MessagingError::DispatchUnbound),
+        "an unbound dispatch fails typed, got {error:?}"
+    );
+    assert!(
+        backend
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
+        "nothing reaches the agent"
+    );
     Ok(())
 }
 

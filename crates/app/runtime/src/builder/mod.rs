@@ -34,7 +34,6 @@ use composition::{
     build_artifact_ingest, build_data_plane, build_domain_layer, load_identity, new_plugins,
     new_spawner, seeded_repositories,
 };
-
 use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
