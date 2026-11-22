@@ -37,8 +37,8 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 
 use super::error::SlotError;
-use super::slot_insert::insert_erased;
 use super::resolved::Resolved;
+use super::slot_insert::insert_erased;
 use super::standing::StandingTag;
 use crate::state::StateRequirement;
 

@@ -98,9 +98,9 @@ async fn revalidate_context_adopts_the_existing_cli_context_by_name() {
 }
 
 fn contexts(pool: &DbPool) -> systemprompt_cli::session::SessionContexts {
-    let service = std::sync::Arc::new(
-        systemprompt_agent::services::ContextProviderService::new(ContextRepository::new(pool)),
-    );
+    let service = std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
+        ContextRepository::new(pool),
+    ));
     systemprompt_cli::session::SessionContexts::new(service.clone(), service)
 }
 

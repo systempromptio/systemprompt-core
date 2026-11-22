@@ -37,7 +37,10 @@ async fn the_agent_dispatch_cell_is_sealed_from_member_code() {
     let ctx = context().await;
     let state = ctx.kernel().state();
     assert!(state.is_sealed::<AgentDispatchCell>());
-    assert!(state.find::<AgentDispatchCell>().is_some(), "kernel code reads it");
+    assert!(
+        state.find::<AgentDispatchCell>().is_some(),
+        "kernel code reads it"
+    );
     let kernel = command_kernel(&ctx);
     let member = Resolved::__member_command(&kernel, kernel.state());
     assert!(member.optional::<AgentDispatchCell>().is_none());

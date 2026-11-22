@@ -83,8 +83,6 @@ mod kernel_resolve_once;
 #[cfg(test)]
 mod kernel_sealed_seeds;
 #[cfg(test)]
-mod wave_h_seams;
-#[cfg(test)]
 mod kernel_seeds;
 #[cfg(test)]
 mod link_rig;
@@ -96,6 +94,8 @@ mod links_mint;
 mod mcp_dispatch;
 #[cfg(test)]
 mod notifications_document_visibility;
+#[cfg(test)]
+mod wave_h_seams;
 
 #[cfg(test)]
 mod brain_live;

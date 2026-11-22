@@ -20,9 +20,9 @@ use super::api::{create_local_session_row, load_signing_keys};
 use super::contexts::SessionContexts;
 use super::resolution::ProfileContext;
 use admin_bootstrap::{
-    SessionComponents, build_cli_session, connect_database,
-    generate_admin_token, load_secrets, resolve_admin_with_fallback,
-    resolve_credentialed_user_email, resolve_local_admin, resolve_tenant_admin_with_fallback,
+    SessionComponents, build_cli_session, connect_database, generate_admin_token, load_secrets,
+    resolve_admin_with_fallback, resolve_credentialed_user_email, resolve_local_admin,
+    resolve_tenant_admin_with_fallback,
 };
 use systemprompt_extension::cli::CliConfig;
 

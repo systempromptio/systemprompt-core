@@ -3,8 +3,8 @@
 //!
 //! The agent and MCP members each add one `DynServiceProcessSet` factory with
 //! `c.slot::<ServiceProcessSlot>().process_set(..)`. Factories run at slot
-//! build, where sealed seeds (signing keys, the secret store) are readable, so a
-//! set may hold what starting a process needs. The built
+//! build, where sealed seeds (signing keys, the secret store) are readable, so
+//! a set may hold what starting a process needs. The built
 //! [`ServiceProcessSets`] is provided sealed: only kernel code reads it, and an
 //! install's entry is never built when no core member opens the slot.
 //!

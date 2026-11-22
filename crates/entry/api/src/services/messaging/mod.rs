@@ -38,9 +38,9 @@ use systemprompt_traits::{
 };
 use systemprompt_users::UserError;
 
-use systemprompt_models::a2a::dispatch::{AgentDispatchCell, AgentDispatchError};
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
 use identity::resolve_or_link_user;
+use systemprompt_models::a2a::dispatch::{AgentDispatchCell, AgentDispatchError};
 
 /// Failures along the dispatch pipeline. This is an internal system surface;
 /// messages are deliberately descriptive for operator debugging.

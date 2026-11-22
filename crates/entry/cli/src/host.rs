@@ -3,9 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::ContextId;
 use std::path::Path;
 use std::sync::Arc;
+use systemprompt_identifiers::ContextId;
 
 use anyhow::Context;
 use systemprompt_config::SecretsSources;
