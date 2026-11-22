@@ -65,7 +65,7 @@ impl Extension for McpHttpExtension {
 mod commands {
     use std::sync::Arc;
 
-    use systemprompt_extension::cli::{CommandDecl, KernelGrant, parents};
+    use systemprompt_extension::cli::{CommandClaim, CommandDecl, KernelGrant, parents};
     use systemprompt_extension::prelude::*;
     use systemprompt_mcp::services::McpServiceObserver;
 
@@ -74,7 +74,8 @@ mod commands {
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<McpServiceObserver>>().command(
             CommandDecl::group_under::<parents::Plugins, McpCommands>()
-                .requesting(&[KernelGrant::CallerSession]),
+                .requesting(&[KernelGrant::CallerSession])
+                .claiming(&[CommandClaim::PreservesData]),
         );
     }
 }

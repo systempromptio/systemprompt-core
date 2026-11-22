@@ -35,7 +35,7 @@ use clap::Subcommand;
 use systemprompt_database::pool_from_handle;
 use systemprompt_extension::cli::{
     CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
-    DbUrlRouting, DescribeCommand,
+    DescribeCommand,
 };
 
 use crate::cli::shared::with_resolved_export;
@@ -83,9 +83,6 @@ impl CliCommandGroup for AnalyticsCommands {
     const ABOUT: &'static str = "Analytics and metrics reporting";
     const DISPLAY_ORDER: usize = 50;
 
-    fn db_url_routing(&self) -> DbUrlRouting {
-        DbUrlRouting::Direct
-    }
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         execute(self, host).await.map_err(CommandError::new)

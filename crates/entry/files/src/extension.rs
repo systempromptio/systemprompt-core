@@ -50,7 +50,7 @@ impl Extension for FilesHttpExtension {
 mod commands {
     use std::sync::Arc;
 
-    use systemprompt_extension::cli::{CommandDecl, parents};
+    use systemprompt_extension::cli::{CommandClaim, CommandDecl, parents};
     use systemprompt_extension::prelude::*;
     use systemprompt_files::FileRepository;
 
@@ -58,6 +58,9 @@ mod commands {
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<FileRepository>>()
-            .command(CommandDecl::group_under::<parents::Core, FilesCommands>());
+            .command(
+                CommandDecl::group_under::<parents::Core, FilesCommands>()
+                    .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]),
+            );
     }
 }

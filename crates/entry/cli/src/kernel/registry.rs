@@ -3,9 +3,10 @@
 //! The registry is built from the composition's [`DeclaredCommands`] and the
 //! kernel's own contributed built-ins, before the profile is loaded. Every
 //! entry that claims a [`RESERVED_CLI_PATHS`] path, or requests a
-//! [`KernelGrant`], is re-checked here whatever handed it over: the path's
-//! listed [`CoreId`] must own it, every requested grant must be listed for
-//! that path, and no owner may hold reserved paths under two core ids. The
+//! [`KernelGrant`] or makes a [`CommandClaim`], is re-checked here whatever
+//! handed it over: the path's listed [`CoreId`] must own it, every requested
+//! grant and every listed claim must be listed for that path, and no owner may
+//! hold reserved paths under two core ids. The
 //! owner is bound to its standing as well as its id: a member entry holds a
 //! reserved path only when the core id the composition stamped from the
 //! member's core terms is the path's owner, so a handoff naming a core id
@@ -14,7 +15,10 @@
 //! shadows an existing subcommand.
 //!
 //! Resolution returns the parsed command with its owner, so the runner can
-//! refuse a command whose owner the profile disables before it runs.
+//! refuse a command whose owner the profile disables before it runs. It
+//! refuses a resolved descriptor holding a grant, or making a claim, its
+//! declaration does not list, and projects the command's `--database-url`
+//! routing from the declaration's claims.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,7 +26,7 @@
 use clap::{ArgMatches, Command};
 use systemprompt_extension::DeclaredCommands;
 use systemprompt_extension::cli::{
-    CommandDecl, KernelGrant, ParsedCommand, REGISTERED_DISPLAY_ORDER,
+    CommandClaim, CommandDecl, KernelGrant, ParsedCommand, REGISTERED_DISPLAY_ORDER,
 };
 use systemprompt_extension::reserved::{CoreId, RESERVED_CLI_PATHS};
 use systemprompt_identifiers::ExtensionId;
@@ -175,10 +179,21 @@ impl CommandRegistry {
             }
             .into());
         }
+        if let Some(claim) = CommandClaim::ALL
+            .into_iter()
+            .find(|claim| descriptor.makes(*claim) && !entry.decl.claims().contains(claim))
+        {
+            return Err(RegistryError::UndeclaredClaim {
+                path: entry.path_text(),
+                owner: entry.owner.clone(),
+                claim,
+            }
+            .into());
+        }
         Ok(Some(ResolvedCommand {
             owner: entry.owner.clone(),
             path: entry.decl.path(),
-            parsed: parsed.granted(entry.decl.grants()),
+            parsed: parsed.granted(entry.decl.grants(), entry.decl.claims()),
         }))
     }
 }
@@ -224,6 +239,18 @@ fn recheck_reserved(entries: &[RegistryEntry]) -> Result<(), RegistryError> {
                 path: entry.path_text(),
                 claimant: entry.owner.clone(),
                 grant: *grant,
+            });
+        }
+        if let Some(claim) = entry
+            .decl
+            .claims()
+            .iter()
+            .find(|claim| !reserved.is_some_and(|reserved| reserved.claims.contains(claim)))
+        {
+            return Err(RegistryError::ClaimNotListed {
+                path: entry.path_text(),
+                claimant: entry.owner.clone(),
+                claim: *claim,
             });
         }
     }

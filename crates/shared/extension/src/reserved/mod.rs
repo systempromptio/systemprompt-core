@@ -27,13 +27,14 @@
 use http::Method;
 use systemprompt_models::modules::ApiPaths;
 
-use crate::cli::KernelGrant;
 use crate::protection::RouteGroup;
 use crate::router::{Allowance, BaseRef, RouteShape};
 
+mod cli;
 mod nesting;
 mod shapes;
 
+pub use cli::{RESERVED_CLI_PATHS, ReservedCliPath};
 pub use nesting::{nested_rows_are_bounded, nested_under_another_owner};
 pub use shapes::{
     CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES, PRIVILEGED_SHAPES,
@@ -191,11 +192,13 @@ pub enum CoreId {
     MarketplaceHttp,
     FilesHttp,
     McpHttp,
+    AgentHttp,
+    BrainHttp,
     Kernel,
 }
 
 impl CoreId {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 13] = [
         Self::ContentHttp,
         Self::AnalyticsHttp,
         Self::NotificationsHttp,
@@ -206,6 +209,8 @@ impl CoreId {
         Self::MarketplaceHttp,
         Self::FilesHttp,
         Self::McpHttp,
+        Self::AgentHttp,
+        Self::BrainHttp,
         Self::Kernel,
     ];
 
@@ -227,66 +232,12 @@ impl CoreId {
             Self::MarketplaceHttp => "marketplace-http",
             Self::FilesHttp => "files-http",
             Self::McpHttp => "mcp-http",
+            Self::AgentHttp => "agent-http",
+            Self::BrainHttp => "brain-http",
             Self::Kernel => "kernel",
         }
     }
 }
-
-/// A CLI path only its core owner may claim, with the grants it may request.
-#[derive(Debug, Clone, Copy)]
-pub struct ReservedCliPath {
-    pub owner: CoreId,
-    pub path: &'static [&'static str],
-    pub grants: &'static [KernelGrant],
-}
-
-pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
-    ReservedCliPath {
-        owner: CoreId::Kernel,
-        path: &["admin", "mcp"],
-        grants: &[KernelGrant::ChildHost],
-    },
-    ReservedCliPath {
-        owner: CoreId::AnalyticsHttp,
-        path: &["analytics"],
-        grants: &[KernelGrant::LocalExport, KernelGrant::SkipValidation],
-    },
-    ReservedCliPath {
-        owner: CoreId::Cloud,
-        path: &["cloud"],
-        grants: &[
-            KernelGrant::CloudOperator,
-            KernelGrant::BootProfile,
-            KernelGrant::ConfigReconcile,
-            KernelGrant::TargetAdmission,
-        ],
-    },
-    ReservedCliPath {
-        owner: CoreId::MarketplaceHttp,
-        path: &["core", "marketplace"],
-        grants: &[KernelGrant::ServicesTree],
-    },
-    ReservedCliPath {
-        owner: CoreId::MarketplaceHttp,
-        path: &["core", "plugins"],
-        grants: &[KernelGrant::ServicesTree],
-    },
-    ReservedCliPath {
-        owner: CoreId::MarketplaceHttp,
-        path: &["core", "skills"],
-        grants: &[KernelGrant::ServicesTree],
-    },
-    ReservedCliPath {
-        owner: CoreId::FilesHttp,
-        path: &["core", "files"],
-        grants: &[],
-    },
-    ReservedCliPath {
-        owner: CoreId::McpHttp,
-        path: &["plugins", "mcp"],
-        grants: &[KernelGrant::CallerSession],
-    },
-];
 
 /// One route shape only its core owner may hold.
 #[derive(Debug, Clone, Copy)]

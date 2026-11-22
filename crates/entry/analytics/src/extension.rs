@@ -116,7 +116,7 @@ mod routes {
 
 #[cfg(feature = "cli")]
 mod commands {
-    use systemprompt_extension::cli::{CommandDecl, KernelGrant};
+    use systemprompt_extension::cli::{CommandClaim, CommandDecl, KernelGrant};
     use systemprompt_extension::prelude::*;
 
     use crate::cli::AnalyticsCommands;
@@ -124,12 +124,18 @@ mod commands {
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.command(
             CommandDecl::group::<AnalyticsCommands>()
-                .requesting(&[KernelGrant::LocalExport, KernelGrant::SkipValidation]),
+                .requesting(&[KernelGrant::LocalExport, KernelGrant::SkipValidation])
+                .claiming(&[
+                    CommandClaim::ReadOnlyRouting,
+                    CommandClaim::PreservesData,
+                    CommandClaim::DirectDatabase,
+                ]),
         );
         #[cfg(feature = "content-commands")]
         c.command(CommandDecl::leaf_under::<
             systemprompt_extension::cli::parents::ContentGroup,
             crate::cli::content_popular::PopularArgs,
-        >());
+        >()
+        .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]));
     }
 }

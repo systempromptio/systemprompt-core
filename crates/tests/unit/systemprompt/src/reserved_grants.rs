@@ -20,6 +20,7 @@ fn the_services_tree_grant_is_listed_only_on_the_marketplace_paths() {
     assert_eq!(
         rows_listing(KernelGrant::ServicesTree),
         vec![
+            (CoreId::AgentHttp, vec!["admin", "agents"]),
             (CoreId::MarketplaceHttp, vec!["core", "marketplace"]),
             (CoreId::MarketplaceHttp, vec!["core", "plugins"]),
             (CoreId::MarketplaceHttp, vec!["core", "skills"]),
@@ -28,10 +29,15 @@ fn the_services_tree_grant_is_listed_only_on_the_marketplace_paths() {
 }
 
 #[test]
-fn the_caller_session_grant_is_listed_only_on_plugins_mcp() {
+fn the_caller_session_grant_is_listed_only_on_the_mcp_and_agent_paths() {
     assert_eq!(
         rows_listing(KernelGrant::CallerSession),
-        vec![(CoreId::McpHttp, vec!["plugins", "mcp"])]
+        vec![
+            (CoreId::AgentHttp, vec!["admin", "agents"]),
+            (CoreId::AgentHttp, vec!["core", "contexts"]),
+            (CoreId::AgentHttp, vec!["core", "artifacts"]),
+            (CoreId::McpHttp, vec!["plugins", "mcp"]),
+        ]
     );
 }
 

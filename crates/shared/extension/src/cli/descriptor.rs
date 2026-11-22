@@ -4,7 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::KernelGrant;
+use super::impact::{DataImpact, RoutingClass};
+use super::{CommandClaim, KernelGrant};
 
 /// Bootstrap flags for one command.
 ///
@@ -37,6 +38,10 @@ use super::KernelGrant;
 /// `skip_validation` and `boot_profile` relax a requirement the runner would
 /// otherwise impose, so each is a [`KernelGrant`]: a registered command holds
 /// one only when it declares it and the kernel lists its path for it.
+///
+/// [`CommandDescriptor::makes`] projects the [`CommandClaim`]s a descriptor
+/// makes from its flags: read-only routing, a database command that is not
+/// remote eligible, a database command that destroys nothing.
 ///
 /// `is_destructive` is never set by hand: it is projected from the command's
 /// exhaustive [`DataImpact`] classification, so a command cannot be added
@@ -228,6 +233,21 @@ impl CommandDescriptor {
         }
     }
 
+    pub const fn makes(&self, claim: CommandClaim) -> bool {
+        match claim {
+            CommandClaim::ReadOnlyRouting => {
+                matches!(self.routing_class(), RoutingClass::ReadOnly)
+            },
+            CommandClaim::LocalDatabase => {
+                self.database() && matches!(self.routing_class(), RoutingClass::LocalOnly)
+            },
+            CommandClaim::PreservesData => {
+                self.database() && matches!(self.data_impact(), DataImpact::Preserving)
+            },
+            CommandClaim::DirectDatabase => false,
+        }
+    }
+
     pub const fn with_data_impact(self, impact: DataImpact) -> Self {
         match impact {
             DataImpact::Destructive => Self {
@@ -239,59 +259,6 @@ impl CommandDescriptor {
             DataImpact::Preserving => self,
         }
     }
-}
-
-/// How a command treats the data behind the profile it resolves.
-///
-/// `Destructive` commands delete rows, rewrite schema, run jobs or change
-/// privilege. They refuse a cloud profile that arrived implicitly (stored
-/// session or directory discovery), and a failed remote route never falls
-/// back to direct database access for them. Every command enum classifies
-/// its variants in an exhaustive `match` with no wildcard arm.
-///
-/// `Irreversible` is `Destructive` plus an operator confirmation: the runner
-/// prompts before the command runs, and with no terminal the command refuses
-/// unless `--yes` was passed. Such a command flattens
-/// the CLI's `ConfirmArgs` so that `--yes` parses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DataImpact {
-    Preserving,
-    Destructive,
-    Irreversible,
-}
-
-impl DataImpact {
-    pub const fn destroys_data(self) -> bool {
-        match self {
-            Self::Preserving => false,
-            Self::Destructive | Self::Irreversible => true,
-        }
-    }
-}
-
-/// What a command is allowed to do when the active profile is a cloud profile.
-///
-/// `LocalOnly` is never routed remotely and runs against whatever the profile
-/// resolves; `ReadOnly` prefers remote when a session is available and falls
-/// back to local with a warning; `Mutating` must route remotely or fail loudly.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RoutingClass {
-    LocalOnly,
-    ReadOnly,
-    Mutating,
-}
-
-/// How a command relates to a directly supplied `--database-url`.
-///
-/// The flag bypasses profile resolution, but only a subset of commands can run
-/// against a bare connection: `Direct` commands do, `ProfileDriven` commands
-/// keep their profile-establishing path and ignore it, and `Unsupported`
-/// commands fail before any connection is dialed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DbUrlRouting {
-    Direct,
-    ProfileDriven,
-    Unsupported,
 }
 
 /// The bootstrap requirements a parsed command declares before it runs.

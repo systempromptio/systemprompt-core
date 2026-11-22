@@ -1,7 +1,7 @@
 //! CLI command declarations and the types a command's body uses.
 //!
-//! [`KernelGrant`] is always compiled, because the kernel's reserved CLI
-//! paths name it. With the `cli` feature, a member declares a clap group or
+//! [`KernelGrant`] and [`CommandClaim`] are always compiled, because the
+//! kernel's reserved CLI paths name them. With the `cli` feature, a member declares a clap group or
 //! leaf with `Contributions::command`, and the command runs against a
 //! [`CommandHost`] — the one surface the CLI kernel exposes — and returns a
 //! [`CommandOutput`] the kernel renders.
@@ -12,6 +12,7 @@
 #[cfg(feature = "cli")]
 mod admitted_views;
 mod child;
+mod claim;
 #[cfg(feature = "cli")]
 mod command;
 #[cfg(feature = "cli")]
@@ -21,6 +22,8 @@ mod descriptor;
 mod grant;
 #[cfg(feature = "cli")]
 mod granted;
+#[cfg(feature = "cli")]
+mod impact;
 #[cfg(feature = "cli")]
 mod output;
 #[cfg(feature = "cli")]
@@ -35,6 +38,7 @@ pub mod time_format;
 #[cfg(feature = "cli")]
 pub use admitted_views::AdmittedViews;
 pub use child::ChildSupervisor;
+pub use claim::CommandClaim;
 #[cfg(feature = "cli")]
 pub use command::{
     BoxFuture, CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost,
@@ -43,7 +47,9 @@ pub use command::{
 #[cfg(feature = "cli")]
 pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]
-pub use descriptor::{CommandDescriptor, DataImpact, DbUrlRouting, DescribeCommand, RoutingClass};
+pub use descriptor::{CommandDescriptor, DescribeCommand};
+#[cfg(feature = "cli")]
+pub use impact::{DataImpact, DbUrlRouting, RoutingClass};
 pub use grant::KernelGrant;
 #[cfg(feature = "cli")]
 pub use granted::{CallerSession, ServicesTree};

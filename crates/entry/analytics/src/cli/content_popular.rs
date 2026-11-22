@@ -17,7 +17,7 @@ use systemprompt_database::{DbPool, pool_from_handle};
 use systemprompt_extension::cli::parsers::parse_source_id;
 use systemprompt_extension::cli::{
     CliCommandLeaf, CliConfig, CommandDescriptor, CommandError, CommandHost, CommandOutput,
-    DataImpact, DbUrlRouting, DescribeCommand,
+    DataImpact, DescribeCommand,
 };
 use systemprompt_identifiers::SourceId;
 
@@ -64,9 +64,6 @@ impl CliCommandLeaf for PopularArgs {
     const NAME: &'static str = "popular";
     const ABOUT: &'static str = "Get popular content";
 
-    fn db_url_routing(&self) -> DbUrlRouting {
-        DbUrlRouting::Direct
-    }
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         execute(self, host)

@@ -81,14 +81,17 @@ mod routes {
 
 #[cfg(feature = "cli")]
 mod commands {
-    use systemprompt_extension::cli::{CommandDecl, parents};
+    use systemprompt_extension::cli::{CommandClaim, CommandDecl, parents};
     use systemprompt_extension::prelude::*;
 
     use crate::cli::content::ContentCommands;
     use crate::cli::sitemap::SitemapCommands;
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
-        c.command(CommandDecl::group_under::<parents::Core, ContentCommands>())
+        c.command(
+            CommandDecl::group_under::<parents::Core, ContentCommands>()
+                .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]),
+        )
             .command(CommandDecl::group_under::<parents::Web, SitemapCommands>());
     }
 }
