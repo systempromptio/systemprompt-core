@@ -3,10 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use std::path::Path;
 
 use super::edit_apply::{
     apply_capability_fields, apply_card_fields, apply_enabled_flags, apply_mcp_server_changes,
@@ -14,10 +12,11 @@ use super::edit_apply::{
 };
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
-use systemprompt_extension::cli::{CommandOutput, resolve_required};
+use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
-use systemprompt_logging::CliService;
+
+use super::{reload_services_config, services_config_as_written, services_root};
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
@@ -50,14 +49,10 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
-    let services_config = crate::commands::admin::state::boot(host)?
-        .config_loader()
-        .verbatim()
-        .load()
-        .context("Failed to load services configuration")?;
+    let services_config = services_config_as_written(host)?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {
         super::shared::prompt_agent_selection(prompter, "Select agent to edit", &services_config)
@@ -71,13 +66,14 @@ pub(super) fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandO
         .clone();
 
     let mut changes = Vec::new();
+    let mut notes = Vec::new();
     apply_enabled_flags(&mut agent, args, &mut changes);
     apply_runtime_fields(&mut agent, args, &mut changes)?;
     apply_card_fields(&mut agent, args, &mut changes);
     apply_capability_fields(&mut agent, args, &mut changes);
     apply_metadata_fields(&mut agent, args, &mut changes)?;
-    apply_mcp_server_changes(&mut agent, args, &services_config, &mut changes)?;
-    apply_skill_changes(&mut agent, args, &mut changes);
+    apply_mcp_server_changes(&mut agent, args, &services_config, &mut changes, &mut notes)?;
+    apply_skill_changes(&mut agent, args, &mut changes, &mut notes);
     apply_set_value_changes(&mut agent, args, &mut changes)?;
 
     if changes.is_empty() {
@@ -87,24 +83,17 @@ pub(super) fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandO
         ));
     }
 
-    CliService::info(&format!("Updating agent '{}'...", name));
+    let services_dir = services_root(host)?;
 
-    let profile = host.profile()?;
-    let services_dir = Path::new(&profile.paths.services);
-
-    ConfigWriter::update_agent(&name, &agent, services_dir)
+    ConfigWriter::update_agent(&name, &agent, &services_dir)
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
-    crate::commands::admin::state::boot(host)?
-        .load_services_config()
-        .with_context(|| {
+    reload_services_config(host).with_context(|| {
             format!(
                 "Agent '{}' updated but validation failed. Please check the configuration.",
                 name
             )
         })?;
-
-    CliService::success(&format!("Agent '{}' updated successfully", name));
 
     let output = AgentEditOutput {
         name: name.clone(),
@@ -116,8 +105,8 @@ pub(super) fn execute(args: &EditArgs, host: &dyn KernelHost) -> Result<CommandO
         changes,
     };
 
-    Ok(CommandOutput::card_value(
-        format!("Edit Agent: {}", name),
-        &output,
+    Ok(notes.into_iter().fold(
+        CommandOutput::card_value(format!("Edit Agent: {}", name), &output),
+        CommandOutput::with_note,
     ))
 }

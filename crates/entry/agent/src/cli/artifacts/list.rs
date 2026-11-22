@@ -3,20 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
-use systemprompt_logging::CliService;
 
 use super::types::{ArtifactListOutput, ArtifactSummary};
-use crate::presentation::tables::artifact_list_table;
-use crate::session::get_or_create_session;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -32,17 +28,16 @@ pub struct ListArgs {
     pub limit: i32,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(host).await?;
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let caller = host.caller_session().await?;
     let pool = pool_from_handle(host.db().await?)?;
-    execute_with_pool(args, &session_ctx.session.user_id, &pool, host.output()).await
+    execute_with_pool(args, caller.user_id(), &pool).await
 }
 
 pub async fn execute_with_pool(
     args: ListArgs,
     user_id: &systemprompt_identifiers::UserId,
     pool: &DbPool,
-    config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = ArtifactRepository::new(pool);
 
@@ -78,22 +73,10 @@ pub async fn execute_with_pool(
     let total = summaries.len();
 
     let output = ArtifactListOutput {
-        artifacts: summaries.clone(),
+        artifacts: summaries,
         total,
         context: args.context.clone(),
     };
-
-    if !config.is_json_output() {
-        CliService::section("Artifacts");
-
-        if summaries.is_empty() {
-            CliService::info("No artifacts found");
-        } else {
-            CliService::output(&artifact_list_table(&summaries));
-
-            CliService::info(&format!("Showing {} artifact(s)", total));
-        }
-    }
 
     Ok(CommandOutput::table_of(
         vec!["id", "name", "artifact_type", "tool_name", "created_at"],

@@ -10,14 +10,14 @@ use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
-use systemprompt_runtime::AppContext;
 
 use super::event_loader::load_event_data;
+use super::{WebhookRepositories, WebhookState};
 use super::types::WebhookRequest;
 use crate::kernel::ApiHttpError;
 
 async fn authorize_broadcast(
-    repos: &systemprompt_agent::repository::A2ARepositories,
+    repos: &WebhookRepositories,
     req_ctx: &systemprompt_models::RequestContext,
     request: &WebhookRequest,
 ) -> Result<(), ApiHttpError> {
@@ -44,24 +44,24 @@ async fn authorize_broadcast(
 
 pub async fn broadcast_context_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
-    State(app_context): State<AppContext>,
+    State(state): State<WebhookState>,
     Json(request): Json<WebhookRequest>,
 ) -> Result<Response, ApiHttpError> {
     let start_time = std::time::Instant::now();
 
-    authorize_broadcast(app_context.a2a_repositories(), &req_ctx, &request).await?;
+    authorize_broadcast(&state.repositories, &req_ctx, &request).await?;
 
     tracing::debug!(event_type = %request.event_type, entity_id = %request.entity_id, context_id = %request.context_id, user_id = %request.user_id, "Webhook received");
 
-    let webhook_data = load_event_data(&app_context, &request).await?;
+    let webhook_data = load_event_data(&state.repositories, &request).await?;
 
     let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
         name: webhook_data.event_name.clone(),
         value: webhook_data.payload,
     }));
 
-    let (agui_count, context_count) = app_context
-        .event_router()
+    let (agui_count, context_count) = state
+        .events
         .route_agui(&req_ctx.auth.actor.user_id, event)
         .await
         .into_local_logged();

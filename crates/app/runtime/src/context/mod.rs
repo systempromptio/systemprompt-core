@@ -150,12 +150,6 @@ impl AppContext {
             .cloned()
     }
 
-    pub fn context_materializer(&self) -> systemprompt_traits::DynContextMaterializer {
-        Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            self.data.a2a_repositories.contexts.clone(),
-        ))
-    }
-
 
     pub fn app_paths(&self) -> &AppPaths {
         &self.cfg.app_paths

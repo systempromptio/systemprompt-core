@@ -3,15 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Args;
 
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct LogsArgs {
@@ -36,16 +37,17 @@ pub struct LogsArgs {
     pub logs_dir: Option<String>,
 }
 
-pub(super) async fn execute(args: LogsArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: LogsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let prompter = host.prompter();
     let config = host.output();
     let logs_path = match args.logs_dir.as_deref() {
         Some(dir) => PathBuf::from(dir),
-        None => PathBuf::from(
-            crate::commands::admin::state::config(host)
-                .context("agent log directory requires an initialised profile")?
-                .logs_path(),
-        ),
+        None => host
+            .resolved()
+            .await?
+            .get::<Arc<AppPaths>>()?
+            .system()
+            .logs(),
     };
 
     if args.follow {

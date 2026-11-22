@@ -7,7 +7,9 @@ use systemprompt_agent::AgentError;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::RepositoryError;
 
-use crate::kernel::ApiHttpError;
+use systemprompt_extension::router::ApiHttpError;
+
+use crate::http::AgentHttpError;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum NotificationError {
@@ -21,7 +23,7 @@ pub(super) enum NotificationError {
     InvalidParams(#[source] serde_json::Error),
 }
 
-impl From<NotificationError> for ApiHttpError {
+impl From<NotificationError> for AgentHttpError {
     fn from(err: NotificationError) -> Self {
         match err {
             NotificationError::Agent(e) => Self::from(e),
@@ -29,7 +31,7 @@ impl From<NotificationError> for ApiHttpError {
             NotificationError::Serde(e) => {
                 ApiError::internal("Invalid notification payload", e).into()
             },
-            e @ NotificationError::InvalidParams(_) => Self::bad_request(e.to_string()),
+            e @ NotificationError::InvalidParams(_) => ApiHttpError::bad_request(e.to_string()).into(),
         }
     }
 }

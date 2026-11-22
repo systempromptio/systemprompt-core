@@ -35,6 +35,17 @@ const NOTIFICATIONS_LIMITS: RouteLimits =
     limits(RateLimit::new("notifications", RateBudget::Notifications));
 const AGENTS_RATE: RateLimit = RateLimit::new("agents", RateBudget::Agents);
 
+const fn agent_user(base: ApiBase, rate: RateLimit) -> PrivilegedShape {
+    PrivilegedShape {
+        owner: CoreId::AgentHttp,
+        base: BaseRef::Path(BasePath::Api(base)),
+        group: RouteGroup::Agent,
+        allowance: Allowance::ReservedPrefix,
+        shape: shape(AuthzPolicy::user(), ContextKind::User, limits(rate)),
+        routes: None,
+    }
+}
+
 const CONTENT_PUBLIC: RouteShape =
     shape(AuthzPolicy::public(), ContextKind::Public, CONTENT_LIMITS);
 const CONTENT_USER: RouteShape = shape(AuthzPolicy::user(), ContextKind::User, CONTENT_LIMITS);
@@ -43,8 +54,9 @@ const ANALYTICS_ADMIN: RouteShape = shape(AuthzPolicy::admin(), ContextKind::Use
 pub const CONTENT_GENERATE_ROUTES: &[(Method, &str)] = &[(Method::POST, "/links/generate")];
 pub const CONTENT_REDIRECT_ROUTES: &[(Method, &str)] = &[(Method::GET, "/r/{short_code}")];
 pub const MCP_REGISTRY_ROUTES: &[(Method, &str)] = &[(Method::GET, "/")];
+pub const AGENT_REGISTRY_ROUTES: &[(Method, &str)] = &[(Method::GET, "/")];
 
-const ALWAYS: [PrivilegedShape; 13] = [
+const ALWAYS: [PrivilegedShape; 17] = [
     PrivilegedShape {
         owner: CoreId::ContentHttp,
         base: BaseRef::Path(BasePath::Api(ApiBase::Content)),
@@ -152,6 +164,21 @@ const ALWAYS: [PrivilegedShape; 13] = [
         ),
         routes: Some(MCP_REGISTRY_ROUTES),
     },
+    agent_user(ApiBase::CoreContexts, RateLimit::new("contexts", RateBudget::Contexts)),
+    agent_user(ApiBase::CoreTasks, RateLimit::new("tasks", RateBudget::Tasks)),
+    agent_user(ApiBase::CoreArtifacts, RateLimit::new("artifacts", RateBudget::Artifacts)),
+    PrivilegedShape {
+        owner: CoreId::AgentHttp,
+        base: BaseRef::Path(BasePath::Api(ApiBase::AgentsRegistry)),
+        group: RouteGroup::Agent,
+        allowance: Allowance::ReservedPrefix,
+        shape: shape(
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            limits(RateLimit::new("agent_registry", RateBudget::AgentRegistry)),
+        ),
+        routes: Some(AGENT_REGISTRY_ROUTES),
+    },
     PrivilegedShape {
         owner: CoreId::Kernel,
         base: BaseRef::Path(BasePath::Api(ApiBase::Agents)),
@@ -213,7 +240,8 @@ macro_rules! privileged_shapes {
     ($($extra:expr),*) => {
         &[
             ALWAYS[0], ALWAYS[1], ALWAYS[2], ALWAYS[3], ALWAYS[4], ALWAYS[5], ALWAYS[6],
-            ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10], ALWAYS[11], ALWAYS[12] $(, $extra)*
+            ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10], ALWAYS[11], ALWAYS[12], ALWAYS[13],
+            ALWAYS[14], ALWAYS[15], ALWAYS[16] $(, $extra)*
         ]
     };
 }

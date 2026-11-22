@@ -1,17 +1,15 @@
 //! `core` command group: the platform's primary domain commands.
 //!
-//! Dispatches the [`CoreCommands`] subgroups — artifacts, contexts, hooks
-//! and services bundles. Each requires a full profile context; none is
+//! Dispatches the [`CoreCommands`] subgroups — hooks and services bundles. Each requires a full profile context; none is
 //! served on a `--database-url` invocation. Capabilities contribute further
-//! subgroups under `core` (such as `core content`, `core files`,
+//! subgroups under `core` (such as `core contexts`, `core artifacts`,
+//! `core content`, `core files`,
 //! `core marketplace`, `core plugins` and `core skills`) with
 //! `CommandDecl::group_under`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod artifacts;
-pub mod contexts;
 pub mod hooks;
 pub mod services;
 
@@ -23,12 +21,6 @@ use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, 
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {
-    #[command(subcommand, about = "Artifact inspection and debugging")]
-    Artifacts(artifacts::ArtifactsCommands),
-
-    #[command(subcommand, about = "Context management")]
-    Contexts(contexts::ContextsCommands),
-
     #[command(subcommand, about = "Hook validation and inspection")]
     Hooks(hooks::HooksCommands),
 
@@ -45,8 +37,6 @@ pub async fn execute(cmd: CoreCommands, host: &dyn KernelHost) -> Result<Command
     }
 
     match cmd {
-        CoreCommands::Artifacts(cmd) => Box::pin(artifacts::execute(cmd, host)).await,
-        CoreCommands::Contexts(cmd) => Box::pin(contexts::execute(cmd, host)).await,
         CoreCommands::Hooks(cmd) => hooks::execute(cmd, host),
         CoreCommands::Services(cmd) => Box::pin(services::execute(cmd, host)).await,
     }
@@ -83,22 +73,10 @@ impl DescribeCommand for CoreCommands {
 impl CoreCommands {
     pub const fn data_impact(&self) -> DataImpact {
         match self {
-            Self::Contexts(contexts::ContextsCommands::Delete(_))
-            | Self::Services(
+            Self::Services(
                 services::ServicesCommands::Refresh(_) | services::ServicesCommands::Publish(_),
             ) => DataImpact::Destructive,
-            Self::Contexts(
-                contexts::ContextsCommands::List(_)
-                | contexts::ContextsCommands::Show(_)
-                | contexts::ContextsCommands::Create(_)
-                | contexts::ContextsCommands::Edit(_)
-                | contexts::ContextsCommands::Use(_)
-                | contexts::ContextsCommands::New(_),
-            )
-            | Self::Artifacts(
-                artifacts::ArtifactsCommands::List(_) | artifacts::ArtifactsCommands::Show(_),
-            )
-            | Self::Hooks(_)
+            Self::Hooks(_)
             | Self::Services(
                 services::ServicesCommands::Validate(_)
                 | services::ServicesCommands::Bundle(_)

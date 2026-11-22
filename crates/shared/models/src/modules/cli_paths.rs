@@ -11,6 +11,7 @@ impl CliPaths {
     pub const ADMIN: &'static str = "admin";
     pub const INFRA: &'static str = "infra";
     pub const AGENTS: &'static str = "agents";
+    pub const AGENT_HOST: &'static str = "agent-host";
     pub const DB: &'static str = "db";
     pub const SERVICES: &'static str = "services";
     pub const RUN: &'static str = "run";
@@ -18,7 +19,7 @@ impl CliPaths {
     pub const SERVE: &'static str = "serve";
 
     pub const fn agent_run_args() -> [&'static str; 3] {
-        [Self::ADMIN, Self::AGENTS, Self::RUN]
+        [Self::ADMIN, Self::AGENT_HOST, Self::RUN]
     }
 
     pub const fn db_migrate_args() -> [&'static str; 3] {
@@ -31,9 +32,5 @@ impl CliPaths {
 
     pub const fn services_serve_cmd() -> &'static str {
         "infra services serve"
-    }
-
-    pub const fn agent_run_cmd_pattern() -> &'static str {
-        "admin agents run"
     }
 }

@@ -7,17 +7,17 @@ use axum::Json;
 use axum::extract::{Extension, State};
 use axum::response::Response;
 
+use crate::http::AgentHttpState;
 use super::super::responses::{api_error_response, single_response_created};
 use systemprompt_agent::models::context::{ContextKind, CreateContextRequest};
 use systemprompt_models::{ApiError, ApiErrorExt, SystemEventBuilder};
-use systemprompt_runtime::AppContext;
 
 pub async fn create_context(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Json(request): Json<CreateContextRequest>,
 ) -> Response {
-    let context_repo = &ctx.a2a_repositories().contexts;
+    let context_repo = &state.repositories.contexts;
     let user_id = &req_ctx.auth.actor.user_id;
 
     let context_name = match request.name.as_deref().map(str::trim) {
@@ -53,10 +53,7 @@ pub async fn create_context(
                         context.context_id.clone(),
                         context.name.clone(),
                     );
-                    ctx.event_router()
-                        .route_system(user_id, event)
-                        .await
-                        .into_local_logged();
+                    state.events.system(user_id, event).await;
 
                     single_response_created(context)
                 },

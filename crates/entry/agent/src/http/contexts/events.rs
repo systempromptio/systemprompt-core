@@ -9,23 +9,22 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_models::{ContextEvent, RequestContext};
-use systemprompt_runtime::AppContext;
 
-use crate::kernel::ApiHttpError;
-use crate::routes::agent::parse_context_id;
+use crate::http::{AgentHttpError, AgentHttpState};
+use crate::http::parse_context_id;
 
 
 pub async fn forward_event(
     Extension(request_context): Extension<RequestContext>,
-    State(app_context): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Path(context_id): Path<String>,
     Json(event): Json<ContextEvent>,
-) -> Result<Response, ApiHttpError> {
+) -> Result<Response, AgentHttpError> {
     let user_id = request_context.user_id();
     let context_id_typed = parse_context_id(&context_id)?;
 
-    app_context
-        .a2a_repositories()
+    state
+        .repositories
         .contexts
         .validate_context_ownership(&context_id_typed, user_id)
         .await?;
@@ -33,31 +32,19 @@ pub async fn forward_event(
     let (protocol, broadcast_count) = match event {
         ContextEvent::AgUi(e) => {
             let event_type = e.event_type();
-            let (agui, ctx) = app_context
-                .event_router()
-                .route_agui(user_id, e)
-                .await
-                .into_local_logged();
+            let (agui, ctx) = state.events.agui(user_id, e).await;
             tracing::debug!(event_type = ?event_type, agui = %agui, ctx = %ctx, "AG-UI event routed");
             ("agui", agui + ctx)
         },
         ContextEvent::A2A(e) => {
             let event_type = e.event_type();
-            let (a2a, ctx) = app_context
-                .event_router()
-                .route_a2a(user_id, *e)
-                .await
-                .into_local_logged();
+            let (a2a, ctx) = state.events.a2a(user_id, *e).await;
             tracing::debug!(event_type = ?event_type, a2a = %a2a, ctx = %ctx, "A2A event routed");
             ("a2a", a2a + ctx)
         },
         ContextEvent::System(e) => {
             let event_type = e.event_type();
-            let ctx = app_context
-                .event_router()
-                .route_system(user_id, e)
-                .await
-                .into_local_logged();
+            let ctx = state.events.system(user_id, e).await;
             tracing::debug!(event_type = ?event_type, ctx = %ctx, "System event routed");
             ("system", ctx)
         },

@@ -3,15 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::Deserialize;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
-use crate::shared::truncate_with_ellipsis;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
 pub struct RegistryArgs {
@@ -74,16 +73,11 @@ struct SkillResponse {
     name: String,
 }
 
-pub(super) async fn execute(args: RegistryArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let profile_url = host
-        .profile()
-        .ok()
-        .map(|p| p.server.api_external_url.clone());
-    let base_url = args
-        .url
-        .clone()
-        .or(profile_url)
-        .unwrap_or_else(|| systemprompt_models::defaults::DEFAULT_API_URL.to_owned());
+pub(super) async fn execute(args: RegistryArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let base_url = match args.url.clone() {
+        Some(url) => url,
+        None => host.services_tree()?.api_external_url().to_owned(),
+    };
     let registry_url = format!("{}/api/v1/agents/registry", base_url.trim_end_matches('/'));
 
     let registry = fetch_registry(&registry_url).await?;

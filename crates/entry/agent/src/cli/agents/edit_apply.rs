@@ -8,7 +8,7 @@ use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardEdit, AgentCardLinks, AgentConfigAuthoringService,
     AgentEditRequest, AgentModelChoice, AgentPlacement, MembershipEdit, SystemPromptSource,
 };
-use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 
 use super::edit::EditArgs;
 
@@ -104,6 +104,7 @@ pub(super) fn apply_mcp_server_changes(
     args: &EditArgs,
     services_config: &systemprompt_manifest::ServicesConfig,
     changes: &mut Vec<String>,
+    notes: &mut Vec<NoticeLine>,
 ) -> Result<()> {
     let skipped = AgentConfigAuthoringService::apply_mcp_server_changes(
         agent,
@@ -112,9 +113,12 @@ pub(super) fn apply_mcp_server_changes(
         changes,
     )?;
     for mcp_server in &skipped {
-        CliService::warning(&format!(
-            "MCP server '{}' not found in agent configuration, skipping removal",
-            mcp_server
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "MCP server '{}' not found in agent configuration, skipping removal",
+                mcp_server
+            ),
         ));
     }
     Ok(())
@@ -124,13 +128,17 @@ pub(super) fn apply_skill_changes(
     agent: &mut systemprompt_manifest::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
+    notes: &mut Vec<NoticeLine>,
 ) {
     let skipped =
         AgentConfigAuthoringService::apply_skill_changes(agent, &edit_request(args), changes);
     for skill in &skipped {
-        CliService::warning(&format!(
-            "Skill '{}' not found in agent configuration, skipping removal",
-            skill
+        notes.push(NoticeLine::new(
+            "warning",
+            format!(
+                "Skill '{}' not found in agent configuration, skipping removal",
+                skill
+            ),
         ));
     }
 }

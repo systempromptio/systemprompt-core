@@ -14,10 +14,10 @@ use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_agent::repository::task::ListTasksFilter;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_runtime::AppContext;
 
-use super::clamp_page_limit;
-use crate::kernel::ApiHttpError;
+use systemprompt_extension::router::ApiHttpError;
+
+use super::{AgentHttpError, AgentHttpState, clamp_page_limit};
 
 #[derive(Debug, Deserialize)]
 pub struct TaskFilterParams {
@@ -27,19 +27,19 @@ pub struct TaskFilterParams {
 
 pub async fn list_tasks_by_context(
     Extension(req_ctx): Extension<RequestContext>,
-    State(app_context): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Path(context_id): Path<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentHttpError> {
     tracing::debug!(context_id = %context_id, "Listing tasks");
 
     let context_id_typed = super::parse_context_id(&context_id)?;
 
-    let context_repo = app_context.a2a_repositories().contexts.clone();
+    let context_repo = state.repositories.contexts.clone();
     let owned = context_repo
         .owned_context(&context_id_typed, req_ctx.user_id())
         .await?;
 
-    let task_repo = app_context.a2a_repositories().tasks.clone();
+    let task_repo = state.repositories.tasks.clone();
     let tasks = task_repo.list_tasks_by_context(&owned).await?;
 
     tracing::debug!(context_id = %context_id, count = %tasks.len(), "Tasks listed");
@@ -48,12 +48,12 @@ pub async fn list_tasks_by_context(
 
 pub async fn get_task(
     Extension(req_ctx): Extension<RequestContext>,
-    State(app_context): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Path(task_id): Path<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentHttpError> {
     tracing::debug!(task_id = %task_id, "Retrieving task");
 
-    let task_repo = app_context.a2a_repositories().tasks.clone();
+    let task_repo = state.repositories.tasks.clone();
 
     let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
     let owned = task_repo
@@ -67,20 +67,22 @@ pub async fn get_task(
 
 pub async fn list_tasks_by_user(
     Extension(req_ctx): Extension<RequestContext>,
-    State(app_context): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Query(params): Query<TaskFilterParams>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentHttpError> {
     let user_id = req_ctx.user_id();
 
     tracing::debug!(user_id = %user_id, "Listing tasks");
 
-    let task_repo = app_context.a2a_repositories().tasks.clone();
+    let task_repo = state.repositories.tasks.clone();
 
     let task_state = match params.status.as_deref() {
         // Why: the parse error repeats the rejected value and nothing else, so
         // the 400 names it directly.
         Some(status) => Some(status.parse::<TaskState>().map_err(|_unknown| {
-            ApiHttpError::bad_request(format!("unknown task status {status:?}"))
+            AgentHttpError::from(ApiHttpError::bad_request(format!(
+                "unknown task status {status:?}"
+            )))
         })?),
         None => None,
     };
@@ -101,12 +103,12 @@ pub async fn list_tasks_by_user(
 
 pub async fn get_messages_by_task(
     Extension(req_ctx): Extension<RequestContext>,
-    State(app_context): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Path(task_id): Path<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentHttpError> {
     tracing::debug!(task_id = %task_id, "Retrieving messages");
 
-    let task_repo = app_context.a2a_repositories().tasks.clone();
+    let task_repo = state.repositories.tasks.clone();
 
     let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
     let owned = task_repo
@@ -120,12 +122,12 @@ pub async fn get_messages_by_task(
 
 pub async fn delete_task(
     Extension(req_ctx): Extension<RequestContext>,
-    State(app_context): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Path(task_id): Path<String>,
-) -> Result<impl IntoResponse, ApiHttpError> {
+) -> Result<impl IntoResponse, AgentHttpError> {
     tracing::debug!(task_id = %task_id, "Deleting task");
 
-    let task_repo = app_context.a2a_repositories().tasks.clone();
+    let task_repo = state.repositories.tasks.clone();
 
     let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
     let owned = task_repo

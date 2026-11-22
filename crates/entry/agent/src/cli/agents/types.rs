@@ -11,12 +11,25 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::AgentName;
-pub use systemprompt_manifest::services::{AgentSummary, McpServerSummary};
+pub use systemprompt_manifest::services::AgentSummary;
 use systemprompt_models::a2a::Task;
 
-use crate::commands::shared::mcp_tools::McpToolEntry;
 
-pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ValidationOutput {
+    pub valid: bool,
+    pub items_checked: usize,
+    pub errors: Vec<ValidationIssue>,
+    pub warnings: Vec<ValidationIssue>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ValidationIssue {
+    pub source: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion: Option<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListOutput {
@@ -70,23 +83,8 @@ pub struct AgentDeleteOutput {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct McpListOutput {
-    pub servers: Vec<McpServerSummary>,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct McpValidateOutput {
-    pub server: String,
-    pub valid: bool,
-    pub tools_count: usize,
-    pub issues: Vec<String>,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct McpPackagesOutput {
-    pub packages: Vec<String>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentLogsOutput {
@@ -126,26 +124,4 @@ pub struct MessageOutput {
     pub message_sent: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AgentToolsOutput {
-    pub agent: String,
-    pub tools: Vec<McpToolEntry>,
-    pub summary: AgentToolsSummary,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub unavailable_servers: Vec<UnavailableServer>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct AgentToolsSummary {
-    pub total_tools: usize,
-    pub configured_servers: usize,
-    pub available_servers: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct UnavailableServer {
-    pub name: String,
-    pub reason: String,
 }

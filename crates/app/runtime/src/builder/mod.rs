@@ -214,7 +214,7 @@ impl AppContextBuilder {
                 .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
         );
         let repositories =
-            build_domain_layer(&self.boot, &database, &seeded, &system_admin, &r).await?;
+            build_domain_layer(&database, &seeded, &system_admin).await?;
         let plugins = new_plugins(mcp_registry, &market);
 
         #[cfg(feature = "notifications")]

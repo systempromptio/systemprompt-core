@@ -3,10 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
-use std::path::Path;
 
 use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
@@ -14,8 +12,9 @@ use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,
     AgentModelChoice, AgentPlacement,
 };
-use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter, resolve_required};
-use systemprompt_logging::CliService;
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter, resolve_required};
+
+use super::{notice, reload_services_config, services_root};
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -37,15 +36,17 @@ struct ResolvedAgentInput {
     system_prompt: String,
 }
 
-pub(super) fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) fn execute(args: CreateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
     let mut agent_args = args.agent;
 
-    let name = resolve_required(args.name, "name", config, || prompt_name(prompter))?;
+    let name = resolve_required(args.name, "name", config, || prompt_name(prompter, host))?;
     AgentConfigAuthoringService::validate_agent_name(&name)?;
 
-    let port = resolve_required(agent_args.port, "port", config, || prompt_port(prompter))?;
+    let port = resolve_required(agent_args.port, "port", config, || {
+        prompt_port(prompter, host)
+    })?;
     AgentConfigAuthoringService::validate_port(port)?;
 
     let display_name =
@@ -58,11 +59,6 @@ pub(super) fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<Command
         &description,
     )?;
 
-    CliService::info(&format!(
-        "Creating agent '{}' on port {} (display: {})...",
-        name, port, display_name
-    ));
-
     let input = ResolvedAgentInput {
         name: name.clone(),
         port,
@@ -73,12 +69,6 @@ pub(super) fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<Command
     let request = build_create_request(input, args.enabled, agent_args);
 
     let agent_file = write_agent_config(request, host)?;
-
-    CliService::success(&format!(
-        "Agent '{}' created at {}",
-        name,
-        agent_file.display()
-    ));
 
     let output = AgentCreateOutput {
         name: name.clone(),
@@ -163,10 +153,9 @@ fn build_create_request(
 
 fn write_agent_config(
     request: AgentCreateRequest,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<std::path::PathBuf> {
-    let profile = host.profile()?;
-    let services_dir = Path::new(&profile.paths.services);
+    let services_dir = services_root(host)?;
     let name = request.name.clone();
 
     let service = AgentConfigAuthoringService::new(services_dir);
@@ -174,9 +163,7 @@ fn write_agent_config(
         .create(request)
         .with_context(|| format!("Failed to create agent '{}'", name))?;
 
-    crate::commands::admin::state::boot(host)?
-        .load_services_config()
-        .with_context(|| {
+    reload_services_config(host).with_context(|| {
             format!(
                 "Agent file created at {} but validation failed. Please check the configuration.",
                 agent_file.display()
@@ -209,19 +196,19 @@ pub const fn validate_port_input(port: u16) -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn prompt_name(prompter: &dyn Prompter) -> Result<String> {
+pub fn prompt_name(prompter: &dyn Prompter, host: &dyn CommandHost) -> Result<String> {
     loop {
         let input = prompter
             .input("Agent name")
             .context("Failed to get agent name")?;
         match validate_name_input(&input) {
             Ok(()) => return Ok(input),
-            Err(msg) => CliService::warning(msg),
+            Err(msg) => notice(host, "warning", msg),
         }
     }
 }
 
-pub fn prompt_port(prompter: &dyn Prompter) -> Result<u16> {
+pub fn prompt_port(prompter: &dyn Prompter, host: &dyn CommandHost) -> Result<u16> {
     loop {
         let raw = prompter
             .input_with_default("Port", "8001")
@@ -229,13 +216,17 @@ pub fn prompt_port(prompter: &dyn Prompter) -> Result<u16> {
         let port: u16 = match raw.trim().parse() {
             Ok(port) => port,
             Err(e) => {
-                CliService::warning(&format!("'{}' is not a valid port: {}", raw.trim(), e));
+                notice(
+                    host,
+                    "warning",
+                    format!("'{}' is not a valid port: {}", raw.trim(), e),
+                );
                 continue;
             },
         };
         match validate_port_input(port) {
             Ok(()) => return Ok(port),
-            Err(msg) => CliService::warning(msg),
+            Err(msg) => notice(host, "warning", msg),
         }
     }
 }

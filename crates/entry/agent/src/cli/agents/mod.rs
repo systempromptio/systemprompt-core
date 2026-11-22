@@ -1,19 +1,29 @@
-//! `admin agents` command group: manage A2A agent configurations and runtime.
+//! `admin agents`: authoring, inspecting and messaging configured agents.
 //!
-//! Exposes [`AgentsCommands`] covering the agent lifecycle — list, show,
-//! validate, create, edit, delete, status, logs — plus A2A interaction
-//! (registry discovery, message, task, tools) and direct `run`. Each variant
-//! dispatches to a sibling module that returns a
-//! [`systemprompt_extension::cli::CommandOutput`].
+//! `agent-http` contributes the group under the kernel's `admin` group with
+//! the `services-tree` and `caller-session` grants:
+//!
+//! | command | reads |
+//! |---|---|
+//! | `list`, `show` | `ServicesView` |
+//! | `validate` | `ServicesView`, the presence-only `Arc<dyn SecretPresence>` |
+//! | `create`, `edit`, `delete` | the services tree (YAML under its root) |
+//! | `status` | the open `Arc<AgentStatusView>` |
+//! | `logs` | the database handle, `ServicesView`, `Arc<AppPaths>`, the child supervisor |
+//! | `registry` | the services tree's public API URL |
+//! | `message`, `task` | the caller's own session, presented to the platform API only |
+//!
+//! None of them starts, stops or signals an agent: `delete` refuses a
+//! running agent and names `infra services stop`, and `admin agent-host run`
+//! (the spawned agent process) is the kernel's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod types;
-
 mod client;
 pub mod create;
 pub mod delete;
+mod disk_logs;
 mod edit;
 mod edit_apply;
 mod list;
@@ -23,21 +33,27 @@ pub mod logs_disk;
 mod message;
 mod message_request;
 pub mod message_streaming;
-pub mod process_stop;
 pub mod registry;
-pub mod run;
 pub mod shared;
 pub mod show;
 mod status;
 mod task;
-mod tools;
+pub mod types;
 pub mod validate;
 
-use crate::kernel::KernelHost;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use clap::Subcommand;
-
-use systemprompt_extension::cli::{CommandError, CommandOutput, DataImpact};
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
+};
+use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::artifacts::NoticeLine;
 
 #[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
@@ -73,21 +89,47 @@ pub enum AgentsCommands {
 
     #[command(about = "Get task details and response from an agent")]
     Task(task::TaskArgs),
-
-    #[command(about = "List MCP tools available to an agent")]
-    Tools(tools::ToolsArgs),
-
-    #[command(about = "Run an agent server directly (bypasses orchestration)")]
-    Run(run::RunArgs),
 }
 
-pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(crate) async fn services_config(host: &dyn CommandHost) -> Result<Arc<ServicesConfig>> {
+    Ok(host.resolved().await?.get::<ServicesView>()?.config())
+}
+
+pub(crate) fn services_root(host: &dyn CommandHost) -> Result<PathBuf> {
+    Ok(host.services_tree()?.root().to_path_buf())
+}
+
+fn services_config_path(host: &dyn CommandHost) -> Result<PathBuf> {
+    Ok(services_root(host)?.join("config").join("config.yaml"))
+}
+
+pub(crate) fn reload_services_config(host: &dyn CommandHost) -> Result<ServicesConfig> {
+    Ok(ConfigLoader::new(services_config_path(host)?).load()?)
+}
+
+pub(crate) fn services_config_as_written(host: &dyn CommandHost) -> Result<ServicesConfig> {
+    ConfigLoader::new(services_config_path(host)?)
+        .verbatim()
+        .load()
+        .context("Failed to load services configuration")
+}
+
+pub(crate) fn notice(host: &dyn CommandHost, level: &str, text: impl Into<String>) {
+    host.render(&CommandOutput::message(vec![NoticeLine::new(level, text)]));
+}
+
+pub async fn execute(command: AgentsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     let result = match command {
-        AgentsCommands::List(args) => list::execute(args, host).context("Failed to list agents")?,
-        AgentsCommands::Show(args) => show::execute(args, host).context("Failed to show agent")?,
+        AgentsCommands::List(args) => list::execute(args, host)
+            .await
+            .context("Failed to list agents")?,
+        AgentsCommands::Show(args) => show::execute(args, host)
+            .await
+            .context("Failed to show agent")?,
         AgentsCommands::Validate(args) => {
-            let (result, valid) =
-                validate::execute(&args, host).context("Failed to validate agents")?;
+            let (result, valid) = validate::execute(&args, host)
+                .await
+                .context("Failed to validate agents")?;
             if !valid {
                 return Err(
                     CommandError::new(anyhow::anyhow!("Agent validation failed"))
@@ -119,15 +161,6 @@ pub async fn execute(command: AgentsCommands, host: &dyn KernelHost) -> Result<C
         AgentsCommands::Task(args) => Box::pin(task::execute(args, host))
             .await
             .context("Failed to get task details")?,
-        AgentsCommands::Tools(args) => Box::pin(tools::execute(args, host))
-            .await
-            .context("Failed to list agent tools")?,
-        AgentsCommands::Run(args) => {
-            Box::pin(run::execute(args, host))
-                .await
-                .context("Failed to run agent")?;
-            CommandOutput::rendered()
-        },
     };
     Ok(result)
 }
@@ -145,9 +178,22 @@ impl AgentsCommands {
             | Self::Logs(_)
             | Self::Registry(_)
             | Self::Message(_)
-            | Self::Task(_)
-            | Self::Tools(_)
-            | Self::Run(_) => DataImpact::Preserving,
+            | Self::Task(_) => DataImpact::Preserving,
         }
+    }
+}
+
+impl DescribeCommand for AgentsCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::FULL.with_data_impact(self.data_impact())
+    }
+}
+
+impl CliCommandGroup for AgentsCommands {
+    const NAME: &'static str = "agents";
+    const ABOUT: &'static str = "Agent management";
+
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(crate::cli::command_error)
     }
 }

@@ -3,21 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::Args;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::{SessionKey, SessionStore};
-use systemprompt_logging::CliService;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
+use super::caller_and_pool;
 use super::types::ContextSwitchedOutput;
-use crate::session::{CliSessionContext, get_or_create_session};
-use std::path::Path;
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_database::{DbPool, pool_from_handle};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct NewArgs {
@@ -25,21 +19,9 @@ pub struct NewArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: NewArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(host).await?;
-    let pool = pool_from_handle(host.db().await?)?;
-    let sessions_dir = ResolvedPaths::discover().sessions_dir();
-    execute_resolved(args, host.output(), &session_ctx, &pool, &sessions_dir).await
-}
-
-pub async fn execute_resolved(
-    args: NewArgs,
-    cli: &CliConfig,
-    session_ctx: &CliSessionContext,
-    pool: &DbPool,
-    sessions_dir: &Path,
-) -> Result<CommandOutput> {
-    let repo = ContextRepository::new(pool);
+pub(super) async fn execute(args: NewArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let (caller, pool) = caller_and_pool(host).await?;
+    let repo = ContextRepository::new(&pool);
 
     let name = args
         .name
@@ -47,40 +29,21 @@ pub async fn execute_resolved(
 
     let context_id = repo
         .create_context(
-            &session_ctx.session.user_id,
-            Some(&session_ctx.session.session_id),
+            caller.user_id(),
+            Some(caller.session_id()),
             &name,
             ContextKind::User,
         )
         .await
         .context("Failed to create context")?;
 
-    let mut store = SessionStore::load_or_create(sessions_dir)?;
-
-    let session_key = SessionKey::from_tenant_id(
-        session_ctx
-            .profile
-            .cloud
-            .as_ref()
-            .and_then(|c| c.tenant_id.as_ref()),
-    );
-
-    let mut session = session_ctx.session.clone();
-    session.set_context_id(context_id.clone());
-    store.upsert_session(&session_key, session);
-    store.save(sessions_dir)?;
+    host.use_session_context(context_id.clone()).await?;
 
     let output = ContextSwitchedOutput {
-        id: context_id.clone(),
-        name: name.clone(),
+        id: context_id,
         message: format!("Created and switched to context '{}'", name),
+        name,
     };
-
-    if !cli.is_json_output() {
-        CliService::success(&output.message);
-        CliService::key_value("ID", context_id.as_str());
-        CliService::key_value("Name", &name);
-    }
 
     Ok(CommandOutput::card_value("New Context Created", &output))
 }

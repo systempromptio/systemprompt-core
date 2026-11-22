@@ -1,28 +1,26 @@
-//! `admin agents delete` command with target resolution and orchestrated
-//! teardown.
+//! `admin agents delete` command: removes agent definitions from the services
+//! tree. An agent the service table records as running is refused with
+//! [`AgentDeleteError::Running`], which names the kernel command that stops
+//! it; this command never stops or signals a process.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use anyhow::{Context, Result, anyhow};
-use clap::Args;
-use std::path::Path;
 use std::sync::Arc;
 
-use super::process_stop::stop_agent_process;
+use anyhow::{Context, Result, anyhow};
+use clap::Args;
+
 use super::types::AgentDeleteOutput;
-use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
-use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
-use systemprompt_agent::{AgentAuth, AgentState};
+use super::{reload_services_config, services_config, services_root};
+use systemprompt_agent::services::agent_orchestration::status_view::AgentStatusView;
+use systemprompt_agent::services::config_authoring::{
+    AgentConfigAuthoringService, ConfigAuthoringError,
+};
 use systemprompt_extension::cli::{
-    CliConfig, CommandOutput, Prompter, require_confirmation, resolve_required,
+    CliConfig, CommandHost, CommandOutput, Prompter, require_confirmation, resolve_required,
 };
 use systemprompt_identifiers::AgentName;
-use systemprompt_logging::CliService;
-use systemprompt_oauth::JwtValidationProviderImpl;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -37,17 +35,28 @@ pub struct DeleteArgs {
 
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
-
-    #[arg(long, help = "Force delete even if process cannot be stopped")]
-    pub force: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+/// Why one agent definition was not deleted.
+#[derive(Debug, thiserror::Error)]
+pub enum AgentDeleteError {
+    #[error(
+        "agent '{agent}' is running; stop it first with `systemprompt infra services stop agent \
+         {agent}`"
+    )]
+    Running { agent: AgentName },
+    #[error("failed to delete agent '{agent}'")]
+    Remove {
+        agent: AgentName,
+        #[source]
+        source: ConfigAuthoringError,
+    },
+}
+
+pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let prompter = host.prompter();
     let config = host.output();
-    let services_config = crate::commands::admin::state::boot(host)?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
+    let services_config = services_config(host).await?;
 
     let agents_to_delete = resolve_targets(&args, prompter, &services_config, config)?;
 
@@ -58,30 +67,21 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
         config,
     )?;
 
-    let profile = host.profile()?;
-    let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));
-
-    let orchestrator = build_orchestrator(host)
-        .await
-        .context("Cannot stop agents safely without the orchestrator")?;
+    let authoring = AgentConfigAuthoringService::new(services_root(host)?);
+    let running = running_agents(host).await?;
 
     let mut deleted = Vec::new();
     let mut errors = Vec::new();
 
     for agent_name in &agents_to_delete {
-        let agent_port = services_config
-            .agents
-            .get(agent_name.as_str())
-            .map(|c| c.port);
-        let process_stopped = stop_agent_process(agent_name, agent_port, &orchestrator).await;
-        match delete_single_agent(agent_name, process_stopped, &authoring, args.force) {
+        match delete_single_agent(agent_name, running.contains(agent_name), &authoring) {
             Ok(()) => deleted.push(agent_name.clone()),
-            Err(error) => errors.push(format!("{error:#}")),
+            Err(error) => errors.push(format!("{:#}", anyhow::Error::new(error))),
         }
     }
 
     if !deleted.is_empty() {
-        crate::commands::admin::state::boot(host)?.load_services_config().with_context(|| {
+        reload_services_config(host).with_context(|| {
             "Agent(s) deleted but configuration validation failed. Please check the configuration."
         })?;
     }
@@ -98,6 +98,21 @@ pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<C
     let output = AgentDeleteOutput { deleted, message };
 
     Ok(CommandOutput::card_value("Delete Agent", &output))
+}
+
+async fn running_agents(host: &dyn CommandHost) -> Result<Vec<AgentName>> {
+    let statuses = host
+        .resolved()
+        .await?
+        .get::<Arc<AgentStatusView>>()?
+        .statuses()
+        .await
+        .context("Failed to read the agent service table")?;
+    Ok(statuses
+        .into_iter()
+        .filter(|status| status.pid.is_some())
+        .map(|status| AgentName::new(status.name.as_str()))
+        .collect())
 }
 
 fn resolve_targets(
@@ -161,75 +176,20 @@ pub fn delete_success_message(deleted: &[AgentName]) -> String {
     }
 }
 
-pub(super) async fn build_orchestrator(host: &dyn KernelHost) -> Result<AgentOrchestrator> {
-    let app = crate::commands::admin::state::app(host).await?;
-    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
-        app.config(),
-        app.signing_keys().keyring().clone(),
-    ));
-    let broadcaster = HttpWebhookBroadcaster::from_config(app.config())
-        .context("Failed to initialize webhook broadcaster")?;
-
-    let agent_state = Arc::new(AgentState::new(
-        Arc::clone(app.db_pool()),
-        Arc::new(app.config().clone()),
-        AgentAuth {
-            jwt_provider,
-            verification_keys: app.signing_keys().keyring().clone(),
-        },
-        Arc::clone(app.a2a_repositories()),
-        Arc::new(broadcaster),
-        app.services_state().view(),
-    ));
-
-    AgentOrchestrator::new(
-        agent_state,
-        Arc::clone(app.app_paths_arc()),
-        Arc::clone(app.spawner()),
-        Arc::new(SpawnEnvironment {
-            config: Arc::clone(app.config_arc()),
-            secrets: Arc::<systemprompt_config::SecretsService>::clone(app.secrets()),
-            verification_keys: app.signing_keys().verification_keys().clone(),
-            services: app.services_state().view(),
-        }),
-        None,
-    )
-    .await
-    .context("Failed to initialize agent orchestrator")
-}
-
 pub fn delete_single_agent(
     agent_name: &AgentName,
-    process_stopped: bool,
+    running: bool,
     authoring: &AgentConfigAuthoringService,
-    force: bool,
-) -> Result<()> {
-    CliService::info(&format!("Deleting agent '{}'...", agent_name));
-
-    if !process_stopped && !force {
-        let msg = format!(
-            "Failed to stop agent '{}' process. Use --force to delete anyway.",
-            agent_name
-        );
-        CliService::error(&msg);
-        return Err(anyhow!(msg));
+) -> Result<(), AgentDeleteError> {
+    if running {
+        return Err(AgentDeleteError::Running {
+            agent: agent_name.clone(),
+        });
     }
-
-    if !process_stopped {
-        CliService::warning(&format!(
-            "Force deleting agent '{}' (process may still be running)",
-            agent_name
-        ));
-    }
-
-    match authoring.delete(agent_name) {
-        Ok(()) => {
-            CliService::success(&format!("Agent '{}' deleted", agent_name));
-            Ok(())
-        },
-        Err(e) => {
-            CliService::error(&format!("Failed to delete agent '{}': {}", agent_name, e));
-            Err(e).with_context(|| format!("Failed to delete agent '{agent_name}'"))
-        },
-    }
+    authoring
+        .delete(agent_name)
+        .map_err(|source| AgentDeleteError::Remove {
+            agent: agent_name.clone(),
+            source,
+        })
 }

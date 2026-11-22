@@ -3,41 +3,32 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
+use systemprompt_extension::cli::{CallerSession, CommandHost, CommandOutput};
 
+use super::caller_and_pool;
 use super::types::{ContextListOutput, ContextSummary};
-use crate::presentation::tables::context_list_table;
-use crate::session::get_or_create_session;
-use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub(super) async fn execute(_args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(host).await?;
-    let pool = pool_from_handle(host.db().await?)?;
-    execute_with_pool(&session_ctx.session, &pool, host.output()).await
+pub(super) async fn execute(_args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let (caller, pool) = caller_and_pool(host).await?;
+    execute_with_pool(&caller, &pool).await
 }
 
-pub(super) async fn execute_with_pool(
-    session: &systemprompt_cloud::CliSession,
-    pool: &DbPool,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub async fn execute_with_pool(caller: &CallerSession, pool: &DbPool) -> Result<CommandOutput> {
     let repo = ContextRepository::new(pool);
 
     let contexts = repo
-        .list_contexts_with_stats(&session.user_id)
+        .list_contexts_with_stats(caller.user_id())
         .await
         .context("Failed to list contexts")?;
 
-    let active_context_id = session.context_id.clone();
+    let active_context_id = caller.context_id().clone();
 
     let summaries: Vec<ContextSummary> = contexts
         .into_iter()
@@ -56,22 +47,10 @@ pub(super) async fn execute_with_pool(
     let total = summaries.len();
 
     let output = ContextListOutput {
-        contexts: summaries.clone(),
+        contexts: summaries,
         total,
         active_context_id: Some(active_context_id),
     };
-
-    if !config.is_json_output() {
-        CliService::section("Contexts");
-
-        if summaries.is_empty() {
-            CliService::info("No contexts found");
-        } else {
-            CliService::output(&context_list_table(&summaries));
-
-            CliService::info(&format!("Showing {} context(s)", total));
-        }
-    }
 
     Ok(CommandOutput::table_of(
         vec![

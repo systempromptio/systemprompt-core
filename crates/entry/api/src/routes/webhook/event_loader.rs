@@ -6,18 +6,16 @@
 use serde_json::json;
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 use systemprompt_models::ExecutionStep;
-use systemprompt_runtime::AppContext;
 
 use super::error::LoadEventError;
 use super::types::{AgUiWebhookData, WebhookRequest};
 use super::validation::validate_json_serializable;
-use systemprompt_agent::repository::A2ARepositories;
+use super::WebhookRepositories;
 
 pub(super) async fn load_event_data(
-    app_context: &AppContext,
+    repos: &WebhookRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
-    let repos = app_context.a2a_repositories();
 
     match request.event_type.as_str() {
         "task_completed" => load_task_completed(repos, request).await,
@@ -45,7 +43,7 @@ fn ensure_in_context(
 }
 
 async fn load_task_completed(
-    repos: &A2ARepositories,
+    repos: &WebhookRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let task_repo = &repos.tasks;
@@ -108,7 +106,7 @@ async fn load_task_completed(
 }
 
 async fn load_artifact_created(
-    repos: &A2ARepositories,
+    repos: &WebhookRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let artifact_repo = &repos.artifacts;
@@ -130,7 +128,7 @@ async fn load_artifact_created(
 }
 
 async fn load_message_received(
-    repos: &A2ARepositories,
+    repos: &WebhookRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let task_repo = &repos.tasks;
@@ -158,7 +156,7 @@ async fn load_message_received(
 }
 
 async fn load_context_updated(
-    repos: &A2ARepositories,
+    repos: &WebhookRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let context_repo = &repos.contexts;

@@ -3,7 +3,8 @@
 //! An agent is a least-privilege child of the API, booted on the same
 //! [`HostContext`] as a managed MCP server: the profile path, the database
 //! URLs, the public verification key set and its granted secrets. On top of
-//! that it composes the agent's own collaborators: the A2A repositories, the
+//! that it composes the agent's own collaborators: the A2A repositories (over
+//! the host's managed-skill resolver and the MCP tool-usage ledger), the
 //! MCP registry, an [`AiService`] whose provider and connector credentials
 //! resolve through the granted secrets alone, and a verify-only JWT provider.
 //! It holds no signing key, token authority, OAuth pepper or manifest seed, and
@@ -15,17 +16,19 @@
 use std::sync::Arc;
 
 use systemprompt_agent::AgentAuth;
-use systemprompt_agent::repository::A2ARepositories;
+use systemprompt_agent::repository::{A2ARepositories, A2aDependencies};
 use systemprompt_agent::services::ContextProviderService;
 use systemprompt_ai::error::AiError;
 use systemprompt_ai::repository::AiRequestRepositories;
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_config::GrantedSecrets;
 use systemprompt_mcp::McpToolProvider;
+use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_security::credential::TokenCache;
-use systemprompt_traits::SecretLookup;
+use systemprompt_provider_contracts::MissingDependency;
+use systemprompt_traits::{DynManagedSkillResolver, SecretLookup};
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 
 use crate::host::{HostBootError, HostContext};
@@ -36,6 +39,8 @@ pub enum AgentHostError {
     Boot(Box<HostBootError>),
     #[error("the agent's AI service could not be built")]
     Ai(#[source] Box<AiError>),
+    #[error("the host state lacks a collaborator the agent needs")]
+    Missing(#[from] MissingDependency),
 }
 
 impl From<HostBootError> for AgentHostError {
@@ -72,7 +77,15 @@ impl AgentHost {
         let database = host.db_pool();
         let config = Arc::new(host.config().clone());
         let system_admin = host.system_owner().clone();
-        let a2a = Arc::clone(&host.parts().a2a);
+        let a2a = Arc::new(A2ARepositories::new(
+            database,
+            A2aDependencies {
+                session_usage: Arc::new(SessionRepository::new(database)),
+                instance_id: config.instance_id.clone(),
+                managed_skills: Arc::clone(host.state().get::<DynManagedSkillResolver>()?),
+                tool_executions: Arc::new(ToolUsageRepository::new(database)),
+            },
+        ));
 
         let registry = RegistryService::new(
             system_admin,

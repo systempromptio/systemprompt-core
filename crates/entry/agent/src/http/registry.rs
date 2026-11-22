@@ -5,31 +5,26 @@
 
 use axum::extract::State;
 use axum::response::IntoResponse;
-use axum::routing::get;
-use axum::{Extension, Json, Router};
-use std::sync::Arc;
+use axum::{Extension, Json};
 use systemprompt_database::ServiceRepository;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_models::{CollectionResponse, RequestContext};
-use systemprompt_runtime::AppContext;
 
 use systemprompt_agent::models::a2a::{AgentCard, AgentExtension, McpServerMetadata};
 use systemprompt_agent::services::registry::{AgentRegistry, CardSite};
 use systemprompt_manifest::AgentConfig;
 
+use super::AgentRegistryState;
+
 pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<AgentRegistryState>,
 ) -> impl IntoResponse {
-    let registry = Arc::new(AgentRegistry::new(&ctx.services_state().view()));
-    let service_repo = ctx.service_repository();
-    let site = CardSite {
-        api_external_url: &ctx.config().api_external_url,
-        skills_dir: std::path::Path::new(&ctx.config().skills_path),
-    };
+    let registry = AgentRegistry::new(&state.services);
+    let site = state.site.card_site();
 
     let agents = registry.list_agents();
-    let mut agent_cards = build_agent_cards(&registry, service_repo, site, agents).await;
+    let mut agent_cards = build_agent_cards(&registry, &state.service_table, site, agents).await;
     sort_default_first(&mut agent_cards);
     Json(CollectionResponse::new(agent_cards)).into_response()
 }
@@ -125,8 +120,3 @@ pub fn create_mcp_extensions_from_config(
     }]
 }
 
-pub fn router(ctx: &AppContext) -> Router {
-    Router::new()
-        .route("/", get(handle_agent_registry))
-        .with_state(ctx.clone())
-}

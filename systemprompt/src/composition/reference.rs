@@ -152,6 +152,10 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_mcp_entry::extension::McpHttpExtension>(CoreTerms::conferred(
             CoreId::McpHttp,
         )),
+        #[cfg(all(feature = "agents", feature = "full"))]
+        Member::core::<systemprompt_agent_entry::extension::AgentHttpExtension>(
+            CoreTerms::conferred(CoreId::AgentHttp),
+        ),
         #[cfg(all(feature = "cloud", feature = "cli"))]
         Member::core::<systemprompt_cloud_entry::CloudCliExtension>(CoreTerms::conferred(
             CoreId::Cloud,

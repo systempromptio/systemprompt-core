@@ -7,15 +7,15 @@ use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::response::Response;
 use systemprompt_identifiers::ContextId;
-use systemprompt_runtime::AppContext;
 
+use crate::http::AgentHttpState;
 use super::super::responses::{api_error_response, single_response};
 use systemprompt_agent::models::context::UpdateContextRequest;
 use systemprompt_models::{ApiError, SystemEventBuilder};
 
 pub async fn update_context(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Path(context_id_str): Path<String>,
     Json(request): Json<UpdateContextRequest>,
 ) -> Response {
@@ -23,7 +23,7 @@ pub async fn update_context(
         Ok(id) => id,
         Err(e) => return api_error_response(ApiError::from(e)),
     };
-    let context_repo = &ctx.a2a_repositories().contexts;
+    let context_repo = &state.repositories.contexts;
     let user_id = &req_ctx.auth.actor.user_id;
 
     match context_repo
@@ -41,10 +41,7 @@ pub async fn update_context(
                 Ok(context) => {
                     let event =
                         SystemEventBuilder::context_updated(context_id.clone(), Some(request.name));
-                    ctx.event_router()
-                        .route_system(user_id, event)
-                        .await
-                        .into_local_logged();
+                    state.events.system(user_id, event).await;
 
                     single_response(context)
                 },

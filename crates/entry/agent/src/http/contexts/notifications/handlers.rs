@@ -9,12 +9,12 @@ use serde_json::json;
 use systemprompt_agent::repository::OwnedTask;
 use systemprompt_agent::repository::context::ContextNotificationRepository;
 use systemprompt_agent::repository::task::TaskRepository;
-use systemprompt_events::EventRouter;
 use systemprompt_identifiers::{AgentId, ContextId, TaskId, UserId};
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_traits::RepositoryError;
 
 use super::A2aNotification;
+use crate::http::ContextEventPublisher;
 use super::error::NotificationError;
 
 #[derive(Debug, Deserialize)]
@@ -103,7 +103,7 @@ pub(super) async fn apply_status_update(
 }
 
 pub(super) async fn broadcast_notification(
-    router: &EventRouter,
+    events: &ContextEventPublisher,
     context: &str,
     user_id: &UserId,
     notification: &A2aNotification,
@@ -122,7 +122,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
+            let (agui, ctx) = events.agui(user_id, event).await;
             total_broadcasts += agui + ctx;
         },
         "notifications/artifactCreated" => {
@@ -135,7 +135,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
+            let (agui, ctx) = events.agui(user_id, event).await;
             total_broadcasts += agui + ctx;
         },
         "notifications/messageAdded" => {
@@ -148,7 +148,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
+            let (agui, ctx) = events.agui(user_id, event).await;
             total_broadcasts += agui + ctx;
         },
         _ => {},

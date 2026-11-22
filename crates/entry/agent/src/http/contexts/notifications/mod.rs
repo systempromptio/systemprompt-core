@@ -19,11 +19,10 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::AppContext;
 
-use crate::kernel::ApiHttpError;
-use crate::routes::agent::parse_context_id;
+use crate::http::{AgentHttpError, AgentHttpState, parse_context_id};
 use handlers::{
     apply_status_update, broadcast_notification, mark_notification_broadcasted,
     persist_notification, resolve_status_update,
@@ -40,10 +39,10 @@ pub struct A2aNotification {
 pub async fn handle_context_notification(
     Extension(req_ctx): Extension<RequestContext>,
     Path(context_id): Path<String>,
-    State(app_context): State<AppContext>,
+    State(state): State<AgentHttpState>,
     Json(notification): Json<A2aNotification>,
-) -> Result<Response, ApiHttpError> {
-    let repos = app_context.a2a_repositories();
+) -> Result<Response, AgentHttpError> {
+    let repos = &state.repositories;
     let context_id = parse_context_id(&context_id)?;
     let user_id = req_ctx.user_id().clone();
 
@@ -52,9 +51,7 @@ pub async fn handle_context_notification(
     if notification.jsonrpc != "2.0" {
         tracing::error!(jsonrpc_version = %notification.jsonrpc, "Invalid JSON-RPC version");
 
-        return Err(ApiHttpError::bad_request(
-            "Invalid JSON-RPC version, must be 2.0",
-        ));
+        return Err(ApiHttpError::bad_request("Invalid JSON-RPC version, must be 2.0").into());
     }
 
     repos
@@ -86,7 +83,7 @@ pub async fn handle_context_notification(
     }
 
     broadcast_and_mark(
-        &app_context,
+        &state,
         &context_id,
         &user_id,
         &notification,
@@ -105,14 +102,14 @@ pub async fn handle_context_notification(
 }
 
 async fn broadcast_and_mark(
-    app_context: &AppContext,
+    state: &AgentHttpState,
     context_id: &ContextId,
     user_id: &UserId,
     notification: &A2aNotification,
     notification_id: i32,
 ) {
     let broadcast_count = broadcast_notification(
-        app_context.event_router(),
+        &state.events,
         context_id.as_str(),
         user_id,
         notification,
@@ -120,7 +117,7 @@ async fn broadcast_and_mark(
     .await;
     tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
 
-    let notifications_repo = &app_context.a2a_repositories().context_notifications;
+    let notifications_repo = &state.repositories.context_notifications;
     if let Err(e) = mark_notification_broadcasted(notifications_repo, notification_id).await {
         tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
     }

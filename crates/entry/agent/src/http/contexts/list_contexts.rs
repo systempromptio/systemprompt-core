@@ -5,16 +5,16 @@
 
 use axum::extract::{Extension, State};
 use axum::response::Response;
-use systemprompt_runtime::AppContext;
 
+use crate::http::AgentHttpState;
 use super::super::responses::{api_error_response, collection_response};
 use systemprompt_models::ApiError;
 
 pub async fn list_contexts(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<AgentHttpState>,
 ) -> Response {
-    let context_repo = &ctx.a2a_repositories().contexts;
+    let context_repo = &state.repositories.contexts;
     let user_id = &req_ctx.auth.actor.user_id;
 
     match context_repo.list_contexts_with_stats(user_id).await {

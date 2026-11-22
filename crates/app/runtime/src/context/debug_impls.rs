@@ -34,7 +34,6 @@ impl std::fmt::Debug for DataPlane {
             .field("database", &"DbPool")
             .field("fingerprint_repo", &self.fingerprint_repo.is_some())
             .field("user_service", &self.user_service.is_some())
-            .field("a2a_repositories", &"A2ARepositories")
             .field("content_repositories", &"ContentRepositories")
             .field("oauth_repositories", &"OAuthRepositories")
             .field("user_repository", &"UserRepository")

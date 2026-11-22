@@ -1,5 +1,6 @@
 id	type	crate	file
 agent	AgentExtension	systemprompt-agent	crates/domain/agent/src/extension.rs
+agent-http	AgentHttpExtension	systemprompt-agent-entry	crates/entry/agent/src/extension.rs
 agent_runs	AgentRunsExtension	systemprompt-agent-runs	crates/app/agent-runs/src/extension.rs
 agent_runs_api	AgentRunsApiExtension	systemprompt-agent-runs-entry	crates/entry/agent-runs/src/http/extension.rs
 ai	AiExtension	systemprompt-ai	crates/domain/ai/src/extension.rs

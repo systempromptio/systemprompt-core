@@ -3,12 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
 
 use super::types::AgentDetailOutput;
-use systemprompt_extension::cli::{CommandOutput, resolve_required};
+use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
+
+use super::services_config;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -16,12 +17,10 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
     let prompter = host.prompter();
-    let services_config = crate::commands::admin::state::boot(host)?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
+    let services_config = services_config(host).await?;
 
     let name = resolve_required(args.name, "name", config, || {
         super::shared::prompt_agent_selection(prompter, "Select agent", &services_config)

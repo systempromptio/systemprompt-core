@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::models::a2a::Artifact;
@@ -11,13 +10,11 @@ use systemprompt_agent::repository::OwnedArtifact;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ArtifactId, UserId};
-use systemprompt_logging::CliService;
 use systemprompt_models::a2a::PartContent;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
-use crate::session::get_or_create_session;
 use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -31,11 +28,11 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(host).await?;
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let caller = host.caller_session().await?;
     execute_with_pool(
         args,
-        &session_ctx.session.user_id,
+        caller.user_id(),
         &pool_from_handle(host.db().await?)?,
         host.output(),
     )
@@ -100,94 +97,76 @@ pub async fn execute_with_pool(
             .map_or_else(|_| chrono::Utc::now(), |dt| dt.with_timezone(&chrono::Utc)),
     };
 
-    if !config.is_json_output() {
-        render_artifact(&artifact, &parts, args.full);
+    if config.is_json_output() {
+        return Ok(CommandOutput::card_value("Artifact Details", &output));
     }
-
-    Ok(CommandOutput::card_value("Artifact Details", &output))
+    Ok(CommandOutput::text_titled(
+        "Artifact Details",
+        render_artifact(&artifact, &parts, args.full),
+    ))
 }
 
-fn render_artifact(artifact: &Artifact, parts: &[ArtifactPartOutput], full: bool) {
-    CliService::section("Artifact Details");
-    CliService::key_value("ID", artifact.id.as_str());
-
-    if let Some(ref name) = artifact.title {
-        CliService::key_value("Name", name);
+fn render_artifact(artifact: &Artifact, parts: &[ArtifactPartOutput], full: bool) -> String {
+    let mut lines = vec![format!("ID: {}", artifact.id.as_str())];
+    if let Some(name) = &artifact.title {
+        lines.push(format!("Name: {name}"));
     }
-
-    if let Some(ref desc) = artifact.description {
-        CliService::key_value("Description", desc);
+    if let Some(desc) = &artifact.description {
+        lines.push(format!("Description: {desc}"));
     }
-
-    CliService::key_value("Type", &artifact.metadata.artifact_type);
-
-    if let Some(ref tool) = artifact.metadata.tool_name {
-        CliService::key_value("Tool", tool);
+    lines.push(format!("Type: {}", artifact.metadata.artifact_type));
+    if let Some(tool) = &artifact.metadata.tool_name {
+        lines.push(format!("Tool: {tool}"));
     }
-
-    if let Some(ref source) = artifact.metadata.source {
-        CliService::key_value("Source", source);
+    if let Some(source) = &artifact.metadata.source {
+        lines.push(format!("Source: {source}"));
     }
-
-    CliService::key_value("Task ID", artifact.metadata.task_id.as_str());
-    CliService::key_value("Context ID", artifact.metadata.context_id.as_str());
-
-    if let Some(ref skill_name) = artifact.metadata.skill_name {
-        CliService::key_value("Skill", skill_name);
+    lines.push(format!("Task ID: {}", artifact.metadata.task_id.as_str()));
+    lines.push(format!("Context ID: {}", artifact.metadata.context_id.as_str()));
+    if let Some(skill_name) = &artifact.metadata.skill_name {
+        lines.push(format!("Skill: {skill_name}"));
     }
-
-    if let Some(ref mcp_id) = artifact.metadata.mcp_execution_id {
-        CliService::key_value("MCP Execution", mcp_id.as_str());
+    if let Some(mcp_id) = &artifact.metadata.mcp_execution_id {
+        lines.push(format!("MCP Execution: {}", mcp_id.as_str()));
     }
-
-    if let Some(ref fingerprint) = artifact.metadata.fingerprint {
-        CliService::key_value("Fingerprint", fingerprint);
+    if let Some(fingerprint) = &artifact.metadata.fingerprint {
+        lines.push(format!("Fingerprint: {fingerprint}"));
     }
-
-    CliService::key_value("Created", &artifact.metadata.created_at);
-
-    CliService::info("");
-    CliService::section("Parts");
-
-    for (i, part) in parts.iter().enumerate() {
-        render_part(i, part, full);
+    lines.push(format!("Created: {}", artifact.metadata.created_at));
+    lines.push(String::new());
+    lines.push("Parts".to_owned());
+    for (index, part) in parts.iter().enumerate() {
+        render_part(&mut lines, index, part, full);
     }
+    lines.join("\n")
 }
 
-fn render_part(index: usize, part: &ArtifactPartOutput, full: bool) {
-    CliService::info(&format!("Part {} [{}]:", index + 1, part.kind));
+fn render_part(lines: &mut Vec<String>, index: usize, part: &ArtifactPartOutput, full: bool) {
+    lines.push(format!("Part {} [{}]:", index + 1, part.kind));
 
     if let Some(ref text) = part.text {
-        let display_text = if full || text.len() <= 500 {
-            text.clone()
-        } else {
-            format!(
-                "{}...\n[Truncated - use --full for complete content]",
-                &text[..500]
-            )
-        };
-
-        for line in display_text.lines() {
-            CliService::info(&format!("  {}", line));
-        }
+        lines.extend(indented(&truncated(text.clone(), full, 500)));
     }
 
     if let Some(ref data) = part.data {
-        let formatted = CliService::json_string(data).unwrap_or_else(|_| data.to_string());
-
-        let display_data = if full || formatted.len() <= 1000 {
-            formatted
-        } else {
-            format!(
-                "{}...\n[Truncated - use --full for complete content]",
-                &formatted[..1000]
-            )
-        };
-
-        for line in display_data.lines() {
-            CliService::info(&format!("  {}", line));
-        }
+        let formatted = serde_json::to_string_pretty(data).unwrap_or_else(|_| data.to_string());
+        lines.extend(indented(&truncated(formatted, full, 1000)));
     }
+}
+
+fn truncated(text: String, full: bool, limit: usize) -> String {
+    if full || text.len() <= limit {
+        return text;
+    }
+    let cut = text.floor_char_boundary(limit);
+    format!(
+        "{}...\n[Truncated - use --full for complete content]",
+        &text[..cut]
+    )
+}
+
+fn indented(text: &str) -> Vec<String> {
+    text.lines().map(|line| format!("  {line}")).collect()
 }
 
 async fn resolve_artifact(

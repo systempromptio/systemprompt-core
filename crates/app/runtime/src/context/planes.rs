@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
@@ -49,7 +48,6 @@ pub struct DataPlane {
     pub database: DbPool,
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
-    pub a2a_repositories: Arc<A2ARepositories>,
     pub content_repositories: Arc<ContentRepositories>,
     pub oauth_repositories: Arc<OAuthRepositories>,
     pub user_repository: Arc<UserRepository>,

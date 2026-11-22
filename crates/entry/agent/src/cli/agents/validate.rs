@@ -3,13 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::{ValidationIssue, ValidationOutput};
-use systemprompt_extension::cli::CommandOutput;
-use systemprompt_manifest::secrets::Secrets;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_traits::SecretPresence;
+
+use super::services_config;
 use systemprompt_manifest::services::catalog::{CatalogContext, ResolvedCatalog};
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
@@ -19,25 +22,33 @@ pub struct ValidateArgs {
     pub name: Option<String>,
 }
 
-#[derive(Debug)]
 pub struct ValidationSources<'a> {
     pub services_config: &'a ServicesConfig,
     pub catalog: &'a ResolvedCatalog,
-    pub secrets: Option<&'a Secrets>,
+    pub secrets: Option<&'a dyn SecretPresence>,
 }
 
-pub(super) fn execute(args: &ValidateArgs, host: &dyn KernelHost) -> Result<(CommandOutput, bool)> {
-    let services_config = crate::commands::admin::state::boot(host)?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
+impl std::fmt::Debug for ValidationSources<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ValidationSources")
+            .field("secrets", &self.secrets.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
+pub(super) async fn execute(
+    args: &ValidateArgs,
+    host: &dyn CommandHost,
+) -> Result<(CommandOutput, bool)> {
+    let services_config = services_config(host).await?;
     let catalog = services_config
         .resolve_catalog(&CatalogContext::default())
         .context("The services catalog does not resolve")?;
-    let secrets = crate::commands::admin::state::boot(host)?.secrets().get();
+    let secrets = host.resolved().await?.get::<Arc<dyn SecretPresence>>()?;
     let sources = ValidationSources {
         services_config: &services_config,
         catalog: &catalog,
-        secrets: Some(&secrets),
+        secrets: Some(secrets.as_ref()),
     };
 
     let mut errors = Vec::new();
@@ -167,8 +178,7 @@ pub fn check_provider(
     };
     let key_present = sources
         .secrets
-        .and_then(|s| s.get(secret_name.as_str()))
-        .is_some_and(|k| !k.is_empty());
+        .is_some_and(|s| s.is_present(secret_name.as_str()));
     if !key_present {
         errors.push(ValidationIssue {
             source: name.to_owned(),

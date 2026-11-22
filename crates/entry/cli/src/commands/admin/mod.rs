@@ -1,8 +1,9 @@
 //! `admin` command tree: privileged platform administration.
 //!
-//! [`AdminCommands`] groups user, agent, configuration, session, bridge,
+//! [`AdminCommands`] groups user, configuration, session, bridge,
 //! access-control, signing-key, issue-report triage and licence check-in
-//! management plus the setup and bootstrap flows. On a `--database-url`
+//! management plus the setup and bootstrap flows and the agent and MCP child
+//! hosts. On a `--database-url`
 //! invocation only the user-management subgroup is served; the rest require a
 //! full profile context.
 //!
@@ -10,7 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod access_control;
-pub mod agents;
+pub mod agent_host;
 pub mod bootstrap;
 pub mod bridge;
 pub mod config;
@@ -34,9 +35,6 @@ use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, 
 pub enum AdminCommands {
     #[command(subcommand, about = "User management and IP banning")]
     Users(users::UsersCommands),
-
-    #[command(subcommand, about = "Agent management")]
-    Agents(agents::AgentsCommands),
 
     #[command(subcommand, about = "Configuration management and rate limits")]
     Config(config::ConfigCommands),
@@ -88,6 +86,13 @@ pub enum AdminCommands {
 
     #[command(subcommand, about = "Host MCP servers in this binary")]
     Mcp(mcp::McpHostCommands),
+
+    #[command(
+        subcommand,
+        name = "agent-host",
+        about = "Host one agent server in this binary"
+    )]
+    AgentHost(agent_host::AgentHostCommands),
 }
 
 pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
@@ -104,7 +109,7 @@ pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<Comman
 
     match cmd {
         AdminCommands::Users(cmd) => users::execute(cmd, host).await,
-        AdminCommands::Agents(cmd) => Box::pin(agents::execute(cmd, host)).await,
+        AdminCommands::AgentHost(cmd) => Box::pin(agent_host::execute(cmd, host)).await,
         AdminCommands::Config(cmd) => config::execute(cmd, host).await,
         AdminCommands::Setup(args) => Box::pin(setup::execute(args, host)).await,
         AdminCommands::Bootstrap(args) => bootstrap::execute(args, host).await,
@@ -124,7 +129,7 @@ impl DescribeCommand for AdminCommands {
         match self {
             Self::Session(cmd) => cmd.descriptor(),
             Self::Config(cmd) => cmd.descriptor(),
-            Self::Agents(agents::AgentsCommands::Run(_)) | Self::Mcp(_) => {
+            Self::AgentHost(_) | Self::Mcp(_) => {
                 CommandDescriptor::CHILD_HOST
             },
             Self::Bridge(bridge::BridgeCommands::SigningKeyFingerprint(_)) => {
@@ -141,7 +146,6 @@ impl AdminCommands {
     pub const fn data_impact(&self) -> DataImpact {
         match self {
             Self::Users(cmd) => cmd.data_impact(),
-            Self::Agents(cmd) => cmd.data_impact(),
             Self::Issues(cmd) => cmd.data_impact(),
             Self::Setup(args) if args.reset_role_password => DataImpact::Irreversible,
             Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_))
@@ -172,7 +176,8 @@ impl AdminCommands {
             | Self::Session(_)
             | Self::Identity(_)
             | Self::Licence(_)
-            | Self::Mcp(_) => DataImpact::Preserving,
+            | Self::Mcp(_)
+            | Self::AgentHost(_) => DataImpact::Preserving,
         }
     }
 }

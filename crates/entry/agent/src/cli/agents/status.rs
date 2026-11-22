@@ -3,13 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use clap::Args;
+use systemprompt_agent::services::agent_orchestration::status_view::AgentStatusView;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
+use super::services_config;
 use super::types::{AgentStatusOutput, AgentStatusRow};
-use systemprompt_agent::services::agent_orchestration::AgentStatus;
-use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {
@@ -17,16 +19,16 @@ pub struct StatusArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: StatusArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let services_config = crate::commands::admin::state::boot(host)?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
+pub(super) async fn execute(args: StatusArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let services_config = services_config(host).await?;
 
-    let orchestrator = super::delete::build_orchestrator(host)
+    let statuses = host
+        .resolved()
+        .await?
+        .get::<Arc<AgentStatusView>>()?
+        .statuses()
         .await
-        .context("Failed to initialize agent orchestrator")?;
-
-    let all_statuses = orchestrator.list_all().await?;
+        .context("Failed to read the agent service table")?;
 
     let agents_to_check: Vec<(&String, &systemprompt_manifest::AgentConfig)> = match &args.name {
         Some(name) => {
@@ -39,25 +41,22 @@ pub(super) async fn execute(args: StatusArgs, host: &dyn KernelHost) -> Result<C
         None => services_config.agents.iter().collect(),
     };
 
-    let mut agents: Vec<AgentStatusRow> = Vec::new();
-
-    for (name, agent) in agents_to_check {
-        let status = all_statuses
-            .iter()
-            .find(|(n, _)| n.as_str() == name.as_str());
-        let (is_running, pid) = match status {
-            Some((_, AgentStatus::Running { pid, .. })) => (true, Some(*pid)),
-            Some((_, AgentStatus::Failed { .. })) | None => (false, None),
-        };
-
-        agents.push(AgentStatusRow {
-            name: name.clone(),
-            enabled: agent.enabled,
-            is_running,
-            pid,
-            port: agent.port,
-        });
-    }
+    let mut agents: Vec<AgentStatusRow> = agents_to_check
+        .into_iter()
+        .map(|(name, agent)| {
+            let pid = statuses
+                .iter()
+                .find(|status| status.name.as_str() == name.as_str())
+                .and_then(|status| status.pid);
+            AgentStatusRow {
+                name: name.clone(),
+                enabled: agent.enabled,
+                is_running: pid.is_some(),
+                pid,
+                port: agent.port,
+            }
+        })
+        .collect();
 
     agents.sort_by(|a, b| a.name.cmp(&b.name));
 

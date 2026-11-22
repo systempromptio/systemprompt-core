@@ -13,7 +13,6 @@ use reqwest::Client;
 use sse_stream::SseStream;
 use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, Request};
 use systemprompt_agent::models::a2a::protocol::SendMessageParams;
-use systemprompt_logging::CliService;
 use systemprompt_models::a2a::{
     Message, PROTOCOL_VERSION, StreamResponse, Task, TaskArtifactUpdateEvent, TaskState,
     VERSION_HEADER,
@@ -55,7 +54,7 @@ pub(super) async fn execute_streaming(
     }
 
     let outcome = collect_stream(response.bytes_stream(), &mut write_stdout_chunk).await?;
-    CliService::output("");
+    write_stdout_chunk("\n");
 
     let response = if outcome.text.is_empty() {
         outcome

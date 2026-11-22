@@ -3,17 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_logging::CliService;
+use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CallerSession, CliConfig, CommandHost, CommandOutput, Prompter};
 
+use super::caller_and_pool;
 use super::resolve::resolve_context;
 use super::types::ContextDeletedOutput;
-use crate::session::get_or_create_session;
-use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -24,31 +22,23 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(host).await?;
-    let pool = pool_from_handle(host.db().await?)?;
-    execute_with_pool(
-        args,
-        &session_ctx.session,
-        &pool,
-        host.output(),
-        host.prompter(),
-    )
-    .await
+pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let (caller, pool) = caller_and_pool(host).await?;
+    execute_with_pool(args, &caller, &pool, host.output(), host.prompter()).await
 }
 
 pub async fn execute_with_pool(
     args: DeleteArgs,
-    session: &systemprompt_cloud::CliSession,
-    pool: &systemprompt_database::DbPool,
-    config: &systemprompt_extension::cli::CliConfig,
-    prompter: &dyn systemprompt_extension::cli::Prompter,
+    caller: &CallerSession,
+    pool: &DbPool,
+    config: &CliConfig,
+    prompter: &dyn Prompter,
 ) -> Result<CommandOutput> {
     let repo = ContextRepository::new(pool);
 
-    let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
+    let context_id = resolve_context(&args.context, caller.user_id(), &repo).await?;
 
-    if context_id == session.context_id {
+    if context_id == *caller.context_id() {
         bail!(
             "Cannot delete the active context. Switch to a different context first with 'contexts \
              use <id>'."
@@ -56,7 +46,7 @@ pub async fn execute_with_pool(
     }
 
     let context = repo
-        .get_context(&context_id, &session.user_id)
+        .get_context(&context_id, caller.user_id())
         .await
         .context("Failed to fetch context details")?;
 
@@ -65,14 +55,12 @@ pub async fn execute_with_pool(
     }
 
     if !args.yes {
-        CliService::warning(&format!(
-            "You are about to delete context '{}' ({})",
+        let question = format!(
+            "Delete context '{}' ({})?",
             context.name,
             context_id.as_str()
-        ));
-
-        if !prompter.confirm("Are you sure?", false)? {
-            CliService::info("Deletion cancelled");
+        );
+        if !prompter.confirm(&question, false)? {
             let cancelled = ContextDeletedOutput {
                 id: context_id,
                 message: "Deletion cancelled".to_owned(),
@@ -84,18 +72,14 @@ pub async fn execute_with_pool(
         }
     }
 
-    repo.delete_context(&context_id, &session.user_id)
+    repo.delete_context(&context_id, caller.user_id())
         .await
         .context("Failed to delete context")?;
 
     let output = ContextDeletedOutput {
-        id: context_id.clone(),
+        id: context_id,
         message: format!("Context '{}' deleted successfully", context.name),
     };
-
-    if !config.is_json_output() {
-        CliService::success(&output.message);
-    }
 
     Ok(CommandOutput::card_value("Context Deleted", &output))
 }

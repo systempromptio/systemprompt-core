@@ -3,12 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
 
 use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+
+use super::services_config;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -22,10 +23,8 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let services_config = crate::commands::admin::state::boot(host)?
-        .load_services_config()
-        .context("Failed to load services configuration")?;
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let services_config = services_config(host).await?;
 
     if let Some(name) = args.name {
         let agent = services_config

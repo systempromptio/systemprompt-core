@@ -1,4 +1,4 @@
-//! `admin agents run` command hosting one agent process.
+//! `admin agent-host run` command hosting one agent process.
 //!
 //! A spawned agent boots an [`AgentHost`] from the environment the API spawned
 //! it with: it never loads the profile's secrets source.

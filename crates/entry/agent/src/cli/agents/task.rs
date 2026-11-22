@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, Request, RequestId};
@@ -12,8 +11,7 @@ use systemprompt_identifiers::TaskId;
 use systemprompt_models::a2a::{Task, methods};
 
 use super::client::{A2aCall, ensure_agent_exists, send_a2a_request};
-use crate::session::get_or_create_session;
-use systemprompt_extension::cli::{CommandOutput, resolve_required};
+use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
 
 #[derive(Debug, Args)]
 pub struct TaskArgs {
@@ -26,9 +24,6 @@ pub struct TaskArgs {
     #[arg(long, help = "Number of history messages to retrieve")]
     pub history_length: Option<u32>,
 
-    #[arg(long, help = "Gateway URL (overrides profile's api_external_url)")]
-    pub url: Option<String>,
-
     #[arg(
         long,
         help = "Bearer token override (defaults to the active CLI session token)"
@@ -39,9 +34,10 @@ pub struct TaskArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: TaskArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: TaskArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let config = host.output();
-    let session_ctx = get_or_create_session(host).await?;
+    let caller = host.caller_session().await?;
+    let api_url = host.services_tree()?.api_external_url().to_owned();
 
     let agent = resolve_required(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
@@ -53,13 +49,12 @@ pub(super) async fn execute(args: TaskArgs, host: &dyn KernelHost) -> Result<Com
         Err(anyhow!("Task ID is required. Use --task-id"))
     })?;
 
-    let base_url = args.url.as_deref().unwrap_or_else(|| session_ctx.api_url());
-    let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
+    let agent_url = format!("{}/api/v1/agents/{}", api_url.trim_end_matches('/'), agent);
 
     let auth_token = args
         .token
         .as_deref()
-        .unwrap_or_else(|| session_ctx.session_token().as_str());
+        .unwrap_or_else(|| caller.token().as_str());
 
     let request = Request {
         jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),

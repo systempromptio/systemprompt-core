@@ -3,20 +3,20 @@ admin	group	-	kernel
 admin access-control	group	-	kernel
 admin access-control export-yaml	leaf	-	kernel
 admin access-control lint	leaf	-	kernel
-admin agents	group	-	kernel
-admin agents create	leaf	-	kernel
-admin agents delete	leaf	-	kernel
-admin agents edit	leaf	-	kernel
-admin agents list	leaf	-	kernel
-admin agents logs	leaf	-	kernel
-admin agents message	leaf	-	kernel
-admin agents registry	leaf	-	kernel
-admin agents run	leaf	ChildHost	kernel
-admin agents show	leaf	-	kernel
-admin agents status	leaf	-	kernel
-admin agents task	leaf	-	kernel
-admin agents tools	leaf	-	kernel
-admin agents validate	leaf	-	kernel
+admin agent-host	group	ChildHost	kernel
+admin agent-host run	leaf	ChildHost	kernel
+admin agents	group	ServicesTree,CallerSession	agent-http
+admin agents create	leaf	ServicesTree,CallerSession	agent-http
+admin agents delete	leaf	ServicesTree,CallerSession	agent-http
+admin agents edit	leaf	ServicesTree,CallerSession	agent-http
+admin agents list	leaf	ServicesTree,CallerSession	agent-http
+admin agents logs	leaf	ServicesTree,CallerSession	agent-http
+admin agents message	leaf	ServicesTree,CallerSession	agent-http
+admin agents registry	leaf	ServicesTree,CallerSession	agent-http
+admin agents show	leaf	ServicesTree,CallerSession	agent-http
+admin agents status	leaf	ServicesTree,CallerSession	agent-http
+admin agents task	leaf	ServicesTree,CallerSession	agent-http
+admin agents validate	leaf	ServicesTree,CallerSession	agent-http
 admin bootstrap	leaf	-	kernel
 admin bridge	group	-	kernel
 admin bridge enroll-cert	leaf	-	kernel
@@ -246,9 +246,9 @@ cloud tenant list	leaf	CloudOperator	systemprompt-cloud-entry
 cloud tenant rotate-credentials	leaf	CloudOperator	systemprompt-cloud-entry
 cloud tenant show	leaf	CloudOperator	systemprompt-cloud-entry
 core	group	-	kernel
-core artifacts	group	-	kernel
-core artifacts list	leaf	-	kernel
-core artifacts show	leaf	-	kernel
+core artifacts	group	CallerSession	agent-http
+core artifacts list	leaf	CallerSession	agent-http
+core artifacts show	leaf	CallerSession	agent-http
 core content	group	-	content-http
 core content analytics	group	-	content-http
 core content analytics campaign	leaf	-	content-http
@@ -274,14 +274,14 @@ core content search	leaf	-	content-http
 core content show	leaf	-	content-http
 core content status	leaf	-	content-http
 core content verify	leaf	-	content-http
-core contexts	group	-	kernel
-core contexts create	leaf	-	kernel
-core contexts delete	leaf	-	kernel
-core contexts edit	leaf	-	kernel
-core contexts list	leaf	-	kernel
-core contexts new	leaf	-	kernel
-core contexts show	leaf	-	kernel
-core contexts use	leaf	-	kernel
+core contexts	group	CallerSession,SessionContext	agent-http
+core contexts create	leaf	CallerSession,SessionContext	agent-http
+core contexts delete	leaf	CallerSession,SessionContext	agent-http
+core contexts edit	leaf	CallerSession,SessionContext	agent-http
+core contexts list	leaf	CallerSession,SessionContext	agent-http
+core contexts new	leaf	CallerSession,SessionContext	agent-http
+core contexts show	leaf	CallerSession,SessionContext	agent-http
+core contexts use	leaf	CallerSession,SessionContext	agent-http
 core files	group	-	files-http
 core files ai	group	-	files-http
 core files ai count	leaf	-	files-http

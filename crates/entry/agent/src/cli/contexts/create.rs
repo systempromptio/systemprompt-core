@@ -3,18 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::Args;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_logging::CliService;
+use systemprompt_database::DbPool;
+use systemprompt_extension::cli::{CallerSession, CommandHost, CommandOutput};
 
+use super::caller_and_pool;
 use super::types::ContextCreatedOutput;
-use crate::session::get_or_create_session;
-use systemprompt_database::pool_from_handle;
-use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -22,17 +20,15 @@ pub struct CreateArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: CreateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(host).await?;
-    let pool = pool_from_handle(host.db().await?)?;
-    execute_with_pool(args, &session_ctx.session, &pool, host.output()).await
+pub(super) async fn execute(args: CreateArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let (caller, pool) = caller_and_pool(host).await?;
+    execute_with_pool(args, &caller, &pool).await
 }
 
 pub async fn execute_with_pool(
     args: CreateArgs,
-    session: &systemprompt_cloud::CliSession,
-    pool: &systemprompt_database::DbPool,
-    config: &systemprompt_extension::cli::CliConfig,
+    caller: &CallerSession,
+    pool: &DbPool,
 ) -> Result<CommandOutput> {
     let repo = ContextRepository::new(pool);
 
@@ -42,8 +38,8 @@ pub async fn execute_with_pool(
 
     let context_id = repo
         .create_context(
-            &session.user_id,
-            Some(&session.session_id),
+            caller.user_id(),
+            Some(caller.session_id()),
             &name,
             ContextKind::User,
         )
@@ -51,16 +47,10 @@ pub async fn execute_with_pool(
         .context("Failed to create context")?;
 
     let output = ContextCreatedOutput {
-        id: context_id.clone(),
-        name: name.clone(),
+        id: context_id,
         message: format!("Context '{}' created successfully", name),
+        name,
     };
-
-    if !config.is_json_output() {
-        CliService::success(&output.message);
-        CliService::key_value("ID", context_id.as_str());
-        CliService::key_value("Name", &name);
-    }
 
     Ok(CommandOutput::card_value("Context Created", &output))
 }

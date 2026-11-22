@@ -1,8 +1,7 @@
-//! Context resource routes for the agent surface.
-//!
-//! Wires the CRUD handlers for A2A contexts plus their nested tasks, artifacts,
-//! events, and notification endpoints, and exposes the webhook broadcast router
-//! used to fan A2A/AG-UI events out to subscribed streams.
+//! Context resource handlers for the agent surface: the caller's contexts,
+//! their notifications and the events forwarded to their streams. The
+//! `/api/v1/core/contexts` route set in [`crate::http`] mounts them with the
+//! nested task and artifact listings.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +13,6 @@ pub mod get_context;
 pub mod list_contexts;
 pub mod notifications;
 pub mod update_context;
-pub mod webhook;
 
 pub use create_context::create_context;
 pub use delete_context::delete_context;
@@ -22,39 +20,3 @@ pub use get_context::get_context;
 pub use list_contexts::list_contexts;
 pub use notifications::handle_context_notification;
 pub use update_context::update_context;
-pub use webhook::{broadcast_a2a_event, broadcast_agui_event, broadcast_context_event};
-
-use axum::Router;
-use axum::routing::{MethodRouter, get, post};
-use systemprompt_runtime::AppContext;
-
-pub fn router() -> Router<AppContext> {
-    let context_root_methods: MethodRouter<AppContext> = get(list_contexts).post(create_context);
-
-    let context_id_methods: MethodRouter<AppContext> =
-        get(get_context).put(update_context).delete(delete_context);
-
-    Router::new()
-        .route("/", context_root_methods)
-        .route("/{id}", context_id_methods)
-        .route(
-            "/{context_id}/tasks",
-            get(super::tasks::list_tasks_by_context),
-        )
-        .route(
-            "/{context_id}/artifacts",
-            get(super::artifacts::list_artifacts_by_context),
-        )
-        .route(
-            "/{context_id}/notifications",
-            post(handle_context_notification),
-        )
-        .route("/{context_id}/events", post(events::forward_event))
-}
-
-pub fn webhook_router() -> Router<AppContext> {
-    Router::new()
-        .route("/broadcast", post(broadcast_context_event))
-        .route("/agui", post(broadcast_agui_event))
-        .route("/a2a", post(broadcast_a2a_event))
-}
