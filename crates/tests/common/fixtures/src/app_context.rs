@@ -498,6 +498,9 @@ pub fn fixture_kernel_seed(
         config: bootstrap.boot_config(),
         services: fixture_services_view(),
         services_root: crate::bootstrap::test_boot_active_services_root(),
+        profile_path: systemprompt_manifest::services::root::ActiveProfilePath {
+            path: bootstrap.profile_path.clone(),
+        },
         secrets: fixture_secret_store(),
         file_storage: parts.file_storage,
         background_tasks: parts.background_tasks,

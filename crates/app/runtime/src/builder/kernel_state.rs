@@ -77,7 +77,8 @@ use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::SystemAdmin;
-use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_loader::subprocess::Spawner;
+use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::{ContentConfigRaw, LateBound};
 #[cfg(feature = "notifications")]
@@ -107,6 +108,7 @@ pub struct KernelSeed<'a> {
     pub config: &'a Arc<Config>,
     pub services: systemprompt_manifest::services::ServicesView,
     pub services_root: ActiveServicesRoot,
+    pub profile_path: ActiveProfilePath,
     pub secrets: Arc<dyn SecretStore>,
     pub file_storage: Arc<dyn FileStorage>,
     pub background_tasks: BackgroundTasks,
@@ -122,6 +124,7 @@ pub struct KernelSeed<'a> {
 pub struct ApiKernelSeed<'a> {
     pub base: KernelSeed<'a>,
     pub signing_keys: &'a SigningKeys,
+    pub spawner: &'a Arc<Spawner>,
     pub oauth: &'a Arc<OAuthRepositories>,
     pub ai: &'a Arc<AiRepositories>,
     pub ai_service: Option<&'a Arc<AiService>>,
@@ -185,6 +188,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with_sealed(Arc::clone(seed.config))
         .with(seed.services)
         .with_sealed(seed.services_root)
+        .with_sealed(seed.profile_path)
         .with_sealed(BundleSources::of(seed.profile))
         .with_sealed(seed.secrets)
         .with_sealed(seed.system_admin.clone())
@@ -198,6 +202,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
 pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
     let mut state = base_kernel_state(seed.base)
         .with_sealed(seed.signing_keys.clone())
+        .with_sealed(Arc::clone(seed.spawner))
         .with(Arc::clone(seed.oauth))
         .with(Arc::clone(seed.ai))
         .with(LateBound::<dyn MessagingDispatcher>::default())

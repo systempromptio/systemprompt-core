@@ -122,6 +122,9 @@ impl HostKernel {
             config: &config,
             services: services.view(),
             services_root: services_root.clone(),
+            profile_path: systemprompt_manifest::services::root::ActiveProfilePath {
+                path: std::path::PathBuf::from(&profile_path),
+            },
             secrets: store,
             file_storage: Arc::clone(&file_storage),
             background_tasks: background_tasks.clone(),
