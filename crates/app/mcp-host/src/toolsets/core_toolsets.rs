@@ -12,8 +12,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Tool};
-use systemprompt_identifiers::McpServerId;
 use systemprompt_extension::mcp::{McpToolset, ToolsetCall};
+use systemprompt_identifiers::McpServerId;
 
 use systemprompt_runtime::documents::links::LinkIssueError;
 use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, DocumentsToolCall};

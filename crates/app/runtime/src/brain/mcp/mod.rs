@@ -2,9 +2,9 @@
 //!
 //! [`BrainMcpTools`] is what an MCP server composes:
 //! [`BrainMcpTools::list_tools`] for `tools/list` and [`BrainMcpTools::call`]
-//! to run one tool through the MCP member's `ToolExecution` after the server has
-//! authenticated the request. Memory reaches the model through the gateway on
-//! its own; these tools inspect it, propose facts as `proposed` and dispute
+//! to run one tool through the MCP member's `ToolExecution` after the server
+//! has authenticated the request. Memory reaches the model through the gateway
+//! on its own; these tools inspect it, propose facts as `proposed` and dispute
 //! them. Every call acts as the authenticated user, and its actor is always the
 //! agent: a tool never confirms, retracts, pins or erases a fact.
 //!
@@ -24,12 +24,12 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
 use systemprompt_brain::service::{BrainCaller, BrainService};
 use systemprompt_extension::brain::MemoryRecall;
+use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
-use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::auth::{RequestActor, agent_name};
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
+use systemprompt_models::mcp::ClientProfile;
 
 pub use dispute::DisputeHandler;
 pub use guide::{GuideHandler, guide_text, refusal_text};
@@ -196,7 +196,14 @@ async fn run<H: McpToolHandler>(
     call: BrainToolCall<'_>,
     handler: &H,
 ) -> Result<CallToolResult, McpError> {
-    match execute(call.executor, handler, call.request, call.context, call.client).await
+    match execute(
+        call.executor,
+        handler,
+        call.request,
+        call.context,
+        call.client,
+    )
+    .await
     {
         Err(error) => refusal_result(&error).ok_or(error),
         ok => ok,

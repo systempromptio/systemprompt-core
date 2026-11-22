@@ -13,12 +13,12 @@ use chrono::{DateTime, Utc};
 use rmcp::ErrorData as McpError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_files::uploads::models::NewUpload;
 use systemprompt_files::uploads::{UploadError, UploadService};
 use systemprompt_identifiers::{
     ContentHash, DocumentUploadId, IssueReportId, JwtToken, McpExecutionId,
 };
-use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_models::execution::context::RequestContext;
 
 use super::IssuesMcpTools;

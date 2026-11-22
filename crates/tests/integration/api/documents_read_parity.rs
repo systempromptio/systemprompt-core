@@ -9,10 +9,10 @@ use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
 use systemprompt_api::routes::documents::{DocumentsState, document_service, router};
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::{
     DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId, McpServerId, UserId,
 };
-use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_runtime::AppContext;
 use systemprompt_runtime::documents::mcp::{

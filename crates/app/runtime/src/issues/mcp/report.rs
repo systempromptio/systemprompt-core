@@ -8,9 +8,9 @@
 use rmcp::ErrorData as McpError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_files::issues::IssueFiling;
 use systemprompt_identifiers::{AgentName, IssueReportId, McpExecutionId};
-use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::issues::{IssueContext, IssueKind, IssueSeverity};
 

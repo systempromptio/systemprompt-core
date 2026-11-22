@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use serde_json::json;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::{DocumentUploadId, IssueReportId, McpServerId};
-use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::issues::{IssueKind, IssueSeverity, IssueStatus};

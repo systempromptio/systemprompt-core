@@ -5,8 +5,9 @@
 //! health, recorded process ids and the running set; no spawner, no
 //! secrets), and, once governance has loaded, the per-server tool executions
 //! (`DynToolExecutions`, open: an execution records usage as the request
-//! context the host hands it and reads no secret). It opens the [`UiSlot`] and the [`AccessRecorderSlot`],
-//! so both built values are present whenever this member is admitted.
+//! context the host hands it and reads no secret). It opens the [`UiSlot`] and
+//! the [`AccessRecorderSlot`], so both built values are present whenever this
+//! member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,13 +16,13 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_extension::mcp::DynToolExecutions;
 use systemprompt_extension::prelude::*;
+use systemprompt_governance::policy::secrets::SecretScannerCell;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
-use systemprompt_extension::mcp::DynToolExecutions;
 use systemprompt_extension::service_process::ServiceProcessSlot;
-use systemprompt_governance::policy::secrets::SecretScannerCell;
 use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
 };
@@ -31,9 +32,9 @@ use crate::repository::ToolUsageRepository;
 use crate::services::McpServiceObserver;
 use crate::services::process_set::McpProcessSet;
 use crate::services::artifact_ingest::ArtifactIngest;
+use crate::services::registry::RegistryService;
 use crate::services::ui_renderer::UiRendererRegistry;
 use crate::tool::McpToolExecutions;
-use crate::services::registry::RegistryService;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct McpExtension;

@@ -49,8 +49,8 @@ mod support;
 mod upload;
 mod write;
 
-use systemprompt_extension::mcp::ToolExecution;
 use std::sync::Arc;
+use systemprompt_extension::mcp::ToolExecution;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
@@ -58,8 +58,8 @@ use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
-use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_models::mcp::ClientProfile;
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
 use systemprompt_provider_contracts::Dependencies;

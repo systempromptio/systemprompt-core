@@ -97,7 +97,11 @@ async fn an_unbound_agent_dispatch_refuses_typed_and_sends_nothing() -> anyhow::
         "an unbound dispatch fails typed, got {error:?}"
     );
     assert!(
-        backend.received_requests().await.unwrap_or_default().is_empty(),
+        backend
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
         "nothing reaches the agent"
     );
     Ok(())

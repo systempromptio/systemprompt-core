@@ -12,11 +12,11 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Serialize;
+use systemprompt_extension::mcp::McpOutputSchema;
 use systemprompt_identifiers::{
     AgentName, ClientId, ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId,
     DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_extension::mcp::McpOutputSchema;
 
 use crate::documents::views::{EditOutput, GrantItem, PeopleOutput, ReadOutput};
 use systemprompt_models::documents::{

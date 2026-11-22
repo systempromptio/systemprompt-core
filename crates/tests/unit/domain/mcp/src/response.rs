@@ -7,9 +7,9 @@ use systemprompt_identifiers::{
     UserId,
 };
 use systemprompt_mcp::{McpResponseBuilder, ToolIdentity};
-use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
+use systemprompt_models::mcp::ClientProfile;
 
 fn test_request_context() -> RequestContext {
     RequestContext::new(

@@ -22,12 +22,12 @@ use std::sync::Arc;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
+use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
 use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
-use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
-use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_models::mcp::ClientProfile;
 
 use self::attach::AttachmentHandler;
 use self::read::{ListHandler, StatusHandler};
@@ -163,7 +163,14 @@ async fn run<H: McpToolHandler>(
     call: IssuesToolCall<'_>,
     handler: &H,
 ) -> Result<CallToolResult, McpError> {
-    match execute(call.executor, handler, call.request, call.context, call.client).await
+    match execute(
+        call.executor,
+        handler,
+        call.request,
+        call.context,
+        call.client,
+    )
+    .await
     {
         Err(error) => refusal_result(&error).ok_or(error),
         ok => ok,
