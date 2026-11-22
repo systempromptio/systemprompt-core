@@ -10,6 +10,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
 use systemprompt_models::attribution::DynRequestAttributionLookup;
+use systemprompt_traits::DynToolCallIntentClaims;
 
 use crate::repository::AiRequestRepository;
 
@@ -31,6 +32,12 @@ impl Extension for AiExtension {
         }
         c.migrations(extension_migrations!()).provide(
             |r: &Resolved<'_>| -> Result<DynRequestAttributionLookup, ProvideError> {
+                let db = r.get::<DbPool>()?;
+                Ok(Arc::new(AiRequestRepository::new(&db)))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynToolCallIntentClaims, ProvideError> {
                 let db = r.get::<DbPool>()?;
                 Ok(Arc::new(AiRequestRepository::new(&db)))
             },

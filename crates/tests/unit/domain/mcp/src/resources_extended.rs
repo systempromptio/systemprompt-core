@@ -1,9 +1,7 @@
 use rmcp::model::ReadResourceRequestParams;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_mcp::{
-    ArtifactViewerConfig, WEBSITE_URL, build_artifact_viewer_resource, default_server_icons,
-    read_artifact_viewer_resource,
-};
+use systemprompt_mcp::{ArtifactViewerConfig, build_artifact_viewer_resource, default_server_icons, read_artifact_viewer_resource};
+use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 
 #[test]
 fn build_artifact_viewer_empty_icons() {

@@ -4,7 +4,7 @@ use serde_json::json;
 use systemprompt_brain::BrainError;
 use systemprompt_brain::models::FactFilter;
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::brain::FactScope;
 use systemprompt_models::execution::context::RequestContext;

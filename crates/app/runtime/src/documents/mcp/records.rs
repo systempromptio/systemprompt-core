@@ -6,7 +6,7 @@
 
 use schemars::JsonSchema;
 use serde::Serialize;
-use systemprompt_mcp::McpOutputSchema;
+use systemprompt_extension::mcp::McpOutputSchema;
 
 use super::outputs::{DocumentItem, documents_output};
 use crate::documents::views::{AccessOutput, CommentOutput};

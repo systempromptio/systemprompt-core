@@ -15,7 +15,7 @@ use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{McpExecutionId, McpServerId};
 use systemprompt_models::RequestContext;
 
-use crate::schema::McpOutputSchema;
+use super::schema::McpOutputSchema;
 
 pub trait McpToolHandler: Send + Sync {
     type Input: DeserializeOwned + JsonSchema + Send;
@@ -64,9 +64,9 @@ pub trait McpToolHandler: Send + Sync {
         tool.annotations = self
             .read_only()
             .then(|| rmcp::model::ToolAnnotations::new().read_only(true));
-        tool.meta = Some(rmcp::model::MetaObject(crate::capabilities::tool_ui_meta(
+        tool.meta = Some(rmcp::model::MetaObject(super::capabilities::tool_ui_meta(
             server_name,
-            &crate::capabilities::default_tool_visibility(),
+            &super::capabilities::default_tool_visibility(),
         )));
         tool
     }

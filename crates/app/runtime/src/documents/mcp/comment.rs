@@ -14,7 +14,7 @@ use systemprompt_files::documents::service::{
     CommentRequest, ReopenCommentRequest, ResolveCommentRequest,
 };
 use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::execution::context::RequestContext;
 

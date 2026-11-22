@@ -9,7 +9,7 @@ use rmcp::model::{
     ReadResourceRequestParams, ReadResourceResult, Resource, ResourceContents,
 };
 
-use crate::capabilities::WEBSITE_URL;
+use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 use crate::repository::McpArtifactRepository;
 use crate::services::ui_renderer::{
     CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, UiRendererRegistry,

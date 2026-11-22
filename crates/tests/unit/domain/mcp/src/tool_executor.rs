@@ -21,7 +21,7 @@ fn intents(db: &systemprompt_database::DbPool) -> DynToolCallIntentClaims {
 async fn tool_executor_construction_and_clone() {
     let db = test_db_pool().await;
     let tool_repo = Arc::new(ToolUsageRepository::new(&db));
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default()));
     let exec = McpToolExecutor::new(
         tool_repo,
         intents(&db),

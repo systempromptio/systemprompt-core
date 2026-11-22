@@ -26,9 +26,10 @@ use systemprompt_manifest::services::ServicesView;
 use super::catalog::{HostedCatalog, ToolsetHostError};
 use super::recorder::{McpAccessOutcome, SharedMcpAccessRecorder};
 use crate::middleware::hop::VerifiedHop;
-use crate::toolset::{McpToolset, ToolsetCall};
+use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
+use systemprompt_extension::mcp::{DynToolExecution, McpToolset, ToolsetCall};
 use crate::{
-    McpToolExecutor, WEBSITE_URL, build_tool_list_result, client_profile_from_peer,
+    build_tool_list_result, client_profile_from_peer,
     default_server_icons,
 };
 
@@ -50,7 +51,7 @@ impl std::fmt::Debug for ToolsetAuthz {
 #[derive(Debug)]
 pub struct ToolsetServerParts {
     pub server_id: McpServerId,
-    pub executor: McpToolExecutor,
+    pub executor: DynToolExecution,
     pub authz: ToolsetAuthz,
     pub recorders: Vec<SharedMcpAccessRecorder>,
     pub toolsets: Vec<Box<dyn McpToolset>>,
@@ -64,7 +65,7 @@ pub struct ToolsetServer {
 #[derive(Debug)]
 pub(super) struct Inner {
     pub(super) server_id: McpServerId,
-    pub(super) executor: McpToolExecutor,
+    pub(super) executor: DynToolExecution,
     pub(super) authz: ToolsetAuthz,
     pub(super) recorders: Vec<SharedMcpAccessRecorder>,
     pub(super) toolsets: Vec<Box<dyn McpToolset>>,
@@ -184,7 +185,7 @@ impl ServerHandler for ToolsetServer {
             .map(|hop| hop.token().clone());
         self.inner.toolsets[hosted.toolset]
             .call(ToolsetCall {
-                executor: &self.inner.executor,
+                executor: self.inner.executor.as_ref(),
                 request: &request,
                 context: &context,
                 client: &client,

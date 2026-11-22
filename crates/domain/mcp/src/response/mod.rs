@@ -31,7 +31,7 @@
 
 mod wire;
 
-use crate::schema::McpOutputSchema;
+use systemprompt_extension::mcp::McpOutputSchema;
 use crate::services::artifact_ingest::{ArtifactIngest, IngestOutcome, IngestRequest};
 use crate::services::ui_renderer::UiRendererRegistry;
 use rmcp::ErrorData as McpError;

@@ -42,7 +42,7 @@ fn request(result: CallToolResult, session: &str) -> IngestRequest {
 
 async fn ingest() -> ArtifactIngest {
     let db = systemprompt_test_fixtures::test_db_pool().await;
-    ArtifactIngest::from_db(&db, None)
+    ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default())
 }
 
 #[test]

@@ -211,7 +211,12 @@ impl HostKernel {
         ));
 
         let parts = HostParts {
-            artifact_ingest: build_artifact_ingest(&database, &governance),
+            artifact_ingest: build_artifact_ingest(
+                &database,
+                &governance,
+                r.get::<systemprompt_governance::policy::secrets::SecretScannerCell>()
+                    .map_err(RuntimeError::from)?,
+            ),
             tool_call_intents: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
                 &database,
             )),

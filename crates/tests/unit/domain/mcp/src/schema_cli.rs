@@ -1,4 +1,4 @@
-use systemprompt_mcp::McpOutputSchema;
+use systemprompt_extension::mcp::McpOutputSchema;
 use systemprompt_models::artifacts::cli::CliArtifact;
 use systemprompt_models::artifacts::{
     DashboardArtifact, ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,

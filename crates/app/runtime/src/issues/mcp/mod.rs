@@ -25,7 +25,8 @@ use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
 use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
-use systemprompt_mcp::{ClientProfile, McpToolExecutor, McpToolHandler};
+use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
+use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::execution::context::RequestContext;
 
 use self::attach::AttachmentHandler;
@@ -56,7 +57,7 @@ const TOOL_NAMES: [&str; 4] = [
 /// One tool call, already authenticated by the composing server.
 #[derive(Debug, Clone, Copy)]
 pub struct IssuesToolCall<'a> {
-    pub executor: &'a McpToolExecutor,
+    pub executor: &'a dyn ToolExecution,
     pub request: &'a CallToolRequestParams,
     pub context: &'a RequestContext,
     pub client: &'a ClientProfile,
@@ -162,10 +163,7 @@ async fn run<H: McpToolHandler>(
     call: IssuesToolCall<'_>,
     handler: &H,
 ) -> Result<CallToolResult, McpError> {
-    match call
-        .executor
-        .execute(handler, call.request, call.context, call.client)
-        .await
+    match execute(call.executor, handler, call.request, call.context, call.client).await
     {
         Err(error) => refusal_result(&error).ok_or(error),
         ok => ok,

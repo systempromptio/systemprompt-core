@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_mcp::McpToolset;
+use systemprompt_extension::mcp::McpToolset;
 
 pub type ToolsetBuildError = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type ToolsetBuildResult = Result<Option<Box<dyn McpToolset>>, ToolsetBuildError>;

@@ -10,7 +10,7 @@ use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::{Document, ListedDocument, ListingCursor};
 use systemprompt_files::documents::service::{HistoryPage, ListFolderRequest};
 use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::DocumentUri;
 use systemprompt_models::execution::context::RequestContext;
 

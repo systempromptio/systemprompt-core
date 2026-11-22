@@ -9,10 +9,9 @@ use systemprompt_identifiers::{
     AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
-use systemprompt_mcp::{
-    ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, ResponseServices,
-    ToolIdentity, UI_RESOURCE_URI_META_KEY,
-};
+use systemprompt_mcp::{ArtifactIngest, McpResponseBuilder, ResponseServices, ToolIdentity, UI_RESOURCE_URI_META_KEY};
+use systemprompt_extension::mcp::McpOutputSchema;
+use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -48,7 +47,7 @@ fn test_ctx() -> RequestContext {
 #[tokio::test]
 async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None);
+    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 
@@ -100,7 +99,7 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
 #[tokio::test]
 async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None);
+    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 

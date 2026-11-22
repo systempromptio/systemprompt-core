@@ -89,7 +89,7 @@ pub(super) async fn scan_body(
     }
 
     let mut findings = Vec::new();
-    let secret_redactions = ingest.secrets.as_deref().map_or(0, |scanner| {
+    let secret_redactions = ingest.secrets.get().map_or(0, |scanner| {
         redact_secrets(scanner, &mut body, &mut findings)
     });
 

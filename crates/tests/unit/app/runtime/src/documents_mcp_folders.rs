@@ -2,7 +2,7 @@ use serde_json::json;
 use systemprompt_files::documents::agents::{AgentCap, DocumentActor, act_as};
 use systemprompt_files::documents::service::AgentCapTarget;
 use systemprompt_identifiers::{AgentName, DocumentFolderId, TraceId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
     DocumentsMcpTools, FolderHandler, FolderInput, FolderItem, ListHandler, ListInput,

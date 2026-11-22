@@ -1,7 +1,7 @@
 use base64::Engine;
 use serde_json::json;
 use systemprompt_identifiers::DocumentUploadId;
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{

@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_files::issues::IssueListQuery;
 use systemprompt_identifiers::{IssueReportId, McpExecutionId};
-use systemprompt_mcp::{McpOutputSchema, McpToolHandler};
+use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::issues::{IssueReport, IssueStatus};
 

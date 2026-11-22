@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use rmcp::model::Tool;
 use serde_json::{Map, Value as JsonValue, json};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 
 #[cfg(feature = "notifications")]
 use super::InboxHandler;

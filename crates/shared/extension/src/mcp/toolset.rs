@@ -2,14 +2,13 @@
 //!
 //! An [`McpToolset`] is a named group of tools a binary links in. A deployment
 //! lists the ids it hosts under `toolsets:` and core's generic host
-//! ([`crate::host::ToolsetServer`]) serves their union: it filters the tool
+//! (`systemprompt_mcp::host::ToolsetServer`) serves their union: it filters the tool
 //! list per caller and gates every call on the access the YAML resolves for
 //! that tool. The toolset itself only lists its tools and executes a call that
 //! has already been authenticated and authorised.
 //!
-//! Factories that build a toolset from the application context live with that
-//! context, in `systemprompt-mcp-host` (`submit_toolset!`), because this crate
-//! sits below it.
+//! Factories that build a toolset from the host context live in
+//! `systemprompt-mcp-host`, which sits above this crate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,12 +25,12 @@ use systemprompt_identifiers::JwtToken;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
 
-use crate::tool::McpToolExecutor;
+use super::execution::ToolExecution;
 
 /// One tool call, already authenticated and authorised by the host.
 #[derive(Debug, Clone, Copy)]
 pub struct ToolsetCall<'a> {
-    pub executor: &'a McpToolExecutor,
+    pub executor: &'a dyn ToolExecution,
     pub request: &'a CallToolRequestParams,
     pub context: &'a RequestContext,
     pub client: &'a ClientProfile,

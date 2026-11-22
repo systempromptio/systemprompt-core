@@ -43,7 +43,7 @@ systemprompt-config = { workspace = true }
 systemprompt-client = { workspace = true }
 jsonwebtoken = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-extension = { workspace = true, features = ["sqlx"] }
+systemprompt-extension = { workspace = true, features = ["sqlx", "mcp"] }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }

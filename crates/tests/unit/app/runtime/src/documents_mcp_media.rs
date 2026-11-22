@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_provider_contracts::documents::{EditOp, InsertBlock, InsertImage, NodeTarget};
 use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, EditHandler, EditInput};
 use systemprompt_runtime::documents::refusal::RefusalCode;

@@ -15,7 +15,7 @@ use systemprompt_extension::brain::{
     RecallConversation, RecallOutcome, RecallPrincipal, RecallRequest, ReuseHint,
 };
 use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::brain::{BrainFact, RecallCtx, SubjectKey};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::origin::ClientKind;

@@ -2,7 +2,7 @@
 //!
 //! [`ToolsetServer`] absorbs what every hand-written MCP server binary
 //! repeated — server info and icons, RBAC and the governance hook on every
-//! request, an access-audit row per outcome, one [`crate::McpToolExecutor`] —
+//! request, an access-audit row per outcome, one `ToolExecution` —
 //! and adds per-caller tool filtering from the YAML's `access:` blocks. The
 //! `systemprompt-mcp-host` crate wraps it in `serve(ctx, server_id)`, which
 //! builds the deployment's toolsets from the built toolset slot and binds the

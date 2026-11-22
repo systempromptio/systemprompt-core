@@ -2,7 +2,7 @@
 //!
 //! [`BrainMcpTools`] is what an MCP server composes:
 //! [`BrainMcpTools::list_tools`] for `tools/list` and [`BrainMcpTools::call`]
-//! to run one tool through core's [`McpToolExecutor`] after the server has
+//! to run one tool through the MCP member's `ToolExecution` after the server has
 //! authenticated the request. Memory reaches the model through the gateway on
 //! its own; these tools inspect it, propose facts as `proposed` and dispute
 //! them. Every call acts as the authenticated user, and its actor is always the
@@ -26,7 +26,8 @@ use systemprompt_brain::service::{BrainCaller, BrainService};
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_mcp::{ClientProfile, McpToolExecutor, McpToolHandler};
+use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
+use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::auth::{RequestActor, agent_name};
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
 
@@ -70,7 +71,7 @@ pub enum BrainMcpUnavailable {
 /// One tool call, already authenticated by the composing server.
 #[derive(Debug, Clone, Copy)]
 pub struct BrainToolCall<'a> {
-    pub executor: &'a McpToolExecutor,
+    pub executor: &'a dyn ToolExecution,
     pub request: &'a CallToolRequestParams,
     pub context: &'a RequestContext,
     pub client: &'a ClientProfile,
@@ -195,10 +196,7 @@ async fn run<H: McpToolHandler>(
     call: BrainToolCall<'_>,
     handler: &H,
 ) -> Result<CallToolResult, McpError> {
-    match call
-        .executor
-        .execute(handler, call.request, call.context, call.client)
-        .await
+    match execute(call.executor, handler, call.request, call.context, call.client).await
     {
         Err(error) => refusal_result(&error).ok_or(error),
         ok => ok,

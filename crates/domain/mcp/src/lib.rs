@@ -36,7 +36,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub(crate) mod capabilities;
 pub(crate) mod client_profile;
 pub mod contract;
 pub(crate) mod error;
@@ -49,10 +48,8 @@ pub(crate) mod progress;
 pub mod repository;
 pub(crate) mod resources;
 pub(crate) mod response;
-pub(crate) mod schema;
 pub mod services;
 pub(crate) mod tool;
-pub mod toolset;
 
 pub use extension::McpExtension;
 
@@ -62,10 +59,6 @@ pub use rmcp::model::CallToolResult;
 
 pub type McpResult<T> = Result<T, McpError>;
 
-pub use capabilities::{
-    WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension,
-    model_only_visibility, tool_ui_meta, visibility_to_json,
-};
 pub use client_profile::{client_profile_from_peer, client_profile_from_stored};
 pub use progress::{ProgressCallback, create_progress_callback};
 pub use repository::{
@@ -82,7 +75,6 @@ pub use response::{
     McpResponseBuilder, ResponseServices, ToolIdentity, UI_RESOURCE_URI_META_KEY,
     terse_execution_meta,
 };
-pub use schema::McpOutputSchema;
 pub use services::artifact_ingest::{
     ArtifactIngest, ArtifactScanner, FINGERPRINT_WINDOW_SECONDS, IngestOutcome, IngestRequest,
     MAX_PAYLOAD_BYTES, ScanOutcome, from_canonical_tool_result, from_hook_failure,
@@ -91,12 +83,9 @@ pub use services::artifact_ingest::{
 pub use services::intent_claim::IntentClaimService;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
-pub use systemprompt_models::mcp::ClientProfile;
 pub use tool::{
-    INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutor, McpToolHandler, build_tool_list_result,
-    object_input_schema,
+    INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutions, McpToolExecutor, build_tool_list_result,
 };
-pub use toolset::{McpToolset, ToolsetCall};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings,

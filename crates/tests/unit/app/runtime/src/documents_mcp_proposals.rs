@@ -5,7 +5,7 @@
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::service::ShareRequest;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId, TraceId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
     AccessLevel, ContentAs, EditMode, EditOp, NodeTarget, ProposalStatus,

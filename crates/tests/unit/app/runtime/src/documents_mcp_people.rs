@@ -1,4 +1,4 @@
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::AccessLevel;
 use systemprompt_runtime::documents::mcp::{PeopleHandler, PeopleInput, ShareHandler, ShareInput};
 use systemprompt_runtime::documents::refusal::RefusalCode;

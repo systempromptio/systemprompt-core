@@ -23,7 +23,7 @@ use std::sync::{Arc, RwLock};
 use chrono::{DateTime, Utc};
 use rmcp::model::CallToolResult;
 use serde_json::Value as JsonValue;
-use systemprompt_governance::policy::secrets::SecretScanner;
+use systemprompt_governance::policy::secrets::SecretScannerCell;
 use systemprompt_identifiers::{
     AiToolCallId, ArtifactId, McpExecutionId, McpServerId, McpToolName, SkillId, SkillName,
 };
@@ -93,14 +93,14 @@ pub struct ArtifactIngest {
     findings: Arc<ArtifactFindingRepository>,
     executions: Arc<ToolUsageRepository>,
     ingest_marks: Arc<ToolResultIngestMarkRepository>,
-    secrets: Option<Arc<SecretScanner>>,
+    secrets: SecretScannerCell,
     scanners: RwLock<Vec<Arc<dyn ArtifactScanner>>>,
 }
 
 impl std::fmt::Debug for ArtifactIngest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ArtifactIngest")
-            .field("secret_scanner", &self.secrets.is_some())
+            .field("secret_scanner", &self.secrets.is_bound())
             .field(
                 "scanners",
                 &self.scanners.read().map(|s| s.len()).unwrap_or_default(),
@@ -111,7 +111,7 @@ impl std::fmt::Debug for ArtifactIngest {
 
 impl ArtifactIngest {
     #[must_use]
-    pub fn new(repos: ArtifactIngestRepositories, secrets: Option<Arc<SecretScanner>>) -> Self {
+    pub fn new(repos: ArtifactIngestRepositories, secrets: SecretScannerCell) -> Self {
         Self {
             artifacts: repos.artifacts,
             payloads: repos.payloads,
@@ -125,7 +125,7 @@ impl ArtifactIngest {
 
     pub fn from_db(
         db: &systemprompt_database::DbPool,
-        secrets: Option<Arc<SecretScanner>>,
+        secrets: SecretScannerCell,
     ) -> Self {
         Self::new(ArtifactIngestRepositories::new(db), secrets)
     }

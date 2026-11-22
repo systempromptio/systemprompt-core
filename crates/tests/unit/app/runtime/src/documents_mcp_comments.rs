@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_identifiers::{DocumentCommentId, DocumentId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{CommentHandler, CommentInput, DocumentsMcpTools};
 use systemprompt_runtime::documents::refusal::RefusalCode;

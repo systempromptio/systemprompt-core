@@ -18,7 +18,7 @@ use systemprompt_files::uploads::{UploadError, UploadService};
 use systemprompt_identifiers::{
     ContentHash, DocumentUploadId, IssueReportId, JwtToken, McpExecutionId,
 };
-use systemprompt_mcp::{McpOutputSchema, McpToolHandler};
+use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_models::execution::context::RequestContext;
 
 use super::IssuesMcpTools;

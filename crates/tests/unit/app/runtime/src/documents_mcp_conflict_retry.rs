@@ -11,7 +11,7 @@
 
 use std::time::Duration;
 
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::EditOp;
 use systemprompt_runtime::documents::mcp::{EditHandler, EditInput};
 use systemprompt_test_fixtures::DisposableDb;

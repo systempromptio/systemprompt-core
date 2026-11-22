@@ -396,7 +396,8 @@ pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBrid
 
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
     Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
-        db, None,
+        db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
     )))
 }
 

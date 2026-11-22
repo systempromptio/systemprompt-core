@@ -18,7 +18,7 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::mcp::{Deployment, ResolvedAccess};
 
-use crate::toolset::McpToolset;
+use systemprompt_extension::mcp::McpToolset;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ToolsetHostError {

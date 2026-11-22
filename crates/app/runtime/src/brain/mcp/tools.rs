@@ -16,7 +16,7 @@ use rmcp::model::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{BrainDisputeId, BrainFactId, EventOutboxId, FactKindId, TopicId};
-use systemprompt_mcp::McpOutputSchema;
+use systemprompt_extension::mcp::McpOutputSchema;
 use systemprompt_models::brain::{BrainFact, FactScope, FactSource, FactStatus, ScopeLevel};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]

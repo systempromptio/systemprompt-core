@@ -248,7 +248,11 @@ impl AppContextBuilder {
         )?;
         let subsystems = Subsystems {
             ai_service,
-            artifact_ingest: build_artifact_ingest(&database, &governance.get()),
+            artifact_ingest: build_artifact_ingest(
+                &database,
+                &governance.get(),
+                r.get::<systemprompt_governance::policy::secrets::SecretScannerCell>()?,
+            ),
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,

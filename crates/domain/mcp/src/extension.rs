@@ -3,7 +3,9 @@
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
 //! resource scopes) and the read-only `Arc<McpServiceObserver>` (server
 //! health, recorded process ids and the running set; no spawner, no
-//! secrets). It opens the [`UiSlot`] and the [`AccessRecorderSlot`],
+//! secrets), and, once governance has loaded, the per-server tool executions
+//! (`DynToolExecutions`, open: an execution records usage as the request
+//! context the host hands it and reads no secret). It opens the [`UiSlot`] and the [`AccessRecorderSlot`],
 //! so both built values are present whenever this member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -17,11 +19,16 @@ use systemprompt_extension::prelude::*;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
-use systemprompt_traits::{DynToolExecutionLookup, McpRegistryProvider};
+use systemprompt_extension::mcp::DynToolExecutions;
+use systemprompt_governance::policy::secrets::SecretScannerCell;
+use systemprompt_traits::{DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider};
 
 use crate::contract::{AccessRecorderSlot, UiSlot};
 use crate::repository::ToolUsageRepository;
 use crate::services::McpServiceObserver;
+use crate::services::artifact_ingest::ArtifactIngest;
+use crate::services::ui_renderer::UiRendererRegistry;
+use crate::tool::McpToolExecutions;
 use crate::services::registry::RegistryService;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -145,6 +152,17 @@ impl Extension for McpExtension {
                     ServiceRepository::new(&db, r.get::<InstanceId>()?),
                     r.get::<Arc<AppPaths>>()?,
                     registry,
+                )))
+            },
+        );
+        c.provide_after_governance(
+            |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
+                let db = r.get::<DbPool>()?;
+                Ok(Arc::new(McpToolExecutions::new(
+                    Arc::new(ToolUsageRepository::new(&db)),
+                    r.get::<DynToolCallIntentClaims>()?,
+                    Arc::new(ArtifactIngest::from_db(&db, r.get::<SecretScannerCell>()?)),
+                    r.get::<Arc<UiRendererRegistry>>()?,
                 )))
             },
         );

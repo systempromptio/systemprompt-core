@@ -25,6 +25,13 @@ pub use recovery::{MAX_RECOVERY_FINDINGS, REDACTION_MARKER, redact_spans};
 pub use signatures::SignatureExemptions;
 use systemprompt_provider_contracts::governance::{GovernedInput, GovernedString, SecretFinding};
 
+/// The secret scanner, bound once the governance engine has loaded.
+///
+/// The engine loads after the kernel resolves, so a member that persists
+/// artifacts holds this cell and reads the scanner at scan time; unbound
+/// means no secret-scan policy is configured yet.
+pub type SecretScannerCell = systemprompt_models::LateBound<SecretScanner>;
+
 #[derive(Debug, Clone)]
 pub struct SecretScanner {
     patterns: Vec<CompiledSecretPattern>,
