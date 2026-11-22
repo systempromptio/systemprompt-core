@@ -86,6 +86,7 @@ members = [
     "unit/entry/files",
     "unit/entry/mcp",
     "unit/entry/agent",
+    "unit/entry/brain",
     "unit/entry/api",
     "unit/entry/cli",
     "unit/entry/notifications",
@@ -330,6 +331,7 @@ systemprompt-marketplace-entry = { path = "../entry/marketplace" }
 systemprompt-files-entry = { path = "../entry/files" }
 systemprompt-mcp-entry = { path = "../entry/mcp" }
 systemprompt-agent-entry = { path = "../entry/agent" }
+systemprompt-brain-entry = { path = "../entry/brain" }
 systemprompt-notifications-entry = { path = "../entry/notifications" }
 systemprompt-bridge = { path = "../../bin/bridge" }
 

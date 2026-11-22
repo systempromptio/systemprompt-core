@@ -23,6 +23,16 @@ fn card(output: &systemprompt_extension::cli::CommandOutput) -> serde_json::Valu
 
 #[tokio::test]
 async fn bootstrap_is_idempotent_and_grants_the_admin_role() {
+    use systemprompt_test_fixtures::DisposableDb;
+
+    let database = DisposableDb::with_schema("cli_bootstrap_idempotent").await;
+    // SAFETY: nextest runs this test in its own process and the bootstrap singleton
+    // has not been initialized; the private URL is installed before any
+    // configuration is read.
+    unsafe {
+        std::env::set_var("DATABASE_URL", database.url());
+        std::env::set_var("TEST_DATABASE_URL", database.url());
+    }
     let config = bootstrap_ctx();
 
     let first = execute(args(None), &config).await.unwrap();
@@ -41,6 +51,8 @@ async fn bootstrap_is_idempotent_and_grants_the_admin_role() {
     let configured = config.config().unwrap().system_admin_username.clone();
     let third = execute(args(Some(&configured)), &config).await.unwrap();
     assert!(card(&third).to_string().contains(&configured));
+
+    database.drop_now().await;
 }
 
 #[tokio::test]

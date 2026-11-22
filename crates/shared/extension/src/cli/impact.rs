@@ -50,7 +50,8 @@ pub enum RoutingClass {
 /// keep their profile-establishing path and ignore it, and `Unsupported`
 /// commands fail before any connection is dialed. A kernel command's routing
 /// is projected from its arguments; a member command's is `Direct` exactly
-/// when its declaration holds [`CommandClaim::DirectDatabase`](super::CommandClaim::DirectDatabase) and
+/// when its declaration holds
+/// [`CommandClaim::DirectDatabase`](super::CommandClaim::DirectDatabase) and
 /// `Unsupported` otherwise.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DbUrlRouting {

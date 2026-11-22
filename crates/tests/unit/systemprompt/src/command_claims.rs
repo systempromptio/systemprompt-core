@@ -209,7 +209,10 @@ fn an_install_database_command_is_remote_mutating_destructive_and_profile_bound(
     let resolved = resolve(&offline, "probe-offline")
         .expect("a command without a database makes no claim")
         .expect("the probe group is a contributed command");
-    assert_eq!(resolved.parsed.descriptor().routing_class(), RoutingClass::LocalOnly);
+    assert_eq!(
+        resolved.parsed.descriptor().routing_class(),
+        RoutingClass::LocalOnly
+    );
 }
 
 #[test]

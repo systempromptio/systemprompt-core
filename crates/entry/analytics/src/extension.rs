@@ -132,10 +132,12 @@ mod commands {
                 ]),
         );
         #[cfg(feature = "content-commands")]
-        c.command(CommandDecl::leaf_under::<
-            systemprompt_extension::cli::parents::ContentGroup,
-            crate::cli::content_popular::PopularArgs,
-        >()
-        .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]));
+        c.command(
+            CommandDecl::leaf_under::<
+                systemprompt_extension::cli::parents::ContentGroup,
+                crate::cli::content_popular::PopularArgs,
+            >()
+            .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]),
+        );
     }
 }

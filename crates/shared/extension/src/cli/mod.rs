@@ -1,10 +1,10 @@
 //! CLI command declarations and the types a command's body uses.
 //!
 //! [`KernelGrant`] and [`CommandClaim`] are always compiled, because the
-//! kernel's reserved CLI paths name them. With the `cli` feature, a member declares a clap group or
-//! leaf with `Contributions::command`, and the command runs against a
-//! [`CommandHost`] — the one surface the CLI kernel exposes — and returns a
-//! [`CommandOutput`] the kernel renders.
+//! kernel's reserved CLI paths name them. With the `cli` feature, a member
+//! declares a clap group or leaf with `Contributions::command`, and the command
+//! runs against a [`CommandHost`] — the one surface the CLI kernel exposes —
+//! and returns a [`CommandOutput`] the kernel renders.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -48,11 +48,11 @@ pub use command::{
 pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]
 pub use descriptor::{CommandDescriptor, DescribeCommand};
-#[cfg(feature = "cli")]
-pub use impact::{DataImpact, DbUrlRouting, RoutingClass};
 pub use grant::KernelGrant;
 #[cfg(feature = "cli")]
 pub use granted::{CallerSession, ServicesTree};
+#[cfg(feature = "cli")]
+pub use impact::{DataImpact, DbUrlRouting, RoutingClass};
 #[cfg(feature = "cli")]
 pub use output::{
     ChartType, CommandOutput, FileSummary, KeyValueItem, KeyValueOutput, SuccessOutput,

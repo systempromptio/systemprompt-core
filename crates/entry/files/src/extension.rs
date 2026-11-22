@@ -57,10 +57,9 @@ mod commands {
     use crate::cli::FilesCommands;
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
-        c.requires::<Arc<FileRepository>>()
-            .command(
-                CommandDecl::group_under::<parents::Core, FilesCommands>()
-                    .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]),
-            );
+        c.requires::<Arc<FileRepository>>().command(
+            CommandDecl::group_under::<parents::Core, FilesCommands>()
+                .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]),
+        );
     }
 }

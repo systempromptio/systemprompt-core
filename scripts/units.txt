@@ -55,6 +55,7 @@ systemprompt-teams-entry           capability:teams
 systemprompt-notifications         capability:notifications
 systemprompt-notifications-entry   capability:notifications
 systemprompt-brain                 capability:brain
+systemprompt-brain-entry           capability:brain
 systemprompt-scheduler              kernel
 systemprompt-agent-runs            capability:agent-runs
 systemprompt-agent-runs-entry      capability:agent-runs

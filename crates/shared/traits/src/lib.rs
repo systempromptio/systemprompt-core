@@ -48,10 +48,10 @@ pub use service_process::{
     DynServiceProcessSet, ServiceProcessError, ServiceProcessKind, ServiceProcessSet,
     ServiceProcessStatus,
 };
-pub use agent_server::{AgentServeError, AgentServer, DynAgentServer};
 pub use agent_run_launcher::{
     AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,
 };
+pub use agent_server::{AgentServeError, AgentServer, DynAgentServer};
 pub mod ai_providers;
 pub mod analytics;
 pub mod background_tasks;

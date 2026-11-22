@@ -60,6 +60,7 @@ api = [
     "systemprompt-files-entry?/http",
     "systemprompt-mcp-entry?/http",
     "systemprompt-agent-entry?/http",
+    "systemprompt-brain-entry?/http",
 ]
 
 # Cloud infrastructure (API client, credentials, OAuth)
@@ -148,7 +149,7 @@ notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notificatio
 
 # The brain: revisioned organisational memory, its capture consumer and gateway recall. `full` implies it.
 # Without it the documents store records no brain event and the gateway injects no team memory.
-brain = ["dep:systemprompt-brain", "notifications", "systemprompt-runtime?/brain", "systemprompt-mcp-host?/brain", "systemprompt-api?/brain"]
+brain = ["dep:systemprompt-brain", "dep:systemprompt-brain-entry", "notifications", "systemprompt-runtime?/brain", "systemprompt-mcp-host?/brain", "systemprompt-api?/brain"]
 
 # Full functionality including all domain modules and CLI
 full = [
@@ -232,6 +233,7 @@ systemprompt-marketplace-entry = { workspace = true, optional = true }
 systemprompt-files-entry = { workspace = true, optional = true }
 systemprompt-mcp-entry = { workspace = true, optional = true }
 systemprompt-agent-entry = { workspace = true, optional = true }
+systemprompt-brain-entry = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-analytics-entry = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
@@ -293,4 +295,4 @@ name = "cli"
 required-features = ["full"]
 
 [package.metadata.cargo-machete]
-ignored = ["systemprompt-agent-entry"]
+ignored = ["systemprompt-agent-entry", "systemprompt-brain-entry"]
