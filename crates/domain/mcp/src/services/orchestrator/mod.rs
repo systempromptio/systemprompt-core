@@ -39,7 +39,18 @@ use super::observer::McpServiceObserver;
 use super::process::ProcessService;
 use super::registry::RegistryService;
 use crate::McpServerConfig;
-use systemprompt_config::SecretsService;
+use systemprompt_config::DynChildSecretEnv;
+use systemprompt_security::keys::TokenVerificationKeys;
+
+/// What the orchestrator spawns servers with: the spawner, the grant-scoped
+/// secret environment and the public verification key set handed to every
+/// child.
+#[derive(Debug, Clone)]
+pub struct McpSpawn {
+    pub spawner: Arc<Spawner>,
+    pub secrets: DynChildSecretEnv,
+    pub verification_keys: TokenVerificationKeys,
+}
 
 #[derive(Debug)]
 pub struct McpOrchestrator {
@@ -60,15 +71,19 @@ impl McpOrchestrator {
         service_repo: ServiceRepository,
         app_paths: Arc<AppPaths>,
         registry: RegistryService,
-        spawner: Arc<Spawner>,
-        secrets: Arc<SecretsService>,
+        spawn: McpSpawn,
     ) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
 
         registry.validate()?;
         let database = DatabaseService::new(service_repo, Arc::clone(&app_paths), registry.clone());
         let network = NetworkService::new();
-        let process = ProcessService::new(spawner, Arc::clone(registry.config()), secrets);
+        let process = ProcessService::new(
+            spawn.spawner,
+            Arc::clone(registry.config()),
+            spawn.secrets,
+            spawn.verification_keys,
+        );
         let monitoring = MonitoringService::new();
         let lifecycle = LifecycleService::new(
             process,

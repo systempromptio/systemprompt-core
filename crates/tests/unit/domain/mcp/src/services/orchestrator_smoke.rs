@@ -50,11 +50,14 @@ async fn make_orchestrator_and_repo() -> (McpOrchestrator, ServiceRepository) {
     );
     let service_repo = ServiceRepository::new(&db, unique_instance());
     let orchestrator = McpOrchestrator::new(
-        service_repo.clone(),
+            service_repo.clone(),
         app_paths,
         registry,
-        systemprompt_test_fixtures::test_spawner(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            systemprompt_mcp::McpSpawn {
+                spawner: systemprompt_test_fixtures::test_spawner(),
+                secrets: systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+                verification_keys: systemprompt_test_fixtures::fixture_verification_keys(),
+            },
     )
     .expect("orchestrator");
     (orchestrator, service_repo)

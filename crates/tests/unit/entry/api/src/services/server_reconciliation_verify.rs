@@ -28,8 +28,11 @@ fn orchestrator(
             (**ctx.service_repository()).clone(),
             std::sync::Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
-            std::sync::Arc::clone(ctx.spawner()),
-            std::sync::Arc::clone(ctx.secrets()),
+            systemprompt_mcp::McpSpawn {
+                spawner: std::sync::Arc::clone(ctx.spawner()),
+                secrets: ctx.secrets().clone(),
+                verification_keys: ctx.signing_keys().verification_keys().clone(),
+            },
         )
         .expect("orchestrator"),
     )

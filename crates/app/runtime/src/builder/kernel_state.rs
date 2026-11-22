@@ -77,6 +77,7 @@ use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_config::DynChildSecretEnv;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
 use systemprompt_manifest::{Config, Profile};
@@ -88,6 +89,7 @@ use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
+    DynJwtValidationProvider,
     BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository, FileStorage,
     MessagingDispatcher, SecretStore,
 };
@@ -125,6 +127,7 @@ pub struct ApiKernelSeed<'a> {
     pub base: KernelSeed<'a>,
     pub signing_keys: &'a SigningKeys,
     pub spawner: &'a Arc<Spawner>,
+    pub child_secrets: DynChildSecretEnv,
     pub oauth: &'a Arc<OAuthRepositories>,
     pub ai: &'a Arc<AiRepositories>,
     pub ai_service: Option<&'a Arc<AiService>>,
@@ -199,10 +202,22 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
     state
 }
 
+fn jwt_validation(config: &Config, keys: &SigningKeys) -> DynJwtValidationProvider {
+    Arc::new(systemprompt_oauth::JwtValidationProviderImpl::from_config(
+        config,
+        keys.keyring().clone(),
+    ))
+}
+
 pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
+    let jwt = jwt_validation(seed.base.config, seed.signing_keys);
     let mut state = base_kernel_state(seed.base)
         .with_sealed(seed.signing_keys.clone())
         .with_sealed(Arc::clone(seed.spawner))
+        .with_sealed(seed.child_secrets)
+        .with(jwt)
+        .with(seed.signing_keys.keyring().clone())
+        .with(seed.signing_keys.verification_keys().clone())
         .with(Arc::clone(seed.oauth))
         .with(Arc::clone(seed.ai))
         .with(LateBound::<dyn MessagingDispatcher>::default())

@@ -4,16 +4,14 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::HashMap;
-use systemprompt_identifiers::McpServerId;
 
 use systemprompt_cli::infrastructure::services::status::{
     build_status_output, external_row, health_label, managed_health_label,
 };
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServiceStatus;
-use systemprompt_mcp::{HealthStatus, McpServiceStatus};
-use systemprompt_models::mcp::McpServerType;
 use systemprompt_scheduler::{DesiredStatus, ServiceType, VerifiedService, VerifiedServiceState};
+use systemprompt_traits::{ServiceDetail, ServiceHealth as HealthStatus, ServiceProcessStatus};
 
 fn state(name: &str, service_type: ServiceType, runtime: VerifiedService) -> VerifiedServiceState {
     VerifiedServiceState::builder(
@@ -26,17 +24,19 @@ fn state(name: &str, service_type: ServiceType, runtime: VerifiedService) -> Ver
     .build()
 }
 
-fn mcp_status(name: &str, health: HealthStatus, endpoint: Option<&str>) -> McpServiceStatus {
-    McpServiceStatus {
-        name: McpServerId::new(name),
-        server_type: McpServerType::External,
-        port: None,
-        endpoint: endpoint.map(str::to_string),
-        health,
+fn mcp_status(name: &str, health: HealthStatus, endpoint: Option<&str>) -> ServiceProcessStatus {
+    ServiceProcessStatus {
+        name: ServiceName::new(name),
         pid: None,
-        tools_count: Some(3),
-        latency_ms: None,
-        auth_required: false,
+        port: None,
+        health,
+        detail: ServiceDetail::Mcp {
+            remote: true,
+            endpoint: endpoint.map(str::to_string),
+            tools_count: Some(3),
+            latency_ms: None,
+            auth_required: false,
+        },
     }
 }
 

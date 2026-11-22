@@ -4,29 +4,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_config::SecretsService;
-use systemprompt_manifest::Config;
+use systemprompt_config::ChildSecretEnv;
 use systemprompt_models::subprocess::{SecretGrant, VERIFICATION_KEYS_ENV};
-use systemprompt_security::keys::SigningKeys;
+use systemprompt_security::keys::TokenVerificationKeys;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 
 fn verification_keys_json(
-    global: &Config,
-    secrets: &SecretsService,
+    keys: &TokenVerificationKeys,
     config: &McpServerConfig,
 ) -> McpDomainResult<String> {
-    let keys = SigningKeys::resolve(&global.signing_key_path, secrets).map_err(|e| {
-        crate::error::McpDomainError::operation(
-            format!(
-                "Failed to resolve the verification keys for {}",
-                config.name
-            ),
-            e,
-        )
-    })?;
-    serde_json::to_string(keys.verification_keys()).map_err(|e| {
+    serde_json::to_string(keys).map_err(|e| {
         crate::error::McpDomainError::operation(
             format!(
                 "Failed to serialise the verification keys for {}",
@@ -38,13 +27,12 @@ fn verification_keys_json(
 }
 
 pub(super) fn child_secrets(
-    global: &Config,
-    secrets: &SecretsService,
+    secrets: &dyn ChildSecretEnv,
+    keys: &TokenVerificationKeys,
     config: &McpServerConfig,
 ) -> McpDomainResult<Vec<(String, String)>> {
     secrets
-        .get()
-        .refused_env_var(secrets.profile().secrets.as_ref(), &config.env_vars)
+        .refused_env_var(&config.env_vars)
         .map_err(|e| {
             crate::error::McpDomainError::invalid_configuration(
                 format!("MCP server '{}'", config.name),
@@ -59,7 +47,7 @@ pub(super) fn child_secrets(
     })?;
     env.push((
         VERIFICATION_KEYS_ENV.to_owned(),
-        verification_keys_json(global, secrets, config)?,
+        verification_keys_json(keys, config)?,
     ));
     if config.secrets.contains(&SecretGrant::EncryptionMasterKey) {
         tracing::info!(server = %config.name, grant = "encryption_master_key", "MCP server granted the encryption master key");

@@ -14,10 +14,8 @@ use std::sync::Arc;
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::ServiceStatus;
-use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_mcp::{HealthStatus, McpServiceStatus};
-use systemprompt_models::mcp::McpServerType;
-use systemprompt_runtime::{AppContext, StartupValidator, display_validation_report};
+use systemprompt_traits::{ServiceDetail, ServiceHealth, ServiceProcessKind, ServiceProcessStatus, StatusDepth};
+use systemprompt_runtime::{StartupValidator, display_validation_report};
 use systemprompt_scheduler::{ServiceStateVerifier, ServiceType, VerifiedServiceState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -65,15 +63,19 @@ impl From<&VerifiedServiceState> for ServiceStatusRow {
     }
 }
 
-pub fn health_label(health: HealthStatus) -> String {
-    if matches!(health, HealthStatus::Healthy | HealthStatus::Degraded) {
+pub fn health_label(health: ServiceHealth) -> String {
+    if health.is_up() {
         "OK".to_owned()
     } else {
         "DEGRADED".to_owned()
     }
 }
 
-pub fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
+pub fn external_row(status: &ServiceProcessStatus) -> ServiceStatusRow {
+    let endpoint = match &status.detail {
+        ServiceDetail::Mcp { endpoint, .. } => endpoint.clone(),
+        ServiceDetail::Agent { .. } => None,
+    };
     ServiceStatusRow {
         name: status.name.to_string(),
         service_type: "mcp".to_owned(),
@@ -83,13 +85,13 @@ pub fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
         action: "none".to_owned(),
         error: None,
         health: Some(health_label(status.health)),
-        endpoint: status.endpoint.clone(),
+        endpoint,
     }
 }
 
 pub fn build_status_output<S: BuildHasher>(
     states: &[VerifiedServiceState],
-    mcp_health: &HashMap<String, HealthStatus, S>,
+    mcp_health: &HashMap<String, ServiceHealth, S>,
     external: &[ServiceStatusRow],
     include_health: bool,
 ) -> ServiceStatusOutput {
@@ -129,7 +131,7 @@ pub fn build_status_output<S: BuildHasher>(
 
 pub fn managed_health_label<S: BuildHasher>(
     state: &VerifiedServiceState,
-    mcp_health: &HashMap<String, HealthStatus, S>,
+    mcp_health: &HashMap<String, ServiceHealth, S>,
 ) -> String {
     if state.service_type == ServiceType::Mcp {
         return mcp_health
@@ -166,15 +168,19 @@ pub(super) async fn execute(
         ServiceStateVerifier::new(Arc::clone(ctx.db_pool()), ctx.config().instance_id.clone());
     let states = state_manager.get_verified_states(&configs).await?;
 
-    let mcp_statuses = mcp_service_statuses(&ctx).await?;
-    let mcp_health: HashMap<String, HealthStatus> = mcp_statuses
+    let mcp_statuses =
+        super::lifecycle::statuses_of(&ctx, ServiceProcessKind::McpServer, StatusDepth::Probed)
+            .await?;
+    let is_remote =
+        |s: &ServiceProcessStatus| matches!(s.detail, ServiceDetail::Mcp { remote: true, .. });
+    let mcp_health: HashMap<String, ServiceHealth> = mcp_statuses
         .iter()
-        .filter(|s| s.server_type == McpServerType::Internal)
+        .filter(|s| !is_remote(s))
         .map(|s| (s.name.to_string(), s.health))
         .collect();
     let external: Vec<ServiceStatusRow> = mcp_statuses
         .iter()
-        .filter(|s| s.server_type == McpServerType::External)
+        .filter(|s| is_remote(s))
         .map(external_row)
         .collect();
 
@@ -206,17 +212,6 @@ pub(super) async fn execute(
     Ok(result.with_skip_render())
 }
 
-async fn mcp_service_statuses(ctx: &Arc<AppContext>) -> Result<Vec<McpServiceStatus>> {
-    let manager = McpOrchestrator::new(
-        (**ctx.service_repository()).clone(),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
-        Arc::clone(ctx.spawner()),
-        Arc::clone(ctx.secrets()),
-    )?;
-    Ok(manager.service_statuses().await?)
-}
-
 fn render_table_output(output: &ServiceStatusOutput) {
     CliService::section("Service Status");
 
@@ -245,7 +240,7 @@ fn render_table_output(output: &ServiceStatusOutput) {
 
 fn output_detailed(
     states: &[VerifiedServiceState],
-    mcp_health: &HashMap<String, HealthStatus>,
+    mcp_health: &HashMap<String, ServiceHealth>,
     external: &[ServiceStatusRow],
     include_health: bool,
 ) {

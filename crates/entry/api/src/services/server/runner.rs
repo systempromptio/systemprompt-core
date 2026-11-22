@@ -221,10 +221,17 @@ pub(in crate::services::server) fn create_mcp_orchestrator(
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
-        Arc::clone(ctx.spawner()),
-        Arc::clone(ctx.secrets()),
+        mcp_spawn(ctx),
     )?;
     Ok(Arc::new(manager))
+}
+
+pub(crate) fn mcp_spawn(ctx: &AppContext) -> systemprompt_mcp::McpSpawn {
+    systemprompt_mcp::McpSpawn {
+        spawner: Arc::clone(ctx.spawner()),
+        secrets: Arc::<systemprompt_config::SecretsService>::clone(ctx.secrets()),
+        verification_keys: ctx.signing_keys().verification_keys().clone(),
+    }
 }
 
 async fn start_metrics_listener(

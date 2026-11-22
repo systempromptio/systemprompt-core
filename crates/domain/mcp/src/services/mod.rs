@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod process_set;
 pub mod artifact_ingest;
 pub mod client;
 pub mod database;
@@ -29,7 +30,7 @@ pub use monitoring::MonitoringService;
 pub use monitoring::proxy_health::{ProxyHealthCheck, RoutableService};
 pub use network::NetworkService;
 pub use observer::McpServiceObserver;
-pub use orchestrator::McpOrchestrator;
+pub use orchestrator::{McpOrchestrator, McpSpawn};
 pub use process::ProcessService;
 pub use registry::RegistryService;
 pub use spawn_target::{SpawnProgram, SpawnTarget};

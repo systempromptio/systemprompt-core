@@ -175,6 +175,7 @@ impl AppContextBuilder {
             },
             signing_keys: &signing_keys,
             spawner: &spawner,
+            child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
             oauth: &seeded.oauth,
             ai: &seeded.ai,
             ai_service: ai_service.as_ref(),

@@ -1,7 +1,9 @@
 //! [`AgentExtension`]: contributes the agent tables, migrations and jobs, and
 //! provides the conversation-context seams other members and the kernel read
 //! by type: `DynContextDirectory`, `DynContextMaterializer` and
-//! `DynSessionContextIssuer`, each open (database-only).
+//! `DynSessionContextIssuer`, each open (database-only), and the open
+//! status-only `Arc<AgentStatusView>`. It contributes its supervised process
+//! set to the sealed `ServiceProcessSlot`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,11 +12,18 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::{DynContextDirectory, DynContextMaterializer, DynSessionContextIssuer};
+use systemprompt_extension::service_process::ServiceProcessSlot;
+use systemprompt_identifiers::InstanceId;
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_traits::{
+    DynContextDirectory, DynContextMaterializer, DynServiceProcessSet, DynSessionContextIssuer,
+};
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
 use crate::repository::ContextRepository;
 use crate::services::ContextProviderService;
+use crate::services::agent_orchestration::process_set::AgentProcessSet;
+use crate::services::agent_orchestration::status_view::AgentStatusView;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentExtension;
@@ -47,22 +56,8 @@ impl Extension for AgentExtension {
         .cross_table("ai_requests")
         .cross_table("services")
         .job(CleanupEmptyContextsJob)
-        .job(UserContextCountersRollupJob)
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
-                Ok(Arc::new(context_service(r)?))
-            },
-        )
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynContextMaterializer, ProvideError> {
-                Ok(Arc::new(context_service(r)?))
-            },
-        )
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynSessionContextIssuer, ProvideError> {
-                Ok(Arc::new(context_service(r)?))
-            },
-        );
+        .job(UserContextCountersRollupJob);
+        provide_seams(c);
         c.user_purge(UserPurgeTable {
             table: "agent_tasks",
             column: "user_id",
@@ -171,6 +166,39 @@ fn artifact_schemas() -> Vec<SchemaDefinition> {
         )
         .with_required_columns(vec!["id".into(), "artifact_id".into(), "part_kind".into()]),
     ]
+}
+
+fn provide_seams(c: &mut Contributions<'_>) {
+    c
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
+                Ok(Arc::new(context_service(r)?))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynContextMaterializer, ProvideError> {
+                Ok(Arc::new(context_service(r)?))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<DynSessionContextIssuer, ProvideError> {
+                Ok(Arc::new(context_service(r)?))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<Arc<AgentStatusView>, ProvideError> {
+                Ok(Arc::new(AgentStatusView::new(
+                    &r.get::<DbPool>()?,
+                    r.get::<InstanceId>()?,
+                    r.get::<ServicesView>()?,
+                )))
+            },
+        );
+        c.slot::<ServiceProcessSlot>().process_set(
+            |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
+                Ok(Arc::new(AgentProcessSet::from_resolved(r)?))
+            },
+        );
 }
 
 fn context_service(r: &Resolved<'_>) -> Result<ContextProviderService, ProvideError> {

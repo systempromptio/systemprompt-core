@@ -63,7 +63,7 @@ use super::signing_key::{
 };
 use crate::error::{ConfigError, ConfigResult};
 
-pub use child::ChildSecretsError;
+pub use child::{ChildSecretEnv, ChildSecretsError, DynChildSecretEnv};
 pub use error::SecretsBootstrapError;
 pub use granted::{GrantedSecrets, GrantedSecretsError};
 pub use io::load_secrets_from_path;

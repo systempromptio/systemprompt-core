@@ -17,6 +17,8 @@ pub mod monitor;
 pub mod orchestrator;
 pub mod port_service;
 pub mod process;
+pub mod process_set;
+pub mod status_view;
 pub mod reconciler;
 
 pub use orchestrator::{AgentInfo, AgentOrchestrator};

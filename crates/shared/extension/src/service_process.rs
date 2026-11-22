@@ -70,6 +70,7 @@ impl Slot for ServiceProcessSlot {
     type Built = ServiceProcessSets;
     const ORDER: SlotOrder = SlotOrder::CoreFirst;
     const SEALED: bool = true;
+    const LATE: bool = true;
 
     fn build(
         entries: Vec<SlotEntry<Self::Builder>>,

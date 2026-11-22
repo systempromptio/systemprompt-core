@@ -164,7 +164,7 @@ async fn no_open_value_carries_a_member_sealed_capability() {
     let state = ctx.kernel().state();
     let runtime = ctx.kernel().runtime_state();
 
-    let probes: [(&str, [(TypeId, &str); 2]); 2] = [
+    let probes: [(&str, [(TypeId, &str); 2]); 4] = [
         (
             type_name::<DynManagedSkillResolver>(),
             carrier::<OrganizationSkillResolver>(),
@@ -172,6 +172,14 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         (
             type_name::<DynInventoryPublisher>(),
             carrier::<InventoryRefresher>(),
+        ),
+        (
+            type_name::<Arc<systemprompt_extension::service_process::ServiceProcessSets>>(),
+            carrier::<systemprompt_agent::services::agent_orchestration::process_set::AgentProcessSet>(),
+        ),
+        (
+            type_name::<Arc<systemprompt_extension::service_process::ServiceProcessSets>>(),
+            carrier::<systemprompt_mcp::services::process_set::McpProcessSet>(),
         ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();

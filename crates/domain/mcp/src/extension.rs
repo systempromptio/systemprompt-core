@@ -20,12 +20,16 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_extension::mcp::DynToolExecutions;
+use systemprompt_extension::service_process::ServiceProcessSlot;
 use systemprompt_governance::policy::secrets::SecretScannerCell;
-use systemprompt_traits::{DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider};
+use systemprompt_traits::{
+    DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
+};
 
 use crate::contract::{AccessRecorderSlot, UiSlot};
 use crate::repository::ToolUsageRepository;
 use crate::services::McpServiceObserver;
+use crate::services::process_set::McpProcessSet;
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::ui_renderer::UiRendererRegistry;
 use crate::tool::McpToolExecutions;
@@ -164,6 +168,11 @@ impl Extension for McpExtension {
                     Arc::new(ArtifactIngest::from_db(&db, r.get::<SecretScannerCell>()?)),
                     r.get::<Arc<UiRendererRegistry>>()?,
                 )))
+            },
+        );
+        c.slot::<ServiceProcessSlot>().process_set(
+            |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
+                Ok(Arc::new(McpProcessSet::from_resolved(r)?))
             },
         );
         crate::jobs::contribute(c);

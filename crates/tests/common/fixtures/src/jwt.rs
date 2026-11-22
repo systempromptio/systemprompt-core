@@ -176,3 +176,15 @@ pub fn mint_mcp_hop(
         .mint_mcp_hop(server, &identity)
         .expect("mint mcp hop token")
 }
+
+pub fn fixture_verification_keys() -> systemprompt_security::keys::TokenVerificationKeys {
+    test_signing_keys().verification_keys().clone()
+}
+
+pub fn fixture_mcp_spawn() -> systemprompt_mcp::McpSpawn {
+    systemprompt_mcp::McpSpawn {
+        spawner: crate::test_spawner(),
+        secrets: crate::ensure_test_secrets_bootstrap(),
+        verification_keys: fixture_verification_keys(),
+    }
+}

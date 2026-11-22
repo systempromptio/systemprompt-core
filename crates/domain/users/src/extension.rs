@@ -18,7 +18,7 @@ use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectorySlot;
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::core_seam::RoleAudience;
-use systemprompt_traits::{CoreSeam, DynIpBanStore, DynSessionStore};
+use systemprompt_traits::{CoreSeam, DynIpBanStore, DynSessionStore, DynSessionUsageCounters};
 
 use crate::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
 use crate::repository::{
@@ -65,6 +65,11 @@ impl Extension for UsersExtension {
             let db = r.get::<DbPool>()?;
             let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
             Ok(sessions)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&db));
+            Ok(usage)
         })
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;

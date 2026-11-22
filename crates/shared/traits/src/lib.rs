@@ -49,8 +49,8 @@ pub use agent_run_launcher::{
 };
 pub use agent_server::{AgentServeError, AgentServer, DynAgentServer};
 pub use service_process::{
-    DynServiceProcessSet, ServiceProcessError, ServiceProcessKind, ServiceProcessSet,
-    ServiceProcessStatus,
+    DynServiceProcessSet, RestartMode, ServiceDetail, ServiceHealth, ServiceProcessError,
+    ServiceProcessKind, ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
 };
 pub mod ai_providers;
 pub mod analytics;

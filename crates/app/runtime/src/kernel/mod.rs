@@ -130,9 +130,10 @@ impl Kernel {
         self.state.insert(Arc::new(audiences));
         let reassignments = AdmittedOwnerReassignments::of(admitted.built())?;
         self.state.insert_sealed(Arc::new(reassignments));
-        self.build_slots(admitted)?;
+        self.build_slots(admitted, false)?;
         self.build_governance(admitted.built())?;
         self.provide_all(admitted, ProvidePhase::AfterGovernance)?;
+        self.build_slots(admitted, true)?;
         self.check_requirements(admitted)
     }
 
@@ -198,11 +199,11 @@ impl Kernel {
         Ok(())
     }
 
-    fn build_slots(&mut self, admitted: &Admitted) -> Result<(), KernelError> {
+    fn build_slots(&mut self, admitted: &Admitted, late: bool) -> Result<(), KernelError> {
         let mut order: Vec<TypeId> = Vec::new();
         let mut grouped: HashMap<TypeId, Vec<SlotBuildInput>> = HashMap::new();
         for member in admitted.built().members() {
-            for record in member.sink.slots() {
+            for record in member.sink.slots().iter().filter(|record| record.late() == late) {
                 let input = record
                     .take_entry(member.owner.clone(), member.standing)
                     .ok_or_else(|| KernelError::AlreadyResolved {

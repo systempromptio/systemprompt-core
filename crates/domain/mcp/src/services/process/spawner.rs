@@ -21,7 +21,8 @@ use crate::services::spawn_target::{SpawnProgram, SpawnTarget, hosted_serve_args
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use systemprompt_config::SecretsService;
+use systemprompt_config::ChildSecretEnv;
+use systemprompt_security::keys::TokenVerificationKeys;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
 use systemprompt_manifest::Config;
@@ -89,11 +90,11 @@ pub fn build_environment(
 
 pub fn spawn_environment(
     spec: &SpawnEnvSpec<'_>,
-    global: &Config,
-    secrets: &SecretsService,
+    secrets: &SpawnSecrets<'_>,
     lookup: impl Fn(&str) -> Option<String>,
 ) -> McpDomainResult<Vec<(String, String)>> {
-    let secrets_env = super::child_env::child_secrets(global, secrets, spec.config)?;
+    let secrets_env =
+        super::child_env::child_secrets(secrets.env, secrets.verification_keys, spec.config)?;
     Ok(build_environment(spec, &secrets_env, lookup))
 }
 
@@ -147,10 +148,17 @@ pub fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(St
     Ok((tools_config_json, server_model_config_json))
 }
 
+/// The secret inputs of a spawned server's environment.
+#[derive(Debug, Clone, Copy)]
+pub struct SpawnSecrets<'a> {
+    pub env: &'a dyn ChildSecretEnv,
+    pub verification_keys: &'a TokenVerificationKeys,
+}
+
 pub fn spawn_server(
     spawner: &Spawner,
     global: &Config,
-    secrets: &SecretsService,
+    secrets: &SpawnSecrets<'_>,
     paths: &AppPaths,
     config: &McpServerConfig,
 ) -> McpDomainResult<u32> {
@@ -160,7 +168,7 @@ pub fn spawn_server(
     let log_file = open_server_log(paths, config)?;
     let (tools_config_json, server_model_config_json) = serialize_server_configs(config)?;
 
-    let profile_path = secrets.profile().path().to_str().ok_or_else(|| {
+    let profile_path = secrets.env.profile_path().to_str().ok_or_else(|| {
         crate::error::McpDomainError::Configuration(
             "profile path is not valid UTF-8 - cannot spawn MCP server".to_owned(),
         )
@@ -175,7 +183,6 @@ pub fn spawn_server(
             tools_config_json: &tools_config_json,
             server_model_config_json: &server_model_config_json,
         },
-        global,
         secrets,
         |name| std::env::var(name).ok(),
     )?;

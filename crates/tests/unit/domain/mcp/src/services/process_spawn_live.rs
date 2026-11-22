@@ -52,7 +52,10 @@ fn spawn_server_launches_detached_stub() {
     let pid = spawn_server(
         &systemprompt_test_fixtures::test_spawner(),
         &crate::harness::config(),
-        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        &systemprompt_mcp::services::process::spawner::SpawnSecrets {
+            env: &*systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
+        },
         &paths,
         &config,
     )
@@ -70,7 +73,10 @@ fn spawn_server_missing_binary_errors() {
     let err = spawn_server(
         &systemprompt_test_fixtures::test_spawner(),
         &crate::harness::config(),
-        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        &systemprompt_mcp::services::process::spawner::SpawnSecrets {
+            env: &*systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
+        },
         &app_paths(bootstrap),
         &config,
     )
@@ -155,7 +161,10 @@ async fn spawn_server_permission_failure_creates_no_process_and_retains_its_diag
     let error = spawn_server(
         &systemprompt_test_fixtures::test_spawner(),
         &crate::harness::config(),
-        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        &systemprompt_mcp::services::process::spawner::SpawnSecrets {
+            env: &*systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
+        },
         &app_paths(bootstrap),
         &config,
     )

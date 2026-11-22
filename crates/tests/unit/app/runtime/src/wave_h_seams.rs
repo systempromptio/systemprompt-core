@@ -15,8 +15,8 @@ use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, DynContextDirectory, DynServiceProcessSet,
-    DynSessionContextIssuer, ServiceProcessError, ServiceProcessKind, ServiceProcessSet,
-    ServiceProcessStatus,
+    DynSessionContextIssuer, RestartMode, ServiceProcessError, ServiceProcessKind,
+    ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -91,20 +91,34 @@ impl ServiceProcessSet for StubSet {
         ServiceProcessKind::Agent
     }
 
-    async fn statuses(&self) -> Result<Vec<ServiceProcessStatus>, ServiceProcessError> {
+    async fn statuses(
+        &self,
+        _depth: StatusDepth,
+    ) -> Result<Vec<ServiceProcessStatus>, ServiceProcessError> {
         Ok(Vec::new())
     }
 
-    async fn start(&self, _name: Option<&ServiceName>) -> Result<(), ServiceProcessError> {
+    async fn start(
+        &self,
+        _name: Option<&ServiceName>,
+    ) -> Result<Vec<ServiceRun>, ServiceProcessError> {
+        Ok(Vec::new())
+    }
+
+    async fn stop(
+        &self,
+        _name: Option<&ServiceName>,
+        _mode: StopMode,
+    ) -> Result<(), ServiceProcessError> {
         Ok(())
     }
 
-    async fn stop(&self, _name: Option<&ServiceName>) -> Result<(), ServiceProcessError> {
-        Ok(())
-    }
-
-    async fn restart(&self, _name: &ServiceName) -> Result<(), ServiceProcessError> {
-        Ok(())
+    async fn restart(
+        &self,
+        _name: Option<&ServiceName>,
+        _mode: RestartMode,
+    ) -> Result<Vec<ServiceRun>, ServiceProcessError> {
+        Ok(Vec::new())
     }
 }
 
@@ -132,4 +146,50 @@ async fn the_service_process_sets_enter_the_state_sealed() {
             .is_none(),
         "every runtime context is refused the process sets"
     );
+}
+
+#[tokio::test]
+async fn the_child_secret_env_and_the_process_sets_are_sealed_from_member_code() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    assert!(state.is_sealed::<systemprompt_config::DynChildSecretEnv>());
+    assert!(state.is_sealed::<Arc<ServiceProcessSets>>());
+    let sets = state
+        .find::<Arc<ServiceProcessSets>>()
+        .expect("kernel code reads the process sets");
+    assert!(sets.of_kind(ServiceProcessKind::Agent).is_some());
+    assert!(sets.of_kind(ServiceProcessKind::McpServer).is_some());
+    let kernel = command_kernel(&ctx);
+    let member = Resolved::__member_command(&kernel, kernel.state());
+    assert!(member.optional::<systemprompt_config::DynChildSecretEnv>().is_none());
+    assert!(member.optional::<Arc<ServiceProcessSets>>().is_none());
+    let runtime = kernel.runtime_state();
+    assert!(runtime.find::<systemprompt_config::DynChildSecretEnv>().is_none());
+    assert!(runtime.find::<Arc<ServiceProcessSets>>().is_none());
+}
+
+#[tokio::test]
+async fn a_disabled_member_removes_its_kind_and_leaves_the_others() {
+    ensure_test_bootstrap();
+    let ctx = systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        systemprompt_test_fixtures::fixture_config(&test_database_url()),
+        systemprompt_test_fixtures::fixture_admitted_without(&[
+            systemprompt_identifiers::ExtensionId::new("agent"),
+        ]),
+    )
+    .await
+    .expect("the composition without the agent member builds");
+    let sets = Arc::clone(
+        ctx.kernel()
+            .state()
+            .find::<Arc<ServiceProcessSets>>()
+            .expect("the MCP member still opens the slot"),
+    );
+    assert!(sets.of_kind(ServiceProcessKind::Agent).is_none());
+    let mcp = sets
+        .of_kind(ServiceProcessKind::McpServer)
+        .expect("the MCP set is unaffected");
+    mcp.statuses(StatusDepth::Listed)
+        .await
+        .expect("the MCP set still answers");
 }

@@ -1,0 +1,39 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "`infra services` drives the agent and MCP processes through the supervised process sets the agent and MCP members contribute (sealed, kernel-read); a member that is not admitted removes its kind without failing the others. Spawn code reads a sealed child secret environment instead of the secrets service."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`ServiceProcessSet` takes `StatusDepth`, `StopMode`, `RestartMode` and returns `ServiceRun`s; `ServiceProcessStatus` carries `ServiceHealth` and `ServiceDetail::{Agent, Mcp}`; `ServiceProcessError::{Unavailable, Unsupported}`."
+
+[[crate]]
+name = "systemprompt-config"
+section = "Added"
+text = "`ChildSecretEnv`/`DynChildSecretEnv`, implemented by `SecretsService`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Slot::LATE`: a late slot is built after the after-governance provides; `ServiceProcessSlot` is late and sealed."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`SpawnEnvironment { secrets: DynChildSecretEnv, services: ServicesView }` (no `profile_path`; read from the child secret environment). New: `AgentProcessSet`, `AgentStatusView` (provided open)."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpOrchestrator::new(.., spawn: McpSpawn)`, `ProcessService::new(.., secrets: DynChildSecretEnv, verification_keys)`, `spawner::{spawn_server, spawn_environment}` take `SpawnSecrets`. New: `McpProcessSet`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`ApiKernelSeed::child_secrets` (sealed); the API kernel seeds the JWT validation provider, the verification keyring and the token verification keys open."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "The users member provides `DynSessionUsageCounters` (open)."

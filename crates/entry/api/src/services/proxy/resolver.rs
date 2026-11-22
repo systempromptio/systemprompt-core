@@ -137,8 +137,7 @@ impl ServiceResolver {
             (**ctx.service_repository()).clone(),
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
-            Arc::clone(ctx.spawner()),
-            Arc::clone(ctx.secrets()),
+            crate::services::server::runner::mcp_spawn(ctx),
         )
         .map_err(|source| ProxyError::RestartFailed {
             service: service_name.to_string(),

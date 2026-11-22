@@ -244,7 +244,10 @@ fn coverage_spawn_invalid_executable_returns_a_detached_start_error() {
     let err = spawn_server(
         &systemprompt_test_fixtures::test_spawner(),
         &crate::harness::config(),
-        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        &systemprompt_mcp::services::process::spawner::SpawnSecrets {
+            env: &*systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
+        },
         &boot.app_paths,
         &config,
     )
@@ -303,10 +306,11 @@ async fn spawned_server_receives_service_environment_and_owned_stop_ends_it() {
     let service_name = config.service_name();
 
     let pid = ProcessService::new(
-        systemprompt_test_fixtures::test_spawner(),
-        crate::harness::config(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
-    )
+            systemprompt_test_fixtures::test_spawner(),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            systemprompt_test_fixtures::fixture_verification_keys(),
+        )
     .spawn_server(&boot.app_paths, &config)
     .expect("spawn fixture");
     let mut cleanup = OwnedPid {

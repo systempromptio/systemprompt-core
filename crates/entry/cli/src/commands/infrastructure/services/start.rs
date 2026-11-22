@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_traits::ServiceProcessKind;
 use crate::kernel::KernelHost;
 use crate::presentation::StartupRenderer;
 use anyhow::Result;
@@ -180,13 +181,16 @@ pub(super) async fn execute_individual_agent(
 ) -> Result<()> {
     CliService::section(&format!("Starting Agent: {}", agent));
 
-    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
-    let service_id = orchestrator.start_agent(&name, None).await?;
+    let runs = lifecycle::process_set(ctx, ServiceProcessKind::Agent)?
+        .start(Some(&ServiceName::new(agent)))
+        .await?;
+    let service = runs.first().map(|run| run.name.clone());
+    lifecycle::single_run(runs, agent)?;
 
     CliService::success(&format!(
         "Agent {} started successfully (service ID: {})",
-        agent, service_id
+        agent,
+        service.map_or_else(String::new, |name| name.to_string())
     ));
 
     Ok(())
@@ -199,9 +203,8 @@ pub(super) async fn execute_individual_mcp(
 ) -> Result<()> {
     CliService::section(&format!("Starting MCP Server: {}", server_name));
 
-    let manager = lifecycle::mcp_orchestrator(ctx)?;
-    manager
-        .start_services(Some(ServiceName::new(server_name.as_str())))
+    lifecycle::process_set(ctx, ServiceProcessKind::McpServer)?
+        .start(Some(&ServiceName::new(server_name.as_str())))
         .await?;
 
     CliService::success(&format!("MCP server {} started successfully", server_name));

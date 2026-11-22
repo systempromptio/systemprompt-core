@@ -44,11 +44,14 @@ async fn make_orchestrator() -> McpOrchestrator {
     );
     let service_repo = ServiceRepository::new(&db, unique_instance());
     McpOrchestrator::new(
-        service_repo,
+            service_repo,
         app_paths,
         registry,
-        systemprompt_test_fixtures::test_spawner(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            systemprompt_mcp::McpSpawn {
+                spawner: systemprompt_test_fixtures::test_spawner(),
+                secrets: systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+                verification_keys: systemprompt_test_fixtures::fixture_verification_keys(),
+            },
     )
     .expect("orchestrator")
 }
