@@ -1,6 +1,8 @@
-//! The MCP tool contract: typed tool handlers, their artifact output schema,
-//! declarative toolsets and the execution seam a toolset runs a handler
-//! through. Compiled with the `mcp` feature; the MCP member provides the
+//! The MCP tool contract.
+//!
+//! Typed tool handlers, their artifact output schema, declarative toolsets and
+//! the execution seam a toolset runs a handler through. Compiled with the
+//! `mcp` feature; the MCP member provides the
 //! execution implementation (`ToolExecutions`), and the toolset host and the
 //! members that contribute toolsets name only this module.
 //!

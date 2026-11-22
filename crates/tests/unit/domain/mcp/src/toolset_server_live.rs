@@ -184,7 +184,7 @@ async fn parts(
     let recorded = Arc::new(Captured::default());
     let parts = ToolsetServerParts {
         server_id,
-        executor,
+        executor: Arc::new(executor),
         authz: ToolsetAuthz {
             hook,
             services: crate::harness::services_state().view(),
