@@ -8,7 +8,7 @@
 use rmcp::ErrorData as McpError;
 use systemprompt_brain::BrainError;
 use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::brain::{EnteredFact, EnteredStatus, FactScope, FactStatus, SubjectKey};
 use systemprompt_models::execution::context::RequestContext;
 

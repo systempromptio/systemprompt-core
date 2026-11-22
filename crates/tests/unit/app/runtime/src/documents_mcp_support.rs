@@ -6,7 +6,7 @@ use systemprompt_identifiers::{
     AgentName, ContextId, DocumentId, DocumentRevisionId, DocumentTemplateId, McpExecutionId,
     McpServerId, SessionId, TraceId, UserId,
 };
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::documents::EditOp;
 use systemprompt_models::execution::context::RequestContext;

@@ -1,10 +1,11 @@
-//! Typed MCP tool definition and execution wrapper.
+//! The MCP member's implementation of the tool-execution seam.
 //!
-//! [`McpToolHandler`] is the contract a tool implements — typed input and
-//! output with derived JSON schemas plus an async `handle` — and
-//! [`McpToolExecutor`] runs a handler against a [`CallToolRequestParams`],
-//! recording execution start/completion in the tool-usage repository and
-//! building the [`CallToolResult`] (including any artifact) from the output.
+//! [`McpToolExecutor`] implements `systemprompt_extension::mcp::ToolExecution`
+//! for one server: `begin` records the execution start in the tool-usage
+//! repository and claims the AI tool-call intent, `finish` persists the output
+//! as an artifact, builds the [`CallToolResult`] for the negotiated client and
+//! records the completion. [`McpToolExecutions`] is the per-server factory the
+//! member provides.
 //!
 //! `INTENT_CLAIM_WINDOW_SECONDS` is how far back an execution may reach for
 //! an unclaimed intent. It is shared with the gateway's external-server audit
@@ -18,26 +19,23 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod handler;
+mod execution;
 
-pub use handler::{McpToolHandler, object_input_schema};
+pub use execution::McpToolExecutions;
 
-use crate::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{McpToolExecutionStatus, ToolExecutionResult};
 use crate::repository::ToolUsageRepository;
-use crate::response::{McpResponseBuilder, ResponseServices, ToolIdentity};
-use crate::schema::McpOutputSchema;
+
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::intent_claim::IntentClaimService;
 use crate::services::ui_renderer::UiRendererRegistry;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
-use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsResult, Tool};
-use serde::de::DeserializeOwned;
+use rmcp::model::{CacheScope, CallToolResult, ListToolsResult, Tool};
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_models::RequestContext;
-use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 use systemprompt_traits::DynToolCallIntentClaims;
 
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
@@ -74,95 +72,6 @@ impl McpToolExecutor {
             renderers,
             server_name,
         }
-    }
-
-    pub async fn execute<H: McpToolHandler>(
-        &self,
-        handler: &H,
-        request: &CallToolRequestParams,
-        ctx: &RequestContext,
-        client: &ClientProfile,
-    ) -> Result<CallToolResult, McpError> {
-        let started_at = Utc::now();
-
-        let input_value = serde_json::to_value(&request.arguments).map_err(|e| {
-            tracing::error!(error = %e, "Failed to serialize tool arguments");
-            McpError::internal_error("Failed to serialize arguments", None)
-        })?;
-
-        let exec_id = McpExecutionId::generate();
-        let tool_name = McpToolName::new(handler.tool_name());
-        let execution_request = ToolExecutionRequest {
-            tool_name: tool_name.clone(),
-            server_name: self.server_name.clone(),
-            input: input_value,
-            started_at,
-            context: ctx.clone(),
-            request_method: Some("mcp".to_owned()),
-            request_source: Some(self.server_name.to_string()),
-            ai_tool_call_id: ctx.ai_tool_call_id().cloned(),
-            source: ExecutionSource::InProcess,
-        };
-
-        self.tool_usage_repo
-            .start_execution(&exec_id, &execution_request, Correlation::Exact)
-            .await
-            .map_err(|e| {
-                tracing::error!(
-                    tool = handler.tool_name(),
-                    error = %e,
-                    "Failed to start execution tracking"
-                );
-                McpError::internal_error("Failed to start execution tracking", None)
-            })?;
-        let ctx = &self.with_claimed_intent(&tool_name, ctx, &exec_id).await;
-
-        tracing::info!(tool = handler.tool_name(), %exec_id, "MCP execution started");
-
-        let result = async {
-            let input: H::Input = parse_input(request)?;
-            handler.handle(input, ctx, &exec_id).await
-        }
-        .await;
-
-        let (response, output_value) = match result {
-            Ok((output, summary)) => {
-                let title = output.artifact_title();
-                let artifact_type = output.artifact_type_name();
-                let output_value = match serde_json::to_value(&output) {
-                    Ok(value) => Some(value),
-                    Err(e) => {
-                        tracing::warn!(
-                            tool = handler.tool_name(),
-                            execution_id = %exec_id,
-                            error = %e,
-                            "Tool output could not be serialised for the execution record"
-                        );
-                        None
-                    },
-                };
-                let identity = ToolIdentity::new(self.server_name.clone(), tool_name.clone());
-                let response = McpResponseBuilder::new(output, identity, ctx, &exec_id, client)
-                    .build(
-                        summary,
-                        ResponseServices {
-                            ingest: &self.ingest,
-                            renderers: &self.renderers,
-                        },
-                        &artifact_type,
-                        title,
-                    )
-                    .await;
-                (response, output_value)
-            },
-            Err(ref e) => (Err(e.clone()), None),
-        };
-
-        let execution_result = Self::build_execution_result(&response, output_value, started_at);
-        self.record_completion(&tool_name, &exec_id, &execution_result)
-            .await;
-
-        response
     }
 
     // Why: a client-supplied `tool_use_id` is an exact join and is claimed as
@@ -262,22 +171,4 @@ impl McpToolExecutor {
             },
         }
     }
-}
-
-fn parse_input<T: DeserializeOwned>(request: &CallToolRequestParams) -> Result<T, McpError> {
-    let args_value = request
-        .arguments
-        .as_ref()
-        .map_or(JsonValue::Object(serde_json::Map::new()), |m| {
-            JsonValue::Object(m.clone())
-        });
-
-    serde_json::from_value(args_value).map_err(|e| {
-        tracing::warn!(
-            error = %e,
-            tool = %request.name,
-            "Failed to parse tool input"
-        );
-        McpError::invalid_params(format!("Invalid tool input: {e}"), None)
-    })
 }

@@ -5,7 +5,7 @@
 //! [`DocumentsMcpTools::list_tools`](crate::documents::mcp::DocumentsMcpTools::list_tools) for `tools/list`,
 //! [`DocumentsMcpTools::call`](crate::documents::mcp::DocumentsMcpTools::call)
 //! to run one tool through core's
-//! [`McpToolExecutor`](systemprompt_mcp::McpToolExecutor) after the binary has
+//! the MCP member's `ToolExecution` after the binary has
 //! authenticated the request. Every handler acts as the authenticated user on
 //! the request context, and every write records the MCP execution as the
 //! revision's origin.
@@ -49,6 +49,7 @@ mod support;
 mod upload;
 mod write;
 
+use systemprompt_extension::mcp::ToolExecution;
 use std::sync::Arc;
 
 use rmcp::ErrorData as McpError;
@@ -57,7 +58,7 @@ use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
-use systemprompt_mcp::{ClientProfile, McpToolExecutor};
+use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::execution::context::RequestContext;
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
@@ -118,7 +119,7 @@ pub struct DocumentsMcpConfig {
 /// One tool call, already authenticated by the composing server.
 #[derive(Debug, Clone, Copy)]
 pub struct DocumentsToolCall<'a> {
-    pub executor: &'a McpToolExecutor,
+    pub executor: &'a dyn ToolExecution,
     pub request: &'a CallToolRequestParams,
     pub context: &'a RequestContext,
     pub client: &'a ClientProfile,

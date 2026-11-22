@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use systemprompt_extension::service_process::{ServiceProcessSets, ServiceProcessSlot};
 use systemprompt_extension::{Resolved, StandingTag};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::services::root::ActiveProfilePath;
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
@@ -47,6 +48,30 @@ async fn the_agent_dispatch_cell_is_sealed_from_member_code() {
         kernel.runtime_state().find::<AgentDispatchCell>().is_none(),
         "no job, runner or plane context reads it"
     );
+}
+
+#[tokio::test]
+async fn the_spawner_and_the_profile_path_are_sealed_from_member_code() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    assert!(state.is_sealed::<Arc<systemprompt_loader::subprocess::Spawner>>());
+    assert!(state.is_sealed::<ActiveProfilePath>());
+    assert!(state.find::<ActiveProfilePath>().is_some(), "kernel code reads it");
+    let kernel = command_kernel(&ctx);
+    let member = Resolved::__member_command(&kernel, kernel.state());
+    assert!(
+        member
+            .optional::<Arc<systemprompt_loader::subprocess::Spawner>>()
+            .is_none()
+    );
+    assert!(member.optional::<ActiveProfilePath>().is_none());
+    let runtime = kernel.runtime_state();
+    assert!(
+        runtime
+            .find::<Arc<systemprompt_loader::subprocess::Spawner>>()
+            .is_none()
+    );
+    assert!(runtime.find::<ActiveProfilePath>().is_none());
 }
 
 #[tokio::test]

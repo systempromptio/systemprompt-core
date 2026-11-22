@@ -2,7 +2,8 @@
 //!
 //! [`build_server`] resolves the deployment's enabled `toolsets:` against the
 //! built [`Toolsets`] (an id no admitted member contributes fails start),
-//! builds each toolset, takes the built access recorders and UI renderers and
+//! builds each toolset, takes the built access recorders and the MCP member's tool execution for
+//! the server and
 //! hands the lot to [`ToolsetServer`], which refuses a `tools:` entry no
 //! toolset serves.
 //! [`serve`] binds the deployment's `port:` on the loopback interface only
@@ -21,9 +22,8 @@ use systemprompt_mcp::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts, serve_router,
 };
 use systemprompt_mcp::middleware::HopVerifier;
-use systemprompt_mcp::repository::ToolUsageRepository;
-use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
-use systemprompt_mcp::{McpHttpConfig, McpToolExecutor, McpToolset, create_router};
+use systemprompt_extension::mcp::{DynToolExecutions, McpToolset};
+use systemprompt_mcp::{McpHttpConfig, create_router};
 use systemprompt_provider_contracts::MissingDependency;
 use tokio::net::TcpListener;
 
@@ -84,7 +84,6 @@ pub fn build_server(
     let state = ctx.state();
     let built = Arc::clone(state.get::<Arc<Toolsets>>()?);
     let recorders = state.get::<Arc<AccessRecorders>>()?.to_vec();
-    let renderers = Arc::clone(state.get::<Arc<UiRendererRegistry>>()?);
 
     let mut toolsets: Vec<Box<dyn McpToolset>> = Vec::new();
     for reference in deployment.enabled_toolsets() {
@@ -110,13 +109,7 @@ pub fn build_server(
         }
     }
 
-    let executor = McpToolExecutor::new(
-        Arc::new(ToolUsageRepository::new(ctx.db_pool())),
-        ctx.tool_call_intents(),
-        ctx.artifact_ingest(),
-        renderers,
-        server_id.clone(),
-    );
+    let executor = state.get::<DynToolExecutions>()?.for_server(server_id.clone());
     ToolsetServer::new(ToolsetServerParts {
         server_id: server_id.clone(),
         executor,

@@ -27,7 +27,7 @@
 //! [`LinkIssuer`](systemprompt_runtime::documents::links::LinkIssuer) for what
 //! only the API may sign. The per-user subject of a call is not a factory
 //! input: it arrives with each call as the hop-verified `RequestContext` in
-//! [`ToolsetCall`](systemprompt_mcp::ToolsetCall), so a toolset acting for a
+//! [`ToolsetCall`](systemprompt_extension::mcp::ToolsetCall), so a toolset acting for a
 //! user (an agent-runs toolset, for one) reads it there. A factory cannot
 //! reach a signing key, the OAuth repositories, the AI repositories, the
 //! profile's secrets source or any secret the manifest did not grant.

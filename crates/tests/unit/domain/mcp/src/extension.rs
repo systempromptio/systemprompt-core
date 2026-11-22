@@ -59,7 +59,7 @@ fn the_mcp_member_contributes_its_jobs_and_purge() {
 }
 
 #[test]
-fn the_mcp_member_provides_the_execution_lookup_the_registry_and_the_observer() {
+fn the_mcp_member_provides_the_execution_lookup_the_registry_the_observer_and_the_tool_executions() {
     let sink = contributed();
     let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
     assert_eq!(
@@ -68,6 +68,7 @@ fn the_mcp_member_provides_the_execution_lookup_the_registry_and_the_observer() 
             TypeId::of::<DynToolExecutionLookup>(),
             TypeId::of::<Arc<dyn McpRegistryProvider>>(),
             TypeId::of::<Arc<McpServiceObserver>>(),
+            TypeId::of::<systemprompt_extension::mcp::DynToolExecutions>(),
         ]
     );
 }

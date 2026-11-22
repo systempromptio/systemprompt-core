@@ -22,6 +22,7 @@ router = ["dep:axum", "dep:futures", "dep:tower"]
 cli = ["dep:clap"]
 slack = []
 teams = []
+mcp = ["dep:rmcp"]
 
 [dependencies]
 thiserror = { workspace = true }
@@ -36,6 +37,7 @@ axum = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
+rmcp = { workspace = true, optional = true }
 http = { workspace = true }
 pg_query = { workspace = true }
 schemars = { workspace = true }

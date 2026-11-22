@@ -185,6 +185,7 @@ fn the_admitted_projections_view() {
 
 const API_ONLY_SEEDS: &[&str] = &[
     "systemprompt_security::keys::signing_keys::SigningKeys",
+    "alloc::sync::Arc<systemprompt_loader::subprocess::spawn::Spawner>",
     "alloc::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>",
     "alloc::sync::Arc<systemprompt_ai::repository::AiRepositories>",
     "systemprompt_models::late_bound::LateBound<dyn systemprompt_traits::messaging::MessagingDispatcher>",

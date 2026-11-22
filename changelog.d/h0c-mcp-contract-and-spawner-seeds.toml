@@ -1,0 +1,34 @@
+[root]
+section = "Changed"
+area = "Extensions"
+text = "The MCP tool contract (typed tool handlers, their artifact output schema, toolsets and the tool-execution seam) lives in systemprompt-extension behind the `mcp` feature; the MCP member provides the per-server tool execution. The spawner and the booted profile path are sealed kernel seeds."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "Feature `mcp`: `mcp::{McpToolHandler, McpOutputSchema, McpToolset, ToolsetCall, ToolExecution, ToolExecutions, DynToolExecution, DynToolExecutions, ToolRun, ToolOutput, execute, object_input_schema, capabilities}`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpToolHandler`, `McpOutputSchema`, `McpToolset`, `ToolsetCall`, `object_input_schema` and the capability helpers moved to `systemprompt_extension::mcp`; the `ClientProfile` re-export is removed (use `systemprompt_models::mcp::ClientProfile`). `McpToolExecutor::execute` is replaced by `systemprompt_extension::mcp::execute` over its `ToolExecution` impl; `ToolsetServerParts::executor` is a `DynToolExecution`; `ArtifactIngest::{new, from_db}` take a `SecretScannerCell`. New: `McpToolExecutions`."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Added"
+text = "`policy::secrets::SecretScannerCell`, seeded open in every kernel and bound once the governance engine loads."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelSeed::profile_path` (`ActiveProfilePath`, sealed) and `ApiKernelSeed::spawner` (`Arc<Spawner>`, sealed)."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Added"
+text = "`services::root::ActiveProfilePath`."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Added"
+text = "The ai member provides `DynToolCallIntentClaims` (open, database-only)."

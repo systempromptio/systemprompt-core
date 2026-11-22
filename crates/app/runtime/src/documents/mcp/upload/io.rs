@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContentHash, DocumentUploadId};
-use systemprompt_mcp::McpOutputSchema;
+use systemprompt_extension::mcp::McpOutputSchema;
 
 use super::super::outputs::documents_output;
 

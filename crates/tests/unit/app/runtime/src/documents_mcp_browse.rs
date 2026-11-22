@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_identifiers::{DocumentId, DocumentTemplateId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ActorKind, DocumentFormat};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{

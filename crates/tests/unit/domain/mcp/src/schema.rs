@@ -1,6 +1,6 @@
 //! Unit tests for `McpOutputSchema` trait impls.
 
-use systemprompt_mcp::McpOutputSchema;
+use systemprompt_extension::mcp::McpOutputSchema;
 use systemprompt_models::artifacts::{
     AudioArtifact, ChartArtifact, CliArtifact, CopyPasteTextArtifact, DashboardArtifact,
     ImageArtifact, ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,

@@ -91,6 +91,8 @@ pub mod error;
 pub mod frame_options;
 pub mod gateway_guard;
 pub mod health;
+#[cfg(feature = "mcp")]
+pub mod mcp;
 pub mod metadata;
 pub mod migration;
 pub mod notifications;

@@ -1,4 +1,4 @@
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_runtime::documents::mcp::{GuideHandler, GuideInput};
 use systemprompt_runtime::documents::refusal::RefusalCode;
 

@@ -47,6 +47,13 @@ pub struct ActiveServicesRoot {
     pub provenance: ServicesProvenance,
 }
 
+/// The path of the profile this host booted from, a sealed kernel seed: a
+/// spawned child is started against it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActiveProfilePath {
+    pub path: PathBuf,
+}
+
 impl ActiveServicesRoot {
     #[must_use]
     pub fn baked(profile: &Profile) -> Self {

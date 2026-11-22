@@ -46,6 +46,7 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::BootContext;
+use systemprompt_manifest::services::root::ActiveProfilePath;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_users::UserService;
 
@@ -151,6 +152,7 @@ impl AppContextBuilder {
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
         let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
+        let spawner = new_spawner()?;
         let seed = kernel_state(ApiKernelSeed {
             base: KernelSeed {
                 database: &database,
@@ -160,6 +162,7 @@ impl AppContextBuilder {
                 config: &config,
                 services: services.view(),
                 services_root,
+                profile_path: ActiveProfilePath { path: self.boot.profile_path().to_path_buf() },
                 secrets,
                 file_storage: Arc::clone(&file_storage),
                 background_tasks: background_tasks.clone(),
@@ -171,6 +174,7 @@ impl AppContextBuilder {
                 escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
             },
             signing_keys: &signing_keys,
+            spawner: &spawner,
             oauth: &seeded.oauth,
             ai: &seeded.ai,
             ai_service: ai_service.as_ref(),
@@ -248,7 +252,7 @@ impl AppContextBuilder {
         )?;
         let subsystems = Subsystems {
             ai_service,
-            artifact_ingest: build_artifact_ingest(&database, &governance.get()),
+            artifact_ingest: build_artifact_ingest(&database, &governance.get(), r.get()?),
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,
@@ -263,7 +267,7 @@ impl AppContextBuilder {
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks,
-            spawner: new_spawner()?,
+            spawner,
             connector_tokens,
             documents,
         };

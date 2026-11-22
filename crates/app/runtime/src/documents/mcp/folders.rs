@@ -15,7 +15,7 @@ use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::DocumentFolder;
 use systemprompt_files::documents::service::{FolderMove, FolderUpdateRequest, NewFolderRequest};
 use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;

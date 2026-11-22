@@ -149,8 +149,13 @@ pub(super) fn new_plugins(mcp_registry: RegistryService, inputs: &PluginInputs) 
 pub(crate) fn build_artifact_ingest(
     database: &DbPool,
     governance: &systemprompt_governance::policy::GovernanceEngine,
+    scanner: systemprompt_governance::policy::secrets::SecretScannerCell,
 ) -> Arc<systemprompt_mcp::ArtifactIngest> {
-    let scanner = governance.secret_scanner().map(|s| Arc::new(s.clone()));
+    if let Some(configured) = governance.secret_scanner()
+        && scanner.bind(Arc::new(configured.clone())).is_err()
+    {
+        tracing::debug!("the secret scanner cell was bound before this host loaded governance");
+    }
     Arc::new(systemprompt_mcp::ArtifactIngest::from_db(database, scanner))
 }
 

@@ -12,7 +12,7 @@ use systemprompt_api::routes::documents::{DocumentsState, document_service, rout
 use systemprompt_identifiers::{
     DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId, McpServerId, UserId,
 };
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_runtime::AppContext;
 use systemprompt_runtime::documents::mcp::{

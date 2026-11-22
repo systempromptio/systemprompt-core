@@ -9,9 +9,8 @@ use systemprompt_identifiers::{
     UserId,
 };
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
-use systemprompt_mcp::{
-    ArtifactIngest, ClientProfile, McpResponseBuilder, ResponseServices, ToolIdentity,
-};
+use systemprompt_mcp::{ArtifactIngest, McpResponseBuilder, ResponseServices, ToolIdentity};
+use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CardSection, CliArtifact, Column, ColumnType, PresentationCardArtifact, TableArtifact,
@@ -87,7 +86,7 @@ fn ui_resource(result: &CallToolResult) -> (String, String) {
 #[tokio::test]
 async fn table_tool_result_embeds_rendered_table_html() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None);
+    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
 
     let table = TableArtifact::new(vec![Column::new("email", ColumnType::String)])
         .with_rows(vec![serde_json::json!({"email": "ed@example.com"})]);
@@ -114,7 +113,7 @@ async fn table_tool_result_embeds_rendered_table_html() {
 #[tokio::test]
 async fn presentation_card_tool_result_embeds_rendered_card_html() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None);
+    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
 
     let card = PresentationCardArtifact::new("Platform Overview")
         .with_sections(vec![CardSection::new("Total users", "15")]);
@@ -131,7 +130,7 @@ async fn presentation_card_tool_result_embeds_rendered_card_html() {
 #[tokio::test]
 async fn rendered_artifact_reports_both_dimensions_to_the_host() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None);
+    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -146,7 +145,7 @@ async fn rendered_artifact_reports_both_dimensions_to_the_host() {
 #[tokio::test]
 async fn result_meta_names_the_ui_resource_uri() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None);
+    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -164,7 +163,7 @@ async fn result_meta_names_the_ui_resource_uri() {
 #[tokio::test]
 async fn structured_content_still_accompanies_the_rendered_resource() {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, None);
+    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -183,7 +182,7 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     let database =
         systemprompt_test_fixtures::DisposableDb::with_schema("mcp_response_recovery").await;
     let failed_db = database.test_pool().await;
-    let failed_repo = ArtifactIngest::from_db(&failed_db, None);
+    let failed_repo = ArtifactIngest::from_db(&failed_db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
     failed_db.write_pool().close().await;
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
@@ -223,7 +222,7 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     drop(failed_db);
 
     let recovered_db = database.test_pool().await;
-    let recovered_repo = ArtifactIngest::from_db(&recovered_db, None);
+    let recovered_repo = ArtifactIngest::from_db(&recovered_db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
     assert!(
         recovered_repo
             .artifacts()

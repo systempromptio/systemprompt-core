@@ -13,7 +13,7 @@ use systemprompt_identifiers::{
     AgentName, AiToolCallId, ClientId, ContextId, DocumentId, McpServerId, SessionId, TraceId,
     headers,
 };
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{

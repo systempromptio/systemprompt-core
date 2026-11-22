@@ -9,7 +9,7 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Tool};
 use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_mcp::host::{HostedCatalog, ToolsetHostError, resolve_tool_access};
-use systemprompt_mcp::{McpToolset, ToolsetCall};
+use systemprompt_extension::mcp::{McpToolset, ToolsetCall};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::mcp::{Deployment, ResolvedAccess, ToolAccess};
 

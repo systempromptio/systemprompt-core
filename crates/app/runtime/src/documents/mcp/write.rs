@@ -35,7 +35,7 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{
     ContentHash, DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId,
 };
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;

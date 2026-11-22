@@ -122,6 +122,9 @@ impl HostKernel {
             config: &config,
             services: services.view(),
             services_root: services_root.clone(),
+            profile_path: systemprompt_manifest::services::root::ActiveProfilePath {
+                path: std::path::PathBuf::from(&profile_path),
+            },
             secrets: store,
             file_storage: Arc::clone(&file_storage),
             background_tasks: background_tasks.clone(),
@@ -211,7 +214,12 @@ impl HostKernel {
         ));
 
         let parts = HostParts {
-            artifact_ingest: build_artifact_ingest(&database, &governance),
+            artifact_ingest: build_artifact_ingest(
+                &database,
+                &governance,
+                r.get::<systemprompt_governance::policy::secrets::SecretScannerCell>()
+                    .map_err(RuntimeError::from)?,
+            ),
             tool_call_intents: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
                 &database,
             )),

@@ -2,7 +2,7 @@ use serde_json::json;
 use systemprompt_files::documents::agents::{DocumentActor, act_as};
 use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::{AgentName, ContentHash, TraceId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, DocumentFormat, content_hash};
 use systemprompt_models::execution::context::RequestContext;

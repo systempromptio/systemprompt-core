@@ -33,7 +33,7 @@ systemprompt-agent = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["mcp"] }
 systemprompt-files = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }

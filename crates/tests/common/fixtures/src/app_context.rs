@@ -396,7 +396,8 @@ pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBrid
 
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
     Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
-        db, None,
+        db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
     )))
 }
 
@@ -497,6 +498,9 @@ pub fn fixture_kernel_seed(
         config: bootstrap.boot_config(),
         services: fixture_services_view(),
         services_root: crate::bootstrap::test_boot_active_services_root(),
+        profile_path: systemprompt_manifest::services::root::ActiveProfilePath {
+            path: bootstrap.profile_path.clone(),
+        },
         secrets: fixture_secret_store(),
         file_storage: parts.file_storage,
         background_tasks: parts.background_tasks,

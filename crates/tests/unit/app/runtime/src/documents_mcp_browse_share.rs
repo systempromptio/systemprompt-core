@@ -1,5 +1,5 @@
 use systemprompt_files::documents::service::NewFolderRequest;
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, DocumentFormat};
 use systemprompt_runtime::documents::mcp::{
     ListHandler, ListInput, ListScopeInput, ListSortInput, SearchHandler, SearchInput,

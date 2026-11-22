@@ -6,7 +6,7 @@ use systemprompt_files::documents::DocumentSourceContent;
 use systemprompt_identifiers::{
     BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, SessionId, UserId,
 };
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::brain::FactSource;
 use systemprompt_runtime::brain::mcp::{
     BrainMcpTools, BrainRefusalCode, DisputeHandler, ProposeHandler, RecallPreviewHandler,

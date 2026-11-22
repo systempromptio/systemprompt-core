@@ -16,7 +16,7 @@ use systemprompt_identifiers::{
     AgentName, ClientId, ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId,
     DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_mcp::McpOutputSchema;
+use systemprompt_extension::mcp::McpOutputSchema;
 
 use crate::documents::views::{EditOutput, GrantItem, PeopleOutput, ReadOutput};
 use systemprompt_models::documents::{

@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_identifiers::{DocumentId, DocumentTemplateId};
-use systemprompt_mcp::McpToolHandler;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{CellRange, NodeKind};
 use systemprompt_models::execution::context::RequestContext;
