@@ -7,7 +7,8 @@
 //! platform surfaces (the Slack and Teams entry crates) never name this
 //! module; they read the dispatcher from the extension state, where the
 //! kernel seeds an unbound `LateBound<dyn MessagingDispatcher>` slot and
-//! [`bind_dispatcher`] binds it while the server builds its routes. A slot
+//! [`bind_dispatcher`] binds it, after the agent dispatch it sends through, while
+//! the server builds its routes. A slot
 //! that is never bound refuses every dispatch with
 //! [`MessagingDispatchError::Unavailable`].
 //!
@@ -153,6 +154,7 @@ impl MessagingDispatcher for A2aMessagingDispatcher {
 }
 
 pub fn bind_dispatcher(ctx: &AppContext) -> Result<(), MissingDependency> {
+    crate::services::agent_dispatch::bind_agent_dispatch(ctx)?;
     let state = ctx.kernel().state();
     let slot = state.get::<LateBound<dyn MessagingDispatcher>>()?;
     if !slot.is_bound() {
