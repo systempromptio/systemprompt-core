@@ -174,9 +174,14 @@ impl std::fmt::Debug for ApiKernelSeed<'_> {
     }
 }
 
+fn tool_call_intents(database: &DbPool) -> systemprompt_traits::DynToolCallIntentClaims {
+    Arc::new(systemprompt_ai::repository::AiRequestRepository::new(database))
+}
+
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
     let state = Dependencies::new()
         .with(systemprompt_governance::policy::secrets::SecretScannerCell::default())
+        .with(tool_call_intents(seed.database))
         .with(Arc::clone(seed.database))
         .with(Arc::clone(seed.app_paths))
         .with(Arc::clone(seed.files_config))

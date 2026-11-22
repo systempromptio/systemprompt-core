@@ -101,16 +101,10 @@ fn the_ai_rollups_are_bound_to_the_kernel_backfill_drainer() {
 }
 
 #[test]
-fn the_ai_member_provides_the_request_attribution_lookup_and_the_intent_claims() {
+fn the_ai_member_provides_the_request_attribution_lookup() {
     let sink = contributed();
     let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
-    assert_eq!(
-        provided,
-        [
-            TypeId::of::<DynRequestAttributionLookup>(),
-            TypeId::of::<systemprompt_traits::DynToolCallIntentClaims>(),
-        ]
-    );
+    assert_eq!(provided, [TypeId::of::<DynRequestAttributionLookup>()]);
 }
 
 #[test]
