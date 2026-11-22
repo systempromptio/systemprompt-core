@@ -7,8 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{ServiceDetail, ServiceHealth, ServiceProcessStatus};
 
@@ -30,12 +29,9 @@ impl std::fmt::Debug for AgentStatusView {
 
 impl AgentStatusView {
     #[must_use]
-    pub fn new(db: &DbPool, instance_id: InstanceId, services: ServicesView) -> Self {
+    pub fn new(repository: AgentServiceRepository, services: ServicesView) -> Self {
         Self {
-            database: AgentDatabaseService::new(
-                AgentServiceRepository::new(db, instance_id),
-                &services,
-            ),
+            database: AgentDatabaseService::new(repository, &services),
             services,
         }
     }

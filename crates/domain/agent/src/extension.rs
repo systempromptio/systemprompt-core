@@ -21,6 +21,7 @@ use systemprompt_traits::{
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
 use crate::repository::ContextRepository;
+use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::ContextProviderService;
 use crate::services::agent_orchestration::process_set::AgentProcessSet;
 use crate::services::agent_orchestration::status_view::AgentStatusView;
@@ -187,8 +188,7 @@ fn provide_seams(c: &mut Contributions<'_>) {
     .provide(
         |r: &Resolved<'_>| -> Result<Arc<AgentStatusView>, ProvideError> {
             Ok(Arc::new(AgentStatusView::new(
-                &r.get::<DbPool>()?,
-                r.get::<InstanceId>()?,
+                AgentServiceRepository::new(&r.get::<DbPool>()?, r.get::<InstanceId>()?),
                 r.get::<ServicesView>()?,
             )))
         },
