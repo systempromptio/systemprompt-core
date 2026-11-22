@@ -3672,6 +3672,7 @@ dependencies = [
  "chrono",
  "http",
  "pg_query",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",

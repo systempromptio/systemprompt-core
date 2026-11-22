@@ -7406,6 +7406,7 @@ dependencies = [
  "futures",
  "http",
  "pg_query",
+ "rmcp",
  "schemars 1.2.3",
  "serde",
  "serde_json",
