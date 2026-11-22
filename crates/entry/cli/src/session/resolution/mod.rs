@@ -30,11 +30,13 @@ use systemprompt_manifest::Profile;
 
 use super::context::CliSessionContext;
 use crate::env_overrides::EnvOverrides;
+pub use context_resolver::extract_profile_name;
 use context_resolver::{
-    create_new_session, extract_profile_name, resolve_profile_path_from_session,
+    create_new_session, resolve_profile_path_from_session,
     resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
 use systemprompt_cloud::paths::ResolvedPaths;
+use crate::session::contexts::SessionContexts;
 use systemprompt_cloud::profile::ProfileSource;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{OutputFormat, VerbosityLevel};
@@ -113,7 +115,8 @@ async fn get_session_for_loaded_profile(
     {
         session.touch();
 
-        if let Some(refreshed) = try_validate_context(&mut session, &profile_name, boot).await {
+        let contexts = SessionContexts::for_profile(ctx.host, profile_path).await;
+        if let Some(refreshed) = try_validate_context(&mut session, &profile_name, contexts).await {
             session = refreshed;
         }
 
@@ -134,12 +137,16 @@ async fn get_session_for_loaded_profile(
         path: profile_path.to_path_buf(),
     };
 
+    let contexts = SessionContexts::for_profile(ctx.host, profile_path).await?;
     let session = create_new_session(
         &profile_ctx,
         &session_key,
         ctx.host.output(),
         session_email_hint.as_deref(),
-        boot,
+        crate::session::creation::SessionSource {
+            boot,
+            contexts: &contexts,
+        },
     )
     .await?;
 

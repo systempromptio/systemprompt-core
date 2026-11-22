@@ -118,6 +118,13 @@ impl CommandHost for ClassifyingHost {
     fn caller_session(&self) -> BoxFuture<'_, Result<CallerSession, CommandError>> {
         Box::pin(async { Err(unavailable()) })
     }
+
+    fn use_session_context(
+        &self,
+        _context: systemprompt_identifiers::ContextId,
+    ) -> BoxFuture<'_, Result<(), CommandError>> {
+        Box::pin(async { Err(unavailable()) })
+    }
 }
 
 fn args(command: &[&str]) -> Vec<String> {

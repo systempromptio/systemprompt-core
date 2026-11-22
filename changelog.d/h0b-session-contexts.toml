@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "A CLI session's conversation context is issued and revalidated through the agent member's context seams after the command kernel resolves; with the agent member not admitted, session creation fails with a typed error. `admin session login` boots the profile's database. A member command switches the caller's session context only through the `session-context` grant, after the kernel confirms the caller owns the context."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`KernelGrant::SessionContext` (`KernelGrant::ALL` holds 11) and `CommandHost::use_session_context`; the `core contexts` row lists it. `Slot::SEALED`: a sealed slot's built value is provided sealed. New: `service_process::{ServiceProcessSlot, ServiceProcessBuilder, ServiceProcessSets}`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`session::{SessionContexts, SessionContextError, use_session_context}`; `admin_bootstrap::create_cli_context` removed; `revalidate_context` takes `&SessionContexts`; `login_for_profile` takes the host."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Added"
+text = "The agent member provides `DynContextDirectory`, `DynContextMaterializer` and `DynSessionContextIssuer` (open, database-only); `ContextProviderService` implements `SessionContextIssuer`."

@@ -26,7 +26,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use clap::{Args, Subcommand};
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_identifiers::{ContextId, ExtensionId};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_traits::DatabaseHandle;
 
@@ -202,7 +202,10 @@ pub struct DescribedCommand {
 /// [`KernelGrant::CallerSession`](super::KernelGrant::CallerSession) and
 /// resolves the caller's own session; [`CommandHost::export_dir`] needs
 /// [`KernelGrant::LocalExport`](super::KernelGrant::LocalExport) and is the
-/// profile's local exports directory. A command without the grant is refused,
+/// profile's local exports directory; [`CommandHost::use_session_context`]
+/// needs [`KernelGrant::SessionContext`](super::KernelGrant::SessionContext)
+/// and switches the caller's stored CLI session to a context the kernel first
+/// confirms the caller owns. A command without the grant is refused,
 /// and a command whose path lists no grant holds none.
 ///
 /// [`CommandHost::render`] renders an intermediate output through the
@@ -230,4 +233,5 @@ pub trait CommandHost: Send + Sync {
     fn services_tree(&self) -> Result<ServicesTree, CommandError>;
     fn export_dir(&self) -> Result<PathBuf, CommandError>;
     fn caller_session(&self) -> BoxFuture<'_, Result<CallerSession, CommandError>>;
+    fn use_session_context(&self, context: ContextId) -> BoxFuture<'_, Result<(), CommandError>>;
 }

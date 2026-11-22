@@ -12,12 +12,11 @@ use chrono::Duration as ChronoDuration;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::SessionKey;
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_extension::cli::CommandOutput;
-use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
+use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
@@ -30,6 +29,8 @@ use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
 use crate::session::api::{create_local_session_row, load_signing_keys};
+use crate::session::SessionContexts;
+use crate::session::resolution::extract_profile_name;
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
@@ -59,7 +60,7 @@ pub struct LoginOutput {
 }
 
 pub async fn execute(args: LoginArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    login_for_profile(crate::commands::admin::state::boot(host)?.as_ref(), &args).await
+    login_for_profile(crate::commands::admin::state::boot(host)?.as_ref(), &args, host).await
 }
 
 fn ensure_interactive_admin(admin_user: &User) -> Result<()> {
@@ -82,7 +83,11 @@ async fn connect_profile_database(boot: &BootContext) -> Result<DbPool> {
     Ok(DbPool::from(Arc::new(db)))
 }
 
-pub async fn login_for_profile(boot: &BootContext, args: &LoginArgs) -> Result<CommandOutput> {
+pub async fn login_for_profile(
+    boot: &BootContext,
+    args: &LoginArgs,
+    host: &dyn KernelHost,
+) -> Result<CommandOutput> {
     let profile = boot.profile();
     let profile_path = boot
         .profile_path()
@@ -129,8 +134,7 @@ pub async fn login_for_profile(boot: &BootContext, args: &LoginArgs) -> Result<C
     .await?;
 
     progress(args, "Creating context...");
-    let context_id =
-        create_cli_context(&db_pool, &admin_user.id, &session_id, profile_path).await?;
+    let context_id = issue_login_context(host, profile_path, &admin_user.id, &session_id).await?;
 
     progress(args, "Generating token...");
     let session_token = generate_session_token(profile, keys, args, &admin_user, &session_id)?;
@@ -174,27 +178,18 @@ fn progress(args: &LoginArgs, message: &str) {
     }
 }
 
-async fn create_cli_context(
-    db_pool: &DbPool,
+async fn issue_login_context(
+    host: &dyn KernelHost,
+    profile_path: &str,
     user_id: &UserId,
     session_id: &SessionId,
-    profile_path: &str,
-) -> Result<ContextId> {
-    let profile_name = Path::new(profile_path)
-        .parent()
-        .and_then(|d| d.file_name())
-        .and_then(|n| n.to_str())
-        .unwrap_or("unknown");
-
-    let context_repo = ContextRepository::new(db_pool);
-    context_repo
-        .get_or_create_cli_context(
-            user_id,
-            session_id,
-            &format!("CLI Session - {}", profile_name),
-        )
-        .await
-        .context("Failed to create CLI context")
+) -> Result<systemprompt_identifiers::ContextId> {
+    let path = Path::new(profile_path);
+    let profile_name = extract_profile_name(path)?;
+    Ok(SessionContexts::for_profile(host, path)
+        .await?
+        .issue(user_id, session_id, &profile_name)
+        .await?)
 }
 
 fn generate_session_token(

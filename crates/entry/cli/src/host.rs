@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ContextId;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -164,6 +165,10 @@ impl CommandHost for CommandContext {
 
     fn caller_session(&self) -> BoxFuture<'_, Result<CallerSession, CommandError>> {
         Box::pin(async move { Err(grant_refused(KernelGrant::CallerSession)) })
+    }
+
+    fn use_session_context(&self, _context: ContextId) -> BoxFuture<'_, Result<(), CommandError>> {
+        Box::pin(async move { Err(grant_refused(KernelGrant::SessionContext)) })
     }
 }
 

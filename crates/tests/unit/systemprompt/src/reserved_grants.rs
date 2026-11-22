@@ -42,6 +42,14 @@ fn the_caller_session_grant_is_listed_only_on_the_mcp_and_agent_paths() {
 }
 
 #[test]
+fn the_session_context_grant_is_listed_only_on_core_contexts() {
+    assert_eq!(
+        rows_listing(KernelGrant::SessionContext),
+        vec![(CoreId::AgentHttp, vec!["core", "contexts"])]
+    );
+}
+
+#[test]
 fn the_boot_profile_grant_is_listed_only_on_cloud() {
     assert_eq!(
         rows_listing(KernelGrant::BootProfile),
@@ -61,8 +69,11 @@ fn forged_cloud(request: &'static [KernelGrant]) -> DeclaredCommands {
 
 #[test]
 fn a_core_path_requesting_a_grant_its_row_does_not_list_is_refused() {
-    const REQUESTS: [&[KernelGrant]; 2] =
-        [&[KernelGrant::ServicesTree], &[KernelGrant::CallerSession]];
+    const REQUESTS: [&[KernelGrant]; 3] = [
+        &[KernelGrant::ServicesTree],
+        &[KernelGrant::CallerSession],
+        &[KernelGrant::SessionContext],
+    ];
     for request in REQUESTS {
         let grant = request[0];
         let error = CommandRegistry::build(&forged_cloud(request), &kernel_commands())

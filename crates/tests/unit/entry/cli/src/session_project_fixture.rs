@@ -3,6 +3,9 @@
 //! the life of the value.
 
 use std::path::PathBuf;
+use std::sync::Arc;
+
+use systemprompt_runtime::Kernel;
 
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::paths::ResolvedPaths;
@@ -13,6 +16,7 @@ pub struct Project {
     previous: PathBuf,
     pub root: tempfile::TempDir,
     pub profile: PathBuf,
+    seams: Option<Arc<Kernel>>,
 }
 
 impl Project {
@@ -37,7 +41,13 @@ impl Project {
             previous,
             root,
             profile,
+            seams: None,
         }
+    }
+
+    pub async fn with_session_seams(mut self) -> Self {
+        self.seams = Some(systemprompt_test_fixtures::session_seams::session_seam_kernel().await);
+        self
     }
 
     pub fn paths(&self) -> ResolvedPaths {
@@ -45,14 +55,17 @@ impl Project {
     }
 
     pub fn context(&self, interactive: bool) -> CommandContext {
-        CommandContext::new(
+        let ctx = CommandContext::new(
             CliConfig::new()
                 .with_interactive(interactive)
                 .with_output_format(OutputFormat::Json)
                 .with_profile_override(Some(self.profile.display().to_string())),
             EnvOverrides::default(),
-        )
-        .with_detached_kernel()
+        );
+        match &self.seams {
+            Some(kernel) => ctx.with_kernel(Arc::clone(kernel)),
+            None => ctx.with_detached_kernel(),
+        }
     }
 }
 

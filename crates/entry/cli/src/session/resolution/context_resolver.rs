@@ -4,16 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{
     CliSession, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey, SessionStore,
 };
-use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{Email, ProfileName};
-use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::auth::UserType;
@@ -21,6 +17,8 @@ use systemprompt_models::auth::UserType;
 use super::ProfileContext;
 use crate::env_overrides::EnvOverrides;
 use crate::session::context::CliSessionContext;
+use crate::session::contexts::{SessionContextError, SessionContexts};
+use crate::session::creation::SessionSource;
 use systemprompt_cloud::paths::ResolvedPaths;
 
 pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<CliSessionContext> {
@@ -67,8 +65,9 @@ pub(super) async fn create_new_session(
     session_key: &SessionKey,
     config: &systemprompt_extension::cli::CliConfig,
     session_email_hint: Option<&str>,
-    boot: &BootContext,
+    source: SessionSource<'_>,
 ) -> Result<CliSession> {
+    let SessionSource { boot, contexts } = source;
     let profile = boot.profile();
     if session_key.is_local() || profile.is_local_trial() {
         return crate::session::creation::create_local_session(
@@ -76,7 +75,7 @@ pub(super) async fn create_new_session(
             session_key,
             config,
             session_email_hint,
-            boot,
+            source,
         )
         .await;
     }
@@ -100,6 +99,7 @@ pub(super) async fn create_new_session(
             config,
             session_email_hint,
             boot,
+            contexts,
         },
     )
     .await
@@ -162,30 +162,23 @@ pub fn resolve_profile_path_without_session(
 pub(super) async fn try_validate_context(
     session: &mut CliSession,
     profile_name: &ProfileName,
-    boot: &BootContext,
+    contexts: Result<SessionContexts, SessionContextError>,
 ) -> Option<CliSession> {
-    let database_url = boot.secrets().database_url();
-    let db = Database::new_postgres(&database_url)
-        .await
-        .map_err(
-            |e| tracing::debug!(error = %e, "Failed to connect to database for context validation"),
-        )
+    let contexts = contexts
+        .map_err(|e| tracing::debug!(error = %e, "Session context cannot be validated"))
         .ok()?;
-    let db_pool = DbPool::from(Arc::new(db));
-    revalidate_context(&db_pool, session, profile_name).await
+    revalidate_context(&contexts, session, profile_name).await
 }
 
 pub async fn revalidate_context(
-    db_pool: &DbPool,
+    contexts: &SessionContexts,
     session: &mut CliSession,
     profile_name: &ProfileName,
 ) -> Option<CliSession> {
-    let context_repo = ContextRepository::new(db_pool);
-
-    let is_valid = context_repo
-        .validate_context_ownership(&session.context_id, &session.user_id)
+    let is_valid = contexts
+        .owns(&session.user_id, &session.context_id)
         .await
-        .is_ok();
+        .unwrap_or(false);
 
     if is_valid {
         return None;
@@ -193,12 +186,8 @@ pub async fn revalidate_context(
 
     CliService::warning("Session context is stale, recovering session context...");
 
-    let new_context_id = context_repo
-        .get_or_create_cli_context(
-            &session.user_id,
-            &session.session_id,
-            &format!("CLI Session - {}", profile_name),
-        )
+    let new_context_id = contexts
+        .issue(&session.user_id, &session.session_id, profile_name)
         .await
         .map_err(|e| tracing::warn!(error = %e, "Failed to recover session context"))
         .ok()?;
