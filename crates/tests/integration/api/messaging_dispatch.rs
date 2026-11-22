@@ -45,6 +45,8 @@ pub(crate) async fn dispatch_messaging(
     ctx: &AppContext,
     inbound: MessagingInbound,
 ) -> Result<DispatchOutcome, MessagingError> {
+    systemprompt_api::services::agent_dispatch::bind_agent_dispatch(ctx)
+        .expect("the API seeds the agent dispatch cell");
     A2aMessagingDispatcher::new(ctx.clone()).run(inbound).await
 }
 

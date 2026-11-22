@@ -29,7 +29,6 @@ use serde_json::json;
 use systemprompt_extension::{AlreadyBound, LateBound};
 use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 use systemprompt_identifiers::{Actor, SessionId, TraceId};
-use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_oauth::OauthError;
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
@@ -39,7 +38,7 @@ use systemprompt_traits::{
 };
 use systemprompt_users::UserError;
 
-use crate::services::proxy::ProxyError;
+use systemprompt_models::a2a::dispatch::{AgentDispatchCell, AgentDispatchError};
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
 use identity::resolve_or_link_user;
 
@@ -53,14 +52,12 @@ pub enum MessagingError {
     Token(#[source] OauthError),
     #[error("could not encode the agent request")]
     Encode(#[source] serde_json::Error),
-    #[error("could not build the agent request")]
-    Request(#[source] http::Error),
     #[error("agent dispatch failed")]
-    Dispatch(#[source] ProxyError),
+    Dispatch(#[source] AgentDispatchError),
+    #[error("the agent dispatch is not bound")]
+    DispatchUnbound,
     #[error("agent returned JSON-RPC error {code}: {message}")]
     AgentRejected { code: i32, message: String },
-    #[error("agent response body could not be read")]
-    ResponseBody(#[source] axum::Error),
     #[error("malformed agent response")]
     Response(#[source] serde_json::Error),
 }
@@ -69,7 +66,6 @@ pub enum MessagingError {
 #[derive(Clone)]
 pub struct A2aMessagingDispatcher {
     ctx: AppContext,
-    proxy_sessions: Arc<McpProxySessionRepository>,
 }
 
 impl std::fmt::Debug for A2aMessagingDispatcher {
@@ -81,12 +77,8 @@ impl std::fmt::Debug for A2aMessagingDispatcher {
 
 impl A2aMessagingDispatcher {
     #[must_use]
-    pub fn new(ctx: AppContext) -> Self {
-        let proxy_sessions = crate::repository::proxy_sessions(ctx.db_pool());
-        Self {
-            ctx,
-            proxy_sessions,
-        }
+    pub const fn new(ctx: AppContext) -> Self {
+        Self { ctx }
     }
 
     pub async fn run(&self, inbound: MessagingInbound) -> Result<DispatchOutcome, MessagingError> {
@@ -137,7 +129,13 @@ impl A2aMessagingDispatcher {
         let token = mint_a2a_token(ctx, &authed, &session_id)?;
 
         let request = build_a2a_request(&inbound, &authed, &session_id, &token, &context_id)?;
-        let reply = run_agent(ctx, &self.proxy_sessions, &inbound.agent_name, request).await?;
+        let dispatch = ctx
+            .kernel()
+            .state()
+            .find::<AgentDispatchCell>()
+            .and_then(|cell| cell.get().cloned())
+            .ok_or(MessagingError::DispatchUnbound)?;
+        let reply = run_agent(dispatch.as_ref(), &inbound.agent_name, request).await?;
         Ok(DispatchOutcome::Replied(reply))
     }
 }

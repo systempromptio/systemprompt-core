@@ -9,6 +9,7 @@ pub mod agent_card;
 pub mod artifact;
 pub mod artifact_metadata;
 pub mod artifact_summary;
+pub mod dispatch;
 pub mod mcp_extension;
 pub mod message;
 pub mod methods;

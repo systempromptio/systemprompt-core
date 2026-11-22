@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_dispatch;
 pub mod health;
 pub mod messaging;
 pub mod middleware;

@@ -43,7 +43,10 @@
 //! The messaging dispatcher slot (`LateBound<dyn MessagingDispatcher>`) is
 //! seeded unbound: the dispatcher needs the API's agent proxy, which exists
 //! only after this state is built, so the API binds it while it builds its
-//! routes and the chat-platform surfaces read the slot at dispatch time.
+//! routes and the chat-platform surfaces read the slot at dispatch time. The
+//! agent dispatch cell (`AgentDispatchCell`) is seeded unbound and **sealed**
+//! the same way: the API binds its agent proxy into it, and only kernel code
+//! and core provide fns and slot builds read it.
 //!
 //! The API also seeds the read-side handles a capability's routes are built
 //! from: the loaded content configuration (`Arc<ContentConfigRaw>`, whose
@@ -80,6 +83,7 @@ use systemprompt_models::{ContentConfigRaw, LateBound};
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
+use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
@@ -195,7 +199,8 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
         .with_sealed(seed.signing_keys.clone())
         .with(Arc::clone(seed.oauth))
         .with(Arc::clone(seed.ai))
-        .with(LateBound::<dyn MessagingDispatcher>::default());
+        .with(LateBound::<dyn MessagingDispatcher>::default())
+        .with_sealed(AgentDispatchCell::default());
     match seed.ai_service {
         Some(ai) => state.insert(Arc::clone(ai)),
         None => state.reserve::<Arc<AiService>>(),
