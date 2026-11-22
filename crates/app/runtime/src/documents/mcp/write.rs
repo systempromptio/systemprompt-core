@@ -27,6 +27,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
@@ -35,7 +36,6 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{
     ContentHash, DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId,
 };
-use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;

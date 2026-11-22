@@ -3,10 +3,10 @@ use systemprompt_identifiers::{
     UserId,
 };
 use systemprompt_mcp::{McpResponseBuilder, ToolIdentity};
-use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::cli::CliArtifact;
 use systemprompt_models::artifacts::{DashboardArtifact, ListArtifact, TextArtifact};
+use systemprompt_models::mcp::ClientProfile;
 
 fn ctx() -> RequestContext {
     RequestContext::new(

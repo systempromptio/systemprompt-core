@@ -7,6 +7,7 @@ use rmcp::model::{
 };
 use rmcp::{ErrorData as McpError, ServerHandler};
 use systemprompt_extension::StandingTag;
+use systemprompt_extension::mcp::{McpToolset, ToolsetCall};
 use systemprompt_governance::authz::{
     AllowAllHook, DenyAllHook, SharedAuthzHook, SubjectAttributeError, SubjectAttributeProvider,
     SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
@@ -19,7 +20,6 @@ use systemprompt_mcp::host::{
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor};
-use systemprompt_extension::mcp::{McpToolset, ToolsetCall};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_provider_contracts::governance::RuleType;
 use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_bridge_jwt, mint_mcp_hop};
@@ -169,7 +169,10 @@ async fn parts(
     let executor = McpToolExecutor::new(
         Arc::new(ToolUsageRepository::new(&db)),
         Arc::new(systemprompt_ai::repository::AiRequestRepository::new(&db)),
-        Arc::new(ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default())),
+        Arc::new(ArtifactIngest::from_db(
+            &db,
+            systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+        )),
         Arc::new(UiRendererRegistry::with_builtins()),
         server_id.clone(),
     );

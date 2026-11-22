@@ -162,7 +162,9 @@ impl AppContextBuilder {
                 config: &config,
                 services: services.view(),
                 services_root,
-                profile_path: ActiveProfilePath { path: self.boot.profile_path().to_path_buf() },
+                profile_path: ActiveProfilePath {
+                    path: self.boot.profile_path().to_path_buf(),
+                },
                 secrets,
                 file_storage: Arc::clone(&file_storage),
                 background_tasks: background_tasks.clone(),

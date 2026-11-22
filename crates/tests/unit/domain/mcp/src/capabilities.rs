@@ -1,7 +1,10 @@
 //! Unit tests for capabilities module (re-exports at crate root).
 
+use systemprompt_extension::mcp::capabilities::{
+    WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension,
+    model_only_visibility, tool_ui_meta, visibility_to_json,
+};
 use systemprompt_identifiers::McpServerId;
-use systemprompt_extension::mcp::capabilities::{WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension, model_only_visibility, tool_ui_meta, visibility_to_json};
 
 #[test]
 fn test_website_url_constant() {

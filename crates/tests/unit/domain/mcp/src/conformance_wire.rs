@@ -4,18 +4,18 @@
 // its schema, so every profile's output must validate.
 
 use rmcp::model::{CallToolResult, ProtocolVersion};
+use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
     UserId,
 };
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, McpResponseBuilder, ResponseServices, ToolIdentity};
-use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
-use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CliArtifact, Column, ColumnType, TableArtifact, TextArtifact,
 };
+use systemprompt_models::mcp::ClientProfile;
 use systemprompt_test_fixtures::test_db_pool;
 
 const SCHEMA_2025_06_18: &str = include_str!("../schemas/2025-06-18.schema.json");
@@ -80,7 +80,10 @@ fn ctx() -> RequestContext {
 
 async fn build(client: &ClientProfile, artifact: CliArtifact) -> CallToolResult {
     let db = test_db_pool().await;
-    let repo = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let repo = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
     let artifact_type = artifact.artifact_type_name();

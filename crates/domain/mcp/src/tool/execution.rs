@@ -57,7 +57,9 @@ impl ToolExecution for McpToolExecutor {
                 tracing::error!(tool = %tool_name, error = %e, "Failed to start execution tracking");
                 McpError::internal_error("Failed to start execution tracking", None)
             })?;
-        let context = self.with_claimed_intent(&tool_name, context, &exec_id).await;
+        let context = self
+            .with_claimed_intent(&tool_name, context, &exec_id)
+            .await;
         tracing::info!(tool = %tool_name, %exec_id, "MCP execution started");
         Ok(ToolRun {
             exec_id,

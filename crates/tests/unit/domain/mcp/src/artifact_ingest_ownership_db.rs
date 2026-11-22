@@ -71,7 +71,10 @@ fn with_meta(text: &str, execution_id: &str) -> CallToolResult {
 #[tokio::test]
 async fn another_users_tool_call_id_does_not_join_their_execution() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
     let call = AiToolCallId::new(unique("toolu"));
 
     let owned = ingest
@@ -133,7 +136,10 @@ async fn another_users_tool_call_id_does_not_join_their_execution() {
 #[tokio::test]
 async fn another_users_execution_id_in_meta_does_not_join_and_anonymous_never_does() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
 
     let owned = ingest
         .ingest(request(

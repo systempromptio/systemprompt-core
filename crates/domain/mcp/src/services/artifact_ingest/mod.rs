@@ -123,10 +123,7 @@ impl ArtifactIngest {
         }
     }
 
-    pub fn from_db(
-        db: &systemprompt_database::DbPool,
-        secrets: SecretScannerCell,
-    ) -> Self {
+    pub fn from_db(db: &systemprompt_database::DbPool, secrets: SecretScannerCell) -> Self {
         Self::new(ArtifactIngestRepositories::new(db), secrets)
     }
 

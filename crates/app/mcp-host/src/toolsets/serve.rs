@@ -2,8 +2,8 @@
 //!
 //! [`build_server`] resolves the deployment's enabled `toolsets:` against the
 //! built [`Toolsets`] (an id no admitted member contributes fails start),
-//! builds each toolset, takes the built access recorders and the MCP member's tool execution for
-//! the server and
+//! builds each toolset, takes the built access recorders and the MCP member's
+//! tool execution for the server and
 //! hands the lot to [`ToolsetServer`], which refuses a `tools:` entry no
 //! toolset serves.
 //! [`serve`] binds the deployment's `port:` on the loopback interface only
@@ -16,13 +16,13 @@
 
 use std::sync::Arc;
 
+use systemprompt_extension::mcp::{DynToolExecutions, McpToolset};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::contract::AccessRecorders;
 use systemprompt_mcp::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts, serve_router,
 };
 use systemprompt_mcp::middleware::HopVerifier;
-use systemprompt_extension::mcp::{DynToolExecutions, McpToolset};
 use systemprompt_mcp::{McpHttpConfig, create_router};
 use systemprompt_provider_contracts::MissingDependency;
 use tokio::net::TcpListener;
@@ -109,7 +109,9 @@ pub fn build_server(
         }
     }
 
-    let executor = state.get::<DynToolExecutions>()?.for_server(server_id.clone());
+    let executor = state
+        .get::<DynToolExecutions>()?
+        .for_server(server_id.clone());
     ToolsetServer::new(ToolsetServerParts {
         server_id: server_id.clone(),
         executor,

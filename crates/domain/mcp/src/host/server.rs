@@ -26,12 +26,9 @@ use systemprompt_manifest::services::ServicesView;
 use super::catalog::{HostedCatalog, ToolsetHostError};
 use super::recorder::{McpAccessOutcome, SharedMcpAccessRecorder};
 use crate::middleware::hop::VerifiedHop;
+use crate::{build_tool_list_result, client_profile_from_peer, default_server_icons};
 use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 use systemprompt_extension::mcp::{DynToolExecution, McpToolset, ToolsetCall};
-use crate::{
-    build_tool_list_result, client_profile_from_peer,
-    default_server_icons,
-};
 
 /// What a [`ToolsetServer`] authorises against.
 #[derive(Clone)]

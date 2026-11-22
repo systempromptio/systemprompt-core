@@ -11,11 +11,11 @@
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolResult;
+use systemprompt_extension::mcp::{McpToolHandler, execute};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::{DocumentRevision, RevisionOrigin};
 use systemprompt_files::documents::service::Author;
 use systemprompt_identifiers::{ContextId, DocumentId, DocumentRevisionId, McpExecutionId};
-use systemprompt_extension::mcp::{McpToolHandler, execute};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_models::execution::context::RequestContext;
@@ -91,7 +91,14 @@ pub(super) async fn run<H: McpToolHandler>(
     call: DocumentsToolCall<'_>,
     handler: &H,
 ) -> Result<CallToolResult, McpError> {
-    match execute(call.executor, handler, call.request, call.context, call.client).await
+    match execute(
+        call.executor,
+        handler,
+        call.request,
+        call.context,
+        call.client,
+    )
+    .await
     {
         Err(error) => refusal_result(&error).ok_or(error),
         ok => ok,

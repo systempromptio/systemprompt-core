@@ -12,13 +12,13 @@ use rmcp::model::CallToolRequestParams;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_ai::repository::AiRequestRepository;
+use systemprompt_extension::mcp::{McpToolHandler, execute};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor};
-use systemprompt_extension::mcp::{McpToolHandler, execute};
-use systemprompt_models::mcp::ClientProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
+use systemprompt_models::mcp::ClientProfile;
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::DynToolCallIntentClaims;
 
@@ -143,7 +143,10 @@ fn handler_output_schema_tags_artifact_type() {
 async fn execute_success_records_and_returns_result() {
     let db = test_db_pool().await;
     let tool_repo = Arc::new(ToolUsageRepository::new(&db));
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default()));
+    let art_repo = Arc::new(ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    ));
     let exec = McpToolExecutor::new(
         tool_repo,
         intents(&db),
@@ -154,7 +157,14 @@ async fn execute_success_records_and_returns_result() {
 
     let ctx = test_ctx();
     let request = echo_request("hi there");
-    let result = execute(&exec, &EchoHandler, &request, &ctx, &ClientProfile::unknown()).await;
+    let result = execute(
+        &exec,
+        &EchoHandler,
+        &request,
+        &ctx,
+        &ClientProfile::unknown(),
+    )
+    .await;
 
     let call_result = result.expect("execute should succeed");
     assert_ne!(call_result.is_error, Some(true));
@@ -166,7 +176,10 @@ async fn execute_success_records_and_returns_result() {
 async fn execute_handler_error_propagates() {
     let db = test_db_pool().await;
     let tool_repo = Arc::new(ToolUsageRepository::new(&db));
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default()));
+    let art_repo = Arc::new(ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    ));
     let exec = McpToolExecutor::new(
         tool_repo,
         intents(&db),
@@ -183,7 +196,14 @@ async fn execute_handler_error_propagates() {
     );
     let request = CallToolRequestParams::new("always-fails".to_owned()).with_arguments(map);
 
-    let result = execute(&exec, &FailingHandler, &request, &ctx, &ClientProfile::unknown()).await;
+    let result = execute(
+        &exec,
+        &FailingHandler,
+        &request,
+        &ctx,
+        &ClientProfile::unknown(),
+    )
+    .await;
     let err = result.expect_err("handler returns Err");
     assert!(err.message.contains("boom"));
 }
@@ -192,7 +212,10 @@ async fn execute_handler_error_propagates() {
 async fn execute_input_parse_error_returns_invalid_params() {
     let db = test_db_pool().await;
     let tool_repo = Arc::new(ToolUsageRepository::new(&db));
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default()));
+    let art_repo = Arc::new(ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    ));
     let exec = McpToolExecutor::new(
         tool_repo,
         intents(&db),
@@ -204,7 +227,14 @@ async fn execute_input_parse_error_returns_invalid_params() {
     let ctx = test_ctx();
     // Missing required "message" field -> parse_input fails.
     let request = CallToolRequestParams::new("echo".to_owned());
-    let result = execute(&exec, &EchoHandler, &request, &ctx, &ClientProfile::unknown()).await;
+    let result = execute(
+        &exec,
+        &EchoHandler,
+        &request,
+        &ctx,
+        &ClientProfile::unknown(),
+    )
+    .await;
     let err = result.expect_err("parse should fail");
     assert!(err.message.to_lowercase().contains("invalid"));
 }
@@ -268,6 +298,7 @@ fn object_input_schema_leaves_declared_types_alone() {
         &serde_json::json!({"type": "object", "properties": {}}),
     );
     assert_eq!(out.get("type"), Some(&serde_json::json!("object")));
-    let out = systemprompt_extension::mcp::object_input_schema(&serde_json::json!({"type": "string"}));
+    let out =
+        systemprompt_extension::mcp::object_input_schema(&serde_json::json!({"type": "string"}));
     assert_eq!(out.get("type"), Some(&serde_json::json!("string")));
 }

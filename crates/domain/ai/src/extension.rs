@@ -30,18 +30,19 @@ impl Extension for AiExtension {
         for schema in request_schemas().into_iter().chain(gateway_schemas()) {
             c.schema(schema);
         }
-        c.migrations(extension_migrations!()).provide(
-            |r: &Resolved<'_>| -> Result<DynRequestAttributionLookup, ProvideError> {
-                let db = r.get::<DbPool>()?;
-                Ok(Arc::new(AiRequestRepository::new(&db)))
-            },
-        )
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynToolCallIntentClaims, ProvideError> {
-                let db = r.get::<DbPool>()?;
-                Ok(Arc::new(AiRequestRepository::new(&db)))
-            },
-        );
+        c.migrations(extension_migrations!())
+            .provide(
+                |r: &Resolved<'_>| -> Result<DynRequestAttributionLookup, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    Ok(Arc::new(AiRequestRepository::new(&db)))
+                },
+            )
+            .provide(
+                |r: &Resolved<'_>| -> Result<DynToolCallIntentClaims, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    Ok(Arc::new(AiRequestRepository::new(&db)))
+                },
+            );
         crate::jobs::contribute(c);
         c.user_purge(UserPurgeTable {
             table: "ai_requests",

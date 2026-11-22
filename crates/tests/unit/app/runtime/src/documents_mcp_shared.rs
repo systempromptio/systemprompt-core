@@ -4,8 +4,8 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentOpId};
 use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentOpId};
 use systemprompt_models::documents::{
     ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,
     content_hash, hash8,

@@ -75,7 +75,10 @@ fn request(
 #[tokio::test]
 async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
     let session = unique("sess");
     let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
@@ -129,7 +132,10 @@ async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact()
 #[tokio::test]
 async fn a_server_execution_key_in_meta_joins_exactly() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
     let session = unique("sess");
     let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
@@ -170,7 +176,10 @@ async fn a_server_execution_key_in_meta_joins_exactly() {
 #[tokio::test]
 async fn a_hook_with_no_key_is_matched_by_fingerprint_and_marked_inferred() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
     let session = unique("sess");
     let user = caller();
     let body = unique("same-body");
@@ -203,7 +212,10 @@ async fn a_hook_with_no_key_is_matched_by_fingerprint_and_marked_inferred() {
 #[tokio::test]
 async fn a_secret_in_the_result_is_redacted_before_the_body_is_stored() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::bound(scanner()));
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::bound(scanner()),
+    );
     let session = unique("sess");
     let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
@@ -255,7 +267,10 @@ async fn a_secret_in_the_result_is_redacted_before_the_body_is_stored() {
 #[tokio::test]
 async fn an_identical_body_is_stored_once_by_digest() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
     let body = unique("shared-body");
     let user = caller();
     let mut ids = Vec::new();
@@ -298,7 +313,10 @@ async fn an_identical_body_is_stored_once_by_digest() {
 #[tokio::test]
 async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_artifact_id() {
     let db = test_db_pool().await;
-    let ingest = ArtifactIngest::from_db(&db, systemprompt_governance::policy::secrets::SecretScannerCell::default());
+    let ingest = ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    );
     let user = caller();
     let artifact_id = unique("artifact");
     let mut result = CallToolResult::error(vec![

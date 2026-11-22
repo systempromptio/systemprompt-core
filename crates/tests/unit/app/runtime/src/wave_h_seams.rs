@@ -56,7 +56,10 @@ async fn the_spawner_and_the_profile_path_are_sealed_from_member_code() {
     let state = ctx.kernel().state();
     assert!(state.is_sealed::<Arc<systemprompt_loader::subprocess::Spawner>>());
     assert!(state.is_sealed::<ActiveProfilePath>());
-    assert!(state.find::<ActiveProfilePath>().is_some(), "kernel code reads it");
+    assert!(
+        state.find::<ActiveProfilePath>().is_some(),
+        "kernel code reads it"
+    );
     let kernel = command_kernel(&ctx);
     let member = Resolved::__member_command(&kernel, kernel.state());
     assert!(

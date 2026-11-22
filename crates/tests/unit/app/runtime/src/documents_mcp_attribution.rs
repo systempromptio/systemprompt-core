@@ -7,13 +7,13 @@ use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::services::ContextProviderService;
 use systemprompt_ai::{AiService, AiServiceProviders, McpTool, ToolCall};
+use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_files::documents::agents::{DocumentActor, act_as};
 use systemprompt_files::documents::service::HistoryPage;
 use systemprompt_identifiers::{
     AgentName, AiToolCallId, ClientId, ContextId, DocumentId, McpServerId, SessionId, TraceId,
     headers,
 };
-use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
