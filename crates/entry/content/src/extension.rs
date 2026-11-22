@@ -92,6 +92,6 @@ mod commands {
             CommandDecl::group_under::<parents::Core, ContentCommands>()
                 .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]),
         )
-            .command(CommandDecl::group_under::<parents::Web, SitemapCommands>());
+        .command(CommandDecl::group_under::<parents::Web, SitemapCommands>());
     }
 }

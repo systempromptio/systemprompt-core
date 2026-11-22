@@ -17,13 +17,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod base_ref;
 #[cfg(feature = "router")]
 mod capability;
 #[cfg(feature = "router")]
 mod http_error;
 #[cfg(feature = "router")]
 mod negotiation;
-mod base_ref;
 mod overlap;
 #[cfg(feature = "router")]
 mod principal;
@@ -33,6 +33,7 @@ mod shape;
 #[cfg(feature = "router")]
 mod sse;
 
+pub use base_ref::{BaseRef, GatewayPath};
 #[cfg(feature = "router")]
 pub use capability::{IntoApiError, capability_response};
 #[cfg(feature = "router")]
@@ -49,11 +50,9 @@ pub use overlap::{
 pub use principal::GatewayPrincipal;
 #[cfg(feature = "router")]
 pub use set::{GatewayRouteDecl, RouteSet, RouteSetBuilder};
-pub use base_ref::{BaseRef, GatewayPath};
 pub use shape::{
-    Allowance, ApiBase, BasePath, BodyLimit, OperationSpec, RouteDef,
-    RouteLimits, RouteMethod, RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase,
-    reserved_prefix_of,
+    Allowance, ApiBase, BasePath, BodyLimit, OperationSpec, RouteDef, RouteLimits, RouteMethod,
+    RoutePath, RouteShape, RouteSpec, TypedSpec, WebBase, reserved_prefix_of,
 };
 #[cfg(feature = "router")]
 pub use sse::{

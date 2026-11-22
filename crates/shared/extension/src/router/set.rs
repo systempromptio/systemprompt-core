@@ -27,10 +27,7 @@ use systemprompt_provider_contracts::MissingDependency;
 use tower::Service;
 
 use super::base_ref::{BaseRef, GatewayPath};
-use super::shape::{
-    BasePath, RouteDef, RouteLimits, RouteMethod, RoutePath, RouteSpec,
-    TypedSpec,
-};
+use super::shape::{BasePath, RouteDef, RouteLimits, RouteMethod, RoutePath, RouteSpec, TypedSpec};
 use crate::contribute::{ContributionError, FromState, Resolved};
 use crate::protection::RouteGroup;
 

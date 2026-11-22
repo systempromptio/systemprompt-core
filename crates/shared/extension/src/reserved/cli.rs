@@ -41,7 +41,12 @@ const DIRECT_PRESERVING: &[CommandClaim] =
 const PRESERVING: &[CommandClaim] = &[CommandClaim::PreservesData];
 
 pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
-    cli(CoreId::Kernel, &["admin", "mcp"], &[KernelGrant::ChildHost], &[]),
+    cli(
+        CoreId::Kernel,
+        &["admin", "mcp"],
+        &[KernelGrant::ChildHost],
+        &[],
+    ),
     cli(
         CoreId::Kernel,
         &["admin", "agent-host"],
@@ -54,8 +59,18 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
         &[KernelGrant::ServicesTree, KernelGrant::CallerSession],
         PRESERVING,
     ),
-    cli(CoreId::AgentHttp, &["core", "contexts"], &[KernelGrant::CallerSession], PRESERVING),
-    cli(CoreId::AgentHttp, &["core", "artifacts"], &[KernelGrant::CallerSession], PRESERVING),
+    cli(
+        CoreId::AgentHttp,
+        &["core", "contexts"],
+        &[KernelGrant::CallerSession],
+        PRESERVING,
+    ),
+    cli(
+        CoreId::AgentHttp,
+        &["core", "artifacts"],
+        &[KernelGrant::CallerSession],
+        PRESERVING,
+    ),
     cli(
         CoreId::AnalyticsHttp,
         &["analytics"],
@@ -103,7 +118,12 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
         &[KernelGrant::ServicesTree],
         &[CommandClaim::LocalDatabase, CommandClaim::PreservesData],
     ),
-    cli(CoreId::FilesHttp, &["core", "files"], &[], DIRECT_PRESERVING),
+    cli(
+        CoreId::FilesHttp,
+        &["core", "files"],
+        &[],
+        DIRECT_PRESERVING,
+    ),
     cli(
         CoreId::McpHttp,
         &["plugins", "mcp"],

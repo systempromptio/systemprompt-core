@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "New crates `systemprompt-agent-entry` (`http` and `cli` features) and `systemprompt-brain-entry` (`http` feature) hold the agent and brain entry surfaces; the facade features `agents` and `brain` carry them."
+
+[[crate]]
+name = "systemprompt-agent-entry"
+section = "Added"
+text = "New crate with `http` and `cli` features."
+
+[[crate]]
+name = "systemprompt-brain-entry"
+section = "Added"
+text = "New crate with an `http` feature."
+
+[[crate]]
+name = "systemprompt"
+section = "Added"
+text = "Feature `agents` carries `systemprompt-agent` and `systemprompt-agent-entry`; feature `brain` carries `systemprompt-brain-entry`."

@@ -5,12 +5,12 @@
 
 use clap::{ArgMatches, Command};
 
-use super::{CommandClaim, KernelGrant};
 use super::command::{
     CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost, CommandParent,
 };
 use super::descriptor::CommandDescriptor;
 use super::impact::DbUrlRouting;
+use super::{CommandClaim, KernelGrant};
 
 /// The kind of clap node a declaration contributes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
