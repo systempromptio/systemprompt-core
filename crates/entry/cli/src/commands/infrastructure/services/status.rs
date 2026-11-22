@@ -14,9 +14,11 @@ use std::sync::Arc;
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::ServiceStatus;
-use systemprompt_traits::{ServiceDetail, ServiceHealth, ServiceProcessKind, ServiceProcessStatus, StatusDepth};
 use systemprompt_runtime::{StartupValidator, display_validation_report};
 use systemprompt_scheduler::{ServiceStateVerifier, ServiceType, VerifiedServiceState};
+use systemprompt_traits::{
+    ServiceDetail, ServiceHealth, ServiceProcessKind, ServiceProcessStatus, StatusDepth,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ServiceStatusOutput {

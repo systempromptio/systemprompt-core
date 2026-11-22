@@ -17,9 +17,9 @@ use std::sync::Arc;
 use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_identifiers::AgentName;
-use systemprompt_manifest::services::ServicesView;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::keys::TokenVerificationKeys;
 

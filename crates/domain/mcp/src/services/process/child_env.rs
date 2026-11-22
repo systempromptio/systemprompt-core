@@ -31,14 +31,12 @@ pub(super) fn child_secrets(
     keys: &TokenVerificationKeys,
     config: &McpServerConfig,
 ) -> McpDomainResult<Vec<(String, String)>> {
-    secrets
-        .refused_env_var(&config.env_vars)
-        .map_err(|e| {
-            crate::error::McpDomainError::invalid_configuration(
-                format!("MCP server '{}'", config.name),
-                e,
-            )
-        })?;
+    secrets.refused_env_var(&config.env_vars).map_err(|e| {
+        crate::error::McpDomainError::invalid_configuration(
+            format!("MCP server '{}'", config.name),
+            e,
+        )
+    })?;
     let mut env = secrets.child_env(&config.secrets, &[]).map_err(|e| {
         crate::error::McpDomainError::operation(
             format!("Failed to resolve the granted secrets for {}", config.name),

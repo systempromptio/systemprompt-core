@@ -201,7 +201,10 @@ async fn restart_target(
     quiet: bool,
 ) {
     let results: Vec<(String, Result<()>)> = match set
-        .restart(Some(&ServiceName::new(target.id.as_str())), RestartMode::Restart)
+        .restart(
+            Some(&ServiceName::new(target.id.as_str())),
+            RestartMode::Restart,
+        )
         .await
     {
         Ok(runs) if runs.is_empty() => {
@@ -212,7 +215,12 @@ async fn restart_target(
         },
         Ok(runs) => runs
             .into_iter()
-            .map(|run| (run.name.to_string(), run.outcome.map_err(anyhow::Error::from)))
+            .map(|run| {
+                (
+                    run.name.to_string(),
+                    run.outcome.map_err(anyhow::Error::from),
+                )
+            })
             .collect(),
         Err(e) => vec![(target.name.clone(), Err(e.into()))],
     };

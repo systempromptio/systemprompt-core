@@ -203,7 +203,12 @@ impl Kernel {
         let mut order: Vec<TypeId> = Vec::new();
         let mut grouped: HashMap<TypeId, Vec<SlotBuildInput>> = HashMap::new();
         for member in admitted.built().members() {
-            for record in member.sink.slots().iter().filter(|record| record.late() == late) {
+            for record in member
+                .sink
+                .slots()
+                .iter()
+                .filter(|record| record.late() == late)
+            {
                 let input = record
                     .take_entry(member.owner.clone(), member.standing)
                     .ok_or_else(|| KernelError::AlreadyResolved {

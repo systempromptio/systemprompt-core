@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_traits::ServiceProcessKind;
 use crate::kernel::KernelHost;
 use crate::presentation::StartupRenderer;
 use anyhow::Result;
@@ -15,7 +14,9 @@ use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{StartupPlan, StartupRequest};
-use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};
+use systemprompt_traits::{
+    Phase, ServiceProcessKind, StartupEvent, StartupEventExt, startup_channel,
+};
 
 use super::{get_api_port, lifecycle};
 

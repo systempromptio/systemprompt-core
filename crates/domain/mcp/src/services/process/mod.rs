@@ -18,11 +18,11 @@ use std::time::Duration;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use systemprompt_config::DynChildSecretEnv;
-use systemprompt_security::keys::TokenVerificationKeys;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner, StopOutcome};
 use systemprompt_manifest::Config;
+use systemprompt_security::keys::TokenVerificationKeys;
 
 const STOP_GRACE: Duration = Duration::from_secs(5);
 

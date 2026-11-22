@@ -89,7 +89,8 @@ impl<B> SlotEntry<B> {
 type ErasedBuilder = Box<dyn Any + Send>;
 pub(super) type ErasedBuilt = Arc<dyn Any + Send + Sync>;
 type BuildFn = fn(Vec<SlotEntry<ErasedBuilder>>, &Resolved<'_>) -> Result<ErasedBuilt, SlotError>;
-pub(super) type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedBuilt) -> Result<(), DuplicateDependency>;
+pub(super) type InsertFn =
+    fn(&mut Dependencies, &ExtensionId, ErasedBuilt) -> Result<(), DuplicateDependency>;
 
 /// One member's builder for one slot, with the slot's monomorphised build
 /// and insert functions. The builder is taken once, when the slot is built.

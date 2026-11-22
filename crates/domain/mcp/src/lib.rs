@@ -95,7 +95,9 @@ pub use services::monitoring::health::HealthStatus;
 pub use services::monitoring::status::McpServiceStatus;
 pub use services::registry::{McpDeploymentProviderImpl, RegistryService};
 pub use services::tool_provider::McpToolProvider;
-pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestartOutcome, McpSpawn};
+pub use services::{
+    EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestartOutcome, McpSpawn,
+};
 
 pub use systemprompt_manifest::services::McpDeploymentProvider;
 pub use systemprompt_models::mcp::{McpRegistry, McpServerState};

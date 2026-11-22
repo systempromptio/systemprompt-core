@@ -22,10 +22,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use systemprompt_config::ChildSecretEnv;
-use systemprompt_security::keys::TokenVerificationKeys;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
 use systemprompt_manifest::Config;
+use systemprompt_security::keys::TokenVerificationKeys;
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 

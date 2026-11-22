@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_traits::{RestartMode, ServiceProcessKind};
 use crate::kernel::KernelHost;
 use anyhow::Result;
 use std::sync::Arc;
@@ -13,6 +12,7 @@ use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ServiceManagementService, port_holders};
+use systemprompt_traits::{RestartMode, ServiceProcessKind};
 
 use super::super::lifecycle;
 use super::super::types::RestartOutput;

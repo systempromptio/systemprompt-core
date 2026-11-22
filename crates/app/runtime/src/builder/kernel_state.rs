@@ -70,13 +70,13 @@ use std::sync::Arc;
 use systemprompt_ai::AiService;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::GeoIpReader;
+use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_loader::bundle::BundleSources;
-use systemprompt_config::DynChildSecretEnv;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
@@ -89,9 +89,8 @@ use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
-    DynJwtValidationProvider,
-    BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository, FileStorage,
-    MessagingDispatcher, SecretStore,
+    BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynJwtValidationProvider,
+    DynLeaseRepository, FileStorage, MessagingDispatcher, SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.
@@ -175,7 +174,9 @@ impl std::fmt::Debug for ApiKernelSeed<'_> {
 }
 
 fn tool_call_intents(database: &DbPool) -> systemprompt_traits::DynToolCallIntentClaims {
-    Arc::new(systemprompt_ai::repository::AiRequestRepository::new(database))
+    Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
+        database,
+    ))
 }
 
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {

@@ -20,8 +20,7 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{ChildKind, mark_child};
 
 use systemprompt_mcp::services::process::spawner::{
-    SpawnSecrets,
-    SpawnEnvSpec, build_environment, rotate_log_if_needed, serialize_server_configs,
+    SpawnEnvSpec, SpawnSecrets, build_environment, rotate_log_if_needed, serialize_server_configs,
     spawn_environment,
 };
 use systemprompt_models::subprocess::{
@@ -438,13 +437,15 @@ fn the_composed_spawn_environment_carries_no_api_held_secret_from_a_polluted_par
         &SpawnSecrets {
             env: &*secrets,
             verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
-        }, |name| {
-        Some(if API_HELD_NAMES.contains(&name) {
-            pepper.clone()
-        } else {
-            format!("parent-{name}")
-        })
-    })
+        },
+        |name| {
+            Some(if API_HELD_NAMES.contains(&name) {
+                pepper.clone()
+            } else {
+                format!("parent-{name}")
+            })
+        },
+    )
     .expect("the spawn environment composes");
     let map = env_map(&env);
 
@@ -473,8 +474,10 @@ fn an_env_var_naming_the_profile_path_is_refused_at_spawn() {
         &SpawnSecrets {
             env: &*secrets,
             verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
-        }, nothing_set)
-        .expect_err("the profile path names the secrets source");
+        },
+        nothing_set,
+    )
+    .expect_err("the profile path names the secrets source");
     assert!(
         refused.to_string().contains("SYSTEMPROMPT_PROFILE"),
         "{refused}"
@@ -492,9 +495,9 @@ fn an_env_var_naming_the_vault_token_is_refused_at_spawn() {
         &SpawnSecrets {
             env: &*secrets,
             verification_keys: &systemprompt_test_fixtures::fixture_verification_keys(),
-        }, |name| {
-        Some(format!("parent-{name}"))
-    })
+        },
+        |name| Some(format!("parent-{name}")),
+    )
     .expect_err("a Vault token reads the whole secrets document");
     assert!(refused.to_string().contains("VAULT_TOKEN"), "{refused}");
 }

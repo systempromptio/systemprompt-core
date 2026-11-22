@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod process_set;
 pub mod artifact_ingest;
 pub mod client;
 pub mod database;
@@ -15,6 +14,7 @@ pub mod network;
 pub mod observer;
 pub mod orchestrator;
 pub mod process;
+pub mod process_set;
 pub mod registry;
 pub mod schema;
 pub mod spawn_target;

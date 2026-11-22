@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_traits::{ServiceProcessKind, StopMode};
 use crate::commands::shared::app_context;
 use crate::kernel::KernelHost;
 use anyhow::Result;
@@ -16,6 +15,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ServiceManagementService;
+use systemprompt_traits::{ServiceProcessKind, StopMode};
 
 use super::start::ServiceTarget;
 use super::types::{StopIndividualOutput, StopServiceOutput};
@@ -234,7 +234,10 @@ pub(super) async fn execute_individual_mcp(
     }
 
     lifecycle::process_set(ctx, ServiceProcessKind::McpServer)?
-        .stop(Some(&ServiceName::new(server_name.as_str())), StopMode::Disable)
+        .stop(
+            Some(&ServiceName::new(server_name.as_str())),
+            StopMode::Disable,
+        )
         .await?;
 
     let message = format!("MCP server {} stopped successfully", server_name);

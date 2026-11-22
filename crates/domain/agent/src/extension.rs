@@ -169,36 +169,35 @@ fn artifact_schemas() -> Vec<SchemaDefinition> {
 }
 
 fn provide_seams(c: &mut Contributions<'_>) {
-    c
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
-                Ok(Arc::new(context_service(r)?))
-            },
-        )
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynContextMaterializer, ProvideError> {
-                Ok(Arc::new(context_service(r)?))
-            },
-        )
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynSessionContextIssuer, ProvideError> {
-                Ok(Arc::new(context_service(r)?))
-            },
-        )
-        .provide(
-            |r: &Resolved<'_>| -> Result<Arc<AgentStatusView>, ProvideError> {
-                Ok(Arc::new(AgentStatusView::new(
-                    &r.get::<DbPool>()?,
-                    r.get::<InstanceId>()?,
-                    r.get::<ServicesView>()?,
-                )))
-            },
-        );
-        c.slot::<ServiceProcessSlot>().process_set(
-            |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
-                Ok(Arc::new(AgentProcessSet::from_resolved(r)?))
-            },
-        );
+    c.provide(
+        |r: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
+            Ok(Arc::new(context_service(r)?))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<DynContextMaterializer, ProvideError> {
+            Ok(Arc::new(context_service(r)?))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<DynSessionContextIssuer, ProvideError> {
+            Ok(Arc::new(context_service(r)?))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<Arc<AgentStatusView>, ProvideError> {
+            Ok(Arc::new(AgentStatusView::new(
+                &r.get::<DbPool>()?,
+                r.get::<InstanceId>()?,
+                r.get::<ServicesView>()?,
+            )))
+        },
+    );
+    c.slot::<ServiceProcessSlot>().process_set(
+        |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
+            Ok(Arc::new(AgentProcessSet::from_resolved(r)?))
+        },
+    );
 }
 
 fn context_service(r: &Resolved<'_>) -> Result<ContextProviderService, ProvideError> {

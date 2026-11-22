@@ -164,10 +164,18 @@ async fn the_child_secret_env_and_the_process_sets_are_sealed_from_member_code()
     assert!(sets.of_kind(ServiceProcessKind::McpServer).is_some());
     let kernel = command_kernel(&ctx);
     let member = Resolved::__member_command(&kernel, kernel.state());
-    assert!(member.optional::<systemprompt_config::DynChildSecretEnv>().is_none());
+    assert!(
+        member
+            .optional::<systemprompt_config::DynChildSecretEnv>()
+            .is_none()
+    );
     assert!(member.optional::<Arc<ServiceProcessSets>>().is_none());
     let runtime = kernel.runtime_state();
-    assert!(runtime.find::<systemprompt_config::DynChildSecretEnv>().is_none());
+    assert!(
+        runtime
+            .find::<systemprompt_config::DynChildSecretEnv>()
+            .is_none()
+    );
     assert!(runtime.find::<Arc<ServiceProcessSets>>().is_none());
 }
 

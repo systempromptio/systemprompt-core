@@ -132,11 +132,16 @@ pub trait ServiceProcessSet: Send + Sync {
         depth: StatusDepth,
     ) -> Result<Vec<ServiceProcessStatus>, ServiceProcessError>;
 
-    async fn start(&self, name: Option<&ServiceName>)
-    -> Result<Vec<ServiceRun>, ServiceProcessError>;
+    async fn start(
+        &self,
+        name: Option<&ServiceName>,
+    ) -> Result<Vec<ServiceRun>, ServiceProcessError>;
 
-    async fn stop(&self, name: Option<&ServiceName>, mode: StopMode)
-    -> Result<(), ServiceProcessError>;
+    async fn stop(
+        &self,
+        name: Option<&ServiceName>,
+        mode: StopMode,
+    ) -> Result<(), ServiceProcessError>;
 
     async fn restart(
         &self,

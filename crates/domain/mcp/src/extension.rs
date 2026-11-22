@@ -18,11 +18,11 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_extension::mcp::DynToolExecutions;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::service_process::ServiceProcessSlot;
 use systemprompt_governance::policy::secrets::SecretScannerCell;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
-use systemprompt_extension::service_process::ServiceProcessSlot;
 use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
 };
@@ -30,8 +30,8 @@ use systemprompt_traits::{
 use crate::contract::{AccessRecorderSlot, UiSlot};
 use crate::repository::ToolUsageRepository;
 use crate::services::McpServiceObserver;
-use crate::services::process_set::McpProcessSet;
 use crate::services::artifact_ingest::ArtifactIngest;
+use crate::services::process_set::McpProcessSet;
 use crate::services::registry::RegistryService;
 use crate::services::ui_renderer::UiRendererRegistry;
 use crate::tool::McpToolExecutions;

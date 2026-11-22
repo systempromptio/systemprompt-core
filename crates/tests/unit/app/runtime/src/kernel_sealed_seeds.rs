@@ -175,7 +175,9 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         ),
         (
             type_name::<Arc<systemprompt_extension::service_process::ServiceProcessSets>>(),
-            carrier::<systemprompt_agent::services::agent_orchestration::process_set::AgentProcessSet>(),
+            carrier::<
+                systemprompt_agent::services::agent_orchestration::process_set::AgentProcessSet,
+            >(),
         ),
         (
             type_name::<Arc<systemprompt_extension::service_process::ServiceProcessSets>>(),

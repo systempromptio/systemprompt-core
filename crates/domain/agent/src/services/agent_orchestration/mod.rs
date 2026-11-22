@@ -18,8 +18,8 @@ pub mod orchestrator;
 pub mod port_service;
 pub mod process;
 pub mod process_set;
-pub mod status_view;
 pub mod reconciler;
+pub mod status_view;
 
 pub use orchestrator::{AgentInfo, AgentOrchestrator};
 pub use port_service::PortService;
