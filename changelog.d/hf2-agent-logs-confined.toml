@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "`admin agents logs --logs-dir` is confined to the profile's logs root, as `plugins mcp logs --logs-dir` already was."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`path_confine::logs`: `confined_logs_dir`, `list_log_files`, `find_log_file`, `read_log_lines`, `display_names` and `LogFileError`, shared by the agent and MCP `logs` commands."

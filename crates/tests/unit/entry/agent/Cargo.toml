@@ -15,6 +15,7 @@ systemprompt-agent = { workspace = true }
 systemprompt-agent-entry = { workspace = true, features = ["cli", "http"] }
 systemprompt-cli = { workspace = true }
 systemprompt-cloud = { workspace = true }
+systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router", "cli"] }
 systemprompt-identifiers = { workspace = true }

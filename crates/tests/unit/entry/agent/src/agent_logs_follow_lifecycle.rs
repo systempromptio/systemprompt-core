@@ -7,7 +7,7 @@ use systemprompt_test_fixtures::bounded_output;
 
 use systemprompt_agent_entry::cli::agents;
 
-use crate::common::{agents_host, json_cli, parse_agents, rendered, with_boot};
+use crate::common::{agents_host, json_cli, logs_dir_in_root, parse_agents, rendered, with_boot};
 
 const HELPER: &str = "agent_logs_follow_lifecycle::agent_logs_follow_helper";
 
@@ -15,7 +15,8 @@ const HELPER: &str = "agent_logs_follow_lifecycle::agent_logs_follow_helper";
 #[ignore = "re-executed by follow_uses_the_resolved_agent_log_and_surfaces_tail_failure"]
 async fn agent_logs_follow_helper() {
     let fixture = tempfile::tempdir().expect("agent log fixture");
-    let logs = fixture.path().join("logs");
+    let logs_dir = logs_dir_in_root(&with_boot(json_cli())).await;
+    let logs = logs_dir.path().to_path_buf();
     let bin = fixture.path().join("bin");
     std::fs::create_dir_all(&logs).unwrap();
     std::fs::create_dir_all(&bin).unwrap();

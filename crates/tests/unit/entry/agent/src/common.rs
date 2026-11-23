@@ -181,3 +181,16 @@ pub fn rendered(
     }
     outcome
 }
+
+pub async fn logs_dir_in_root(ctx: &CommandContext) -> tempfile::TempDir {
+    let root = agents_host(ctx)
+        .resolved()
+        .await
+        .expect("resolved member state")
+        .get::<Arc<systemprompt_config::paths::AppPaths>>()
+        .expect("app paths")
+        .system()
+        .logs();
+    std::fs::create_dir_all(&root).expect("logs root");
+    tempfile::tempdir_in(root).expect("logs dir inside the logs root")
+}

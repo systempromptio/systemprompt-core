@@ -24,7 +24,6 @@
 
 pub mod call;
 pub mod call_client;
-mod disk_logs;
 pub mod list;
 mod list_packages;
 pub mod logs;

@@ -3,12 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::{Path, PathBuf};
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Args, ValueEnum};
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
-use systemprompt_models::path_confine::confine_within;
+use systemprompt_models::path_confine::logs::confined_logs_dir;
 
 use super::app_paths;
 use super::logs_db::execute_db_mode;
@@ -66,19 +64,6 @@ pub struct LogsArgs {
         help = "Filter by log level: debug, info, warn, error"
     )]
     pub level: Option<LogLevel>,
-}
-
-pub fn confined_logs_dir(logs_root: &Path, requested: Option<&str>) -> Result<PathBuf> {
-    let Some(dir) = requested else {
-        return Ok(logs_root.to_path_buf());
-    };
-    let candidate = logs_root.join(dir);
-    confine_within(logs_root, &candidate).with_context(|| {
-        format!(
-            "--logs-dir must name a directory inside {}",
-            logs_root.display()
-        )
-    })
 }
 
 pub(super) async fn execute(args: LogsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
