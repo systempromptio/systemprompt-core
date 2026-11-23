@@ -58,6 +58,7 @@ jobs:
     # across every Linux Rust job in CI and Quality; see ci.yml.
     env:
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,6 +86,7 @@ jobs:
       DATABASE_URL: postgres://test:test@localhost:5432/test
       CARGO_BUILD_JOBS: "2"
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     services:
       postgres:
@@ -176,6 +178,7 @@ jobs:
     env:
       RUSTDOCFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -257,6 +260,7 @@ jobs:
     timeout-minutes: 30
     env:
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -302,6 +306,7 @@ jobs:
     timeout-minutes: 40
     env:
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -365,6 +370,7 @@ jobs:
     timeout-minutes: 30
     env:
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       # fetch-depth: 0 because check-crate-changelogs diffs each crate against
@@ -439,6 +445,7 @@ jobs:
       # stable, so a lint that differs between compilers cannot fail here.
       RUSTFLAGS: "--cap-lints=warn"
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

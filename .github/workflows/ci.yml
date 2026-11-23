@@ -37,6 +37,9 @@ env:
   # only the crates that changed and one cache serves every job. Incremental
   # artifacts are not cacheable, so they are off.
   SCCACHE_GHA_ENABLED: "true"
+  # Why: the sccache server gives up after a fixed 10 s when the Actions cache
+  # is slow to answer; this compiles locally instead of failing the job.
+  SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
   RUSTC_WRAPPER: sccache
   CARGO_INCREMENTAL: "0"
 
