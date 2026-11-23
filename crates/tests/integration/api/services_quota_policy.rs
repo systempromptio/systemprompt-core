@@ -646,7 +646,7 @@ async fn policy_resolver_falls_back_when_empty() {
     let p = pool().await;
     let resolver = PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&p),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_traits::CacheEpochs::new().view(),
         Default::default(),
     );
     let _spec1 = resolver
@@ -700,7 +700,7 @@ fn unreadable_policy_resolver() -> PolicyResolver {
         ));
     PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_traits::CacheEpochs::new().view(),
         Default::default(),
     )
 }

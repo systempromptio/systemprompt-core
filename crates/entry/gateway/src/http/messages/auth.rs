@@ -21,7 +21,6 @@
 
 use axum::http::{HeaderMap, StatusCode};
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use systemprompt_governance::authz::{SubjectAttributes, SubjectProviderSet};
 use systemprompt_governance::policy::AccessScope;
 use systemprompt_identifiers::{
@@ -30,12 +29,11 @@ use systemprompt_identifiers::{
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_models::auth::{JwtUserContext, RequestActor, agent_name, bearer_actor};
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_runtime::AppContext;
-use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
+use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits};
 
 use super::error::RejectionError;
 use super::session_binding::{SessionRequest, bind_api_key_session};
-use crate::kernel::JwtContextExtractor;
+use crate::http::state::GatewayHttpState;
 
 /// What an API key narrows its user's principal to.
 #[derive(Debug, Clone)]
@@ -120,9 +118,8 @@ impl AuthedPrincipal {
 pub struct AuthInputs<'a> {
     pub header_session: Option<&'a SessionId>,
     pub headers: &'a HeaderMap,
-    pub jwt_extractor: &'a JwtContextExtractor,
     pub providers: &'a SubjectProviderSet,
-    pub ctx: &'a AppContext,
+    pub state: &'a GatewayHttpState,
 }
 
 impl std::fmt::Debug for AuthInputs<'_> {
@@ -160,12 +157,8 @@ async fn authenticate_api_key(
     credential: &str,
     inputs: AuthInputs<'_>,
 ) -> Result<AuthedPrincipal, RejectionError> {
-    let ctx = inputs.ctx;
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
-    );
-    let record = service.verify(credential).await.map_err(|e| {
+    let state = inputs.state;
+    let record = state.api_keys.verify(credential).await.map_err(|e| {
         RejectionError::server(
             StatusCode::INTERNAL_SERVER_ERROR,
             "API key verification failed",
@@ -179,8 +172,8 @@ async fn authenticate_api_key(
         ));
     };
 
-    let user = inputs
-        .jwt_extractor
+    let user = state
+        .authenticator
         .load_user(&rec.user_id, "gateway")
         .await
         .map_err(rejection_for_token)?;
@@ -190,7 +183,7 @@ async fn authenticate_api_key(
         attended: false,
     };
     let binding = bind_api_key_session(
-        ctx,
+        state,
         SessionRequest {
             presented: credential,
             user_id: &rec.user_id,
@@ -227,7 +220,8 @@ async fn authenticate_jwt(
 ) -> Result<AuthedPrincipal, RejectionError> {
     let jwt_token = JwtToken::new(credential);
     let (claims, user) = inputs
-        .jwt_extractor
+        .state
+        .authenticator
         .decode_for_gateway(&jwt_token)
         .await
         .map_err(rejection_for_token)?;

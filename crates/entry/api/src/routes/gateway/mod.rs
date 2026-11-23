@@ -53,12 +53,8 @@ pub mod bridge_resolved;
 pub mod bridge_stream;
 pub mod bridge_whoami;
 pub mod builtin;
-pub mod count_tokens;
 pub mod device_link;
-pub mod messages;
 pub mod models;
-#[cfg(feature = "otel")]
-pub mod otel;
 pub mod provider_credentials;
 pub mod registered;
 pub mod sessions;
@@ -70,63 +66,61 @@ use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
 use systemprompt_extension::Admitted;
-use systemprompt_gateway::GatewayEngines;
+use systemprompt_extension::reserved::CoreId;
+use systemprompt_gateway::{
+    DynGatewaySurface, GatewayEngines, GatewayHostHandles, GatewayRouteState, GatewaySurfaceError,
+};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_runtime::{AppContext, Kernel};
+use systemprompt_traits::AppContext as _;
 
 use self::access_log::log_gateway_request;
 use self::builtin::confined;
-#[cfg(feature = "otel")]
-use self::routers::otel_routes;
-use self::routers::{
-    bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes,
-};
+use self::routers::{bridge_auth_routes, bridge_profile_routes, bridge_session_routes};
 use crate::kernel::JwtContextExtractor;
+
+fn surface_routes(
+    ctx: &AppContext,
+    admitted: &Admitted,
+    kernel: &Kernel,
+) -> Result<Router, GatewaySurfaceError> {
+    let owner = ExtensionId::new(CoreId::GatewayHttp.id());
+    let (Some(standing), Some(surface)) = (
+        admitted.built().standing_of(&owner),
+        kernel.state().find::<DynGatewaySurface>(),
+    ) else {
+        return Ok(Router::new());
+    };
+    surface.build(GatewayRouteState {
+        resolved: kernel.route_scoped(&owner, standing, &[]),
+        host: host_handles(ctx),
+    })
+}
+
+fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
+    let profile = ctx.profile();
+    GatewayHostHandles {
+        services: ctx.services_state().clone(),
+        governance: ctx.governance_watch().clone(),
+        authz_hook: ctx.authz_hook().clone(),
+        analytics: ctx.analytics_provider(),
+        logging: ctx.logging().clone(),
+        payload_cap_bytes: profile.payload_cap_bytes(),
+        quota: profile.quota_config(),
+        unapplied_plane: profile.unapplied_plane_mode(),
+        brain: profile.brain.clone(),
+    }
+}
 
 pub fn gateway_repositories(
     ctx: &AppContext,
-) -> anyhow::Result<systemprompt_gateway::GatewayRepositories> {
-    let state = ctx.kernel().state();
-    let at_rest = state.get::<Arc<systemprompt_gateway::GatewayAtRest>>()?;
-    let profile = ctx.profile();
-    let repos = systemprompt_gateway::GatewayRepositories::new(
-        ctx.db_pool(),
-        at_rest.journal()?,
+) -> Result<systemprompt_gateway::GatewayRepositories, GatewaySurfaceError> {
+    systemprompt_gateway::surface::repositories::gateway_repositories(
+        &ctx.kernel().resolved(),
+        &host_handles(ctx),
         Arc::new(crate::repository::context_provider(ctx.db_pool())),
-        systemprompt_gateway::GatewayHandles {
-            background: ctx.background_tasks().clone(),
-            cache_epochs: ctx.cache_epochs().clone(),
-            logging: ctx.logging().clone(),
-            services: ctx.services_state().view(),
-            subject_providers: ctx.subject_providers().clone(),
-            at_rest: at_rest.cipher(),
-            unapplied_plane: profile.unapplied_plane_mode(),
-        },
+        ctx.db_pool(),
     )
-    .with_payload_cap(profile.payload_cap_bytes())
-    .with_quota_sharding(profile.quota_config());
-    let repos = match state.get::<Arc<systemprompt_mcp::ArtifactIngest>>() {
-        Ok(ingest) => repos.with_artifact_ingest(Arc::clone(ingest)),
-        Err(_) => repos,
-    };
-    let repos = repos.with_session_usage(Arc::clone(
-        state.get::<systemprompt_traits::DynSessionUsageCounters>()?,
-    ));
-    let repos = repos.with_brain_recall(profile.brain.recall.clone());
-    let brain_sink = state
-        .find::<systemprompt_extension::DynBrainSink>()
-        .filter(|_| profile.brain.enabled)
-        .cloned();
-    let repos = match brain_sink {
-        Some(sink) => {
-            repos.with_brain_session(systemprompt_gateway::audit::session::SessionCapture::new(
-                sink,
-                profile.brain.capture.clone(),
-                Arc::clone(ctx.db_pool()),
-            ))
-        },
-        None => repos,
-    };
-    Ok(repos)
 }
 
 fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
@@ -142,25 +136,16 @@ fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> R
 
 pub(crate) fn gateway_mount_parts(
     ctx: &AppContext,
-    engines: &Arc<GatewayEngines>,
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> anyhow::Result<GatewayMountParts> {
     let jwt_extractor = Arc::new(JwtContextExtractor::from_kernel(ctx.kernel().state())?);
-    let gateway_repos = Arc::new(gateway_repositories(ctx)?);
 
     let traffic = Router::new()
-        .merge(inference_routes(
-            ctx,
-            &jwt_extractor,
-            &gateway_repos,
-            engines,
-        ))
+        .merge(surface_routes(ctx, admitted, kernel)?)
         .merge(bridge_profile_routes(ctx, &jwt_extractor))
         .merge(bridge_session_routes(ctx, &jwt_extractor));
     let registered = registered::admitted_gateway_routes(admitted, kernel, &jwt_extractor)?;
-    #[cfg(feature = "otel")]
-    let traffic = traffic.merge(otel_routes(ctx, &jwt_extractor));
     let traffic = traffic
         .merge(drive_routes(ctx, &jwt_extractor))
         .merge(provider_credentials::routes(ctx, &jwt_extractor))
@@ -183,10 +168,10 @@ pub fn gateway_router(
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> anyhow::Result<Router> {
-    let engines = gateway_engines(kernel).ok_or_else(|| {
+    gateway_engines(kernel).ok_or_else(|| {
         anyhow::anyhow!("the gateway member is not admitted; no gateway engines are built")
     })?;
-    let parts = gateway_mount_parts(ctx, &engines, admitted, kernel)?;
+    let parts = gateway_mount_parts(ctx, admitted, kernel)?;
     let routes = parts
         .registered
         .into_iter()

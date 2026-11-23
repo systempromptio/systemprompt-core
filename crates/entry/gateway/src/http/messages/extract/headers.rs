@@ -23,7 +23,7 @@ use systemprompt_models::origin::MemoryPreference;
 use systemprompt_wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
-use crate::routes::gateway::messages::error::RejectionError;
+use crate::http::messages::error::RejectionError;
 use systemprompt_extension::router::{BodyReadError, read_body_bounded};
 use systemprompt_gateway::protocol::canonical::CanonicalRequest;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;

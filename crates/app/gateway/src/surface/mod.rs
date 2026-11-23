@@ -25,11 +25,12 @@
 
 pub mod authz;
 pub mod credential;
+pub mod repositories;
 
 use std::sync::Arc;
 
 use axum::Router;
-use systemprompt_extension::prelude::{ProvideError, Resolved};
+use systemprompt_extension::prelude::{MissingDependency, Resolved};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
@@ -78,7 +79,7 @@ impl std::fmt::Debug for GatewayHostHandles {
 #[derive(Debug, thiserror::Error)]
 pub enum GatewaySurfaceError {
     #[error(transparent)]
-    Resolve(#[from] ProvideError),
+    Resolve(#[from] MissingDependency),
     #[error("the gateway journal does not open")]
     Journal(#[source] crate::at_rest::GatewayAtRestError),
 }

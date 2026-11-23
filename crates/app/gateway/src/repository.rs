@@ -21,7 +21,7 @@ use systemprompt_manifest::profile::{
     AuditConfig, BrainRecallProfile, QuotaConfig, UnappliedPlaneMode,
 };
 use systemprompt_security::at_rest::AtRestCipher;
-use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
+use systemprompt_traits::{BackgroundTasks, CacheEpochView, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
 use crate::audit::tool_validity::ToolValidityCache;
@@ -32,7 +32,7 @@ use crate::signature_cache::{TTL, ThoughtSignatureCache};
 #[derive(Debug, Clone)]
 pub struct GatewayHandles {
     pub background: BackgroundTasks,
-    pub cache_epochs: CacheEpochs,
+    pub cache_epochs: CacheEpochView,
     pub logging: LoggingRuntime,
     pub services: ServicesView,
     pub subject_providers: SubjectProviderSet,

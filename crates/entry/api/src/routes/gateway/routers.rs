@@ -8,114 +8,15 @@
 use axum::Router;
 use axum::routing::{get, post};
 use std::sync::Arc;
-use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 
 use crate::kernel::JwtContextExtractor;
-use systemprompt_gateway::protocol::inbound::InboundAdapter;
-use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use systemprompt_models::ApiPaths;
 
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
-    bridge_profile_usage, bridge_stream, bridge_whoami, count_tokens, device_link, messages,
+    bridge_profile_usage, bridge_stream, bridge_whoami, device_link,
 };
-
-#[cfg(feature = "otel")]
-pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
-    let ctx_root = ctx.clone();
-    let ctx_rest = ctx.clone();
-    let jwt_root = Arc::clone(jwt_extractor);
-    let jwt_rest = Arc::clone(jwt_extractor);
-
-    Router::new()
-        .route(
-            ApiPaths::OTEL,
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_root);
-                let context = ctx_root.clone();
-                async move { super::otel::handle(extractor, context, request).await }
-            }),
-        )
-        .route(
-            ApiPaths::OTEL_REST_ROUTE,
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_rest);
-                let context = ctx_rest.clone();
-                async move { super::otel::handle(extractor, context, request).await }
-            }),
-        )
-}
-
-pub(super) fn inference_routes(
-    ctx: &AppContext,
-    jwt_extractor: &Arc<JwtContextExtractor>,
-    repos: &Arc<systemprompt_gateway::GatewayRepositories>,
-    engines: &Arc<GatewayEngines>,
-) -> Router {
-    let handles = messages::GatewayHandles {
-        repos: Arc::clone(repos),
-        engines: Arc::clone(engines),
-    };
-    let handles_messages = handles.clone();
-    let handles_responses = handles.clone();
-    let handles_chat = handles.clone();
-    let handles_count = handles;
-    let ctx_count = ctx.clone();
-    let jwt_count = Arc::clone(jwt_extractor);
-    let ctx_messages = ctx.clone();
-    let ctx_responses = ctx.clone();
-    let ctx_chat = ctx.clone();
-    let jwt_messages = Arc::clone(jwt_extractor);
-    let jwt_responses = Arc::clone(jwt_extractor);
-    let jwt_chat = Arc::clone(jwt_extractor);
-    let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
-    let responses_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiResponsesInbound);
-    let chat_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiChatInbound);
-
-    Router::new()
-        .route(
-            "/messages",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_messages);
-                let context = ctx_messages.clone();
-                let handles = handles_messages.clone();
-                let inbound = Arc::clone(&anthropic_inbound);
-                async move { messages::handle(inbound, extractor, context, handles, request).await }
-            }),
-        )
-        .route(
-            "/messages/count_tokens",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_count);
-                let context = ctx_count.clone();
-                let handles = handles_count.clone();
-                async move { count_tokens::handle(extractor, context, handles, request).await }
-            }),
-        )
-        .route(
-            "/responses",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_responses);
-                let context = ctx_responses.clone();
-                let handles = handles_responses.clone();
-                let inbound = Arc::clone(&responses_inbound);
-                async move { messages::handle(inbound, extractor, context, handles, request).await }
-            }),
-        )
-        .route(
-            "/chat/completions",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_chat);
-                let context = ctx_chat.clone();
-                let handles = handles_chat.clone();
-                let inbound = Arc::clone(&chat_inbound);
-                async move { messages::handle(inbound, extractor, context, handles, request).await }
-            }),
-        )
-}
 
 pub(super) fn bridge_auth_routes(
     ctx: &AppContext,

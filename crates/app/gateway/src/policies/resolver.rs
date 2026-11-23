@@ -39,7 +39,7 @@ use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_identifiers::AiGatewayPolicyId;
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_manifest::services::QuotaFaultMode;
-use systemprompt_traits::{CacheDomain, CacheEpochs};
+use systemprompt_traits::{CacheDomain, CacheEpochView};
 
 use super::GatewayPolicySpec;
 use super::plane::GATEWAY_POLICIES_PLANE;
@@ -69,7 +69,7 @@ pub struct PolicyResolver {
     repo: Arc<AiGatewayPolicyRepository>,
     cache: Arc<RwLock<Option<CachedEntry>>>,
     load: Arc<tokio::sync::Mutex<()>>,
-    epochs: CacheEpochs,
+    epochs: CacheEpochView,
     unapplied: UnappliedPlaneMode,
 }
 
@@ -90,7 +90,7 @@ struct CachedEntry {
 impl PolicyResolver {
     pub fn from_repository(
         repo: AiGatewayPolicyRepository,
-        epochs: CacheEpochs,
+        epochs: CacheEpochView,
         unapplied: UnappliedPlaneMode,
     ) -> Self {
         Self {

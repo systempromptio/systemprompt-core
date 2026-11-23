@@ -108,13 +108,10 @@ nix = { workspace = true }
 # Sync/compression
 
 # OTel ingest (OTLP/HTTP Protobuf)
-prost = { workspace = true, optional = true }
-opentelemetry-proto = { workspace = true, optional = true }
 
 [features]
 default = []
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
-otel = ["dep:opentelemetry-proto", "dep:prost", "systemprompt-scheduler/otel"]
 bridge = []
 
 [lints]

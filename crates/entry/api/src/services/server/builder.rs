@@ -114,7 +114,7 @@ fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
     ingest.register_scanner(Arc::new(
         systemprompt_gateway::GatewayArtifactScanner::over_policy_table(
             ctx.db_pool(),
-            ctx.cache_epochs().clone(),
+            ctx.cache_epochs().view(),
             ctx.profile().unapplied_plane_mode(),
             Arc::clone(&engines.scanner_registry),
         ),

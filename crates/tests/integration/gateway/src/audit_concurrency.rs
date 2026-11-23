@@ -36,7 +36,7 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
         materializer(db),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new().view(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),

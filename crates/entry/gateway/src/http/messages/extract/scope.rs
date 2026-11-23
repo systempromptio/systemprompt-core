@@ -36,9 +36,9 @@ use systemprompt_models::attribution::{
 };
 
 use super::RejectionPartial;
-use crate::routes::gateway::messages::RequestContext;
-use crate::routes::gateway::messages::auth::AuthedPrincipal;
-use crate::routes::gateway::messages::error::RejectionError;
+use crate::http::messages::RequestContext;
+use crate::http::messages::auth::AuthedPrincipal;
+use crate::http::messages::error::RejectionError;
 use systemprompt_gateway::policies::QuotaWindow;
 use systemprompt_manifest::services::gateway::GatewayConfig;
 

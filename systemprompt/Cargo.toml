@@ -126,7 +126,7 @@ agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"
 
 # OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
 # job that ships the audit trail to a collector. `full` implies it.
-otel = ["systemprompt-api?/otel", "systemprompt-scheduler?/otel", "systemprompt-gateway-entry?/otel"]
+otel = ["systemprompt-scheduler?/otel", "systemprompt-gateway-entry?/otel"]
 
 # The device-credential consumer surface the bridge reports installation
 # evidence through. `full` implies it.
@@ -307,4 +307,4 @@ name = "cli"
 required-features = ["full"]
 
 [package.metadata.cargo-machete]
-ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry", "systemprompt-identity-entry"]
+ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-identity-entry"]

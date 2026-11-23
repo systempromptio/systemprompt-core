@@ -87,7 +87,7 @@ pub(super) async fn dispatch_to_provider(
     match Box::pin(GatewayService::dispatch(
         gateway_config,
         rc.catalog,
-        rc.ctx.db_pool(),
+        &rc.state.db,
         rc.repos,
         DispatchInputs {
             request: gateway_request,
@@ -98,7 +98,7 @@ pub(super) async fn dispatch_to_provider(
             identity_headers: client_headers.identity,
             caller_auth: client_headers.caller_auth,
             trace_sampled,
-            governance: rc.ctx.governance(),
+            governance: rc.state.host.governance.get(),
             engines: Arc::clone(rc.engines),
         },
     ))

@@ -237,7 +237,7 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     ingest.register_scanner(Arc::new(
         systemprompt_gateway::GatewayArtifactScanner::over_policy_table(
             &pool,
-            systemprompt_traits::CacheEpochs::new(),
+            systemprompt_traits::CacheEpochs::new().view(),
             Default::default(),
             Arc::new(systemprompt_gateway::SafetyScannerRegistry::builtin()),
         ),
