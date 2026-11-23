@@ -18,7 +18,7 @@ use systemprompt_identifiers::{McpServerId, SessionId, UserId};
 use systemprompt_traits::BoxedSource;
 
 #[derive(Debug, thiserror::Error)]
-#[error("the MCP session store failed")]
+#[error("the MCP session store failed: {0}")]
 pub struct McpSessionStoreError(#[source] pub BoxedSource);
 
 pub type McpSessionStoreResult<T> = Result<T, McpSessionStoreError>;

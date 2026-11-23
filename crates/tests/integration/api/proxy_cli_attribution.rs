@@ -19,8 +19,10 @@ use systemprompt_mcp_entry::cli::call_client::{ToolCallParams, execute_tool_call
 use systemprompt_mcp_entry::cli::probe::McpTarget;
 use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::jwt::decode_mcp_hop;
-use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential, seed_user_row};
+use systemprompt_security::jwt::{AdminTokenParams, JwtService, decode_mcp_hop};
+use systemprompt_test_fixtures::{
+    AuthedFixture, seed_user_row, seed_user_row_with_roles, seed_user_session,
+};
 use uuid::Uuid;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -43,10 +45,13 @@ fn mcp_range_listener() -> anyhow::Result<std::net::TcpListener> {
         .ok_or_else(|| anyhow::anyhow!("no free port in the MCP range 5000-5999"))
 }
 
-async fn mount_backend(backend: &MockServer) {
+async fn mount_backend(backend: &MockServer, server: &str) {
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({"method": "initialize"})))
+        .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 0, "method": "initialize",
+            "params": {"clientInfo": {"name": format!("systemprompt-cli-{server}")}}
+        })))
         .respond_with(|request: &Request| {
             let body: serde_json::Value = request.body_json().expect("json body");
             ResponseTemplate::new(200)
@@ -65,13 +70,18 @@ async fn mount_backend(backend: &MockServer) {
         .await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({"method": "notifications/initialized"})))
+        .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0", "method": "notifications/initialized"
+        })))
         .respond_with(ResponseTemplate::new(202))
         .mount(backend)
         .await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({"method": "tools/call"})))
+        .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+            "params": {"name": "echo", "arguments": {"message": "hi"}}
+        })))
         .respond_with(|request: &Request| {
             let body: serde_json::Value = request.body_json().expect("json body");
             ResponseTemplate::new(200)
@@ -105,8 +115,8 @@ async fn harness() -> anyhow::Result<Harness> {
         .listener(mcp_range_listener()?)
         .start()
         .await;
-    mount_backend(&backend).await;
     let server = format!("cli_attr_{}", &Uuid::new_v4().simple().to_string()[..10]);
+    mount_backend(&backend, &server).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let api = format!("http://{}", listener.local_addr()?);
     let yaml = format!(
@@ -136,11 +146,7 @@ async fn harness() -> anyhow::Result<Harness> {
         })
         .await?;
 
-    let caller = seed_admin_credential(
-        ctx.db_pool(),
-        &format!("cli-attr-{}@example.invalid", Uuid::new_v4().simple()),
-    )
-    .await?;
+    let caller = caller_credential(&ctx).await?;
     let other = UserId::new(format!("cli-attr-other-{}", Uuid::new_v4().simple()));
     seed_user_row(ctx.db_pool(), &other, &format!("{other}@example.invalid")).await?;
     let owned = seed_context(&ctx, &caller.user_id).await?;
@@ -176,6 +182,37 @@ async fn harness() -> anyhow::Result<Harness> {
     })
 }
 
+async fn caller_credential(ctx: &AppContext) -> anyhow::Result<AuthedFixture> {
+    let user_id = UserId::generate();
+    let session_id = systemprompt_identifiers::SessionId::generate();
+    let email = format!("cli-attr-{}@example.invalid", Uuid::new_v4().simple());
+    seed_user_row_with_roles(
+        ctx.db_pool(),
+        &user_id,
+        &email,
+        &["admin".to_owned(), "user".to_owned()],
+    )
+    .await?;
+    seed_user_session(ctx.db_pool(), &user_id, &session_id).await?;
+    let jwt = JwtService::generate_admin_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &AdminTokenParams {
+            user_id: &user_id,
+            session_id: &session_id,
+            email: &email,
+            issuer: &ctx.config().jwt_issuer,
+            duration: chrono::Duration::hours(1),
+            client_id: None,
+        },
+    )?;
+    Ok(AuthedFixture {
+        user_id,
+        session_id,
+        email,
+        jwt,
+    })
+}
+
 fn session(caller: &AuthedFixture, context: &ContextId) -> CallerSession {
     CallerSession::new(
         SessionToken::new(caller.jwt.as_str()),
@@ -205,7 +242,7 @@ fn initialize_request(h: &Harness, bearer: &str, context: &ContextId) -> reqwest
         .json(&serde_json::json!({
             "jsonrpc": "2.0", "id": 0, "method": "initialize",
             "params": {"protocolVersion": "2025-11-25", "capabilities": {},
-                       "clientInfo": {"name": "attribution", "version": "1"}}
+                       "clientInfo": {"name": format!("systemprompt-cli-{}", h.server), "version": "1"}}
         }))
 }
 

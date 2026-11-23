@@ -13,9 +13,9 @@ use systemprompt_governance::authz::{
     SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
 };
 use systemprompt_identifiers::{ExtensionId, McpServerId, UserId};
+use systemprompt_extension::mcp::{McpAccessEvent, McpAccessRecorder};
 use systemprompt_mcp_host::serving::host::{
-    McpAccessEvent, McpAccessRecorder, ToolsetAuthz, ToolsetHostError, ToolsetServer,
-    ToolsetServerParts,
+    ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts,
 };
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;

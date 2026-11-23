@@ -48,6 +48,7 @@ impl McpSessionStore for McpSessionRepository {
     async fn store_initialize_params(
         &self,
         session: &SessionId,
+        // JSON: MCP `initialize` params, an external protocol object stored verbatim.
         params: &serde_json::Value,
     ) -> McpSessionStoreResult<()> {
         Self::store_initialize_params(self, session, params)
@@ -60,6 +61,7 @@ impl McpSessionStore for McpSessionRepository {
         session: &SessionId,
         server: &McpServerId,
         user: Option<&UserId>,
+        // JSON: MCP `initialize` params, an external protocol object stored verbatim.
     ) -> McpSessionStoreResult<Option<serde_json::Value>> {
         Self::find_restorable_initialize_params(self, session, server, user)
             .await

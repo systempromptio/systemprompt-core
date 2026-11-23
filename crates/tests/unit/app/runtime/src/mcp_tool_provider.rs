@@ -38,7 +38,7 @@ async fn the_mcp_member_provides_the_tool_provider_sealed() {
 }
 
 #[tokio::test]
-async fn the_provided_tool_provider_is_backed_by_the_mcp_registry() {
+async fn the_provided_tool_provider_is_the_mcp_registry_not_the_no_tools_fallback() {
     let ctx = context().await;
     let provider = Arc::clone(
         ctx.kernel()
@@ -46,30 +46,23 @@ async fn the_provided_tool_provider_is_backed_by_the_mcp_registry() {
             .find::<Arc<dyn ToolProvider>>()
             .expect("the mcp member provides the tool provider"),
     );
-    let health = provider.health_check().await.expect("health check answers");
-    let configured: Vec<String> = ctx
-        .services_state()
-        .view()
-        .config()
-        .mcp_servers
-        .iter()
-        .filter(|(_, deployment)| {
-            deployment.enabled
-                && matches!(
-                    deployment.server_type,
-                    systemprompt_models::mcp::McpServerType::Internal
-                )
-        })
-        .map(|(name, _)| name.clone())
-        .collect();
+    let request = systemprompt_provider_contracts::ToolCallRequest {
+        tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-1"),
+        name: "echo".to_owned(),
+        arguments: serde_json::json!({}),
+    };
+    let error = provider
+        .call_tool(
+            &request,
+            &systemprompt_identifiers::McpServerId::new("no_such_server"),
+            &systemprompt_provider_contracts::ToolContext::new(systemprompt_identifiers::Actor::anonymous(
+                systemprompt_identifiers::UserId::new("tool-provider-probe"),
+            )),
+        )
+        .await
+        .expect_err("an undeclared server is refused");
     assert!(
-        !configured.is_empty(),
-        "the fixture services configuration declares an enabled internal MCP server"
+        !error.to_string().contains("NoopToolProvider"),
+        "the inference path reads the MCP provider, not the no-tools fallback: {error}"
     );
-    for name in configured {
-        assert!(
-            health.contains_key(&name),
-            "the MCP provider reports {name}; the no-tools fallback reports nothing: {health:?}"
-        );
-    }
 }

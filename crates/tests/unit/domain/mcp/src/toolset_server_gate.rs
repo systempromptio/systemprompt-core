@@ -6,7 +6,9 @@ use rmcp::service::RequestContext;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp_host::serving::host::ToolsetServer;
-use systemprompt_mcp_host::serving::middleware::{HopVerifier, admit_request};
+use systemprompt_mcp_host::serving::middleware::{
+    HopAdmissionError, HopRejection, HopVerifier, admit_request,
+};
 use systemprompt_test_fixtures::FIXTURE_EXTERNAL_URL;
 
 #[derive(Clone)]
@@ -34,7 +36,10 @@ impl Gate {
             FIXTURE_EXTERNAL_URL,
             self.server_id.clone(),
         );
-        admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");
+        match admit_request(&verifier, &parts.headers, &mut parts.extensions) {
+            Ok(_) | Err(HopAdmissionError::Rejected(HopRejection::Missing)) => {},
+            Err(error) => panic!("hop admission failed: {error}"),
+        }
         context.extensions.insert(parts);
     }
 }

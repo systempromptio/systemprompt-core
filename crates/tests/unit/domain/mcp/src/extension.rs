@@ -60,7 +60,7 @@ fn the_mcp_member_contributes_its_jobs_and_purge() {
 }
 
 #[test]
-fn the_mcp_member_provides_the_lookup_registry_observer_sessions_ingest_and_tool_executions()
+fn the_mcp_member_provides_its_lookups_stores_tool_provider_and_tool_executions()
 {
     let sink = contributed();
     let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
@@ -70,8 +70,9 @@ fn the_mcp_member_provides_the_lookup_registry_observer_sessions_ingest_and_tool
             TypeId::of::<DynToolExecutionLookup>(),
             TypeId::of::<Arc<dyn McpRegistryProvider>>(),
             TypeId::of::<Arc<McpServiceObserver>>(),
-            TypeId::of::<Arc<systemprompt_mcp::repository::McpSessionRepository>>(),
+            TypeId::of::<systemprompt_extension::mcp::DynMcpSessionStore>(),
             TypeId::of::<Arc<systemprompt_mcp::ArtifactIngest>>(),
+            TypeId::of::<Arc<dyn systemprompt_traits::ToolProvider>>(),
             TypeId::of::<systemprompt_extension::mcp::DynToolExecutions>(),
         ]
     );

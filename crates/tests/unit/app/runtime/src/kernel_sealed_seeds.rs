@@ -208,6 +208,14 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_gateway::client::GatewayClient>(),
         ),
         (
+            type_name::<systemprompt_extension::mcp::DynMcpSessionStore>(),
+            carrier::<systemprompt_mcp::repository::McpSessionRepository>(),
+        ),
+        (
+            type_name::<Arc<dyn systemprompt_traits::ToolProvider>>(),
+            carrier::<systemprompt_mcp::McpToolProvider>(),
+        ),
+        (
             type_name::<systemprompt_extension::brain::DynBrainConsumerStart>(),
             carrier::<systemprompt_brain::consumer::BrainConsumer>(),
         ),

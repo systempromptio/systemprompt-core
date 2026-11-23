@@ -142,6 +142,23 @@ async fn router_rejects_bodies_over_the_request_ceiling() {
                 .header("host", "127.0.0.1")
                 .header("content-type", "application/json")
                 .header("accept", "application/json, text/event-stream")
+                .header("x-session-id", "s-ceiling")
+                .header("x-trace-id", "t-ceiling")
+                .header("x-agent-name", "agent-ceiling")
+                .header(
+                    "x-systemprompt-mcp-hop",
+                    systemprompt_test_fixtures::mint_mcp_hop(
+                        &McpServerId::new("router-srv"),
+                        systemprompt_models::auth::AuthenticatedUser::new(
+                            systemprompt_identifiers::UserId::new("router-user"),
+                            "router@test.invalid".to_owned(),
+                            "router@test.invalid".to_owned(),
+                            vec![systemprompt_models::auth::Permission::User],
+                        ),
+                        None,
+                        FIXTURE_EXTERNAL_URL,
+                    ),
+                )
                 .body(Body::from(oversized))
                 .expect("request builds"),
         )

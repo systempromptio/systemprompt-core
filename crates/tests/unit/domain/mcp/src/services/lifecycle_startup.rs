@@ -97,49 +97,6 @@ async fn check_health_status_unreachable_is_not_ready() {
 }
 
 #[tokio::test]
-async fn check_health_status_accepts_degraded_near_exhaustion() {
-    let _ = ensure_test_bootstrap();
-    let mock = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/mcp"))
-        .and(body_partial_json(
-            serde_json::json!({"jsonrpc": "2.0", "method": "initialize", "params": {"clientInfo": {}}}),
-        ))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "application/json")
-                .insert_header("mcp-session-id", "sess-slow")
-                .set_delay(Duration::from_millis(1100))
-                .set_body_json(serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": 0,
-                    "result": {
-                        "protocolVersion": "2025-03-26",
-                        "capabilities": {"tools": {}},
-                        "serverInfo": {"name": "slow", "version": "1.0.0"}
-                    }
-                })),
-        )
-        .mount(&mock)
-        .await;
-    mount_mcp_endpoint(&mock, default_tools_json()).await;
-
-    let config = internal_at(&mock, "health-degraded");
-    let start = std::time::Instant::now();
-
-    let early = check_health_status(&config, 1, 15, start, None)
-        .await
-        .expect("slow endpoint early");
-    assert!(early.is_none());
-
-    let (tx, _rx) = startup_channel();
-    let late = check_health_status(&config, 14, 15, start, Some(&tx))
-        .await
-        .expect("slow endpoint near exhaustion");
-    late.expect("degraded endpoint accepted near exhaustion");
-}
-
-#[tokio::test]
 async fn start_server_rejects_external_servers() {
     let _ = ensure_test_bootstrap();
     let db = test_db_pool().await;

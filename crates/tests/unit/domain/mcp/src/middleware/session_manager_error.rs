@@ -1,5 +1,6 @@
 //! Tests for [`DatabaseSessionHandlerError`] Display and Error source.
 
+use systemprompt_extension::mcp::McpSessionStoreError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp_host::serving::middleware::session_handler::DatabaseSessionHandlerError;
 
@@ -29,7 +30,7 @@ fn database_variant_display() {
     let inner = McpDomainError::ServiceRowMissing {
         service: "db fail".to_owned(),
     };
-    let e = DatabaseSessionHandlerError::Database(inner);
+    let e = DatabaseSessionHandlerError::Database(McpSessionStoreError(Box::new(inner)));
     let s = e.to_string();
     assert!(
         s.contains("db fail") || s.contains("Database") || s.contains("database"),
@@ -43,9 +44,10 @@ fn database_variant_source_is_some() {
     let inner = McpDomainError::ServiceRowMissing {
         service: "src".to_owned(),
     };
-    let e = DatabaseSessionHandlerError::Database(inner);
+    let e = DatabaseSessionHandlerError::Database(McpSessionStoreError(Box::new(inner)));
     let src = e.source().expect("database variant has a source");
-    assert!(src.to_string().contains("src"));
+    let cause = src.source().expect("the store error keeps its cause");
+    assert!(cause.to_string().contains("src"));
 }
 
 #[test]
@@ -85,9 +87,11 @@ fn debug_format_all_variants() {
             "SessionNeedsReconnect",
         ),
         (
-            DatabaseSessionHandlerError::Database(McpDomainError::ServiceRowMissing {
-                service: "d".to_owned(),
-            }),
+            DatabaseSessionHandlerError::Database(McpSessionStoreError(Box::new(
+                McpDomainError::ServiceRowMissing {
+                    service: "d".to_owned(),
+                },
+            ))),
             "Database",
         ),
     ];

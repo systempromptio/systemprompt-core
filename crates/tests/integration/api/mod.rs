@@ -558,6 +558,7 @@ mod middleware_more;
 #[cfg(test)]
 #[path = "proxy_cli_attribution.rs"]
 mod proxy_cli_attribution;
+#[cfg(test)]
 #[path = "proxy_external_mcp.rs"]
 mod proxy_external_mcp;
 
