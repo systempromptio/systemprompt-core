@@ -298,6 +298,18 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             type_name::<Arc<systemprompt_ai::PersonalProviderCredentials>>(),
             carrier::<systemprompt_ai::repository::UserProviderCredentialRepository>(),
         ),
+        (
+            type_name::<Arc<systemprompt_files::documents::DocumentsHandles>>(),
+            carrier::<systemprompt_documents::DocumentsRuntime>(),
+        ),
+        (
+            type_name::<Arc<systemprompt_documents::tokens::DocumentLinkTokens>>(),
+            carrier::<systemprompt_security::DeploymentTokenAuthority>(),
+        ),
+        (
+            type_name::<systemprompt_traits::DynDriveTokens>(),
+            carrier::<systemprompt_documents::tokens::DocumentDriveTokens>(),
+        ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();
     let member_sealed: BTreeSet<&str> = state

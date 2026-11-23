@@ -25,14 +25,14 @@ use systemprompt_extension::{Admitted, Extension, StandingTag};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_runtime::{AppContext, AppContextBuilder};
 
-use crate::bootstrap::{ensure_test_bootstrap, TestBootstrap};
+use crate::bootstrap::{TestBootstrap, ensure_test_bootstrap};
 
 pub const FIXTURE_JWT_ISSUER: &str = "https://issuer.test";
 
@@ -154,6 +154,20 @@ pub fn test_config_with(customize: impl FnOnce(&mut Config)) -> Arc<Config> {
 }
 
 pub fn fixture_admitted_of(members: Vec<Box<dyn Extension>>) -> Arc<Admitted> {
+    Arc::new(admitted_of(members))
+}
+
+// The schema-bearing core members and the documents member, as a child
+// host admits them.
+pub fn host_admitted() -> Admitted {
+    let mut members = systemprompt_test_migrate::core_members();
+    members.push(Box::new(
+        systemprompt_documents::extension::DocumentsExtension,
+    ));
+    admitted_of(members)
+}
+
+fn admitted_of(members: Vec<Box<dyn Extension>>) -> Admitted {
     let members = members
         .iter()
         .map(|ext| {
@@ -161,17 +175,18 @@ pub fn fixture_admitted_of(members: Vec<Box<dyn Extension>>) -> Arc<Admitted> {
                 .unwrap_or_else(|e| panic!("{} contributes: {e}", ext.metadata().id))
         })
         .collect();
-    Arc::new(Admitted::__from_facade(
-        systemprompt_extension::admitted::AdmittedParts {
-            members,
-            ..Default::default()
-        },
-    ))
+    Admitted::__from_facade(systemprompt_extension::admitted::AdmittedParts {
+        members,
+        ..Default::default()
+    })
 }
 
 pub fn fixture_core_members() -> Vec<Box<dyn Extension>> {
     let mut members = systemprompt_test_migrate::core_members();
     members.push(Box::new(systemprompt_gateway::extension::GatewayExtension));
+    members.push(Box::new(
+        systemprompt_documents::extension::DocumentsExtension,
+    ));
     members
 }
 
@@ -438,8 +453,8 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
     )
 }
 
-pub fn default_governance_watch(
-) -> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
+pub fn default_governance_watch()
+-> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
     systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),
