@@ -4,7 +4,7 @@
 //! (a task is only visible to a user who owns its context).
 
 use axum::Extension;
-use systemprompt_api::routes::tasks_router;
+use systemprompt_agent_entry::http::tasks_routes;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, TaskId, UserId};
 use systemprompt_runtime::AppContext;
@@ -18,8 +18,7 @@ fn app(ctx: &AppContext) -> axum::Router {
 }
 
 fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
-    tasks_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, tasks_routes())
         .layer(Extension(request_context(user)))
 }
 

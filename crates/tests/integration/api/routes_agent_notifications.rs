@@ -1,4 +1,4 @@
-//! Inbound A2A notification handling through `contexts_router`.
+//! Inbound A2A notification handling through the `agent-http` contexts route set.
 //!
 //! Seeds a real user-owned context (and, for the status path, a task) and
 //! calls as that owner, so the handler persists the notification, applies the
@@ -8,7 +8,7 @@
 //! and bad-envelope arms drive the 404 and 400 branches.
 
 use axum::Extension;
-use systemprompt_api::routes::contexts_router;
+use systemprompt_agent_entry::http::contexts_routes;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, unique_user_id};
@@ -57,8 +57,7 @@ async fn seed_task(
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, caller: &UserId) -> axum::Router {
-    contexts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context(caller.as_str())))
 }
 

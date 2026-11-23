@@ -4,7 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde_json::json;
-use systemprompt_cli::admin::agents::registry::{
+use systemprompt_agent_entry::cli::agents::registry::{
     AgentCardResponse, extract_status, is_agent_running, to_agent_info,
 };
 

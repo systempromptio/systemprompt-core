@@ -1,4 +1,4 @@
-//! `POST /{id}/events` forwarding through `contexts_router`.
+//! `POST /{id}/events` forwarding through the `agent-http` contexts route set.
 //!
 //! Seeds a user-owned context and drives all three `ContextEvent` arms
 //! (AG-UI, A2A, System) past ownership validation into the event router, which
@@ -6,7 +6,7 @@
 //! context arms drive the ownership-404 branch.
 
 use axum::Extension;
-use systemprompt_api::routes::contexts_router;
+use systemprompt_agent_entry::http::contexts_routes;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::a2a::TaskState;
@@ -50,8 +50,7 @@ fn request_context_for(user: &UserId) -> RequestContext {
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
-    contexts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context_for(user)))
 }
 

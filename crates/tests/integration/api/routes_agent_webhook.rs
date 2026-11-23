@@ -7,7 +7,6 @@
 //! subprocess — every path returns before any SSE fan-out matters.
 
 use axum::Extension;
-use systemprompt_api::routes::webhook_router;
 use tower::ServiceExt;
 
 use super::common::{json_post, request_context, setup_ctx};
@@ -19,8 +18,7 @@ const WEBHOOK_USER: &str = "00000000-0000-4000-8000-0000000000a3";
 #[tokio::test]
 async fn broadcast_user_mismatch_returns_403() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = webhook_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::webhook_app(&ctx)
         .layer(Extension(request_context(AUTHENTICATED_USER)));
     // The authenticated actor is `AUTHENTICATED_USER`; the payload claims a
     // different user_id, so the handler must reject with 403 before any DB
@@ -39,8 +37,7 @@ async fn broadcast_user_mismatch_returns_403() -> anyhow::Result<()> {
 #[tokio::test]
 async fn broadcast_unowned_context_returns_403() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = webhook_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::webhook_app(&ctx)
         .layer(Extension(request_context(WEBHOOK_USER)));
     // user_id matches the actor, but the context is not owned by this user, so
     // ownership validation fails with 403.
@@ -58,8 +55,7 @@ async fn broadcast_unowned_context_returns_403() -> anyhow::Result<()> {
 #[tokio::test]
 async fn broadcast_invalid_body_returns_4xx() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = webhook_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::webhook_app(&ctx)
         .layer(Extension(request_context(WEBHOOK_USER)));
     let resp = app
         .oneshot(json_post("/broadcast", serde_json::json!({ "junk": true })))
@@ -71,8 +67,7 @@ async fn broadcast_invalid_body_returns_4xx() -> anyhow::Result<()> {
 #[tokio::test]
 async fn broadcast_unknown_event_type_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = webhook_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::webhook_app(&ctx)
         .layer(Extension(request_context(WEBHOOK_USER)));
     // An unknown event_type with a matching user_id and an unowned context
     // still trips ownership validation first (403); this drives the request
@@ -92,8 +87,7 @@ async fn broadcast_unknown_event_type_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agui_broadcast_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = webhook_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::webhook_app(&ctx)
         .layer(Extension(request_context(WEBHOOK_USER)));
     let resp = app
         .oneshot(json_post(
@@ -109,8 +103,7 @@ async fn agui_broadcast_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn a2a_broadcast_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = webhook_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::webhook_app(&ctx)
         .layer(Extension(request_context(WEBHOOK_USER)));
     let resp = app
         .oneshot(json_post(

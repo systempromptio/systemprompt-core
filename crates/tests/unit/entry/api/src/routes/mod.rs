@@ -9,8 +9,6 @@
 mod admin_cli_disconnect;
 mod admin_services;
 mod admin_services_refresh;
-mod agent;
-mod agent_responses;
 mod brain_error_mapping;
 mod brain_routes;
 mod bridge_profile_models;
@@ -52,6 +50,7 @@ mod proxy_mcp_metadata;
 mod role_table;
 mod sso_unknown_provider;
 mod sync_types;
+mod webhook;
 mod wellknown_bridge_discovery;
 
 mod gateway_sessions_mint;

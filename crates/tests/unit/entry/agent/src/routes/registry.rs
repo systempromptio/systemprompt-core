@@ -1,4 +1,4 @@
-use systemprompt_api::routes::agent::registry::create_mcp_extensions_from_config;
+use systemprompt_agent_entry::http::registry::create_mcp_extensions_from_config;
 
 #[test]
 fn test_create_mcp_extensions_empty_server_names_returns_empty() {

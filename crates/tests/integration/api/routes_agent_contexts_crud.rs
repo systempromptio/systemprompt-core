@@ -10,8 +10,8 @@
 //! and populated branches.
 
 use axum::Extension;
-use systemprompt_api::routes::agent::registry::create_mcp_extensions_from_config;
-use systemprompt_api::routes::{artifacts_router, contexts_router};
+use systemprompt_agent_entry::http::registry::create_mcp_extensions_from_config;
+use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId,
@@ -75,8 +75,7 @@ async fn seed_context(pool: &DbPool, owner: &Owner) -> anyhow::Result<ContextId>
 }
 
 fn contexts_app(ctx: &systemprompt_runtime::AppContext, rc: RequestContext) -> axum::Router {
-    contexts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(rc))
 }
 
@@ -267,8 +266,7 @@ async fn seed_artifact(
 }
 
 fn artifacts_app(ctx: &systemprompt_runtime::AppContext, rc: RequestContext) -> axum::Router {
-    artifacts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, artifacts_routes())
         .layer(Extension(rc))
 }
 

@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use futures::stream;
-use systemprompt_cli::commands::admin::agents::message_streaming::collect_stream;
+use systemprompt_agent_entry::cli::agents::message_streaming::collect_stream;
 use systemprompt_models::a2a::TaskState;
 
 const TASK_ID: &str = "00000000-0000-4000-8000-0000000000a1";

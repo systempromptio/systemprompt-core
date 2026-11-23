@@ -4,10 +4,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use chrono::{TimeZone, Utc};
-use systemprompt_cli::core::artifacts::ArtifactSummary;
-use systemprompt_cli::core::contexts::ContextSummary;
 use systemprompt_cli::presentation::tables::{
-    ai_requests_table, artifact_list_table, context_list_table, execution_steps_table,
+    ai_requests_table, execution_steps_table,
     extract_latency_from_metadata, format_metadata_value, mcp_tool_calls_table,
     task_artifacts_table, task_info_table, trace_events_table, truncate_cell,
 };
@@ -36,88 +34,6 @@ fn truncate_cell_appends_ellipsis_when_cut() {
 #[test]
 fn truncate_cell_flattens_newlines() {
     assert_eq!(truncate_cell("a\nb\r\nc", 20), "a b c");
-}
-
-#[test]
-fn artifact_table_renders_headers_and_values() {
-    let summaries = vec![ArtifactSummary {
-        artifact_id: ArtifactId::new("artifact-1234567890"),
-        name: Some("report".to_owned()),
-        artifact_type: "document".to_owned(),
-        tool_name: None,
-        task_id: TaskId::new("task-1"),
-        created_at: ts(0),
-    }];
-    let table = artifact_list_table(&summaries);
-    assert!(table.contains("ID"));
-    assert!(table.contains("report"));
-    assert!(table.contains("document"));
-    assert!(table.contains(" - "), "missing tool renders as dash");
-}
-
-#[test]
-fn artifact_table_truncates_long_ids() {
-    let summaries = vec![ArtifactSummary {
-        artifact_id: ArtifactId::new("artifact-1234567890"),
-        name: None,
-        artifact_type: "t".to_owned(),
-        tool_name: Some("tool".to_owned()),
-        task_id: TaskId::new("task-1"),
-        created_at: ts(0),
-    }];
-    let table = artifact_list_table(&summaries);
-    assert!(!table.contains("artifact-1234567890"));
-    assert!(table.contains("tool"));
-}
-
-#[test]
-fn context_table_marks_active_row_and_truncates_id() {
-    let contexts = vec![
-        ContextSummary {
-            id: ContextId::try_new("aaaabbbb-cccc-4ddd-8eee-ffff00001111")
-                .expect("valid ContextId"),
-            name: "active one".to_owned(),
-            task_count: 3,
-            message_count: 7,
-            created_at: ts(0),
-            updated_at: ts(60),
-            last_message_at: None,
-            is_active: true,
-        },
-        ContextSummary {
-            id: ContextId::try_new("eeeeffff-0000-4111-8222-333344445555")
-                .expect("valid ContextId"),
-            name: "other".to_owned(),
-            task_count: 0,
-            message_count: 0,
-            created_at: ts(0),
-            updated_at: ts(120),
-            last_message_at: None,
-            is_active: false,
-        },
-    ];
-    let table = context_list_table(&contexts);
-    assert!(table.contains("aaaabbbb"));
-    assert!(!table.contains("aaaabbbbcccc"));
-    assert!(table.contains('*'));
-    assert!(table.contains("active one"));
-    assert!(table.contains("other"));
-}
-
-#[test]
-fn context_table_shows_only_first_eight_id_chars() {
-    let contexts = vec![ContextSummary {
-        id: ContextId::generate(),
-        name: "tiny".to_owned(),
-        task_count: 1,
-        message_count: 1,
-        created_at: ts(0),
-        updated_at: ts(0),
-        last_message_at: None,
-        is_active: false,
-    }];
-    let prefix: String = contexts[0].id.as_str().chars().take(8).collect();
-    assert!(context_list_table(&contexts).contains(&prefix));
 }
 
 #[test]

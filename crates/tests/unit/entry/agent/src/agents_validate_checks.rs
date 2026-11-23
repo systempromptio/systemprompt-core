@@ -2,12 +2,13 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::agents::types::ValidationIssue;
-use systemprompt_cli::admin::agents::validate::{
+use std::collections::HashMap;
+
+use systemprompt_agent_entry::cli::agents::types::ValidationIssue;
+use systemprompt_agent_entry::cli::agents::validate::{
     ValidationSources, check_basics, check_mcp_references, check_provider,
 };
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{CatalogContext, DefaultCatalog, ResolvedCatalog};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -53,15 +54,10 @@ fn services_yaml(yaml: &str) -> ServicesConfig {
     serde_yaml::from_str(yaml).unwrap()
 }
 
-fn secrets(anthropic: Option<&str>) -> Secrets {
-    let mut json = serde_json::json!({
-        "oauth_at_rest_pepper": "p".repeat(32),
-        "database_url": "postgres://localhost/db",
-    });
-    if let Some(key) = anthropic {
-        json["anthropic"] = serde_json::Value::String(key.to_owned());
-    }
-    serde_json::from_value(json).unwrap()
+fn secrets(anthropic: Option<&str>) -> HashMap<String, String> {
+    anthropic
+        .map(|key| HashMap::from([("anthropic".to_owned(), key.to_owned())]))
+        .unwrap_or_default()
 }
 
 fn messages(issues: &[ValidationIssue]) -> Vec<String> {

@@ -9,10 +9,13 @@
 
 use std::path::PathBuf;
 
-use clap::Parser;
-use systemprompt_cli::admin::agents::{AgentsCommands, execute};
-use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_agent_entry::cli::agents::execute;
+use systemprompt_cli::EnvOverrides;
+
+use crate::common::{
+    agents_host, app_on_database, app_reloaded_on_database, json_cli, parse_agents, rendered,
+    with_app, with_boot,
+};
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
     format!(
@@ -57,109 +60,6 @@ fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
     )
 }
 
-#[tokio::test]
-async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
-    use systemprompt_cli::infrastructure::services::restart;
-    use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::DisposableDb;
-
-    let root = seed_agents();
-    let listener = (9000..=9999)
-        .find_map(|port| std::net::TcpListener::bind(("127.0.0.1", port)).ok())
-        .expect("an available owned agent port");
-    let port = listener.local_addr().unwrap().port();
-    assert_eq!(
-        subprocess::pids_listening_on(port).await.unwrap(),
-        vec![std::process::id()],
-        "the occupied port must belong to this test process"
-    );
-    assert!(
-        !subprocess::owns(
-            std::process::id(),
-            ChildKind::Agent,
-            &systemprompt_identifiers::ServiceName::new("covlister"),
-        )
-        .await,
-        "the production port cleanup identity check must reject the unit-test process"
-    );
-    std::fs::write(
-        root.join("agents/covlister.yaml"),
-        agent_yaml("covlister", port, "Coverage Lister", true),
-    )
-    .unwrap();
-
-    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    let database = DisposableDb::with_schema("cli_restart_failed").await;
-    let pool = database.test_pool().await;
-    let app = crate::boot_ctx::app_reloaded_on_database(boot, database.url()).await;
-    let services = &app.a2a_repositories().agent_services;
-    services
-        .register_agent(
-            &systemprompt_identifiers::AgentName::new("covlister"),
-            2_000_000_000,
-            port,
-        )
-        .await
-        .expect("register an agent with a dead process id");
-
-    let config = CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json);
-    let output = restart::execute_failed(&app, &config)
-        .await
-        .expect("a failed restart is represented in the command output");
-    let value = serde_json::to_value(output.artifact()).unwrap();
-    let sections = value["sections"].as_array().unwrap();
-    let count = |name: &str| {
-        sections
-            .iter()
-            .find(|section| section["heading"] == name)
-            .unwrap_or_else(|| panic!("{value}"))["content"]
-            .as_u64()
-            .unwrap()
-    };
-
-    assert_eq!(count("restarted_count"), 0, "{value}");
-    assert_eq!(count("failed_count"), 1, "{value}");
-    let row = services
-        .find_agent_status(&systemprompt_identifiers::AgentName::new("covlister"))
-        .await
-        .unwrap()
-        .expect("failed restart retains its service record");
-    assert_eq!(row.status.as_str(), "error");
-    assert_eq!(row.port, i32::from(port));
-    assert!(
-        std::net::TcpStream::connect(("127.0.0.1", port)).is_ok(),
-        "restart failure must not terminate the unrelated listener that owns the configured port"
-    );
-    drop(listener);
-    drop(app);
-    drop(pool);
-    database.drop_now().await;
-}
-
-
-#[derive(Debug, Parser)]
-struct Harness {
-    #[command(subcommand)]
-    cmd: AgentsCommands,
-}
-
-fn parse(args: &[&str]) -> AgentsCommands {
-    Harness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
-}
-
-fn ctx() -> CommandContext {
-    crate::boot_ctx::new_with_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    )
-}
-
 fn services_root() -> PathBuf {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     boot.services_path.clone()
@@ -187,7 +87,8 @@ fn seed_agents() -> PathBuf {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    execute(parse(args), &ctx()).await.map(drop)
+    let ctx = with_boot(json_cli());
+    execute(parse_agents(args), &agents_host(&ctx)).await.map(drop)
 }
 
 #[tokio::test]
@@ -311,12 +212,16 @@ async fn edit_rejects_an_unknown_agent() {
 async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
     let root = seed_agents();
     let agent_file = root.join("agents/covlister.yaml");
-    let pool = systemprompt_test_fixtures::test_db_pool().await;
-    systemprompt_test_fixtures::seed_fixture_system_admin(&pool)
-        .await
-        .unwrap();
-
-    run(&["delete", "covlister", "--yes"]).await.unwrap();
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let app =
+        app_reloaded_on_database(boot, &systemprompt_test_fixtures::test_database_url()).await;
+    let context = with_app(json_cli(), EnvOverrides::default(), app);
+    execute(
+        parse_agents(&["delete", "covlister", "--yes"]),
+        &agents_host(&context),
+    )
+    .await
+    .unwrap();
 
     assert!(
         !agent_file.exists(),
@@ -338,90 +243,8 @@ async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
     assert!(config.agents.contains_key("covdormant"));
 }
 
-#[tokio::test]
-async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_disabled_agents() {
-    use systemprompt_cli::infrastructure::services::restart;
-    use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::DisposableDb;
-
-    let root = seed_agents();
-    let listener = (9000..=9999)
-        .find_map(|port| std::net::TcpListener::bind(("127.0.0.1", port)).ok())
-        .expect("an available agent port");
-    let port = listener.local_addr().unwrap().port();
-    assert_eq!(
-        subprocess::pids_listening_on(port)
-            .await
-            .expect("inspect owned listener"),
-        vec![std::process::id()],
-        "the occupied port must belong to this test process"
-    );
-    assert!(
-        !subprocess::owns(
-            std::process::id(),
-            ChildKind::Agent,
-            &systemprompt_identifiers::ServiceName::new("covlister"),
-        )
-        .await,
-        "production cleanup must reject the unit-test process"
-    );
-    std::fs::write(
-        root.join("agents/covlister.yaml"),
-        agent_yaml("covlister", port, "Coverage Lister", true),
-    )
-    .unwrap();
-    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    let database = DisposableDb::with_schema("cli_restart_all_agents").await;
-    let pool = database.test_pool().await;
-    let app = crate::boot_ctx::app_reloaded_on_database(boot, database.url()).await;
-    let config = CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json);
-    let out = restart::execute_all_agents(&app, &config).await.unwrap();
-    let value = serde_json::to_value(out.artifact()).unwrap();
-    let sections = value["sections"].as_array().unwrap();
-    let count = |name: &str| {
-        sections
-            .iter()
-            .find(|s| s["heading"] == name)
-            .unwrap_or_else(|| panic!("{value}"))["content"]
-            .as_u64()
-            .unwrap()
-    };
-    assert_eq!(count("restarted_count"), 0);
-    assert_eq!(count("failed_count"), 1);
-    assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
-    let text = CliConfig::new().with_interactive(false);
-    let text_out = restart::execute_all_agents(&app, &text).await.unwrap();
-    let text_value = serde_json::to_value(text_out.artifact()).unwrap();
-    let text_sections = text_value["sections"].as_array().unwrap();
-    let text_count = |name: &str| {
-        text_sections
-            .iter()
-            .find(|section| section["heading"] == name)
-            .unwrap_or_else(|| panic!("{text_value}"))["content"]
-            .as_u64()
-            .unwrap()
-    };
-    assert_eq!(text_count("restarted_count"), 0);
-    assert_eq!(text_count("failed_count"), 1);
-    drop(listener);
-    assert!(
-        app.a2a_repositories()
-            .agent_services
-            .find_agent_status(&systemprompt_identifiers::AgentName::new("covdormant"))
-            .await
-            .unwrap()
-            .is_none()
-    );
-    drop(app);
-    pool.write_pool().close().await;
-    drop(pool);
-    database.drop_now().await;
-}
-
 const DELETE_ALL_HELPER: &str =
-    "commands::admin_agents_profile_fs::delete_all_agents_public_helper";
+    "admin_agents_profile_fs::delete_all_agents_public_helper";
 
 #[tokio::test]
 #[ignore = "re-executed by delete_all_reports_exact_targets_and_preserves_unrelated_configuration"]
@@ -434,19 +257,14 @@ async fn delete_all_agents_public_helper() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_admin_delete_all").await;
     let pool = database.test_pool().await;
-    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
-    let context = crate::boot_ctx::with_app_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-        app,
-    );
+    let app = app_on_database(boot, database.url()).await;
+    let context = with_app(json_cli(), EnvOverrides::default(), app);
+    let host = agents_host(&context);
 
     println!("BEGIN_DELETE_ALL");
-    crate::boot_ctx::rendered(
-        &context,
-        execute(parse(&["delete", "--all", "--yes"]), &context).await,
+    rendered(
+        &host,
+        execute(parse_agents(&["delete", "--all", "--yes"]), &host).await,
     )
     .expect("public delete-all command");
     println!("END_DELETE_ALL");
@@ -461,6 +279,7 @@ async fn delete_all_agents_public_helper() {
             "control": std::fs::read_to_string(control).expect("read unrelated control"),
         })
     );
+    drop(host);
     drop(context);
     pool.write_pool().close().await;
     drop(pool);

@@ -182,8 +182,7 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     .unwrap();
     let owned = OwnedMarkedAgent::spawn(&name);
 
-    ctx.a2a_repositories()
-        .agent_services
+    agent_services(&ctx)
         .register_agent(&AgentName::new(name.as_str()), owned.pid(), port)
         .await
         .expect("seed the owned agent as running");
@@ -201,9 +200,7 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
         "reconciliation must have terminated the previous agent {} before retrying",
         owned.name
     );
-    let row = ctx
-        .a2a_repositories()
-        .agent_services
+    let row = agent_services(&ctx)
         .find_agent_status(&AgentName::new(name.as_str()))
         .await
         .expect("read terminal agent service row")
@@ -227,4 +224,18 @@ fn malformed_agent_registry_fails_the_services_load() {
         diagnosis.contains("agents") || diagnosis.contains("sequence"),
         "registry parse diagnosis is retained: {diagnosis}"
     );
+}
+
+fn agent_services(
+    app: &systemprompt_runtime::AppContext,
+) -> systemprompt_agent::repository::agent_service::AgentServiceRepository {
+    let instance = app
+        .kernel()
+        .resolved()
+        .get::<systemprompt_identifiers::InstanceId>()
+        .expect("the kernel seeds the instance id");
+    systemprompt_agent::repository::agent_service::AgentServiceRepository::new(
+        app.db_pool(),
+        instance,
+    )
 }

@@ -152,3 +152,24 @@ pub fn assert_forwarded_with_execution_stamp(forwarded: &[u8], upstream_body: &s
         .remove("_meta");
     assert_eq!(forwarded, upstream);
 }
+
+pub fn mounted_set(ctx: &AppContext, set: systemprompt_extension::router::RouteSet) -> axum::Router {
+    set.materialize(&ctx.kernel().resolved())
+        .expect("the admitted kernel holds the route set's state")
+        .into_iter()
+        .fold(axum::Router::new(), axum::Router::merge)
+}
+
+pub fn webhook_app(ctx: &AppContext) -> axum::Router {
+    systemprompt_api::routes::webhook::router(
+        systemprompt_api::routes::webhook::WebhookState::from_context(ctx)
+            .expect("the admitted kernel holds the webhook state"),
+    )
+}
+
+pub fn agent_http_state(ctx: &AppContext) -> systemprompt_agent_entry::http::AgentHttpState {
+    <systemprompt_agent_entry::http::AgentHttpState as systemprompt_extension::FromState>::from_state(
+        &ctx.kernel().resolved(),
+    )
+    .expect("the admitted kernel holds the agent route state")
+}

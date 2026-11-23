@@ -39,23 +39,10 @@ async fn plane_debug_impls_flag_optional_members() {
     let url = systemprompt_test_fixtures::test_database_url();
     let pool = systemprompt_test_fixtures::test_db_pool().await;
 
-    let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        Arc::new(systemprompt_users::SessionRepository::new(&pool));
     let data = DataPlane {
         database: Arc::clone(&pool),
         fingerprint_repo: None,
         user_service: None,
-        a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
-            &pool,
-            systemprompt_agent::repository::A2aDependencies {
-                session_usage,
-                instance_id: test_instance.clone(),
-                managed_skills: systemprompt_test_fixtures::not_managed_skills(),
-                tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
-                    systemprompt_test_fixtures::ToolExecutionLedger::Exists,
-                ),
-            },
-        )),
         content_repositories: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             &pool,
         )),

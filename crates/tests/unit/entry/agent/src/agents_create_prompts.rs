@@ -1,17 +1,19 @@
 //! Tests for the `admin agents` interactive prompts, driven through
-//! `ScriptedPrompter` without touching the filesystem, database, or network.
+//! `ScriptedPrompter` without touching the database or network.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::path::Path;
 
-use systemprompt_cli::admin::agents::create::{
+use systemprompt_agent_entry::cli::agents::create::{
     prompt_name, prompt_port, resolve_description, resolve_display_name, validate_name_input,
     validate_port_input,
 };
-use systemprompt_cli::admin::agents::logs_disk::select_agent_from_log_files;
+use systemprompt_agent_entry::cli::agents::logs_disk::select_agent_from_log_files;
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_extension::cli::CliConfig;
+
+use crate::common::{agents_host, json_cli, with_boot};
 
 fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
@@ -40,28 +42,28 @@ fn validate_port_input_enforces_non_privileged_range() {
 #[test]
 fn prompt_name_retries_until_valid() {
     let prompter = scripted(&["ab", "Bad", "good_name"]);
-    let name = prompt_name(&prompter).expect("eventually valid");
+    let name = prompt_name(&prompter, &agents_host(&with_boot(json_cli()))).expect("eventually valid");
     assert_eq!(name, "good_name");
 }
 
 #[test]
 fn prompt_name_exhausted_after_invalid_errors() {
     let prompter = scripted(&["ab"]);
-    let err = prompt_name(&prompter).expect_err("no valid answer left");
+    let err = prompt_name(&prompter, &agents_host(&with_boot(json_cli()))).expect_err("no valid answer left");
     assert!(format!("{err:#}").contains("exhausted"));
 }
 
 #[test]
 fn prompt_port_retries_on_unparseable_then_invalid() {
     let prompter = scripted(&["not-a-port", "80", "9000"]);
-    let port = prompt_port(&prompter).expect("eventually valid");
+    let port = prompt_port(&prompter, &agents_host(&with_boot(json_cli()))).expect("eventually valid");
     assert_eq!(port, 9000);
 }
 
 #[test]
 fn prompt_port_uses_default_on_empty_answer() {
     let prompter = scripted(&[""]);
-    let port = prompt_port(&prompter).expect("default is valid");
+    let port = prompt_port(&prompter, &agents_host(&with_boot(json_cli()))).expect("default is valid");
     assert_eq!(port, 8001);
 }
 

@@ -3,7 +3,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::agents::delete::{
+use systemprompt_agent_entry::cli::agents::delete::{
     delete_confirm_message, delete_success_message, validate_delete_targets,
 };
 use systemprompt_identifiers::AgentName;

@@ -8,7 +8,7 @@ use systemprompt_agent::models::a2a::{
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_agent::repository::{ContextRepository, RuntimeTask};
-use systemprompt_cli::core::artifacts::{list, show};
+use systemprompt_agent_entry::cli::artifacts::{list, show};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId};
@@ -208,7 +208,6 @@ async fn list_filters_by_context_and_user() {
         },
         &user_id,
         &pool,
-        &cfg(),
     )
     .await
     .unwrap();
@@ -222,7 +221,6 @@ async fn list_filters_by_context_and_user() {
         },
         &user_id,
         &pool,
-        &CliConfig::new().with_interactive(false),
     )
     .await
     .unwrap();
@@ -287,7 +285,6 @@ async fn list_refuses_a_context_owned_by_another_user() {
         },
         &intruder,
         &pool,
-        &cfg(),
     )
     .await
     .unwrap_err();
@@ -311,7 +308,6 @@ async fn list_without_a_context_shows_only_the_session_users_artifacts() {
         },
         &intruder,
         &pool,
-        &cfg(),
     )
     .await
     .unwrap();
@@ -328,7 +324,6 @@ async fn list_without_a_context_shows_only_the_session_users_artifacts() {
         },
         &owner,
         &pool,
-        &cfg(),
     )
     .await
     .unwrap();

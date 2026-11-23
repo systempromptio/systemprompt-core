@@ -1,6 +1,6 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::agents::{logs, logs_db};
+use systemprompt_agent_entry::cli::agents::{logs, logs_db};
 use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};

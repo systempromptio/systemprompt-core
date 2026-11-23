@@ -5,33 +5,11 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use systemprompt_test_fixtures::bounded_output;
 
-use clap::Parser;
-use systemprompt_cli::admin::agents::{self, AgentsCommands};
-use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_agent_entry::cli::agents;
 
-const HELPER: &str = "commands::agent_logs_follow_lifecycle::agent_logs_follow_helper";
+use crate::common::{agents_host, json_cli, parse_agents, rendered, with_boot};
 
-#[derive(Debug, Parser)]
-struct Harness {
-    #[command(subcommand)]
-    command: AgentsCommands,
-}
-
-fn parse(args: &[&str]) -> AgentsCommands {
-    Harness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
-        .expect("parse agent logs command")
-        .command
-}
-
-fn context() -> CommandContext {
-    crate::boot_ctx::new_with_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    )
-}
+const HELPER: &str = "agent_logs_follow_lifecycle::agent_logs_follow_helper";
 
 #[tokio::test]
 #[ignore = "re-executed by follow_uses_the_resolved_agent_log_and_surfaces_tail_failure"]
@@ -64,18 +42,20 @@ async fn agent_logs_follow_helper() {
         std::env::remove_var("TAIL_EXIT");
     }
 
+    let context = with_boot(json_cli());
+    let host = agents_host(&context);
     println!("BEGIN_FOLLOW");
-    crate::boot_ctx::rendered(
-        &context(),
+    rendered(
+        &host,
         agents::execute(
-            parse(&[
+            parse_agents(&[
                 "logs",
                 "orion",
                 "--follow",
                 "--logs-dir",
                 logs.to_str().unwrap(),
             ]),
-            &context(),
+            &host,
         )
         .await,
     )
@@ -87,14 +67,14 @@ async fn agent_logs_follow_helper() {
 
     unsafe { std::env::set_var("TAIL_EXIT", "9") };
     let error = agents::execute(
-        parse(&[
+        parse_agents(&[
             "logs",
             "orion",
             "--follow",
             "--logs-dir",
             logs.to_str().unwrap(),
         ]),
-        &context(),
+        &host,
     )
     .await
     .expect_err("a failed tail process must be reported");

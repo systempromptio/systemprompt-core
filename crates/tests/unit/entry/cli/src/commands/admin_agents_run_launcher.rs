@@ -1,4 +1,4 @@
-//! `admin agents run` resolves its agent-run launcher from the host's
+//! `admin agent-host run` resolves its agent-run launcher from the host's
 //! extension state: a state carrying a `DynAgentRunLauncher` yields
 //! `RunLauncher::Linked` with that launcher, and a state without one (an
 //! install without agent-runs, or a profile that disables it) yields
@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_cli::commands::admin::agents::run::RunLauncher;
+use systemprompt_cli::admin::agent_host::run::RunLauncher;
 use systemprompt_identifiers::{AgentRunId, TaskId};
 use systemprompt_traits::{
     AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, Dependencies, DynAgentRunLauncher,

@@ -4,7 +4,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::agents::{logs as agent_logs, logs_db as agent_logs_db};
+use systemprompt_agent_entry::cli::agents::{logs as agent_logs, logs_db as agent_logs_db};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_identifiers::{SessionId, TraceId};

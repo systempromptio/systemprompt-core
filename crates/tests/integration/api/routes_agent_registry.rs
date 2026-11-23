@@ -1,7 +1,7 @@
 //! Agent registry route — needs RequestContext injected via Extension layer.
 
 use axum::Extension;
-use systemprompt_api::routes::registry_router;
+use systemprompt_agent_entry::http::registry_routes;
 use tower::ServiceExt;
 
 use super::common::{empty_get, request_context, setup_ctx};
@@ -9,7 +9,7 @@ use super::common::{empty_get, request_context, setup_ctx};
 #[tokio::test]
 async fn agent_registry_handles_missing_profile() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = registry_router(&ctx).layer(Extension(request_context("user_test")));
+    let app = crate::common::mounted_set(&ctx, registry_routes()).layer(Extension(request_context("user_test")));
 
     let resp = app.oneshot(empty_get("/")).await?;
     // Without a profile the AgentRegistry::new() returns an error which

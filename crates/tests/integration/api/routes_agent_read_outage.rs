@@ -2,7 +2,7 @@ use anyhow::Result;
 use axum::body::to_bytes;
 use axum::http::StatusCode;
 use axum::{Extension, Router};
-use systemprompt_api::routes::{artifacts_router, contexts_router, tasks_router};
+use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, UserId};
 use systemprompt_test_fixtures::{
     DisposableDb, seed_user_row, seed_user_session, test_app_context,
@@ -54,9 +54,9 @@ async fn seed(db: &systemprompt_database::DbPool) -> Result<Seeded> {
 fn apps(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> (Router, Router, Router) {
     let layer = || Extension(request_context(user.as_str()));
     (
-        contexts_router().with_state(ctx.clone()).layer(layer()),
-        tasks_router().with_state(ctx.clone()).layer(layer()),
-        artifacts_router().with_state(ctx.clone()).layer(layer()),
+        crate::common::mounted_set(&ctx, contexts_routes()).layer(layer()),
+        crate::common::mounted_set(&ctx, tasks_routes()).layer(layer()),
+        crate::common::mounted_set(&ctx, artifacts_routes()).layer(layer()),
     )
 }
 

@@ -5,23 +5,13 @@
 
 use std::path::Path;
 
-use clap::Parser;
-use systemprompt_cli::admin::agents::{self, AgentsCommands};
+use systemprompt_agent_entry::cli::agents;
+use systemprompt_cli::CommandContext;
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
-#[derive(Debug, Parser)]
-struct AgentsHarness {
-    #[command(subcommand)]
-    cmd: AgentsCommands,
-}
+use crate::common::{agents_host, parse_agents, with_boot};
 
-fn parse_agents(args: &[&str]) -> AgentsCommands {
-    AgentsHarness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
-}
 
 fn ctx(interactive: bool, answers: &[&str]) -> CommandContext {
     let config = if interactive {
@@ -34,7 +24,7 @@ fn ctx(interactive: bool, answers: &[&str]) -> CommandContext {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json)
     };
-    crate::boot_ctx::new_with_boot(config, EnvOverrides::default()).with_prompter(Box::new(
+    with_boot(config).with_prompter(Box::new(
         ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned())),
     ))
 }
@@ -54,7 +44,7 @@ async fn agent_logs_disk_lists_files_when_no_agent_given() {
     seed_logs(dir.path());
     agents::execute(
         parse_agents(&["logs", "--disk", "--logs-dir", dir.path().to_str().unwrap()]),
-        &ctx(false, &[]),
+        &agents_host(&ctx(false, &[])),
     )
     .await
     .unwrap();
@@ -68,13 +58,13 @@ async fn agent_logs_disk_reads_named_and_prompted_agent() {
 
     agents::execute(
         parse_agents(&["logs", "orion", "--disk", "--logs-dir", dir_arg, "-n", "5"]),
-        &ctx(false, &[]),
+        &agents_host(&ctx(false, &[])),
     )
     .await
     .unwrap();
     agents::execute(
         parse_agents(&["logs", "--disk", "--logs-dir", dir_arg]),
-        &ctx(true, &["0"]),
+        &agents_host(&ctx(true, &["0"])),
     )
     .await
     .unwrap();
@@ -84,7 +74,7 @@ async fn agent_logs_disk_reads_named_and_prompted_agent() {
 async fn agent_logs_disk_error_branches() {
     let missing = agents::execute(
         parse_agents(&["logs", "--disk", "--logs-dir", "/no/such/dir/cov"]),
-        &ctx(false, &[]),
+        &agents_host(&ctx(false, &[])),
     )
     .await
     .unwrap_err();
@@ -92,7 +82,7 @@ async fn agent_logs_disk_error_branches() {
 
     let follow_missing = agents::execute(
         parse_agents(&["logs", "--follow", "--logs-dir", "/no/such/dir/cov"]),
-        &ctx(false, &[]),
+        &agents_host(&ctx(false, &[])),
     )
     .await
     .unwrap_err();
@@ -106,7 +96,7 @@ async fn agent_logs_disk_error_branches() {
             "--logs-dir",
             empty.path().to_str().unwrap(),
         ]),
-        &ctx(true, &[]),
+        &agents_host(&ctx(true, &[])),
     )
     .await
     .unwrap_err();
@@ -119,7 +109,7 @@ async fn agent_logs_disk_error_branches() {
             "--logs-dir",
             empty.path().to_str().unwrap(),
         ]),
-        &ctx(false, &[]),
+        &agents_host(&ctx(false, &[])),
     )
     .await;
     flag_required.unwrap();

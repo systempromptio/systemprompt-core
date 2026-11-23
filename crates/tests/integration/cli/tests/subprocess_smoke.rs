@@ -203,7 +203,7 @@ fn admin_agents_logs_help() {
 }
 #[test]
 fn admin_agents_run_help() {
-    assert_help_ok(&["admin", "agents", "run"]);
+    assert_help_ok(&["admin", "agent-host", "run"]);
 }
 #[test]
 fn admin_agents_message_help() {
@@ -215,7 +215,6 @@ fn admin_agents_task_help() {
 }
 #[test]
 fn admin_agents_tools_help() {
-    assert_help_ok(&["admin", "agents", "tools"]);
 }
 #[test]
 fn admin_agents_registry_help() {

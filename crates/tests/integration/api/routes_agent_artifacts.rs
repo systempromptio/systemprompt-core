@@ -1,4 +1,4 @@
-//! Agent artifact retrieval routes through `artifacts_router`.
+//! Agent artifact retrieval routes through the `agent-http` artifacts route set.
 //!
 //! Drives `list_artifacts_by_user`, `get_artifact`, and `get_artifact_ui`
 //! against a real DB with an injected `RequestContext` (the full router injects
@@ -8,7 +8,7 @@
 //! ownership-validation and not-found branches.
 
 use axum::Extension;
-use systemprompt_api::routes::artifacts_router;
+use systemprompt_agent_entry::http::artifacts_routes;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
@@ -17,8 +17,7 @@ use uuid::Uuid;
 use super::common::{empty_get, request_context, setup_ctx};
 
 fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
-    artifacts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, artifacts_routes())
         .layer(Extension(request_context(user)))
 }
 
@@ -73,7 +72,7 @@ mod owned {
     use axum::body::to_bytes;
     use axum::extract::{Path, State};
     use axum::response::IntoResponse;
-    use systemprompt_api::routes::agent::artifacts::{
+    use systemprompt_agent_entry::http::artifacts::{
         list_artifacts_by_context, list_artifacts_by_task,
     };
     use systemprompt_database::DbPool;
@@ -127,7 +126,7 @@ mod owned {
 
         let response = list_artifacts_by_context(
             Extension(ctx_for(&user)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(context.as_str().to_owned()),
         )
         .await
@@ -154,7 +153,7 @@ mod owned {
 
         let result = list_artifacts_by_context(
             Extension(ctx_for(&stranger)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(context.as_str().to_owned()),
         )
         .await;
@@ -173,7 +172,7 @@ mod owned {
 
         let result = list_artifacts_by_context(
             Extension(ctx_for(&user)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(ContextId::generate().as_str().to_owned()),
         )
         .await;
@@ -192,7 +191,7 @@ mod owned {
 
         let result = list_artifacts_by_task(
             Extension(ctx_for(&user)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(TaskId::generate().as_str().to_owned()),
         )
         .await;

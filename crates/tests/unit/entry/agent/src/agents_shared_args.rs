@@ -7,7 +7,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::agents::shared::AgentArgs;
+use systemprompt_agent_entry::cli::agents::shared::AgentArgs;
 
 #[test]
 fn default_args_have_no_value() {

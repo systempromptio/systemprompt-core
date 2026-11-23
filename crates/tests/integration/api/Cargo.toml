@@ -39,6 +39,7 @@ systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-agent-entry = { workspace = true, features = ["http"] }
 systemprompt-content = { workspace = true }
 systemprompt-content-entry = { workspace = true, features = ["http"] }
 systemprompt-marketplace = { workspace = true }

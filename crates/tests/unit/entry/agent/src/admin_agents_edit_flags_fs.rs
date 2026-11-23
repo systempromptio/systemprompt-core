@@ -7,10 +7,9 @@
 
 use std::path::PathBuf;
 
-use clap::Parser;
-use systemprompt_cli::admin::agents::{AgentsCommands, execute};
-use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_agent_entry::cli::agents::execute;
+
+use crate::common::{agents_host, json_cli, parse_agents, with_boot};
 
 const AGENT: &str = "covedited";
 
@@ -63,27 +62,6 @@ fn agent_yaml() -> String {
     )
 }
 
-#[derive(Debug, Parser)]
-struct Harness {
-    #[command(subcommand)]
-    cmd: AgentsCommands,
-}
-
-fn parse(args: &[&str]) -> AgentsCommands {
-    Harness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
-}
-
-fn ctx() -> CommandContext {
-    crate::boot_ctx::new_with_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    )
-}
-
 fn seed() -> PathBuf {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let root = boot.services_path.clone();
@@ -102,7 +80,8 @@ fn written(root: &std::path::Path) -> String {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    execute(parse(args), &ctx()).await.map(drop)
+    let ctx = with_boot(json_cli());
+    execute(parse_agents(args), &agents_host(&ctx)).await.map(drop)
 }
 
 #[tokio::test]

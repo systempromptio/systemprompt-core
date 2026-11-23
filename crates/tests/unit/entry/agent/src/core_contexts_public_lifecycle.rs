@@ -3,34 +3,23 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use clap::Parser;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
-use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_agent_entry::cli::contexts;
+use systemprompt_cli::EnvOverrides;
+use systemprompt_cli::kernel::MemberHost;
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::auth::UserType;
+use crate::common::{app_on_database, contexts_host, parse_contexts, rendered, with_app};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, seed_user_session,
 };
 
-const HELPER: &str = "commands::core_contexts_public_lifecycle::public_context_lifecycle_helper";
-
-#[derive(Debug, Parser)]
-struct Harness {
-    #[command(subcommand)]
-    command: CoreCommands,
-}
-
-fn parse(args: &[&str]) -> CoreCommands {
-    Harness::try_parse_from(std::iter::once("core").chain(args.iter().copied()))
-        .expect("parse core command")
-        .command
-}
+const HELPER: &str = "core_contexts_public_lifecycle::public_context_lifecycle_helper";
 
 struct CwdGuard(PathBuf);
 
@@ -40,9 +29,9 @@ impl Drop for CwdGuard {
     }
 }
 
-async fn run_marked(label: &str, args: &[&str], context: &CommandContext) {
+async fn run_marked(label: &str, args: &[&str], host: &MemberHost<'_>) {
     println!("BEGIN_{label}");
-    crate::boot_ctx::rendered(context, core::execute(parse(args), context).await)
+    rendered(host, contexts::execute(parse_contexts(args), host).await)
         .unwrap_or_else(|error| panic!("{label} failed: {error:#}"));
     println!("END_{label}");
 }
@@ -113,8 +102,8 @@ async fn public_context_lifecycle_helper() {
         .save(&sessions_dir)
         .expect("persist active CLI session");
 
-    let app = crate::boot_ctx::app_on_database(boot, database.url()).await;
-    let context = crate::boot_ctx::with_app_boot(
+    let app = app_on_database(boot, database.url()).await;
+    let context = with_app(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json)
@@ -122,11 +111,12 @@ async fn public_context_lifecycle_helper() {
         EnvOverrides::default(),
         app,
     );
+    let host = contexts_host(&context);
 
     run_marked(
         "CONTEXT_CREATE",
-        &["contexts", "create", "--name", "Created Context"],
-        &context,
+        &["create", "--name", "Created Context"],
+        &host,
     )
     .await;
     run_marked(
@@ -138,24 +128,24 @@ async fn public_context_lifecycle_helper() {
             "--name",
             "Renamed Context",
         ],
-        &context,
+        &host,
     )
     .await;
     run_marked(
         "CONTEXT_USE",
-        &["contexts", "use", "Renamed Context"],
-        &context,
+        &["use", "Renamed Context"],
+        &host,
     )
     .await;
     run_marked(
         "CONTEXT_NEW",
-        &["contexts", "new", "--name", "Active New Context"],
-        &context,
+        &["new", "--name", "Active New Context"],
+        &host,
     )
     .await;
-    let active_delete = core::execute(
-        parse(&["contexts", "delete", "Active New Context", "--yes"]),
-        &context,
+    let active_delete = contexts::execute(
+        parse_contexts(&["delete", "Active New Context", "--yes"]),
+        &host,
     )
     .await
     .expect_err("active context deletion must be refused");
@@ -165,8 +155,8 @@ async fn public_context_lifecycle_helper() {
     );
     run_marked(
         "CONTEXT_DELETE",
-        &["contexts", "delete", "Renamed Context", "--yes"],
-        &context,
+        &["delete", "Renamed Context", "--yes"],
+        &host,
     )
     .await;
 
@@ -189,6 +179,7 @@ async fn public_context_lifecycle_helper() {
         serde_json::json!({"rows": rows, "active_context": active})
     );
 
+    drop(host);
     drop(context);
     drop(repository);
     pool.write_pool().close().await;

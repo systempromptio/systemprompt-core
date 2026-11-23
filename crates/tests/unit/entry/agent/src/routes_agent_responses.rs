@@ -6,7 +6,7 @@
 
 use axum::body::to_bytes;
 use axum::http::StatusCode;
-use systemprompt_api::routes::agent::responses::{
+use systemprompt_agent_entry::http::responses::{
     api_error_response, collection_response, single_response, single_response_created,
 };
 use systemprompt_models::ApiError;

@@ -10,7 +10,6 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use systemprompt_cli::admin::agents::AgentsCommands;
 use systemprompt_cli::admin::config::rate_limits::RateLimitsCommands;
 use systemprompt_cli::core::CoreCommands;
 use systemprompt_cli::plugins::PluginsCommands;
@@ -133,12 +132,6 @@ struct CoreHarness {
 }
 
 #[derive(Debug, Parser)]
-struct AgentsHarness {
-    #[command(subcommand)]
-    cmd: AgentsCommands,
-}
-
-#[derive(Debug, Parser)]
 struct RateLimitsHarness {
     #[command(subcommand)]
     cmd: RateLimitsCommands,
@@ -188,35 +181,6 @@ async fn core_commands_render_through_the_terminal_renderer() {
             .cmd;
         systemprompt_cli::core::execute(cmd, &ctx).await.unwrap();
     }
-}
-
-#[tokio::test]
-async fn agent_config_commands_render_through_the_terminal_renderer() {
-    services_root();
-    let ctx = table_ctx();
-
-    let agents = |args: &[&str]| {
-        AgentsHarness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
-            .unwrap()
-            .cmd
-    };
-    for args in [
-        vec!["list"],
-        vec!["list", "--enabled"],
-        vec!["show", "covtable"],
-    ] {
-        systemprompt_cli::admin::agents::execute(agents(&args), &ctx)
-            .await
-            .unwrap();
-    }
-
-    let err = systemprompt_cli::admin::agents::execute(agents(&["validate"]), &ctx)
-        .await
-        .expect_err("the fixture agent names a provider absent from ai.providers");
-    assert!(
-        format!("{err:#}").contains("Agent validation failed"),
-        "{err:#}"
-    );
 }
 
 #[test]

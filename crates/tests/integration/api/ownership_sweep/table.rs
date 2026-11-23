@@ -206,7 +206,7 @@ fn the_inventory_sees_methods_bound_through_a_let_and_every_method_of_a_chain() 
     };
     for method in ["GET", "PUT", "DELETE"] {
         assert!(
-            has("routes/agent/contexts/mod.rs::router", method, "\"/{id}\""),
+            has("agent/http/mod.rs::contexts_routes", method, "\"/{id}\""),
             "{method} /contexts/{{id}}"
         );
     }

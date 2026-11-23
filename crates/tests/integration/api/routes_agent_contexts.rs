@@ -4,7 +4,7 @@
 use axum::Extension;
 use axum::http::StatusCode;
 use systemprompt_agent::models::context::ContextKind;
-use systemprompt_api::routes::contexts_router;
+use systemprompt_agent_entry::http::contexts_routes;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, seed_user_row, test_app_context,
 };
@@ -15,8 +15,7 @@ use super::common::{empty_delete, empty_get, json_post, request_context, setup_c
 #[tokio::test]
 async fn list_contexts_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app.oneshot(empty_get("/")).await?;
     assert!(resp.status().as_u16() >= 200);
@@ -26,8 +25,7 @@ async fn list_contexts_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn create_context_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
         .oneshot(json_post(
@@ -45,8 +43,7 @@ async fn create_context_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn get_context_unknown_returns_4xx_or_5xx() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
         .oneshot(empty_get("/00000000-0000-0000-0000-000000000000"))
@@ -58,8 +55,7 @@ async fn get_context_unknown_returns_4xx_or_5xx() -> anyhow::Result<()> {
 #[tokio::test]
 async fn delete_context_unknown_is_idempotent() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
         .oneshot(empty_delete("/00000000-0000-0000-0000-000000000000"))
@@ -81,19 +77,17 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
         &format!("{}@contexts.invalid", request.user_id()),
     )
     .await?;
-    let context_id = ctx
-        .a2a_repositories()
+    let context_id = systemprompt_test_fixtures::a2a_repositories(ctx.db_pool())
         .contexts
         .create_context(request.user_id(), None, "delete me", ContextKind::User)
         .await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request.clone()));
 
     let response = app.oneshot(empty_delete(&format!("/{context_id}"))).await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(matches!(
-        ctx.a2a_repositories()
+        systemprompt_test_fixtures::a2a_repositories(ctx.db_pool())
             .contexts
             .get_context(&context_id, request.user_id())
             .await,
@@ -109,8 +103,7 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
 #[tokio::test]
 async fn list_tasks_by_context_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
         .oneshot(empty_get("/00000000-0000-0000-0000-000000000000/tasks"))
@@ -122,8 +115,7 @@ async fn list_tasks_by_context_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn list_artifacts_by_context_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
         .oneshot(empty_get("/00000000-0000-0000-0000-000000000000/artifacts"))
@@ -135,8 +127,7 @@ async fn list_artifacts_by_context_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn context_notification_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
         .oneshot(json_post(
@@ -151,8 +142,7 @@ async fn context_notification_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn context_events_forward_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
         .oneshot(json_post(
@@ -171,8 +161,7 @@ async fn context_event_rejects_malformed_path_before_routing_valid_event() -> an
     use systemprompt_models::{ContextEvent, SystemEventBuilder};
 
     let (_pool, ctx) = setup_ctx().await?;
-    let app = contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("event_path_owner")));
     let event: ContextEvent = SystemEventBuilder::contexts_snapshot(Vec::new()).into();
     let response = app

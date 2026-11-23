@@ -10,7 +10,6 @@
 //! subscribers, so every arm runs to completion.
 
 use axum::Extension;
-use systemprompt_api::routes::webhook_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
@@ -95,8 +94,7 @@ fn request_context_for(user: &UserId) -> RequestContext {
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
-    webhook_router()
-        .with_state(ctx.clone())
+    crate::common::webhook_app(&ctx)
         .layer(Extension(request_context_for(user)))
 }
 

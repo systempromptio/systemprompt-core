@@ -1,7 +1,7 @@
 //! Unit tests for webhook payload sanitisation and serialisability checks.
 
 use serde_json::json;
-use systemprompt_api::routes::agent::contexts::webhook::validation::{
+use systemprompt_api::routes::webhook::validation::{
     PayloadValidationError, sanitize_payload, validate_json_serializable,
 };
 

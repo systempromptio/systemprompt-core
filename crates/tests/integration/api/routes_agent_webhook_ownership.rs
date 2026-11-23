@@ -6,7 +6,6 @@
 //! foreign entity and the task row is left as it was.
 
 use axum::Extension;
-use systemprompt_api::routes::webhook_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, unique_user_id};
@@ -71,8 +70,7 @@ async fn seed_artifact(
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
-    webhook_router()
-        .with_state(ctx.clone())
+    crate::common::webhook_app(&ctx)
         .layer(Extension(request_context(user.as_str())))
 }
 

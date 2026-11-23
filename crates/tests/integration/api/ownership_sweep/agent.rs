@@ -5,7 +5,7 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::{Extension, Router};
 use systemprompt_api::routes::proxy::mcp;
-use systemprompt_api::routes::{artifacts_router, contexts_router, tasks_router, webhook_router};
+use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId,
@@ -160,19 +160,19 @@ impl Fixture for Scoped<'_> {
 }
 
 fn contexts(ctx: &AppContext) -> Router {
-    contexts_router().with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, contexts_routes())
 }
 
 fn tasks(ctx: &AppContext) -> Router {
-    tasks_router().with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, tasks_routes())
 }
 
 fn artifacts(ctx: &AppContext) -> Router {
-    artifacts_router().with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, artifacts_routes())
 }
 
 fn webhooks(ctx: &AppContext) -> Router {
-    webhook_router().with_state(ctx.clone())
+    crate::common::webhook_app(&ctx)
 }
 
 fn executions(ctx: &AppContext) -> Router {
