@@ -103,9 +103,9 @@ pub(crate) fn link_tokens(r: &Resolved<'_>) -> Arc<DocumentLinkTokens> {
     ))
 }
 
-pub(crate) fn drive_tokens(r: &Resolved<'_>) -> Result<DynDriveTokens, ProvideError> {
-    Ok(Arc::new(DocumentDriveTokens::new(
+pub(crate) fn drive_tokens(r: &Resolved<'_>) -> DynDriveTokens {
+    Arc::new(DocumentDriveTokens::new(
         r.optional::<Arc<dyn TokenAuthority>>(),
-        r.get::<DynRequestAuthenticator>()?,
-    )))
+        r.optional::<DynRequestAuthenticator>(),
+    ))
 }

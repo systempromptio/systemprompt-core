@@ -13,7 +13,8 @@
 //! and verifies Drive sync tokens, and nothing else.
 //!
 //! A host that seeds no token authority (a child host holds verification keys
-//! only) gets views that refuse every call.
+//! only), or composes no request authenticator, gets views that refuse every
+//! call.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,6 +41,8 @@ use crate::upload_links::UPLOAD_AUDIENCE;
 enum ViewRefusal {
     #[error("this host holds no token authority")]
     NoAuthority,
+    #[error("this host holds no request authenticator")]
+    NoAuthenticator,
     #[error("the link view signs only download and upload links")]
     NotALink,
 }
@@ -106,19 +109,27 @@ impl DocumentLinkTokens {
 #[derive(Debug, Clone)]
 pub struct DocumentDriveTokens {
     exchange: Option<DriveSyncTokenService>,
-    authenticator: DynRequestAuthenticator,
+    authenticator: Option<DynRequestAuthenticator>,
 }
 
 impl DocumentDriveTokens {
     #[must_use]
     pub fn new(
         authority: Option<Arc<dyn TokenAuthority>>,
-        authenticator: DynRequestAuthenticator,
+        authenticator: Option<DynRequestAuthenticator>,
     ) -> Self {
         Self {
             exchange: authority.map(DriveSyncTokenService::new),
             authenticator,
         }
+    }
+}
+
+impl DocumentDriveTokens {
+    fn authenticator(&self) -> Result<&DynRequestAuthenticator, DriveTokenError> {
+        self.authenticator
+            .as_ref()
+            .ok_or_else(|| unverified(ViewRefusal::NoAuthenticator))
     }
 }
 
@@ -142,7 +153,7 @@ impl DriveTokens for DocumentDriveTokens {
             .as_ref()
             .ok_or_else(|| DriveTokenError::Mint(Box::new(ViewRefusal::NoAuthority)))?;
         let (claims, user) = self
-            .authenticator
+            .authenticator()?
             .decode_for_audiences(&JwtToken::new(device_token), &device_audiences())
             .await
             .map_err(unverified)?;
@@ -162,7 +173,7 @@ impl DriveTokens for DocumentDriveTokens {
 
     async fn verify(&self, drive_token: &str) -> Result<DriveSyncPrincipal, DriveTokenError> {
         let (claims, user) = self
-            .authenticator
+            .authenticator()?
             .decode_for_audiences(&JwtToken::new(drive_token), &drive_audiences())
             .await
             .map_err(unverified)?;

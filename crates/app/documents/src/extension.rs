@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::reserved::ConferralRow;
+use systemprompt_traits::DynDriveTokens;
 
 use crate::provides::{documents_handles, drive_tokens, link_tokens};
 use crate::tokens::DocumentLinkTokens;
@@ -45,7 +46,10 @@ impl Extension for DocumentsExtension {
                     Ok(link_tokens(r))
                 },
             )
-            .provide_conferred(ConferralRow::DriveTokens, drive_tokens);
+            .provide_conferred(
+                ConferralRow::DriveTokens,
+                |r: &Resolved<'_>| -> Result<DynDriveTokens, ProvideError> { Ok(drive_tokens(r)) },
+            );
         Ok(())
     }
 }
