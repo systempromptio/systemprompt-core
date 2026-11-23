@@ -7,3 +7,8 @@ text = "The gateway policy scan of tool-result artifacts is registered whenever 
 name = "systemprompt-api"
 section = "Fixed"
 text = "`admitted_gateway_engines` registers `GatewayArtifactScanner` on the artifact ingest from `AiGatewayPolicyRepository` directly; disabling `ai` no longer skips the scan."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayArtifactScanner::new` is replaced by `GatewayArtifactScanner::over_policy_table`, which builds the scanner from the gateway policy table over the database pool."

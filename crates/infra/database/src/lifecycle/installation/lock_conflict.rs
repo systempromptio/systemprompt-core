@@ -67,17 +67,22 @@ fn sqlstate_in_chain(error: &(dyn Error + 'static)) -> Option<String> {
     None
 }
 
-const CONCURRENT_DROP_MESSAGES: [&str; 2] = ["could not open relation with OID", "cache lookup failed for"];
+const CONCURRENT_DROP_MESSAGES: [&str; 2] = [
+    "could not open relation with OID",
+    "cache lookup failed for",
+];
 
 #[must_use]
 pub(crate) fn is_retryable_catalog_read(error: &sqlx::Error) -> bool {
-    error.as_database_error().is_some_and(|db| match db.code().as_deref() {
-        Some("XX000") => CONCURRENT_DROP_MESSAGES
-            .iter()
-            .any(|needle| db.message().starts_with(needle)),
-        Some(code) => is_retryable_sqlstate(code),
-        None => false,
-    })
+    error
+        .as_database_error()
+        .is_some_and(|db| match db.code().as_deref() {
+            Some("XX000") => CONCURRENT_DROP_MESSAGES
+                .iter()
+                .any(|needle| db.message().starts_with(needle)),
+            Some(code) => is_retryable_sqlstate(code),
+            None => false,
+        })
 }
 
 fn message_in_chain(error: &(dyn Error + 'static)) -> bool {
