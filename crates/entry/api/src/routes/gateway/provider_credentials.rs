@@ -39,7 +39,7 @@ pub async fn list(
     headers: HeaderMap,
 ) -> Result<Json<Vec<ProviderCredentialStatus>>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let stored = repository(&ctx)
+    let stored = repository(&ctx)?
         .list_metadata(&claims.user_id)
         .await
         .map_err(|e| BridgeError::internal("personal key listing failed", e))?;
@@ -68,10 +68,11 @@ pub async fn set(
     let catalog = ctx.services_state().catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
     let tokens: Arc<dyn systemprompt_traits::ProviderTokenCache> =
-        Arc::<systemprompt_security::credential::TokenCache>::clone(ctx.connector_tokens());
+        crate::services::kernel_seeds::connector_tokens(&ctx)
+            .map_err(|e| ApiHttpError::internal("connector token cache unavailable", e))?;
     let meta = store_personal_key(
         &tokens,
-        repository(&ctx),
+        &repository(&ctx)?,
         catalog,
         PersonalKeyRequest {
             user_id: &claims.user_id,
@@ -94,7 +95,7 @@ pub async fn delete(
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let resolved =
         personal_credential(ctx.services_state().catalog(), &credential).map_err(key_error)?;
-    let removed = repository(&ctx)
+    let removed = repository(&ctx)?
         .delete_key(&claims.user_id, &resolved.id)
         .await
         .map_err(|e| BridgeError::internal("personal key could not be removed", e))?;
@@ -108,8 +109,10 @@ pub async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn repository(ctx: &AppContext) -> &UserProviderCredentialRepository {
-    &ctx.ai_repositories().user_provider_credentials
+fn repository(ctx: &AppContext) -> Result<UserProviderCredentialRepository, BridgeError> {
+    crate::services::kernel_seeds::ai_repositories(ctx)
+        .map(|repositories| repositories.user_provider_credentials.clone())
+        .map_err(|e| BridgeError::internal("the AI repositories are unavailable", e))
 }
 
 fn key_error(error: PersonalKeyError) -> BridgeError {

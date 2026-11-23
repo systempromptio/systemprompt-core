@@ -44,7 +44,7 @@ pub mod write;
 use crate::kernel::KernelHost;
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::Args;
 
 use super::types::ConfigMutationOutput;
@@ -232,23 +232,41 @@ async fn execute_services(args: &MigrateArgs, host: &dyn KernelHost) -> Result<C
         );
     }
     if args.data {
-        let map = data::read_map(&services)?;
-        let report = data::apply_with(
-            &systemprompt_database::pool_from_handle(host.db().await?)?,
-            &map,
-        )
-        .await?;
-        steps.push(
-            "catalog_data",
-            format!(
-                "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten, {} legacy route rules moved onto model entities",
-                report.legacy_entries,
-                report.personal_keys_moved,
-                report.audit_rows_backfilled,
-                report.host_filters_rewritten,
-                report.route_rules_moved_to_models
-            ),
-        );
+        apply_data(&mut steps, &services, host).await?;
     }
+
     Ok(steps.output("Config Migration"))
+}
+
+async fn apply_data(
+    steps: &mut MigrationSteps,
+    services: &std::path::Path,
+    host: &dyn KernelHost,
+) -> Result<()> {
+    let map = data::read_map(services)?;
+    let port =
+        crate::commands::admin::state::get::<systemprompt_traits::DynCatalogMigrationPort>(host)
+            .await
+            .context(
+                "the catalog data migration writes through the port the `ai` member provides; \
+         enable the `ai` extension in the profile",
+            )?;
+    let report = data::apply_with(
+        &systemprompt_database::pool_from_handle(host.db().await?)?,
+        port.as_ref(),
+        &map,
+    )
+    .await?;
+    steps.push(
+        "catalog_data",
+        format!(
+            "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten, {} legacy route rules moved onto model entities",
+            report.legacy_entries,
+            report.personal_keys_moved,
+            report.audit_rows_backfilled,
+            report.host_filters_rewritten,
+            report.route_rules_moved_to_models
+        ),
+    );
+    Ok(())
 }

@@ -18,7 +18,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod adapter;
-#[cfg(feature = "brain")]
 pub mod brain;
 mod context;
 pub mod decode;

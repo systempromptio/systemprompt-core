@@ -7,7 +7,6 @@
 use std::sync::Arc;
 
 use systemprompt_agent::repository::A2ARepositories;
-use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
@@ -22,7 +21,6 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
-use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
@@ -53,7 +51,6 @@ pub struct DataPlane {
     pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
-    pub ai_repositories: Arc<AiRepositories>,
 }
 
 #[derive(Clone)]
@@ -82,7 +79,6 @@ pub struct Subsystems {
     pub governance: ConfigWatch<GovernanceEngine>,
     pub services: systemprompt_loader::ServicesState,
     pub cache_epochs: CacheEpochs,
-    pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub schema_install: Arc<crate::SchemaState>,
     pub event_bridge: Arc<EventBridgeHandle>,
     pub event_router: EventRouter,
@@ -91,6 +87,5 @@ pub struct Subsystems {
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
     pub spawner: Arc<systemprompt_loader::subprocess::Spawner>,
-    pub connector_tokens: Arc<TokenCache>,
     pub documents: Arc<crate::documents::DocumentsRuntime>,
 }

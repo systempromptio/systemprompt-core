@@ -309,7 +309,7 @@ pub(super) fn engines_with_scanners(
     });
     let kernel = systemprompt_test_fixtures::offline_resolved_kernel(
         &admitted,
-        systemprompt_extension::prelude::Dependencies::new(),
+        systemprompt_test_fixtures::gateway_kernel_seed(),
     );
     Arc::new(
         systemprompt_gateway::GatewayEngines::new(
@@ -1523,13 +1523,13 @@ fn coverage_guard_kernel() -> systemprompt_runtime::Kernel {
     });
     systemprompt_test_fixtures::offline_resolved_kernel(
         &admitted,
-        systemprompt_extension::prelude::Dependencies::new(),
+        systemprompt_test_fixtures::gateway_kernel_seed(),
     )
 }
 
 async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(
         &pool,
         &format!("guard-{}@example.invalid", uuid::Uuid::new_v4()),
@@ -1553,10 +1553,8 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
         .deploy(model, [format!("{PROVIDER}/api").as_str()])
         .build();
     let mut di = inputs(&cred, canonical_request(model, false), false);
-    di.engines = Arc::new(systemprompt_api::routes::gateway::gateway_engines(
-        &ctx,
-        &coverage_guard_kernel(),
-    )?);
+    di.engines = systemprompt_api::routes::gateway::gateway_engines(&coverage_guard_kernel())
+        .expect("the gateway member provides its engines");
     let id = di.ctx.ai_request_id.clone();
     let error = GatewayService::dispatch(
         &gateway_config(PROVIDER),

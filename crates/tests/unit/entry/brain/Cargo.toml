@@ -11,8 +11,22 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-brain = { workspace = true }
 systemprompt-brain-entry = { workspace = true, features = ["http"] }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-governance = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+systemprompt-traits = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
-[package.metadata.cargo-machete]
-ignored = ["systemprompt-brain-entry"]
+[dev-dependencies]
+axum = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }

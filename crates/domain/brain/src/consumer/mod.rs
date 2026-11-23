@@ -36,7 +36,7 @@ mod round_state;
 mod wake;
 
 pub use builder::BrainConsumerBuilder;
-pub use diagnostics::{BacklogDiagnostic, BrainConsumerSlot};
+pub use diagnostics::BacklogDiagnostic;
 pub use drain::MAX_ROUND_TRANSIENTS;
 pub use handle::MAX_EVENT_ATTEMPTS;
 

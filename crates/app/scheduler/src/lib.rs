@@ -36,8 +36,6 @@
 //!
 //! # Feature flags
 //!
-//! - `brain` — the brain jobs receive the consolidation model client and the
-//!   producer sink.
 //! - `otel` — the `otlp_export` job, which ships the audit trail to an OTLP
 //!   collector. Without it the job is not registered.
 //!

@@ -29,6 +29,10 @@ mod server_mount_notifications;
 mod routes_content_mounted;
 
 #[cfg(test)]
+#[path = "routes_brain_mounted.rs"]
+mod routes_brain_mounted;
+
+#[cfg(test)]
 #[path = "routes_role_gateway.rs"]
 mod routes_role_gateway;
 
@@ -663,14 +667,6 @@ mod gateway_api_key_session_binding;
 #[cfg(test)]
 #[path = "process_leases.rs"]
 mod process_leases;
-
-#[cfg(test)]
-#[path = "brain_routes_facts.rs"]
-mod brain_routes_facts;
-
-#[cfg(test)]
-#[path = "brain_routes_govern.rs"]
-mod brain_routes_govern;
 
 #[cfg(test)]
 #[path = "documents_agent_cap_live.rs"]

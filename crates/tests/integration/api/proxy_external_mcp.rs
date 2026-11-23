@@ -172,7 +172,11 @@ async fn harness_with_database(
     if let Some(governance) = governance_yaml {
         systemprompt_test_fixtures::apply_governance(&ctx, governance).await?;
     }
-    let app = super::common::with_config(systemprompt_api::routes::proxy::mcp::router(&ctx), &ctx);
+    let app = super::common::with_config(
+        systemprompt_api::routes::proxy::mcp::router(&ctx)
+            .expect("the proxy reads the kernel's connector token cache"),
+        &ctx,
+    );
     Ok(Harness {
         app,
         pool,

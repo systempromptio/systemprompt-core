@@ -1,12 +1,13 @@
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_test_fixtures::fixture_job_context_over;
 
 use chrono::Utc;
 use systemprompt_brain::consumer::{BacklogSnapshot, BrainConsumer, MAX_EVENT_ATTEMPTS};
-use systemprompt_identifiers::{Actor, EventOutboxId, UserId};
+use systemprompt_identifiers::EventOutboxId;
 use systemprompt_manifest::profile::BrainConsumerProfile;
 use systemprompt_models::brain::{BrainEvent, BrainEventKind};
-use systemprompt_traits::{Dependencies, JobContext, RunnerService};
+use systemprompt_traits::{Dependencies, RunnerService};
 use tokio_util::sync::CancellationToken;
 
 use crate::events::{Landed, price};
@@ -30,7 +31,7 @@ async fn run_until(h: &Harness, sql: &'static str, bind: &str, at_least: i64) ->
     let runner = {
         let consumer = Arc::clone(&consumer);
         let shutdown = shutdown.clone();
-        let ctx = JobContext::new(Actor::user(UserId::generate()), Dependencies::new());
+        let ctx = fixture_job_context_over(&h.pool, Dependencies::new());
         tokio::spawn(async move { consumer.run(ctx, shutdown).await })
     };
     let deadline = tokio::time::Instant::now() + Duration::from_secs(30);

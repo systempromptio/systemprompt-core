@@ -1,7 +1,6 @@
 //! The notification consumer's `/health/detail` entry: its state and the
-//! delivery backlog. The extension provides an empty [`LateBound`] consumer
-//! slot that the host binds once it has started the consumer; the probe reads
-//! the backlog through it. It never gates `/readyz`.
+//! delivery backlog, read through the consumer cell the notifications slot
+//! build creates and binds. It never gates `/readyz`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

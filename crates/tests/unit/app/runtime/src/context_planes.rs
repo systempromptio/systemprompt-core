@@ -71,13 +71,6 @@ async fn plane_debug_impls_flag_optional_members() {
             &pool,
             test_instance.clone(),
         )),
-        ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(
-            &pool,
-            systemprompt_security::at_rest::AtRestCipher::from_secrets(
-                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
-            )
-            .expect("at-rest cipher"),
-        )),
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");
@@ -139,7 +132,6 @@ async fn plane_debug_impls_flag_optional_members() {
         governance: systemprompt_test_fixtures::default_governance_watch(),
         services: systemprompt_test_fixtures::fixture_services_state(),
         cache_epochs: systemprompt_traits::CacheEpochs::new(),
-        ai_service: None,
         schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
             systemprompt_database::SchemaInstallReport::default(),
         )),
@@ -150,7 +142,6 @@ async fn plane_debug_impls_flag_optional_members() {
         shutdown: Default::default(),
         background_tasks: Default::default(),
         spawner: systemprompt_test_fixtures::test_spawner(),
-        connector_tokens: Arc::default(),
         documents,
     };
     let dbg = format!("{subsystems:?}");

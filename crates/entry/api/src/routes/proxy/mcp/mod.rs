@@ -17,6 +17,7 @@ use axum::Router;
 use axum::extract::{Path, State};
 use axum::routing::{any, get};
 use systemprompt_identifiers::McpServerId;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::McpRegistryProvider;
 
@@ -61,17 +62,24 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
     get_mcp_server_scopes(registry, &server).await
 }
 
-pub fn router(ctx: &AppContext) -> Router {
+pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
     let repo = crate::repository::tool_usage(ctx.db_pool());
     let sessions = crate::repository::proxy_sessions(ctx.db_pool());
     let engine = ProxyService::new(
         sessions,
-        Arc::clone(ctx.connector_tokens()),
+        crate::services::kernel_seeds::connector_tokens(ctx)?,
         &ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),
         Arc::clone(ctx.secrets()),
     )
-    .with_tool_usage_repo(repo, ctx.tool_call_intents());
+    .with_tool_usage_repo(
+        repo,
+        Arc::clone(
+            ctx.kernel()
+                .state()
+                .get::<systemprompt_traits::DynToolCallIntentClaims>()?,
+        ),
+    );
     let engine = match ctx
         .kernel()
         .state()
@@ -83,7 +91,7 @@ pub fn router(ctx: &AppContext) -> Router {
 
     let state = McpState { ctx: ctx.clone() };
 
-    Router::new()
+    Ok(Router::new()
         .route(
             "/{service_name}/mcp/.well-known/oauth-protected-resource",
             get(discovery::handle_mcp_protected_resource),
@@ -111,5 +119,5 @@ pub fn router(ctx: &AppContext) -> Router {
                 }
             }),
         )
-        .with_state(state)
+        .with_state(state))
 }

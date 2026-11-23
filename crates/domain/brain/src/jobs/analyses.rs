@@ -21,7 +21,7 @@ use crate::analyses::{
     AnalysisRepository, BloatAnalysis, BloatThresholds, CoverageAnalysis, CoverageThresholds,
     RelevanceAnalysis, RelevanceThresholds, fresh_drafts,
 };
-use crate::contract::BrainSeams;
+use crate::handle::BrainHandleSlot;
 use crate::repository::{BrainRepositories, ProposalRepository};
 
 const OPEN_SCAN: i64 = 1000;
@@ -43,8 +43,8 @@ fn analyses(repos: &BrainRepositories, ctx: &JobContext) -> Vec<Arc<dyn BrainAna
         )),
         Arc::new(CoverageAnalysis::new(store, CoverageThresholds::default())),
     ];
-    if let Ok(seams) = ctx.get::<Arc<BrainSeams>>() {
-        all.extend(seams.analyses.iter().cloned());
+    if let Ok(brain) = ctx.get::<Arc<BrainHandleSlot>>() {
+        all.extend(brain.seams().analyses.iter().cloned());
     }
     all
 }

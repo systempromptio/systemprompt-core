@@ -56,9 +56,15 @@ async fn the_extension_secret_store_resolves_no_built_in_secret() -> anyhow::Res
     assert!(
         ctx.kernel()
             .state()
+            .is_sealed::<std::sync::Arc<dyn SecretLookup>>(),
+        "the unscoped secret lookup is a sealed kernel seed"
+    );
+    assert!(
+        ctx.kernel()
+            .runtime_state()
             .find::<std::sync::Arc<dyn SecretLookup>>()
             .is_none(),
-        "the shared extension state carries no unscoped secret lookup"
+        "no member runtime context carries the unscoped secret lookup"
     );
     Ok(())
 }

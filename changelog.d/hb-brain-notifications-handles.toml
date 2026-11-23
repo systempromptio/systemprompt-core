@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Brain"
+text = "The brain and notifications slot builds create their handle cells, bind them and return the read half as the slot's built value; no member provides or binds a brain handle, notification service or notification consumer cell. The brain member provides its outbox sink and a recall over the bound handle."
+
+[[crate]]
+name = "systemprompt-brain"
+section = "Breaking"
+text = "`BrainHandleSlot` is a read-only struct and `BrainSlot`'s built value (inserted as `Arc<BrainHandleSlot>`; `seams()` returns the built `BrainSeams`); the `brain` member no longer provides it or `consumer::BrainConsumerSlot`, which is removed (the handle owns its consumer cell). `BrainHandleParts::consumer` is removed; `BacklogDiagnostic::new` takes `Arc<BrainHandleSlot>`. The consolidation job reads its model client and sink from the bound handle. New: `mcp` (the brain MCP tools, moved from `systemprompt-runtime`), `recall::BoundMemoryRecall`; the member provides `DynBrainSink` and `Arc<dyn MemoryRecall>`."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Breaking"
+text = "`NotificationsServiceSlot` is a read-only struct and `NotificationsSlot`'s built value (inserted as `Arc<NotificationsServiceSlot>`, with `get()`, `consumer()` and `seams()`); the member no longer provides it or `NotificationsConsumerSlot`."

@@ -28,10 +28,10 @@ use crate::policies::{
 };
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
-use systemprompt_config::SecretsService;
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_extension::{GatewayGuards, MissingDependency, Resolved};
 use systemprompt_security::credential::TokenCache;
+use systemprompt_traits::SecretLookup;
 use systemprompt_wire::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
@@ -170,7 +170,7 @@ pub struct GatewayEngines {
     pub http: UpstreamHttp,
     pub provider_tokens: Arc<TokenCache>,
     pub guards: Arc<GatewayGuards>,
-    pub secrets: Arc<SecretsService>,
+    pub secrets: Arc<dyn SecretLookup>,
     pub memory_recall: Option<Arc<dyn MemoryRecall>>,
 }
 
@@ -214,7 +214,7 @@ impl GatewayEngines {
     pub fn new(
         provider_tokens: Arc<TokenCache>,
         r: &Resolved<'_>,
-        secrets: Arc<SecretsService>,
+        secrets: Arc<dyn SecretLookup>,
     ) -> Result<Self, GatewayEnginesError> {
         let client = systemprompt_client::guarded_client(
             &GuardedClientConfig::for_configured().without_timeout(),

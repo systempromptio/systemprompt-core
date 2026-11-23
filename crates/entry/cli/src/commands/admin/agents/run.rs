@@ -23,7 +23,6 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
-use systemprompt_ai::AiService;
 use systemprompt_identifiers::AgentName;
 use systemprompt_mcp_host::AgentHost;
 
@@ -103,7 +102,8 @@ pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> 
     let agent_state = Arc::new(agent_state);
 
     let ai_service = Arc::clone(agent.ai_service());
-    let provider: DynAiProvider = Arc::<AiService>::clone(&ai_service);
+    let shared = Arc::clone(&ai_service);
+    let provider: DynAiProvider = shared;
     let served = run_standalone(agent_state, provider, &args.agent_name, args.port)
         .await
         .context("Failed to run agent server");

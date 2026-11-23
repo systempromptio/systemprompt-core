@@ -43,7 +43,21 @@ fn parse(args: &[&str]) -> LogsCommands {
 }
 
 
-fn ctx(pool: &DbPool) -> CommandContext {
+fn kernel(pool: &DbPool, ai: bool) -> Arc<systemprompt_runtime::Kernel> {
+    let mut state = systemprompt_extension::prelude::Dependencies::new();
+    if ai {
+        let reader: systemprompt_traits::DynSafetyFindingsReader =
+            Arc::new(AiSafetyFindingRepository::new(pool));
+        state = state.with_sealed(reader);
+    }
+    Arc::new(systemprompt_runtime::Kernel::new(
+        Arc::clone(pool) as Arc<dyn systemprompt_traits::DatabaseHandle>,
+        systemprompt_traits::BackgroundTasks::new(),
+        state,
+    ))
+}
+
+fn ctx_with(pool: &DbPool, ai: bool) -> CommandContext {
     crate::boot_ctx::with_database(
         CliConfig::new()
             .with_interactive(false)
@@ -52,10 +66,23 @@ fn ctx(pool: &DbPool) -> CommandContext {
         DatabaseContext::from_pool(pool.clone()),
         test_database_url(),
     )
+    .with_kernel(kernel(pool, ai))
 }
 
 async fn run(pool: &DbPool, args: &[&str]) -> anyhow::Result<()> {
-    logs::execute(parse(args), &ctx(pool)).await.map(drop)
+    logs::execute(parse(args), &ctx_with(pool, true))
+        .await
+        .map(drop)
+}
+
+#[tokio::test]
+async fn the_report_names_the_absent_ai_member() {
+    let pool = test_db_pool().await;
+    let error = logs::execute(parse(&["report"]), &ctx_with(&pool, false))
+        .await
+        .expect_err("no safety-findings reader without the ai member");
+    let message = format!("{error:#}");
+    assert!(message.contains("the `ai` member provides"), "{message}");
 }
 
 async fn seed_decision(

@@ -21,7 +21,6 @@ workspace = true
 
 [features]
 default = []
-brain = ["systemprompt-runtime/brain"]
 
 [dependencies]
 async-trait = { workspace = true }

@@ -8,7 +8,6 @@ use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
 use crate::context::Plugins;
 use systemprompt_database::DbPool;
 use systemprompt_loader::BootContext;
-use systemprompt_security::at_rest::AtRestCipher;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
@@ -26,7 +25,6 @@ pub(super) fn build_data_plane(
         user_repository: repositories.users,
         service_repository: repositories.services,
         coordination: repositories.coordination,
-        ai_repositories: repositories.ai,
     }
 }
 
@@ -49,7 +47,6 @@ pub(super) struct RepositoryBundles {
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
     coordination: Arc<systemprompt_database::CoordinationRepositories>,
-    pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
 }
 
 pub(crate) fn a2a_repositories(
@@ -74,7 +71,6 @@ pub(crate) fn a2a_repositories(
 
 pub(super) struct SeededRepositories {
     pub(super) oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
-    pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     pub(super) services: Arc<systemprompt_database::ServiceRepository>,
     pub(super) coordination: Arc<systemprompt_database::CoordinationRepositories>,
@@ -84,15 +80,11 @@ pub(super) fn seeded_repositories(
     database: &DbPool,
     secrets: &systemprompt_manifest::secrets::Secrets,
     instance_id: &systemprompt_identifiers::InstanceId,
-) -> RuntimeResult<SeededRepositories> {
-    let cipher = AtRestCipher::from_secrets(secrets)?;
+) -> SeededRepositories {
     let pepper: Arc<str> = Arc::from(secrets.oauth_at_rest_pepper.as_str());
-    Ok(SeededRepositories {
+    SeededRepositories {
         oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
             database, pepper,
-        )),
-        ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(
-            database, cipher,
         )),
         users: Arc::new(systemprompt_users::UserRepository::new(database)),
         services: Arc::new(systemprompt_database::ServiceRepository::new(
@@ -103,7 +95,7 @@ pub(super) fn seeded_repositories(
             database,
             instance_id.clone(),
         )),
-    })
+    }
 }
 
 pub(super) fn build_repositories(
@@ -128,7 +120,6 @@ pub(super) fn build_repositories(
         users: Arc::clone(&seeded.users),
         services: Arc::clone(&seeded.services),
         coordination: Arc::clone(&seeded.coordination),
-        ai: Arc::clone(&seeded.ai),
     }
 }
 
@@ -148,18 +139,6 @@ pub(crate) fn bind_secret_scanner(
     {
         tracing::debug!("the secret scanner cell was bound before this host loaded governance");
     }
-}
-
-pub(super) fn mcp_registry_for_ai(
-    system_admin: &systemprompt_manifest::SystemAdmin,
-    services: &systemprompt_loader::ServicesState,
-    config: &Arc<systemprompt_manifest::Config>,
-) -> systemprompt_mcp::RegistryService {
-    systemprompt_mcp::RegistryService::new(
-        system_admin.id().clone(),
-        services.view(),
-        Arc::clone(config),
-    )
 }
 
 pub(super) async fn load_identity(

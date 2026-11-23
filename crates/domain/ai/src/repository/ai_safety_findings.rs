@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, AiSafetyFindingId};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, SafetyFindingRollup};
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -15,22 +15,6 @@ pub struct AiSafetyFindingRepository {
     write_pool: Arc<PgPool>,
 }
 
-/// One row of the safety-findings rollup: how often a category fired and how
-/// often it actually refused a call.
-///
-/// The two counts diverge under `safety.mode: warn`, which is what makes the
-/// row worth reading — a category with a high count and a zero blocked count
-/// is a block list entry waiting to be reconsidered.
-#[derive(Debug, Clone)]
-pub struct SafetyFindingRollupRow {
-    pub category: String,
-    pub scanner: String,
-    pub severity: String,
-    pub phase: String,
-    pub count: i64,
-    pub blocked_count: i64,
-    pub last_seen: chrono::DateTime<chrono::Utc>,
-}
 
 #[derive(Debug, Clone)]
 pub struct InsertSafetyFinding<'a> {
@@ -90,9 +74,9 @@ impl AiSafetyFindingRepository {
         &self,
         since: Option<chrono::DateTime<chrono::Utc>>,
         limit: i64,
-    ) -> Result<Vec<SafetyFindingRollupRow>, RepositoryError> {
+    ) -> Result<Vec<SafetyFindingRollup>, RepositoryError> {
         let rows = sqlx::query_as!(
-            SafetyFindingRollupRow,
+            SafetyFindingRollup,
             r#"
             SELECT category AS "category!", scanner AS "scanner!", severity AS "severity!",
                    phase AS "phase!", COUNT(*) AS "count!",
@@ -167,4 +151,15 @@ where
     .execute(executor)
     .await?;
     Ok(result.rows_affected())
+}
+
+#[async_trait::async_trait]
+impl systemprompt_traits::SafetyFindingsReader for AiSafetyFindingRepository {
+    async fn rollup(
+        &self,
+        since: Option<chrono::DateTime<chrono::Utc>>,
+        limit: i64,
+    ) -> Result<Vec<SafetyFindingRollup>, RepositoryError> {
+        self.list_rollup(since, limit).await
+    }
 }

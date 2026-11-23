@@ -80,7 +80,5 @@ serde_json = { workspace = true }
 
 [features]
 default = []
-# The brain jobs receive the consolidation model client and the producer sink.
-brain = ["systemprompt-runtime/brain"]
 # The otlp_export job, which ships the audit trail to an OTLP collector.
 otel = ["dep:opentelemetry-proto", "dep:prost"]

@@ -39,7 +39,6 @@ impl std::fmt::Debug for DataPlane {
             .field("user_repository", &"UserRepository")
             .field("service_repository", &"ServiceRepository")
             .field("coordination", &"CoordinationRepositories")
-            .field("ai_repositories", &"AiRepositories")
             .finish()
     }
 }
@@ -78,7 +77,6 @@ impl std::fmt::Debug for Subsystems {
             .field("governance", &self.governance)
             .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)
-            .field("ai_service", &self.ai_service.is_some())
             .field(
                 "schema_install_clean",
                 &self.schema_install.boot().is_clean(),
@@ -93,7 +91,6 @@ impl std::fmt::Debug for Subsystems {
                 &self.background_tasks.in_flight(),
             )
             .field("spawner", &"Spawner")
-            .field("connector_tokens", &"TokenCache")
             .field("documents", &self.documents);
         debug.finish()
     }

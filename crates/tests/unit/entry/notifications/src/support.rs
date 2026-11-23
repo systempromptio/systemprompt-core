@@ -12,7 +12,7 @@ fn mounted(ctx: &AppContext, set: &RouteSet) -> Router {
     let slot = ctx
         .kernel()
         .state()
-        .get::<NotificationsServiceSlot>()
+        .get::<std::sync::Arc<NotificationsServiceSlot>>()
         .expect("the fixture context provides the notification service handle")
         .clone();
     let database: Arc<dyn DatabaseHandle> = ctx.db_pool().clone();

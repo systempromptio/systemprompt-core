@@ -112,7 +112,7 @@ impl fmt::Debug for NotificationSeams {
 
 impl Slot for NotificationsSlot {
     type Builder = NotificationsSlotBuilder;
-    type Built = NotificationSeams;
+    type Built = crate::service::NotificationsServiceSlot;
     const ORDER: SlotOrder = SlotOrder::Composition;
 
     fn build(
@@ -140,7 +140,6 @@ impl Slot for NotificationsSlot {
                 .extend(build_factories(SLOT, owner, &builder.visibilities, r)?);
         }
         crate::assembly::append_core_defaults(&mut seams, r)?;
-        crate::assembly::bind_service(&seams, r)?;
-        Ok(seams)
+        crate::assembly::bind_service(seams, r)
     }
 }

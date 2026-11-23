@@ -26,7 +26,7 @@ systemprompt-extension = { workspace = true }
 [dependencies]
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
-systemprompt-extension = { workspace = true, features = ["sqlx"] }
+systemprompt-extension = { workspace = true, features = ["sqlx", "mcp"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
@@ -37,6 +37,8 @@ chrono = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
 metrics = { workspace = true }
+rmcp = { workspace = true }
+schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

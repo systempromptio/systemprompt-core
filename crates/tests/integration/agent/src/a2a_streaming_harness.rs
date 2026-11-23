@@ -212,8 +212,16 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
     assert!(stream.is_ok());
     // While the spawned task is alive, the permit is held.
     drop(stream);
-    // Give the spawned task a moment to drop its permit.
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let released = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        while state.stream_semaphore.available_permits() < initial_permits {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await;
+    assert!(
+        released.is_ok(),
+        "the spawned stream task never released its permit"
+    );
     // The permit should have been released — the next call should succeed
     // without rejection.
     let second = create_sse_stream(CreateSseStreamParams {
