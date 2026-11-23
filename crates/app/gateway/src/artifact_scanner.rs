@@ -1,7 +1,8 @@
 //! The gateway's safety scanners applied to tool-result artifacts.
 //!
 //! An artifact is scanned with the same scanners the installation's global
-//! gateway policy declares, so a tool result is held to the same bar as a
+//! gateway policy declares, read from the gateway policy table over the
+//! database pool alone, so a tool result is held to the same bar as a
 //! model response. The policy is resolved fail-closed: if it cannot be read,
 //! the ingest is refused rather than stored unscanned, and a scanner that
 //! fails refuses the ingest the same way. Every finding is
@@ -16,9 +17,12 @@ use std::sync::Arc;
 
 use crate::policies::Finding;
 use async_trait::async_trait;
+use systemprompt_ai::repository::AiGatewayPolicyRepository;
+use systemprompt_database::DbPool;
+use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_mcp::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
-use systemprompt_traits::BoxedSource;
+use systemprompt_traits::{BoxedSource, CacheEpochs};
 use systemprompt_wire::inspect::ForwardedSurface;
 
 use super::protocol::CanonicalUsage;
@@ -37,8 +41,20 @@ pub struct GatewayArtifactScanner {
 
 impl GatewayArtifactScanner {
     #[must_use]
-    pub const fn new(resolver: PolicyResolver, scanners: Arc<SafetyScannerRegistry>) -> Self {
-        Self { resolver, scanners }
+    pub fn over_policy_table(
+        db: &DbPool,
+        epochs: CacheEpochs,
+        unapplied: UnappliedPlaneMode,
+        scanners: Arc<SafetyScannerRegistry>,
+    ) -> Self {
+        Self {
+            resolver: PolicyResolver::from_repository(
+                AiGatewayPolicyRepository::new(db),
+                epochs,
+                unapplied,
+            ),
+            scanners,
+        }
     }
 }
 

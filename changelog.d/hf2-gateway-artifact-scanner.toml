@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The gateway policy scan of tool-result artifacts is registered whenever the `mcp` artifact ingest and the gateway are admitted; it is built from the gateway policy table over the database pool and no longer depends on the `ai` member being admitted."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Fixed"
+text = "`admitted_gateway_engines` registers `GatewayArtifactScanner` on the artifact ingest from `AiGatewayPolicyRepository` directly; disabling `ai` no longer skips the scan."
