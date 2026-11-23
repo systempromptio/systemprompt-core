@@ -1,7 +1,7 @@
 //! The gateway session mint verifies the presented API key and mints, keeps
 //! or binds a session for that key's owner only: an unverified key mints
-//! nothing, another user's session is never kept, and the key's bound session
-//! is reused until it is gone.
+//! nothing, another user's or an ownerless session is never kept, and the
+//! key's bound session is reused until it is gone.
 
 use std::sync::Arc;
 
@@ -141,4 +141,39 @@ async fn the_bound_session_is_reused_and_another_users_session_is_never_kept() {
         .expect("bound");
     assert!(!fallback.presented_session_kept);
     assert_eq!(fallback.session_id, first.session_id);
+}
+
+#[tokio::test]
+async fn an_anonymous_session_is_never_kept_for_an_api_key() {
+    let rig = rig("bind-anonymous").await;
+    let pool = test_db_pool().await;
+    let analytics = SessionAnalytics::default();
+    let bound = rig
+        .mint
+        .bind_for_api_key(&rig.secret, None, &analytics)
+        .await
+        .expect("bind")
+        .expect("bound");
+    let anonymous = SessionId::new(format!("sess_{}", Uuid::new_v4()));
+    sqlx::query(
+        "INSERT INTO user_sessions (session_id, user_id, session_source, expires_at) \
+         VALUES ($1, NULL, 'bridge', now() + interval '1 hour')",
+    )
+    .bind(anonymous.as_str())
+    .execute(pool.write_pool().as_ref())
+    .await
+    .expect("seed an anonymous session");
+
+    let presented = rig
+        .mint
+        .bind_for_api_key(&rig.secret, Some(&anonymous), &analytics)
+        .await
+        .expect("bind")
+        .expect("bound");
+
+    assert!(
+        !presented.presented_session_kept,
+        "a session with no owner is not the key owner's"
+    );
+    assert_eq!(presented.session_id, bound.session_id);
 }
