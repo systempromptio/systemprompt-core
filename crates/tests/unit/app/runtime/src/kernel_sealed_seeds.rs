@@ -295,6 +295,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_users::UsersGatewaySessionMint>(),
         ),
         (
+            type_name::<Arc<systemprompt_gateway::GatewayAtRest>>(),
+            carrier::<systemprompt_gateway::audit::journal::GatewayJournal>(),
+        ),
+        (
             type_name::<Arc<systemprompt_ai::PersonalProviderCredentials>>(),
             carrier::<systemprompt_ai::repository::UserProviderCredentialRepository>(),
         ),

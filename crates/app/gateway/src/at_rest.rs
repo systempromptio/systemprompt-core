@@ -31,6 +31,8 @@ use crate::error::GatewayAuditError;
 pub enum GatewayAtRestError {
     #[error("the encryption master key is not held on this host")]
     KeyNotHeld,
+    #[error("no storage data directory is configured on this host")]
+    NoStateDir,
     #[error("the gateway journal could not be opened")]
     Journal(#[source] GatewayAuditError),
 }
@@ -39,7 +41,7 @@ pub enum GatewayAtRestError {
 /// deployment's master key.
 #[derive(Clone)]
 pub struct GatewayAtRest {
-    state_dir: PathBuf,
+    state_dir: Option<PathBuf>,
     key: Option<[u8; SECRET_SEED_BYTES]>,
 }
 
@@ -54,13 +56,17 @@ impl std::fmt::Debug for GatewayAtRest {
 
 impl GatewayAtRest {
     #[must_use]
-    pub const fn new(state_dir: PathBuf, key: Option<[u8; SECRET_SEED_BYTES]>) -> Self {
+    pub const fn new(state_dir: Option<PathBuf>, key: Option<[u8; SECRET_SEED_BYTES]>) -> Self {
         Self { state_dir, key }
     }
 
     pub fn journal(&self) -> Result<GatewayJournal, GatewayAtRestError> {
         let key = self.key.ok_or(GatewayAtRestError::KeyNotHeld)?;
-        GatewayJournal::open(&self.state_dir, key).map_err(GatewayAtRestError::Journal)
+        let state_dir = self
+            .state_dir
+            .as_ref()
+            .ok_or(GatewayAtRestError::NoStateDir)?;
+        GatewayJournal::open(state_dir, key).map_err(GatewayAtRestError::Journal)
     }
 
     #[must_use]

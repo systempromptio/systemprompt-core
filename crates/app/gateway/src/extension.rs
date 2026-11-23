@@ -82,20 +82,23 @@ fn provide_engines(r: &Resolved<'_>) -> Result<Arc<GatewayEngines>, ProvideError
 }
 
 fn provide_at_rest(r: &Resolved<'_>) -> Result<Arc<GatewayAtRest>, ProvideError> {
-    let store = r.get::<Arc<dyn SecretStore>>()?;
-    let paths = r.get::<Arc<AppPaths>>()?;
-    let key = match store.encryption_master_key() {
+    let key = match r
+        .optional::<Arc<dyn SecretStore>>()
+        .ok_or(None)
+        .and_then(|store| store.encryption_master_key().map_err(Some))
+    {
         Ok(key) => Some(key),
         Err(error) => {
             tracing::warn!(
-                error = %error,
+                error = ?error,
                 "the encryption master key is not held here; the gateway journal does not open"
             );
             None
         },
     };
     Ok(Arc::new(GatewayAtRest::new(
-        paths.storage().data().to_path_buf(),
+        r.optional::<Arc<AppPaths>>()
+            .map(|paths| paths.storage().data().to_path_buf()),
         key,
     )))
 }
