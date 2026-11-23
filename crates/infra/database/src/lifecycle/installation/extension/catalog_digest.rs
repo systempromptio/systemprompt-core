@@ -7,7 +7,10 @@
 //! constraint outside the system schemas and outside Postgres extensions, so
 //! any definition changed or dropped since the last complete install sends the
 //! next install down the full path. It reads `pg_catalog` only and takes no
-//! locks a `SELECT` would not.
+//! locks a `SELECT` would not. Another session may drop an object between the
+//! scan listing it and the `pg_get_*def` call opening it, or deadlock with the
+//! scan's `ACCESS SHARE` locks; the read is taken again, a bounded number of
+//! times.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +18,20 @@
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
+use super::super::lock_conflict::read_catalog;
 use crate::services::DatabaseProvider;
 
 pub async fn catalog_digest(db: &dyn DatabaseProvider) -> Result<String, LoaderError> {
+    read_catalog("schema catalog digest", || read_digest(db))
+        .await
+        .map_err(|e| LoaderError::SchemaInstallationStepFailed {
+            extension: ExtensionId::new("database"),
+            context: "Failed to digest the live schema catalog".to_owned(),
+            source: Box::new(e),
+        })
+}
+
+async fn read_digest(db: &dyn DatabaseProvider) -> Result<String, sqlx::Error> {
     sqlx::query_scalar!(
         r#"WITH ns AS (
     SELECT oid FROM pg_namespace
@@ -69,9 +83,4 @@ FROM defs"#
     )
     .fetch_one(db.get_postgres_pool().as_ref())
     .await
-    .map_err(|e| LoaderError::SchemaInstallationStepFailed {
-        extension: ExtensionId::new("database"),
-        context: "Failed to digest the live schema catalog".to_owned(),
-        source: Box::new(e),
-    })
 }
