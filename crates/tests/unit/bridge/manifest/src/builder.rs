@@ -106,8 +106,8 @@ fn sample_mcp_server() -> ManagedMcpServer {
         headers: None,
         oauth: None,
         tool_policy: None,
+        toolsets: Vec::new(),
     }
-    toolsets: Vec::new(),
 }
 
 fn sample_user() -> UserInfo {
