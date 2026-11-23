@@ -7,8 +7,7 @@
 //! convention; lookup also accepts a bare `<name>.log` path and a substring
 //! match over the discovered set. The name is accepted only as a single path
 //! segment, and every entry is resolved through
-//! [`entries_within`] /
-//! [`locate_within`], so neither a name nor a symbolic
+//! [`entries_within`] / [`locate_within`], so neither a name nor a symbolic
 //! link leads a read out of the logs directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -63,16 +62,11 @@ pub fn list_log_files(logs_dir: &Path, prefix: &str) -> Result<Vec<String>, LogF
         .into_iter()
         .filter(|entry| !entry.is_dir)
         .filter_map(|entry| {
-            entry
-                .name
-                .to_str()
-                .filter(|name| {
-                    name.starts_with(prefix)
-                        && Path::new(name)
-                            .extension()
-                            .is_some_and(|ext| ext.eq_ignore_ascii_case("log"))
-                })
-                .map(String::from)
+            let name = entry.name.to_str()?;
+            let is_log = Path::new(name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("log"));
+            (name.starts_with(prefix) && is_log).then(|| name.to_owned())
         })
         .collect::<Vec<_>>();
 

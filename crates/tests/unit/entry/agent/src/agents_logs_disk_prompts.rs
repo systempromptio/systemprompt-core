@@ -120,3 +120,53 @@ async fn agent_logs_disk_error_branches() {
     .await;
     flag_required.unwrap();
 }
+
+#[tokio::test]
+async fn agent_logs_dir_outside_the_logs_root_is_refused() {
+    logs_dir_in_root(&ctx(false, &[])).await;
+    let outside = tempfile::tempdir().unwrap();
+    seed_logs(outside.path());
+    let error = agents::execute(
+        parse_agents(&[
+            "logs",
+            "orion",
+            "--disk",
+            "--logs-dir",
+            outside.path().to_str().unwrap(),
+        ]),
+        &agents_host(&ctx(false, &[])),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("resolves outside"),
+        "{error:#}"
+    );
+}
+
+#[tokio::test]
+async fn agent_logs_name_that_climbs_out_of_the_logs_dir_is_refused() {
+    let inside = logs_dir_in_root(&ctx(false, &[])).await;
+    let root = inside.path().parent().unwrap().to_path_buf();
+    let escape = format!("escape-{}", uuid::Uuid::new_v4().simple());
+    std::fs::write(root.join(format!("{escape}.log")), "INFO secret\n").unwrap();
+    let name = format!("../{escape}");
+
+    let error = agents::execute(
+        parse_agents(&[
+            "logs",
+            &name,
+            "--disk",
+            "--logs-dir",
+            inside.path().to_str().unwrap(),
+        ]),
+        &agents_host(&ctx(false, &[])),
+    )
+    .await
+    .unwrap_err();
+    std::fs::remove_file(root.join(format!("{escape}.log"))).unwrap();
+    assert!(
+        format!("{error:#}").contains("not a single path segment"),
+        "{error:#}"
+    );
+}

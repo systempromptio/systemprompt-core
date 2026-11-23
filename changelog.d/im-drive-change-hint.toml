@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Documents"
+text = "`document.drive.changed` follows every change to what a Drive shows, not only a landed revision: a document's rename, move, trash and restore, a grant written or removed (`share`, `revoke`, `revoke_all`, a granted access request), an ownership transfer, and a folder's creation, rename, move and deletion. A folder's hint reaches its owner and the members of every grant subject on the folder, its ancestors and the folders below it. A change that takes access away also reaches the users who held it before, so a moved, trashed or unshared document leaves their Drive without waiting for the poll. The payload (`{\"v\": 1}`), the 500-user cap, the two-second coalescing (now per document or folder) and the rule that an unresolvable audience sends no hint are unchanged. A grant that expires sends no hint."

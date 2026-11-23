@@ -11,6 +11,7 @@
 use systemprompt_models::documents::DocumentRevisionCreatedEvent;
 
 use super::DocumentService;
+use super::drive_hint::DriveHint;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 
@@ -56,7 +57,7 @@ impl DocumentService {
             actor_kind: revision.actor_kind,
             origin_kind: revision.origin.kind(),
         };
-        self.hint_drive_changed(document, &revision.author_user_id);
+        self.hint_drive_changed(DriveHint::document(document, &revision.author_user_id));
         self.events.revision_created(&event).await.is_ok()
     }
 }

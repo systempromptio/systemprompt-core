@@ -1,15 +1,19 @@
-//! Tests for `shared::disk_logs` — on-disk log discovery, lookup, tailing,
-//! and display-name shaping.
+//! Tests for `path_confine::logs` — on-disk log discovery, lookup, tailing,
+//! display-name shaping, and confinement to the logs directory.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::fs;
 use std::path::Path;
 
-use systemprompt_cli::shared::disk_logs::{
-    display_names, find_log_file, list_log_files, read_log_lines,
+use systemprompt_models::path_confine::logs::{
+    confined_logs_dir, display_names, find_log_file, list_log_files, read_log_lines,
 };
 use tempfile::TempDir;
+
+fn canonical(dir: &Path) -> std::path::PathBuf {
+    dir.canonicalize().unwrap()
+}
 
 fn write(dir: &Path, name: &str, content: &str) {
     fs::write(dir.join(name), content).unwrap();
@@ -51,8 +55,11 @@ fn find_log_file_prefers_exact_name() {
     write(dir.path(), "alpha.log", "");
     write(dir.path(), "agent-alpha.log", "");
 
-    let found = find_log_file(dir.path(), "agent-", "alpha").unwrap();
-    assert_eq!(found, dir.path().join("alpha.log"));
+    let found = find_log_file(dir.path(), "agent-", "agent name", "alpha").unwrap();
+    assert_eq!(
+        found.canonicalize().unwrap(),
+        canonical(dir.path()).join("alpha.log")
+    );
 }
 
 #[test]
@@ -60,8 +67,11 @@ fn find_log_file_falls_back_to_prefixed_name() {
     let dir = TempDir::new().unwrap();
     write(dir.path(), "agent-alpha.log", "");
 
-    let found = find_log_file(dir.path(), "agent-", "alpha").unwrap();
-    assert_eq!(found, dir.path().join("agent-alpha.log"));
+    let found = find_log_file(dir.path(), "agent-", "agent name", "alpha").unwrap();
+    assert_eq!(
+        found.canonicalize().unwrap(),
+        canonical(dir.path()).join("agent-alpha.log")
+    );
 }
 
 #[test]
@@ -69,8 +79,11 @@ fn find_log_file_falls_back_to_substring_match() {
     let dir = TempDir::new().unwrap();
     write(dir.path(), "agent-alpha-worker.log", "");
 
-    let found = find_log_file(dir.path(), "agent-", "alpha").unwrap();
-    assert_eq!(found, dir.path().join("agent-alpha-worker.log"));
+    let found = find_log_file(dir.path(), "agent-", "agent name", "alpha").unwrap();
+    assert_eq!(
+        found.canonicalize().unwrap(),
+        canonical(dir.path()).join("agent-alpha-worker.log")
+    );
 }
 
 #[test]
@@ -78,7 +91,7 @@ fn find_log_file_reports_available_files_on_miss() {
     let dir = TempDir::new().unwrap();
     write(dir.path(), "agent-beta.log", "");
 
-    let err = find_log_file(dir.path(), "agent-", "alpha").unwrap_err();
+    let err = find_log_file(dir.path(), "agent-", "agent name", "alpha").unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("alpha"));
     assert!(msg.contains("agent-beta.log"));
@@ -133,5 +146,73 @@ fn display_names_strips_prefix_and_suffix() {
         display_names(&files, "agent-"),
         vec!["alpha", "beta", "other", "agent-raw"],
         "a name without the .log suffix falls back to the full file name"
+    );
+}
+
+#[test]
+fn find_log_file_refuses_a_name_that_is_not_one_segment() {
+    let root = TempDir::new().unwrap();
+    let dir = root.path().join("logs");
+    fs::create_dir(&dir).unwrap();
+    write(root.path(), "escape.log", "secret");
+
+    for name in ["../escape", "a/b", "..", ".", ""] {
+        let err = find_log_file(&dir, "agent-", "agent name", name).unwrap_err();
+        assert!(
+            err.to_string().contains("not a single path segment"),
+            "{name}: {err}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn find_log_file_refuses_a_log_linked_out_of_the_logs_dir() {
+    let dir = TempDir::new().unwrap();
+    let outside = TempDir::new().unwrap();
+    write(outside.path(), "secret.log", "secret");
+    std::os::unix::fs::symlink(
+        outside.path().join("secret.log"),
+        dir.path().join("agent-leak.log"),
+    )
+    .unwrap();
+
+    let err = find_log_file(dir.path(), "agent-", "agent name", "leak").unwrap_err();
+    assert!(err.to_string().contains("resolves outside"), "{err}");
+    let err = list_log_files(dir.path(), "agent-").unwrap_err();
+    assert!(err.to_string().contains("resolves outside"), "{err}");
+}
+
+#[test]
+fn confined_logs_dir_resolves_inside_the_root_and_refuses_outside_it() {
+    let root = TempDir::new().unwrap();
+    fs::create_dir(root.path().join("archive")).unwrap();
+    let outside = TempDir::new().unwrap();
+
+    assert_eq!(confined_logs_dir(root.path(), None).unwrap(), root.path());
+    assert_eq!(
+        confined_logs_dir(root.path(), Some("archive")).unwrap(),
+        canonical(root.path()).join("archive")
+    );
+    for requested in [outside.path().to_str().unwrap(), "..", "missing"] {
+        let err = confined_logs_dir(root.path(), Some(requested)).unwrap_err();
+        assert!(
+            err.to_string().contains("must name a directory inside"),
+            "{requested}: {err}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn confined_logs_dir_refuses_a_link_out_of_the_root() {
+    let root = TempDir::new().unwrap();
+    let outside = TempDir::new().unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.path().join("link")).unwrap();
+
+    let err = confined_logs_dir(root.path(), Some("link")).unwrap_err();
+    assert!(
+        err.to_string().contains("must name a directory inside"),
+        "{err}"
     );
 }

@@ -1,9 +1,9 @@
 [root]
 section = "Changed"
 area = "Services"
-text = "Stopping a service waits for the process to exit against the profile's `server.shutdown` deadlines (the API listener: the whole shutdown budget; a child: `child_grace_secs`; `--force`: none) before escalating to SIGKILL, instead of a fixed 100 ms. The outcome reports whether the process exited or was killed."
+text = "Stopping a service waits for the process to exit against the profile's `server.shutdown` deadlines (the API listener: the whole shutdown budget; a child: `child_grace_secs`; `--force`: none) before escalating to SIGKILL, instead of a fixed 100 ms; the reconciler gives a service it stops `child_grace_secs`. The outcome reports whether the process exited or was killed."
 
 [[crate]]
 name = "systemprompt-scheduler"
 section = "Breaking"
-text = "`ServiceManagementService::new` takes the profile's `ShutdownConfig`; `ServiceManagementService::stop_api_by_port` takes `&ShutdownConfig`."
+text = "`ServiceManagementService::new` takes the profile's `ShutdownConfig`; `ServiceManagementService::stop_api_by_port` takes `&ShutdownConfig`; `ServiceReconciler::new` takes `ShutdownConfig` after the repository."

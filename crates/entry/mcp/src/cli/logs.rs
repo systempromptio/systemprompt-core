@@ -1,4 +1,5 @@
-//! `plugins mcp logs` command dispatch.
+//! `plugins mcp logs` command dispatch. `--logs-dir` is confined to the
+//! profile's logs root.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

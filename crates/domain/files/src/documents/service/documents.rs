@@ -253,7 +253,7 @@ impl DocumentService {
         if !self.repos.documents.rename(document, &name, paths).await? {
             return Err(DocumentsError::not_found("document", document));
         }
-        self.load_document(document).await
+        self.hinted(document, &who.id).await
     }
 
     pub async fn move_to(
@@ -271,6 +271,7 @@ impl DocumentService {
             .access
             .check_move(who, MoveTarget::Document(&current), folder)
             .await?;
+        let before = self.holders_before(&current, &who.id).await;
         let from = self.document_path(&current).await?;
         let to = join_path(self.folder_path(folder).await?.as_deref(), &current.name);
         let paths = PathMove {
@@ -289,6 +290,6 @@ impl DocumentService {
             self.pin_agent_cap(&AgentCapTarget::Document(document.clone()), cap)
                 .await?;
         }
-        self.load_document(document).await
+        self.hinted_after(document, &who.id, before).await
     }
 }

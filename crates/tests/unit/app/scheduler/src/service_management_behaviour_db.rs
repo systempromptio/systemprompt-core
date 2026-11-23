@@ -545,9 +545,6 @@ mod live_child_stop_paths {
         spawn_holder(stamped_as_api, "time.sleep(60)")
     }
 
-    // Why: a listener that drains for a second after SIGTERM, as the API does,
-    // proves a stop waits for the configured deadline instead of a fixed
-    // fraction of a second.
     fn spawn_draining_holder() -> (Child, u16) {
         spawn_holder(
             true,

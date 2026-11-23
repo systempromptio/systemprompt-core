@@ -64,7 +64,10 @@ async fn mcp_logs_follow_helper() {
     println!("END_FOLLOW");
 
     let invoked = std::fs::read_to_string(&capture).expect("tail invocation capture");
-    assert_eq!(invoked, format!("-f\n{}\n", log.display()));
+    assert_eq!(
+        invoked,
+        format!("-f\n{}\n", log.canonicalize().unwrap().display())
+    );
 
     unsafe { std::env::set_var("TAIL_EXIT", "9") };
     let error = mcp::execute(

@@ -10,6 +10,8 @@ mod declarations;
 #[cfg(test)]
 mod delivery;
 #[cfg(test)]
+mod event;
+#[cfg(test)]
 mod kind;
 #[cfg(test)]
 mod route;

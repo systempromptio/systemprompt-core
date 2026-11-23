@@ -43,7 +43,7 @@ The HTTP routes are served by the `systemprompt-notifications-entry` crate. The 
 
 ### Events
 
-An event names a `kind`, an actor, whether the actor is an agent (and which agent acted on whose behalf), the resources it concerns (`subjects`, each a `{kind, id}` pair), an optional stream, direct recipients, an optional sender-chosen attention, a title, a body and a free-form payload.
+An event names a `kind`, an actor, whether the actor is an agent (and which agent acted on whose behalf), whether the platform produced it (`actor_is_system`), the resources it concerns (`subjects`, each a `{kind, id}` pair), an optional stream, direct recipients, an optional sender-chosen attention, a title, a body and a free-form payload.
 
 Kinds are dotted lowercase names. Core produces three:
 
@@ -56,6 +56,8 @@ Kinds are dotted lowercase names. Core produces three:
 Extensions may produce their own kinds (for example `deal.stage_changed`). Without a router of their own, such an event reaches its direct recipients at `silent`, or at the attention the producer set.
 
 A producer appends **one event per action**. A comment that mentions several users is one event listing every mentioned user as a direct recipient, and a share to a role is one event for all of its members. The consumer fans the event out to recipients; producers never append one event per recipient.
+
+The actor of an event is not among its recipients, with two exceptions: an event that names its actor directly at `agent` attention is a hand-off to the actor's own agent, and an event with `actor_is_system` set was produced by the platform on its own schedule (a scheduled job, for example), so its `actor` is the account the event is attributed to and that account is notified like any other recipient. The flag is read at routing only; it is not stored on the notification.
 
 ### Attention levels
 

@@ -19,6 +19,7 @@ use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 
+use super::drive_hint::DriveHint;
 use super::first_revision::NewContent;
 pub(super) use super::name_conflicts::{folder_name_taken, is_folder_name_taken, name_taken};
 use super::name_conflicts::{is_name_taken, split_extension};
@@ -91,10 +92,12 @@ impl DocumentService {
         self.reject_open_for_document(&trashed, Some(TRASHED_NOTE.to_owned()))
             .await?;
         self.close_live_state(who, &trashed, trace).await?;
+        let before = self.holders_before(&trashed, &who.id).await;
         let from = self.document_path(&trashed).await?;
         if !self.repos.documents.trash(document, &who.id, &from).await? {
             return Err(DocumentsError::not_found("document", document));
         }
+        self.hint_drive_changed(DriveHint::document(&trashed, &who.id).former(before));
         Ok(())
     }
 
@@ -134,7 +137,7 @@ impl DocumentService {
             }
             let to = join_path(self.folder_path(folder.as_ref()).await?.as_deref(), &name);
             match self.repos.documents.restore(document, &to).await {
-                Ok(true) => return self.load_document(document).await,
+                Ok(true) => return self.hinted(document, &who.id).await,
                 Ok(false) => return Err(DocumentsError::not_found("trashed document", document)),
                 Err(error) if attempt == 1 && is_name_taken(&error) => {},
                 Err(error) => return Err(error.into()),

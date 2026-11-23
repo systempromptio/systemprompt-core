@@ -9,7 +9,6 @@
 
 pub mod confirm;
 pub mod ddl;
-pub mod disk_logs;
 pub mod postgres_access;
 pub mod render;
 pub mod text;

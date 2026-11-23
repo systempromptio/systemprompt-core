@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Notifications"
+text = "`notifications::NotificationEvent` gains `actor_is_system: bool`; `NotificationEvent::with_actor_is_system(true)` marks an event produced on the platform's own schedule (a scheduled job), whose `actor` is the account it is attributed to, and that account is then kept among the recipients, where a person's own action never notifies them. Routing reads the flag only: it is not stored on the notification and no API or SDK field carries it. An event serialised without the field decodes as `false`. Migrate a struct literal by setting `actor_is_system: false`; `NotificationEvent::new` already does."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`notifications::NotificationEvent` gains `actor_is_system: bool` (`#[serde(default)]`, so events already in the outbox decode as `false`). Migrate a struct literal by setting `actor_is_system: false`; `NotificationEvent::new` already does."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`NotificationEvent::with_actor_is_system(bool)`: marks an event the platform produced on its own schedule, whose `actor` is the account it is attributed to rather than a person who acted."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Changed"
+text = "The actor of an event stays a recipient when the event sets `actor_is_system`: an event the platform produced reaches the account it is attributed to. An event without the flag still drops its actor, except for the hand-off to their own agent."

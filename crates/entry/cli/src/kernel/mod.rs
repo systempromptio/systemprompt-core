@@ -42,5 +42,5 @@ pub use crate::runner::{interrupt, routing};
 pub use crate::session::{self, CliSessionContext, get_or_create_session};
 pub use crate::shared::render::render_result;
 pub use crate::shared::{
-    ConfirmArgs, database_scoped_command_error, ddl, disk_logs, postgres_access, text,
+    ConfirmArgs, database_scoped_command_error, ddl, postgres_access, text,
 };

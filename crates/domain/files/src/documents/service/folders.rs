@@ -16,6 +16,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use systemprompt_traits::RepositoryError;
 
+use super::drive_hint::DriveHint;
 use super::lifecycle::{TRASHED_NOTE, folder_name_taken, is_folder_name_taken};
 use super::support::validate_name;
 use super::{DocumentService, NewFolderRequest};
@@ -64,6 +65,7 @@ impl DocumentService {
             }
             return Err(error);
         }
+        self.hint_drive_changed(DriveHint::folder(&folder.id, &who.id));
         Ok(folder)
     }
 
@@ -126,6 +128,7 @@ impl DocumentService {
         {
             return Err(DocumentsError::not_found("folder", folder));
         }
+        self.hint_drive_changed(DriveHint::folder(folder, &who.id));
         self.load_folder(folder).await
     }
 
@@ -154,6 +157,7 @@ impl DocumentService {
         self.access
             .authorize_subtree_folders(who, folder, &folders, trace)
             .await?;
+        let before = self.folder_holders_before(folder, &documents).await;
         let partition = self
             .access
             .partition_subtree_documents(who, documents)
@@ -175,6 +179,7 @@ impl DocumentService {
             .await?
         {
             SubtreeTrash::Trashed { .. } => {
+                self.hint_drive_changed(DriveHint::folder(folder, &who.id).former(before));
                 self.tear_down_trashed(who, &partition.trash, trace).await
             },
             SubtreeTrash::Changed => Err(DocumentsError::SubtreeChanged {

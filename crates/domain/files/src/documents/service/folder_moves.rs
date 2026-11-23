@@ -11,6 +11,7 @@ use systemprompt_identifiers::{DocumentFolderId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 
+use super::drive_hint::DriveHint;
 use super::{AgentCapTarget, DocumentService};
 use crate::documents::access::{AccessTarget, MoveTarget};
 use crate::documents::agents::AgentCap;
@@ -87,6 +88,7 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<DocumentFolder, DocumentsError> {
         let prepared = self.prepare_folder_move(who, folder, parent, trace).await?;
+        let before = self.folder_holders_before(folder, &[]).await;
         let relocation = FolderRelocation {
             folder,
             parent,
@@ -104,6 +106,7 @@ impl DocumentService {
             self.pin_agent_cap(&AgentCapTarget::Folder(folder.clone()), cap)
                 .await?;
         }
+        self.hint_drive_changed(DriveHint::folder(folder, &who.id).with(before));
         self.load_folder(folder).await
     }
 }

@@ -13,7 +13,9 @@
 //! Statements are extracted with `pg_query::parse_plpgsql` from
 //! `pg_get_functiondef`. Dynamic SQL (`EXECUTE`) is opaque and not checked;
 //! relations the function itself creates, and a statement trigger's
-//! transition tables, are not references.
+//! transition tables, are not references. The trigger listing is a catalog
+//! scan another session's DDL can race, so it is read again on the same
+//! transient failures as the schema catalog digest.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,6 +27,7 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
+use super::lock_conflict::read_catalog;
 use crate::error::RepositoryError;
 use crate::services::DatabaseProvider;
 
@@ -107,10 +110,11 @@ pub async fn check_trigger_routines(db: &dyn DatabaseProvider) -> Result<(), Loa
             context,
             source: Box::new(source),
         };
-    let rows = db
-        .fetch_all(&LIVE_PLPGSQL_TRIGGERS, &[])
-        .await
-        .map_err(|e| failed("Failed to list trigger routines".to_owned(), e))?;
+    let rows = read_catalog("trigger routines", || {
+        db.fetch_all(&LIVE_PLPGSQL_TRIGGERS, &[])
+    })
+    .await
+    .map_err(|e| failed("Failed to list trigger routines".to_owned(), e))?;
 
     let mut first: Option<LoaderError> = None;
     for row in &rows {
