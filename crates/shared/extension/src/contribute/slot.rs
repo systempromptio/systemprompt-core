@@ -23,7 +23,8 @@
 //!
 //! [`Slot::build`] runs with the resolution scoped to that owner's standing,
 //! and each entry's factories run scoped to the entry's own owner and
-//! standing (`build_factories`, `Resolved::scoped_to`), so an install's
+//! standing (`build_factories`, `MemberResolved::within` over
+//! [`SlotEntry::scope`]), so an install's
 //! factory reads only what an install provide fn may read.
 //!
 //! The type-erased record ([`SlotRecord`]) is keyed by the slot's `TypeId`
@@ -42,6 +43,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Dependencies, DuplicateDependency};
 
 use super::error::SlotError;
+use super::member::MemberScope;
 use super::resolved::Resolved;
 use super::slot_insert::{SlotBuilt, insert_erased};
 use super::standing::StandingTag;
@@ -88,6 +90,11 @@ impl<B> SlotEntry<B> {
     #[must_use]
     pub const fn standing(&self) -> StandingTag {
         self.standing
+    }
+
+    #[must_use]
+    pub fn scope(&self) -> MemberScope {
+        MemberScope::admitted(self.owner.clone(), self.standing)
     }
 }
 

@@ -139,12 +139,6 @@ impl HostKernel {
             #[cfg(feature = "notifications")]
             escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
         });
-        let jwt: systemprompt_traits::DynJwtValidationProvider =
-            Arc::new(systemprompt_oauth::JwtValidationProviderImpl::from_config(
-                &config,
-                verification.clone(),
-            ));
-        let seed = seed.with(jwt);
         let handle: Arc<dyn DatabaseHandle> =
             Arc::<systemprompt_database::Database>::clone(&database);
         let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);
@@ -200,7 +194,6 @@ impl HostKernel {
             },
             &r,
         )?;
-
 
         let parts = HostParts {
             tokens: Arc::new(VerifyingTokenAuthority::new(

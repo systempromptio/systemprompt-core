@@ -11,7 +11,7 @@
 //! data) is served to kernel code and to the provide fns, factories, slot
 //! builds and governance factories of a member with core standing. The
 //! kernel resolves each member's code with that member's admitted standing
-//! ([`Resolved::__member_scoped`], [`Resolved::scoped_to`]): a member with
+//! ([`Resolved::__member_scoped`], [`MemberResolved::within`]): a member with
 //! install standing reads a host-sealed seed only when the closed
 //! `reserved::INSTALL_SEEDS` table lists its type, and never a value another
 //! member provided sealed. Rescoping never widens: a resolution scoped to an
@@ -50,6 +50,7 @@ use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
 use super::error::ProvideError;
 use super::handles::{HandleId, KernelHandle};
+use super::member::{MemberResolved, MemberScope};
 use super::standing::StandingTag;
 use crate::reserved::{CoreId, conferral_admits, install_reads};
 
@@ -67,7 +68,7 @@ pub struct Resolved<'a> {
     conferred: &'a [HandleId],
     withhold_sealed: bool,
     viewer: Option<RouteViewer<'a>>,
-    scope: Option<MemberScope<'a>>,
+    scope: Option<Scope<'a>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -77,7 +78,7 @@ struct RouteViewer<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct MemberScope<'a> {
+struct Scope<'a> {
     owner: &'a ExtensionId,
     standing: StandingTag,
 }
@@ -96,20 +97,23 @@ impl<'a> Resolved<'a> {
     }
 
     #[doc(hidden)]
+    #[must_use]
     pub const fn __member_scoped(
         access: &'a dyn KernelAccess,
         state: &'a Dependencies,
-        owner: &'a ExtensionId,
-        standing: StandingTag,
-    ) -> Self {
-        Self {
+        scope: &'a MemberScope,
+    ) -> MemberResolved<'a> {
+        MemberResolved::from_scoped(Self {
             access,
             state,
             conferred: &[],
             withhold_sealed: false,
             viewer: None,
-            scope: Some(MemberScope { owner, standing }),
-        }
+            scope: Some(Scope {
+                owner: scope.owner(),
+                standing: scope.standing(),
+            }),
+        })
     }
 
     #[doc(hidden)]
@@ -142,14 +146,17 @@ impl<'a> Resolved<'a> {
         }
     }
 
-    #[must_use]
-    pub fn scoped_to<'b>(&self, owner: &'b ExtensionId, standing: StandingTag) -> Resolved<'b>
+    pub(crate) fn scoped_to<'b>(
+        &self,
+        owner: &'b ExtensionId,
+        standing: StandingTag,
+    ) -> Resolved<'b>
     where
         'a: 'b,
     {
         let scope = match self.scope {
             Some(current) if current.standing == StandingTag::Install => current,
-            _ => MemberScope { owner, standing },
+            _ => Scope { owner, standing },
         };
         Resolved {
             access: self.access,
@@ -210,6 +217,13 @@ impl Resolved<'_> {
                 &conferred.holder == viewer.owner
                     && conferral_admits(conferred.row, provider, viewer.owner.as_str())
             })
+    }
+
+    pub(super) fn secret_reader(&self) -> Option<(&ExtensionId, &Dependencies)> {
+        if self.withhold_sealed || self.viewer.is_some() {
+            return None;
+        }
+        self.scope.map(|scope| (scope.owner, self.state))
     }
 
     pub fn db(&self) -> Arc<dyn DatabaseHandle> {

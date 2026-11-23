@@ -18,19 +18,7 @@ use systemprompt_test_fixtures::{
     TestBootstrap, fixture_config, init_services_bootstrap, test_db_pool,
 };
 use systemprompt_test_mocks::MockAiProvider;
-use systemprompt_traits::{AgentJwtClaims, JwtProviderError, JwtResult, JwtValidationProvider};
 use tower::ServiceExt;
-
-struct StubJwt;
-
-impl JwtValidationProvider for StubJwt {
-    fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
-        Err(JwtProviderError::InvalidToken)
-    }
-    fn generate_secure_token(&self, prefix: &str) -> String {
-        format!("{prefix}-fake")
-    }
-}
 
 const GATEWAY_YAML: &str = r#"
 credentials:
@@ -88,7 +76,7 @@ async fn state() -> Arc<AgentState> {
         pool.clone(),
         config,
         systemprompt_agent::AgentAuth {
-            jwt_provider: Arc::new(StubJwt) as systemprompt_traits::DynJwtValidationProvider,
+            authenticator: systemprompt_test_fixtures::fixture_request_authenticator(&pool),
             verification_keys: systemprompt_test_fixtures::test_signing_keys()
                 .keyring()
                 .clone(),

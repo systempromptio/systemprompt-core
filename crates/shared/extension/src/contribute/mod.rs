@@ -23,9 +23,12 @@ mod entries;
 mod error;
 mod factories;
 pub mod handles;
+mod member;
 mod provide;
 mod resolved;
+mod secrets;
 mod sink;
+mod sink_kinds;
 mod sink_push;
 mod slot;
 mod slot_insert;
@@ -34,19 +37,21 @@ mod view;
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_identifiers::{ExtensionId, SecretName};
 use systemprompt_provider_contracts::governance::GovernancePolicy;
 use systemprompt_provider_contracts::{ConfigPlane, DoctorCheck, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
+use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService, SecretReferences};
 
 pub use audience::{AudienceEntry, AudienceResolvers};
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidePhase, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
-pub use factories::{Factory, build_factories};
+pub use factories::{Factory, FactoryKind, SecretReferenceFactory, build_factories};
 pub use handles::{Handed, HandleId, KernelHandle};
+pub use member::{MemberResolved, MemberScope};
 pub use resolved::{FromState, KernelAccess, ProvideFn, Resolved};
+pub use secrets::SecretDeclarations;
 pub use sink::{
     AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, DoctorCheckRef,
     GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
@@ -235,6 +240,19 @@ impl<'a> Contributions<'a> {
     }
     pub fn policy<F: Factory<Arc<dyn GovernancePolicy>>>(&mut self, f: F) -> &mut Self {
         self.sink.policies.push(Box::new(f));
+        self
+    }
+
+    pub fn secret(&mut self, name: SecretName) -> &mut Self {
+        self.sink.declared_secrets.push(name);
+        self
+    }
+
+    pub fn secret_references<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Factory<Arc<dyn SecretReferences>>,
+    {
+        self.sink.secret_references.push(Box::new(f));
         self
     }
 

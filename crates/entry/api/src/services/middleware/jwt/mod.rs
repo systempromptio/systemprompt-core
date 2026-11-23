@@ -11,7 +11,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod claims;
 mod context;
 
+pub(crate) use claims::SessionClaims;
 pub use context::JwtContextExtractor;
 pub use systemprompt_models::auth::JwtUserContext;

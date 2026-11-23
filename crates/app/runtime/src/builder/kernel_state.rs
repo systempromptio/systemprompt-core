@@ -25,18 +25,16 @@
 //! and the AI service) are sealed seeds on every host: they resolve and cache
 //! provider credentials.
 //!
-//! The runtime `Config`, the secret store, its custom-secret reads
-//! (`CustomSecrets`: a custom secret by name, nothing else of the store), the
-//! system admin, the active services root, the profile's services bundle
-//! sources (`BundleSources`: the pinned sources, bundle cache and base tree,
-//! never another profile value) and the event router are sealed, and so are
-//! the JWT signing keys the API seeds: kernel code and a core member's provide
-//! fns, factories and slot builds read them; an install member's provide fns,
-//! factories and slot builds read only the rows of
-//! `systemprompt_extension::reserved::INSTALL_SEEDS`; no route set's state
-//! reads one; and every context handed to member runtime code (a job, a
-//! runner service, a config plane, a member command) is built without them.
-//! `Config`, the secret store and the signing keys carry credentials; the
+//! The runtime `Config`, the secret store, the system admin, the active
+//! services root, the profile's services bundle sources (`BundleSources`: the
+//! pinned sources, bundle cache and base tree, never another profile value) and
+//! the event router are sealed, and so are the JWT signing keys the API seeds:
+//! kernel code and a core member's provide fns, factories and slot builds read
+//! them; an install member's provide fns, factories and slot builds read only
+//! the rows of `systemprompt_extension::reserved::INSTALL_SEEDS`; no route
+//! set's state reads one; and every context handed to member runtime code (a
+//! job, a runner service, a config plane, a member command) is built without
+//! them. `Config`, the secret store and the signing keys carry credentials; the
 //! system admin, the services root and the bundle sources are boot-only
 //! identity and layout; the event router publishes to and subscribes on every
 //! user's stream. Every other seed is open. A member whose runtime code needs a
@@ -53,9 +51,10 @@
 //! verification keys it was handed), open; the request authenticator verifies
 //! against it.
 //!
-//! The API seeds the token revocation check (`DynTokenRevocations`, the jti
-//! table behind its cache) open; the users member builds the request
-//! authenticator over it.
+//! Every host seeds the token revocation check (`DynTokenRevocations`, the
+//! jti table behind its cache) open; the users member builds the request
+//! authenticator over it, so a child host's agent server refuses a revoked
+//! token as the API does.
 //!
 //! The cache epochs are seeded twice: the advancing `CacheEpochs` handle
 //! sealed (the event relay and kernel code advance it), and its read half
@@ -121,9 +120,8 @@ use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
 use systemprompt_traits::{
-    BackgroundTasks, CacheEpochs, CustomSecrets, DynAdvisoryLocks, DynInstanceRegistry,
-    DynJwtValidationProvider, DynLeaseRepository, FileStorage, MessagingDispatcher, SecretLookup,
-    SecretStore,
+    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
+    FileStorage, MessagingDispatcher, SecretLookup, SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.
@@ -210,8 +208,13 @@ impl std::fmt::Debug for ApiKernelSeed<'_> {
 
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) {
     let (scanner, secret_scanner) = late_pair::<SecretScanner>();
+    let revocations: DynTokenRevocations = Arc::new(JtiRevocationChecker::new(
+        seed.database,
+        seed.cache_epochs.view(),
+    ));
     let state = Dependencies::new()
         .with(scanner)
+        .with(revocations)
         .with(Arc::clone(seed.database))
         .with(Arc::clone(seed.app_paths))
         .with(Arc::clone(seed.files_config))
@@ -231,7 +234,6 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(seed.services_root)
         .with_sealed(seed.profile_path)
         .with_sealed(BundleSources::of(seed.profile))
-        .with_sealed(CustomSecrets::over(Arc::clone(&seed.secrets)))
         .with_sealed(seed.secrets)
         .with_sealed(seed.secret_lookup)
         .with_sealed(seed.connector_tokens)
@@ -243,21 +245,9 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
     (state, KernelBinders { secret_scanner })
 }
 
-fn jwt_validation(config: &Config, keys: &SigningKeys) -> DynJwtValidationProvider {
-    Arc::new(systemprompt_oauth::JwtValidationProviderImpl::from_config(
-        config,
-        keys.keyring().clone(),
-    ))
-}
-
 pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders) {
-    let jwt = jwt_validation(seed.base.config, seed.signing_keys);
     let (agent_dispatch_cell, agent_dispatch) = late_pair::<dyn AgentDispatch>();
     let (messaging_cell, messaging) = late_pair::<dyn MessagingDispatcher>();
-    let revocations: DynTokenRevocations = Arc::new(JtiRevocationChecker::from_repository(
-        seed.oauth.oauth.clone(),
-        seed.base.cache_epochs.view(),
-    ));
     let (base, base_binders) = base_kernel_state(seed.base);
     let mut state = base
         .with_sealed(seed.signing_keys.clone())
@@ -270,10 +260,8 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         )
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
-        .with(jwt)
         .with(seed.signing_keys.verification_keys().clone())
         .with(Arc::clone(seed.oauth))
-        .with(revocations)
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
     match seed.geoip {

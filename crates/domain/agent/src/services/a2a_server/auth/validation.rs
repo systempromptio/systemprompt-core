@@ -1,8 +1,11 @@
 //! Token extraction and validation for A2A requests.
 //!
 //! [`extract_bearer_token`] pulls the bearer credential from request headers;
-//! [`validate_oauth_for_request`] verifies the JWT, confirms the `a2a`
-//! audience, and enforces the required permission scopes.
+//! [`validate_oauth_for_request`] verifies the token through the kernel's
+//! request authenticator (the `a2a` audience, the user row, the session row
+//! and revocation) and enforces the required permission scopes: the token's
+//! scopes, with `admin` (and the admin bypass) honoured only while the user
+//! row still holds the admin role.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,15 +13,18 @@
 use axum::http::{HeaderMap, StatusCode};
 use serde::Serialize;
 use std::str::FromStr;
-use systemprompt_identifiers::UserId;
-use systemprompt_models::auth::Permission;
-use systemprompt_traits::AgentJwtClaims;
+use systemprompt_identifiers::{JwtToken, UserId};
+use systemprompt_models::auth::{
+    DynRequestAuthenticator, JwtAudience, Permission, UserRole, UserType,
+};
+use systemprompt_models::execution::context::ContextExtractionError;
 
 use crate::services::a2a_server::errors::{
     JsonRpcErrorResponse, forbidden_response, unauthorized_response,
 };
 
-/// Identity of an authenticated A2A caller, projected from its JWT claims.
+/// Identity of an authenticated A2A caller: the user row, and the token's
+/// scopes as the user row still admits them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AuthenticatedCaller {
     pub sub: UserId,
@@ -52,10 +58,10 @@ pub async fn validate_oauth_for_request(
     headers: &HeaderMap,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
     required_scopes: &[Permission],
-    jwt_provider: Option<&std::sync::Arc<dyn systemprompt_traits::JwtValidationProvider>>,
+    authenticator: Option<&DynRequestAuthenticator>,
 ) -> Result<Option<AuthenticatedCaller>, Box<(StatusCode, JsonRpcErrorResponse)>> {
     let token = match extract_bearer_token(headers) {
-        Some(t) if !t.is_empty() => t,
+        Some(t) if !t.is_empty() => JwtToken::new(t),
         _ => {
             return Err(Box::new(unauthorized_response(
                 "Bearer token required. Include 'Authorization: Bearer <token>' header.",
@@ -64,15 +70,15 @@ pub async fn validate_oauth_for_request(
         },
     };
 
-    let Some(provider) = jwt_provider else {
+    let Some(authenticator) = authenticator else {
         return Err(Box::new(unauthorized_response(
-            "JWT provider not configured",
+            "Request authenticator not configured",
             request_id,
         )));
     };
 
-    let claims = match provider.validate_token(&token) {
-        Ok(claims) => claims,
+    let caller = match authenticate_caller(authenticator, &token).await {
+        Ok(caller) => caller,
         Err(e) => {
             return Err(Box::new(unauthorized_response(
                 format!("Invalid or expired token: {e}"),
@@ -82,38 +88,55 @@ pub async fn validate_oauth_for_request(
     };
 
     tracing::info!(
-        username = %claims.username,
-        user_type = %claims.user_type,
+        username = %caller.username,
+        user_type = %caller.user_type,
         "Authenticated"
     );
 
-    if !claims.has_audience("a2a") {
-        return Err(Box::new(forbidden_response(
-            format!(
-                "Token does not support A2A protocol. Audience: {:?}",
-                claims.audiences
-            ),
-            request_id,
-        )));
-    }
-
-    if claims.is_admin {
+    if caller.is_admin {
         tracing::info!(
-            username = %claims.username,
+            username = %caller.username,
             "Admin user has access to all agents"
         );
-        return Ok(Some(claims_payload(&claims)));
+        return Ok(Some(caller));
     }
 
-    if let Some(reason) = missing_scopes_reason(&claims, required_scopes) {
+    if let Some(reason) = missing_scopes_reason(&caller, required_scopes) {
         return Err(Box::new(forbidden_response(reason, request_id)));
     }
 
-    Ok(Some(claims_payload(&claims)))
+    Ok(Some(caller))
+}
+
+async fn authenticate_caller(
+    authenticator: &DynRequestAuthenticator,
+    token: &JwtToken,
+) -> Result<AuthenticatedCaller, ContextExtractionError> {
+    let (claims, user) = authenticator
+        .decode_for_audiences(token, &[JwtAudience::A2a])
+        .await?;
+    let user_is_admin = user
+        .roles
+        .iter()
+        .any(|role| role.as_str() == UserRole::Admin.as_str());
+    let user_type = claims.user_type.reconcile_with(user_is_admin);
+    Ok(AuthenticatedCaller {
+        sub: user.id,
+        username: user.name,
+        user_type: user_type.to_string(),
+        is_admin: user_type == UserType::Admin,
+        permissions: claims
+            .scope
+            .iter()
+            .filter(|scope| user_is_admin || **scope != Permission::Admin)
+            .map(ToString::to_string)
+            .collect(),
+        audiences: vec![JwtAudience::A2a.as_str().to_owned()],
+    })
 }
 
 fn missing_scopes_reason(
-    claims: &AgentJwtClaims,
+    claims: &AuthenticatedCaller,
     required_scopes: &[Permission],
 ) -> Option<String> {
     if required_scopes.is_empty() {
@@ -150,15 +173,4 @@ fn missing_scopes_reason(
         required_scopes_str.join(", "),
         claims.permissions.join(", ")
     ))
-}
-
-fn claims_payload(claims: &AgentJwtClaims) -> AuthenticatedCaller {
-    AuthenticatedCaller {
-        sub: claims.subject.clone(),
-        username: claims.username.clone(),
-        user_type: claims.user_type.clone(),
-        is_admin: claims.is_admin,
-        permissions: claims.permissions.clone(),
-        audiences: claims.audiences.clone(),
-    }
 }

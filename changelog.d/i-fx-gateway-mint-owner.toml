@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Gateway"
+text = "An API key's gateway session bind keeps a presented session only when that session's user is the key's owner; a session with no user is no longer kept."

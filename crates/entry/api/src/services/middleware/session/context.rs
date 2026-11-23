@@ -169,7 +169,7 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let Some(jwt_context) = self.authenticator.verified_claims(&token) else {
+        let Some(jwt_context) = self.claims.verified_claims(&token) else {
             let (sid, uid, token, is_new, fp) =
                 lifecycle::create_new_session(&self.session_creation_service, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };

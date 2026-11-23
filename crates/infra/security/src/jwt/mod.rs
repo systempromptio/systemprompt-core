@@ -13,9 +13,9 @@
 //!   from `scope` (defence-in-depth against a forged claim), surfacing every
 //!   failure as an [`crate::AuthError`] variant.
 //!
-//! [`crate::AuthValidationService`] (A2A) runs the same session-claim checks;
-//! [`decode::extract_user_context`] serves request-context middleware that
-//! does its own session and user lookups against the database after decode.
+//! [`decode::extract_user_context`] serves the request authenticator, which
+//! does the session, user and revocation lookups against the database after
+//! decode.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

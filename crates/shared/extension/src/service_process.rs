@@ -80,8 +80,7 @@ impl Slot for ServiceProcessSlot {
         for entry in entries {
             built.extend(build_factories(
                 SERVICE_PROCESS_SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.sets,
                 r,
             )?);

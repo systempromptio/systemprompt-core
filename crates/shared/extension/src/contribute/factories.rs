@@ -1,6 +1,8 @@
-//! The deferred constructor of a contributed value ([`Factory`]), the
-//! standing-scoped build of one member's factories ([`build_factories`]), and
-//! the boxed factory and shared value types a member's sink stores.
+//! The deferred constructor of a contributed value ([`Factory`]), built only
+//! with a member-scoped resolution; the standing-scoped build of one member's
+//! factories ([`build_factories`]); the closed list of factory kinds a sink
+//! stores ([`FactoryKind`]); and the boxed factory and shared value types a
+//! member's sink stores.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,14 +11,12 @@ use std::sync::Arc;
 
 use systemprompt_provider_contracts::DoctorCheck;
 use systemprompt_provider_contracts::governance::GovernancePolicy;
-use systemprompt_traits::RunnerService;
 use systemprompt_traits::authz::SubjectAttributeProvider;
-
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_traits::{RunnerService, SecretReferences};
 
 use super::error::{FactoryError, SlotError};
+use super::member::{MemberResolved, MemberScope};
 use super::resolved::Resolved;
-use super::standing::StandingTag;
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, ReadinessCheck};
@@ -30,36 +30,68 @@ pub type GatewayGuardFactory = Box<dyn Factory<Arc<dyn GatewayRequestGuard>>>;
 pub type SubjectProviderFactory = Box<dyn Factory<Arc<dyn SubjectAttributeProvider>>>;
 pub type PolicyFactory = Box<dyn Factory<Arc<dyn GovernancePolicy>>>;
 pub type AudienceResolverFactory = Box<dyn Factory<Arc<dyn NotificationAudienceResolver>>>;
+pub type SecretReferenceFactory = Box<dyn Factory<Arc<dyn SecretReferences>>>;
 pub type DoctorCheckRef = Arc<dyn DoctorCheck>;
 
+/// Every factory kind a member's sink stores.
+///
+/// Each kind is built only through a [`MemberResolved`];
+/// `ContributionSink::factory_count` maps a kind onto its sink field, and
+/// that sink walk names every field, so a new factory field must be
+/// classified here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FactoryKind {
+    RunnerService,
+    Readiness,
+    Diagnostic,
+    GatewayGuard,
+    SubjectProvider,
+    Policy,
+    AudienceResolver,
+    SecretReferences,
+}
+
+impl FactoryKind {
+    pub const ALL: &'static [Self] = &[
+        Self::RunnerService,
+        Self::Readiness,
+        Self::Diagnostic,
+        Self::GatewayGuard,
+        Self::SubjectProvider,
+        Self::Policy,
+        Self::AudienceResolver,
+        Self::SecretReferences,
+    ];
+}
+
 /// A deferred constructor of one contributed service, run after admission.
+/// Built only with a [`MemberResolved`], so it runs scoped to its member.
 pub trait Factory<T>: Send + Sync + 'static {
-    fn build(&self, r: &Resolved<'_>) -> Result<T, FactoryError>;
+    fn build(&self, r: &MemberResolved<'_>) -> Result<T, FactoryError>;
 }
 
 impl<T, F> Factory<T> for F
 where
     F: Fn(&Resolved<'_>) -> Result<T, FactoryError> + Send + Sync + 'static,
 {
-    fn build(&self, r: &Resolved<'_>) -> Result<T, FactoryError> {
+    fn build(&self, r: &MemberResolved<'_>) -> Result<T, FactoryError> {
         self(r)
     }
 }
 
 pub fn build_factories<T: 'static>(
     slot: &'static str,
-    owner: &ExtensionId,
-    standing: StandingTag,
+    scope: &MemberScope,
     factories: &[Box<dyn Factory<T>>],
     r: &Resolved<'_>,
 ) -> Result<Vec<T>, SlotError> {
-    let r = r.scoped_to(owner, standing);
+    let r = MemberResolved::within(r, scope);
     factories
         .iter()
         .map(|factory| {
             factory
                 .build(&r)
-                .map_err(|error| error.into_slot_error(slot, owner))
+                .map_err(|error| error.into_slot_error(slot, scope.owner()))
         })
         .collect()
 }

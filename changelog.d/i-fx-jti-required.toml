@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The request authenticator refuses a token without a `jti`: every minter sets one, so revocation is checked on every authenticated request rather than skipped."

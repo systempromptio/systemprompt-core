@@ -4,8 +4,7 @@
 //! [`super::validate::decode_session_claims`] with
 //! [`ValidationPolicy::session_context`] (signature, RS256, `kid`, `exp`,
 //! `nbf` + leeway, the deployment issuer, first-party `aud`, act-chain depth,
-//! `user_type` re-derived from `scope`) — the same checks the A2A
-//! [`crate::AuthValidationService`] applies — and returns the subset of claims
+//! `user_type` re-derived from `scope`) and returns the subset of claims
 //! the request-context layer consumes ([`JwtUserContext`]). The caller then
 //! binds the token to a live session and user row in the database.
 //!
@@ -18,7 +17,6 @@ use systemprompt_models::auth::JwtUserContext;
 use super::validate::{ValidationPolicy, decode_session_claims};
 use crate::error::{AuthError, AuthResult};
 use crate::keys::VerificationKeyring;
-
 
 pub fn extract_user_context(
     keys: &VerificationKeyring,
@@ -51,6 +49,7 @@ pub fn extract_user_context_for(
         user_id: UserId::try_new(claims.registered.sub).map_err(AuthError::InvalidSubject)?,
         session_id,
         role,
+        scope: claims.custom.scope.clone(),
         user_type: claims.custom.user_type,
         client_id: claims.custom.client_id,
         act_chain,

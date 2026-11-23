@@ -1,0 +1,34 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The static-site gate and the A2A agent server verify every request through the kernel's request authenticator: the audience (`web` for the site, `a2a` for an agent's OAuth check, the configured audiences for the agent middleware), the user row, the session row and token revocation. The site gate takes the role from the user row, not the token's scope; the A2A scope check honours a token's `admin` scope and the admin bypass only while the user row holds the admin role. A logged-out, revoked, deleted or demoted user's unexpired token no longer opens a site-gated page or an agent. Every host, child hosts included, seeds the jti revocation check."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`RequestAuthenticator::verified_claims` is removed; `JwtUserContext` gains `scope`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Removed"
+text = "`JwtValidationProvider`, `DynJwtValidationProvider`, `AgentJwtClaims`, `JwtProviderError` and `JwtResult`: the agent server verifies through the request authenticator."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Removed"
+text = "`JwtValidationProviderImpl`."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`JtiRevocationChecker::from_repository` is replaced by `JtiRevocationChecker::new(&DbPool, CacheEpochView)`."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Removed"
+text = "`AuthValidationService`."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentAuth::authenticator` and `AgentState::authenticator` replace `jwt_provider`; `AgentOAuthState::new(db, config, audiences)` and `with_authenticator` replace the issuer, keys and `with_jwt_provider` arguments; `validate_oauth_for_request` takes `Option<&DynRequestAuthenticator>`."

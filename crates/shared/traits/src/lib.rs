@@ -21,10 +21,9 @@
 //!
 //! Each provider trait pairs with a typed `thiserror`-derived error enum
 //! (e.g. [`AnalyticsProviderError`], [`AuthProviderError`],
-//! [`JwtProviderError`], [`FileStorageError`],
-//! [`ContextPropagationError`]). The crate also defines the cross-cutting
-//! [`ExtensionError`] trait which downstream errors implement so the API
-//! and MCP transports can render them uniformly.
+//! [`FileStorageError`], [`ContextPropagationError`]). The crate also defines
+//! the cross-cutting [`ExtensionError`] trait which downstream errors implement
+//! so the API and MCP transports can render them uniformly.
 //!
 //! ## Async traits
 //!
@@ -83,7 +82,6 @@ pub mod extension_error;
 pub mod gateway_session;
 pub mod ip_bans;
 pub mod job_scope;
-pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
 pub mod messaging;
@@ -103,8 +101,8 @@ pub use process_liveness::ProcessLiveness;
 pub use run_origin::RunOrigin;
 pub use runner_service::RunnerService;
 pub use secret::{
-    CustomSecrets, ExtensionSecret, PLATFORM_SECRET_KEYS, ReloadOutcome, SECRET_SEED_BYTES,
-    SecretLookup, SecretStore, SecretStoreError, SecretsStatus,
+    DeclaredSecrets, ExtensionSecret, PINNED_SECRET_KEYS, ReloadOutcome, SECRET_SEED_BYTES,
+    SecretLookup, SecretReferences, SecretStore, SecretStoreError, SecretsStatus,
 };
 pub mod storage;
 pub mod stream_drain;
@@ -197,10 +195,6 @@ pub use registry::{
 };
 
 pub use extension_error::{ExtensionError, McpErrorData};
-
-pub use jwt::{
-    AgentJwtClaims, DynJwtValidationProvider, JwtProviderError, JwtResult, JwtValidationProvider,
-};
 
 mod startup_events;
 pub use startup_events::{

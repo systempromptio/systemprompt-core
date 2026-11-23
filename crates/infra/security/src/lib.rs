@@ -42,20 +42,6 @@
 //!
 //! This crate has no Cargo features; everything compiles by default.
 //!
-//! # Example
-//!
-//! ```no_run
-//! use systemprompt_models::auth::JwtAudience;
-//! use systemprompt_security::AuthValidationService;
-//! use systemprompt_security::keys::SigningKeys;
-//!
-//! # fn demo(headers: &axum::http::HeaderMap, keys: SigningKeys) -> systemprompt_security::AuthResult<()> {
-//! let svc = AuthValidationService::new("systemprompt.io".to_string(), JwtAudience::standard(), keys);
-//! let _ctx = svc.validate_request(headers)?;
-//! # Ok(())
-//! # }
-//! ```
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -76,7 +62,7 @@ pub mod session;
 
 pub use at_rest::{AtRestHashError, hmac_sha256, hmac_sha256_hex};
 
-pub use auth::{AuthValidationService, HookTokenValidator, ValidatedHookClaims};
+pub use auth::{HookTokenValidator, ValidatedHookClaims};
 pub use error::{
     AuthError, AuthResult, JwtError, JwtResult, ManifestSigningError, ManifestSigningResult,
 };

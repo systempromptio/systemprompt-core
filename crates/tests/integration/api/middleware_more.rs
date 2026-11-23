@@ -130,16 +130,21 @@ fn site_config() -> SiteAuthConfig {
 
 async fn drive_site_auth(uri: &str) -> StatusCode {
     let config = site_config();
+    let authenticator = systemprompt_test_fixtures::fixture_request_authenticator(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let app = Router::new()
         .route("/{*rest}", get(|| async { "ok" }))
         .route("/login", get(|| async { "login" }))
-        .layer(middleware::from_fn(move |req, next| async move {
-            site_auth_gate(
+        .layer(middleware::from_fn(move |req, next| {
+            let authenticator = authenticator.clone();
+            async move {
+                site_auth_gate(
                 req,
                 next,
                 config,
                 systemprompt_api::services::middleware::SiteAuthSession {
-                    authenticator: &systemprompt_test_fixtures::fixture_claims_authenticator(),
+                    authenticator: &authenticator,
                     cookie:
                         systemprompt_api::services::session_cookie::SessionCookie::for_external_url(
                             "https://app.example.com",
@@ -147,6 +152,7 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
                 },
             )
             .await
+            }
         }));
     let resp = app
         .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
@@ -337,10 +343,7 @@ async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let epochs = systemprompt_traits::CacheEpochs::new();
     epochs.set_relay_live(true);
-    let checker = systemprompt_oauth::repository::JtiRevocationChecker::from_repository(
-        systemprompt_test_fixtures::oauth_fixture_repository(&pool),
-        epochs.view(),
-    );
+    let checker = systemprompt_oauth::repository::JtiRevocationChecker::new(&pool, epochs.view());
 
     let fresh = AccessTokenId::new(format!("jti-fresh-{}", Uuid::new_v4()));
     assert!(

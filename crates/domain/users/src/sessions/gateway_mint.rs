@@ -126,7 +126,7 @@ impl UsersGatewaySessionMint {
         Ok(session.is_some_and(|session| {
             session
                 .user_id
-                .is_none_or(|owner| owner.as_str() == record.user_id.as_str())
+                .is_some_and(|owner| owner.as_str() == record.user_id.as_str())
         }))
     }
 }

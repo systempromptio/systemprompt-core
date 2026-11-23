@@ -19,9 +19,8 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
+    Factory, MemberScope, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{
     ComponentRenderer, ContentDataProvider, FrontmatterProcessor, PageDataProvider,
     PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender, TemplateProvider,
@@ -49,10 +48,8 @@ impl Slot for ContentSlot {
     ) -> Result<Self::Built, SlotError> {
         let mut hooks = ContentHooks::default();
         for entry in entries {
-            let standing = entry.standing();
-            entry
-                .builder
-                .build_into(&entry.owner, standing, r, &mut hooks)?;
+            let scope = entry.scope();
+            entry.builder.build_into(&scope, r, &mut hooks)?;
         }
         hooks.content_data_providers.sort_by_key(|p| p.priority());
         Ok(hooks)
@@ -151,74 +148,52 @@ impl ContentSlotBuilder {
 
     fn build_into(
         self,
-        owner: &ExtensionId,
-        standing: StandingTag,
+        scope: &MemberScope,
         r: &Resolved<'_>,
         hooks: &mut ContentHooks,
     ) -> Result<(), SlotError> {
-        hooks.template_providers.extend(build_factories(
-            SLOT,
-            owner,
-            standing,
-            &self.template_providers,
-            r,
-        )?);
+        hooks
+            .template_providers
+            .extend(build_factories(SLOT, scope, &self.template_providers, r)?);
         hooks.component_renderers.extend(build_factories(
             SLOT,
-            owner,
-            standing,
+            scope,
             &self.component_renderers,
             r,
         )?);
         hooks.template_data_extenders.extend(build_factories(
             SLOT,
-            owner,
-            standing,
+            scope,
             &self.template_data_extenders,
             r,
         )?);
         hooks.page_data_providers.extend(build_factories(
             SLOT,
-            owner,
-            standing,
+            scope,
             &self.page_data_providers,
             r,
         )?);
-        hooks.page_prerenderers.extend(build_factories(
-            SLOT,
-            owner,
-            standing,
-            &self.page_prerenderers,
-            r,
-        )?);
+        hooks
+            .page_prerenderers
+            .extend(build_factories(SLOT, scope, &self.page_prerenderers, r)?);
         hooks.frontmatter_processors.extend(build_factories(
             SLOT,
-            owner,
-            standing,
+            scope,
             &self.frontmatter_processors,
             r,
         )?);
         hooks.content_data_providers.extend(build_factories(
             SLOT,
-            owner,
-            standing,
+            scope,
             &self.content_data_providers,
             r,
         )?);
-        hooks.rss_feed_providers.extend(build_factories(
-            SLOT,
-            owner,
-            standing,
-            &self.rss_feed_providers,
-            r,
-        )?);
-        hooks.sitemap_providers.extend(build_factories(
-            SLOT,
-            owner,
-            standing,
-            &self.sitemap_providers,
-            r,
-        )?);
+        hooks
+            .rss_feed_providers
+            .extend(build_factories(SLOT, scope, &self.rss_feed_providers, r)?);
+        hooks
+            .sitemap_providers
+            .extend(build_factories(SLOT, scope, &self.sitemap_providers, r)?);
         Ok(())
     }
 }

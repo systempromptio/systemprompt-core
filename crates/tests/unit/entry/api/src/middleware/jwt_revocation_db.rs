@@ -25,10 +25,7 @@ fn checker(pool: &DbPool) -> JtiRevocationChecker {
 fn checker_with_relay(pool: &DbPool, live: bool) -> JtiRevocationChecker {
     let epochs = systemprompt_traits::CacheEpochs::new();
     epochs.set_relay_live(live);
-    JtiRevocationChecker::from_repository(
-        systemprompt_test_fixtures::oauth_fixture_repository(pool),
-        epochs.view(),
-    )
+    JtiRevocationChecker::new(pool, epochs.view())
 }
 
 fn jti() -> AccessTokenId {

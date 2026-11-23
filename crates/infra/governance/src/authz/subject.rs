@@ -40,7 +40,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 
-use systemprompt_extension::{BuiltState, FactoryError, Resolved, StandingTag};
+use systemprompt_extension::{BuiltState, FactoryError, MemberResolved, Resolved, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 pub use systemprompt_models::authz::{
     SubjectAttributeSource, SubjectAttributes, SubjectSourceError,
@@ -149,13 +149,15 @@ impl SubjectProviderSet {
     ) -> Result<Self, SubjectProviderError> {
         let mut entries = Vec::new();
         for member in built.members() {
+            let scope = member.scope();
             for factory in member.sink.subject_providers() {
-                let provider = factory
-                    .build(&r.scoped_to(&member.owner, member.standing))
-                    .map_err(|source| SubjectProviderError::Factory {
-                        owner: member.owner.clone(),
-                        source,
-                    })?;
+                let provider =
+                    factory
+                        .build(&MemberResolved::within(r, &scope))
+                        .map_err(|source| SubjectProviderError::Factory {
+                            owner: member.owner.clone(),
+                            source,
+                        })?;
                 entries.push(SubjectProviderEntry {
                     owner: member.owner.clone(),
                     standing: member.standing,

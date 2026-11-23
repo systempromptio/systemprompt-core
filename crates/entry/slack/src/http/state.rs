@@ -9,14 +9,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use super::verify::SlackVerified;
 use systemprompt_client::{GuardedClient, GuardedClientConfig, guarded_client};
 use systemprompt_extension::{FromState, LateRead, Resolved};
 use systemprompt_manifest::services::{ServicesView, SlackAppConfig};
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::{
-    BackgroundTasks, CustomSecrets, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
-    MessagingInbound,
+    BackgroundTasks, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
+    MessagingInbound, SecretStore,
 };
 
 /// The Slack member's outbound HTTP clients, built once by its provide fn.
@@ -50,11 +52,11 @@ impl SlackClients {
 ///
 /// An app's signing secret and bot token by the custom-secret refs its config
 /// names, and nothing else. Built only by the member's own provide fn over the
-/// kernel's custom-secret reads and provided sealed, so only the member's
+/// kernel's sealed secret store and provided sealed, so only the member's
 /// route state reads it.
 #[derive(Clone)]
 pub struct SlackSecrets {
-    secrets: CustomSecrets,
+    secrets: Arc<dyn SecretStore>,
 }
 
 impl std::fmt::Debug for SlackSecrets {
@@ -64,7 +66,7 @@ impl std::fmt::Debug for SlackSecrets {
 }
 
 impl SlackSecrets {
-    pub(crate) const fn over(secrets: CustomSecrets) -> Self {
+    pub(crate) const fn over(secrets: Arc<dyn SecretStore>) -> Self {
         Self { secrets }
     }
 

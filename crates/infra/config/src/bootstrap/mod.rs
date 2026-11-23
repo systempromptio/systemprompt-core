@@ -21,9 +21,9 @@ pub use master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key, generate_ma
 pub use profile::{LoadedProfile, ProfileBootstrapError};
 pub use secrets::{
     BOOT_REQUIRED_SECRET_KEYS, ChildSecretEnv, ChildSecretsError, DynChildSecretEnv,
-    DynSecretsProvider, EnvLookup, GrantedSecrets, GrantedSecretsError, PINNED_SECRET_KEYS,
-    ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrapError, SecretsDocument,
-    SecretsFetch, SecretsProvider, SecretsService, SecretsSourceFactory, SecretsSourceRegistration,
+    DynSecretsProvider, EnvLookup, GrantedSecrets, GrantedSecretsError, ReloadOutcome,
+    ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrapError, SecretsDocument, SecretsFetch,
+    SecretsProvider, SecretsService, SecretsSourceFactory, SecretsSourceRegistration,
     SecretsSources, SecretsStatus, SharedSecretsProvider, VaultAttemptFailure, VaultError,
     VaultKvProvider, build_external_provider, build_loaded_secrets_message, diff_secrets,
     load_secrets_from_path, process_env_lookup, refresh_interval_for, resolve_source,

@@ -10,7 +10,6 @@ mod generation;
 mod http;
 mod jwt;
 mod plugin_token;
-mod providers;
 mod registration_token;
 mod session;
 mod session_lookup;

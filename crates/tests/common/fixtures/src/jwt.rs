@@ -202,22 +202,22 @@ pub fn fixture_mcp_spawn() -> systemprompt_mcp::McpSpawn {
     }
 }
 
-// A request authenticator over the fixture keys and issuer whose database is
-// a lazy pool that never connects: `verified_claims` (signature and issuer)
-// answers, every user, session or revocation check fails. For gates that
-// only read verified claims, such as the site-auth gate.
-pub fn fixture_claims_authenticator() -> systemprompt_models::auth::DynRequestAuthenticator {
-    let db: DbPool = std::sync::Arc::new(systemprompt_database::Database::from_pools(
-        crate::db::lazy_pg_pool(),
-        None,
-    ));
+// The kernel's request authenticator over `db`, the fixture keys and issuer
+// and the jti revocation table: a token passes only for a live user row, a
+// live session row issued to that user and a jti that is not revoked.
+pub fn fixture_request_authenticator(
+    db: &DbPool,
+) -> systemprompt_models::auth::DynRequestAuthenticator {
+    let epochs = systemprompt_traits::CacheEpochs::new();
     std::sync::Arc::new(systemprompt_security::JwtRequestAuthenticator::new(
         systemprompt_security::JwtRequestAuthenticatorParts {
-            sessions: std::sync::Arc::new(systemprompt_users::SessionRepository::new(&db)),
+            sessions: std::sync::Arc::new(systemprompt_users::SessionRepository::new(db)),
             users: std::sync::Arc::new(systemprompt_users::UserService::new(std::sync::Arc::new(
-                systemprompt_users::UserRepository::new(&db),
+                systemprompt_users::UserRepository::new(db),
             ))),
-            revocations: std::sync::Arc::new(systemprompt_security::UnavailableRevocations),
+            revocations: std::sync::Arc::new(
+                systemprompt_oauth::repository::JtiRevocationChecker::new(db, epochs.view()),
+            ),
             issuer: crate::FIXTURE_JWT_ISSUER.to_owned(),
             keyring: test_signing_keys().keyring().clone(),
         },

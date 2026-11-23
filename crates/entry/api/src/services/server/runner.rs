@@ -15,6 +15,7 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
@@ -31,6 +32,8 @@ use super::phases::{run_agents_phase, run_scheduler_phase};
 use super::readiness::ReadinessState;
 use super::routes::role::{LifecyclePlan, ProcessOwnership};
 use super::scheduler_health::SchedulerHealth;
+
+const RUNNER_SERVICE_SLOT: &str = "runner_service";
 
 pub async fn run_server(
     ctx: AppContext,
@@ -191,21 +194,19 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         tracing::info!(service = "brain", "runner service started");
         started += 1;
     }
-    for member in ctx.admitted().built().members() {
-        let resolved = ctx.kernel().member_resolved(&member.owner, member.standing);
-        for factory in member.sink.runner_services() {
-            let service = factory
-                .build(&resolved)
-                .with_context(|| format!("runner service of {}", member.owner))?;
-            let name = service.name();
-            spawn_runner_service(ctx, &shared, service);
-            tracing::info!(
-                extension = %member.owner,
-                service = name,
-                "runner service started"
-            );
-            started += 1;
-        }
+    let services = ctx
+        .kernel()
+        .admitted_factories(
+            ctx.admitted().built(),
+            RUNNER_SERVICE_SLOT,
+            ContributionSink::runner_services,
+        )
+        .context("runner services")?;
+    for (owner, service) in services {
+        let name = service.name();
+        spawn_runner_service(ctx, &shared, service);
+        tracing::info!(extension = %owner, service = name, "runner service started");
+        started += 1;
     }
     tracing::info!(started, "runner services started");
     Ok(())

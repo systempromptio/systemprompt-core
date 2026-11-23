@@ -77,7 +77,6 @@ pub use models::{
     UpdateOAuthClientRequest, cimd, clients, oauth,
 };
 pub use repository::OAuthRepository;
-pub use services::providers::JwtValidationProviderImpl;
 pub use services::validation::jwt::validate_jwt_token;
 pub use services::{
     AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError,

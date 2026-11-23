@@ -14,7 +14,7 @@ use systemprompt_extension::StandingTag;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_test_fixtures::{ensure_messaging_bootstrap, fixture_app_context_on_bootstrap};
-use systemprompt_traits::{CustomSecrets, SecretStore};
+use systemprompt_traits::SecretStore;
 
 const MOVED: [&str; 5] = [
     "content-http",
@@ -51,11 +51,7 @@ async fn no_route_state_of_any_admitted_member_resolves_a_host_sealed_seed() -> 
             "{}",
             set.owner
         );
-        assert!(
-            resolved.optional::<CustomSecrets>().is_none(),
-            "{}",
-            set.owner
-        );
+        assert!(resolved.secrets().is_err(), "{}", set.owner);
         assert!(
             resolved.optional::<SystemAdmin>().is_none(),
             "{}",

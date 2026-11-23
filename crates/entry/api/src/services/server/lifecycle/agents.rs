@@ -20,7 +20,7 @@ use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_manifest::AgentConfig;
-use systemprompt_oauth::JwtValidationProviderImpl;
+use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
@@ -69,15 +69,16 @@ pub(super) async fn build_orchestrator(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<AgentOrchestrator> {
-    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
-        ctx.config(),
-        ctx.signing_keys().keyring().clone(),
-    ));
+    let authenticator = ctx
+        .kernel()
+        .state()
+        .get::<DynRequestAuthenticator>()
+        .cloned()?;
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
         AgentAuth {
-            jwt_provider,
+            authenticator,
             verification_keys: ctx.signing_keys().keyring().clone(),
         },
         Arc::new(A2ARepositories::new(

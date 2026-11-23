@@ -7,8 +7,6 @@ mod acl_glob;
 #[cfg(test)]
 mod at_rest;
 #[cfg(test)]
-mod auth_validation;
-#[cfg(test)]
 mod authz_bootstrap;
 #[cfg(test)]
 mod authz_chain_cache;

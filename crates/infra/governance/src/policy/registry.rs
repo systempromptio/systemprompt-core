@@ -16,7 +16,7 @@
 use std::sync::Arc;
 
 use serde_yaml::Value as YamlValue;
-use systemprompt_extension::{BuiltState, FactoryError, Resolved, StandingTag};
+use systemprompt_extension::{BuiltState, FactoryError, MemberResolved, Resolved, StandingTag};
 use systemprompt_identifiers::{ExtensionId, PolicyId};
 
 use super::GovernancePolicy;
@@ -148,13 +148,15 @@ impl PolicyCatalog {
         let mut catalog = Self::builtin();
         for standing in [StandingTag::Core, StandingTag::Install] {
             for member in built.members().filter(|m| m.standing == standing) {
+                let scope = member.scope();
                 for factory in member.sink.policies() {
-                    let instance = factory
-                        .build(&r.scoped_to(&member.owner, member.standing))
-                        .map_err(|source| PolicyCatalogError::Factory {
-                            owner: member.owner.clone(),
-                            source,
-                        })?;
+                    let instance =
+                        factory
+                            .build(&MemberResolved::within(r, &scope))
+                            .map_err(|source| PolicyCatalogError::Factory {
+                                owner: member.owner.clone(),
+                                source,
+                            })?;
                     catalog = catalog.with_contributed(member.owner.clone(), instance)?;
                 }
             }

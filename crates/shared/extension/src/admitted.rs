@@ -18,7 +18,7 @@
 
 use systemprompt_identifiers::ExtensionId;
 
-use crate::contribute::{ContributedJob, ContributionSink, StandingTag};
+use crate::contribute::{ContributedJob, ContributionSink, MemberScope, StandingTag};
 
 /// One admitted member's contributions, minus the routes and commands the
 /// handoff carries separately.
@@ -34,6 +34,13 @@ pub struct AdmittedMember {
 #[derive(Debug, Default)]
 pub struct BuiltState {
     members: Vec<AdmittedMember>,
+}
+
+impl AdmittedMember {
+    #[must_use]
+    pub fn scope(&self) -> MemberScope {
+        MemberScope::admitted(self.owner.clone(), self.standing)
+    }
 }
 
 impl BuiltState {

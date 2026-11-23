@@ -10,8 +10,8 @@ use systemprompt_extension::handles::AnalyticsBroadcaster;
 use systemprompt_extension::health::ReadinessCheck;
 use systemprompt_extension::router::RouteSet;
 use systemprompt_extension::{
-    FactoryError, FromState, Handed, HandleId, MissingDependency, ProvideError, Resolved,
-    RouteGroup, Slot, SlotEntry, SlotError, SlotOrder,
+    FactoryError, FromState, Handed, HandleId, MemberResolved, MissingDependency, ProvideError,
+    Resolved, RouteGroup, Slot, SlotEntry, SlotError, SlotOrder,
 };
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_runtime::Kernel;
@@ -120,8 +120,13 @@ fn handle_is_unreachable_outside_a_conferred_route_set() {
     for entry in member.sink.provides() {
         assert!(entry.compute(&resolved).is_ok());
     }
+    let scope = member.scope();
     for factory in member.sink.readiness() {
-        assert!(factory.build(&resolved).is_err());
+        assert!(
+            factory
+                .build(&MemberResolved::within(&resolved, &scope))
+                .is_err()
+        );
     }
     let inputs: Vec<_> = member
         .sink

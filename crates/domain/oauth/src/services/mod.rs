@@ -12,7 +12,6 @@ pub mod generation;
 pub mod http;
 pub mod jwt;
 pub mod plugin_token;
-pub mod providers;
 pub mod registration_token;
 pub mod session;
 pub mod templating;

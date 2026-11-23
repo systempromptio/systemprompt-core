@@ -85,11 +85,9 @@ impl Slot for UiSlot {
         let mut themes: Vec<ArtifactTheme> = Vec::new();
         let mut contributed: HashMap<String, ExtensionId> = HashMap::new();
         for entry in entries {
-            let standing = entry.standing();
+            let scope = entry.scope();
             themes.extend(entry.builder.themes);
-            for renderer in
-                build_factories(UI_SLOT, &entry.owner, standing, &entry.builder.renderers, r)?
-            {
+            for renderer in build_factories(UI_SLOT, &scope, &entry.builder.renderers, r)? {
                 let artifact_type = renderer.artifact_type().to_string();
                 if contributed
                     .insert(artifact_type.clone(), entry.owner.clone())

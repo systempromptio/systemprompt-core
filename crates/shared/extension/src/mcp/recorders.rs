@@ -75,8 +75,7 @@ impl Slot for AccessRecorderSlot {
         for entry in entries {
             recorders.extend(build_factories(
                 RECORDER_SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.recorders,
                 r,
             )?);

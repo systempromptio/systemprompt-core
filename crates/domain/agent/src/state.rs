@@ -9,22 +9,23 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_security::keys::VerificationKeyring;
-use systemprompt_traits::{DynAgentRunLauncher, DynJwtValidationProvider};
+use systemprompt_traits::DynAgentRunLauncher;
 
 use crate::repository::A2ARepositories;
 use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 
 #[derive(Clone)]
 pub struct AgentAuth {
-    pub jwt_provider: DynJwtValidationProvider,
+    pub authenticator: DynRequestAuthenticator,
     pub verification_keys: VerificationKeyring,
 }
 
 impl std::fmt::Debug for AgentAuth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AgentAuth")
-            .field("jwt_provider", &"<DynJwtValidationProvider>")
+            .field("authenticator", &self.authenticator)
             .field("verification_keys", &self.verification_keys)
             .finish()
     }
@@ -88,8 +89,8 @@ impl AgentState {
     }
 
     #[must_use]
-    pub fn jwt_provider(&self) -> &DynJwtValidationProvider {
-        &self.auth.jwt_provider
+    pub fn authenticator(&self) -> &DynRequestAuthenticator {
+        &self.auth.authenticator
     }
 
     #[must_use]

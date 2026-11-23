@@ -136,8 +136,9 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use contribute::{
     AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory,
-    FactoryError, FromState, Handed, HandleId, KernelHandle, ProvideError, ProvideFn, ProvidePhase,
-    Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories, handles,
+    FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle, MemberResolved,
+    MemberScope, ProvideError, ProvideFn, ProvidePhase, Resolved, SecretDeclarations, Slot,
+    SlotEntry, SlotError, SlotOrder, StandingTag, build_factories, handles,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
@@ -186,7 +187,8 @@ pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
     pub use crate::contribute::{
         ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState,
-        Handed, ProvideError, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag,
+        Handed, MemberResolved, MemberScope, ProvideError, Resolved, Slot, SlotEntry, SlotError,
+        SlotOrder, StandingTag,
     };
     pub use crate::error::{ExtensionConfigError, ExtensionStateError, LoaderError};
     pub use crate::gateway_guard::{

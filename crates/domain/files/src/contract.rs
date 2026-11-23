@@ -26,9 +26,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
+    Factory, MemberResolved, MemberScope, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    build_factories,
 };
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
 
 use crate::documents::agents::{AgentAccessPolicy, DefaultAgentAccessPolicy};
@@ -128,11 +128,7 @@ impl fmt::Debug for AgentAccess {
     }
 }
 
-type ContributedPolicy = (
-    ExtensionId,
-    StandingTag,
-    Box<dyn Factory<Arc<dyn AgentAccessPolicy>>>,
-);
+type ContributedPolicy = (MemberScope, Box<dyn Factory<Arc<dyn AgentAccessPolicy>>>);
 
 impl Slot for AgentAccessSlot {
     type Builder = AgentAccessSlotBuilder;
@@ -146,13 +142,12 @@ impl Slot for AgentAccessSlot {
         let contributed: Vec<ContributedPolicy> = entries
             .into_iter()
             .flat_map(|entry| {
-                let standing = entry.standing();
-                let owner = entry.owner;
+                let scope = entry.scope();
                 entry
                     .builder
                     .policies
                     .into_iter()
-                    .map(move |factory| (owner.clone(), standing, factory))
+                    .map(move |factory| (scope.clone(), factory))
             })
             .collect();
         if contributed.len() > 1 {
@@ -162,9 +157,9 @@ impl Slot for AgentAccessSlot {
             });
         }
         let policy = match contributed.into_iter().next() {
-            Some((owner, standing, factory)) => factory
-                .build(&r.scoped_to(&owner, standing))
-                .map_err(|e| e.into_slot_error(AGENT_ACCESS_SLOT, &owner))?,
+            Some((scope, factory)) => factory
+                .build(&MemberResolved::within(r, &scope))
+                .map_err(|e| e.into_slot_error(AGENT_ACCESS_SLOT, scope.owner()))?,
             None => Arc::new(DefaultAgentAccessPolicy),
         };
         Ok(AgentAccess { policy })
@@ -238,15 +233,13 @@ impl Slot for DocumentsSlot {
         for entry in entries {
             codecs.extend(build_factories(
                 DOCUMENTS_SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.codecs,
                 r,
             )?);
             template_providers.extend(build_factories(
                 DOCUMENTS_SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.template_providers,
                 r,
             )?);

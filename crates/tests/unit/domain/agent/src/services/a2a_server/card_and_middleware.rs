@@ -24,18 +24,17 @@ use tower::ServiceExt;
 use super::a2a_helpers::{StubAiProvider, agent_config, make_agent_state};
 use systemprompt_test_fixtures::test_db_pool;
 
-const ISSUER: &str = "card-middleware-tests";
-
 fn handler_state(pool: &DbPool) -> Arc<AgentHandlerState> {
-    let oauth_state = Arc::new(AgentOAuthState::new(
-        Arc::clone(pool),
-        AgentOAuthConfig::default(),
-        ISSUER.to_owned(),
-        JwtAudience::standard(),
-        systemprompt_test_fixtures::test_signing_keys()
-            .keyring()
-            .clone(),
-    ));
+    let oauth_state = Arc::new(
+        AgentOAuthState::new(
+            Arc::clone(pool),
+            AgentOAuthConfig::default(),
+            JwtAudience::standard(),
+        )
+        .with_authenticator(systemprompt_test_fixtures::fixture_request_authenticator(
+            pool,
+        )),
+    );
     Arc::new(AgentHandlerState {
         config: Arc::new(RwLock::new(agent_config("card_mw_agent"))),
         oauth_state,
@@ -116,12 +115,20 @@ async fn middleware_rejects_malformed_bearer_token() {
 async fn middleware_admits_valid_jwt_and_injects_context() {
     let pool = test_db_pool().await;
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
-    let token = systemprompt_test_fixtures::mint_admin_jwt(&user, "mw@test.invalid", ISSUER);
+    systemprompt_test_fixtures::seed_user_row(&pool, &user, &format!("{user}@mw.invalid"))
+        .await
+        .expect("seed user");
+    let cookie = systemprompt_test_fixtures::session_cookie_with(&pool, &user, 0, |request| {
+        request.browser_session = false;
+    })
+    .await
+    .expect("mint token");
+    let token = cookie.trim_start_matches("access_token=").to_owned();
 
     let response = protected_app(&pool)
         .oneshot(
             Request::get("/p")
-                .header("authorization", format!("Bearer {}", token.as_str()))
+                .header("authorization", format!("Bearer {token}"))
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -131,4 +138,36 @@ async fn middleware_admits_valid_jwt_and_injects_context() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = body_string(response).await;
     assert_eq!(body, user.to_string());
+}
+
+#[tokio::test]
+async fn middleware_refuses_a_logged_out_sessions_unexpired_token() {
+    let pool = test_db_pool().await;
+    let user = UserId::new(uuid::Uuid::new_v4().to_string());
+    systemprompt_test_fixtures::seed_user_row(&pool, &user, &format!("{user}@mw-out.invalid"))
+        .await
+        .expect("seed user");
+    let cookie = systemprompt_test_fixtures::session_cookie_with(&pool, &user, 0, |request| {
+        request.browser_session = false;
+    })
+    .await
+    .expect("mint token");
+    let token = cookie.trim_start_matches("access_token=").to_owned();
+    sqlx::query("UPDATE user_sessions SET revoked_at = now() WHERE user_id = $1")
+        .bind(user.as_str())
+        .execute(pool.write_pool().as_ref())
+        .await
+        .expect("end the session");
+
+    let response = protected_app(&pool)
+        .oneshot(
+            Request::get("/p")
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

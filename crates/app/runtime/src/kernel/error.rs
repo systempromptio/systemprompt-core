@@ -8,7 +8,7 @@ use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{DuplicateJobOwner, FactoryError, ProvideError, SlotError};
 use systemprompt_governance::authz::SubjectProviderError;
 use systemprompt_governance::policy::PolicyCatalogError;
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_identifiers::{ExtensionId, SecretName};
 use systemprompt_provider_contracts::DuplicateDependency;
 
 #[derive(Debug, thiserror::Error)]
@@ -70,6 +70,13 @@ pub enum KernelError {
     },
     #[error("policy catalog build failed")]
     Policies(#[from] PolicyCatalogError),
+    #[error(
+        "{owner} declares secret {name}, which a core member, the profile or the platform reads"
+    )]
+    ReservedSecret {
+        owner: ExtensionId,
+        name: SecretName,
+    },
     #[error("gateway guard factory of {owner} failed")]
     GatewayGuard {
         owner: ExtensionId,
