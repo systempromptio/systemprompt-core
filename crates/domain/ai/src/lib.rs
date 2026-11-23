@@ -55,6 +55,7 @@ pub mod error;
 pub(crate) mod extension;
 pub mod jobs;
 pub mod models;
+mod provides;
 pub mod repository;
 pub mod services;
 

@@ -131,7 +131,7 @@ fn a_command_without_the_grant_is_refused() {
 
 #[test]
 fn a_disabled_member_is_absent_from_the_views() {
-    let disabled = target_profile(&["brain", "notifications", "notifications-http"]);
+    let disabled = target_profile(&["brain", "brain-http", "notifications", "notifications-http"]);
     let ctx = ctx();
     let views = MemberHost::new(&ctx, cloud_doctor_descriptor())
         .admitted_views(&disabled.path)

@@ -22,7 +22,7 @@ use crate::services::core::{InferenceNotConfigured, InferenceUnavailable};
 use crate::services::tools::NoopToolProvider;
 use crate::{AiService, AiServiceProviders};
 
-pub(super) fn repositories(r: &Resolved<'_>) -> Result<Arc<AiRepositories>, ProvideError> {
+pub(crate) fn repositories(r: &Resolved<'_>) -> Result<Arc<AiRepositories>, ProvideError> {
     let db = r.get::<DbPool>()?;
     let cipher = match r.get::<Arc<dyn SecretStore>>()?.encryption_master_key() {
         Ok(key) => AtRestCipher::from_master_key(key),
@@ -37,7 +37,7 @@ pub(super) fn repositories(r: &Resolved<'_>) -> Result<Arc<AiRepositories>, Prov
     Ok(Arc::new(AiRepositories::new(&db, cipher)))
 }
 
-pub(super) fn inference(r: &Resolved<'_>) -> Result<DynAiProvider, ProvideError> {
+pub(crate) fn inference(r: &Resolved<'_>) -> Result<DynAiProvider, ProvideError> {
     let db = r.get::<DbPool>()?;
     let services = r.get::<ServicesView>()?;
     let tools = r
