@@ -45,7 +45,7 @@ pub use context::{
 };
 pub use cors::{CorsError, CorsMiddleware};
 pub use ip_ban::ip_ban_middleware;
-pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
+pub use jwt::{JwtContextExtractor, JwtUserContext};
 pub use load_shed::LoadShed;
 pub use mount::{
     ClientWritesGuard, DEFAULT_BODY_LIMIT_BYTES, KernelRoutes, MountError, MountLayers,
@@ -60,9 +60,8 @@ pub use rate_limit::{
 };
 pub use security_headers::inject_security_headers;
 pub use served_by::inject_served_by;
-pub use session::{
-    SessionAttestationError, SessionMiddleware, attest_session, should_skip_session_tracking,
-};
+pub use session::{SessionMiddleware, should_skip_session_tracking};
 pub use site_auth::{SiteAuthSession, login_redirect, site_auth_gate};
+pub use systemprompt_security::{SessionAttestationError, attest_session};
 pub use trace::inject_trace_header;
 pub use trailing_slash::{remove_trailing_slash, should_redirect};

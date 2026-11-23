@@ -48,7 +48,7 @@ impl Extension for GatewayExtension {
         c.slot::<OverrideSlot>();
         c.slot::<SafetyScannerSlot>();
         c.slot::<OutboundSlot>();
-        c.provide_sealed_after_governance(provide_engines);
+        c.provide_conferred_after_governance(ConferralRow::GatewayEngines, provide_engines);
         Ok(())
     }
 }

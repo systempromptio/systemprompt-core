@@ -17,7 +17,11 @@
 //! route set another member owns ([`Resolved::__route_scoped`] names the
 //! set's owner and its admitted standing). A host-sealed seed is withheld from
 //! the state of a route set whose owner has install standing; a core member's
-//! route set still reads it.
+//! route set still reads it. A member value provided under a reserved
+//! conferral row (`reserved::SEALED_CONFERRALS`) is also served to the state
+//! of the route set whose owner is that row's core holder, with core
+//! standing; the row is re-checked against the provider, the holder and the
+//! standing on every read.
 //!
 //! A kernel handle is not reachable through a public method. It is read only
 //! through [`Handed<K>`]'s [`FromState`] impl, which consults the resolution's
@@ -39,6 +43,7 @@ use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
 use super::error::{FactoryError, ProvideError, SlotError};
 use super::standing::StandingTag;
+use crate::reserved::conferral_admits;
 
 /// What the kernel exposes to a resolution; implemented once, in the runtime.
 #[doc(hidden)]
@@ -123,9 +128,23 @@ impl Resolved<'_> {
             return false;
         };
         match self.state.provider_of::<T>() {
-            Some(DependencyProvider::Extension(provider)) => provider != viewer.owner,
+            Some(DependencyProvider::Extension(provider)) => {
+                provider != viewer.owner && !self.conferred_on_viewer::<T>(provider, viewer)
+            },
             _ => viewer.standing == StandingTag::Install,
         }
+    }
+
+    fn conferred_on_viewer<T: Send + Sync + 'static>(
+        &self,
+        provider: &ExtensionId,
+        viewer: RouteViewer<'_>,
+    ) -> bool {
+        viewer.standing == StandingTag::Core
+            && self.state.conferral_of::<T>().is_some_and(|conferred| {
+                &conferred.holder == viewer.owner
+                    && conferral_admits(conferred.row, provider.as_str(), viewer.owner.as_str())
+            })
     }
 
     pub fn db(&self) -> Arc<dyn DatabaseHandle> {

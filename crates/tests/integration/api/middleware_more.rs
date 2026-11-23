@@ -19,12 +19,12 @@ use systemprompt_api::services::middleware::analytics::events::{
     event_metadata_for, is_sensitive_key, sanitize_uri,
 };
 use systemprompt_api::services::middleware::{
-    BotMarker, BotType, JtiRevocationChecker, detect_bots_early, ip_ban_middleware,
-    is_datacenter_ip, is_known_bot, is_outdated_browser, is_scanner_request, login_redirect,
-    site_auth_gate,
+    BotMarker, BotType, detect_bots_early, ip_ban_middleware, is_datacenter_ip, is_known_bot,
+    is_outdated_browser, is_scanner_request, login_redirect, site_auth_gate,
 };
 use systemprompt_extension::SiteAuthConfig;
 use systemprompt_identifiers::AccessTokenId;
+use systemprompt_models::auth::TokenRevocations;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::routing::EventMetadata;
 use systemprompt_traits::DynIpBanStore;
@@ -139,8 +139,7 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
                 next,
                 config,
                 systemprompt_api::services::middleware::SiteAuthSession {
-                    issuer: systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
-                    keys: &systemprompt_test_fixtures::test_signing_keys(),
+                    authenticator: &systemprompt_test_fixtures::fixture_claims_authenticator(),
                     cookie:
                         systemprompt_api::services::session_cookie::SessionCookie::for_external_url(
                             "https://app.example.com",
@@ -338,9 +337,9 @@ async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let epochs = systemprompt_traits::CacheEpochs::new();
     epochs.set_relay_live(true);
-    let checker = JtiRevocationChecker::from_repository(
+    let checker = systemprompt_oauth::repository::JtiRevocationChecker::from_repository(
         systemprompt_test_fixtures::oauth_fixture_repository(&pool),
-        epochs,
+        epochs.view(),
     );
 
     let fresh = AccessTokenId::new(format!("jti-fresh-{}", Uuid::new_v4()));
@@ -393,8 +392,8 @@ fn page_view_requires_an_html_response() {
 fn user_cache_ttl_expiry_and_admin_role() {
     use std::time::Duration;
 
-    use systemprompt_api::services::middleware::jwt::validation::{UserCache, user_is_admin};
     use systemprompt_identifiers::UserId;
+    use systemprompt_security::request_auth::users::{UserCache, user_is_admin};
     use systemprompt_traits::AuthUser;
 
     let user = AuthUser {

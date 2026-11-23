@@ -138,7 +138,7 @@ fn build_routes(
 }
 
 fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, RouteMountError> {
-    let jwt_extractor = JwtContextExtractor::from_app_context(ctx)?;
+    let jwt_extractor = JwtContextExtractor::from_kernel(ctx.kernel().state())?;
     let limits = if role.shares_process_ownership() {
         RateLimitState::from_context(ctx).unmetered()
     } else {

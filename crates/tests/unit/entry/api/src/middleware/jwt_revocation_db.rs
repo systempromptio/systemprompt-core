@@ -9,10 +9,11 @@
 //! invisible from the query alone.
 
 use chrono::{Duration, Utc};
-use systemprompt_api::services::middleware::JtiRevocationChecker;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AccessTokenId;
+use systemprompt_models::auth::TokenRevocations;
 use systemprompt_models::execution::context::ContextExtractionError;
+use systemprompt_oauth::repository::JtiRevocationChecker;
 use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 use uuid::Uuid;
 
@@ -26,7 +27,7 @@ fn checker_with_relay(pool: &DbPool, live: bool) -> JtiRevocationChecker {
     epochs.set_relay_live(live);
     JtiRevocationChecker::from_repository(
         systemprompt_test_fixtures::oauth_fixture_repository(pool),
-        epochs,
+        epochs.view(),
     )
 }
 

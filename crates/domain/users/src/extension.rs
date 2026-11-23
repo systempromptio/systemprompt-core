@@ -11,7 +11,13 @@
 //! subject-attribute provider, and the purge of its own user-keyed tables a
 //! user delete clears. It also provides the AI session provider
 //! (`DynAiSessionProvider`) **sealed**: it creates and meters a session for any
-//! user it is handed, so only the `ai` member's provide reads it.
+//! user it is handed, so only the `ai` member's provide reads it. The gateway
+//! session mint (`DynGatewaySessionMint`) is sealed and conferred on
+//! `gateway-http`. The request authenticator (`DynRequestAuthenticator`) is
+//! open: it verifies a request against the kernel's verification keyring, the
+//! issuer, the user and session rows and the kernel's token revocation check,
+//! and exposes no create, revoke or mint; a kernel that seeds no revocation
+//! check gets `UnavailableRevocations`, which refuses every token id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -87,6 +93,11 @@ impl Extension for UsersExtension {
             );
             Ok(sessions)
         })
+        .provide_conferred(
+            ConferralRow::GatewaySessionMint,
+            crate::provides::gateway_session_mint,
+        )
+        .provide(crate::provides::request_authenticator)
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&db));

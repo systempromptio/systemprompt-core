@@ -56,6 +56,8 @@ mod session_support;
 #[cfg(test)]
 mod ai_session_provider;
 #[cfg(test)]
+mod gateway_session_mint;
+#[cfg(test)]
 mod session_provider;
 #[cfg(test)]
 mod session_store_lifecycle;

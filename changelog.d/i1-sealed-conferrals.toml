@@ -1,0 +1,24 @@
+[root]
+section = "Added"
+area = "Security"
+text = "Sealed conferrals: a value a core member provides with `Contributions::provide_conferred` is sealed and readable by the route state of exactly one core holder, named by a row of the reserved table `reserved::SEALED_CONFERRALS`. The kernel refuses a conferred provide whose row does not name the provider or whose provider lacks core standing (`KernelError::UnlistedConferral`), before any provide runs; every route-state read re-checks the row against the provider, the holder and its core standing. The gateway engines are conferred on `gateway-http`. Core ids `gateway-http` and `identity-http` are reserved."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`reserved::{ConferralRow, SealedConferral, SEALED_CONFERRALS, conferral_admits, conferral_named}`, `Contributions::provide_conferred` and `provide_conferred_after_governance`, `ProvideEntry::conferral`, `CoreId::{GatewayHttp, IdentityHttp}`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Conferred`, `Dependencies::provide_conferred` and `Dependencies::conferral_of`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Added"
+text = "`KernelError::UnlistedConferral`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CoreId` gains the variants `GatewayHttp` and `IdentityHttp`; `CoreId::ALL` has 15 entries."

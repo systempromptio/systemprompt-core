@@ -14,7 +14,7 @@
 
 use thiserror::Error;
 
-use crate::dependencies::MissingDependency;
+use crate::dependency_errors::MissingDependency;
 
 #[derive(Debug, Error)]
 pub enum ProviderError {

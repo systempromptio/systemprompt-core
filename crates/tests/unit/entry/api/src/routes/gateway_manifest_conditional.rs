@@ -8,7 +8,7 @@ use axum::body::to_bytes;
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::Response;
 use systemprompt_api::routes::gateway::bridge_manifest;
-use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_HEADER, SignedManifestEnvelope};
 use systemprompt_runtime::AppContext;
@@ -16,7 +16,6 @@ use systemprompt_test_fixtures::{
     TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential, seed_user_row,
     test_db_pool,
 };
-use systemprompt_traits::AppContext as _;
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
@@ -47,16 +46,9 @@ async fn harness(mailbox: &str) -> Harness {
     )
     .await
     .expect("seed the organisation owner");
-    let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    ));
+    let extractor = Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    );
     let consumer = seed_bridge_credential(&pool, mailbox)
         .await
         .expect("consumer credential");

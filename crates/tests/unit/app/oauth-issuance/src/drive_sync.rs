@@ -3,11 +3,11 @@ use std::sync::{Arc, Mutex};
 
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, TokenAuthority, TokenResult, UserJwtRequest, UserType,
+    JwtAudience, JwtClaims, JwtUserContext, Permission, TokenAuthority, TokenResult,
+    UserJwtRequest, UserType,
 };
 use systemprompt_models::documents::DRIVE_SYNC_AUDIENCE;
 use systemprompt_oauth_issuance::{DriveSyncError, DriveSyncTokenService};
-use systemprompt_security::JwtUserContext;
 use systemprompt_traits::AuthUser;
 
 #[derive(Debug, Default)]

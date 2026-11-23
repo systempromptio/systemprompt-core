@@ -15,6 +15,8 @@
 //! kernel seed is: the kernel, provide fns, factories and slot builds read it;
 //! a job, runner-service or config-plane context, a member's command and the
 //! route state of any member but its provider are refused it as missing.
+//! [`Contributions::provide_conferred`] provides it sealed and confers it on
+//! the one core holder its reserved row names (`reserved::SEALED_CONFERRALS`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +24,7 @@
 use super::Contributions;
 use super::entries::{ProvideEntry, ProvidePhase};
 use super::resolved::ProvideFn;
+use crate::reserved::ConferralRow;
 
 impl Contributions<'_> {
     pub fn provide<T, F>(&mut self, f: F) -> &mut Self
@@ -54,6 +57,30 @@ impl Contributions<'_> {
         F: ProvideFn<T>,
     {
         self.push_provide(ProvidePhase::AfterGovernance, true, f)
+    }
+
+    pub fn provide_conferred<T, F>(&mut self, row: ConferralRow, f: F) -> &mut Self
+    where
+        T: Clone + Send + Sync + 'static,
+        F: ProvideFn<T>,
+    {
+        self.sink
+            .provides
+            .push(ProvideEntry::conferred::<T, F>(ProvidePhase::Early, row, f));
+        self
+    }
+
+    pub fn provide_conferred_after_governance<T, F>(&mut self, row: ConferralRow, f: F) -> &mut Self
+    where
+        T: Clone + Send + Sync + 'static,
+        F: ProvideFn<T>,
+    {
+        self.sink.provides.push(ProvideEntry::conferred::<T, F>(
+            ProvidePhase::AfterGovernance,
+            row,
+            f,
+        ));
+        self
     }
 
     fn push_provide<T, F>(&mut self, phase: ProvidePhase, sealed: bool, f: F) -> &mut Self

@@ -13,12 +13,11 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::{auth, bridge_manifest};
+use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_api::services::middleware::client_addr::ClientIp;
-use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_models::auth::TokenInteraction;
 use systemprompt_runtime::documents::actor::bearer_actor;
-use systemprompt_traits::AppContext as _;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
@@ -167,16 +166,9 @@ async fn session_pat_with_unknown_code_is_unauthorized() -> Result<()> {
 #[tokio::test]
 async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    ));
+    let extractor = Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    );
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
         .await
         .expect_err("missing bearer must error");
@@ -187,16 +179,9 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
 fn jwt_extractor(
     ctx: &systemprompt_runtime::AppContext,
 ) -> anyhow::Result<Arc<JwtContextExtractor>> {
-    Ok(Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    )))
+    Ok(Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    ))
 }
 
 async fn seed_exchange_code(

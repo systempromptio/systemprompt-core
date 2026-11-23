@@ -36,6 +36,7 @@ pub(crate) mod extension;
 mod ip_ban_store;
 pub mod jobs;
 pub(crate) mod models;
+mod provides;
 pub(crate) mod repository;
 pub(crate) mod services;
 
@@ -66,4 +67,4 @@ pub use services::{
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};
 
 pub(crate) mod sessions;
-pub use sessions::UsersAiSessionProvider;
+pub use sessions::{UsersAiSessionProvider, UsersGatewaySessionMint};

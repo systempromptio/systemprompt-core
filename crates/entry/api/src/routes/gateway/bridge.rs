@@ -197,10 +197,13 @@ async fn personal_keys(
     ctx: &systemprompt_runtime::AppContext,
     user_id: &systemprompt_identifiers::UserId,
 ) -> Result<BTreeSet<String>, ApiHttpError> {
-    let stored = crate::services::kernel_seeds::ai_repositories(ctx)
-        .map_err(|e| BridgeError::internal("the AI repositories are unavailable", e))?
-        .user_provider_credentials
-        .list_metadata(user_id)
+    let caller = systemprompt_extension::router::GatewayPrincipal::__from_kernel(user_id.clone());
+    let stored = ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_ai::PersonalProviderCredentials>>()
+        .map_err(|e| BridgeError::internal("the personal credential view is unavailable", e))?
+        .list(&caller)
         .await
         .map_err(|e| BridgeError::internal("personal key lookup failed", e))?;
     Ok(stored.into_iter().map(|meta| meta.credential).collect())

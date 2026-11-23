@@ -19,11 +19,12 @@ use axum::extract::rejection::JsonRejection;
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, put};
 use axum::{Json, Router};
-use systemprompt_ai::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
+use systemprompt_ai::repository::UserProviderCredentialMeta;
 use systemprompt_ai::{
-    PersonalKeyError, PersonalKeyRequest, personal_credential, personal_credentials,
-    store_personal_key,
+    PersonalKeyEntry, PersonalKeyError, PersonalProviderCredentials, personal_credential,
+    personal_credentials,
 };
+use systemprompt_extension::router::GatewayPrincipal;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential};
 use systemprompt_models::bridge::profile::{
     ProviderCredentialStatus, SetProviderCredentialRequest,
@@ -38,9 +39,9 @@ pub async fn list(
     ctx: AppContext,
     headers: HeaderMap,
 ) -> Result<Json<Vec<ProviderCredentialStatus>>, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let stored = repository(&ctx)?
-        .list_metadata(&claims.user_id)
+    let caller = caller(&jwt_extractor, &headers).await?;
+    let stored = credentials(&ctx)?
+        .list(&caller)
         .await
         .map_err(|e| BridgeError::internal("personal key listing failed", e))?;
     let catalog = ctx.services_state().catalog();
@@ -63,26 +64,22 @@ pub async fn set(
     Path(credential): Path<String>,
     body: Result<Json<SetProviderCredentialRequest>, JsonRejection>,
 ) -> Result<Json<ProviderCredentialStatus>, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let caller = caller(&jwt_extractor, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
     let catalog = ctx.services_state().catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
-    let tokens: Arc<dyn systemprompt_traits::ProviderTokenCache> =
-        crate::services::kernel_seeds::connector_tokens(&ctx)
-            .map_err(|e| ApiHttpError::internal("connector token cache unavailable", e))?;
-    let meta = store_personal_key(
-        &tokens,
-        &repository(&ctx)?,
-        catalog,
-        PersonalKeyRequest {
-            user_id: &claims.user_id,
-            credential: &credential,
-            key: &body.api_key,
-            label: body.label.as_deref(),
-        },
-    )
-    .await
-    .map_err(key_error)?;
+    let meta = credentials(&ctx)?
+        .store(
+            &caller,
+            catalog,
+            PersonalKeyEntry {
+                credential: &credential,
+                key: &body.api_key,
+                label: body.label.as_deref(),
+            },
+        )
+        .await
+        .map_err(key_error)?;
     Ok(Json(status_row(catalog, resolved, Some(&meta))))
 }
 
@@ -92,16 +89,16 @@ pub async fn delete(
     headers: HeaderMap,
     Path(credential): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let caller = caller(&jwt_extractor, &headers).await?;
     let resolved =
         personal_credential(ctx.services_state().catalog(), &credential).map_err(key_error)?;
-    let removed = repository(&ctx)?
-        .delete_key(&claims.user_id, &resolved.id)
+    let removed = credentials(&ctx)?
+        .remove(&caller, &resolved.id)
         .await
         .map_err(|e| BridgeError::internal("personal key could not be removed", e))?;
     if removed {
         tracing::info!(
-            user_id = %claims.user_id,
+            user_id = %caller.user_id(),
             credential = %resolved.id.as_str(),
             "Personal credential key removed"
         );
@@ -109,10 +106,20 @@ pub async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn repository(ctx: &AppContext) -> Result<UserProviderCredentialRepository, BridgeError> {
-    crate::services::kernel_seeds::ai_repositories(ctx)
-        .map(|repositories| repositories.user_provider_credentials.clone())
-        .map_err(|e| BridgeError::internal("the AI repositories are unavailable", e))
+async fn caller(
+    jwt_extractor: &JwtContextExtractor,
+    headers: &HeaderMap,
+) -> Result<GatewayPrincipal, BridgeError> {
+    let (_claims, user) = authenticate_bridge(jwt_extractor, headers).await?;
+    Ok(GatewayPrincipal::__from_kernel(user.id))
+}
+
+fn credentials(ctx: &AppContext) -> Result<Arc<PersonalProviderCredentials>, BridgeError> {
+    ctx.kernel()
+        .state()
+        .get::<Arc<PersonalProviderCredentials>>()
+        .cloned()
+        .map_err(|e| BridgeError::internal("the personal credential view is unavailable", e))
 }
 
 fn key_error(error: PersonalKeyError) -> BridgeError {

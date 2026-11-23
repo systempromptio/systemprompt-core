@@ -116,6 +116,8 @@ impl HostKernel {
             files_config: &files_config,
             profile,
             config: &config,
+            cache_epochs: &cache_epochs,
+            verification: &verification,
             services: services.view(),
             services_root: services_root.clone(),
             profile_path: systemprompt_manifest::services::root::ActiveProfilePath {
@@ -142,7 +144,7 @@ impl HostKernel {
                 &config,
                 verification.clone(),
             ));
-        let seed = seed.with(verification.clone()).with(jwt);
+        let seed = seed.with(jwt);
         let handle: Arc<dyn DatabaseHandle> =
             Arc::<systemprompt_database::Database>::clone(&database);
         let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);

@@ -6,7 +6,8 @@
 //! notifications capability slots and routes, the files and marketplace
 //! slots, the marketplace-http commands, the MCP, MCP-host and agent-runs
 //! slots and routes, the reserved paths every install def is compared
-//! with, and the routing class every member command keeps.
+//! with, the routing class every member command keeps, and the sealed
+//! conferral table.
 
 #[cfg(test)]
 mod admitted_views;
@@ -28,6 +29,8 @@ mod command_line_classify;
 mod command_routing;
 #[cfg(test)]
 mod composition_order;
+#[cfg(test)]
+mod conferrals;
 #[cfg(test)]
 mod content_http;
 #[cfg(test)]

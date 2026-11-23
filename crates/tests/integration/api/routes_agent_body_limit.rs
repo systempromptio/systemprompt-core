@@ -16,7 +16,7 @@ use axum::http::{Request, StatusCode, header};
 use bytes::Bytes;
 use systemprompt_api::routes::proxy::agents;
 use systemprompt_api::services::middleware::{
-    A2AContextMiddleware, BodyBudget, JtiRevocationChecker, JwtContextExtractor, RouterExt,
+    A2AContextMiddleware, BodyBudget, JwtContextExtractor, RouterExt,
 };
 use systemprompt_extension::AuthzPolicy;
 use systemprompt_models::net::{AGENT_BUFFERED_BYTES_BUDGET, AGENT_REQUEST_BODY_LIMIT_BYTES};
@@ -25,8 +25,6 @@ use systemprompt_test_fixtures::{
     TestBootstrap, init_services_bootstrap, seed_admin_credential, seed_running_service,
     test_app_context_on, test_db_pool,
 };
-use systemprompt_traits::UserProvider;
-use systemprompt_users::UserService;
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::matchers::{method, path};
@@ -91,20 +89,7 @@ settings:
 }
 
 fn extractor(ctx: &AppContext) -> JwtContextExtractor {
-    let analytics: systemprompt_traits::DynSessionStore =
-        Arc::new(systemprompt_users::SessionRepository::new(ctx.db_pool()));
-    let user_provider: Arc<dyn UserProvider> =
-        Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
-    JwtContextExtractor::new(
-        analytics,
-        user_provider,
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    )
+    JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator")
 }
 
 fn agent_route(ctx: &AppContext) -> Router {

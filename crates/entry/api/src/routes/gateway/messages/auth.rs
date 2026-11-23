@@ -28,10 +28,9 @@ use systemprompt_identifiers::{
     Actor, ApiKeyId, ClientId, ClientSessionId, JwtToken, SessionId, TraceId, UserId,
 };
 use systemprompt_models::attribution::ScopeBinding;
-use systemprompt_models::auth::{RequestActor, agent_name, bearer_actor};
+use systemprompt_models::auth::{JwtUserContext, RequestActor, agent_name, bearer_actor};
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::JwtUserContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
 
 use super::error::RejectionError;
@@ -193,7 +192,7 @@ async fn authenticate_api_key(
     let binding = bind_api_key_session(
         ctx,
         SessionRequest {
-            api_key_id: &rec.id,
+            presented: credential,
             user_id: &rec.user_id,
             header_session: inputs.header_session,
             headers: inputs.headers,

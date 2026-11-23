@@ -16,10 +16,10 @@ use std::sync::Arc;
 use chrono::{Duration, TimeZone, Utc};
 use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_models::auth::{
-    AuthenticatedUser, JwtAudience, Permission, TokenAuthority, TokenError, UserJwtRequest,
+    AuthenticatedUser, JwtAudience, JwtUserContext, Permission, TokenAuthority, TokenError,
+    UserJwtRequest,
 };
 use systemprompt_models::documents::{BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveSyncToken};
-use systemprompt_security::JwtUserContext;
 use systemprompt_traits::AuthUser;
 
 pub const MAX_TTL: Duration = Duration::hours(1);

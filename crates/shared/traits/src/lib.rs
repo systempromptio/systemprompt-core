@@ -59,7 +59,7 @@ pub mod background_tasks;
 pub mod backoff;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod cache_epoch;
-pub use cache_epoch::{CacheDomain, CacheEpochs};
+pub use cache_epoch::{CacheDomain, CacheEpochView, CacheEpochs};
 pub mod provider_tokens;
 pub use provider_tokens::ProviderTokenCache;
 pub mod config_watch;
@@ -80,6 +80,7 @@ pub use core_seam::CoreSeam;
 pub mod coordination;
 pub mod events;
 pub mod extension_error;
+pub mod gateway_session;
 pub mod ip_bans;
 pub mod job_scope;
 pub mod jwt;
@@ -212,5 +213,8 @@ pub mod session_store;
 pub mod sso;
 pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
+pub use gateway_session::{
+    DynGatewaySessionMint, GatewaySessionMint, GatewaySessionMintError, MintedGatewaySession,
+};
 pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
 pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};

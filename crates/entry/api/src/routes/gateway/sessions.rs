@@ -15,12 +15,10 @@ use axum::http::StatusCode;
 use axum::routing::post;
 use axum::{Extension, Json, Router};
 use serde::Serialize;
-use std::sync::Arc;
-use systemprompt_identifiers::{SessionId, SessionSource};
-use systemprompt_oauth::services::SessionCreationService;
+use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as _, ExtractSignals};
-use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
+use systemprompt_traits::{AppContext as _, DynGatewaySessionMint, ExtractSignals};
+use systemprompt_users::API_KEY_PREFIX;
 
 use crate::kernel::ApiHttpError;
 use crate::routes::gateway::messages::extract_credential;
@@ -43,18 +41,13 @@ pub async fn create_session(
         ));
     }
 
-    let record = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
-    )
-    .verify(&presented)
-    .await?
-    .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;
-
+    let mint = ctx
+        .kernel()
+        .state()
+        .get::<DynGatewaySessionMint>()
+        .cloned()
+        .map_err(|e| ApiHttpError::internal("Gateway session mint unavailable", e))?;
     let analytics = ctx.analytics_provider();
-    let user_provider = ctx.user_provider().ok_or_else(|| {
-        ApiHttpError::internal("User provider unavailable", "provider is not registered")
-    })?;
 
     let caller_ip = client_ip_from_request(&request, ctx.config());
     let session_analytics = analytics.extract_analytics(
@@ -65,18 +58,18 @@ pub async fn create_session(
         },
     );
 
-    let session_id = SessionCreationService::new(
-        ctx.session_provider().ok_or_else(|| {
-            ApiHttpError::internal("Session provider unavailable", "provider is not registered")
-        })?,
-        user_provider,
-        ctx.token_authority(),
-        Arc::clone(ctx.config_arc()),
-    )
-    .create_authenticated_session(&record.user_id, &session_analytics, SessionSource::Api)
-    .await?;
+    let minted = mint
+        .mint_for_api_key(&presented, &session_analytics)
+        .await
+        .map_err(|e| ApiHttpError::internal("Gateway session mint failed", e))?
+        .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;
 
-    Ok((StatusCode::CREATED, Json(MintedSession { session_id })))
+    Ok((
+        StatusCode::CREATED,
+        Json(MintedSession {
+            session_id: minted.session_id,
+        }),
+    ))
 }
 
 pub fn public_router(ctx: &AppContext) -> Router {

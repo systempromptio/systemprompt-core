@@ -12,6 +12,11 @@
 //!   carry a `kid` header; HS256 is rejected on validation.
 //! - Token extraction ([`extraction`]) from `Authorization` headers, MCP proxy
 //!   headers, and cookies.
+//! - The kernel's request authenticator ([`request_auth`]):
+//!   [`JwtRequestAuthenticator`] implements
+//!   [`systemprompt_models::auth::RequestAuthenticator`], the one verifier
+//!   every request-context extractor delegates to, with the session attestation
+//!   predicate it and the session middleware share.
 //! - Request validation ([`auth`]) that turns those tokens into a
 //!   [`systemprompt_models::execution::context::RequestContext`], resolving
 //!   non-self-issued tokens against `profile.security.trusted_issuers` and
@@ -65,6 +70,7 @@ pub mod jwt;
 pub mod keys;
 pub mod manifest_signing;
 pub mod oauth_wire;
+pub mod request_auth;
 pub mod services;
 pub mod session;
 
@@ -79,8 +85,12 @@ pub use extraction::{
     HeaderInjectionError, HeaderInjector, TokenExtractionError, TokenExtractor,
 };
 pub use jwt::{
-    AdminTokenParams, DeploymentTokenAuthority, JwtService, JwtUserContext, extract_user_context,
+    AdminTokenParams, DeploymentTokenAuthority, JwtService, extract_user_context,
     extract_user_context_for,
+};
+pub use request_auth::{
+    JwtRequestAuthenticator, JwtRequestAuthenticatorParts, SessionAttestationError,
+    UnavailableRevocations, attest_session,
 };
 pub use services::ScannerDetector;
 pub use session::{SessionGenerator, SessionParams, ValidatedSessionClaims};

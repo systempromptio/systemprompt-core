@@ -53,7 +53,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
-use thiserror::Error;
+
+use crate::conferred::Conferred;
+use crate::dependency_errors::{DuplicateDependency, MissingDependency};
 
 /// Who put an entry into a [`Dependencies`] map.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,6 +87,7 @@ pub struct Dependencies {
     entries: Arc<HashMap<TypeId, Entry>>,
     reserved: Arc<HashMap<TypeId, &'static str>>,
     sealed: Arc<HashSet<TypeId>>,
+    pub(crate) conferred: Arc<HashMap<TypeId, Conferred>>,
 }
 
 impl Dependencies {
@@ -260,41 +263,13 @@ impl fmt::Debug for Dependencies {
         reserved.sort_unstable();
         let mut sealed: Vec<&str> = self.sealed_types().map(|(_, name)| name).collect();
         sealed.sort_unstable();
+        let mut conferred: Vec<&str> = self.conferred.values().map(|c| c.row).collect();
+        conferred.sort_unstable();
         f.debug_struct("Dependencies")
             .field("types", &names)
             .field("reserved", &reserved)
             .field("sealed", &sealed)
+            .field("conferred", &conferred)
             .finish()
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-#[error("provider context has no {type_name} dependency")]
-pub struct MissingDependency {
-    type_name: &'static str,
-}
-
-impl MissingDependency {
-    #[must_use]
-    pub fn of<T: Any>() -> Self {
-        Self {
-            type_name: type_name::<T>(),
-        }
-    }
-
-    #[must_use]
-    pub const fn type_name(&self) -> &'static str {
-        self.type_name
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-#[error(
-    "{type_name} is already provided by {first}; extension '{second}' cannot provide it again, \
-     every type has exactly one provider"
-)]
-pub struct DuplicateDependency {
-    pub type_name: &'static str,
-    pub first: DependencyProvider,
-    pub second: ExtensionId,
 }

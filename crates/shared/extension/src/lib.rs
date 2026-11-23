@@ -192,6 +192,7 @@ pub mod prelude {
     pub use crate::gateway_guard::{
         GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
     };
+    pub use crate::reserved::ConferralRow;
     pub use crate::retention::{RetentionDecl, RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
     #[cfg(feature = "router")]

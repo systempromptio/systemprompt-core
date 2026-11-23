@@ -6,25 +6,22 @@
 //! bound to the key in `api_key_sessions` (minted on first use, re-minted if
 //! it has gone), and the client's header is kept as the audit row's
 //! `client_session_id` when the body names no client session of its own.
+//! The users member's sealed gateway session mint does all three, for the
+//! verified owner of the presented key only.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
-use std::sync::Arc;
-use systemprompt_identifiers::{ApiKeyId, ClientSessionId, SessionId, SessionSource, UserId};
-use systemprompt_oauth::services::SessionCreationService;
+use systemprompt_identifiers::{ClientSessionId, SessionId, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as _, ExtractSignals};
+use systemprompt_traits::{AppContext as _, DynGatewaySessionMint, ExtractSignals};
 
 use super::error::RejectionError;
-use crate::kernel::{SessionAttestationError, attest_session};
-
-const ROUTE: &str = "gateway/messages";
 
 #[derive(Debug, Clone, Copy)]
 pub struct SessionRequest<'a> {
-    pub api_key_id: &'a ApiKeyId,
+    pub presented: &'a str,
     pub user_id: &'a UserId,
     pub header_session: Option<&'a SessionId>,
     pub headers: &'a HeaderMap,
@@ -40,84 +37,36 @@ pub async fn bind_api_key_session(
     ctx: &AppContext,
     request: SessionRequest<'_>,
 ) -> Result<SessionBinding, RejectionError> {
-    if let Some(header) = request.header_session
-        && is_usable(ctx, header, request.user_id).await?
-    {
-        return Ok(SessionBinding {
-            session_id: header.clone(),
-            client_session: None,
-        });
+    let mint = ctx
+        .kernel()
+        .state()
+        .get::<DynGatewaySessionMint>()
+        .cloned()
+        .map_err(|e| binding_error("gateway session mint unavailable").with_cause(e))?;
+    let analytics = ctx
+        .analytics_provider()
+        .extract_analytics(request.headers, ExtractSignals::default());
+    let bound = mint
+        .bind_for_api_key(request.presented, request.header_session, &analytics)
+        .await
+        .map_err(|e| binding_error("api-key session bind failed").with_cause(e))?
+        .ok_or_else(|| {
+            RejectionError::client(StatusCode::UNAUTHORIZED, "Invalid or revoked API key")
+        })?;
+    if bound.user_id.as_str() != request.user_id.as_str() {
+        return Err(binding_error("api-key session bound to another user"));
     }
-    let session_id = bound_session(ctx, request).await?;
-    Ok(SessionBinding {
-        session_id,
-        client_session: request
+    let client_session = if bound.presented_session_kept {
+        None
+    } else {
+        request
             .header_session
-            .and_then(|s| ClientSessionId::try_new(s.as_str().to_owned()).ok()),
+            .and_then(|s| ClientSessionId::try_new(s.as_str().to_owned()).ok())
+    };
+    Ok(SessionBinding {
+        session_id: bound.session_id,
+        client_session,
     })
-}
-
-async fn is_usable(
-    ctx: &AppContext,
-    session_id: &SessionId,
-    user_id: &UserId,
-) -> Result<bool, RejectionError> {
-    let sessions = ctx.session_provider().ok_or_else(|| {
-        RejectionError::server(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "session provider unavailable: cannot attest session",
-        )
-    })?;
-    match attest_session(&sessions, session_id, user_id, ROUTE).await {
-        Ok(()) => Ok(true),
-        Err(SessionAttestationError::Missing | SessionAttestationError::UserMismatch) => Ok(false),
-        Err(lookup @ SessionAttestationError::Lookup(..)) => Err(RejectionError::server(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "session attestation failed",
-        )
-        .with_cause(lookup)),
-    }
-}
-
-async fn bound_session(
-    ctx: &AppContext,
-    request: SessionRequest<'_>,
-) -> Result<SessionId, RejectionError> {
-    let repo = ctx.user_repository();
-    let existing = repo
-        .find_api_key_session(request.api_key_id)
-        .await
-        .map_err(|e| binding_error("api-key session lookup failed").with_cause(e))?;
-    if let Some(session_id) = existing
-        && is_usable(ctx, &session_id, request.user_id).await?
-    {
-        return Ok(session_id);
-    }
-    let session_id = mint(ctx, request).await?;
-    repo.set_api_key_session(request.api_key_id, &session_id)
-        .await
-        .map_err(|e| binding_error("api-key session bind failed").with_cause(e))?;
-    Ok(session_id)
-}
-
-async fn mint(ctx: &AppContext, request: SessionRequest<'_>) -> Result<SessionId, RejectionError> {
-    let analytics = ctx.analytics_provider();
-    let users = ctx
-        .user_provider()
-        .ok_or_else(|| binding_error("user provider unavailable"))?;
-    let sessions = ctx
-        .session_provider()
-        .ok_or_else(|| binding_error("session provider unavailable"))?;
-    let session_analytics = analytics.extract_analytics(request.headers, ExtractSignals::default());
-    SessionCreationService::new(
-        sessions,
-        users,
-        ctx.token_authority(),
-        Arc::clone(ctx.config_arc()),
-    )
-    .create_authenticated_session(request.user_id, &session_analytics, SessionSource::Api)
-    .await
-    .map_err(|e| binding_error("api-key session mint failed").with_cause(e))
 }
 
 fn binding_error(message: &'static str) -> RejectionError {

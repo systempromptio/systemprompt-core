@@ -8,9 +8,8 @@ use axum::http::header;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
-use systemprompt_models::auth::Permission;
-use systemprompt_security::keys::SigningKeys;
-use systemprompt_security::{TokenExtractor, extract_user_context};
+use systemprompt_models::auth::{DynRequestAuthenticator, Permission};
+use systemprompt_security::TokenExtractor;
 
 use crate::services::session_cookie::SessionCookie;
 
@@ -19,11 +18,11 @@ const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".map", ".webp", ".avif",
 ];
 
-/// How the site gate verifies a session token and clears a rejected one.
+/// How the site gate verifies a session token (the kernel's request
+/// authenticator) and clears a rejected one.
 #[derive(Debug, Clone, Copy)]
 pub struct SiteAuthSession<'a> {
-    pub issuer: &'a str,
-    pub keys: &'a SigningKeys,
+    pub authenticator: &'a DynRequestAuthenticator,
     pub cookie: SessionCookie,
 }
 
@@ -67,7 +66,7 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
-    match authorize(&request, &config, session.issuer, session.keys) {
+    match authorize(&request, &config, session.authenticator) {
         AuthOutcome::Authorized => next.run(request).await,
         outcome => {
             let redirect = login_redirect(config.login_path, request.uri());
@@ -91,8 +90,7 @@ enum AuthOutcome {
 fn authorize(
     request: &Request,
     config: &SiteAuthConfig,
-    issuer: &str,
-    keys: &SigningKeys,
+    authenticator: &DynRequestAuthenticator,
 ) -> AuthOutcome {
     let path = request.uri().path();
     let Ok(token) = TokenExtractor::browser_only()
@@ -110,9 +108,8 @@ fn authorize(
     }) else {
         return AuthOutcome::Unauthorized;
     };
-    let Ok(user_ctx) = extract_user_context(keys.keyring(), &token, issuer)
-        .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed; clearing cookie"))
-    else {
+    let Some(user_ctx) = authenticator.verified_claims(&token) else {
+        tracing::debug!(%path, "jwt validation failed; clearing cookie");
         return AuthOutcome::InvalidToken;
     };
     if user_ctx.role.grants(&required) {

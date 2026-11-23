@@ -47,6 +47,8 @@ pub const CORE_MEMBER_IDS: &[&str] = &[
     CoreId::McpHttp.id(),
     CoreId::AgentHttp.id(),
     CoreId::BrainHttp.id(),
+    CoreId::GatewayHttp.id(),
+    CoreId::IdentityHttp.id(),
     CoreId::Slack.id(),
     CoreId::Teams.id(),
     CoreId::Kernel.id(),

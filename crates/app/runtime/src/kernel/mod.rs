@@ -33,7 +33,10 @@
 //! — the audience resolvers, the owner reassignments and the three governance
 //! surfaces — are reserved
 //! before any member's code runs: a member that provides one, or opens a slot
-//! that builds one, is refused with [`KernelError::ReservedType`]. Only
+//! that builds one, is refused with [`KernelError::ReservedType`]; a member
+//! that provides a value under a conferral row which does not name it, or
+//! that lacks core standing, is refused with
+//! [`KernelError::UnlistedConferral`]. Only
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
@@ -67,7 +70,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
-use self::reserved::{gateway_guards, refuse_kernel_types};
+use self::reserved::{gateway_guards, refuse_kernel_types, refuse_unlisted_conferrals};
 
 mod error;
 mod reserved;
@@ -125,6 +128,7 @@ impl Kernel {
         self.state.insert(AdmittedConfigs::of(admitted.built()));
         self.state.insert(AdmittedAssets::of(admitted.built()));
         refuse_kernel_types(admitted.built())?;
+        refuse_unlisted_conferrals(admitted.built())?;
         self.provide_all(admitted, ProvidePhase::Early)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));

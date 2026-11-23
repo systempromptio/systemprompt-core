@@ -19,7 +19,7 @@ pub use auth_code::{
     AuthCodeParams, AuthCodeRedemption, AuthCodeValidationResult, MintAuthCodeParams,
 };
 pub use consent::{CONSENT_TOKEN_TTL_SECS, ConsentBinding, REAUTH_MARKER_TTL_SECS, ReauthBinding};
-pub use jti_revocation::JtiRevocationCache;
+pub use jti_revocation::{JtiRevocationCache, JtiRevocationChecker};
 pub use refresh_token::{RefreshTokenLineage, RefreshTokenParams};
 pub use sso_replay::PostgresReplayGuard;
 pub use sso_state::{SsoStateParams, SsoStateRow};

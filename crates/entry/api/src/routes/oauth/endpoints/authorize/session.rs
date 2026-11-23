@@ -21,7 +21,7 @@ use systemprompt_security::CookieExtractor;
 
 use super::AuthorizeQuery;
 use super::validation::ValidatedAuthorizeRequest;
-use crate::services::middleware::session::attest_session;
+use systemprompt_security::attest_session;
 
 const ROUTE: &str = "oauth/authorize";
 

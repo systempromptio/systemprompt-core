@@ -17,6 +17,10 @@
 //! [`crate::ConfigWatch`]) waits on [`CacheEpochs::subscribe`] instead of
 //! polling the counter.
 //!
+//! [`CacheEpochView`] is the read half: it reads, subscribes to and reports
+//! the liveness of the same epochs and cannot advance them. Kernels seed it
+//! open; the advancing [`CacheEpochs`] handle stays sealed.
+//!
 //! [`CacheDomain::Services`] is no database plane: it is advanced in-process
 //! when a services refresh swaps the composed tree, and its watcher re-reads
 //! that tree.
@@ -148,10 +152,41 @@ impl Default for EpochSlots {
     }
 }
 
+/// The read half of a [`CacheEpochs`] handle: the same epochs, without
+/// [`CacheEpochs::advance`] or the relay's liveness switch.
+#[derive(Debug, Clone)]
+pub struct CacheEpochView {
+    inner: Arc<EpochSlots>,
+}
+
+impl CacheEpochView {
+    #[must_use]
+    pub fn current(&self, domain: CacheDomain) -> u64 {
+        self.inner.slots[domain.slot()].load(Ordering::Acquire)
+    }
+
+    #[must_use]
+    pub fn subscribe(&self, domain: CacheDomain) -> watch::Receiver<u64> {
+        self.inner.signals[domain.slot()].subscribe()
+    }
+
+    #[must_use]
+    pub fn relay_live(&self) -> bool {
+        self.inner.relay_live.load(Ordering::Acquire)
+    }
+}
+
 impl CacheEpochs {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[must_use]
+    pub fn view(&self) -> CacheEpochView {
+        CacheEpochView {
+            inner: Arc::clone(&self.inner),
+        }
     }
 
     #[must_use]

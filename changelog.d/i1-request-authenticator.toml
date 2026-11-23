@@ -1,0 +1,39 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "One request authenticator verifies every request the kernel mounts: `DynRequestAuthenticator` (`systemprompt_models::auth::RequestAuthenticator`) checks the bearer or session cookie (signature, issuer, audience), the active user row, the session row and the token's revocation, and yields the caller's `RequestContext` or verified claims; it never mints. The users member provides it open, built over the kernel's verification keyring and the kernel-seeded revocation check (`DynTokenRevocations`); a kernel without a revocation store gets `UnavailableRevocations`, which refuses every token id. The context middlewares, the bearer rate window, the gateway handlers, the session middleware's cookie check and the site-auth gate all verify through it. On A2A routes the bearer is now verified before the request body is read, and a UI-session token sent as the cookie is refused there as on every other route."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`auth::{RequestAuthenticator, DynRequestAuthenticator, TokenRevocations, DynTokenRevocations}`; `auth::JwtUserContext` (moved from `systemprompt-security`)."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`request_auth`: `JwtRequestAuthenticator`, `JwtRequestAuthenticatorParts`, `UnavailableRevocations`, `attest_session` and `SessionAttestationError` (moved from `systemprompt-api`), and the context-building and user-cache helpers it uses."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Breaking"
+text = "`JwtUserContext` is `systemprompt_models::auth::JwtUserContext`; the `systemprompt_security::JwtUserContext` re-export is removed."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Added"
+text = "`repository::JtiRevocationChecker` (moved from `systemprompt-api`), the `TokenRevocations` over the jti table and its cache."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`JtiRevocationCache::new` and `with_capacity` take a `CacheEpochView`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "The users member provides the open `DynRequestAuthenticator`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`JwtContextExtractor` adapts the kernel's `DynRequestAuthenticator` (`JwtContextExtractor::new(authenticator)`, `from_kernel(&Dependencies)`, `authenticator()`); `from_app_context`, `JtiRevocationChecker` and the `jwt::params` / `jwt::validation` modules are removed. `SiteAuthSession` and `SiteAuthGuard` carry the authenticator in place of the issuer and signing keys. `attest_session` and `SessionAttestationError` are re-exported from `systemprompt-security`."

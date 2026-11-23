@@ -116,6 +116,10 @@ async fn plane_debug_impls_flag_optional_members() {
         logging: systemprompt_test_fixtures::fixture_logging_runtime(),
         authz_hook: Arc::clone(&authz_hook),
         signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+        token_authority: Arc::new(systemprompt_security::DeploymentTokenAuthority::new(
+            systemprompt_test_fixtures::test_signing_keys(),
+            "planes-issuer".to_owned(),
+        )),
         governance: systemprompt_test_fixtures::default_governance_watch(),
         services: systemprompt_test_fixtures::fixture_services_state(),
         cache_epochs: systemprompt_traits::CacheEpochs::new(),

@@ -94,6 +94,7 @@ pub use repository::{
     InsertSafetyFinding, QuotaBucketDelta, QuotaBucketState, UpsertPayloadParams,
 };
 
+pub use services::personal_credentials::{PersonalKeyEntry, PersonalProviderCredentials};
 pub use services::personal_keys::{
     PersonalKeyError, PersonalKeyRequest, credential_endpoints, credential_label,
     personal_credential, personal_credentials, store_personal_key, verify_personal_key,

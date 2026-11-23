@@ -16,28 +16,18 @@ use systemprompt_api::routes::gateway::messages::error::RejectionError;
 use systemprompt_api::routes::gateway::messages::rejection::{
     build_rejection_record, persist_rejection,
 };
-use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{AiRequestId, SessionId};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
-use systemprompt_traits::AppContext as _;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, NewApiKey};
 
 use super::common::setup_ctx;
 use super::gateway_messages_more::{gw_repos, test_partial};
 
 pub(super) fn jwt_extractor(ctx: &AppContext) -> JwtContextExtractor {
-    JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    )
+    JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator")
 }
 
 pub(super) async fn sign_in(

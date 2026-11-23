@@ -3,8 +3,9 @@
 //! The kernel inserts a [`GatewayPrincipal`] as a request extension only on
 //! routes admitted under a gateway-route conferral, after its verifier has
 //! accepted the bearer. A handler extracts it with
-//! `Extension<GatewayPrincipal>`; no function outside a handler's extractor
-//! takes one as evidence of verification.
+//! `Extension<GatewayPrincipal>` and hands it to the caller-bound views
+//! conferred on `gateway-http`, which read and write only that principal's
+//! rows. Nothing outside the kernel's verifier builds one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

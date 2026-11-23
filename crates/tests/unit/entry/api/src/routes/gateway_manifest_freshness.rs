@@ -14,7 +14,7 @@ use std::sync::{Arc, OnceLock};
 use axum::http::{HeaderMap, header};
 use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::routes::gateway::bridge_resolved::Freshness;
-use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
 use systemprompt_runtime::AppContext;
@@ -22,7 +22,6 @@ use systemprompt_test_fixtures::{
     DisposableDb, TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential,
     seed_user_row,
 };
-use systemprompt_traits::AppContext as _;
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
@@ -77,16 +76,9 @@ async fn harness(mailbox: &str) -> Harness {
     seed_user_row(&pool, owner, &format!("{owner}@manifest-freshness.invalid"))
         .await
         .expect("seed the organisation owner");
-    let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    ));
+    let extractor = Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    );
     let consumer = seed_bridge_credential(&pool, mailbox)
         .await
         .expect("consumer credential");

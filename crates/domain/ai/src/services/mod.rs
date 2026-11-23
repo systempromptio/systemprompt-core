@@ -9,6 +9,7 @@
 
 pub mod config;
 pub mod core;
+pub mod personal_credentials;
 pub mod personal_keys;
 pub mod providers;
 pub mod schema;

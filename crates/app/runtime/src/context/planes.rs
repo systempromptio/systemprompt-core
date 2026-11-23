@@ -74,6 +74,7 @@ pub struct Subsystems {
     pub logging: LoggingRuntime,
     pub authz_hook: SharedAuthzHook,
     pub signing_keys: SigningKeys,
+    pub token_authority: Arc<dyn systemprompt_models::auth::TokenAuthority>,
     pub governance: ConfigWatch<GovernanceEngine>,
     pub services: systemprompt_loader::ServicesState,
     pub cache_epochs: CacheEpochs,

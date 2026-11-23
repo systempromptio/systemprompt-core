@@ -1,15 +1,16 @@
-//! JWT middleware construction parameters.
+//! Building the request context from verified claims and the request's
+//! headers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::extraction::{ExtractionMethod, HeaderExtractor, TokenExtractor};
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_models::auth::{TokenInteraction, UserType};
+use systemprompt_models::auth::{JwtUserContext, TokenInteraction, UserType};
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
-use systemprompt_security::{ExtractionMethod, HeaderExtractor, JwtUserContext, TokenExtractor};
 
 #[derive(Debug)]
 pub struct BuildContextParams {

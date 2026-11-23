@@ -201,3 +201,25 @@ pub fn fixture_mcp_spawn() -> systemprompt_mcp::McpSpawn {
         ),
     }
 }
+
+// A request authenticator over the fixture keys and issuer whose database is
+// a lazy pool that never connects: `verified_claims` (signature and issuer)
+// answers, every user, session or revocation check fails. For gates that
+// only read verified claims, such as the site-auth gate.
+pub fn fixture_claims_authenticator() -> systemprompt_models::auth::DynRequestAuthenticator {
+    let db: DbPool = std::sync::Arc::new(systemprompt_database::Database::from_pools(
+        crate::db::lazy_pg_pool(),
+        None,
+    ));
+    std::sync::Arc::new(systemprompt_security::JwtRequestAuthenticator::new(
+        systemprompt_security::JwtRequestAuthenticatorParts {
+            sessions: std::sync::Arc::new(systemprompt_users::SessionRepository::new(&db)),
+            users: std::sync::Arc::new(systemprompt_users::UserService::new(std::sync::Arc::new(
+                systemprompt_users::UserRepository::new(&db),
+            ))),
+            revocations: std::sync::Arc::new(systemprompt_security::UnavailableRevocations),
+            issuer: crate::FIXTURE_JWT_ISSUER.to_owned(),
+            keyring: test_signing_keys().keyring().clone(),
+        },
+    ))
+}

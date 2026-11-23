@@ -12,32 +12,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
-use systemprompt_identifiers::{AccessTokenId, Actor, ClientId, SessionId, UserId};
-use systemprompt_models::auth::{Permission, TokenInteraction, UserType};
+use systemprompt_identifiers::{AccessTokenId, UserId};
+use systemprompt_models::auth::JwtUserContext;
 
 use super::validate::{ValidationPolicy, decode_session_claims};
 use crate::error::{AuthError, AuthResult};
 use crate::keys::VerificationKeyring;
 
-#[derive(Debug, Clone)]
-pub struct JwtUserContext {
-    pub user_id: UserId,
-    pub session_id: SessionId,
-    pub role: Permission,
-    pub user_type: UserType,
-    pub client_id: Option<ClientId>,
-    pub act_chain: Vec<Actor>,
-    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
-    pub attributes: BTreeMap<String, serde_json::Value>,
-    pub jti: Option<AccessTokenId>,
-    pub exp: i64,
-    pub purpose: Option<String>,
-    pub interaction: Option<TokenInteraction>,
-    pub browser_session: bool,
-    pub ui_session: bool,
-    pub auth_time: i64,
-}
 
 pub fn extract_user_context(
     keys: &VerificationKeyring,

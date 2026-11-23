@@ -13,7 +13,7 @@ use std::sync::{Arc, OnceLock};
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, Request, StatusCode, header};
 use systemprompt_api::routes::gateway::bridge_manifest;
-use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, UserId};
 use systemprompt_marketplace::managed::{
@@ -33,7 +33,6 @@ use systemprompt_test_fixtures::{
     TestBootstrap, fixture_config, init_isolated_bootstrap, seed_bridge_credential, seed_user_row,
     test_db_pool,
 };
-use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 
 // One enabled plugin that claims every skill on the instance, so a managed
@@ -113,16 +112,9 @@ async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     seed_user_row(&pool, owner, &format!("{owner}@manifest-grants.invalid"))
         .await
         .expect("seed the organisation owner");
-    let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    ));
+    let extractor = Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    );
     Harness {
         pool,
         ctx: (*ctx).clone(),
@@ -811,16 +803,9 @@ async fn private_harness(label: &str) -> (systemprompt_test_fixtures::Disposable
     seed_user_row(&pool, &owner, &format!("{owner}@private-consumer.invalid"))
         .await
         .unwrap();
-    let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().unwrap(),
-        ctx.user_provider().unwrap(),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    ));
+    let extractor = Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    );
     let harness = Harness {
         pool,
         ctx: (*ctx).clone(),

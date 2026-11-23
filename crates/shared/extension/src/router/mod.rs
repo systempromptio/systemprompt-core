@@ -25,7 +25,6 @@ mod http_error;
 #[cfg(feature = "router")]
 mod negotiation;
 mod overlap;
-#[cfg(feature = "router")]
 mod principal;
 #[cfg(feature = "router")]
 mod set;
@@ -46,7 +45,6 @@ pub use overlap::{
     GatewayDefRefusal, RouteOverlap, first_overlap, full_path, path_covers, refused_gateway_def,
     refused_reservation, reserved_below,
 };
-#[cfg(feature = "router")]
 pub use principal::GatewayPrincipal;
 #[cfg(feature = "router")]
 pub use set::{GatewayRouteDecl, RouteSet, RouteSetBuilder};
