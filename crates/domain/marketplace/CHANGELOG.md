@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Added
+
+- A managed MCP server in the bridge manifest lists the enabled toolsets it hosts (`ManagedMcpServer::toolsets`).
+
 ## [0.81.0] - 2026-11-12
 
 ### Changed

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Breaking
+
+- `DocumentsConfig` gains `external_sharing: ExternalSharingConfig`, `DocumentRepositories` gains `public_links` and `invites`, and `DocumentsError` gains `ExternalSharingRefused` and `LinkPassword`. Migrate a struct literal by adding `external_sharing: ExternalSharingConfig::default()` (or `..DocumentsConfig::default()`), and an exhaustive `match` by adding the two arms.
+
+### Added
+
+- External sharing of a document: read-only public links (`PublicLink`, `NewPublicLink`, `PublicLinkGate`) whose token is stored only as its SHA-256 and optional password only as its bcrypt hash, and email invites claimed by a signed-in person with that verified email, governed by `ExternalSharingConfig { public_links, invites, deny_formats, deny_folders, max_link_days }` (off by default) and `ExternalChannel`. Migration `046_document_external_sharing` adds `document_public_links`, `document_link_attempts` and `document_invites`.
+- `document.drive.changed` follows every change to what a Drive shows: a rename, move, trash or restore, a grant written or removed, an ownership transfer, and a folder's creation, rename, move and deletion, reaching the users who held access before as well as after.
+
 ## [0.84.0] - 2026-11-20
 
 ### Breaking

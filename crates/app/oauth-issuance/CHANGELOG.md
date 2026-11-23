@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Added
+
+- A refresh of a token issued through a device link carrying a UI session is refused, and its family revoked, once the device key it was issued with is revoked or expires (`UserProvider::device_key_stands`).
+
 ## [0.85.0] - 2026-11-21
 
 ### Breaking

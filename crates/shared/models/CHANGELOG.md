@@ -1,13 +1,20 @@
 # Changelog
 
-## [Unreleased]
+## [0.86.0] - 2026-11-23
 
 ### Breaking
 
+- `bridge::gateway::DevicePatResponse` gains `ui_code: Option<String>`. Migrate a struct literal by setting `ui_code: None`.
+- `bridge::gateway::WhoamiResponse` gains `attributes: BTreeMap<String, Vec<String>>`. Migrate a struct literal by adding `attributes: BTreeMap::new()` or `..WhoamiResponse::default()`.
+- `bridge::manifest::ManagedMcpServer` gains `toolsets: Vec<String>`. Migrate a struct literal by setting `toolsets: Vec::new()`.
+- `documents::GrantEventKind` gains `PublicLinkCreated`, `PublicLinkOpened`, `PublicLinkRevoked`, `InviteCreated`, `InviteClaimed` and `InviteRevoked`. Migrate an exhaustive `match` by adding the six arms.
 - `notifications::NotificationEvent` gains `actor_is_system: bool` (`#[serde(default)]`, so events already in the outbox decode as `false`). Migrate a struct literal by setting `actor_is_system: false`; `NotificationEvent::new` already does.
 
 ### Added
 
+- `path_confine::logs`: the disk log-file helpers, confined beneath a logs root, with `LogFileError`.
+- `authz::SubjectAttributes::iter`; `SubjectSourceHandle` and `AlreadyBound` live in `authz::handle` and stay re-exported from `authz`.
+- `paths::PUBLIC_DOCUMENT_LINKS` (`/s`).
 - `NotificationEvent::with_actor_is_system(bool)`: marks an event the platform produced on its own schedule, whose `actor` is the account it is attributed to rather than a person who acted.
 
 ## [0.85.0] - 2026-11-21

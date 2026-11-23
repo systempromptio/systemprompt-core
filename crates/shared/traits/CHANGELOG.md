@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Added
+
+- `UserProvider::device_key_stands`, defaulted to `false`: whether a device key still stands, consulted before a device-linked refresh.
+
 ## [0.85.0] - 2026-11-21
 
 ### Breaking

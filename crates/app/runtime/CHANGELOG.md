@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Added
+
+- The `brain` MCP toolset (with the `brain` feature): a managed MCP server that lists it offers the agent brain tools (search, propose, dispute, why, recall preview, guide), never the governing ones; with the brain off it is skipped and the server still boots. `HostContext::brain()` returns the host's brain handle, and `brain::mcp::INSTRUCTIONS` is public.
+- The refusal parity table covers the external-sharing errors (`ExternalSharingRefused`, `LinkPassword`).
+
 ## [0.84.0] - 2026-11-20
 
 ### Breaking
