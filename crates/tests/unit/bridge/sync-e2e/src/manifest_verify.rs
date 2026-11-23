@@ -613,6 +613,7 @@ fn refresh_registry_publishes_the_servers_of_a_fresh_verified_manifest() {
             headers: None,
             oauth: None,
             tool_policy: None,
+            toolsets: Vec::new(),
         }];
     let env = signed_envelope_of(&key, &with_server);
     let (server, dirs) = block_on(async {

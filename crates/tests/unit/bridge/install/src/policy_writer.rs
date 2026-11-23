@@ -58,6 +58,7 @@ pub(crate) fn server(
         headers: None,
         oauth: None,
         tool_policy,
+        toolsets: Vec::new(),
     }
 }
 

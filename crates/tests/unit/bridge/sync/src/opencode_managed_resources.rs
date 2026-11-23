@@ -129,6 +129,7 @@ pub(crate) fn mcp(name: &str) -> ManagedMcpServer {
         oauth: None,
         tool_policy: None,
     }
+    toolsets: Vec::new(),
 }
 
 

@@ -113,6 +113,7 @@ fn mcp(name: &str, url: &str) -> ManagedMcpServer {
         oauth: None,
         tool_policy: None,
     }
+    toolsets: Vec::new(),
 }
 
 fn plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {

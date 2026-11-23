@@ -229,6 +229,8 @@ impl HostContext {
                     .assemble(ExtensionSeams::default())
                     .service,
             ),
+            #[cfg(feature = "brain")]
+            brain: None,
             background_tasks,
             log_sink,
             extension,
@@ -239,6 +241,17 @@ impl HostContext {
             let seams = ExtensionSeams::discover(&host);
             audiences.bind(seams.audiences.clone());
             host.notifications = Arc::clone(&notifications_core.assemble(seams).service);
+            host
+        };
+        // Why: assembled after the host exists, as the API assembles its own, so
+        // recall composes the extension seams discovered over this context.
+        #[cfg(feature = "brain")]
+        let host = {
+            let mut host = host;
+            let seams = crate::RecallSeams::discover(&host);
+            host.brain = brain_core
+                .as_ref()
+                .map(|core| core.assemble(&host.documents, seams));
             host
         };
         Ok(host)

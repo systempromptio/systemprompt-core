@@ -61,6 +61,7 @@ fn mcp_server(name: &str, url: &str) -> ManagedMcpServer {
         oauth: None,
         tool_policy: None,
     }
+    toolsets: Vec::new(),
 }
 
 fn agent_entry(id: &str, description: &str, prompt: Option<&str>) -> AgentEntry {

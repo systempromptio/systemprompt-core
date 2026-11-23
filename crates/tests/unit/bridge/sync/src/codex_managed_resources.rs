@@ -92,6 +92,7 @@ fn mcp(name: &str, url: &str) -> ManagedMcpServer {
         oauth: None,
         tool_policy: None,
     }
+    toolsets: Vec::new(),
 }
 
 fn ctx<'a>(
