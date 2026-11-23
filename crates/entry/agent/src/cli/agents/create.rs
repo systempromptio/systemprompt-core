@@ -1,4 +1,6 @@
-//! `admin agents create` command with prompted inputs.
+//! `admin agents create` command with prompted inputs. The new agent file is
+//! kept only if the services configuration validates with it; otherwise the
+//! tree is left as it was.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -162,15 +164,12 @@ fn write_agent_config(
 
     let service = AgentConfigAuthoringService::new(services_dir);
     let agent_file = service
-        .create(request)
-        .with_context(|| format!("Failed to create agent '{}'", name))?;
-
-    reload_services_config(host).with_context(|| {
-        format!(
-            "Agent file created at {} but validation failed. Please check the configuration.",
-            agent_file.display()
-        )
-    })?;
+        .create(request, || {
+            reload_services_config(host).map(drop).map_err(Into::into)
+        })
+        .with_context(|| {
+            format!("Agent '{name}' was not created: the configuration would be invalid")
+        })?;
 
     Ok(agent_file)
 }

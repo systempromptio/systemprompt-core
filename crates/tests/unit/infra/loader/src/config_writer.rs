@@ -9,11 +9,36 @@
 
 use std::collections::HashMap;
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::ConfigWriter;
+use systemprompt_loader::{CheckError, ConfigWriteError, ConfigWriter};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
 use tempfile::TempDir;
+
+fn accept() -> Result<(), CheckError> {
+    Ok(())
+}
+
+fn refuse() -> Result<(), CheckError> {
+    Err("the configuration would be invalid".into())
+}
+
+fn tree_bytes(root: &std::path::Path) -> Vec<(std::path::PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(&dir).expect("read dir") {
+            let path = entry.expect("entry").path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                files.push((path.clone(), std::fs::read(&path).expect("read file")));
+            }
+        }
+    }
+    files.sort();
+    files
+}
 
 fn create_test_agent(name: &str) -> AgentConfig {
     AgentConfig {
@@ -90,7 +115,7 @@ settings:
     std::fs::write(config_dir.join("config.yaml"), config_content).expect("Failed to write config");
 
     let agent = create_test_agent("test_agent");
-    let result = ConfigWriter::create_agent(&agent, temp_dir.path());
+    let result = ConfigWriter::create_agent(&agent, temp_dir.path(), accept);
 
     result.as_ref().expect("result should succeed");
     let agent_file = result.expect("Should create agent file");
@@ -111,7 +136,7 @@ fn test_create_agent_creates_agents_directory() {
     assert!(!agents_dir.exists());
 
     let agent = create_test_agent("new_agent");
-    let result = ConfigWriter::create_agent(&agent, temp_dir.path());
+    let result = ConfigWriter::create_agent(&agent, temp_dir.path(), accept);
 
     result.expect("result should succeed");
     assert!(agents_dir.exists());
@@ -133,7 +158,7 @@ fn test_create_agent_already_exists() {
         .expect("Failed to write existing agent");
 
     let agent = create_test_agent("existing");
-    let result = ConfigWriter::create_agent(&agent, temp_dir.path());
+    let result = ConfigWriter::create_agent(&agent, temp_dir.path(), accept);
 
     result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("already exists"));
@@ -235,6 +260,7 @@ fn test_update_agent_success() {
         &AgentName::new("update_agent"),
         &updated_agent,
         temp_dir.path(),
+        accept,
     );
     result.expect("result should succeed");
 
@@ -249,8 +275,12 @@ fn test_update_agent_not_found() {
     std::fs::create_dir_all(&agents_dir).expect("Failed to create agents dir");
 
     let agent = create_test_agent("nonexistent");
-    let result =
-        ConfigWriter::update_agent(&AgentName::new("nonexistent"), &agent, temp_dir.path());
+    let result = ConfigWriter::update_agent(
+        &AgentName::new("nonexistent"),
+        &agent,
+        temp_dir.path(),
+        accept,
+    );
 
     result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
@@ -299,7 +329,7 @@ fn test_created_agent_file_has_header() {
     std::fs::write(config_dir.join("config.yaml"), config_content).expect("Failed to write config");
 
     let agent = create_test_agent("header_test");
-    let result = ConfigWriter::create_agent(&agent, temp_dir.path());
+    let result = ConfigWriter::create_agent(&agent, temp_dir.path(), accept);
     result.as_ref().expect("result should succeed");
 
     let agent_file = result.expect("Should create agent file");
@@ -325,7 +355,7 @@ fn test_created_agent_file_is_valid_yaml() {
     std::fs::write(config_dir.join("config.yaml"), config_content).expect("Failed to write config");
 
     let agent = create_test_agent("yaml_test");
-    let result = ConfigWriter::create_agent(&agent, temp_dir.path());
+    let result = ConfigWriter::create_agent(&agent, temp_dir.path(), accept);
     result.as_ref().expect("result should succeed");
 
     let agent_file = result.expect("Should create agent file");
@@ -345,4 +375,66 @@ fn test_created_agent_file_is_valid_yaml() {
             .contains_key("yaml_test"),
         "Should contain the agent"
     );
+}
+
+#[test]
+fn a_refused_update_leaves_the_tree_byte_identical() {
+    let temp_dir = TempDir::new().expect("temp dir");
+    std::fs::create_dir_all(temp_dir.path().join("config")).expect("config dir");
+    std::fs::write(
+        temp_dir.path().join("config/config.yaml"),
+        "includes:\n  - ../agents/refused.yaml\n",
+    )
+    .expect("config");
+    std::fs::create_dir_all(temp_dir.path().join("agents")).expect("agents dir");
+    std::fs::write(
+        temp_dir.path().join("agents/refused.yaml"),
+        create_agent_yaml_content("refused"),
+    )
+    .expect("agent file");
+    let before = tree_bytes(temp_dir.path());
+
+    let mut agent = create_test_agent("refused");
+    agent.port = 4999;
+    let error =
+        ConfigWriter::update_agent(&AgentName::new("refused"), &agent, temp_dir.path(), refuse)
+            .expect_err("a refused check refuses the update");
+    assert!(matches!(error, ConfigWriteError::Rejected(_)), "{error}");
+    assert_eq!(
+        tree_bytes(temp_dir.path()),
+        before,
+        "nothing was left written"
+    );
+}
+
+#[test]
+fn a_refused_create_leaves_no_file_behind() {
+    let temp_dir = TempDir::new().expect("temp dir");
+    std::fs::create_dir_all(temp_dir.path().join("config")).expect("config dir");
+    std::fs::write(temp_dir.path().join("config/config.yaml"), "includes: []\n").expect("config");
+    std::fs::create_dir_all(temp_dir.path().join("agents")).expect("agents dir");
+    let before = tree_bytes(temp_dir.path());
+
+    let error = ConfigWriter::create_agent(&create_test_agent("never"), temp_dir.path(), refuse)
+        .expect_err("a refused check refuses the create");
+    assert!(matches!(error, ConfigWriteError::Rejected(_)), "{error}");
+    assert_eq!(
+        tree_bytes(temp_dir.path()),
+        before,
+        "nothing was left written"
+    );
+}
+
+#[test]
+fn the_check_sees_the_change_on_disk() {
+    let temp_dir = TempDir::new().expect("temp dir");
+    std::fs::create_dir_all(temp_dir.path().join("agents")).expect("agents dir");
+    let path = temp_dir.path().join("agents/seen.yaml");
+    let probe = path.clone();
+    ConfigWriter::create_agent(&create_test_agent("seen"), temp_dir.path(), move || {
+        assert!(probe.exists(), "the check runs against the written tree");
+        Ok(())
+    })
+    .expect("an accepted create is kept");
+    assert!(path.exists());
 }

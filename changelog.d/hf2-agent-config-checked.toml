@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`admin agents create` and `admin agents edit` validate the services configuration with the change before keeping it; a refused change leaves the services tree byte-identical."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "`ConfigWriter::create_agent` and `ConfigWriter::update_agent` take a check closure run against the written tree; a refusal restores the previous bytes and returns the new `ConfigWriteError::Rejected`. New `CheckError` alias."
