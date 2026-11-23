@@ -20,7 +20,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, unique_user_id};
 use tower::ServiceExt;
 
-use super::common::{empty_get, json_post, setup_ctx};
+use super::common::{empty_get, json_post, setup_agent_ctx};
 
 struct Owner {
     user_id: UserId,
@@ -81,7 +81,7 @@ fn contexts_app(ctx: &systemprompt_runtime::AppContext, rc: RequestContext) -> a
 
 #[tokio::test]
 async fn create_context_with_name_returns_created() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let resp = contexts_app(&ctx, request_context_for(&owner))
         .oneshot(json_post("/", serde_json::json!({ "name": "My Chat" })))
@@ -92,7 +92,7 @@ async fn create_context_with_name_returns_created() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn create_context_without_name_defaults() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let resp = contexts_app(&ctx, request_context_for(&owner))
         .oneshot(json_post("/", serde_json::json!({})))
@@ -103,7 +103,7 @@ async fn create_context_without_name_defaults() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn create_context_empty_name_returns_400() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let resp = contexts_app(&ctx, request_context_for(&owner))
         .oneshot(json_post("/", serde_json::json!({ "name": "" })))
@@ -114,7 +114,7 @@ async fn create_context_empty_name_returns_400() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn create_context_whitespace_name_returns_400() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let resp = contexts_app(&ctx, request_context_for(&owner))
         .oneshot(json_post("/", serde_json::json!({ "name": "   " })))
@@ -125,7 +125,7 @@ async fn create_context_whitespace_name_returns_400() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_context_owned_returns_200() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let context_id = seed_context(&pool, &owner).await?;
     let uri = format!("/{}", context_id.as_str());
@@ -138,7 +138,7 @@ async fn get_context_owned_returns_200() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_context_unknown_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let missing = ContextId::generate();
     let uri = format!("/{}", missing.as_str());
@@ -151,7 +151,7 @@ async fn get_context_unknown_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_context_invalid_id_returns_400() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let resp = contexts_app(&ctx, request_context_for(&owner))
         .oneshot(empty_get("/undefined"))
@@ -174,7 +174,7 @@ fn json_put(uri: &str, body: serde_json::Value) -> axum::http::Request<axum::bod
 
 #[tokio::test]
 async fn update_context_owned_returns_200() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let context_id = seed_context(&pool, &owner).await?;
     let uri = format!("/{}", context_id.as_str());
@@ -187,7 +187,7 @@ async fn update_context_owned_returns_200() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn update_context_foreign_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let context_id = seed_context(&pool, &owner).await?;
     let intruder = unique_user_id("crud-intruder");
@@ -201,7 +201,7 @@ async fn update_context_foreign_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn update_context_invalid_id_returns_400() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let resp = contexts_app(&ctx, request_context_for(&owner))
         .oneshot(json_put("/null", serde_json::json!({ "name": "x" })))
@@ -272,7 +272,7 @@ fn artifacts_app(ctx: &systemprompt_runtime::AppContext, rc: RequestContext) -> 
 
 #[tokio::test]
 async fn list_and_get_owned_artifact() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let artifact_id = seed_artifact(&pool, &owner, "table").await?;
 
@@ -291,7 +291,7 @@ async fn list_and_get_owned_artifact() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_artifact_foreign_user_is_denied() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let artifact_id = seed_artifact(&pool, &owner, "table").await?;
     let intruder = unique_user_id("art-intruder");
@@ -306,7 +306,7 @@ async fn get_artifact_foreign_user_is_denied() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_artifact_ui_renders_table() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let artifact_id = seed_artifact(&pool, &owner, "table").await?;
 
@@ -320,7 +320,7 @@ async fn get_artifact_ui_renders_table() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_artifact_ui_unknown_type_returns_400() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_owner(&pool).await?;
     let artifact_id = seed_artifact(&pool, &owner, "no-renderer-type").await?;
 

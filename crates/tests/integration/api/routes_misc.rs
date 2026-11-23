@@ -8,10 +8,10 @@ use systemprompt_api::routes;
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
 
-use super::common::{empty_delete, empty_get, json_post, request_context, setup_ctx};
+use super::common::{empty_delete, empty_get, json_post, request_context, setup_agent_ctx};
 
 async fn ctx() -> anyhow::Result<std::sync::Arc<AppContext>> {
-    Ok(setup_ctx().await?.1)
+    Ok(setup_agent_ctx().await?.1)
 }
 
 #[tokio::test]

@@ -122,7 +122,6 @@ async fn public_context_lifecycle_helper() {
     run_marked(
         "CONTEXT_EDIT",
         &[
-            "contexts",
             "edit",
             "Created Context",
             "--name",

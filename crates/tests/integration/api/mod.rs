@@ -25,6 +25,10 @@ mod server_static_site_auth;
 mod server_mount_notifications;
 
 #[cfg(test)]
+#[path = "routes_agent_mounted.rs"]
+mod routes_agent_mounted;
+
+#[cfg(test)]
 #[path = "routes_content_mounted.rs"]
 mod routes_content_mounted;
 

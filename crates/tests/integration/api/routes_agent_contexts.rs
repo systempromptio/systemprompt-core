@@ -6,15 +6,15 @@ use axum::http::StatusCode;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent_entry::http::contexts_routes;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, seed_user_row, test_app_context,
+    DisposableDb, ensure_test_bootstrap, seed_user_row,
 };
 use tower::ServiceExt;
 
-use super::common::{empty_delete, empty_get, json_post, request_context, setup_ctx};
+use super::common::{empty_delete, empty_get, json_post, request_context, setup_agent_ctx};
 
 #[tokio::test]
 async fn list_contexts_runs_handler() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app.oneshot(empty_get("/")).await?;
@@ -24,7 +24,7 @@ async fn list_contexts_runs_handler() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn create_context_runs_handler() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
@@ -42,7 +42,7 @@ async fn create_context_runs_handler() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_context_unknown_returns_4xx_or_5xx() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
@@ -54,7 +54,7 @@ async fn get_context_unknown_returns_4xx_or_5xx() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn delete_context_unknown_is_idempotent() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
@@ -69,7 +69,7 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
     ensure_test_bootstrap();
     let database = DisposableDb::with_schema("api_delete_context").await;
     let pool = database.test_pool().await;
-    let ctx = test_app_context(database.url()).await;
+    let ctx = crate::common::agent_app_context(database.url()).await;
     let request = request_context("delete_context_owner");
     seed_user_row(
         &pool,
@@ -102,7 +102,7 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
 
 #[tokio::test]
 async fn list_tasks_by_context_runs() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
@@ -114,7 +114,7 @@ async fn list_tasks_by_context_runs() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn list_artifacts_by_context_runs() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
@@ -126,7 +126,7 @@ async fn list_artifacts_by_context_runs() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn context_notification_runs() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
@@ -141,7 +141,7 @@ async fn context_notification_runs() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn context_events_forward_runs() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
@@ -160,7 +160,7 @@ async fn context_event_rejects_malformed_path_before_routing_valid_event() -> an
     use axum::http::StatusCode;
     use systemprompt_models::{ContextEvent, SystemEventBuilder};
 
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("event_path_owner")));
     let event: ContextEvent = SystemEventBuilder::contexts_snapshot(Vec::new()).into();

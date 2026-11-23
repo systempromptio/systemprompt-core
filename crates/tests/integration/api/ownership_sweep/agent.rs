@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use super::engine::{Fixture, get, sweep};
 use super::table::Family;
-use crate::common::setup_ctx;
+use crate::common::setup_agent_ctx;
 
 struct Seeded {
     ctx: Arc<AppContext>,
@@ -49,7 +49,7 @@ async fn seed_user(pool: &DbPool, label: &str) -> Result<UserId> {
 }
 
 async fn seed() -> Result<Seeded> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_user(&pool, "sweep-agent-owner").await?;
     let stranger = seed_user(&pool, "sweep-agent-stranger").await?;
     let session = SessionId::generate();

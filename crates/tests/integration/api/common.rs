@@ -35,6 +35,23 @@ pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     Ok((pool, ctx))
 }
 
+pub async fn agent_app_context(database_url: &str) -> Arc<AppContext> {
+    ensure_test_bootstrap();
+    systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        fixture_config(database_url),
+        reference_admitted(&[]).expect("the reference composition admits"),
+    )
+    .await
+    .expect("app context with the agent-http member admitted")
+}
+
+pub async fn setup_agent_ctx() -> Result<(DbPool, Arc<AppContext>)> {
+    let b = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = agent_app_context(&b.database_url).await;
+    Ok((pool, ctx))
+}
+
 pub async fn setup_drive_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;

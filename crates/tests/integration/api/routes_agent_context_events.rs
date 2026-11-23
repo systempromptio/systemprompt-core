@@ -16,7 +16,7 @@ use systemprompt_models::{
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, unique_user_id};
 use tower::ServiceExt;
 
-use super::common::{json_post, setup_ctx};
+use super::common::{json_post, setup_agent_ctx};
 
 async fn seed_context(pool: &DbPool) -> anyhow::Result<(UserId, ContextId)> {
     let user_id = unique_user_id("evt");
@@ -56,7 +56,7 @@ fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
 
 #[tokio::test]
 async fn forward_agui_event_succeeds() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let event = ContextEvent::AgUi(AgUiEventBuilder::run_started(
@@ -74,7 +74,7 @@ async fn forward_agui_event_succeeds() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_a2a_event_succeeds() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let event = ContextEvent::A2A(Box::new(A2AEventBuilder::task_status_update(
@@ -93,7 +93,7 @@ async fn forward_a2a_event_succeeds() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_system_event_succeeds() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let event = ContextEvent::System(SystemEventBuilder::heartbeat());
@@ -107,7 +107,7 @@ async fn forward_system_event_succeeds() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_event_foreign_user_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (_owner, context_id) = seed_context(&pool).await?;
     let intruder = unique_user_id("evt-intruder");
 
@@ -122,7 +122,7 @@ async fn forward_event_foreign_user_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_event_unknown_context_returns_404() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let user_id = unique_user_id("evt-nobody");
     let missing = ContextId::generate();
 

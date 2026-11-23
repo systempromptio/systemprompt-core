@@ -22,7 +22,7 @@ use systemprompt_manifest::profile::{RateLimitsConfig, UiSessionConfig};
 use systemprompt_oauth::repository::{AuthCodeParams, ClientRepository, CreateClientParams};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, TEST_CLIENT_SECRET, TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
+    ensure_test_bootstrap, fixture_config,
     oauth_fixture_repository, pkce_pair, seed_oauth_client, test_db_pool,
 };
 use tower::ServiceExt;
@@ -50,7 +50,11 @@ pub(super) async fn person_with(
     config.rate_limits = RateLimitsConfig::disabled();
     config.trusted_proxies = Vec::new();
     config.ui_session = ui_session;
-    let ctx = fixture_app_context_with_config(config).await?;
+    let ctx = systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        config,
+        super::common::reference_admitted(&[])?,
+    )
+    .await?;
     let app = setup_api_server(
         &ctx,
         systemprompt_api::services::server::routes::Composed {

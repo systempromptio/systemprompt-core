@@ -13,7 +13,7 @@ use systemprompt_agent_entry::cli::agents::execute;
 use systemprompt_cli::EnvOverrides;
 
 use crate::common::{
-    agents_host, app_on_database, app_reloaded_on_database, json_cli, parse_agents, rendered,
+    agents_host, app_reloaded_on_database, json_cli, parse_agents, rendered,
     with_app, with_boot,
 };
 
@@ -257,7 +257,7 @@ async fn delete_all_agents_public_helper() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_admin_delete_all").await;
     let pool = database.test_pool().await;
-    let app = app_on_database(boot, database.url()).await;
+    let app = app_reloaded_on_database(boot, database.url()).await;
     let context = with_app(json_cli(), EnvOverrides::default(), app);
     let host = agents_host(&context);
 

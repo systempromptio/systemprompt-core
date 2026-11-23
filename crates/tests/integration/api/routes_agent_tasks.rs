@@ -11,7 +11,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::seed_user_row;
 use tower::ServiceExt;
 
-use super::common::{empty_delete, empty_get, request_context, setup_ctx};
+use super::common::{empty_delete, empty_get, request_context, setup_agent_ctx};
 
 fn app(ctx: &AppContext) -> axum::Router {
     app_for(ctx, "user_tasks")
@@ -48,7 +48,7 @@ async fn seed_owned_task(pool: &DbPool, owner: &UserId) -> anyhow::Result<(Conte
 
 #[tokio::test]
 async fn list_user_tasks_returns_array() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let resp = app(&ctx).oneshot(empty_get("/")).await?;
     assert!(resp.status().is_success(), "{}", resp.status());
     Ok(())
@@ -56,7 +56,7 @@ async fn list_user_tasks_returns_array() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn list_user_tasks_accepts_status_filter() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let resp = app(&ctx)
         .oneshot(empty_get("/?status=completed&limit=5"))
         .await?;
@@ -66,7 +66,7 @@ async fn list_user_tasks_accepts_status_filter() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn list_user_tasks_handles_all_status_values() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     for s in [
         "submitted",
         "working",
@@ -101,7 +101,7 @@ async fn list_user_tasks_handles_all_status_values() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_missing_task_returns_404() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let resp = app(&ctx).oneshot(empty_get("/task_does_not_exist")).await?;
     assert_eq!(resp.status().as_u16(), 404);
     Ok(())
@@ -109,7 +109,7 @@ async fn get_missing_task_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_messages_for_missing_task_returns_404() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let resp = app(&ctx)
         .oneshot(empty_get("/task_missing/messages"))
         .await?;
@@ -119,7 +119,7 @@ async fn get_messages_for_missing_task_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn delete_missing_task_returns_404() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let resp = app(&ctx).oneshot(empty_delete("/task_missing")).await?;
     assert_eq!(resp.status().as_u16(), 404);
     Ok(())
@@ -127,7 +127,7 @@ async fn delete_missing_task_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn owner_can_get_own_task() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = UserId::new(format!("owner-{}", uuid::Uuid::new_v4()));
     let (_context_id, task_id) = seed_owned_task(&pool, &owner).await?;
 
@@ -140,7 +140,7 @@ async fn owner_can_get_own_task() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn non_owner_get_task_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = UserId::new(format!("owner-{}", uuid::Uuid::new_v4()));
     let (_context_id, task_id) = seed_owned_task(&pool, &owner).await?;
 
@@ -153,7 +153,7 @@ async fn non_owner_get_task_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn non_owner_get_messages_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = UserId::new(format!("owner-{}", uuid::Uuid::new_v4()));
     let (_context_id, task_id) = seed_owned_task(&pool, &owner).await?;
 
@@ -166,7 +166,7 @@ async fn non_owner_get_messages_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn non_owner_delete_task_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = UserId::new(format!("owner-{}", uuid::Uuid::new_v4()));
     let (_context_id, task_id) = seed_owned_task(&pool, &owner).await?;
 
@@ -179,7 +179,7 @@ async fn non_owner_delete_task_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn owner_can_delete_own_task() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = UserId::new(format!("owner-{}", uuid::Uuid::new_v4()));
     let (_context_id, task_id) = seed_owned_task(&pool, &owner).await?;
 
@@ -214,7 +214,7 @@ async fn seed_user_task(
 
 #[tokio::test]
 async fn status_filter_applies_before_the_page_limit() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = UserId::new(format!("filter-{}", uuid::Uuid::new_v4().simple()));
     let (context_id, _) = seed_owned_task(&pool, &owner).await?;
     let completed = seed_user_task(&pool, &owner, &context_id, "TASK_STATE_COMPLETED", 60).await?;
@@ -235,7 +235,7 @@ async fn status_filter_applies_before_the_page_limit() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn oversized_limit_is_clamped_to_the_page_maximum() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = UserId::new(format!("clamp-{}", uuid::Uuid::new_v4().simple()));
     let (context_id, _) = seed_owned_task(&pool, &owner).await?;
     sqlx::query(
