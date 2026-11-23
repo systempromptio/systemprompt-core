@@ -42,3 +42,33 @@ text = "`AgentHost::compose` builds the agent's A2A repositories from the host's
 name = "systemprompt-extension"
 section = "Added"
 text = "Reserved paths `/api/v1/core/{contexts,tasks,artifacts}` (subtree) and `/api/v1/agents/registry` (exact) for `CoreId::AgentHttp`, with their privileged shapes and `reserved::AGENT_REGISTRY_ROUTES`."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "`AgentHost` and `AgentHostError` are removed (also from `systemprompt::system`); a spawned agent serves through the agent member's sealed `DynAgentServer`."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Added"
+text = "`services::a2a_server::serve::{HostedAgentServer, AgentServerUnavailable}`, provided sealed as `DynAgentServer`; a host missing a collaborator refuses to serve with a typed reason. `ConfigAuthoringError::NameReserved`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`AiProvider::drain_pending_writes` (defaulted)."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`RESERVED_AGENT_NAMES` (`registry`); `AgentConfig::validate` refuses a reserved name."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Changed"
+text = "A verbatim load validates a resolved copy of the tree and refuses an invalid one; the returned tree stays verbatim."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Changed"
+text = "The child host seeds the verification keyring and the JWT validation provider; the documents runtime reads `DynContextDirectory` optionally (`documents::ContextsUnavailable` without the agent member)."
