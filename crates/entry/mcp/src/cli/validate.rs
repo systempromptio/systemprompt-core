@@ -1,7 +1,9 @@
 //! `plugins mcp validate` command with per-service connection checks.
 //!
 //! A server is probed only when the `mcp` member's observer reports it
-//! running; the command never starts one.
+//! running; the command never starts one. A hosted server answers its own
+//! port only to the API proxy's hop token, so the probe checks that the port
+//! is listening and reports `auth_required`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,16 +12,15 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter, resolve_required};
+use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_mcp::services::client::validate_connection_with_auth;
+use systemprompt_mcp::services::client::validate_hosted_service;
 use systemprompt_mcp::{McpDomainResult, McpServerConfig};
-use systemprompt_models::Deployment;
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
 pub use super::validate_output::{FailureDetail, failure_output, success_output};
-use super::{observer, services_config};
+use super::{observer, prompt_server_selection, services_config};
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -62,7 +63,12 @@ pub(super) async fn execute(
                 .collect()
         } else {
             let service = resolve_required(server_arg, "server", config, || {
-                prompt_server_selection(prompter, &services_config)
+                prompt_server_selection(
+                    prompter,
+                    &services_config,
+                    "Select MCP server to validate",
+                    ServiceName::new,
+                )
             })?;
 
             if !services_config.mcp_servers.contains_key(service.as_str()) {
@@ -175,33 +181,19 @@ async fn validate_single_service(
         );
     };
 
-    run_connection_validation(service_name, server, port, timeout_secs).await
+    run_connection_validation(service_name, port, timeout_secs).await
 }
 
 pub async fn run_connection_validation(
     service_name: &ServiceName,
-    server: &Deployment,
     port: u16,
     timeout_secs: u64,
 ) -> McpValidateOutput {
-    let validation_future =
-        validate_connection_with_auth(service_name, "127.0.0.1", port, server.oauth.required);
+    let validation_future = validate_hosted_service(service_name, "127.0.0.1", port);
 
     let validation_result =
         match tokio::time::timeout(Duration::from_secs(timeout_secs), validation_future).await {
-            Ok(Ok(result)) => result,
-            Ok(Err(e)) => {
-                return failure_output(
-                    service_name,
-                    FailureDetail {
-                        health_status: "unhealthy",
-                        validation_type: "connection_error",
-                        latency_ms: 0,
-                        issue: format!("Connection error: {}", e),
-                        message: format!("Failed to connect to '{}'", service_name),
-                    },
-                );
-            },
+            Ok(result) => result,
             Err(e) => {
                 tracing::debug!(server = %service_name, error = %e, "MCP validation timed out");
                 return failure_output(
@@ -218,19 +210,4 @@ pub async fn run_connection_validation(
         };
 
     success_output(service_name, validation_result)
-}
-
-pub fn prompt_server_selection(
-    prompter: &dyn Prompter,
-    config: &ServicesConfig,
-) -> Result<ServiceName> {
-    let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
-    servers.sort();
-
-    if servers.is_empty() {
-        return Err(anyhow!("No MCP servers configured"));
-    }
-
-    let selection = prompter.select("Select MCP server to validate", &servers)?;
-    Ok(ServiceName::new(servers[selection].clone()))
 }

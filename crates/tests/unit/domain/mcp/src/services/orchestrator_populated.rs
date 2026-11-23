@@ -185,39 +185,6 @@ async fn validate_internal_server_without_running_row_is_ok() {
 }
 
 #[tokio::test]
-async fn validate_internal_running_server_probes_local_port() {
-    let listener = systemprompt_test_fixtures::bind_in_range(5000..6000)
-        .expect("no free port in the internal MCP range 5000-5999");
-    let port = listener.local_addr().expect("addr").port();
-    let mock = MockServer::builder().listener(listener).start().await;
-    mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let name = unique_name("valrun");
-    let name_id = ServiceName::new(name.as_str());
-    let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
-    repo.create_service(CreateServiceInput {
-        name: &name_id,
-        module_name: ServiceModule::Mcp,
-        status: ServiceStatus::Running,
-        port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-
-    let result = o.validate_service(&ServiceName::new(name.as_str())).await;
-    repo.delete_service(&name_id).await.unwrap();
-    result.expect("running internal service probes 127.0.0.1:<port>");
-
-    let received = mock.received_requests().await.expect("requests recorded");
-    assert!(
-        received
-            .iter()
-            .any(|r| String::from_utf8_lossy(&r.body).contains("initialize")),
-        "the local probe reaches the scripted MCP endpoint"
-    );
-}
-
-#[tokio::test]
 async fn start_services_named_with_missing_binary_fails_and_publishes_failure() {
     let port = free_port();
     let name = unique_name("startfail");

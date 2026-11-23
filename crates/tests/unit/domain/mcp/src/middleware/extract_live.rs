@@ -10,7 +10,7 @@ use rmcp::model::{ListToolsResult, PaginatedRequestParams, Tool};
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_mcp::middleware::{extract_bearer_token, extract_request_context};
+use systemprompt_mcp_host::serving::middleware::{extract_bearer_token, extract_request_context};
 use systemprompt_models::RequestContext as SysRequestContext;
 
 fn sys_ctx() -> SysRequestContext {

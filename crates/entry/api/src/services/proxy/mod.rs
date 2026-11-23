@@ -19,3 +19,16 @@ mod sse;
 pub use auth::OAuthChallenge;
 pub use errors::{ProxyError, ResponseBuildError};
 pub use service::{ProxyKind, ProxyService, ProxyTarget};
+
+use std::sync::Arc;
+
+use systemprompt_runtime::AppContext;
+use systemprompt_traits::{BoxedSource, McpRegistryProvider};
+
+pub(crate) fn mcp_registry(ctx: &AppContext) -> Result<Arc<dyn McpRegistryProvider>, BoxedSource> {
+    ctx.kernel()
+        .state()
+        .get::<Arc<dyn McpRegistryProvider>>()
+        .cloned()
+        .map_err(|absent| -> BoxedSource { Box::new(absent) })
+}

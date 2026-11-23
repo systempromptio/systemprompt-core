@@ -377,7 +377,7 @@ fn assert_validates(json: &serde_json::Value, definition: &str) {
 #[test]
 fn stamped_tool_list_result_validates_against_all_schemas() {
     let tool = ConformanceTool.tool_definition(&McpServerId::new("systemprompt"));
-    let result = systemprompt_mcp::build_tool_list_result(vec![tool]);
+    let result = systemprompt_mcp_host::serving::host::build_tool_list_result(vec![tool]);
     let json = serde_json::to_value(&result).expect("serializes");
 
     assert_eq!(json["resultType"], "complete");

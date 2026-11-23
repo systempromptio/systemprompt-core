@@ -1,9 +1,11 @@
 //! Connection validation for MCP servers.
 //!
 //! Probes a server over the streamable-HTTP transport to confirm it speaks the
-//! MCP protocol and exposes tools, producing a [`McpConnectionResult`]. Covers
-//! the OAuth-gated case (port reachability only) and internal/external URL
-//! rewriting for loopback access.
+//! MCP protocol and exposes tools, producing a [`McpConnectionResult`], and
+//! rewrites internal/external URLs for loopback access. A server the platform
+//! hosts answers its own port only to a request carrying the proxy's hop
+//! token, so [`validate_hosted_service`] checks such a server by port
+//! reachability alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,19 +35,6 @@ pub async fn validate_connection(
 ) -> McpDomainResult<McpConnectionResult> {
     let url = format!("http://{host}:{port}/mcp");
     validate_connection_by_url(service_name, &url).await
-}
-
-pub async fn validate_connection_with_auth(
-    service_name: &ServiceName,
-    host: &str,
-    port: u16,
-    requires_oauth: bool,
-) -> McpDomainResult<McpConnectionResult> {
-    if requires_oauth {
-        Ok(validate_oauth_service(service_name, host, port).await)
-    } else {
-        validate_connection(service_name, host, port).await
-    }
 }
 
 pub async fn validate_connection_by_url(
@@ -93,7 +82,7 @@ pub async fn validate_connection_by_url(
     }
 }
 
-async fn validate_oauth_service(
+pub async fn validate_hosted_service(
     service_name: &ServiceName,
     host: &str,
     port: u16,

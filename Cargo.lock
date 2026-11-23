@@ -6685,6 +6685,7 @@ version = "0.85.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
+ "bytes",
  "chrono",
  "clap",
  "console",
@@ -6698,7 +6699,6 @@ dependencies = [
  "rand 0.10.3",
  "regex",
  "reqwest",
- "rmcp",
  "rustls",
  "schemars 1.2.3",
  "semver",
@@ -6707,6 +6707,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "sqlx",
+ "sse-stream",
  "systemprompt-api",
  "systemprompt-client",
  "systemprompt-cloud",
@@ -7391,7 +7392,11 @@ name = "systemprompt-mcp-host"
 version = "0.85.0"
 dependencies = [
  "async-trait",
+ "axum",
+ "futures",
+ "http",
  "rmcp",
+ "serde_json",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",

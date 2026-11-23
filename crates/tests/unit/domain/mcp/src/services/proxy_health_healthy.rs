@@ -49,46 +49,6 @@ async fn can_route_traffic_true_for_running_service_with_live_mcp_endpoint() {
 }
 
 #[tokio::test]
-async fn can_route_traffic_responsive_non_mcp_port_marks_service_error() {
-    let db = test_db_pool().await;
-    let mock = MockServer::start().await;
-    let port = mock.address().port();
-
-    let repo = ServiceRepository::new(&db, unique_instance());
-    let name = format!("ph-err-{}", uuid::Uuid::new_v4().simple());
-    let name_id = ServiceName::new(name.as_str());
-    repo.create_service(CreateServiceInput {
-        name: &name_id,
-        module_name: ServiceModule::Mcp,
-        status: ServiceStatus::Running,
-        port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-
-    let p = ProxyHealthCheck::new(repo.clone());
-    let routable = p.can_route_traffic(&name_id, port).await.unwrap();
-    let status = repo
-        .find_service_by_name(&name_id)
-        .await
-        .unwrap()
-        .unwrap()
-        .status;
-    repo.delete_service(&name_id).await.unwrap();
-
-    assert!(
-        !routable,
-        "a TCP-only port with no MCP handshake is unroutable"
-    );
-    assert_eq!(
-        status,
-        ServiceStatus::Error,
-        "MCP connect failure downgrades to error"
-    );
-}
-
-#[tokio::test]
 async fn list_routable_services_includes_service_with_responsive_port() {
     let db = test_db_pool().await;
     let mock = MockServer::start().await;

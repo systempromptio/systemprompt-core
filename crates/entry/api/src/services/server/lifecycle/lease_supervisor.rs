@@ -275,8 +275,7 @@ async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool 
 }
 
 pub(crate) fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
-    let mut wanted: Vec<ProcessKey> = ctx
-        .mcp_registry()
+    let mut wanted: Vec<ProcessKey> = crate::services::server::runner::mcp_registry(ctx)
         .get_managed_servers()?
         .iter()
         .map(|server| ProcessKey::new(ServiceModule::Mcp, server.service_name()))

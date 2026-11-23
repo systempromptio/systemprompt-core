@@ -1,5 +1,5 @@
 //! What `McpExtension` contributes: its seven tables, its jobs and retention
-//! purge, the three values it provides, and the two slots it opens so their
+//! purge, the values it provides, and the two slots it opens so their
 //! built values exist whenever the member is admitted.
 
 use std::any::TypeId;
@@ -9,7 +9,8 @@ use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Contributions, Extension};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_mcp::McpExtension;
-use systemprompt_mcp::contract::{AccessRecorderSlot, UiSlot};
+use systemprompt_mcp::contract::UiSlot;
+use systemprompt_extension::mcp::AccessRecorderSlot;
 use systemprompt_mcp::services::McpServiceObserver;
 use systemprompt_traits::{DynToolExecutionLookup, McpRegistryProvider};
 
@@ -59,7 +60,7 @@ fn the_mcp_member_contributes_its_jobs_and_purge() {
 }
 
 #[test]
-fn the_mcp_member_provides_the_execution_lookup_the_registry_the_observer_and_the_tool_executions()
+fn the_mcp_member_provides_its_lookups_stores_tool_provider_and_tool_executions()
 {
     let sink = contributed();
     let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
@@ -69,6 +70,9 @@ fn the_mcp_member_provides_the_execution_lookup_the_registry_the_observer_and_th
             TypeId::of::<DynToolExecutionLookup>(),
             TypeId::of::<Arc<dyn McpRegistryProvider>>(),
             TypeId::of::<Arc<McpServiceObserver>>(),
+            TypeId::of::<systemprompt_extension::mcp::DynMcpSessionStore>(),
+            TypeId::of::<Arc<systemprompt_mcp::ArtifactIngest>>(),
+            TypeId::of::<Arc<dyn systemprompt_traits::ToolProvider>>(),
             TypeId::of::<systemprompt_extension::mcp::DynToolExecutions>(),
         ]
     );

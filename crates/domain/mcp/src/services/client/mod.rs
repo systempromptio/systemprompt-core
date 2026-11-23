@@ -51,7 +51,7 @@ pub use invocation::execute_tool_call;
 pub use types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
 pub use validation::{
     rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
-    validate_connection_with_auth,
+    validate_hosted_service,
 };
 
 #[derive(Debug, Clone)]

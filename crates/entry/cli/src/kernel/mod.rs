@@ -32,8 +32,7 @@ pub use registry_error::{RegistryError, ResolveError};
 pub(crate) use target_admission::admit_target;
 pub use target_admission::{TargetAdmissionError, read_disabled};
 
-pub use crate::commands::shared::mcp_tools::McpToolEntry;
-pub use crate::commands::shared::{ValidationIssue, ValidationOutput, mcp_tools};
+pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
 pub use crate::context::CommandContext;
 pub use crate::host::KernelHost;
 pub use crate::member_host::MemberHost;

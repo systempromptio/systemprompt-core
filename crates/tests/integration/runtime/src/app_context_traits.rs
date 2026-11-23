@@ -67,7 +67,6 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     let _ = ctx.app_paths();
     let _ = ctx.app_paths_arc();
     let _ = ctx.event_bridge();
-    let _ = ctx.mcp_registry();
     let _ = ctx.route_classifier();
     let _ = ctx.geoip_reader();
     let _ = ctx.content_config();

@@ -46,7 +46,9 @@ pub use systemprompt_loader::ConfigLoader;
 pub use systemprompt_logging::init_logging;
 
 #[cfg(feature = "full")]
-pub use systemprompt_mcp::{McpHttpConfig, SessionTimeouts, create_router as create_mcp_router};
+pub use systemprompt_mcp_host::serving::{
+    McpHttpConfig, SessionTimeouts, create_router as create_mcp_router,
+};
 
 pub use std::sync::Arc;
 

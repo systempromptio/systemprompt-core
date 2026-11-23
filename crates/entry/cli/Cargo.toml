@@ -70,11 +70,8 @@ tabled = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
 futures-util = { workspace = true }
-# The CLI drives MCP servers over the streamable-HTTP client *trait*, supplying
-# our own reqwest-0.12 `HttpClientWithContext` via `with_client`. The `-reqwest`
-# impl feature (a second reqwest 0.13) is deliberately NOT enabled. The workspace
-# default is lean (see root Cargo.toml); these are additive on rmcp's defaults.
-rmcp = { workspace = true, features = ["client", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
+sse-stream = { workspace = true }
+bytes = { workspace = true }
 dialoguer = { workspace = true }
 base64 = { workspace = true }
 ed25519-dalek = { workspace = true }

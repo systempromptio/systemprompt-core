@@ -79,8 +79,15 @@ pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
                 .state()
                 .get::<systemprompt_traits::DynToolCallIntentClaims>()?,
         ),
-    )
-    .with_artifact_ingest(ctx.artifact_ingest_arc());
+    );
+    let engine = match ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_mcp::ArtifactIngest>>()
+    {
+        Ok(ingest) => engine.with_artifact_ingest(Arc::clone(ingest)),
+        Err(_) => engine,
+    };
 
     let state = McpState { ctx: ctx.clone() };
 

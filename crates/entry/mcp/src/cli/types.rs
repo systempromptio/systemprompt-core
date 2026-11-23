@@ -113,6 +113,16 @@ pub struct McpLogsOutput {
 pub struct McpToolsOutput {
     pub tools: Vec<McpToolEntry>,
     pub summary: McpToolsSummary,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub unavailable_servers: Vec<McpUnavailableServer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct McpUnavailableServer {
+    pub name: String,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]

@@ -27,8 +27,7 @@ use systemprompt_extension::cli::{
     DescribeCommand,
 };
 use systemprompt_identifiers::PluginId;
-use systemprompt_manifest::PluginConfigFile;
-use systemprompt_models::path_confine::{entries_within, locate_within};
+use systemprompt_manifest::{PluginConfig, PluginConfigFile, ServicesConfig};
 
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {
@@ -50,8 +49,9 @@ pub async fn execute(command: PluginsCommands, host: &dyn CommandHost) -> Result
         PluginsCommands::List(args) => list::execute(args, host).context("Failed to list plugins"),
         PluginsCommands::Show(args) => show::execute(&args, host).context("Failed to show plugin"),
         PluginsCommands::Validate(args) => {
-            let (result, valid) =
-                validate::execute(args, host).context("Failed to validate plugins")?;
+            let (result, valid) = validate::execute(args, host)
+                .await
+                .context("Failed to validate plugins")?;
             if !valid {
                 return Err(anyhow::Error::new(
                     CommandError::new(anyhow::anyhow!("Plugin validation failed"))
@@ -66,22 +66,20 @@ pub async fn execute(command: PluginsCommands, host: &dyn CommandHost) -> Result
     }
 }
 
-pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<PluginId>> {
-    if !plugins_path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut ids = Vec::new();
-    for entry in entries_within(plugins_path, plugins_path)? {
-        if entry.is_dir
-            && locate_within(&entry.path, &entry.path.join("config.yaml"))?.is_some()
-            && let Some(name) = entry.name.to_str()
-        {
-            ids.push(PluginId::new(name));
-        }
-    }
-    ids.sort();
-    Ok(ids)
+pub fn selected_plugins<'a>(
+    services: &'a ServicesConfig,
+    id: Option<&PluginId>,
+) -> Result<Vec<&'a PluginConfig>> {
+    let Some(id) = id else {
+        let mut plugins: Vec<&PluginConfig> = services.plugins.values().collect();
+        plugins.sort_by(|a, b| a.id.cmp(&b.id));
+        return Ok(plugins);
+    };
+    services
+        .plugins
+        .get(id.as_str())
+        .map(|plugin| vec![plugin])
+        .ok_or_else(|| anyhow::anyhow!("Plugin '{id}' not found"))
 }
 
 pub fn read_plugin_config(config_path: &Path) -> Result<PluginConfigFile> {

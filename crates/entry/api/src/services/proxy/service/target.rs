@@ -44,12 +44,11 @@ pub(super) fn external_server(
     if !matches!(proxy_kind, ProxyKind::Mcp) {
         return Ok(None);
     }
-    let found = ctx
-        .mcp_registry()
+    let found = crate::services::server::runner::mcp_registry(ctx)
         .find_server(service_name.as_str())
         .map_err(|source| ProxyError::RegistryUnavailable {
             service: service_name.to_string(),
-            source,
+            source: Box::new(source),
         })?;
     Ok(found.filter(McpServerConfig::is_external))
 }

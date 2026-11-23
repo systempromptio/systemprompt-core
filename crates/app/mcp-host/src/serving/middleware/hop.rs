@@ -7,10 +7,10 @@
 //! staged key needs no restart), `typ` `mcp-hop+jwt`, audience
 //! `mcp:<this server>`, a one-minute expiry. A request that presents one has
 //! its identity taken from the token's claims and from nothing else it
-//! carries; a request that presents none is anonymous, and a request that
-//! presents one that does not verify, or that names a different MCP session
-//! than the one the token was minted for, is refused with 401 before the MCP
-//! service sees it. The verified principal also scopes session restore: a
+//! carries. A request that presents none, one that does not verify, or one
+//! that names a different MCP session than the one the token was minted for,
+//! is refused with 401 before the MCP service sees it: every hosted server
+//! answers only the platform. The verified principal also scopes session restore: a
 //! session evicted from memory is restored only for the server and user it is
 //! bound to (see [`restore_principal`]).
 //!
@@ -59,7 +59,7 @@ pub enum HopRejection {
     MalformedHeader(#[source] http::header::ToStrError),
     #[error("the hop token was refused: {0}")]
     Token(#[source] TokenError),
-    #[error("this server requires authentication and the request carries no hop token")]
+    #[error("this server answers only the platform and the request carries no hop token")]
     Missing,
     #[error("the hop token was minted for a different MCP session")]
     SessionMismatch,
@@ -71,7 +71,6 @@ pub struct HopVerifier {
     keyring: Arc<VerificationKeyring>,
     issuer: Arc<str>,
     server_id: McpServerId,
-    required: bool,
 }
 
 impl std::fmt::Debug for HopVerifier {
@@ -88,27 +87,15 @@ impl HopVerifier {
             keyring: Arc::new(keyring),
             issuer: Arc::from(issuer),
             server_id,
-            required: false,
         }
-    }
-
-    #[must_use]
-    pub const fn requiring_hop(mut self, required: bool) -> Self {
-        self.required = required;
-        self
     }
 
     pub const fn server_id(&self) -> &McpServerId {
         &self.server_id
     }
 
-    pub fn verify(&self, headers: &HeaderMap) -> Result<Option<VerifiedHop>, HopRejection> {
-        let Some(raw) = headers.get(headers::MCP_HOP) else {
-            if self.required {
-                return Err(HopRejection::Missing);
-            }
-            return Ok(None);
-        };
+    pub fn verify(&self, headers: &HeaderMap) -> Result<VerifiedHop, HopRejection> {
+        let raw = headers.get(headers::MCP_HOP).ok_or(HopRejection::Missing)?;
         let token = raw.to_str().map_err(HopRejection::MalformedHeader)?;
         let claims = decode_mcp_hop(&self.keyring, &self.issuer, &self.server_id, token)
             .map_err(|error| HopRejection::Token(TokenError::from(error)))?;
@@ -119,10 +106,10 @@ impl HopVerifier {
         if presented != claims.identity.mcp_session.as_deref() {
             return Err(HopRejection::SessionMismatch);
         }
-        Ok(Some(VerifiedHop {
+        Ok(VerifiedHop {
             claims,
             token: JwtToken::new(token),
-        }))
+        })
     }
 }
 
@@ -198,15 +185,13 @@ pub fn admit_request(
     let hop = verifier.verify(headers)?;
     let principal = RestorePrincipal {
         server_id: verifier.server_id.clone(),
-        user_id: hop.as_ref().and_then(VerifiedHop::principal).cloned(),
+        user_id: hop.principal().cloned(),
     };
-    if let Some(hop) = hop {
-        let context = hop
-            .request_context(headers)
-            .map_err(HopAdmissionError::Context)?;
-        extensions.insert(context);
-        extensions.insert(hop);
-    }
+    let context = hop
+        .request_context(headers)
+        .map_err(HopAdmissionError::Context)?;
+    extensions.insert(context);
+    extensions.insert(hop);
     Ok(principal)
 }
 

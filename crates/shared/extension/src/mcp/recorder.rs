@@ -4,7 +4,7 @@
 //! the installation's choice. An extension implements [`McpAccessRecorder`]
 //! and contributes a factory with
 //! `c.slot::<AccessRecorderSlot>().recorder(..)`
-//! ([`AccessRecorderSlot`](crate::contract::AccessRecorderSlot)); the kernel
+//! ([`AccessRecorderSlot`](super::AccessRecorderSlot)); the kernel
 //! builds every contributed recorder once and the host reports each outcome
 //! to all of them. A recorder is best-effort by contract: it returns nothing,
 //! so an audit write that fails can never fail the call it describes.

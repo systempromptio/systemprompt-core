@@ -1,6 +1,18 @@
 use serde_json::{Value, json};
-use systemprompt_cli::commands::shared::mcp_tools as probe;
-use systemprompt_identifiers::{McpServerId, SessionToken};
+use systemprompt_extension::cli::CallerSession;
+use systemprompt_identifiers::{ContextId, McpServerId, SessionId, SessionToken, UserId};
+use systemprompt_mcp_entry::cli::probe;
+use systemprompt_models::auth::UserType;
+
+fn caller(token: &str) -> CallerSession {
+    CallerSession::new(
+        SessionToken::new(token),
+        SessionId::new("sess-probe"),
+        UserId::new("user-probe"),
+        ContextId::generate(),
+        UserType::Admin,
+    )
+}
 use wiremock::matchers::{body_partial_json, method};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
@@ -39,11 +51,9 @@ async fn server(fail_list: bool) -> MockServer {
 #[tokio::test]
 async fn coverage_authenticated_mcp_probes_forward_identity_and_preserve_tool_schemas() {
     let server = server(false).await;
-    let token = SessionToken::new("fixture-session-token");
-    let tools = probe::list_tools_authenticated(
-        &McpServerId::new("probe"),
-        &format!("{}/mcp", server.uri()),
-        &token,
+    let session = caller("fixture-session-token");
+    let tools = probe::list_tools(
+        &probe::McpTarget::through_proxy(&server.uri(), McpServerId::new("probe"), &session),
         2,
     )
     .await
@@ -73,30 +83,11 @@ async fn coverage_authenticated_mcp_probes_forward_identity_and_preserve_tool_sc
 }
 
 #[tokio::test]
-async fn coverage_public_mcp_probes_do_not_invent_a_bearer_credential() {
-    let server = server(false).await;
-    let tools = probe::list_tools_unauthenticated(
-        &McpServerId::new("public"),
-        &format!("{}/mcp", server.uri()),
-        2,
-    )
-    .await
-    .unwrap();
-    assert_eq!(tools[0].name, "search");
-    assert_eq!(tools[0].parameters_count, 2);
-    for request in server.received_requests().await.unwrap() {
-        assert!(!request.headers.contains_key("authorization"));
-    }
-}
-
-#[tokio::test]
 async fn coverage_mcp_probe_tool_list_errors_are_not_reported_as_empty_catalogs() {
     let server = server(true).await;
-    let token = SessionToken::new("fixture-session-token");
-    let result = probe::list_tools_authenticated(
-        &McpServerId::new("probe"),
-        &format!("{}/mcp", server.uri()),
-        &token,
+    let session = caller("fixture-session-token");
+    let result = probe::list_tools(
+        &probe::McpTarget::through_proxy(&server.uri(), McpServerId::new("probe"), &session),
         2,
     )
     .await;
@@ -105,7 +96,7 @@ async fn coverage_mcp_probe_tool_list_errors_are_not_reported_as_empty_catalogs(
             .err()
             .unwrap()
             .to_string()
-            .contains("Failed to list tools")
+            .contains("listing tools on 'probe' failed")
     );
 }
 
@@ -116,11 +107,9 @@ async fn coverage_mcp_probe_initialization_rejection_is_a_connection_failure() {
         .respond_with(ResponseTemplate::new(403))
         .mount(&server)
         .await;
-    let token = SessionToken::new("rejected");
-    let result = probe::list_tools_authenticated(
-        &McpServerId::new("probe"),
-        &format!("{}/mcp", server.uri()),
-        &token,
+    let session = caller("rejected");
+    let result = probe::list_tools(
+        &probe::McpTarget::through_proxy(&server.uri(), McpServerId::new("probe"), &session),
         2,
     )
     .await;
@@ -129,6 +118,6 @@ async fn coverage_mcp_probe_initialization_rejection_is_a_connection_failure() {
             .err()
             .unwrap()
             .to_string()
-            .contains("Failed to connect")
+            .contains("failed to connect to MCP server 'probe'")
     );
 }

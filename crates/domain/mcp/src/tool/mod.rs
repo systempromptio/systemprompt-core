@@ -31,22 +31,14 @@ use crate::services::intent_claim::IntentClaimService;
 use crate::services::ui_renderer::UiRendererRegistry;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
-use rmcp::model::{CacheScope, CallToolResult, ListToolsResult, Tool};
+use rmcp::model::CallToolResult;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::DynToolCallIntentClaims;
 
-const TOOL_LIST_TTL_MS: u64 = 3_600_000;
 pub const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
-
-#[must_use]
-pub fn build_tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
-    ListToolsResult::with_all_items(tools)
-        .with_ttl_ms(TOOL_LIST_TTL_MS)
-        .with_cache_scope(CacheScope::Public)
-}
 
 #[derive(Clone, Debug)]
 pub struct McpToolExecutor {

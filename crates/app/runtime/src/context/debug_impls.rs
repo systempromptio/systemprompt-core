@@ -20,7 +20,6 @@ impl std::fmt::Debug for AppContext {
             .field("app_paths", &"AppPaths")
             .field("event_bridge", &self.subsystems.event_bridge.status())
             .field("system_admin", &self.subsystems.system_admin.username())
-            .field("mcp_registry", &"RegistryService")
             .field("authz_hook", &"SharedAuthzHook")
             .field("signing_keys", &self.subsystems.signing_keys)
             .field("governance", &self.subsystems.governance)
@@ -39,7 +38,6 @@ impl std::fmt::Debug for DataPlane {
             .field("user_repository", &"UserRepository")
             .field("service_repository", &"ServiceRepository")
             .field("coordination", &"CoordinationRepositories")
-            .field("mcp_session_repository", &"McpSessionRepository")
             .finish()
     }
 }
@@ -61,7 +59,6 @@ impl std::fmt::Debug for ConfigPlane {
 impl std::fmt::Debug for Plugins {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Plugins")
-            .field("mcp_registry", &"RegistryService")
             .field("subject_providers", &self.subject_providers)
             .field("subjects", &self.subjects)
             .finish()
@@ -79,7 +76,6 @@ impl std::fmt::Debug for Subsystems {
             .field("governance", &self.governance)
             .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)
-            .field("artifact_ingest", &self.artifact_ingest)
             .field(
                 "schema_install_clean",
                 &self.schema_install.boot().is_clean(),

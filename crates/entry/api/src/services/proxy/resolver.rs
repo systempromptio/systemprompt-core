@@ -96,7 +96,7 @@ impl ServiceResolver {
         mut service: ServiceConfig,
         ctx: &AppContext,
     ) -> ServiceConfig {
-        let config = match ctx.mcp_registry().find_server(service_name.as_str()) {
+        let config = match crate::services::server::runner::mcp_registry(ctx).find_server(service_name.as_str()) {
             Ok(Some(config)) => config,
             Ok(None) => return service,
             Err(e) => {
@@ -136,7 +136,7 @@ impl ServiceResolver {
         let orchestrator = McpOrchestrator::new(
             (**ctx.service_repository()).clone(),
             Arc::clone(ctx.app_paths_arc()),
-            ctx.mcp_registry().clone(),
+            crate::services::server::runner::mcp_registry(ctx),
             crate::services::server::runner::mcp_spawn(ctx),
         )
         .map_err(|source| ProxyError::RestartFailed {

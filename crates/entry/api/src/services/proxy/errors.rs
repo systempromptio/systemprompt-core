@@ -10,7 +10,7 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::api::ApiError;
-use systemprompt_traits::RegistryError;
+use systemprompt_traits::{BoxedSource, RegistryError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -115,7 +115,17 @@ pub enum ProxyError {
     RegistryUnavailable {
         service: String,
         #[source]
-        source: McpDomainError,
+        source: BoxedSource,
+    },
+
+    #[error("The context named for '{service}' is not one the caller owns")]
+    ContextNotOwned { service: String },
+
+    #[error("The ownership of the context named for '{service}' could not be checked")]
+    ContextLookupFailed {
+        service: String,
+        #[source]
+        source: BoxedSource,
     },
 
     #[error("Request body exceeds the {limit}-byte limit")]
@@ -186,7 +196,8 @@ impl ProxyError {
             | Self::HopTokenUnavailable { .. }
             | Self::HopTokenHeader { .. }
             | Self::OwnerHopUnavailable { .. }
-            | Self::RegistryLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::RegistryLookupFailed { .. }
+            | Self::ContextLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
             | Self::InvalidServiceName { .. }
@@ -195,7 +206,7 @@ impl ProxyError {
                 StatusCode::UNAUTHORIZED
             },
             Self::AuthChallenge(challenge) => challenge.status,
-            Self::Forbidden { .. } => StatusCode::FORBIDDEN,
+            Self::Forbidden { .. } | Self::ContextNotOwned { .. } => StatusCode::FORBIDDEN,
             Self::ProviderNotConnected { .. } => StatusCode::CONFLICT,
         }
     }
@@ -229,6 +240,8 @@ impl ProxyError {
             Self::RegistryLookupFailed { .. } => "registry_lookup_failed",
             Self::ProviderNotConnected { .. } => "provider_not_connected",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",
+            Self::ContextNotOwned { .. } => "context_not_owned",
+            Self::ContextLookupFailed { .. } => "context_lookup_failed",
         }
     }
 }

@@ -110,12 +110,21 @@ fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
         ctx.cache_epochs().clone(),
         ctx.profile().unapplied_plane_mode(),
     );
-    ctx.artifact_ingest().register_scanner(Arc::new(
-        systemprompt_gateway::GatewayArtifactScanner::new(
-            resolver,
-            Arc::clone(&engines.scanner_registry),
-        ),
-    ));
+    let Ok(ingest) = ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_mcp::ArtifactIngest>>()
+    else {
+        tracing::info!(
+            reason = "mcp_member_not_admitted",
+            "No artifact ingest; the gateway scanner is not registered"
+        );
+        return;
+    };
+    ingest.register_scanner(Arc::new(systemprompt_gateway::GatewayArtifactScanner::new(
+        resolver,
+        Arc::clone(&engines.scanner_registry),
+    )));
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {

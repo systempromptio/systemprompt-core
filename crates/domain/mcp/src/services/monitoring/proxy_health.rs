@@ -58,17 +58,14 @@ impl ProxyHealthCheck {
     }
 
     async fn can_connect_mcp(port: u16) -> bool {
-        use crate::services::client::validate_connection;
+        use crate::services::client::validate_hosted_service;
 
-        match tokio::time::timeout(
+        tokio::time::timeout(
             Duration::from_millis(500),
-            validate_connection(&ServiceName::new("proxy_check"), "127.0.0.1", port),
+            validate_hosted_service(&ServiceName::new("proxy_check"), "127.0.0.1", port),
         )
         .await
-        {
-            Ok(Ok(result)) => result.success || result.validation_type == "auth_required",
-            _ => false,
-        }
+        .is_ok_and(|result| result.success)
     }
 
     pub async fn list_routable_services(&self) -> McpDomainResult<Vec<RoutableService>> {

@@ -107,9 +107,16 @@ pub fn gateway_repositories(
             unapplied_plane: profile.unapplied_plane_mode(),
         },
     )
-    .with_artifact_ingest(ctx.artifact_ingest_arc())
     .with_payload_cap(profile.payload_cap_bytes())
     .with_quota_sharding(profile.quota_config());
+    let repos = match ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_mcp::ArtifactIngest>>()
+    {
+        Ok(ingest) => repos.with_artifact_ingest(Arc::clone(ingest)),
+        Err(_) => repos,
+    };
     let repos = match ctx.session_store() {
         Some(sessions) => repos.with_session_store(sessions),
         None => repos,

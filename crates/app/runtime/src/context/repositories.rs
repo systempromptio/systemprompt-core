@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
-use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_users::UserRepository;
 
@@ -33,9 +32,5 @@ impl AppContext {
 
     pub const fn coordination_repositories(&self) -> &Arc<CoordinationRepositories> {
         &self.data.coordination
-    }
-
-    pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {
-        &self.data.mcp_session_repository
     }
 }

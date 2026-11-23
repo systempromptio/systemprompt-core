@@ -1,9 +1,9 @@
 //! `plugins mcp call` command invoking one tool on a running server.
 //!
 //! The server must be configured and recorded as running; the command never
-//! starts a server. A server the platform hosts is called with the caller's
-//! own session, so the execution is attributed to that caller; an external
-//! server never receives it (see [`super::call_client::server_credential`]).
+//! starts a server. The call goes through the API's MCP proxy with the
+//! caller's own session ([`super::probe`]), so the execution is attributed to
+//! the caller the proxy verified.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,16 +14,13 @@ use systemprompt_extension::cli::{
     CommandError, CommandHost, CommandOutput, Prompter, resolve_required,
 };
 use systemprompt_identifiers::{McpServerId, McpToolName};
-use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_models::ai::tools::CallToolResult;
 
-use super::call_client::{
-    McpTarget, ServerCredential, ToolCallParams, convert_content, execute_tool_call, list_tools,
-    server_credential,
-};
+use super::call_client::{ToolCallParams, convert_content, execute_tool_call};
+use super::probe::{McpTarget, list_tools};
 use super::types::{McpCallOutput, McpToolContent};
-use super::{observer, services_config};
+use super::{observer, prompt_server_selection, proxy_caller, services_config};
 
 #[derive(Debug, Args)]
 #[command(
@@ -61,7 +58,12 @@ pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<Co
     let timeout_secs = args.timeout;
 
     let server_name = resolve_required(args.server.clone(), "server", config, || {
-        prompt_server_selection(prompter, &services_config)
+        prompt_server_selection(
+            prompter,
+            &services_config,
+            "Select MCP server",
+            McpServerId::new,
+        )
     })?;
 
     if !services_config
@@ -74,11 +76,8 @@ pub(super) async fn execute(args: CallArgs, host: &dyn CommandHost) -> Result<Co
     }
 
     let server = resolve_running_server(&server_name, host).await?;
-    let session = match server_credential(&server)? {
-        ServerCredential::CallerSession => Some(host.caller_session().await?),
-        ServerCredential::Withheld => None,
-    };
-    let target = McpTarget::resolve(&server, session.as_ref())?;
+    let (api_url, session) = proxy_caller(host).await?;
+    let target = McpTarget::through_proxy(&api_url, server.server_id(), &session);
 
     let tool_name = resolve_required(args.tool.clone(), "tool", config, || {
         prompt_tool_selection(prompter, &target, timeout_secs)
@@ -198,21 +197,6 @@ fn failure_outcome(
         },
         Some(message),
     )
-}
-
-pub fn prompt_server_selection(
-    prompter: &dyn Prompter,
-    config: &ServicesConfig,
-) -> Result<McpServerId> {
-    let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
-    servers.sort();
-
-    if servers.is_empty() {
-        return Err(anyhow!("No MCP servers configured"));
-    }
-
-    let selection = prompter.select("Select MCP server", &servers)?;
-    Ok(McpServerId::new(servers[selection].clone()))
 }
 
 fn prompt_tool_selection(

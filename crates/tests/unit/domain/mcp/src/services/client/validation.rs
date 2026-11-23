@@ -6,7 +6,7 @@
 
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::client::{
-    validate_connection, validate_connection_by_url, validate_connection_with_auth,
+    validate_connection, validate_connection_by_url, validate_hosted_service,
 };
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};
@@ -88,53 +88,26 @@ async fn validate_connection_unreachable_port_returns_failure() {
 }
 
 #[tokio::test]
-async fn validate_connection_with_auth_requires_oauth_port_open() {
+async fn validate_hosted_service_reports_a_listening_port_as_hop_protected() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().unwrap().port();
-    let r = validate_connection_with_auth(
-        &ServiceName::new("svc-oauth-up"),
-        UNREACHABLE_HOST,
-        port,
-        true,
-    )
-    .await
-    .expect("returns Ok with auth-required result");
+    let r = validate_hosted_service(&ServiceName::new("svc-oauth-up"), UNREACHABLE_HOST, port).await;
     assert!(r.success);
     assert_eq!(r.validation_type, "auth_required");
     assert!(
         r.tools_count.is_none(),
-        "an OAuth-gated server is never asked for its tools, so the count must          stay unmeasured rather than collapse to Some(0)"
+        "a hosted server answers only the proxy, so it is never asked for its tools and the count stays unmeasured rather than collapsing to Some(0)"
     );
     assert!(r.server_info.is_some());
     drop(listener);
 }
 
 #[tokio::test]
-async fn validate_connection_with_auth_requires_oauth_port_closed() {
+async fn validate_hosted_service_reports_a_closed_port_unavailable() {
     let port = unused_port();
-    let r = validate_connection_with_auth(
-        &ServiceName::new("svc-oauth-down"),
-        UNREACHABLE_HOST,
-        port,
-        true,
-    )
-    .await
-    .expect("returns Ok with port-unavailable");
+    let r = validate_hosted_service(&ServiceName::new("svc-oauth-down"), UNREACHABLE_HOST, port).await;
     assert!(!r.success);
     assert_eq!(r.validation_type, "port_unavailable");
     assert!(r.tools_count.is_none());
 }
 
-#[tokio::test]
-async fn validate_connection_with_auth_no_oauth_routes_to_validate_connection() {
-    let port = unused_port();
-    let r = validate_connection_with_auth(
-        &ServiceName::new("svc-noauth"),
-        UNREACHABLE_HOST,
-        port,
-        false,
-    )
-    .await
-    .expect("returns Ok");
-    assert!(!r.success);
-}

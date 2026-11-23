@@ -3,10 +3,19 @@
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
 //! resource scopes) and the read-only `Arc<McpServiceObserver>` (server
 //! health, recorded process ids and the running set; no spawner, no
-//! secrets), and, once governance has loaded, the per-server tool executions
-//! (`DynToolExecutions`, open: an execution records usage as the request
-//! context the host hands it and reads no secret). It opens the [`UiSlot`] and
-//! the [`AccessRecorderSlot`], so both built values are present whenever this
+//! secrets), the MCP session store (`DynMcpSessionStore`, **sealed**: a
+//! restore lookup takes the server and user to match, so only the toolset host
+//! reads it, with the principal it verified), the artifact ingest
+//! (`Arc<ArtifactIngest>`, open: it scans with the installation's secret
+//! scanner cell and records tool results), and, once governance has loaded,
+//! the per-server tool executions (`DynToolExecutions`, open: an execution
+//! records usage as the request context the host hands it and reads no
+//! secret) and the tool provider the ai member's inference path reads
+//! (`Arc<dyn ToolProvider>`, **sealed**: it calls servers with the
+//! connector-token cache and the secret lookup; provided before governance so
+//! the ai member's after-governance inference provide sees it whatever the
+//! composition order). It opens the [`UiSlot`] and the extension contract's
+//! [`AccessRecorderSlot`], so both built values are present whenever this
 //! member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -16,23 +25,26 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, ServiceRepository};
-use systemprompt_extension::mcp::DynToolExecutions;
+use systemprompt_extension::mcp::{AccessRecorderSlot, DynMcpSessionStore, DynToolExecutions};
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::service_process::ServiceProcessSlot;
 use systemprompt_governance::policy::secrets::SecretScannerCell;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
+    SecretLookup, ToolProvider,
 };
 
-use crate::contract::{AccessRecorderSlot, UiSlot};
-use crate::repository::ToolUsageRepository;
+use crate::contract::UiSlot;
+use crate::repository::{McpSessionRepository, ToolUsageRepository};
 use crate::services::McpServiceObserver;
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::process_set::McpProcessSet;
 use crate::services::registry::RegistryService;
+use crate::services::tool_provider::McpToolProvider;
 use crate::services::ui_renderer::UiRendererRegistry;
 use crate::tool::McpToolExecutions;
 
@@ -160,13 +172,15 @@ impl Extension for McpExtension {
                 )))
             },
         );
+        contribute_stores(c);
+        contribute_tool_provider(c);
         c.provide_after_governance(
             |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
                 let db = r.get::<DbPool>()?;
                 Ok(Arc::new(McpToolExecutions::new(
                     Arc::new(ToolUsageRepository::new(&db)),
                     r.get::<DynToolCallIntentClaims>()?,
-                    Arc::new(ArtifactIngest::from_db(&db, r.get::<SecretScannerCell>()?)),
+                    r.get::<Arc<ArtifactIngest>>()?,
                     r.get::<Arc<UiRendererRegistry>>()?,
                 )))
             },
@@ -183,6 +197,43 @@ impl Extension for McpExtension {
         contribute_user_data(c);
         Ok(())
     }
+}
+
+fn contribute_tool_provider(c: &mut Contributions<'_>) {
+    c.provide_sealed(
+        |r: &Resolved<'_>| -> Result<Arc<dyn ToolProvider>, ProvideError> {
+            let services = r.get::<ServicesView>()?;
+            let resilience = services.config().ai.mcp.resilience;
+            let registry = RegistryService::new(
+                r.get::<SystemAdmin>()?.id().clone(),
+                services,
+                r.get::<Arc<Config>>()?,
+            );
+            Ok(Arc::new(McpToolProvider::new(
+                r.get::<DbPool>()?,
+                registry,
+                &resilience,
+                r.get::<Arc<TokenCache>>()?,
+                r.get::<Arc<dyn SecretLookup>>()?,
+            )))
+        },
+    );
+}
+
+fn contribute_stores(c: &mut Contributions<'_>) {
+    c.provide_sealed(
+        |r: &Resolved<'_>| -> Result<DynMcpSessionStore, ProvideError> {
+            Ok(Arc::new(McpSessionRepository::new(&r.get::<DbPool>()?)))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<Arc<ArtifactIngest>, ProvideError> {
+            Ok(Arc::new(ArtifactIngest::from_db(
+                &r.get::<DbPool>()?,
+                r.get::<SecretScannerCell>()?,
+            )))
+        },
+    );
 }
 
 fn contribute_user_data(c: &mut Contributions<'_>) {

@@ -37,6 +37,20 @@ const SERVICES: &str = "mcp_servers:
       client_id: null
     toolsets:
       - id: issues
+  host_guarded:
+    server_type: internal
+    binary: host-guarded
+    package: null
+    port: 5396
+    enabled: true
+    display_in_web: false
+    oauth:
+      required: true
+      scopes: []
+      audience: mcp
+      client_id: null
+    toolsets:
+      - id: documents
   host_ghost:
     server_type: internal
     binary: host-ghost
@@ -167,6 +181,40 @@ async fn serve_on_refuses_an_unbuildable_server_without_serving() {
 }
 
 #[tokio::test]
+async fn the_direct_port_of_a_server_requiring_authentication_refuses_a_request_without_a_valid_hop_token()
+ {
+    let ctx = ctx().await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let task = tokio::spawn(serve_on(ctx, McpServerId::new("host_guarded"), listener));
+    let initialize = serde_json::json!({
+        "jsonrpc": "2.0", "id": 0, "method": "initialize",
+        "params": {"protocolVersion": "2025-11-25", "capabilities": {},
+                   "clientInfo": {"name": "direct", "version": "1"}}
+    });
+    let client = reqwest::Client::new();
+    for hop in [None, Some("forged.hop.token")] {
+        let mut request = client
+            .post(format!("http://{addr}/mcp"))
+            .header("accept", "application/json, text/event-stream")
+            .header("authorization", "Bearer caller-session-token")
+            .json(&initialize);
+        if let Some(hop) = hop {
+            request = request.header(systemprompt_identifiers::headers::MCP_HOP, hop);
+        }
+        let status = request.send().await.expect("http answer").status();
+        assert!(
+            status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN,
+            "a direct request with hop {hop:?} is refused, got {status}"
+        );
+    }
+    assert!(!task.is_finished());
+    task.abort();
+}
+
+#[tokio::test]
 async fn serve_on_answers_http_on_the_listener() {
     let ctx = ctx().await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -203,7 +251,7 @@ fn non_loopback_interface() -> std::net::IpAddr {
 
 #[tokio::test]
 async fn the_host_listener_is_not_reachable_on_a_non_loopback_address() {
-    let listener = systemprompt_mcp::bind_loopback(0).await.expect("bind");
+    let listener = systemprompt_mcp_host::serving::bind_loopback(0).await.expect("bind");
     let addr = listener.local_addr().expect("addr");
     assert!(addr.ip().is_loopback(), "{addr}");
 

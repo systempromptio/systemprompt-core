@@ -16,14 +16,15 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::mcp::{DynToolExecutions, McpToolset};
+use systemprompt_extension::mcp::{
+    AccessRecorders, DynMcpSessionStore, DynToolExecutions, McpToolset,
+};
 use systemprompt_identifiers::McpServerId;
-use systemprompt_mcp::contract::AccessRecorders;
-use systemprompt_mcp::host::{
+use crate::serving::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts, serve_router,
 };
-use systemprompt_mcp::middleware::HopVerifier;
-use systemprompt_mcp::{McpHttpConfig, create_router};
+use crate::serving::middleware::HopVerifier;
+use crate::serving::{McpHttpConfig, bind_loopback, create_router};
 use systemprompt_provider_contracts::MissingDependency;
 use tokio::net::TcpListener;
 
@@ -53,7 +54,7 @@ pub enum McpHostError {
     },
     #[error(transparent)]
     Host(#[from] ToolsetHostError),
-    #[error("the host's composed state lacks a built slot")]
+    #[error("the host's composed state lacks a value this server needs; is the mcp member admitted?")]
     State(#[from] MissingDependency),
     #[error("MCP server '{server}' has no `port:` in its YAML")]
     NoPort { server: McpServerId },
@@ -128,7 +129,7 @@ pub fn build_server(
 
 pub async fn serve(ctx: Arc<HostContext>, server_id: McpServerId) -> Result<(), McpHostError> {
     let port = resolve_port(&ctx, &server_id)?;
-    let listener = systemprompt_mcp::bind_loopback(port)
+    let listener = bind_loopback(port)
         .await
         .map_err(|source| McpHostError::Bind {
             addr: format!("127.0.0.1:{port}"),
@@ -143,23 +144,16 @@ pub async fn serve_on(
     listener: TcpListener,
 ) -> Result<(), McpHostError> {
     let server = build_server(&ctx, &server_id)?;
-    let requires_oauth = ctx
-        .services_state()
-        .view()
-        .config()
-        .mcp_servers
-        .get(server_id.as_str())
-        .is_some_and(|deployment| deployment.oauth.required);
+    let sessions = Arc::clone(ctx.state().get::<DynMcpSessionStore>()?);
     let router = create_router(
         server,
-        Arc::clone(ctx.mcp_session_repository()),
+        sessions,
         McpHttpConfig::default(),
         HopVerifier::new(
             ctx.verification_keys().clone(),
             &ctx.config().jwt_issuer,
             server_id.clone(),
-        )
-        .requiring_hop(requires_oauth),
+        ),
     );
     tracing::info!(server = %server_id, addr = ?listener.local_addr().ok(), "MCP toolset host listening");
     serve_router(listener, router)

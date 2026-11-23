@@ -2,7 +2,7 @@
 //! helpers.
 
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_mcp::middleware::{bearer_token_from_parts, request_context_from_parts};
+use systemprompt_mcp_host::serving::middleware::{bearer_token_from_parts, request_context_from_parts};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::InjectContextHeaders;
 

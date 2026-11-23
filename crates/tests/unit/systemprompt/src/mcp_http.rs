@@ -128,7 +128,7 @@ fn resolved(args: &[&str]) -> ResolvedCommand {
 }
 
 #[test]
-fn mcp_http_declares_plugins_mcp_with_only_the_caller_session_grant() {
+fn mcp_http_declares_plugins_mcp_with_only_the_services_tree_and_caller_session_grants() {
     let declared = reference()
         .declare()
         .expect("the reference composition declares");
@@ -143,7 +143,7 @@ fn mcp_http_declares_plugins_mcp_with_only_the_caller_session_grant() {
         owned,
         [(
             vec!["plugins", "mcp"],
-            [KernelGrant::CallerSession].as_slice()
+            [KernelGrant::ServicesTree, KernelGrant::CallerSession].as_slice()
         )]
     );
 }

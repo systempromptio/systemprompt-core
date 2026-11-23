@@ -7,8 +7,7 @@ use super::authz::PluginInputs;
 use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
 use crate::context::Plugins;
 use systemprompt_database::DbPool;
-use systemprompt_loader::{BootContext, ServicesState};
-use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_loader::BootContext;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
@@ -25,7 +24,6 @@ pub(super) fn build_data_plane(
         user_repository: repositories.users,
         service_repository: repositories.services,
         coordination: repositories.coordination,
-        mcp_session_repository: repositories.mcp_sessions,
     }
 }
 
@@ -45,7 +43,6 @@ pub(super) struct RepositoryBundles {
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
     coordination: Arc<systemprompt_database::CoordinationRepositories>,
-    mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
 }
 
 pub(super) struct SeededRepositories {
@@ -89,47 +86,34 @@ pub(super) fn build_repositories(
         users: Arc::clone(&seeded.users),
         services: Arc::clone(&seeded.services),
         coordination: Arc::clone(&seeded.coordination),
-        mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
-            database,
-        )),
     }
 }
 
-pub(super) fn new_plugins(mcp_registry: RegistryService, inputs: &PluginInputs) -> Plugins {
+pub(super) fn new_plugins(inputs: &PluginInputs) -> Plugins {
     Plugins {
-        mcp_registry,
         subject_providers: inputs.subject_providers.clone(),
         subjects: inputs.subjects.clone(),
     }
 }
 
-pub(crate) fn build_artifact_ingest(
-    database: &DbPool,
+pub(crate) fn bind_secret_scanner(
     governance: &systemprompt_governance::policy::GovernanceEngine,
-    scanner: systemprompt_governance::policy::secrets::SecretScannerCell,
-) -> Arc<systemprompt_mcp::ArtifactIngest> {
+    scanner: &systemprompt_governance::policy::secrets::SecretScannerCell,
+) {
     if let Some(configured) = governance.secret_scanner()
         && scanner.bind(Arc::new(configured.clone())).is_err()
     {
         tracing::debug!("the secret scanner cell was bound before this host loaded governance");
     }
-    Arc::new(systemprompt_mcp::ArtifactIngest::from_db(database, scanner))
 }
 
 pub(super) async fn load_identity(
     boot: &BootContext,
     users: &Arc<systemprompt_users::UserRepository>,
-    services: &ServicesState,
-) -> RuntimeResult<(Arc<systemprompt_manifest::SystemAdmin>, RegistryService)> {
+) -> RuntimeResult<Arc<systemprompt_manifest::SystemAdmin>> {
     let config = boot.config()?;
     let lookup = Arc::new(UserService::new(Arc::clone(users)));
-    let system_admin = assembly::load_system_admin(config, &lookup).await?;
-    let mcp_registry = RegistryService::new(
-        system_admin.id().clone(),
-        services.view(),
-        Arc::clone(config),
-    );
-    Ok((system_admin, mcp_registry))
+    assembly::load_system_admin(config, &lookup).await
 }
 
 pub(super) async fn build_domain_layer(

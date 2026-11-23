@@ -1,22 +1,21 @@
 //! Native Model Context Protocol (MCP) implementation for systemprompt.io.
 //!
-//! This crate hosts the in-process MCP server runtime, the
-//! registry/orchestrator that supervises per-tenant MCP child processes, the
-//! OAuth2/RBAC middleware, and the tool/resource/UI-renderer abstractions used
-//! across the platform.
+//! This crate holds the registry/orchestrator that supervises per-tenant MCP
+//! child processes, the MCP client, the tool execution and artifact pipeline,
+//! the repositories and the UI-renderer abstractions. The toolset host and its
+//! hop/RBAC/session middleware are `systemprompt-mcp-host`'s; this crate
+//! provides them the session store (`DynMcpSessionStore`, sealed) and
+//! contributes to the access-recorder slot of the extension contract.
 //!
 //! # Layered components
 //!
 //! - [`extension::McpExtension`] — the MCP member's contributions.
-//! - [`contract`] — the [`UiSlot`](contract::UiSlot) and
-//!   [`AccessRecorderSlot`](contract::AccessRecorderSlot) contribution points.
+//! - [`contract`] — the [`UiSlot`](contract::UiSlot) contribution point.
 //! - [`services::McpOrchestrator`] — top-level service supervisor.
 //! - [`services::registry::RegistryService`] — registry of MCP servers
 //!   configured via `services.yaml`.
 //! - [`services::tool_provider::McpToolProvider`] — tool-discovery + execution
 //!   facade.
-//! - [`middleware::hop`] — verification of the proxy's signed hop token.
-//! - [`middleware::rbac`] — RBAC over the verified hop identity.
 //! - [`repository`] — Postgres persistence for sessions, artifacts, tool usage.
 //!
 //! # Feature matrix
@@ -40,9 +39,7 @@ pub(crate) mod client_profile;
 pub mod contract;
 pub(crate) mod error;
 pub(crate) mod extension;
-pub mod host;
 pub mod jobs;
-pub mod middleware;
 pub mod models;
 pub(crate) mod progress;
 pub mod repository;
@@ -59,7 +56,7 @@ pub use rmcp::model::CallToolResult;
 
 pub type McpResult<T> = Result<T, McpError>;
 
-pub use client_profile::{client_profile_from_peer, client_profile_from_stored};
+pub use client_profile::client_profile_from_stored;
 pub use progress::{ProgressCallback, create_progress_callback};
 pub use repository::{
     ArtifactCorrelation, ArtifactFinding, ArtifactFindingRecord, ArtifactFindingRepository,
@@ -69,7 +66,7 @@ pub use repository::{
 };
 pub use resources::{
     ArtifactViewerConfig, build_artifact_viewer_resource, build_resource_template_list_result,
-    default_server_icons, read_artifact_resource, read_artifact_viewer_resource,
+    read_artifact_resource, read_artifact_viewer_resource,
 };
 pub use response::{
     McpResponseBuilder, ResponseServices, ToolIdentity, UI_RESOURCE_URI_META_KEY,
@@ -84,7 +81,7 @@ pub use services::intent_claim::IntentClaimService;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use tool::{
-    INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutions, McpToolExecutor, build_tool_list_result,
+    INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutions, McpToolExecutor,
 };
 
 pub use systemprompt_models::mcp::{
@@ -120,165 +117,5 @@ pub mod registry {
 
 pub(crate) mod state;
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use crate::middleware::DatabaseSessionHandler;
-use crate::repository::McpSessionRepository;
-use axum::extract::Request;
-use axum::middleware::Next;
-use axum::response::Response;
-use rmcp::ServerHandler;
 pub use rmcp::model::ProtocolVersion;
-use rmcp::transport::StreamableHttpService;
-use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
-
-pub const MAX_REQUEST_BODY_BYTES: usize = 4 * 1024 * 1024;
-
-#[derive(Debug, Clone)]
-pub struct McpHttpConfig {
-    pub allowed_hosts: Option<Vec<String>>,
-    pub allowed_origins: Vec<String>,
-    pub session: SessionTimeouts,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SessionTimeouts {
-    pub init: Option<Duration>,
-    pub keep_alive: Option<Duration>,
-}
-
-impl Default for McpHttpConfig {
-    fn default() -> Self {
-        Self {
-            // Why: rmcp's `host_is_allowed` treats port-less entries as matching any port.
-            allowed_hosts: Some(vec![
-                "localhost".into(),
-                "127.0.0.1".into(),
-                "0.0.0.0".into(),
-                "::1".into(),
-                "::".into(),
-            ]),
-            allowed_origins: Vec::new(),
-            session: SessionTimeouts::default(),
-        }
-    }
-}
-
 pub use state::McpState;
-
-pub async fn bind_loopback(port: u16) -> std::io::Result<tokio::net::TcpListener> {
-    tokio::net::TcpListener::bind(std::net::SocketAddr::from((
-        std::net::Ipv4Addr::LOCALHOST,
-        port,
-    )))
-    .await
-}
-
-async fn mcp_request_logger(req: Request, next: Next) -> Response {
-    let method = req.method().clone();
-    let uri = req.uri().clone();
-    let session_id = req
-        .headers()
-        .get(systemprompt_identifiers::headers::MCP_SESSION_ID)
-        .and_then(|v| v.to_str().ok())
-        .map(String::from);
-    let mcp_method = req
-        .headers()
-        .get(systemprompt_identifiers::headers::MCP_METHOD)
-        .and_then(|v| v.to_str().ok())
-        .map(String::from);
-    let mcp_name = req
-        .headers()
-        .get("mcp-name")
-        .and_then(|v| v.to_str().ok())
-        .map(String::from);
-    let has_auth = req.headers().get("authorization").is_some();
-    let has_hop = req.extensions().get::<middleware::VerifiedHop>().is_some();
-    let accept = req
-        .headers()
-        .get("accept")
-        .and_then(|v| v.to_str().ok())
-        .map(String::from);
-
-    tracing::info!(
-        %method,
-        %uri,
-        session_id = ?session_id,
-        mcp_method = ?mcp_method,
-        mcp_name = ?mcp_name,
-        has_auth,
-        has_hop,
-        accept = ?accept,
-        "MCP request received"
-    );
-
-    let response = next.run(req).await;
-
-    let status = response.status();
-    if !status.is_success() {
-        tracing::error!(
-            %method,
-            %uri,
-            session_id = ?session_id,
-            status = %status,
-            "MCP request failed at transport level"
-        );
-    }
-
-    response
-}
-
-pub fn create_router<S>(
-    server: S,
-    session_repository: Arc<McpSessionRepository>,
-    http: McpHttpConfig,
-    hop: middleware::HopVerifier,
-) -> axum::Router
-where
-    S: ServerHandler + Clone + Send + Sync + 'static,
-{
-    let McpHttpConfig {
-        allowed_hosts,
-        allowed_origins,
-        session,
-    } = http;
-    let server_id = hop.server_id().clone();
-
-    let host_policy = StreamableHttpServerConfig::default().with_allowed_origins(allowed_origins);
-    let host_policy = match allowed_hosts {
-        Some(hosts) => host_policy.with_allowed_hosts(hosts),
-        None => host_policy.disable_allowed_hosts(),
-    };
-    let mut config = host_policy
-        .with_sse_keep_alive(session.keep_alive)
-        .with_max_request_body_bytes(MAX_REQUEST_BODY_BYTES);
-    let session_store: Arc<
-        dyn rmcp::transport::streamable_http_server::session::store::SessionStore,
-    > = Arc::new(middleware::PostgresSessionStore::new(Arc::clone(
-        &session_repository,
-    )));
-    config.session_store = Some(session_store);
-
-    let session_handler =
-        DatabaseSessionHandler::with_timeouts(session_repository, session, Some(server_id));
-
-    let service =
-        StreamableHttpService::new(move || Ok(server.clone()), session_handler.into(), config);
-
-    axum::Router::new()
-        .nest_service("/mcp", service)
-        .layer(axum::middleware::from_fn(mcp_request_logger))
-        .layer(axum::middleware::from_fn_with_state(
-            hop,
-            middleware::verify_hop,
-        ))
-        .layer(axum::middleware::map_response(
-            |mut response: http::Response<_>| async move {
-                response
-                    .headers_mut()
-                    .insert("x-accel-buffering", http::HeaderValue::from_static("no"));
-                response
-            },
-        ))
-}

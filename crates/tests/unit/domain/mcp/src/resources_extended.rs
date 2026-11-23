@@ -1,8 +1,9 @@
 use rmcp::model::ReadResourceRequestParams;
+use systemprompt_mcp_host::serving::host::default_server_icons;
 use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{
-    ArtifactViewerConfig, build_artifact_viewer_resource, default_server_icons,
+    ArtifactViewerConfig, build_artifact_viewer_resource,
     read_artifact_viewer_resource,
 };
 

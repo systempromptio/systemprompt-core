@@ -148,6 +148,31 @@ fn mcp_tools_json_detailed() {
 }
 
 #[test]
+fn mcp_tools_for_an_agent_lists_its_servers_tools() {
+    let mut cmd = stub_command();
+    cmd.args([
+        "--json",
+        "plugins",
+        "mcp",
+        "tools",
+        "--agent",
+        systemprompt_cli_integration_tests::full_bootstrap::FIXTURE_AGENT,
+    ]);
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("echo"));
+}
+
+#[test]
+fn mcp_tools_for_an_unknown_agent_fails() {
+    let mut cmd = stub_command();
+    cmd.args(["plugins", "mcp", "tools", "--agent", "no-such-agent"]);
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Agent 'no-such-agent' not found"));
+}
+
+#[test]
 fn mcp_tools_unknown_server_fails() {
     let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "tools", "--server", "no_such_server"]);

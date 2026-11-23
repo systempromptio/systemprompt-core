@@ -4,8 +4,9 @@
 
 use axum::body::Body;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_mcp::middleware::HopVerifier;
-use systemprompt_mcp::{MAX_REQUEST_BODY_BYTES, McpHttpConfig, SessionTimeouts, create_router};
+use systemprompt_mcp_host::serving::middleware::HopVerifier;
+use systemprompt_extension::mcp::capabilities::MAX_REQUEST_BODY_BYTES;
+use systemprompt_mcp_host::serving::{McpHttpConfig, SessionTimeouts, create_router};
 use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, ensure_test_bootstrap, test_db_pool};
 use tower::ServiceExt;
 
@@ -141,6 +142,23 @@ async fn router_rejects_bodies_over_the_request_ceiling() {
                 .header("host", "127.0.0.1")
                 .header("content-type", "application/json")
                 .header("accept", "application/json, text/event-stream")
+                .header("x-session-id", "s-ceiling")
+                .header("x-trace-id", "t-ceiling")
+                .header("x-agent-name", "agent-ceiling")
+                .header(
+                    "x-systemprompt-mcp-hop",
+                    systemprompt_test_fixtures::mint_mcp_hop(
+                        &McpServerId::new("router-srv"),
+                        systemprompt_models::auth::AuthenticatedUser::new(
+                            systemprompt_identifiers::UserId::new("router-user"),
+                            "router@test.invalid".to_owned(),
+                            "router@test.invalid".to_owned(),
+                            vec![systemprompt_models::auth::Permission::User],
+                        ),
+                        None,
+                        FIXTURE_EXTERNAL_URL,
+                    ),
+                )
                 .body(Body::from(oversized))
                 .expect("request builds"),
         )

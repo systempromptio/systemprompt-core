@@ -27,7 +27,11 @@ fn orchestrator(
         systemprompt_mcp::services::McpOrchestrator::new(
             (**ctx.service_repository()).clone(),
             std::sync::Arc::clone(ctx.app_paths_arc()),
-            ctx.mcp_registry().clone(),
+            systemprompt_mcp::RegistryService::new(
+                ctx.system_admin().id().clone(),
+                ctx.services_state().view(),
+                std::sync::Arc::clone(ctx.config_arc()),
+            ),
             systemprompt_mcp::McpSpawn {
                 spawner: std::sync::Arc::clone(ctx.spawner()),
                 secrets: ctx.secrets().clone(),

@@ -16,8 +16,8 @@ use systemprompt_governance::authz::{
     SharedAuthzHook,
 };
 use systemprompt_identifiers::UserId;
-use systemprompt_mcp::middleware::{
-    AuthResult, HopVerifier, admit_request, enforce_rbac_from_registry,
+use systemprompt_mcp_host::serving::middleware::{
+    AuthResult, HopAdmissionError, HopRejection, HopVerifier, admit_request, enforce_rbac_from_registry,
 };
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_mcp_hop};
@@ -79,7 +79,10 @@ impl ServerHandler for RbacProbe {
                 server_id.clone(),
             );
             if probe.admit {
-                admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");
+                match admit_request(&verifier, &parts.headers, &mut parts.extensions) {
+                Ok(_) | Err(HopAdmissionError::Rejected(HopRejection::Missing)) => {},
+                Err(error) => panic!("hop admission failed: {error}"),
+            }
             }
             context.extensions.insert(parts);
 

@@ -377,7 +377,12 @@ async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     )
-    .with_mcp_registry(std::sync::Arc::new(ctx.mcp_registry().clone()));
+    .with_mcp_registry(
+        ctx.kernel()
+            .state()
+            .get::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+            .cloned()?,
+    );
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))

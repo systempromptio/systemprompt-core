@@ -27,7 +27,6 @@ use systemprompt_governance::authz::AuthzError;
 use systemprompt_governance::policy::GovernanceEngineError;
 use systemprompt_identifiers::SecretName;
 use systemprompt_loader::{BundleError, ConfigLoadError};
-use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_security::keys::SigningKeysError;
@@ -68,9 +67,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Analytics(#[from] AnalyticsError),
-
-    #[error(transparent)]
-    Mcp(#[from] McpDomainError),
 
     #[error(transparent)]
     Content(#[from] ContentError),

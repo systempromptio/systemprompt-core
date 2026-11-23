@@ -3,11 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_models::path_confine::confine_within;
 
 use super::app_paths;
 use super::logs_db::execute_db_mode;
@@ -53,7 +54,10 @@ pub struct LogsArgs {
     #[arg(long, help = "Force reading from disk files instead of database")]
     pub disk: bool,
 
-    #[arg(long, help = "Custom logs directory path")]
+    #[arg(
+        long,
+        help = "Logs directory inside the profile's logs root (relative paths resolve against it)"
+    )]
     pub logs_dir: Option<String>,
 
     #[arg(
@@ -64,17 +68,20 @@ pub struct LogsArgs {
     pub level: Option<LogLevel>,
 }
 
-async fn default_logs_dir(host: &dyn CommandHost) -> Result<PathBuf> {
-    Ok(app_paths(host).await?.system().logs())
+pub fn confined_logs_dir(logs_root: &Path, requested: Option<&str>) -> Result<PathBuf> {
+    let Some(dir) = requested else {
+        return Ok(logs_root.to_path_buf());
+    };
+    let candidate = logs_root.join(dir);
+    confine_within(logs_root, &candidate)
+        .with_context(|| format!("--logs-dir must name a directory inside {}", logs_root.display()))
 }
 
 pub(super) async fn execute(args: LogsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let prompter = host.prompter();
     let config = host.output();
-    let logs_path = match args.logs_dir.as_ref() {
-        Some(dir) => PathBuf::from(dir),
-        None => default_logs_dir(host).await?,
-    };
+    let logs_root = app_paths(host).await?.system().logs();
+    let logs_path = confined_logs_dir(&logs_root, args.logs_dir.as_deref())?;
 
     if args.follow {
         return execute_follow_mode(&args, prompter, config, &logs_path, host.children());

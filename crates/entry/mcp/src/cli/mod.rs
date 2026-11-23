@@ -1,7 +1,7 @@
 //! `plugins mcp` command group: observe and exercise configured MCP servers.
 //!
 //! `mcp-http` contributes the group under the kernel's `plugins` group with
-//! the `caller-session` grant. Every command preserves data. The commands
+//! the `services-tree` and `caller-session` grants. Every command preserves data. The commands
 //! reach kernel-held material only by type through the member's resolved
 //! state and that one grant:
 //!
@@ -11,12 +11,13 @@
 //! | `list-packages` | `Arc<dyn McpRegistryProvider>` |
 //! | `status` | `ServicesView`, `Arc<McpServiceObserver>`, `Arc<AppPaths>` |
 //! | `validate` | `ServicesView`, `Arc<McpServiceObserver>` |
-//! | `tools`, `call` | `ServicesView`, `Arc<McpServiceObserver>`, the caller's own session (presented only to platform-hosted servers) |
-//! | `logs` | `ServicesView`, the database handle, `Arc<AppPaths>`, the child supervisor |
+//! | `tools`, `call` | `ServicesView`, `Arc<McpServiceObserver>`, the API's external URL (`services-tree`), the caller's own session (presented only to the API's MCP proxy) |
+//! | `logs` | `ServicesView`, the database handle, `Arc<AppPaths>` (`--logs-dir` is confined to the profile's logs root), the child supervisor |
 //!
 //! None of them starts, stops, restarts or signals a server: `tools` and
-//! `call` connect only to a server the service table records as running, and
-//! `admin mcp` and `infra services` remain the kernel's control surface.
+//! `call` reach only a server the service table records as running, through
+//! the API's MCP proxy, and `admin mcp` and `infra services` remain the
+//! kernel's control surface.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +30,7 @@ mod list_packages;
 pub mod logs;
 pub mod logs_db;
 mod logs_disk;
+pub mod probe;
 mod status;
 mod tools;
 mod tools_schema;
@@ -39,12 +41,12 @@ mod validate_output;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::cli::{
-    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
-    DescribeCommand,
+    CallerSession, CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput,
+    DataImpact, DescribeCommand, Prompter,
 };
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::ServicesView;
@@ -53,6 +55,28 @@ use systemprompt_traits::McpRegistryProvider;
 
 async fn services_config(host: &dyn CommandHost) -> Result<Arc<ServicesConfig>> {
     Ok(host.resolved().await?.get::<ServicesView>()?.config())
+}
+
+async fn proxy_caller(host: &dyn CommandHost) -> Result<(String, CallerSession)> {
+    let api_url = host.services_tree()?.api_external_url().to_owned();
+    Ok((api_url, host.caller_session().await?))
+}
+
+pub fn prompt_server_selection<T>(
+    prompter: &dyn Prompter,
+    config: &ServicesConfig,
+    prompt: &str,
+    id: impl FnOnce(String) -> T,
+) -> Result<T> {
+    let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
+    servers.sort();
+
+    if servers.is_empty() {
+        return Err(anyhow!("No MCP servers configured"));
+    }
+
+    let selection = prompter.select(prompt, &servers)?;
+    Ok(id(servers[selection].clone()))
 }
 
 async fn observer(host: &dyn CommandHost) -> Result<Arc<McpServiceObserver>> {

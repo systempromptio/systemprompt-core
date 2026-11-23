@@ -16,7 +16,7 @@ fn rows_listing(grant: KernelGrant) -> Vec<(CoreId, Vec<&'static str>)> {
 }
 
 #[test]
-fn the_services_tree_grant_is_listed_only_on_the_marketplace_paths() {
+fn the_services_tree_grant_is_listed_only_on_the_agent_marketplace_and_mcp_paths() {
     assert_eq!(
         rows_listing(KernelGrant::ServicesTree),
         vec![
@@ -24,6 +24,7 @@ fn the_services_tree_grant_is_listed_only_on_the_marketplace_paths() {
             (CoreId::MarketplaceHttp, vec!["core", "marketplace"]),
             (CoreId::MarketplaceHttp, vec!["core", "plugins"]),
             (CoreId::MarketplaceHttp, vec!["core", "skills"]),
+            (CoreId::McpHttp, vec!["plugins", "mcp"]),
         ]
     );
 }

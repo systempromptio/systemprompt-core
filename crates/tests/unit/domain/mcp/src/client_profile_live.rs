@@ -13,7 +13,7 @@ use rmcp::model::{
 };
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, ServerHandler, ServiceExt};
-use systemprompt_mcp::client_profile_from_peer;
+use systemprompt_mcp_host::serving::host::client_profile_from_peer;
 use systemprompt_mcp::services::client::McpClientHandler;
 use systemprompt_models::mcp::ClientProfile;
 

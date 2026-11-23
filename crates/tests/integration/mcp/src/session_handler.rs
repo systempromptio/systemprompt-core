@@ -4,8 +4,8 @@
 #![cfg(unix)]
 
 use rmcp::transport::streamable_http_server::session::SessionManager;
-use systemprompt_mcp::SessionTimeouts;
-use systemprompt_mcp::middleware::DatabaseSessionHandler;
+use systemprompt_mcp_host::serving::SessionTimeouts;
+use systemprompt_mcp_host::serving::middleware::DatabaseSessionHandler;
 use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
