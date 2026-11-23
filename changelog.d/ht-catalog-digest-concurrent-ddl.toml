@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Database"
+text = "The live-schema catalog digest an install reads to decide whether it is settled no longer fails the install when another session drops, or deadlocks with, a relation, index, view or function the digest listed. It reads again, bounded, on `XX000` \"could not open relation with OID\" or \"cache lookup failed for\", and on `40P01`, `40001` and `55P03`."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Fixed"
+text = "The catalog digest rereads, bounded, through concurrent DDL (`XX000` on a dropped relation or cache entry, `40P01`, `40001`, `55P03`) instead of failing the schema install."
