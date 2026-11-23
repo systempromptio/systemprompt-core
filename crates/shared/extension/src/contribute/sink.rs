@@ -12,9 +12,8 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::SecretName;
 use systemprompt_provider_contracts::ConfigPlane;
-use systemprompt_traits::{JobRunScope, RunOrigin};
+use systemprompt_traits::{JobRunScope, RunOrigin, SecretPattern};
 
 use super::config::ConfigDecl;
 use super::entries::{ContributedJob, MemberDependency, ProvideEntry};
@@ -70,7 +69,7 @@ pub struct ContributionSink {
     pub(crate) subject_providers: Vec<SubjectProviderFactory>,
     pub(crate) audience_resolvers: Vec<AudienceResolverFactory>,
     pub(crate) policies: Vec<PolicyFactory>,
-    pub(crate) declared_secrets: Vec<SecretName>,
+    pub(crate) declared_secrets: Vec<SecretPattern>,
     pub(crate) secret_references: Vec<SecretReferenceFactory>,
     pub(crate) slots: Vec<SlotRecord>,
     #[cfg(feature = "router")]

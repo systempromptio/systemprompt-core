@@ -38,6 +38,8 @@ mod resolved_routes;
 #[cfg(test)]
 mod route_predicates;
 #[cfg(test)]
+mod secret_grants;
+#[cfg(test)]
 mod services_interpolation;
 #[cfg(test)]
 mod strict_config;

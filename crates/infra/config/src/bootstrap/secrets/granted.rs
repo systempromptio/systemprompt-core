@@ -142,6 +142,12 @@ impl SecretStore for GrantedSecrets {
             .map(|value| ExtensionSecret::new(value.to_owned()))
     }
 
+    fn secret_exact(&self, name: &str) -> Option<ExtensionSecret> {
+        self.secrets
+            .get(name)
+            .map(|value| ExtensionSecret::new(value.as_str().to_owned()))
+    }
+
     fn key_names(&self) -> Result<Vec<String>, SecretStoreError> {
         Ok(self.granted_names())
     }

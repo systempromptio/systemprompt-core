@@ -648,6 +648,7 @@ fn extensions_config_is_disabled() {
             systemprompt_manifest::DisabledExtension::literal(ExtensionId::new("ext-a")),
             systemprompt_manifest::DisabledExtension::literal(ExtensionId::new("ext-b")),
         ],
+        ..ExtensionsConfig::default()
     };
     assert!(config.is_disabled(&ExtensionId::new("ext-a")));
     assert!(config.is_disabled(&ExtensionId::new("ext-b")));

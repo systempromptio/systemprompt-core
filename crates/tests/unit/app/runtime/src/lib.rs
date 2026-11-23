@@ -110,6 +110,8 @@ mod wave_h_seams;
 #[cfg(test)]
 mod brain_live;
 #[cfg(test)]
+mod core_secret_names;
+#[cfg(test)]
 mod documents_mcp_attribution;
 #[cfg(test)]
 mod documents_mcp_browse;

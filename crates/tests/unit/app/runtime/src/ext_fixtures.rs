@@ -106,6 +106,7 @@ pub fn fixture_admitted() -> Admitted {
                 .contribute(&mut Contributions::__new(owner.clone(), &mut sink))
                 .expect("the fixture contributes");
             AdmittedMember {
+                secret_grants: Vec::new(),
                 owner,
                 metadata: fixture.metadata(),
                 standing: StandingTag::Install,

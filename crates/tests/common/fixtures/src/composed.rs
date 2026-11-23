@@ -21,12 +21,14 @@ use systemprompt_extension::{
     Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, StandingTag,
 };
 use systemprompt_runtime::{Kernel, KernelError};
+use systemprompt_traits::SecretPattern;
 
 type Contribute = Box<dyn Fn(&mut Contributions<'_>) + Send + Sync>;
 
 pub struct Probe {
     id: &'static str,
     contribute: Contribute,
+    secret_grants: Vec<SecretPattern>,
 }
 
 impl Probe {
@@ -37,7 +39,17 @@ impl Probe {
         Self {
             id,
             contribute: Box::new(contribute),
+            secret_grants: Vec::new(),
         }
+    }
+
+    #[must_use]
+    pub fn granted(mut self, grants: &[&str]) -> Self {
+        self.secret_grants = grants
+            .iter()
+            .map(|grant| SecretPattern::parse(grant).expect("a valid secret grant"))
+            .collect();
+        self
     }
 }
 
@@ -80,8 +92,10 @@ fn gateway_member() -> AdmittedMember {
 
 fn admitted_over(mut members: Vec<AdmittedMember>, parts: ComposedParts) -> Admitted {
     members.extend(parts.probes.iter().map(|probe| {
-        systemprompt_test_migrate::admitted_member(probe, StandingTag::Install)
-            .expect("a probe contributes")
+        let mut member = systemprompt_test_migrate::admitted_member(probe, StandingTag::Install)
+            .expect("a probe contributes");
+        member.secret_grants.clone_from(&probe.secret_grants);
+        member
     }));
     Admitted::__from_facade(AdmittedParts {
         members,

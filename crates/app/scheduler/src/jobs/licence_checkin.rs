@@ -22,13 +22,13 @@ use chrono::{DateTime, Utc};
 use systemprompt_client::{GuardedClientConfig, guarded_client};
 use systemprompt_database::{DbPool, RoleCount};
 use systemprompt_identifiers::InstanceId;
-use systemprompt_manifest::profile::{LICENCE_SIGNING_SECRET, LicenceConfig, Profile};
+use systemprompt_manifest::profile::{LicenceConfig, Profile};
 use systemprompt_models::licence::{
     CHECKIN_SIGNATURE_HEADER, CHECKIN_TENANT_HEADER, LicenceCheckin, sign_checkin,
 };
 use systemprompt_models::net::validate_outbound_url;
 use systemprompt_provider_contracts::Dependencies;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{Job, JobContext, JobResult, LICENCE_SIGNING_SECRET, ProviderResult};
 use tracing::{debug, info, warn};
 
 use crate::repository::LicenceCheckinRepository;

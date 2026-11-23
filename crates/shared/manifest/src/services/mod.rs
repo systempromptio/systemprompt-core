@@ -39,7 +39,7 @@ pub mod root;
 pub mod rules;
 pub mod runtime;
 pub mod scheduler;
-mod secret_refs;
+pub(crate) mod secret_refs;
 mod selection;
 pub mod settings;
 pub mod skill_frontmatter;

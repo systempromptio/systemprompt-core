@@ -92,6 +92,8 @@ mod reserved_paths;
 #[cfg(test)]
 mod schema_members_drift;
 #[cfg(test)]
+mod secret_grants;
+#[cfg(test)]
 mod slot_standing;
 #[cfg(test)]
 mod snapshot;

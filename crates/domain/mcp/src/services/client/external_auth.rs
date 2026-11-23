@@ -31,14 +31,13 @@ use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExternalAuth;
 use systemprompt_security::credential::TokenCache;
-use systemprompt_traits::SecretLookup;
+use systemprompt_traits::{MCP_CREDENTIAL_BROKER_SECRET, SecretLookup};
 
 use super::McpClient;
 use super::validation::rewrite_url_for_internal_use;
 use crate::error::{McpDomainError, McpDomainResult};
 use crate::services::deployment::DeploymentService;
 
-pub const BROKER_SECRET_KEY: &str = "mcp_credential_broker_secret";
 pub const MCP_SERVER_HEADER: &str = systemprompt_identifiers::headers::MCP_SERVER;
 pub const CALLER_HEADER: &str = systemprompt_identifiers::headers::CALLER_PURPOSE;
 
@@ -84,11 +83,11 @@ pub(super) async fn resolve_external_bearer(
     // caller), so a missing secret is a configuration error here.
     let broker_secret = client
         .secrets
-        .lookup(BROKER_SECRET_KEY)
+        .lookup(MCP_CREDENTIAL_BROKER_SECRET)
         .filter(|secret| !secret.expose().is_empty())
         .ok_or_else(|| {
             McpDomainError::Configuration(format!(
-                "secret `{BROKER_SECRET_KEY}` is not configured; external MCP server '{server}' \
+                "secret `{MCP_CREDENTIAL_BROKER_SECRET}` is not configured; external MCP server '{server}' \
                  cannot resolve its bearer"
             ))
         })?;

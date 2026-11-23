@@ -52,6 +52,7 @@ pub fn admitted_member(
         return Err(error);
     }
     Ok(AdmittedMember {
+        secret_grants: Vec::new(),
         owner,
         metadata,
         standing,

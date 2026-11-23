@@ -30,6 +30,13 @@ impl SecretStore for SecretsService {
             .map(|value| ExtensionSecret::new(value.clone()))
     }
 
+    fn secret_exact(&self, name: &str) -> Option<ExtensionSecret> {
+        self.get()
+            .custom
+            .get(name)
+            .map(|value| ExtensionSecret::new(value.clone()))
+    }
+
     fn key_names(&self) -> Result<Vec<String>, SecretStoreError> {
         Self::key_names(self).map_err(|e| SecretStoreError::new("listing the secret keys", e))
     }

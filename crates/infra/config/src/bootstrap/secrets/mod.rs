@@ -52,8 +52,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use base64::Engine;
-use systemprompt_manifest::profile::{LICENCE_SIGNING_SECRET, Profile, resolve_with_home};
+use systemprompt_manifest::profile::{Profile, resolve_with_home};
 use systemprompt_manifest::secrets::Secrets;
+use systemprompt_traits::LICENCE_SIGNING_SECRET;
 
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use super::master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key};

@@ -41,6 +41,10 @@ impl MapSecrets {
 
 #[async_trait::async_trait]
 impl SecretStore for MapSecrets {
+    fn secret_exact(&self, name: &str) -> Option<ExtensionSecret> {
+        self.secret(name)
+    }
+
     fn secret(&self, name: &str) -> Option<ExtensionSecret> {
         self.0.get(name).cloned().map(ExtensionSecret::new)
     }

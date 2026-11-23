@@ -11,13 +11,14 @@
 //! holds it past router build: every read goes to the current generation, so a
 //! handle kept by a handler sees reloads.
 //!
-//! [`DeclaredSecrets`] is an install member's read of that store: only the
-//! custom secrets the member declared at contribution, and of those only a
-//! name no core member, the profile or the platform references
-//! ([`SecretReferences`], checked on every read so a reference added by a
-//! config reload is refused from then on). It has no key listing and no
-//! reload. [`PINNED_SECRET_KEYS`] is the one list of the platform's own
-//! sealing, signing and connection material.
+//! [`DeclaredSecrets`] is a member's read of that store: a custom secret by a
+//! name the member declared at contribution **and** the operator granted it
+//! in the profile, read by its exact name, and of those only a name no core
+//! member, the profile or the platform references ([`SecretReferences`],
+//! checked on every read so a reference added by a config reload is refused
+//! from then on). It has no key listing and no reload. [`PINNED_SECRET_KEYS`]
+//! is the one list of the platform's own sealing, signing and connection
+//! material.
 //!
 //! [`SecretLookup`] is what a platform service (the in-process AI service, the
 //! MCP client) resolves its credentials through, so a spawned child can run
@@ -31,8 +32,9 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use systemprompt_identifiers::SecretName;
 use zeroize::Zeroize;
+
+use crate::secret_pattern::SecretPattern;
 
 pub const SECRET_SEED_BYTES: usize = 32;
 
@@ -120,6 +122,8 @@ impl SecretStoreError {
 pub trait SecretStore: Send + Sync + fmt::Debug {
     fn secret(&self, name: &str) -> Option<ExtensionSecret>;
 
+    fn secret_exact(&self, name: &str) -> Option<ExtensionSecret>;
+
     fn key_names(&self) -> Result<Vec<String>, SecretStoreError>;
 
     fn manifest_signing_secret_seed(&self) -> Result<[u8; SECRET_SEED_BYTES], SecretStoreError>;
@@ -142,12 +146,14 @@ pub trait SecretReferences: Send + Sync + fmt::Debug {
     fn references(&self, name: &str) -> bool;
 }
 
-/// One install member's read of the live secrets: a custom secret by a name
-/// the member declared, refused when any [`SecretReferences`] names it.
+/// One member's read of the live secrets: a custom secret by a name the
+/// member declared and the operator granted it, read by that exact name, and
+/// refused when any [`SecretReferences`] names it.
 #[derive(Clone)]
 pub struct DeclaredSecrets {
     store: std::sync::Arc<dyn SecretStore>,
-    declared: std::sync::Arc<[SecretName]>,
+    declared: std::sync::Arc<[SecretPattern]>,
+    granted: std::sync::Arc<[SecretPattern]>,
     references: std::sync::Arc<dyn SecretReferences>,
 }
 
@@ -155,27 +161,26 @@ impl DeclaredSecrets {
     #[must_use]
     pub fn over(
         store: std::sync::Arc<dyn SecretStore>,
-        declared: std::sync::Arc<[SecretName]>,
+        declared: std::sync::Arc<[SecretPattern]>,
+        granted: std::sync::Arc<[SecretPattern]>,
         references: std::sync::Arc<dyn SecretReferences>,
     ) -> Self {
         Self {
             store,
             declared,
+            granted,
             references,
         }
     }
 
     #[must_use]
     pub fn secret(&self, name: &str) -> Option<ExtensionSecret> {
-        if !self
-            .declared
-            .iter()
-            .any(|declared| declared.as_str() == name)
-            || self.references.references(name)
-        {
+        let declared = self.declared.iter().any(|pattern| pattern.covers(name));
+        let granted = self.granted.iter().any(|pattern| pattern.covers(name));
+        if !declared || !granted || self.references.references(name) {
             return None;
         }
-        self.store.secret(name)
+        self.store.secret_exact(name)
     }
 }
 
@@ -183,6 +188,7 @@ impl fmt::Debug for DeclaredSecrets {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DeclaredSecrets")
             .field("declared", &self.declared)
+            .field("granted", &self.granted)
             .finish_non_exhaustive()
     }
 }

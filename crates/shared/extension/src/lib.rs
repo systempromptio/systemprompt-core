@@ -137,8 +137,9 @@ pub use brain::{BrainSink, DynBrainSink};
 pub use contribute::{
     AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory,
     FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle, MemberResolved,
-    MemberScope, ProvideError, ProvideFn, ProvidePhase, Resolved, SecretDeclarations, Slot,
-    SlotEntry, SlotError, SlotOrder, StandingTag, build_factories, handles,
+    MemberScope, MemberSecrets, ProvideError, ProvideFn, ProvidePhase, Resolved,
+    SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
+    handles,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{

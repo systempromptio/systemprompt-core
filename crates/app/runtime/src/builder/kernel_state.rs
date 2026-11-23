@@ -27,19 +27,20 @@
 //!
 //! The runtime `Config`, the secret store, the system admin, the active
 //! services root, the profile's services bundle sources (`BundleSources`: the
-//! pinned sources, bundle cache and base tree, never another profile value) and
-//! the event router are sealed, and so are the JWT signing keys the API seeds:
-//! kernel code and a core member's provide fns, factories and slot builds read
-//! them; an install member's provide fns, factories and slot builds read only
-//! the rows of `systemprompt_extension::reserved::INSTALL_SEEDS`; no route
-//! set's state reads one; and every context handed to member runtime code (a
-//! job, a runner service, a config plane, a member command) is built without
-//! them. `Config`, the secret store and the signing keys carry credentials; the
-//! system admin, the services root and the bundle sources are boot-only
-//! identity and layout; the event router publishes to and subscribes on every
-//! user's stream. Every other seed is open. A member whose runtime code needs a
-//! capability derived from a sealed seed builds a narrow handle in its provide
-//! fn or factory.
+//! pinned sources, bundle cache and base tree, never another profile value),
+//! the profile's referenced secret names (`ProfileSecretReferences`, which the
+//! kernel's install-secret refusal reads) and the event router are sealed, and
+//! so are the JWT signing keys the API seeds: kernel code and a core member's
+//! provide fns, factories and slot builds read them; an install member's
+//! provide fns, factories and slot builds read only the rows of
+//! `systemprompt_extension::reserved::INSTALL_SEEDS`; no route set's state
+//! reads one; and every context handed to member runtime code (a job, a runner
+//! service, a config plane, a member command) is built without them. `Config`,
+//! the secret store and the signing keys carry credentials; the system admin,
+//! the services root and the bundle sources are boot-only identity and layout;
+//! the event router publishes to and subscribes on every user's stream. Every
+//! other seed is open. A member whose runtime code needs a capability derived
+//! from a sealed seed builds a narrow handle in its provide fn or factory.
 //!
 //! The API also seeds the one `Arc<dyn TokenAuthority>` built over its signing
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
@@ -103,6 +104,7 @@ use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_governance::policy::secrets::SecretScanner;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_loader::subprocess::Spawner;
+use systemprompt_manifest::profile::ProfileSecretReferences;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
 use systemprompt_manifest::{Config, Profile};
@@ -234,6 +236,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(seed.services_root)
         .with_sealed(seed.profile_path)
         .with_sealed(BundleSources::of(seed.profile))
+        .with_sealed(ProfileSecretReferences::of(seed.profile))
         .with_sealed(seed.secrets)
         .with_sealed(seed.secret_lookup)
         .with_sealed(seed.connector_tokens)

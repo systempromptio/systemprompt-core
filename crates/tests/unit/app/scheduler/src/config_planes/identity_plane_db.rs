@@ -30,6 +30,10 @@ struct PortalSecret;
 
 #[async_trait::async_trait]
 impl SecretStore for PortalSecret {
+    fn secret_exact(&self, name: &str) -> Option<ExtensionSecret> {
+        self.secret(name)
+    }
+
     fn secret(&self, name: &str) -> Option<ExtensionSecret> {
         (name == "portal_secret").then(|| ExtensionSecret::new("s3cr3t-value".to_owned()))
     }

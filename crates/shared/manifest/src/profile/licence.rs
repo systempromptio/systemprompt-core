@@ -12,8 +12,6 @@
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::EnterpriseLicenseId;
 
-pub const LICENCE_SIGNING_SECRET: &str = "licence_signing_secret";
-
 /// Where and how often a multi-tenant deployment reports its licence check-in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]

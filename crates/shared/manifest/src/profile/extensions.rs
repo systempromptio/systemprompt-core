@@ -1,4 +1,17 @@
-//! The profile's `extensions` section: the members a profile disables.
+//! The profile's `extensions` section: the members a profile disables and
+//! the custom secrets it grants each member.
+//!
+//! `extensions.secrets` maps a member id to the secret names and prefixes
+//! ([`SecretPattern`]: `acme_api_key`, `acme_*`) the operator grants it. A
+//! member reads a custom secret only when it declared the name and a grant
+//! covers it; with no grant it reads none. An id that names no composed
+//! member is refused at admission, and an empty name, an empty prefix or a
+//! bare `*` is refused when the profile parses.
+//!
+//! [`ProfileSecretReferences`] is every custom-secret name the profile itself
+//! references (the object-store credential, a services bundle source's
+//! `auth_secret`), found by the structural walk of the services config's
+//! references; the grants are not walked.
 //!
 //! Each disabled entry keeps the variables it was interpolated from, so a
 //! refusal of an entry (an unknown id, an id that does not validate, a value
@@ -11,13 +24,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_yaml::Value;
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_traits::{SecretPattern, SecretReferences};
 
+use super::Profile;
 use crate::env::{INTERPOLATED_TAG, PROVENANCE_KEYWORD, UNRESOLVED_TAG};
+use crate::services::secret_refs::{names_reference, referenced_secret_names};
+
+const EXTENSIONS_KEY: &str = "extensions";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -25,11 +45,39 @@ pub struct ExtensionsConfig {
     #[serde(default, deserialize_with = "disabled_list")]
     #[schemars(extend("x-interpolation-provenance" = true))]
     pub disabled: Vec<DisabledExtension>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub secrets: BTreeMap<ExtensionId, Vec<SecretPattern>>,
 }
 
 impl ExtensionsConfig {
     pub fn is_disabled(&self, extension_id: &ExtensionId) -> bool {
         self.disabled.iter().any(|entry| entry.id() == extension_id)
+    }
+
+    #[must_use]
+    pub fn secret_grants(&self, extension_id: &ExtensionId) -> &[SecretPattern] {
+        self.secrets.get(extension_id).map_or(&[], Vec::as_slice)
+    }
+}
+
+/// The custom-secret names the profile references, outside its grants.
+#[derive(Debug, Clone)]
+pub struct ProfileSecretReferences {
+    names: Option<Arc<[String]>>,
+}
+
+impl ProfileSecretReferences {
+    #[must_use]
+    pub fn of(profile: &Profile) -> Self {
+        Self {
+            names: referenced_secret_names(profile, &[EXTENSIONS_KEY]).map(Arc::from),
+        }
+    }
+}
+
+impl SecretReferences for ProfileSecretReferences {
+    fn references(&self, name: &str) -> bool {
+        names_reference(self.names.as_deref(), name)
     }
 }
 
