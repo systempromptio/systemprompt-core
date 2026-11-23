@@ -24,10 +24,10 @@ use systemprompt_identifiers::DocumentId;
 use super::DocumentsState;
 use super::caller::{Caller, caller};
 use super::content::request_context;
-use super::error::DocumentsResult;
-use super::headers::{hash_etag, none_match};
 use super::items::document_id;
-use crate::routes::user_content::{USER_CONTENT_CSP, harden};
+use crate::http::user_content::{USER_CONTENT_CSP, harden};
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::{hash_etag, none_match};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct MediaQuery {

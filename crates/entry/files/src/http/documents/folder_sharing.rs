@@ -17,8 +17,8 @@ use systemprompt_models::RequestContext;
 use super::DocumentsState;
 use super::access::HistoryQuery;
 use super::caller::caller;
-use super::error::DocumentsResult;
 use super::sharing::{GrantsJson, RevokeQuery, ShareBody, list_on, revoke_on, share_on};
+use systemprompt_documents::http::error::DocumentsResult;
 
 fn folder_target(raw: &str) -> DocumentsResult<GrantTarget> {
     Ok(GrantTarget::Folder(DocumentFolderId::try_new(raw)?))

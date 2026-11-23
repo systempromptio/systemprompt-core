@@ -16,9 +16,9 @@ use systemprompt_models::documents::DocumentFormat;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::DocumentsResult;
-use super::headers::content_disposition;
 use super::items::document_id;
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::content_disposition;
 
 const LEFT_OUT: HeaderName = HeaderName::from_static("x-export-left-out");
 

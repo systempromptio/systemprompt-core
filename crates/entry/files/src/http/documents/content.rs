@@ -32,14 +32,14 @@ use systemprompt_traits::{FileStorageError, StoredFileRead};
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
-use super::error::DocumentsResult;
-use super::headers::{
+use super::items::document_id;
+use crate::http::error::ApiHttpError;
+use crate::http::user_content::{USER_CONTENT_CSP, harden};
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::{
     content_disposition, hash_etag, if_range_holds, none_match, range, revision_etag,
     set_content_sha256,
 };
-use super::items::document_id;
-use crate::kernel::ApiHttpError;
-use crate::routes::user_content::{USER_CONTENT_CSP, harden};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct RevisionQuery {

@@ -18,8 +18,8 @@ use systemprompt_traits::FileStorageError;
 
 use super::principal::{unauthenticated, uploader};
 use super::views::{CompletedJson, CreateBody, UploadJson};
-use crate::kernel::ApiHttpError;
-use crate::routes::documents::DocumentsState;
+use crate::http::documents::DocumentsState;
+use crate::http::error::ApiHttpError;
 
 type UploadsResult = Result<Response, ApiHttpError>;
 

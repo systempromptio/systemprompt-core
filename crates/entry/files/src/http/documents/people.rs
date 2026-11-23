@@ -23,7 +23,7 @@ use systemprompt_models::RequestContext;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::DocumentsResult;
+use systemprompt_documents::http::error::DocumentsResult;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct PeopleQuery {

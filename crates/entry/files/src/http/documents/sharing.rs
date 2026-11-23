@@ -18,16 +18,16 @@ use systemprompt_identifiers::EditorId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
 use systemprompt_documents::subject_display;
 use systemprompt_models::documents::{AccessLevel, PresenceBeacon, PresenceSource, PresenceState};
 use uuid::Uuid;
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
-use super::error::{DocumentsResult, with_detail};
 use super::items::document_id;
 use super::views::{GrantJson, LockJson, PresenceJson};
+use systemprompt_documents::http::error::{DocumentsResult, with_detail};
 use systemprompt_documents::refusal::{Refusal, RefusalCode};
 
 const DEFAULT_LOCK_SECS: u64 = 300;

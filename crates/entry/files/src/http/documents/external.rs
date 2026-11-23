@@ -18,9 +18,9 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 
 use super::caller::caller;
-use super::error::DocumentsResult;
 use super::items::document_id;
 use super::{DocumentsState, step_up_of};
+use systemprompt_documents::http::error::DocumentsResult;
 
 #[derive(Debug, Serialize)]
 pub(super) struct PublicLinksJson {

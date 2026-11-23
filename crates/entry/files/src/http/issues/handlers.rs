@@ -13,7 +13,7 @@ use systemprompt_models::issues::{IssueContext, IssueReport};
 
 use super::views::{FileBody, FiledJson, IssuePage, ListParams};
 use super::{IssuesState, caller};
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
 
 fn request_context(req_ctx: &RequestContext) -> IssueContext {
     IssueContext {

@@ -25,7 +25,6 @@ mod error;
 mod extension_mount;
 mod feature_mount;
 mod gateway;
-mod issues;
 #[cfg(feature = "bridge")]
 mod managed;
 mod oauth_mount;
@@ -269,7 +268,6 @@ fn wellknown_router(ctx: &AppContext) -> Result<Router, LoaderError> {
 
 fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, RouteMountError> {
     router = protocol::mount_content_and_misc(router, mount)?;
-    router = documents::mount_documents(router, mount)?;
-    router = issues::mount_issues(router, mount)?;
+    router = documents::mount_files(router, mount)?;
     Ok(router)
 }

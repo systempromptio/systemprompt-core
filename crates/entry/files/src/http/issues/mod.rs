@@ -27,12 +27,12 @@ use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_runtime::AppContext;
 
-use crate::kernel::ApiHttpError;
-use crate::routes::documents::{DocumentsMountError, documents_handles, link_tokens};
+use crate::http::error::ApiHttpError;
+use systemprompt_documents::http::surface::{FilesRouteState, FilesSurfaceError};
+use systemprompt_manifest::Config;
 
-pub const ISSUES_PATH: &str = "/api/v1/issues";
+use crate::http::files_handles;
 
 /// Router-scoped state of the issue routes: the issue and upload services,
 /// the authority that signs upload links and the external base URL they
@@ -52,13 +52,14 @@ impl std::fmt::Debug for IssuesState {
 }
 
 impl IssuesState {
-    pub fn from_context(ctx: &AppContext) -> Result<Self, DocumentsMountError> {
-        let handles = documents_handles(ctx)?;
+    pub fn build(state: &FilesRouteState<'_>) -> Result<Self, FilesSurfaceError> {
+        let handles = files_handles(state)?;
+        let config = state.resolved.get::<Arc<Config>>()?;
         Ok(Self {
             issues: Arc::clone(&handles.issues),
             uploads: Arc::clone(&handles.uploads),
-            tokens: link_tokens(ctx).ok_or(DocumentsMountError::MissingLinkTokens)?,
-            base_url: Arc::from(ctx.config().api_external_url.as_str()),
+            tokens: state.resolved.get::<Arc<DocumentLinkTokens>>()?,
+            base_url: Arc::from(config.api_external_url.as_str()),
         })
     }
 }

@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The file CLI commands of systemprompt.io: listing, inspecting, uploading, validating and deleting stored files, and the AI-generated image views."
+description = "The files entry surface of systemprompt.io: the document, upload, public-link and issue HTTP handlers, and the file CLI commands for listing, inspecting, uploading, validating and deleting stored files."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -23,7 +23,34 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-http = ["systemprompt-extension/router"]
+http = [
+    "systemprompt-extension/router",
+    "dep:systemprompt-database",
+    "dep:systemprompt-documents",
+    "systemprompt-documents/http",
+    "dep:systemprompt-events",
+    "dep:systemprompt-files",
+    "dep:systemprompt-identifiers",
+    "dep:systemprompt-manifest",
+    "dep:systemprompt-models",
+    "dep:systemprompt-provider-contracts",
+    "dep:systemprompt-traits",
+    "dep:systemprompt-users",
+    "dep:async-stream",
+    "dep:axum",
+    "dep:base64",
+    "dep:chrono",
+    "dep:futures-util",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:thiserror",
+    "dep:tokio",
+    "dep:tracing",
+    "dep:tower",
+    "dep:url",
+    "dep:uuid",
+]
+collab = ["http", "systemprompt-files/collab", "systemprompt-documents/collab"]
 cli = [
     "systemprompt-extension/cli",
     "dep:systemprompt-database",
@@ -43,16 +70,30 @@ cli = [
 
 [dependencies]
 systemprompt-database = { workspace = true, optional = true }
+systemprompt-documents = { workspace = true, optional = true }
+systemprompt-events = { workspace = true, optional = true }
 systemprompt-extension = { workspace = true }
 systemprompt-files = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
+systemprompt-manifest = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
+systemprompt-provider-contracts = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
+systemprompt-users = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
+async-stream = { workspace = true, optional = true }
+axum = { workspace = true, optional = true, features = ["multipart"] }
 base64 = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["fs"] }
+tower = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }

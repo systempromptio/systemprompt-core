@@ -24,8 +24,8 @@ use systemprompt_models::api::ApiError;
 use tower::ServiceExt;
 
 use super::principal::{TokenUploader, Uploader};
-use crate::kernel::ApiHttpError;
-use crate::routes::documents::DocumentsState;
+use crate::http::documents::DocumentsState;
+use crate::http::error::ApiHttpError;
 
 #[derive(Clone)]
 pub(super) struct GateState {

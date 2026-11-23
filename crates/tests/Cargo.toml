@@ -325,7 +325,7 @@ systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
 systemprompt-documents = { path = "../app/documents", features = ["engine-loro", "notifications"] }
 systemprompt-issues = { path = "../app/issues", features = ["cli"] }
-systemprompt-api = { path = "../entry/api", features = ["collab"] }
+systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-slack-entry = { path = "../entry/slack" }
 systemprompt-teams-entry = { path = "../entry/teams" }

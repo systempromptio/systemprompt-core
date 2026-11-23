@@ -20,6 +20,8 @@ mod directory;
 pub mod download;
 /// The documents member.
 pub mod extension;
+#[cfg(feature = "http")]
+pub mod http;
 /// Signed links an MCP server obtains from the API.
 pub mod links;
 /// MCP tool handlers over the document service.

@@ -9,8 +9,8 @@ use systemprompt_identifiers::DocumentFolderId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::DocumentFormat;
 
-use super::error::DocumentsResult;
 use super::items::folder_id;
+use systemprompt_documents::http::error::DocumentsResult;
 
 const OPAQUE_MIME: &str = "application/octet-stream";
 

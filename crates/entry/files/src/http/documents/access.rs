@@ -19,14 +19,14 @@ use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::AccessLevel;
 
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::{DocumentsHttpError, DocumentsResult};
 use super::items::document_id;
 use super::requests::with_request_hint;
 use super::views::DocumentJson;
+use systemprompt_documents::http::error::{DocumentsHttpError, DocumentsResult};
 
 #[derive(Debug, Default, Deserialize)]
 pub(super) struct HistoryQuery {

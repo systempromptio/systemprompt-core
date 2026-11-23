@@ -26,11 +26,10 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DriveSyncToken;
 use systemprompt_oauth_issuance::drive_sync::{device_audiences, drive_audiences};
 
-use super::caller::authenticated;
 use super::drive::DriveState;
-use super::error::DocumentsResult;
 use crate::kernel::ApiHttpError;
 use crate::routes::gateway::messages::extract_credential;
+use systemprompt_documents::http::error::DocumentsResult;
 
 pub(super) async fn issue(
     State(state): State<DriveState>,
@@ -71,5 +70,8 @@ pub(super) async fn device_user(
         return Err(ApiHttpError::forbidden("a purposed or delegated token cannot sync").into());
     }
     let actor = bearer_actor(None, claims.client_id.as_ref(), claims.interaction);
-    Ok((authenticated(user), actor.on(AgentChannel::DriveSync)))
+    Ok((
+        AuthenticatedUser::from_provider_user(user),
+        actor.on(AgentChannel::DriveSync),
+    ))
 }

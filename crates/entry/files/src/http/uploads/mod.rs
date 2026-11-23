@@ -26,7 +26,7 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
 
-use crate::routes::documents::DocumentsState;
+use crate::http::documents::DocumentsState;
 
 const PART_BODY_SLACK: u64 = 64 * 1024;
 

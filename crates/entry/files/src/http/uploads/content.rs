@@ -16,9 +16,9 @@ use systemprompt_traits::{ByteRange, FileStorageError};
 
 use super::handlers::upload_id;
 use super::principal::{unauthenticated, uploader};
-use crate::kernel::ApiHttpError;
-use crate::routes::documents::DocumentsState;
-use crate::routes::user_content::{USER_CONTENT_CSP, harden};
+use crate::http::documents::DocumentsState;
+use crate::http::error::ApiHttpError;
+use crate::http::user_content::{USER_CONTENT_CSP, harden};
 
 pub(super) async fn content(
     State(state): State<DocumentsState>,

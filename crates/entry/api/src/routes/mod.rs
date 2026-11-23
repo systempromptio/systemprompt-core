@@ -13,7 +13,6 @@ pub mod admin;
 pub mod documents;
 pub mod gateway;
 pub mod internal;
-pub mod issues;
 #[cfg(feature = "bridge")]
 pub mod managed;
 pub(crate) mod managed_state;
@@ -22,8 +21,6 @@ pub mod proxy;
 pub mod sso;
 pub mod stream;
 pub mod sync;
-pub mod uploads;
-pub(crate) mod user_content;
 pub mod users;
 pub mod webhook;
 pub mod wellknown;

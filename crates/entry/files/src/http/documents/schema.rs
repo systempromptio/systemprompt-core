@@ -13,7 +13,7 @@ use systemprompt_models::RequestContext;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::DocumentsResult;
+use systemprompt_documents::http::error::DocumentsResult;
 
 pub(super) async fn schema(
     State(state): State<DocumentsState>,

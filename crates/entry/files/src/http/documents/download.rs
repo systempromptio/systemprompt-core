@@ -26,9 +26,9 @@ use systemprompt_models::api::ApiError;
 use super::DocumentsState;
 use super::caller::{Caller, load};
 use super::content::{ContentRequest, rendition, serve};
-use super::error::DocumentsResult;
 use super::items::document_id;
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
+use systemprompt_documents::http::error::DocumentsResult;
 
 struct DownloadQuery {
     token: String,

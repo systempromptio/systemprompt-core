@@ -20,9 +20,9 @@ use systemprompt_models::api::ApiError;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::DocumentsResult;
 use super::items::folder_id;
 use super::views::ListingJson;
+use systemprompt_documents::http::error::DocumentsResult;
 
 const DEFAULT_PAGE: i64 = 50;
 const MAX_PAGE: i64 = 200;

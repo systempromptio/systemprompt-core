@@ -141,7 +141,7 @@ files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf"]
 
 # Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
 # routes. `full` implies it.
-files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-documents?/collab", "systemprompt-api?/collab"]
+files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-documents?/collab", "systemprompt-files-entry?/collab"]
 
 # The Loro CRDT engine for live sessions. Without it `files-collab` mounts the
 # routes and every session answers `collab_engine_unavailable`.

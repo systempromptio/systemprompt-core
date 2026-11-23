@@ -22,8 +22,8 @@ use systemprompt_models::documents::ActorKind;
 use systemprompt_traits::{AuthUser, UserProvider};
 
 use super::DocumentsState;
-use super::error::DocumentsResult;
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
+use systemprompt_documents::http::error::DocumentsResult;
 
 pub(crate) struct Caller {
     pub(crate) user: AuthenticatedUser,

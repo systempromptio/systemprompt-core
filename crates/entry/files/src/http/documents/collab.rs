@@ -25,9 +25,7 @@ use axum::{Extension, Json};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
-use systemprompt_files::documents::collab::{
-    Checkpoint, CollabError, CursorRequest, JoinMode, Left,
-};
+use systemprompt_files::documents::collab::{Checkpoint, CursorRequest, JoinMode, Left};
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentProposalId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
@@ -35,8 +33,8 @@ use systemprompt_models::documents::AccessLevel;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::{DocumentsHttpError, DocumentsResult};
 use super::items::document_id;
+use systemprompt_documents::http::error::DocumentsResult;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -210,56 +208,4 @@ pub(super) fn decode(raw: &str) -> DocumentsResult<Vec<u8>> {
             .with_source(error)
             .into()
     })
-}
-
-impl From<CollabError> for DocumentsHttpError {
-    fn from(error: CollabError) -> Self {
-        collab_error(error)
-    }
-}
-
-fn collab_error(error: CollabError) -> DocumentsHttpError {
-    type Http = DocumentsHttpError;
-    let message = error.to_string();
-    match error {
-        CollabError::Documents(error) => Http::from(error),
-        CollabError::SessionClosed { .. } => {
-            Http::from(ApiError::conflict(message).with_error_key("session_closed"))
-        },
-        CollabError::CheckpointBusy { .. } => {
-            Http::from(ApiError::conflict(message).with_error_key("checkpoint_busy"))
-        },
-        CollabError::CheckpointLeaseLost { .. } => {
-            Http::from(ApiError::conflict(message).with_error_key("checkpoint_lease_lost"))
-        },
-        CollabError::NotJoined { .. } => {
-            Http::from(ApiError::conflict(message).with_error_key("not_joined"))
-        },
-        CollabError::NotEditing { .. } => {
-            Http::from(ApiError::forbidden(message).with_error_key("not_editing"))
-        },
-        CollabError::InvalidUpdate(source) | CollabError::InvalidVersion(source) => {
-            Http::from(ApiError::bad_request(message).with_source(source))
-        },
-        CollabError::UpdateRejected(rejection) => Http::from(
-            ApiError::bad_request(message)
-                .with_error_key("update_rejected")
-                .with_details(rejection.reason()),
-        ),
-        CollabError::PeerNotAssigned { .. } => {
-            Http::from(ApiError::bad_request(message).with_error_key("peer_not_assigned"))
-        },
-        CollabError::MissingDependencies => {
-            Http::from(ApiError::conflict(message).with_error_key("update_dependencies_missing"))
-        },
-        CollabError::UpdateContended { .. } => {
-            Http::from(ApiError::conflict(message).with_error_key("update_contended"))
-        },
-        CollabError::NotText { .. } => Http::from(ApiError::bad_request(message)),
-        CollabError::EngineUnavailable => Http::from(
-            ApiError::service_unavailable("no live session engine is enabled")
-                .with_error_key("collab_engine_unavailable"),
-        ),
-        other => Http::from(ApiError::internal("live edit session failed", other)),
-    }
 }

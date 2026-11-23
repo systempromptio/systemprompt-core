@@ -23,9 +23,9 @@ use systemprompt_models::documents::{ActorKind, ProposalStatus};
 
 use super::DocumentsState;
 use super::caller::{Caller, api_author, caller};
-use super::error::DocumentsResult;
 use super::items::document_id;
 use super::views::RevisionJson;
+use systemprompt_documents::http::error::DocumentsResult;
 
 #[derive(Debug, Serialize)]
 pub(super) struct ProposalJson {

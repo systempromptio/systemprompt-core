@@ -41,11 +41,11 @@ use systemprompt_models::documents::{EditMode, EditOp};
 use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::content::request_context;
-use super::error::{DocumentsResult, refused_response, status_of};
-use super::headers::{base_revision, set_content_sha256, set_revision_tags};
 use super::items::document_id;
 use super::proposals::proposed_response;
 use super::views::RevisionJson;
+use systemprompt_documents::http::error::{DocumentsResult, refused_response, status_of};
+use systemprompt_documents::http::headers::{base_revision, set_content_sha256, set_revision_tags};
 
 #[derive(Debug, Serialize)]
 pub(super) struct CommittedJson {

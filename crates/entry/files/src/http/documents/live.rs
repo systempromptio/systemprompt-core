@@ -44,8 +44,8 @@ use tokio::sync::broadcast::error::RecvError;
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
-use super::error::DocumentsResult;
 use super::items::document_id;
+use systemprompt_documents::http::error::DocumentsResult;
 
 const ACCESS_RECHECK: Duration = Duration::from_secs(30);
 

@@ -6607,7 +6607,6 @@ dependencies = [
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",
- "systemprompt-issues",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
@@ -6952,6 +6951,7 @@ name = "systemprompt-documents"
 version = "0.85.0"
 dependencies = [
  "async-trait",
+ "axum",
  "base64 0.23.1",
  "chrono",
  "http",
@@ -6977,7 +6977,9 @@ dependencies = [
  "systemprompt-traits",
  "systemprompt-users",
  "thiserror 2.0.21",
+ "tokio",
  "tracing",
+ "urlencoding",
 ]
 
 [[package]]
@@ -7088,19 +7090,33 @@ name = "systemprompt-files-entry"
 version = "0.85.0"
 dependencies = [
  "anyhow",
+ "async-stream",
+ "axum",
  "base64 0.23.1",
  "chrono",
  "clap",
+ "futures-util",
  "schemars 1.2.3",
  "serde",
+ "serde_json",
  "sha2 0.11.1",
  "systemprompt-database",
+ "systemprompt-documents",
+ "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.21",
  "tokio",
+ "tower",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -7654,15 +7670,11 @@ name = "systemprompt-runtime"
 version = "0.85.0"
 dependencies = [
  "async-trait",
- "base64 0.23.1",
  "chrono",
- "http",
  "indicatif",
  "jsonwebtoken",
  "maxminddb",
  "reqwest",
- "rmcp",
- "schemars 1.2.3",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -7670,7 +7682,6 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-agent-runs",
  "systemprompt-analytics",
- "systemprompt-client",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",

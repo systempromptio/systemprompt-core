@@ -29,9 +29,9 @@ use systemprompt_models::documents::DocumentFormat;
 
 use super::DocumentsState;
 use super::caller::{api_author, caller};
-use super::error::DocumentsResult;
 use super::views::CreatedJson;
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
+use systemprompt_documents::http::error::DocumentsResult;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct ImportBody {

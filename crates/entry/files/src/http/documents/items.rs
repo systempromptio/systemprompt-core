@@ -27,11 +27,11 @@ use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsState;
 use super::caller::{api_author, caller};
-use super::error::DocumentsResult;
-use super::headers::set_revision_tags;
 use super::items_multipart::read_file;
 use super::requests::with_request_hint;
 use super::views::{CreatedJson, DocumentDetail};
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::set_revision_tags;
 
 pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
     Ok(DocumentId::try_new(raw)?)

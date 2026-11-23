@@ -24,12 +24,12 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::AccessLevel;
 
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
-use super::error::{DocumentsHttpError, DocumentsResult, with_detail};
 use super::items::document_id;
+use systemprompt_documents::http::error::{DocumentsHttpError, DocumentsResult, with_detail};
 
 #[derive(Debug, Serialize)]
 struct CanRequestDetail {

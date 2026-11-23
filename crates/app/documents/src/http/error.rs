@@ -11,13 +11,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::refusal::{Refused, refusal_of};
 use axum::Json;
 use axum::extract::multipart::{MultipartError, MultipartRejection};
 use axum::extract::rejection::JsonRejection;
 use axum::http::header::ToStrError;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
-use systemprompt_documents::refusal::{Refused, refusal_of};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::AgentRefusal;
 use systemprompt_files::documents::blob_store::BlobStoreError;
@@ -28,10 +28,10 @@ use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_traits::{AuthProviderError, FileStorageError};
 use tokio::sync::oneshot::error::RecvError;
 
-use crate::kernel::{ApiHttpError, unreadable_body};
+use systemprompt_extension::router::{ApiHttpError, unreadable_body};
 
 #[derive(Debug)]
-pub(crate) enum DocumentsHttpError {
+pub enum DocumentsHttpError {
     Service(Box<DocumentsError>),
     Api(Box<ApiHttpError>),
 }
@@ -110,7 +110,7 @@ impl From<IdValidationError> for DocumentsHttpError {
     }
 }
 
-pub(crate) type DocumentsResult<T> = Result<T, DocumentsHttpError>;
+pub type DocumentsResult<T> = Result<T, DocumentsHttpError>;
 
 #[derive(Serialize)]
 struct WithDetail<'a, T> {
@@ -119,7 +119,7 @@ struct WithDetail<'a, T> {
     detail: T,
 }
 
-pub(crate) fn with_detail(error: &ApiError, detail: impl Serialize) -> Response {
+pub fn with_detail(error: &ApiError, detail: impl Serialize) -> Response {
     let status = error.code.status_code();
     tracing::warn!(
         error_code = ?error.code,
@@ -130,7 +130,7 @@ pub(crate) fn with_detail(error: &ApiError, detail: impl Serialize) -> Response 
     (status, Json(WithDetail { error, detail })).into_response()
 }
 
-pub(crate) fn refused_response(status: fn(String) -> ApiError, refused: Refused) -> Response {
+pub fn refused_response(status: fn(String) -> ApiError, refused: Refused) -> Response {
     let Refused { refusal, message } = refused;
     let error = status(message).with_error_key(refusal.code.as_str());
     with_detail(&error, refusal)
@@ -206,7 +206,7 @@ fn rate_limited(message: String) -> ApiError {
     ApiError::rate_limited(message)
 }
 
-pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
+pub fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
     match error {
         DocumentsError::Conflict { .. }
         | DocumentsError::StaleAnchor { .. }
@@ -263,5 +263,64 @@ fn codec_status(codec: &CodecError) -> fn(String) -> ApiError {
         CodecError::StaleAnchor { .. } | CodecError::UnknownNode { .. } => conflict,
         CodecError::TooLarge { .. } => too_large,
         _ => bad_request,
+    }
+}
+
+#[cfg(feature = "collab")]
+impl From<systemprompt_files::documents::collab::CollabError> for DocumentsHttpError {
+    fn from(error: systemprompt_files::documents::collab::CollabError) -> Self {
+        collab_error(error)
+    }
+}
+
+#[cfg(feature = "collab")]
+fn collab_error(error: systemprompt_files::documents::collab::CollabError) -> DocumentsHttpError {
+    type Http = DocumentsHttpError;
+    let message = error.to_string();
+    match error {
+        systemprompt_files::documents::collab::CollabError::Documents(error) => Http::from(error),
+        systemprompt_files::documents::collab::CollabError::SessionClosed { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("session_closed"))
+        },
+        systemprompt_files::documents::collab::CollabError::CheckpointBusy { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("checkpoint_busy"))
+        },
+        systemprompt_files::documents::collab::CollabError::CheckpointLeaseLost { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("checkpoint_lease_lost"))
+        },
+        systemprompt_files::documents::collab::CollabError::NotJoined { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("not_joined"))
+        },
+        systemprompt_files::documents::collab::CollabError::NotEditing { .. } => {
+            Http::from(ApiError::forbidden(message).with_error_key("not_editing"))
+        },
+        systemprompt_files::documents::collab::CollabError::InvalidUpdate(source)
+        | systemprompt_files::documents::collab::CollabError::InvalidVersion(source) => {
+            Http::from(ApiError::bad_request(message).with_source(source))
+        },
+        systemprompt_files::documents::collab::CollabError::UpdateRejected(rejection) => {
+            Http::from(
+                ApiError::bad_request(message)
+                    .with_error_key("update_rejected")
+                    .with_details(rejection.reason()),
+            )
+        },
+        systemprompt_files::documents::collab::CollabError::PeerNotAssigned { .. } => {
+            Http::from(ApiError::bad_request(message).with_error_key("peer_not_assigned"))
+        },
+        systemprompt_files::documents::collab::CollabError::MissingDependencies => {
+            Http::from(ApiError::conflict(message).with_error_key("update_dependencies_missing"))
+        },
+        systemprompt_files::documents::collab::CollabError::UpdateContended { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("update_contended"))
+        },
+        systemprompt_files::documents::collab::CollabError::NotText { .. } => {
+            Http::from(ApiError::bad_request(message))
+        },
+        systemprompt_files::documents::collab::CollabError::EngineUnavailable => Http::from(
+            ApiError::service_unavailable("no live session engine is enabled")
+                .with_error_key("collab_engine_unavailable"),
+        ),
+        other => Http::from(ApiError::internal("live edit session failed", other)),
     }
 }

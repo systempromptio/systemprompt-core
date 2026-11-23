@@ -27,11 +27,11 @@ use systemprompt_provider_contracts::FrameOptions;
 use super::DocumentsState;
 use super::caller::{Caller, caller};
 use super::content::{RevisionQuery, revision_id};
-use super::error::{DocumentsHttpError, DocumentsResult};
-use super::headers::set_revision_tags;
 use super::items::{cursor, document_id};
 use super::views::RevisionJson;
-use crate::routes::user_content::{INLINE_PDF_CSP, harden};
+use crate::http::user_content::{INLINE_PDF_CSP, harden};
+use systemprompt_documents::http::error::{DocumentsHttpError, DocumentsResult};
+use systemprompt_documents::http::headers::set_revision_tags;
 
 const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 const DEFAULT_HISTORY: i64 = 50;

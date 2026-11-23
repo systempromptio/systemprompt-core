@@ -45,9 +45,9 @@ use systemprompt_oauth_issuance::DriveSyncTokenService;
 
 use super::drive_commit::commit;
 use super::drive_token::device_user;
-use super::error::DocumentsResult;
-use super::headers::{hash_etag, none_match, range};
 use crate::kernel::JwtContextExtractor;
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::{hash_etag, none_match, range};
 
 const DEFAULT_CHANGES: i64 = 500;
 
@@ -90,7 +90,7 @@ impl DriveState {
 }
 
 pub fn router(state: DriveState) -> Router {
-    let limit = super::body_limit(&state.service);
+    let limit = systemprompt_documents::http::body_limit(&state.service);
     Router::new()
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_MANIFEST),

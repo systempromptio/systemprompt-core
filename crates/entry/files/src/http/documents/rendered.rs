@@ -27,10 +27,10 @@ use systemprompt_models::documents::DocumentFormat;
 use super::DocumentsState;
 use super::caller::caller;
 use super::content::{RevisionQuery, request_context, revision_id};
-use super::error::DocumentsResult;
-use super::headers::set_revision_tags;
 use super::items::document_id;
-use crate::routes::user_content::harden;
+use crate::http::user_content::harden;
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::set_revision_tags;
 
 const RENDERED_OP: &str = "rendered";
 

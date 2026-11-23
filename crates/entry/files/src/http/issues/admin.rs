@@ -13,7 +13,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 
 use super::views::{IssuePage, ListParams, StatusBody, StatusJson};
 use super::{IssuesState, caller};
-use crate::kernel::ApiHttpError;
+use crate::http::error::ApiHttpError;
 
 fn triager<'a>(
     state: &IssuesState,

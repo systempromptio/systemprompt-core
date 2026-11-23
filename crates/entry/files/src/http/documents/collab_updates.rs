@@ -35,9 +35,9 @@ use systemprompt_models::api::ApiError;
 use super::DocumentsState;
 use super::caller::caller;
 use super::collab::decode;
-use super::error::DocumentsResult;
 use super::items::document_id;
-use crate::kernel::unreadable_body;
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_extension::router::unreadable_body;
 
 const BINARY: &str = "application/octet-stream";
 const RETRY_AFTER_MS: u64 = 250;

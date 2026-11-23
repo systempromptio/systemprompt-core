@@ -12,21 +12,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::future::{Future, ready};
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::extract::{Path, State};
+use axum::extract::{ConnectInfo, FromRequestParts, Path, State};
+use axum::http::request::Parts;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Form, Router};
 use serde::Deserialize;
+use systemprompt_documents::http::surface::ClientIpResolver;
 use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::service::{PublicLinkOpen, PublicLinkRefusal};
 use systemprompt_models::documents::DocumentFormat;
 
-use crate::routes::user_content::harden;
-use crate::services::middleware::client_addr::ClientIp;
+use crate::http::user_content::harden;
 
 const DOWNLOAD_CSP: HeaderValue = HeaderValue::from_static("sandbox; default-src 'none'");
 const PAGE_CSP: HeaderValue = HeaderValue::from_static(
@@ -46,24 +49,54 @@ pub(crate) struct PasswordForm {
     password: String,
 }
 
-pub fn router(service: Arc<DocumentService>) -> Router {
+/// Router-scoped state of the public-link open: the document service and
+/// the server's client-address resolver the password throttle keys on.
+#[derive(Clone)]
+pub struct PublicLinkState {
+    service: Arc<DocumentService>,
+    client_ip: ClientIpResolver,
+}
+
+impl std::fmt::Debug for PublicLinkState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PublicLinkState").finish_non_exhaustive()
+    }
+}
+
+struct CallerIp(Option<IpAddr>);
+
+impl FromRequestParts<PublicLinkState> for CallerIp {
+    type Rejection = std::convert::Infallible;
+
+    fn from_request_parts(
+        parts: &mut Parts,
+        state: &PublicLinkState,
+    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
+        ready(Ok(Self((state.client_ip)(
+            &parts.headers,
+            parts.extensions.get::<ConnectInfo<SocketAddr>>(),
+        ))))
+    }
+}
+
+pub fn router(service: Arc<DocumentService>, client_ip: ClientIpResolver) -> Router {
     Router::new()
         .route("/{token}", get(open).post(open_with_password))
-        .with_state(service)
+        .with_state(PublicLinkState { service, client_ip })
 }
 
 async fn open(
-    State(service): State<Arc<DocumentService>>,
+    State(PublicLinkState { service, .. }): State<PublicLinkState>,
     Path(token): Path<String>,
-    ClientIp(ip): ClientIp,
+    CallerIp(ip): CallerIp,
 ) -> Response {
     respond(service.open_public_link(&token, None, ip).await, &service)
 }
 
 async fn open_with_password(
-    State(service): State<Arc<DocumentService>>,
+    State(PublicLinkState { service, .. }): State<PublicLinkState>,
     Path(token): Path<String>,
-    ClientIp(ip): ClientIp,
+    CallerIp(ip): CallerIp,
     Form(form): Form<PasswordForm>,
 ) -> Response {
     respond(

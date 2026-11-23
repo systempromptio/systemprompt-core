@@ -17,10 +17,10 @@ use systemprompt_models::documents::AgentEditPolicy;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::DocumentsResult;
 use super::items::{FolderTarget, folder_target};
 use super::listing::ListQuery;
 use super::views::FolderJson;
+use systemprompt_documents::http::error::DocumentsResult;
 
 fn folder(raw: &str) -> DocumentsResult<DocumentFolderId> {
     Ok(DocumentFolderId::try_new(raw)?)

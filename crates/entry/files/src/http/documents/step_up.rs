@@ -19,7 +19,7 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_models::RequestContext;
 
-use crate::error::ApiHttpError;
+use crate::http::error::ApiHttpError;
 
 pub(super) async fn require_recent_sign_in(
     State(ui_session): State<UiSessionConfig>,

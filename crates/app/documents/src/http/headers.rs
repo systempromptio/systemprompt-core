@@ -24,15 +24,15 @@ const CONTENT_SHA256: &str = "x-document-content-sha256";
 
 const INVALID_IF_MATCH: &str = "invalid_if_match";
 
-pub(super) fn revision_etag(revision: &DocumentRevisionId) -> String {
+pub fn revision_etag(revision: &DocumentRevisionId) -> String {
     format!("\"{}\"", revision.as_str())
 }
 
-pub(super) fn hash_etag(hash: &ContentHash) -> String {
+pub fn hash_etag(hash: &ContentHash) -> String {
     format!("\"{}\"", hash.as_str())
 }
 
-pub(super) fn set_revision_tags(
+pub fn set_revision_tags(
     headers: &mut HeaderMap,
     revision: &DocumentRevisionId,
     hash: &ContentHash,
@@ -43,7 +43,7 @@ pub(super) fn set_revision_tags(
     set_content_sha256(headers, hash);
 }
 
-pub(super) fn set_content_sha256(headers: &mut HeaderMap, hash: &ContentHash) {
+pub fn set_content_sha256(headers: &mut HeaderMap, hash: &ContentHash) {
     if let Ok(value) = HeaderValue::from_str(hash.as_str()) {
         headers.insert(HeaderName::from_static(CONTENT_SHA256), value);
     }
@@ -54,7 +54,7 @@ fn invalid_if_match() -> ApiError {
         .with_error_key(INVALID_IF_MATCH)
 }
 
-pub(super) fn none_match(headers: &HeaderMap, etag: &str) -> bool {
+pub fn none_match(headers: &HeaderMap, etag: &str) -> bool {
     headers
         .get_all(header::IF_NONE_MATCH)
         .iter()
@@ -64,21 +64,21 @@ pub(super) fn none_match(headers: &HeaderMap, etag: &str) -> bool {
         .any(|tag| tag == "*" || tag == etag)
 }
 
-pub(super) fn range(headers: &HeaderMap) -> Option<ByteRange> {
+pub fn range(headers: &HeaderMap) -> Option<ByteRange> {
     headers
         .get(header::RANGE)
         .and_then(|value| value.to_str().ok())
         .and_then(ByteRange::parse)
 }
 
-pub(super) fn if_range_holds(headers: &HeaderMap, etag: &str) -> bool {
+pub fn if_range_holds(headers: &HeaderMap, etag: &str) -> bool {
     headers
         .get(header::IF_RANGE)
         .and_then(|value| value.to_str().ok())
         .is_none_or(|value| value.trim() == etag)
 }
 
-pub(crate) fn base_revision(headers: &HeaderMap) -> DocumentsResult<Option<DocumentRevisionId>> {
+pub fn base_revision(headers: &HeaderMap) -> DocumentsResult<Option<DocumentRevisionId>> {
     let Some(value) = headers.get(header::IF_MATCH) else {
         return Ok(None);
     };
@@ -95,7 +95,7 @@ pub(crate) fn base_revision(headers: &HeaderMap) -> DocumentsResult<Option<Docum
     Ok(Some(revision))
 }
 
-pub(super) fn content_disposition(name: &str) -> String {
+pub fn content_disposition(name: &str) -> String {
     let fallback: String = name
         .chars()
         .map(|c| {

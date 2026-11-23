@@ -24,8 +24,8 @@ use systemprompt_models::notifications::Attention;
 
 use super::DocumentsState;
 use super::caller::{api_comment_origin, caller};
-use super::error::DocumentsResult;
 use super::items::document_id;
+use systemprompt_documents::http::error::DocumentsResult;
 
 pub(super) async fn list(
     State(state): State<DocumentsState>,

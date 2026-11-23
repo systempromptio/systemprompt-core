@@ -15,9 +15,9 @@ use systemprompt_models::RequestContext;
 
 use super::DocumentsState;
 use super::caller::{api_author, caller};
-use super::error::DocumentsResult;
 use super::items::document_id;
 use super::views::{CreatedJson, DocumentJson};
+use systemprompt_documents::http::error::DocumentsResult;
 
 pub(super) async fn untrash(
     State(state): State<DocumentsState>,
