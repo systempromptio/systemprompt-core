@@ -66,4 +66,4 @@ pub use services::{
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};
 
 pub(crate) mod sessions;
-pub use sessions::UsersAiSessionProvider;
+pub use sessions::{UsersAiSessionProvider, UsersGatewaySessionMint};

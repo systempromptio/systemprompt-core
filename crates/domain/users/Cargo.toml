@@ -40,6 +40,7 @@ uuid = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-governance = { workspace = true }

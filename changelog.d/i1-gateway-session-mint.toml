@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The gateway mints and binds API-key sessions through `DynGatewaySessionMint`, the users member's sealed provide conferred on `gateway-http`: every method takes the presented API key, verifies it, and mints, keeps or binds a session for that key's owner only; it has no create-for-user, revoke or list surface. A key whose owner no longer exists mints nothing."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`GatewaySessionMint`, `DynGatewaySessionMint`, `MintedGatewaySession` and `GatewaySessionMintError`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "`UsersGatewaySessionMint`, provided sealed under the `gateway-session-mint` conferral row."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "`POST /api/public/gateway/sessions` and the gateway's API-key session binding call the conferred session mint; `SessionRequest` carries the presented key (`presented`) in place of `api_key_id`."

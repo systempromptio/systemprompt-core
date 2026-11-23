@@ -193,7 +193,7 @@ async fn authenticate_api_key(
     let binding = bind_api_key_session(
         ctx,
         SessionRequest {
-            api_key_id: &rec.id,
+            presented: credential,
             user_id: &rec.user_id,
             header_session: inputs.header_session,
             headers: inputs.headers,
