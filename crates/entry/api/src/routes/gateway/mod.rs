@@ -87,14 +87,12 @@ pub(crate) use self::access_log::GatewayLogIdentity;
 pub fn gateway_repositories(
     ctx: &AppContext,
 ) -> anyhow::Result<systemprompt_gateway::GatewayRepositories> {
-    let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
-        ctx.app_paths().storage().data(),
-        ctx.secrets().encryption_master_key()?,
-    )?;
+    let state = ctx.kernel().state();
+    let at_rest = state.get::<Arc<systemprompt_gateway::GatewayAtRest>>()?;
     let profile = ctx.profile();
     let repos = systemprompt_gateway::GatewayRepositories::new(
         ctx.db_pool(),
-        journal,
+        at_rest.journal()?,
         Arc::new(crate::repository::context_provider(ctx.db_pool())),
         systemprompt_gateway::GatewayHandles {
             background: ctx.background_tasks().clone(),
@@ -102,30 +100,21 @@ pub fn gateway_repositories(
             logging: ctx.logging().clone(),
             services: ctx.services_state().view(),
             subject_providers: ctx.subject_providers().clone(),
-            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
-                &ctx.secrets().get(),
-            )?,
+            at_rest: at_rest.cipher(),
             unapplied_plane: profile.unapplied_plane_mode(),
         },
     )
     .with_payload_cap(profile.payload_cap_bytes())
     .with_quota_sharding(profile.quota_config());
-    let repos = match ctx
-        .kernel()
-        .state()
-        .get::<Arc<systemprompt_mcp::ArtifactIngest>>()
-    {
+    let repos = match state.get::<Arc<systemprompt_mcp::ArtifactIngest>>() {
         Ok(ingest) => repos.with_artifact_ingest(Arc::clone(ingest)),
         Err(_) => repos,
     };
-    let repos = match ctx.session_store() {
-        Some(sessions) => repos.with_session_store(sessions),
-        None => repos,
-    };
+    let repos = repos.with_session_usage(Arc::clone(
+        state.get::<systemprompt_traits::DynSessionUsageCounters>()?,
+    ));
     let repos = repos.with_brain_recall(profile.brain.recall.clone());
-    let brain_sink = ctx
-        .kernel()
-        .state()
+    let brain_sink = state
         .find::<systemprompt_extension::DynBrainSink>()
         .filter(|_| profile.brain.enabled)
         .cloned();

@@ -207,12 +207,6 @@ pub trait SessionTelemetry: Send + Sync {
     async fn cleanup_inactive(&self, inactive_hours: i32) -> AnalyticsResult<u64>;
     async fn count_inactive(&self, inactive_hours: i32) -> AnalyticsResult<i64>;
     async fn count_sessions_missing_geo(&self) -> AnalyticsResult<i64>;
-    async fn increment_ai_usage(
-        &self,
-        session_id: &SessionId,
-        tokens: i32,
-        cost_microdollars: i64,
-    ) -> AnalyticsResult<()>;
     async fn update_behavioral_detection(
         &self,
         session_id: &SessionId,

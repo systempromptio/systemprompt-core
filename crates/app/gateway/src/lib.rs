@@ -25,6 +25,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod artifact_scanner;
+pub mod at_rest;
 pub mod audit;
 pub mod captures;
 pub mod client;
@@ -45,6 +46,7 @@ pub mod signature_cache;
 pub mod stream_tap;
 
 pub use artifact_scanner::GatewayArtifactScanner;
+pub use at_rest::{GatewayAtRest, GatewayAtRestError};
 pub use audit::metrics::{
     GATEWAY_OVERHEAD_SECONDS, GATEWAY_UPSTREAM_DURATION_SECONDS, OVERHEAD_BUCKETS, UPSTREAM_BUCKETS,
 };

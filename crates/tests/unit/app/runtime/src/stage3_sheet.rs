@@ -12,7 +12,7 @@ use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_extension::{DynBrainSink, Resolved, StandingTag};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
-use systemprompt_gateway::GatewayEngines;
+use systemprompt_gateway::{GatewayAtRest, GatewayEngines};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_mcp::ArtifactIngest;
@@ -139,6 +139,16 @@ async fn gateway_http_alone_reads_the_conferred_session_mint() {
 async fn gateway_http_alone_reads_the_conferred_personal_credential_view() {
     let ctx = context().await;
     conferred_on_gateway_http_alone::<Arc<PersonalProviderCredentials>>(&ctx, "ai");
+}
+
+#[tokio::test]
+async fn gateway_http_alone_reads_the_conferred_at_rest_material_and_no_route_state_reads_the_secret_store()
+ {
+    let ctx = context().await;
+    conferred_on_gateway_http_alone::<Arc<GatewayAtRest>>(&ctx, "gateway");
+    for owner in ["gateway", "gateway-http"] {
+        assert!(!route_reads::<Arc<dyn SecretStore>>(&ctx, owner), "{owner}");
+    }
 }
 
 #[tokio::test]

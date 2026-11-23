@@ -53,7 +53,7 @@ pub struct GatewayRepositories {
     pub thought_signatures: Arc<ThoughtSignatureCache>,
     pub context_materializer: DynContextMaterializer,
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
-    pub sessions: Option<systemprompt_traits::DynSessionStore>,
+    pub sessions: Option<systemprompt_traits::DynSessionUsageCounters>,
     pub payload_cap_bytes: usize,
     pub quota_sharding: QuotaConfig,
     pub background: BackgroundTasks,
@@ -150,7 +150,10 @@ impl GatewayRepositories {
     }
 
     #[must_use]
-    pub fn with_session_store(mut self, sessions: systemprompt_traits::DynSessionStore) -> Self {
+    pub fn with_session_usage(
+        mut self,
+        sessions: systemprompt_traits::DynSessionUsageCounters,
+    ) -> Self {
         self.sessions = Some(sessions);
         self
     }
