@@ -82,8 +82,6 @@ use self::routers::{
 };
 use crate::kernel::JwtContextExtractor;
 
-pub(crate) use self::access_log::GatewayLogIdentity;
-
 pub fn gateway_repositories(
     ctx: &AppContext,
 ) -> anyhow::Result<systemprompt_gateway::GatewayRepositories> {

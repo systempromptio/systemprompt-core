@@ -27,7 +27,6 @@ use systemprompt_identifiers::{ApiKeyId, ExtensionId, ModelId, ProviderId, Route
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_traits::DatabaseHandle;
 
-
 /// The resolved gateway request a guard is asked to admit or deny.
 #[derive(Debug, Clone)]
 pub struct GatewayGuardRequest<'a> {

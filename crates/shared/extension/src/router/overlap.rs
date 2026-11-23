@@ -99,7 +99,6 @@ pub fn first_overlap<'a>(
     None
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Segment<'a> {
     Literal(&'a str),

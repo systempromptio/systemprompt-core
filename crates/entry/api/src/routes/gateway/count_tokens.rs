@@ -27,12 +27,13 @@ use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_runtime::AppContext;
 
+use super::messages::GatewayHandles;
 use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::error::RejectionError;
 use super::messages::extract::headers::body_read_error;
-use super::messages::{GatewayHandles, extract_credential};
 use crate::kernel::JwtContextExtractor;
 use systemprompt_extension::router::read_body_bounded;
+use systemprompt_gateway::surface::credential::extract_credential;
 
 const CHARS_PER_TOKEN: usize = 4;
 

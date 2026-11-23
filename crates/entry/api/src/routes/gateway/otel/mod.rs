@@ -39,10 +39,11 @@ use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
 use super::bridge_error::BridgeError;
 use super::messages::auth::{AuthInputs, authenticate};
-use super::messages::extract::headers::{extract_credential, optional_session_id};
+use super::messages::extract::headers::optional_session_id;
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
-use systemprompt_extension::router::read_body_bounded;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
+use systemprompt_extension::router::read_body_bounded;
+use systemprompt_gateway::surface::credential::extract_credential;
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 
@@ -190,7 +191,6 @@ fn accepted() -> Response<Body> {
         .body(Body::empty())
         .unwrap_or_else(|_| Response::new(Body::empty()))
 }
-
 
 fn bind_identity(
     resource: &mut Option<opentelemetry_proto::tonic::resource::v1::Resource>,

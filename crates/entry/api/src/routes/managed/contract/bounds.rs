@@ -4,11 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 use super::problem;
-use systemprompt_extension::router::read_body_bounded;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use axum::response::Response;
+use systemprompt_extension::router::read_body_bounded;
 const BODY_LIMIT: usize = 1024 * 1024;
 pub(super) async fn validate(request: Request) -> Result<Request, Box<Response>> {
     if request.uri().path().split('/').any(|part| part.len() > 512)

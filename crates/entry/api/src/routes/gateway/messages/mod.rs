@@ -17,10 +17,6 @@ pub mod rejection;
 pub mod session_binding;
 
 pub use dispatch::map_upstream_error;
-pub use extract::{
-    GatewayAuthzRequestInput, build_gateway_authz_request, caller_auth, extract_credential,
-    presented_credential,
-};
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -142,11 +138,13 @@ fn attach_log_identity(response: &mut Response<Body>, partial: &RejectionPartial
     ) else {
         return;
     };
-    response.extensions_mut().insert(super::GatewayLogIdentity {
-        user: user_id.clone(),
-        session: session_id.clone(),
-        trace: trace_id.clone(),
-    });
+    response
+        .extensions_mut()
+        .insert(systemprompt_gateway::surface::GatewayLogIdentity {
+            user: user_id.clone(),
+            session: session_id.clone(),
+            trace: trace_id.clone(),
+        });
 }
 
 struct HandleInner<'a> {

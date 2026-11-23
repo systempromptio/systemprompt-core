@@ -41,9 +41,8 @@ use systemprompt_gateway::protocol::inbound::InboundAdapter;
 
 pub use attribution::AttributionHeaders;
 use attribution::classify_client;
-pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
-pub use headers::{caller_auth, extract_credential, memory_preference, presented_credential};
+pub use headers::memory_preference;
 pub use partial::RejectionPartial;
 use scope::{ScopeHeaders, attribute_scopes};
 

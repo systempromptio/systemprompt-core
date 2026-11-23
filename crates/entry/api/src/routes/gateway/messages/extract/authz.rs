@@ -1,77 +1,18 @@
 //! Pre-dispatch authorization for gateway requests.
 //!
-//! [`build_gateway_authz_request`] and [`GatewayAuthzRequestInput`] are public
-//! so the JWT-claims forwarding contract can be exercised directly from unit
-//! tests without standing up the full principal/route stack.
+//! The request itself is built by
+//! [`systemprompt_gateway::surface::authz::build_gateway_authz_request`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::StatusCode;
-use std::collections::BTreeMap;
-use systemprompt_governance::authz::{
-    AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
-};
-use systemprompt_identifiers::{
-    Actor, ClientId, ContextId, ModelId, ProviderId, RouteId, SessionId, TraceId, UserId,
-};
+use systemprompt_gateway::surface::authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
+use systemprompt_governance::authz::{AuthzDecision, SharedAuthzHook};
+use systemprompt_identifiers::{ContextId, ModelId, ProviderId, RouteId};
 
 use super::super::auth::AuthedPrincipal;
 use super::super::error::RejectionError;
-
-/// The inputs to a pre-dispatch gateway authorization decision.
-///
-/// `context_id` is the context the request was already resolved into. Leaving
-/// it unset made the audit sink re-derive one from the bridge session, so every
-/// pre-dispatch decision landed in a different context from the request it
-/// authorized.
-#[derive(Debug, Clone)]
-pub struct GatewayAuthzRequestInput {
-    pub user_id: UserId,
-    pub roles: Vec<String>,
-    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
-    pub attributes: BTreeMap<String, serde_json::Value>,
-    pub act_chain: Vec<Actor>,
-    pub trace_id: TraceId,
-    pub route_id: Option<RouteId>,
-    pub model: ModelId,
-    pub provider: Option<ProviderId>,
-    pub session_id: Option<SessionId>,
-    pub client_id: Option<ClientId>,
-    pub context_id: ContextId,
-}
-
-#[must_use]
-pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequest {
-    let GatewayAuthzRequestInput {
-        user_id,
-        roles,
-        attributes,
-        act_chain,
-        trace_id,
-        route_id,
-        model,
-        provider,
-        session_id,
-        client_id,
-        context_id,
-    } = input;
-    AuthzRequest {
-        entity: route_id.map_or_else(|| EntityRef::Model(model.clone()), EntityRef::GatewayRoute),
-        actor: Some(Actor::user(user_id.clone())),
-        user_id,
-        client_id,
-        access_scope: None,
-        roles,
-        attributes,
-        trace_id,
-        session_id,
-        context: AuthzContext::gateway_invocation(&model, provider.as_ref()),
-        act_chain,
-        context_id: Some(context_id),
-        task_id: None,
-    }
-}
 
 /// What a pre-dispatch decision is about: the route the request resolved to
 /// (none when no declared route matched), the model it asked for and the

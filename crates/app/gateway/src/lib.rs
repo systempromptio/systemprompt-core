@@ -17,8 +17,9 @@
 //! Core services call models through the in-process [`client`], which enters
 //! the same pipeline as a service principal.
 //!
-//! The crate owns no HTTP surface: `systemprompt-api` mounts the gateway
-//! routes and calls into [`GatewayService`] with the repositories bundled in
+//! The crate owns no handlers: the [`surface`] contract is what the
+//! `gateway-http` member implements and the API mounts, and the handlers call
+//! into [`GatewayService`] with the repositories bundled in
 //! [`GatewayRepositories`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -44,6 +45,7 @@ pub mod routing;
 pub mod service;
 pub mod signature_cache;
 pub mod stream_tap;
+pub mod surface;
 
 pub use artifact_scanner::GatewayArtifactScanner;
 pub use at_rest::{GatewayAtRest, GatewayAtRestError};
@@ -77,3 +79,7 @@ pub use registry::{
 pub use repository::{GatewayHandles, GatewayRepositories};
 pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};
+pub use surface::{
+    DynGatewaySurface, GatewayHostHandles, GatewayLogIdentity, GatewayRouteState, GatewaySurface,
+    GatewaySurfaceError,
+};

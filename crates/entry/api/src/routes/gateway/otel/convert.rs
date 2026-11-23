@@ -95,7 +95,6 @@ fn any_value_to_json(value: Option<&opentelemetry_proto::tonic::common::v1::AnyV
     }
 }
 
-
 pub fn metadata_key(key: &str) -> bool {
     matches!(
         key,

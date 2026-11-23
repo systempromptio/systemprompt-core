@@ -15,15 +15,9 @@ use std::time::Instant;
 use systemprompt_gateway::audit::access_log::{
     GatewayAccessLog, LOG_TARGET, PHASE_HEADERS, level_for, persists_access_record,
 };
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_gateway::surface::GatewayLogIdentity;
+use systemprompt_identifiers::TraceId;
 use systemprompt_logging::{LogActor, LogEntry, LoggingRuntime};
-
-#[derive(Debug, Clone)]
-pub(crate) struct GatewayLogIdentity {
-    pub user: UserId,
-    pub session: SessionId,
-    pub trace: TraceId,
-}
 
 fn gateway_log_actor(logging: &LoggingRuntime, resp: &Response) -> LogActor {
     resp.extensions().get::<GatewayLogIdentity>().map_or_else(
