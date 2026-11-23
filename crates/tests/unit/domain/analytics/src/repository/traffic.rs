@@ -36,9 +36,7 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
     )
     .await
     .expect("retained traffic user");
-    let store = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
-        .map(|repositories| repositories.session_store)
-        .expect("session store");
+    let store = systemprompt_users::SessionRepository::new(pool);
     let params = CreateSessionParams {
         identity: SessionIdentity {
             session_id: &sid,
@@ -56,7 +54,9 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
         is_ai_crawler: false,
         expires_at: Utc::now() + Duration::hours(1),
     };
-    store.insert_session(&params).await.expect("seed session");
+    systemprompt_traits::SessionStore::insert_session(&store, &params)
+        .await
+        .expect("seed session");
 
     let p = pool.write_pool();
     sqlx::query(

@@ -4,9 +4,7 @@
 //! no unscoped secret lookup.
 
 use axum::http::StatusCode;
-use systemprompt_test_fixtures::{
-    TEST_SLACK_SIGNING_SECRET, ensure_messaging_bootstrap, test_app_context,
-};
+use systemprompt_test_fixtures::{TEST_SLACK_SIGNING_SECRET, ensure_messaging_bootstrap};
 use systemprompt_traits::SecretLookup;
 use tower::ServiceExt;
 
@@ -16,7 +14,7 @@ use super::routes_slack;
 #[tokio::test]
 async fn a_custom_secret_ref_resolves_and_the_request_is_accepted() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let ctx = test_app_context(&b.database_url).await;
+    let ctx = super::common::messaging_context(&b.database_url).await;
 
     let body = r#"{"type":"url_verification","challenge":"custom-chal"}"#;
     let resp = routes_slack::router(&ctx)
@@ -35,7 +33,7 @@ async fn a_custom_secret_ref_resolves_and_the_request_is_accepted() -> anyhow::R
 #[tokio::test]
 async fn the_extension_secret_store_resolves_no_built_in_secret() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let ctx = test_app_context(&b.database_url).await;
+    let ctx = super::common::messaging_context(&b.database_url).await;
 
     assert!(
         ctx.secrets().get().get("oauth_at_rest_pepper").is_some(),

@@ -30,7 +30,9 @@ fn member_router(ctx: &AppContext, base: BaseRef, handles: &[HandleId]) -> Route
     AnalyticsHttpExtension
         .contribute(&mut contributions)
         .expect("the analytics_http member contributes");
-    let resolved = ctx.kernel().route_scoped(&owner, handles);
+    let resolved =
+        ctx.kernel()
+            .route_scoped(&owner, systemprompt_extension::StandingTag::Core, handles);
     sink.routes()
         .iter()
         .filter(|set| set.base() == base)

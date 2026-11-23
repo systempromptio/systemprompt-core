@@ -10,6 +10,10 @@ mod common;
 mod declared_groups;
 
 #[cfg(test)]
+#[path = "dispatch_seal.rs"]
+mod dispatch_seal;
+
+#[cfg(test)]
 #[path = "routes_slack.rs"]
 mod routes_slack;
 

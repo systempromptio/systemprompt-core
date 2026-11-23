@@ -23,6 +23,7 @@ systemprompt-client = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-governance = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-runtime = { workspace = true }

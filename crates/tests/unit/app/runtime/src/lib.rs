@@ -81,6 +81,8 @@ mod documents_views_touched;
 #[cfg(test)]
 mod hb_seams;
 #[cfg(test)]
+mod hf1_seals;
+#[cfg(test)]
 mod host_context;
 #[cfg(test)]
 mod kernel_resolve_once;

@@ -149,7 +149,7 @@ async fn execute_success_records_and_returns_result() {
     ));
     let exec = McpToolExecutor::new(
         tool_repo,
-        intents(&db),
+        Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-echo"),
@@ -182,7 +182,7 @@ async fn execute_handler_error_propagates() {
     ));
     let exec = McpToolExecutor::new(
         tool_repo,
-        intents(&db),
+        Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-fail"),
@@ -218,7 +218,7 @@ async fn execute_input_parse_error_returns_invalid_params() {
     ));
     let exec = McpToolExecutor::new(
         tool_repo,
-        intents(&db),
+        Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-bad"),

@@ -9,7 +9,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_models::ContentRouting;
 use systemprompt_test_fixtures::test_db_pool;
-use systemprompt_traits::{CreateSessionInput, ExtractSignals};
+use systemprompt_traits::{CreateSessionInput, ExtractSignals, SessionStore};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -59,6 +59,10 @@ impl Fixture {
         })
     }
 
+    fn sessions(&self) -> systemprompt_users::SessionRepository {
+        systemprompt_users::SessionRepository::new(&self.db)
+    }
+
     fn service(&self) -> Result<AnalyticsService> {
         let repositories = systemprompt_test_fixtures::fixture_analytics_repositories(&self.db)?;
         Ok(AnalyticsService::new(
@@ -87,17 +91,14 @@ impl Fixture {
 
     async fn create_session(
         &mut self,
-        service: &AnalyticsService,
         analytics: &SessionAnalytics,
         expires_at: DateTime<Utc>,
     ) -> Result<SessionId> {
-        self.create_owned_session(service, analytics, expires_at, None)
-            .await
+        self.create_owned_session(analytics, expires_at, None).await
     }
 
     async fn create_anonymous_session(
         &mut self,
-        service: &AnalyticsService,
         analytics: &SessionAnalytics,
         expires_at: DateTime<Utc>,
     ) -> Result<SessionId> {
@@ -109,20 +110,19 @@ impl Fixture {
             &["anonymous".to_owned()],
         )
         .await?;
-        self.create_owned_session(service, analytics, expires_at, Some(&owner))
+        self.create_owned_session(analytics, expires_at, Some(&owner))
             .await
     }
 
     async fn create_owned_session(
         &mut self,
-        service: &AnalyticsService,
         analytics: &SessionAnalytics,
         expires_at: DateTime<Utc>,
         owner: Option<&UserId>,
     ) -> Result<SessionId> {
         let session_id = SessionId::generate();
         systemprompt_traits::SessionProvider::create_session(
-            &**service.session_store(),
+            &self.sessions(),
             CreateSessionInput {
                 session_id: &session_id,
                 user_id: owner,
@@ -183,9 +183,7 @@ async fn create_session_persists_extracted_attribution() -> Result<()> {
     );
     assert!(!analytics.is_bot);
 
-    let session_id = fx
-        .create_session(&service, &analytics, expires_in_one_hour())
-        .await?;
+    let session_id = fx.create_session(&analytics, expires_in_one_hour()).await?;
 
     let row = fx.fetch_row(&session_id).await?;
     assert_eq!(
@@ -249,22 +247,20 @@ async fn recent_fingerprint_lookup_finds_only_anonymous_sessions() -> Result<()>
         },
     );
     let fingerprint = analytics.compute_fingerprint();
-    fx.create_session(&service, &analytics, expires_in_one_hour())
-        .await?;
+    fx.create_session(&analytics, expires_in_one_hour()).await?;
     assert!(
-        service
-            .session_store()
+        fx.sessions()
             .find_recent_by_fingerprint(&fingerprint, 3600)
             .await?
             .is_none(),
         "a session with no anonymous owner is never offered for fingerprint reuse"
     );
     let session_id = fx
-        .create_anonymous_session(&service, &analytics, expires_in_one_hour())
+        .create_anonymous_session(&analytics, expires_in_one_hour())
         .await?;
 
-    let found = service
-        .session_store()
+    let found = fx
+        .sessions()
         .find_recent_by_fingerprint(&fingerprint, 3600)
         .await?;
     assert_eq!(found.map(|record| record.session_id), Some(session_id));
@@ -280,8 +276,7 @@ async fn recent_fingerprint_lookup_finds_only_anonymous_sessions() -> Result<()>
     let other_fingerprint = other_analytics.compute_fingerprint();
     assert_ne!(fingerprint, other_fingerprint);
     assert!(
-        service
-            .session_store()
+        fx.sessions()
             .find_recent_by_fingerprint(&other_fingerprint, 3600)
             .await?
             .is_none()
@@ -306,14 +301,13 @@ async fn ended_session_excluded_from_fingerprint_dedup() -> Result<()> {
     );
     let fingerprint = analytics.compute_fingerprint();
     let session_id = fx
-        .create_anonymous_session(&service, &analytics, expires_in_one_hour())
+        .create_anonymous_session(&analytics, expires_in_one_hour())
         .await?;
 
-    service.session_store().end_session(&session_id).await?;
+    fx.sessions().end_session(&session_id).await?;
 
     assert!(
-        service
-            .session_store()
+        fx.sessions()
             .find_recent_by_fingerprint(&fingerprint, 3600)
             .await?
             .is_none()
@@ -338,9 +332,7 @@ async fn bot_user_agent_session_marked_is_bot() -> Result<()> {
         );
         assert!(analytics.is_bot, "{bot_ua} not a bot");
 
-        let session_id = fx
-            .create_session(&service, &analytics, expires_in_one_hour())
-            .await?;
+        let session_id = fx.create_session(&analytics, expires_in_one_hour()).await?;
         let row = fx.fetch_row(&session_id).await?;
         assert!(
             row.get::<bool, _>("is_bot"),
@@ -365,19 +357,14 @@ async fn request_count_and_activity_tracking() -> Result<()> {
             ..Default::default()
         },
     );
-    let session_id = fx
-        .create_session(&service, &analytics, expires_in_one_hour())
-        .await?;
+    let session_id = fx.create_session(&analytics, expires_in_one_hour()).await?;
 
     let initial = fx.fetch_row(&session_id).await?;
     let initial_count = initial.get::<i32, _>("request_count");
     let started_at = initial.get::<DateTime<Utc>, _>("started_at");
 
     for _ in 0..3 {
-        service
-            .session_store()
-            .increment_request_count(&session_id)
-            .await?;
+        fx.sessions().increment_request_count(&session_id).await?;
     }
 
     let updated = fx.fetch_row(&session_id).await?;
@@ -403,13 +390,11 @@ async fn create_session_upserts_on_duplicate_id() -> Result<()> {
             ..Default::default()
         },
     );
-    let session_id = fx
-        .create_session(&service, &analytics, expires_in_one_hour())
-        .await?;
+    let session_id = fx.create_session(&analytics, expires_in_one_hour()).await?;
 
     let later = Utc::now() + Duration::hours(2);
     systemprompt_traits::SessionProvider::create_session(
-        &**service.session_store(),
+        &fx.sessions(),
         CreateSessionInput {
             session_id: &session_id,
             user_id: None,

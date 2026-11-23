@@ -8,7 +8,6 @@ use axum::http::{Request, StatusCode};
 use systemprompt_slack::signature::sign;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, ensure_messaging_bootstrap,
-    test_app_context,
 };
 use tower::ServiceExt;
 
@@ -35,7 +34,7 @@ fn signed_slack_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 
 async fn messaging_ctx() -> anyhow::Result<std::sync::Arc<systemprompt_runtime::AppContext>> {
     let b = ensure_messaging_bootstrap();
-    Ok(test_app_context(&b.database_url).await)
+    Ok(super::common::messaging_context(&b.database_url).await)
 }
 
 #[tokio::test]

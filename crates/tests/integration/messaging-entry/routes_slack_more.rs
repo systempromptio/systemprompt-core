@@ -16,15 +16,14 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_slack::signature::sign;
 use systemprompt_test_fixtures::{
-    TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, ensure_messaging_bootstrap,
-    test_app_context, test_db_pool,
+    TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, ensure_messaging_bootstrap, test_db_pool,
 };
 use tower::ServiceExt;
 
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&b.database_url).await;
+    let ctx = super::common::messaging_context(&b.database_url).await;
     Ok((pool, ctx))
 }
 

@@ -167,7 +167,9 @@ async fn parts(
     let server_id = McpServerId::new(server);
     let executor = McpToolExecutor::new(
         Arc::new(ToolUsageRepository::new(&db)),
-        Arc::new(systemprompt_ai::repository::AiRequestRepository::new(&db)),
+        Some(Arc::new(
+            systemprompt_ai::repository::AiRequestRepository::new(&db),
+        )),
         Arc::new(ArtifactIngest::from_db(
             &db,
             systemprompt_governance::policy::secrets::SecretScannerCell::default(),

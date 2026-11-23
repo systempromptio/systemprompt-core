@@ -130,6 +130,7 @@ async fn plane_debug_impls_flag_optional_members() {
         background_tasks: Default::default(),
         spawner: systemprompt_test_fixtures::test_spawner(),
         documents,
+        late_binders: Default::default(),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

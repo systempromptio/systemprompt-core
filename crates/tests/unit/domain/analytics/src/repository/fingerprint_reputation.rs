@@ -106,9 +106,7 @@ async fn session_queries_count_and_reuse_active_sessions() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
-    let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.session_store)
-        .expect("session store");
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
 
     let fp = unique_fingerprint();
     assert_eq!(
@@ -123,7 +121,7 @@ async fn session_queries_count_and_reuse_active_sessions() {
     );
 
     let sid = unique_session_id();
-    seed_session(&*sessions, &sid, &fp).await;
+    seed_session(&sessions, &sid, &fp).await;
 
     assert_eq!(repo.count_active_sessions(&fp).await.expect("count"), 1);
     let reusable = repo

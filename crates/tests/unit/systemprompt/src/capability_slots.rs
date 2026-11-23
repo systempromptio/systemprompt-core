@@ -43,7 +43,7 @@ use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::core_seam::{
     DocumentSourceAccess, DocumentSourceContent, DocumentVisibility, IssueVisibility, RoleAudience,
 };
-use systemprompt_traits::{CoreSeam, DynSessionStore};
+use systemprompt_traits::{CoreSeam, DynSessionTelemetry};
 
 use crate::probe::{Counter, Probe, build, kernel_with, profile, shape};
 
@@ -587,7 +587,7 @@ fn analytics_alone_provides_its_repositories() {
         .find::<DbPool>()
         .cloned()
         .expect("the seed holds the pool");
-    let sessions: DynSessionStore = Arc::new(SessionRepository::new(&pool));
+    let sessions: DynSessionTelemetry = Arc::new(SessionRepository::new(&pool));
     seed.insert(sessions);
     let kernel = kernel_with(seed);
     let entry = analytics
