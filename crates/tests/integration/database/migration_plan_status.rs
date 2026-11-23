@@ -9,7 +9,7 @@ use systemprompt_database::{Database, MigrationService, SchemaMember};
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition::{install, member};
 use uuid::Uuid;
@@ -20,38 +20,6 @@ fn leak_str(s: String) -> &'static str {
 
 fn fresh_suffix() -> String {
     Uuid::new_v4().simple().to_string()[..12].to_string()
-}
-
-struct Cleanup {
-    pool: PgPool,
-    tables: Vec<&'static str>,
-    extension_ids: Vec<&'static str>,
-}
-
-impl Drop for Cleanup {
-    fn drop(&mut self) {
-        let pool = self.pool.clone();
-        let tables = self.tables.clone();
-        let extension_ids = self.extension_ids.clone();
-        tokio::task::block_in_place(|| {
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(async move {
-                for t in &tables {
-                    let _ = query(sqlx::AssertSqlSafe(format!(
-                        "DROP TABLE IF EXISTS {t} CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for ext_id in &extension_ids {
-                    let _ = query("DELETE FROM extension_migrations WHERE extension_id = $1")
-                        .bind(*ext_id)
-                        .execute(&pool)
-                        .await;
-                }
-            });
-        });
-    }
 }
 
 struct TwoMigrationExt {
@@ -98,21 +66,15 @@ impl Extension for TwoMigrationExt {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn plan_pending_lists_all_then_none_after_apply() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("migration_plan_status").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("plan_test_{suffix}"));
     let ext_id: &'static str = leak_str(format!("plan-ext-{suffix}"));
-
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        extension_ids: vec![ext_id],
-    };
 
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, a INT, b INT);"
@@ -165,25 +127,22 @@ async fn plan_pending_lists_all_then_none_after_apply() {
         plan_after.is_empty(),
         "after install, no migrations should be pending; got {plan_after:?}"
     );
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn status_reports_applied_pending_and_drift() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("migration_plan_status").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("status_test_{suffix}"));
     let ext_id: &'static str = leak_str(format!("status-ext-{suffix}"));
-
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        extension_ids: vec![ext_id],
-    };
 
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
@@ -255,25 +214,22 @@ async fn status_reports_applied_pending_and_drift() {
     );
     assert_eq!(drifted.applied.len(), 1);
     assert_eq!(drifted.pending.len(), 1);
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn repair_drift_reconciles_tampered_checksum() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("migration_plan_status").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("repair_test_{suffix}"));
     let ext_id: &'static str = leak_str(format!("repair-ext-{suffix}"));
-
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        extension_ids: vec![ext_id],
-    };
 
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);"
@@ -335,6 +291,9 @@ async fn repair_drift_reconciles_tampered_checksum() {
     let after = svc.status(ext.as_ref()).await.expect("status after repair");
     assert!(after.drift.is_empty(), "drift reconciled by repair");
     assert_eq!(after.applied.len(), 1);
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }
 
 struct SingleMigrationExt {
@@ -376,6 +335,7 @@ impl Extension for SingleMigrationExt {
 }
 
 async fn install_tampered_insert_ext(
+    url: &str,
     pool: &PgPool,
     suffix: &str,
 ) -> (
@@ -405,9 +365,9 @@ async fn install_tampered_insert_ext(
         m1,
     })];
 
-    let db = Database::new_postgres(&test_database_url())
+    let db = Database::new_postgres(url)
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let db_arc = Arc::new(db);
     install(members, db_arc.as_ref()).await.expect("install");
 
@@ -432,19 +392,15 @@ async fn install_tampered_insert_ext(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failed_reapply_keeps_tracking_row() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("migration_plan_status").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
-    let (db_arc, ext, table, ext_id) = install_tampered_insert_ext(&pool, &suffix).await;
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        extension_ids: vec![ext_id],
-    };
+    let (db_arc, ext, _table, _ext_id) =
+        install_tampered_insert_ext(database.url(), &pool, &suffix).await;
 
     let svc = MigrationService::new(db_arc.write());
 
@@ -467,23 +423,24 @@ async fn failed_reapply_keeps_tracking_row() {
         after.pending.is_empty(),
         "a failed re-apply must never turn an applied migration into a pending one"
     );
+    drop(ext);
+    pool.close().await;
+    drop(db);
+    drop(db_arc);
+    database.drop_now().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reconcile_drift_rewrites_checksum_without_executing_sql() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("migration_plan_status").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
-    let (db_arc, ext, table, ext_id) = install_tampered_insert_ext(&pool, &suffix).await;
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        extension_ids: vec![ext_id],
-    };
+    let (db_arc, ext, table, _ext_id) =
+        install_tampered_insert_ext(database.url(), &pool, &suffix).await;
 
     let svc = MigrationService::new(db_arc.write());
 
@@ -511,4 +468,9 @@ async fn reconcile_drift_rewrites_checksum_without_executing_sql() {
         "reconcile must not execute the migration SQL (the INSERT would have failed or added a \
          row)"
     );
+    drop(ext);
+    pool.close().await;
+    drop(db);
+    drop(db_arc);
+    database.drop_now().await;
 }

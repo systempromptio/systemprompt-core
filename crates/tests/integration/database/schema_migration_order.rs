@@ -13,7 +13,7 @@ use systemprompt_database::Database;
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition::install;
 use uuid::Uuid;
@@ -24,47 +24,6 @@ fn leak_str(s: String) -> &'static str {
 
 fn fresh_suffix() -> String {
     Uuid::new_v4().simple().to_string()[..12].to_string()
-}
-
-struct FixtureCleanup {
-    pool: PgPool,
-    tables: Vec<&'static str>,
-    views: Vec<&'static str>,
-    extension_ids: Vec<&'static str>,
-}
-
-impl Drop for FixtureCleanup {
-    fn drop(&mut self) {
-        let pool = self.pool.clone();
-        let tables = self.tables.clone();
-        let views = self.views.clone();
-        let extension_ids = self.extension_ids.clone();
-        tokio::task::block_in_place(|| {
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(async move {
-                for v in &views {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP VIEW IF EXISTS {v} CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for t in &tables {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP TABLE IF EXISTS {t} CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for ext_id in &extension_ids {
-                    let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-                        .bind(*ext_id)
-                        .execute(&pool)
-                        .await;
-                }
-            });
-        });
-    }
 }
 
 struct LogsExtension {
@@ -185,10 +144,10 @@ async fn view_definition(pool: &PgPool, view: &str) -> Option<String> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("schema_migration_order").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
@@ -197,24 +156,11 @@ async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
     let ext_id: &'static str = leak_str(format!("logs-ext-{suffix}"));
 
     sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("pre-clean");
-    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, level TEXT, message TEXT)"
     )))
     .execute(&pool)
     .await
     .expect("create legacy logs table");
-
-    let _cleanup = FixtureCleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        views: vec![],
-        extension_ids: vec![ext_id],
-    };
 
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (\n    id TEXT PRIMARY KEY,\n    level TEXT,\n    \
@@ -245,14 +191,17 @@ async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
         index_exists(&pool, index_name).await,
         "schema must create {index_name} after the column exists"
     );
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn view_in_schema_can_reference_column_added_by_migration() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("schema_migration_order").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
@@ -261,30 +210,11 @@ async fn view_in_schema_can_reference_column_added_by_migration() {
     let ext_id: &'static str = leak_str(format!("events-ext-{suffix}"));
 
     sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP VIEW IF EXISTS {view} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("pre-clean view");
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("pre-clean table");
-    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, kind TEXT)"
     )))
     .execute(&pool)
     .await
     .expect("create legacy events table");
-
-    let _cleanup = FixtureCleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        views: vec![view],
-        extension_ids: vec![ext_id],
-    };
 
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (\n    id TEXT PRIMARY KEY,\n    kind TEXT,\n    \
@@ -318,4 +248,7 @@ async fn view_in_schema_can_reference_column_added_by_migration() {
         def.to_lowercase().contains("payload"),
         "view definition must reference the migration-added column; got: {def}"
     );
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }

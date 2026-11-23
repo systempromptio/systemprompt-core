@@ -66,6 +66,7 @@ async fn an_older_binary_reports_the_newer_migration_as_ahead_and_stays_current(
     assert_eq!(currency.ahead.len(), 1);
     assert_eq!(currency.ahead[0].version, 8);
     assert_eq!(currency.ahead[0].name, "expand");
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -93,6 +94,7 @@ async fn checksum_drift_in_an_ahead_extension_is_left_to_the_newer_release() {
         before,
         "the older binary must not rewrite the newer release's ledger"
     );
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -110,6 +112,7 @@ async fn an_older_install_against_an_ahead_database_applies_nothing_and_reports_
     assert_eq!(report.ahead[0].version, 8);
     assert!(column_exists(&f.pool, f.table, "refilled_slot").await);
     assert_eq!(applied_versions(&f.pool, f.ext_id).await, vec![7, 8]);
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -146,6 +149,7 @@ async fn an_ahead_breaking_migration_refuses_the_older_binary() {
             .await
             .expect("install reports rather than fails");
     assert!(report.breaks_this_release());
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -158,6 +162,7 @@ async fn an_ahead_additive_migration_is_not_breaking() {
         .expect("currency check");
     assert!(currency.is_ahead());
     assert!(!currency.breaks_this_release());
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -173,12 +178,13 @@ async fn drift_without_a_newer_migration_still_fails_currency() {
     assert!(!currency.is_ahead());
     assert_eq!(currency.drift.len(), 1);
     assert!(!currency.is_current());
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_ahead_extension_does_not_hold_back_the_others() {
     let f = fixture().await;
-    let g = fixture().await;
+    let g = fixture_on(Arc::clone(&f.database)).await;
     migrate_as_newer(&f).await;
     apply_original(&g).await;
 
@@ -199,4 +205,6 @@ async fn an_ahead_extension_does_not_hold_back_the_others() {
     assert_eq!(applied_versions(&f.pool, f.ext_id).await, vec![7, 8]);
     assert_eq!(applied_versions(&g.pool, g.ext_id).await, vec![7, 8]);
     assert!(column_exists(&g.pool, g.table, "refilled_slot").await);
+    g.finish().await;
+    f.finish().await;
 }
