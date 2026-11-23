@@ -276,7 +276,8 @@ async fn an_install_declaring_a_secret_no_grant_covers_fails_admission_typed() {
     for grants in [
         &[][..],
         &[LATE][..],
-        &["fx_install_secret*"][..], &["fx_installx_*"][..],
+        &["fx_install_secret*"][..],
+        &["fx_installx_*"][..],
         &["FX_INSTALL_SECRET"][..],
     ] {
         let error = resolve(

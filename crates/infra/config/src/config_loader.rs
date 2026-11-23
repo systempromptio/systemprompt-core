@@ -30,15 +30,14 @@ struct BuildConfigPaths {
     web_metadata: String,
 }
 
-/// The credentials a [`Config`] carries: the database URLs and the GitHub
-/// token. An API process takes them from its secrets document, an MCP child
-/// from the environment it was spawned with.
+/// The credentials a [`Config`] carries: the database URLs. An API process
+/// takes them from its secrets document, an MCP child from the environment it
+/// was spawned with.
 #[derive(Clone)]
 pub struct ConfigCredentials {
     pub database_url: String,
     pub database_write_url: Option<String>,
     pub database_session_url: Option<String>,
-    pub github_token: Option<String>,
 }
 
 impl std::fmt::Debug for ConfigCredentials {
@@ -54,7 +53,6 @@ impl ConfigCredentials {
             database_url: secrets.database_url.clone(),
             database_write_url: secrets.database_write_url.clone(),
             database_session_url: secrets.database_session_url.clone(),
-            github_token: secrets.github.clone(),
         }
     }
 }
@@ -172,7 +170,6 @@ fn build_config(
             .github_link
             .clone()
             .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_owned()),
-        github_token: secrets.github_token.clone(),
         system_path: paths.system.clone(),
         services_path,
         bin_path: profile.paths.bin.clone(),

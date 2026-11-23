@@ -27,7 +27,6 @@ fn env() -> EnvironmentConfig {
             api_external_url: "https://example.com".to_owned(),
             use_https: true,
             github_link: String::new(),
-            github_token: None,
             cors_allowed_origins: vec![],
         },
         systemprompt: SystempromptEnvVars {

@@ -31,7 +31,6 @@ fn minimal_config() -> Config {
         database_write_url: None,
         database_session_url: None,
         github_link: String::new(),
-        github_token: None,
         system_path: "/tmp".to_string(),
         services_path: "/tmp".to_string(),
         bin_path: "/tmp".to_string(),

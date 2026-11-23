@@ -20,7 +20,6 @@ fn fixture_config() -> Config {
         database_write_url: None,
         database_session_url: None,
         github_link: String::new(),
-        github_token: None,
         system_path: "/tmp".to_string(),
         services_path: "/tmp".to_string(),
         bin_path: "/tmp".to_string(),
@@ -69,7 +68,6 @@ fn config_provider_serves_every_named_key() {
     let mut cfg = fixture_config();
     cfg.database_write_url = Some("postgres://writer/x".to_owned());
     cfg.database_session_url = Some("postgres://session/x".to_owned());
-    cfg.github_token = Some("ghp_x".to_owned());
     let expect = [
         ("database_type", "postgres"),
         ("database_url", "postgres://localhost/x"),
@@ -88,7 +86,6 @@ fn config_provider_serves_every_named_key() {
         ("web_metadata_path", ""),
         ("sitename", "test"),
         ("github_link", ""),
-        ("github_token", "ghp_x"),
         ("api_server_url", "http://127.0.0.1"),
         ("api_external_url", "http://127.0.0.1"),
         ("jwt_issuer", "https://issuer.test"),
@@ -129,10 +126,8 @@ fn optional_keys_are_absent_when_unset() {
 fn debug_output_redacts_credentials() {
     let mut cfg = fixture_config();
     cfg.database_url = "postgres://user:hunter2@db/x".to_owned();
-    cfg.github_token = Some("ghp_secret".to_owned());
     let rendered = format!("{cfg:?}");
     assert!(!rendered.contains("hunter2"), "{rendered}");
-    assert!(!rendered.contains("ghp_secret"), "{rendered}");
     assert!(rendered.contains("<redacted>"), "{rendered}");
 }
 

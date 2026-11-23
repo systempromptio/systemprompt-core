@@ -6,6 +6,7 @@ use systemprompt_config::{
     validate_database_config,
 };
 use systemprompt_manifest::Config;
+use systemprompt_traits::ConfigProvider;
 
 use crate::fixture;
 
@@ -40,6 +41,24 @@ fn file_fixture() -> fixture::Fixture {
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     )
+}
+
+#[tokio::test]
+async fn the_github_token_stays_in_the_sealed_secrets_and_never_reaches_config() {
+    let token = "ghp_pin_never_in_config";
+    let body = fixture::secrets_json(Some(fixture::SEED)).replacen(
+        '{',
+        &format!("{{\n  \"github\": \"{token}\","),
+        1,
+    );
+    let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
+    let booted = boot(&fx).await;
+    assert_eq!(booted.secrets.get().github.as_deref(), Some(token));
+
+    let config = booted.build().unwrap();
+    assert_eq!(ConfigProvider::get(&config, "github_token"), None);
+    let rendered = format!("{config:?}");
+    assert!(!rendered.contains(token), "{rendered}");
 }
 
 #[tokio::test]

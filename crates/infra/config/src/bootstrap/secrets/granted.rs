@@ -79,9 +79,6 @@ impl GrantedSecrets {
             database_url: present("DATABASE_URL").ok_or(GrantedSecretsError::DatabaseUrlMissing)?,
             database_write_url: present("DATABASE_WRITE_URL"),
             database_session_url: present("DATABASE_SESSION_URL"),
-            github_token: secrets
-                .get(ProviderSecret::Github.as_str())
-                .map(|token| token.as_str().to_owned()),
         };
         Ok(Self {
             credentials,

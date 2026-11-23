@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The runtime `Config` no longer carries the GitHub token, so an install member that reads `Config` cannot reach it. The token is held only in the sealed secrets document (`Secrets::github`), and `profile show` no longer lists it."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`Config::github_token` and the `github_token` key of `ConfigProvider::get` are removed."
+
+[[crate]]
+name = "systemprompt-config"
+section = "Breaking"
+text = "`ConfigCredentials::github_token` is removed."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Breaking"
+text = "`CoreEnvVars::github_token` is removed."

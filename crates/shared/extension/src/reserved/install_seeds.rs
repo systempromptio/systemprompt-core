@@ -11,7 +11,8 @@
 //! - [`InstallSeed::Config`] — the resolved runtime configuration: public and
 //!   internal URLs, the JWT issuer and lifetimes, rate limits, paths, the
 //!   database type. It carries the database URL the install's open database
-//!   handle already connects with, and the optional GitHub token.
+//!   handle already connects with, and no other credential: the GitHub token
+//!   stays in the sealed secrets document (`Secrets::github`).
 //! - [`InstallSeed::SystemAdmin`] — the system admin's identity, the owner an
 //!   install attributes managed inventory to; an identifier, no credential.
 //!

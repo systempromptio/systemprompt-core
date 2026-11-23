@@ -36,12 +36,10 @@ fn redact_database_url_without_scheme_is_unchanged() {
 
 #[test]
 fn build_env_config_redacts_secrets_and_handles_missing_paths() {
-    let mut config = fixture_config("postgres://admin:secret@localhost:5432/cov");
-    config.github_token = Some("ghp_realtoken".to_owned());
+    let config = fixture_config("postgres://admin:secret@localhost:5432/cov");
 
     let env = build_env_config(&config, None);
 
-    assert_eq!(env.core.github_token.as_deref(), Some("[REDACTED]"));
     assert_eq!(env.jwt.secret, "[REDACTED]");
     assert_eq!(
         env.database.database_url,
@@ -52,12 +50,6 @@ fn build_env_config_redacts_secrets_and_handles_missing_paths() {
     assert_eq!(env.core.port, config.port);
 }
 
-#[test]
-fn build_env_config_without_github_token() {
-    let config = fixture_config("postgres://admin:secret@localhost:5432/cov");
-    let env = build_env_config(&config, None);
-    assert!(env.core.github_token.is_none());
-}
 
 #[test]
 fn full_config_empty_serializes_to_empty_object() {

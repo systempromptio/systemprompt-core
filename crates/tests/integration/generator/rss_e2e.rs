@@ -33,7 +33,6 @@ fn test_config() -> Config {
             database_write_url: None,
             database_session_url: None,
             github_link: String::new(),
-            github_token: None,
             system_path: String::new(),
             services_path: String::new(),
             bin_path: String::new(),
