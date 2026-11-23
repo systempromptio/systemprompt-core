@@ -172,6 +172,8 @@ mod services_reconcile_fetched;
 #[cfg(test)]
 mod shutdown_request;
 #[cfg(test)]
+mod stage3_sheet;
+#[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
 mod storage_backends;
