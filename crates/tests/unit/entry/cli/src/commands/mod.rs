@@ -125,6 +125,7 @@ mod db_migrate_exec;
 mod dispatchers_invalid_input_fs;
 mod dispatchers_table_output_fs;
 mod infrastructure;
+mod logs_dir_confinement;
 mod logs_disk_prompts;
 mod logs_search_mapping;
 mod mcp_call_client;

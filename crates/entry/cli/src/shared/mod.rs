@@ -11,8 +11,8 @@
 
 pub mod command_result;
 pub mod confirm;
-pub mod disk_logs;
 pub mod identity;
+pub mod logs_dir;
 pub mod parsers;
 pub mod profile;
 pub mod project;

@@ -1,9 +1,8 @@
-//! `plugins mcp logs` command dispatch.
+//! `plugins mcp logs` command dispatch. `--logs-dir` is confined to the
+//! profile's logs root.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Args, ValueEnum};
@@ -12,7 +11,7 @@ use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_config::paths::AppPaths;
+use crate::shared::logs_dir::resolve_logs_dir;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum LogLevel {
@@ -54,7 +53,10 @@ pub struct LogsArgs {
     #[arg(long, help = "Force reading from disk files instead of database")]
     pub disk: bool,
 
-    #[arg(long, help = "Custom logs directory path")]
+    #[arg(
+        long,
+        help = "Logs directory inside the profile's logs root (relative paths resolve against it)"
+    )]
     pub logs_dir: Option<String>,
 
     #[arg(
@@ -65,28 +67,10 @@ pub struct LogsArgs {
     pub level: Option<LogLevel>,
 }
 
-fn get_default_logs_dir(ctx: &CommandContext) -> PathBuf {
-    ctx.boot()
-        .ok()
-        .and_then(|boot| {
-            let profile = boot.profile();
-            AppPaths::from_profile(
-                &profile.paths,
-                profile.path_resolution(),
-                boot.services_root().map(|r| r.path.as_path()),
-            )
-            .ok()
-        })
-        .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
-}
-
 pub(super) async fn execute(args: LogsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let prompter = ctx.prompter();
     let config = &ctx.cli;
-    let logs_path = args
-        .logs_dir
-        .as_ref()
-        .map_or_else(|| get_default_logs_dir(ctx), PathBuf::from);
+    let logs_path = resolve_logs_dir(ctx, args.logs_dir.as_deref())?;
 
     if args.follow {
         return execute_follow_mode(
