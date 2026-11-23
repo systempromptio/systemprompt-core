@@ -113,6 +113,10 @@ fn the_ai_member_provides_its_lookups_its_sealed_stores_and_the_inference_provid
         [
             (TypeId::of::<DynRequestAttributionLookup>(), false),
             (
+                TypeId::of::<systemprompt_traits::DynToolCallIntentClaims>(),
+                true
+            ),
+            (
                 TypeId::of::<std::sync::Arc<systemprompt_ai::repository::AiRepositories>>(),
                 true
             ),
