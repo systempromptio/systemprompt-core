@@ -21,6 +21,7 @@ use crate::issues::mcp::{IssuesMcpTools, IssuesToolCall};
 
 pub const ISSUES_TOOLSET: &str = "issues";
 pub const DOCUMENTS_TOOLSET: &str = "documents";
+#[cfg(feature = "brain")]
 const BRAIN_TOOLSET: &str = "brain";
 
 #[derive(Debug)]
