@@ -21,6 +21,14 @@ use systemprompt_traits::{ProviderTokenCache, RepositoryError};
 use super::personal_keys::{PersonalKeyError, PersonalKeyRequest, store_personal_key};
 use crate::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 
+/// The key a caller stores for one catalog credential.
+#[derive(Debug, Clone, Copy)]
+pub struct PersonalKeyEntry<'a> {
+    pub credential: &'a str,
+    pub key: &'a str,
+    pub label: Option<&'a str>,
+}
+
 /// The caller-bound personal credential view, conferred on `gateway-http`.
 #[derive(Clone)]
 pub struct PersonalProviderCredentials {
@@ -55,9 +63,7 @@ impl PersonalProviderCredentials {
         &self,
         caller: &GatewayPrincipal,
         catalog: &ResolvedCatalog,
-        credential: &str,
-        key: &str,
-        label: Option<&str>,
+        entry: PersonalKeyEntry<'_>,
     ) -> Result<UserProviderCredentialMeta, PersonalKeyError> {
         store_personal_key(
             &self.tokens,
@@ -65,9 +71,9 @@ impl PersonalProviderCredentials {
             catalog,
             PersonalKeyRequest {
                 user_id: caller.user_id(),
-                credential,
-                key,
-                label,
+                credential: entry.credential,
+                key: entry.key,
+                label: entry.label,
             },
         )
         .await

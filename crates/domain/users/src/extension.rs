@@ -29,17 +29,10 @@ use systemprompt_extension::NotificationAudienceResolver;
 use systemprompt_extension::prelude::*;
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectorySlot;
-use systemprompt_manifest::Config;
-use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations};
-use systemprompt_security::keys::VerificationKeyring;
-use systemprompt_security::{
-    JwtRequestAuthenticator, JwtRequestAuthenticatorParts, UnavailableRevocations,
-};
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::core_seam::RoleAudience;
 use systemprompt_traits::{
-    CoreSeam, DynGatewaySessionMint, DynIpBanStore, DynSessionStore, DynSessionTelemetry,
-    DynSessionUsageCounters,
+    CoreSeam, DynIpBanStore, DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters,
 };
 
 use crate::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
@@ -100,33 +93,11 @@ impl Extension for UsersExtension {
             );
             Ok(sessions)
         })
-        .provide_conferred(ConferralRow::GatewaySessionMint, |r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let config = r.get::<Arc<Config>>()?;
-            let mint: DynGatewaySessionMint = Arc::new(crate::UsersGatewaySessionMint::new(
-                Arc::new(UserRepository::new(&db)),
-                SessionRepository::new(&db),
-                crate::ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
-                chrono::Duration::seconds(config.jwt_access_token_expiration),
-            ));
-            Ok(mint)
-        })
-        .provide(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let config = r.get::<Arc<Config>>()?;
-            let revocations = r
-                .optional::<DynTokenRevocations>()
-                .unwrap_or_else(|| Arc::new(UnavailableRevocations));
-            let authenticator: DynRequestAuthenticator =
-                Arc::new(JwtRequestAuthenticator::new(JwtRequestAuthenticatorParts {
-                    sessions: Arc::new(SessionRepository::new(&db)),
-                    users: Arc::new(crate::UserService::new(Arc::new(UserRepository::new(&db)))),
-                    revocations,
-                    issuer: config.jwt_issuer.clone(),
-                    keyring: r.get::<VerificationKeyring>()?,
-                }));
-            Ok(authenticator)
-        })
+        .provide_conferred(
+            ConferralRow::GatewaySessionMint,
+            crate::provides::gateway_session_mint,
+        )
+        .provide(crate::provides::request_authenticator)
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&db));

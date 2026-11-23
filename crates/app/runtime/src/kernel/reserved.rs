@@ -9,6 +9,7 @@
 use std::any::TypeId;
 use std::sync::Arc;
 
+use systemprompt_extension::contribute::ProvideEntry;
 use systemprompt_extension::{
     AdmittedOwnerReassignments, AudienceResolvers, BuiltState, GatewayGuards, Resolved, StandingTag,
 };
@@ -59,7 +60,7 @@ pub(super) fn refuse_unlisted_conferrals(built: &BuiltState) -> Result<(), Kerne
             .sink
             .provides()
             .iter()
-            .filter_map(|entry| entry.conferral())
+            .filter_map(ProvideEntry::conferral)
         {
             let listed = row.entry().provider == member.owner.as_str();
             if !listed || member.standing != StandingTag::Core {

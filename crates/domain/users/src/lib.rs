@@ -36,6 +36,7 @@ pub(crate) mod extension;
 mod ip_ban_store;
 pub mod jobs;
 pub(crate) mod models;
+mod provides;
 pub(crate) mod repository;
 pub(crate) mod services;
 

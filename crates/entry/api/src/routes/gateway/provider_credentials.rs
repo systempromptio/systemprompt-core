@@ -21,7 +21,8 @@ use axum::routing::{get, put};
 use axum::{Json, Router};
 use systemprompt_ai::repository::UserProviderCredentialMeta;
 use systemprompt_ai::{
-    PersonalKeyError, PersonalProviderCredentials, personal_credential, personal_credentials,
+    PersonalKeyEntry, PersonalKeyError, PersonalProviderCredentials, personal_credential,
+    personal_credentials,
 };
 use systemprompt_extension::router::GatewayPrincipal;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential};
@@ -71,9 +72,11 @@ pub async fn set(
         .store(
             &caller,
             catalog,
-            &credential,
-            &body.api_key,
-            body.label.as_deref(),
+            PersonalKeyEntry {
+                credential: &credential,
+                key: &body.api_key,
+                label: body.label.as_deref(),
+            },
         )
         .await
         .map_err(key_error)?;
