@@ -12,10 +12,13 @@
 //! An enumeration refuses, with [`PathConfinementError::Escapes`] (or
 //! [`PathConfinementError::Unresolved`] for a dangling link), when any entry
 //! resolves outside the root: an escaping link is never followed and never
-//! silently skipped.
+//! silently skipped. [`logs`] reads log files beneath a logs root by the
+//! same rules.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+pub mod logs;
 
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};

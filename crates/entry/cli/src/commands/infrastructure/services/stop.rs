@@ -28,7 +28,10 @@ pub(super) async fn execute(
 ) -> Result<CommandOutput> {
     let config = host.output();
     let app = app_context(host).await?;
-    let service_mgmt = ServiceManagementService::new(app.service_repository().as_ref().clone());
+    let service_mgmt = ServiceManagementService::new(
+        app.service_repository().as_ref().clone(),
+        host.profile()?.server.shutdown,
+    );
 
     let mcp_stopped = if target.mcp {
         if !config.is_json_output() {
@@ -75,7 +78,8 @@ pub(super) async fn execute(
 async fn stop_api(profile: &Profile, force: bool, quiet: bool) -> Result<bool> {
     let port = get_api_port(profile);
 
-    let stops = ServiceManagementService::stop_api_by_port(port, force).await?;
+    let stops =
+        ServiceManagementService::stop_api_by_port(port, &profile.server.shutdown, force).await?;
     let mut cleared = true;
     for stop in &stops {
         match stop.outcome {

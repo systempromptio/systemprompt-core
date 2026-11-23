@@ -22,7 +22,7 @@ pub(super) async fn list(
     Extension(req_ctx): Extension<RequestContext>,
     Query(params): Query<LimitParams>,
 ) -> Result<Json<Vec<BrainProposal>>, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     let limit = limit(params.limit);
     Ok(Json(service.proposals(&caller, limit).await?))
 }
@@ -32,7 +32,7 @@ pub(super) async fn approve(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainProposalId>,
 ) -> Result<StatusCode, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     service.approve_proposal(&caller, &id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -42,7 +42,7 @@ pub(super) async fn reject(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainProposalId>,
 ) -> Result<StatusCode, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     service.reject_proposal(&caller, &id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -53,7 +53,7 @@ pub(super) async fn replay(
     Path(id): Path<BrainProposalId>,
     Json(body): Json<ReplayBody>,
 ) -> Result<Json<ReplayReport>, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     let window = AnalysisWindow {
         since: body.since,
         until: body.until,

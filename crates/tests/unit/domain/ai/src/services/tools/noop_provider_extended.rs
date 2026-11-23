@@ -53,7 +53,7 @@ mod noop_error_details_tests {
     }
 
     #[tokio::test]
-    async fn call_tool_error_is_service_not_found() {
+    async fn call_tool_error_is_no_tools() {
         let provider = NoopToolProvider::new();
         let context = ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("token"));
         let request = ToolCallRequest {
@@ -72,11 +72,8 @@ mod noop_error_details_tests {
             .unwrap_err();
 
         match err {
-            ToolProviderError::ServiceNotFound(msg) => {
-                assert!(msg.contains("NoopToolProvider"));
-                assert!(msg.contains("any_tool"));
-            },
-            other => panic!("Expected ServiceNotFound, got: {:?}", other),
+            ToolProviderError::NoTools { tool } => assert_eq!(tool, "any_tool"),
+            other => panic!("Expected NoTools, got: {:?}", other),
         }
     }
 
@@ -107,8 +104,14 @@ mod noop_error_details_tests {
             .await
             .unwrap_err();
 
-        assert!(err1.to_string().contains("NoopToolProvider"));
-        assert!(err2.to_string().contains("NoopToolProvider"));
+        assert!(
+            matches!(err1, ToolProviderError::NoTools { .. }),
+            "{err1:?}"
+        );
+        assert!(
+            matches!(err2, ToolProviderError::NoTools { .. }),
+            "{err2:?}"
+        );
     }
 
     #[tokio::test]

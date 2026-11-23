@@ -33,8 +33,8 @@ impl RoleDirectory for NoRoles {
         Ok(candidates.to_vec())
     }
 
-    async fn roles_of(&self, _user: &UserId) -> Result<Vec<String>, AuthzError> {
-        Ok(Vec::new())
+    async fn roles_of(&self, _user: &UserId) -> Result<Option<Vec<String>>, AuthzError> {
+        Ok(None)
     }
 }
 

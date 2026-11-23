@@ -56,7 +56,7 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
         ),
         NetworkService::new(),
         database,
-        MonitoringService::new(),
+        MonitoringService::new(systemprompt_test_fixtures::fixture_health_probe()),
         app_paths,
     );
 

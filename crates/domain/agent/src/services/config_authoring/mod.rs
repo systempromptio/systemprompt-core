@@ -24,7 +24,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::{ConfigWriteError, ConfigWriter};
+use systemprompt_loader::{CheckError, ConfigWriteError, ConfigWriter};
 use systemprompt_manifest::services::catalog::{CatalogContext, DefaultCatalog};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -161,13 +161,18 @@ impl AgentConfigAuthoringService {
         })
     }
 
-    pub fn create(&self, request: AgentCreateRequest) -> Result<PathBuf, ConfigAuthoringError> {
+    pub fn create(
+        &self,
+        request: AgentCreateRequest,
+        check: impl FnOnce() -> Result<(), CheckError>,
+    ) -> Result<PathBuf, ConfigAuthoringError> {
         Self::validate_agent_name(&request.name)?;
         Self::validate_port(request.port)?;
         let agent_config = build_agent_config(request, &self.services_dir)?;
         Ok(ConfigWriter::create_agent(
             &agent_config,
             &self.services_dir,
+            check,
         )?)
     }
 

@@ -7329,6 +7329,7 @@ dependencies = [
  "chrono",
  "futures",
  "http",
+ "jsonwebtoken",
  "reqwest",
  "rmcp",
  "schemars 1.2.3",

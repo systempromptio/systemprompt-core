@@ -85,6 +85,8 @@ mod hf1_seals;
 #[cfg(test)]
 mod host_context;
 #[cfg(test)]
+mod inference_tools;
+#[cfg(test)]
 mod kernel_resolve_once;
 #[cfg(test)]
 mod kernel_sealed_seeds;
@@ -98,6 +100,8 @@ mod links_issuer_errors;
 mod links_mint;
 #[cfg(test)]
 mod mcp_dispatch;
+#[cfg(test)]
+mod mcp_health_seal;
 #[cfg(test)]
 mod notifications_document_visibility;
 #[cfg(test)]

@@ -12,27 +12,34 @@ pub mod status;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use crate::services::health_probe::HealthProbe;
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct MonitoringService;
+#[derive(Debug, Clone)]
+pub struct MonitoringService {
+    probe: HealthProbe,
+}
 
 impl MonitoringService {
-    pub const fn new() -> Self {
-        Self
+    pub const fn new(probe: HealthProbe) -> Self {
+        Self { probe }
+    }
+
+    pub const fn probe(&self) -> &HealthProbe {
+        &self.probe
     }
 
     pub async fn check_health(
         &self,
         config: &McpServerConfig,
     ) -> McpDomainResult<health::HealthStatus> {
-        health::check_service_health(config).await
+        health::check_service_health(config, &self.probe).await
     }
 
     pub async fn get_status_for_all(
         &self,
         servers: &[McpServerConfig],
     ) -> McpDomainResult<Vec<status::McpServiceStatus>> {
-        status::get_all_service_status(servers).await
+        status::get_all_service_status(servers, &self.probe).await
     }
 
     pub fn display_status(statuses: &[status::McpServiceStatus]) {

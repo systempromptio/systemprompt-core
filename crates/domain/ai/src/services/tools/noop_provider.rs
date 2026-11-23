@@ -2,6 +2,8 @@
 //!
 //! Used as the default provider when a request has no tool backend wired up, so
 //! call sites can rely on an always-present provider rather than an `Option`.
+//! It lists no tools, and a tool call refuses with the typed
+//! `ToolProviderError::NoTools`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,10 +41,9 @@ impl ToolProvider for NoopToolProvider {
         _service_id: &McpServerId,
         _context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
-        Err(ToolProviderError::ServiceNotFound(format!(
-            "NoopToolProvider cannot execute tool: {}",
-            request.name
-        )))
+        Err(ToolProviderError::NoTools {
+            tool: request.name.clone(),
+        })
     }
 
     async fn refresh_connections(&self, _agent_name: &AgentName) -> ToolProviderResult<()> {

@@ -47,11 +47,7 @@ async fn make_orchestrator() -> McpOrchestrator {
         service_repo,
         app_paths,
         registry,
-        systemprompt_mcp::McpSpawn {
-            spawner: systemprompt_test_fixtures::test_spawner(),
-            secrets: systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
-            verification_keys: systemprompt_test_fixtures::fixture_verification_keys(),
-        },
+        systemprompt_test_fixtures::fixture_mcp_spawn(),
     )
     .expect("orchestrator")
 }

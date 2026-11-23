@@ -48,17 +48,18 @@ fn mcp_range_listener() -> anyhow::Result<std::net::TcpListener> {
 }
 
 async fn mount_backend(backend: &MockServer, server: &str) {
+    let session = format!("sess-{server}");
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(serde_json::json!({
             "jsonrpc": "2.0", "id": 0, "method": "initialize",
             "params": {"clientInfo": {"name": format!("systemprompt-cli-{server}")}}
         })))
-        .respond_with(|request: &Request| {
+        .respond_with(move |request: &Request| {
             let body: serde_json::Value = request.body_json().expect("json body");
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")
-                .insert_header("mcp-session-id", "sess-attribution")
+                .insert_header("mcp-session-id", session.as_str())
                 .set_body_json(serde_json::json!({
                     "jsonrpc": "2.0", "id": body["id"],
                     "result": {
@@ -115,6 +116,10 @@ async fn seed_context(ctx: &AppContext, owner: &UserId) -> anyhow::Result<Contex
 }
 
 async fn harness() -> anyhow::Result<Harness> {
+    harness_with(true).await
+}
+
+async fn harness_with(oauth_required: bool) -> anyhow::Result<Harness> {
     let backend = MockServer::builder()
         .listener(mcp_range_listener()?)
         .start()
@@ -124,7 +129,7 @@ async fn harness() -> anyhow::Result<Harness> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let api = format!("http://{}", listener.local_addr()?);
     let yaml = format!(
-        "mcp_servers:\n  {server}:\n    server_type: internal\n    binary: {server}-bin\n    port: {port}\n    enabled: true\n    tool_policy: allow\n    display_in_web: false\n    oauth:\n      required: true\n      scopes: [admin]\n      audience: mcp\n",
+        "mcp_servers:\n  {server}:\n    server_type: internal\n    binary: {server}-bin\n    port: {port}\n    enabled: true\n    tool_policy: allow\n    display_in_web: false\n    oauth:\n      required: {oauth_required}\n      scopes: [admin]\n      audience: mcp\n",
         port = backend.address().port()
     );
     let bootstrap = systemprompt_test_fixtures::bootstrap::init_isolated_bootstrap(&api, &yaml);
@@ -238,9 +243,12 @@ async fn backend_posts(backend: &MockServer) -> Vec<Request> {
 }
 
 fn initialize_request(h: &Harness, bearer: &str, context: &ContextId) -> reqwest::RequestBuilder {
+    initialize_without_bearer(h, context).header("authorization", format!("Bearer {bearer}"))
+}
+
+fn initialize_without_bearer(h: &Harness, context: &ContextId) -> reqwest::RequestBuilder {
     reqwest::Client::new()
         .post(format!("{}/api/v1/mcp/{}/mcp", h.api, h.server))
-        .header("authorization", format!("Bearer {bearer}"))
         .header("accept", "application/json, text/event-stream")
         .header("x-context-id", context.as_str())
         .json(&serde_json::json!({
@@ -329,5 +337,71 @@ async fn a_bearer_nobody_issued_is_refused_before_the_backend() -> anyhow::Resul
         .await?;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     assert!(backend_posts(&h.backend).await.is_empty());
+    Ok(())
+}
+
+fn forwarded_hop(h: &Harness, request: &Request) -> systemprompt_models::auth::McpHopClaims {
+    let hop = request
+        .headers
+        .get(systemprompt_identifiers::headers::MCP_HOP)
+        .and_then(|value| value.to_str().ok())
+        .expect("the proxy attached a hop token");
+    decode_mcp_hop(
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
+        &h.ctx.config().jwt_issuer,
+        &McpServerId::new(h.server.as_str()),
+        hop,
+    )
+    .expect("the hop verifies")
+}
+
+#[tokio::test]
+async fn identity_headers_that_differ_from_the_token_are_not_the_identity() -> anyhow::Result<()> {
+    let h = harness().await?;
+    let response = initialize_request(&h, h.caller.jwt.as_str(), &h.owned)
+        .header("x-user-id", "forged-user")
+        .header("x-session-id", "forged-session")
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    let posts = backend_posts(&h.backend).await;
+    let claims = forwarded_hop(&h, posts.first().expect("the backend saw the call"));
+    assert_eq!(claims.identity.user_id, h.caller.user_id);
+    assert_eq!(claims.identity.session_id, h.caller.session_id);
+    for request in &posts {
+        for (name, value) in &request.headers {
+            let value = value.to_str().unwrap_or_default();
+            assert!(
+                value != "forged-user" && value != "forged-session",
+                "header {name} forwards a client-supplied identity"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn on_a_server_without_oauth_the_context_owner_is_still_checked() -> anyhow::Result<()> {
+    let h = harness_with(false).await?;
+    let foreign = initialize_request(&h, h.caller.jwt.as_str(), &h.foreign)
+        .send()
+        .await?;
+    assert_eq!(foreign.status(), StatusCode::FORBIDDEN);
+    let unverified = initialize_without_bearer(&h, &h.owned).send().await?;
+    assert_eq!(
+        unverified.status(),
+        StatusCode::FORBIDDEN,
+        "a context named without a verifiable caller is refused"
+    );
+    assert!(backend_posts(&h.backend).await.is_empty());
+
+    let owned = initialize_request(&h, h.caller.jwt.as_str(), &h.owned)
+        .send()
+        .await?;
+    assert_eq!(
+        owned.status(),
+        StatusCode::OK,
+        "the owned context is admitted"
+    );
     Ok(())
 }

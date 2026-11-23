@@ -234,15 +234,14 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
         .mount(&upstream)
         .await;
     let ingest = fixture_artifact_ingest(&pool)?;
-    let resolver = systemprompt_gateway::policies::PolicyResolver::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-        systemprompt_traits::CacheEpochs::new(),
-        Default::default(),
-    );
-    ingest.register_scanner(Arc::new(systemprompt_gateway::GatewayArtifactScanner::new(
-        resolver,
-        Arc::new(systemprompt_gateway::SafetyScannerRegistry::builtin()),
-    )));
+    ingest.register_scanner(Arc::new(
+        systemprompt_gateway::GatewayArtifactScanner::over_policy_table(
+            &pool,
+            systemprompt_traits::CacheEpochs::new(),
+            Default::default(),
+            Arc::new(systemprompt_gateway::SafetyScannerRegistry::builtin()),
+        ),
+    ));
     let mut repositories = gw_repos(&pool);
     repositories.artifact_ingest = Some(ingest);
     let call_id = unique_name("artifact_scan_call");

@@ -4,12 +4,14 @@
 //! and decide proposals; the admin route simulates a recall for a chosen
 //! principal without recording it. [`user_routes`] and [`admin_routes`] are
 //! the two route sets [`crate::extension::BrainHttpExtension`] contributes.
-//! Each handler reads the caller's current roles from the governance role
-//! directory and calls one operation of the brain service, which authorizes
+//! [`OpenBrain`], the first extractor of every handler of both groups, reads
+//! the caller's current roles from the governance role directory: a caller
+//! whose account is not active holds none and is refused with 403
+//! `account_inactive` on every request, with no cache window. Each user
+//! handler then calls one operation of the brain service, which authorizes
 //! it. While the brain handle is unbound (the profile disables the brain)
-//! every route answers 404 `brain_disabled`: [`OpenBrain`], the first
-//! extractor of every handler, refuses before any path, query or body is
-//! read.
+//! every route answers 404 `brain_disabled`. Both refusals come before any
+//! path, query or body is read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -92,38 +94,65 @@ impl BrainHttpState {
         })
     }
 
-    async fn open(
-        &self,
-        req_ctx: &RequestContext,
-    ) -> Result<(Arc<BrainService>, BrainCaller), BrainHttpError> {
-        let service = Arc::clone(self.handle()?.service());
-        let user = req_ctx.user_id();
-        let roles = self.roles.roles_of(user).await?;
-        let caller = BrainCaller::new(user.clone(), roles).with_actor(caller_actor(req_ctx));
-        Ok((service, caller))
+    async fn active_roles(&self, req_ctx: &RequestContext) -> Result<Vec<String>, BrainHttpError> {
+        self.roles
+            .roles_of(req_ctx.user_id())
+            .await?
+            .ok_or_else(|| {
+                ApiError::forbidden("the caller's account is not active")
+                    .with_error_key("account_inactive")
+                    .into()
+            })
     }
 }
 
-/// The brain route state of a request the brain can serve: extracting it
-/// refuses with 404 `brain_disabled` while the brain handle is unbound.
+/// The brain route state of a request from an active caller.
+///
+/// Extracting it refuses with 404 `brain_disabled` while the brain handle is
+/// unbound and with 403 `account_inactive` when the role directory holds no
+/// active account for the caller.
 #[derive(Debug, Clone)]
-pub struct OpenBrain(BrainHttpState);
+pub struct OpenBrain {
+    state: BrainHttpState,
+    roles: Vec<String>,
+}
 
 impl Deref for OpenBrain {
     type Target = BrainHttpState;
 
     fn deref(&self) -> &BrainHttpState {
-        &self.0
+        &self.state
+    }
+}
+
+impl OpenBrain {
+    fn open(
+        &self,
+        req_ctx: &RequestContext,
+    ) -> Result<(Arc<BrainService>, BrainCaller), BrainHttpError> {
+        let service = Arc::clone(self.state.handle()?.service());
+        let caller = BrainCaller::new(req_ctx.user_id().clone(), self.roles.clone())
+            .with_actor(caller_actor(req_ctx));
+        Ok((service, caller))
     }
 }
 
 impl FromRequestParts<BrainHttpState> for OpenBrain {
     type Rejection = BrainHttpError;
 
-    fn from_request_parts(
-        _parts: &mut Parts,
+    async fn from_request_parts(
+        parts: &mut Parts,
         state: &BrainHttpState,
-    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
-        std::future::ready(state.handle().map(|_| Self(state.clone())))
+    ) -> Result<Self, Self::Rejection> {
+        state.handle()?;
+        let req_ctx = parts
+            .extensions
+            .get::<RequestContext>()
+            .ok_or_else(|| BrainHttpError::from(ApiError::unauthorized("no verified caller")))?;
+        let roles = state.active_roles(req_ctx).await?;
+        Ok(Self {
+            state: state.clone(),
+            roles,
+        })
     }
 }

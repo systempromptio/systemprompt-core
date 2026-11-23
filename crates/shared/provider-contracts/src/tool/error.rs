@@ -27,6 +27,9 @@ pub enum ToolProviderError {
 
     #[error("Internal error: {0}")]
     Internal(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
+
+    #[error("no tool provider is composed; tool '{tool}' cannot run")]
+    NoTools { tool: String },
 }
 
 pub type ToolProviderResult<T> = Result<T, ToolProviderError>;

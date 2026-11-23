@@ -3,14 +3,16 @@
 //! Probes a server over the streamable-HTTP transport to confirm it speaks the
 //! MCP protocol and exposes tools, producing a [`McpConnectionResult`], and
 //! rewrites internal/external URLs for loopback access. A server the platform
-//! hosts answers its own port only to a request carrying the proxy's hop
-//! token, so [`validate_hosted_service`] checks such a server by port
-//! reachability alone.
+//! hosts answers its own port only to a request carrying a hop token, so
+//! [`validate_hosted_service`] checks such a server at the strength its
+//! [`HealthProbe`] allows: the MCP handshake with a kernel-minted health hop,
+//! or port reachability alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+use crate::services::health_probe::HealthProbe;
 use rmcp::ServiceExt;
 use rmcp::model::{ClientCapabilities, ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::{
@@ -86,7 +88,17 @@ pub async fn validate_hosted_service(
     service_name: &ServiceName,
     host: &str,
     port: u16,
+    probe: &HealthProbe,
 ) -> McpConnectionResult {
+    match probe {
+        HealthProbe::Handshake(hop) => {
+            super::handshake::validate_hosted_handshake(service_name, host, port, hop).await
+        },
+        HealthProbe::Listening => probe_listening(service_name, host, port).await,
+    }
+}
+
+async fn probe_listening(service_name: &ServiceName, host: &str, port: u16) -> McpConnectionResult {
     let connection_start = std::time::Instant::now();
 
     let port_check = timeout(

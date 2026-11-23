@@ -1,9 +1,15 @@
 //! Writes individual agent files and patches the top-level config to
 //! drop their `includes:` entries.
 //!
-//! All operations are atomic at the per-file level; concurrent writers
-//! racing on the same agent file may overwrite each other and the loader
-//! does not attempt to lock the on-disk config.
+//! A create or an update is checked: the new agent file is put in place
+//! atomically (a temporary sibling renamed over it), the caller's check runs
+//! against the tree as written, and when the check refuses the previous bytes
+//! are put back the same way (or the new file removed), so a refused change
+//! leaves the tree byte-identical and the error is
+//! [`ConfigWriteError::Rejected`]. The check needs the change on disk because
+//! the services loader resolves includes and discovery from the tree.
+//! Concurrent writers racing on the same agent file may overwrite each other;
+//! the loader does not lock the on-disk config.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +23,9 @@ use systemprompt_manifest::services::AgentConfig;
 
 use crate::error::{ConfigWriteError, ConfigWriteResult};
 
+/// What a caller's check of a written change refuses with.
+pub type CheckError = Box<dyn std::error::Error + Send + Sync>;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigWriter;
 
@@ -26,7 +35,11 @@ struct AgentFileContent {
 }
 
 impl ConfigWriter {
-    pub fn create_agent(agent: &AgentConfig, services_dir: &Path) -> ConfigWriteResult<PathBuf> {
+    pub fn create_agent(
+        agent: &AgentConfig,
+        services_dir: &Path,
+        check: impl FnOnce() -> Result<(), CheckError>,
+    ) -> ConfigWriteResult<PathBuf> {
         let agents_dir = services_dir.join("agents");
         fs::create_dir_all(&agents_dir).map_err(|e| ConfigWriteError::Io {
             path: agents_dir.clone(),
@@ -39,7 +52,7 @@ impl ConfigWriter {
             return Err(ConfigWriteError::AgentFileExists(agent_file));
         }
 
-        Self::write_agent_file(&agent_file, agent)?;
+        Self::write_checked(&agent_file, agent, check)?;
 
         Ok(agent_file)
     }
@@ -48,11 +61,64 @@ impl ConfigWriter {
         name: &AgentName,
         agent: &AgentConfig,
         services_dir: &Path,
+        check: impl FnOnce() -> Result<(), CheckError>,
     ) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
             .ok_or_else(|| ConfigWriteError::AgentNotFound(name.clone()))?;
 
-        Self::write_agent_file(&agent_file, agent)
+        Self::write_checked(&agent_file, agent, check)
+    }
+
+    fn write_checked(
+        path: &Path,
+        agent: &AgentConfig,
+        check: impl FnOnce() -> Result<(), CheckError>,
+    ) -> ConfigWriteResult<()> {
+        let previous = match fs::read(path) {
+            Ok(bytes) => Some(bytes),
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => None,
+            Err(source) => {
+                return Err(ConfigWriteError::Io {
+                    path: path.to_path_buf(),
+                    source,
+                });
+            },
+        };
+        Self::replace_atomically(path, Self::agent_file_content(agent)?.as_bytes())?;
+        let Err(refusal) = check() else {
+            return Ok(());
+        };
+        match previous {
+            Some(bytes) => Self::replace_atomically(path, &bytes)?,
+            None => fs::remove_file(path).map_err(|source| ConfigWriteError::Io {
+                path: path.to_path_buf(),
+                source,
+            })?,
+        }
+        Err(ConfigWriteError::Rejected(refusal))
+    }
+
+    fn replace_atomically(path: &Path, bytes: &[u8]) -> ConfigWriteResult<()> {
+        let staged = path.with_file_name(format!(
+            ".{}.staged",
+            path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        ));
+        let io = |source| ConfigWriteError::Io {
+            path: path.to_path_buf(),
+            source,
+        };
+        fs::write(&staged, bytes).map_err(io)?;
+        fs::rename(&staged, path).map_err(|source| {
+            if let Err(error) = fs::remove_file(&staged) {
+                tracing::debug!(path = %staged.display(), %error, "staged agent file not removed");
+            }
+            ConfigWriteError::Io {
+                path: path.to_path_buf(),
+                source,
+            }
+        })
     }
 
     pub fn delete_agent(name: &AgentName, services_dir: &Path) -> ConfigWriteResult<()> {
@@ -118,23 +184,18 @@ impl ConfigWriter {
         Ok(parsed.agents.contains_key(agent_name.as_str()))
     }
 
-    fn write_agent_file(path: &Path, agent: &AgentConfig) -> ConfigWriteResult<()> {
+    fn agent_file_content(agent: &AgentConfig) -> ConfigWriteResult<String> {
         let mut agents = HashMap::new();
         agents.insert(agent.name.clone(), agent.clone());
 
-        let content = AgentFileContent { agents };
-
-        let yaml = serde_yaml::to_string(&content)?;
+        let yaml = serde_yaml::to_string(&AgentFileContent { agents })?;
 
         let header = format!(
             "# {} Configuration\n# {}\n\n",
             agent.card.display_name, agent.card.description
         );
 
-        fs::write(path, format!("{header}{yaml}")).map_err(|e| ConfigWriteError::Io {
-            path: path.to_path_buf(),
-            source: e,
-        })
+        Ok(format!("{header}{yaml}"))
     }
 
     fn remove_include(include_path: &str, config_path: &Path) -> ConfigWriteResult<()> {

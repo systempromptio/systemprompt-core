@@ -81,11 +81,7 @@ async fn live_server(prefix: &str) -> LiveServer {
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),
-        systemprompt_mcp::McpSpawn {
-            spawner: systemprompt_test_fixtures::test_spawner(),
-            secrets: systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
-            verification_keys: systemprompt_test_fixtures::fixture_verification_keys(),
-        },
+        systemprompt_test_fixtures::fixture_mcp_spawn(),
     )
     .expect("orchestrator");
 

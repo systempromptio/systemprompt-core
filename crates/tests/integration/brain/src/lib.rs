@@ -106,6 +106,8 @@ mod routes_facts;
 #[cfg(test)]
 mod routes_govern;
 #[cfg(test)]
+mod routes_inactive;
+#[cfg(test)]
 mod seams_discovery;
 #[cfg(test)]
 mod search_filter;

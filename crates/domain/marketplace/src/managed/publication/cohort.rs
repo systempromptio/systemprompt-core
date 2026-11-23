@@ -65,6 +65,7 @@ impl ManagedRepository {
             return directory
                 .roles_of(consumer)
                 .await
+                .map(Option::unwrap_or_default)
                 .map_err(|source| ManagedError::Internal {
                     context: "cohort role membership",
                     source: source.into(),

@@ -246,6 +246,10 @@ pub(crate) fn mcp_spawn(ctx: &AppContext) -> systemprompt_mcp::McpSpawn {
         spawner: Arc::clone(ctx.spawner()),
         secrets: Arc::<systemprompt_config::SecretsService>::clone(ctx.secrets()),
         verification_keys: ctx.signing_keys().verification_keys().clone(),
+        health: systemprompt_mcp::services::health_probe::HealthHop::new(
+            ctx.signing_keys().clone(),
+            &ctx.config().jwt_issuer,
+        ),
     }
 }
 

@@ -11,7 +11,10 @@
 //! check on the boot path, and every router and gateway engine below it is
 //! built downstream of it. The server run loop reads the engines set once and
 //! hands the same set to the router ([`assemble_api_server`]) and to the
-//! brain consumer's model client. Binding and serving live in
+//! brain consumer's model client. When the `mcp` member's artifact ingest
+//! exists, the gateway's policy scanner is registered on it, built from the
+//! gateway policy table over the database pool alone, so no other member's
+//! admission can switch the scan off. Binding and serving live in
 //! [`super::startup`], which binds the listener before this router exists and
 //! swaps it in once bootstrap completes.
 //!
@@ -93,23 +96,10 @@ pub fn assemble_api_server(
     apply_global_middleware(router, ctx)
 }
 
-// Why: the ingest is built by the runtime, which cannot see the gateway's
+// Why: the ingest is built by the mcp member, which cannot see the gateway's
 // scanner registry; the composition root closes the loop here so every tool
 // result — from any vantage point — is scanned by the installation's policy.
 fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
-    let Ok(repositories) = crate::services::kernel_seeds::ai_repositories(ctx) else {
-        tracing::warn!(
-            reason = "ai_member_not_admitted",
-            "the gateway policies live in the ai member's tables; tool-result artifacts are not \
-             scanned by the installation's gateway policy"
-        );
-        return;
-    };
-    let resolver = systemprompt_gateway::PolicyResolver::from_repository(
-        repositories.gateway_policies.clone(),
-        ctx.cache_epochs().clone(),
-        ctx.profile().unapplied_plane_mode(),
-    );
     let Ok(ingest) = ctx
         .kernel()
         .state()
@@ -121,10 +111,14 @@ fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
         );
         return;
     };
-    ingest.register_scanner(Arc::new(systemprompt_gateway::GatewayArtifactScanner::new(
-        resolver,
-        Arc::clone(&engines.scanner_registry),
-    )));
+    ingest.register_scanner(Arc::new(
+        systemprompt_gateway::GatewayArtifactScanner::over_policy_table(
+            ctx.db_pool(),
+            ctx.cache_epochs().clone(),
+            ctx.profile().unapplied_plane_mode(),
+            Arc::clone(&engines.scanner_registry),
+        ),
+    ));
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {

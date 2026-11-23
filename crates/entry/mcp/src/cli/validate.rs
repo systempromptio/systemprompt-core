@@ -16,6 +16,7 @@ use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::client::validate_hosted_service;
+use systemprompt_mcp::services::health_probe::HealthProbe;
 use systemprompt_mcp::{McpDomainResult, McpServerConfig};
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
@@ -189,7 +190,8 @@ pub async fn run_connection_validation(
     port: u16,
     timeout_secs: u64,
 ) -> McpValidateOutput {
-    let validation_future = validate_hosted_service(service_name, "127.0.0.1", port);
+    let validation_future =
+        validate_hosted_service(service_name, "127.0.0.1", port, &HealthProbe::Listening);
 
     let validation_result =
         match tokio::time::timeout(Duration::from_secs(timeout_secs), validation_future).await {

@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "AI"
+text = "With no tool provider composed (the `mcp` member disabled), a tool call through the inference service refuses with the typed `ToolProviderError::NoTools`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`ToolProviderError::NoTools { tool }`."

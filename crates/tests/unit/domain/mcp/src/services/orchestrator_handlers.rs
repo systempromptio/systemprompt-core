@@ -54,7 +54,7 @@ async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryServ
         ),
         NetworkService::new(),
         database.clone(),
-        MonitoringService::new(),
+        MonitoringService::new(systemprompt_test_fixtures::fixture_health_probe()),
         app_paths,
     );
     (lifecycle, database, registry)

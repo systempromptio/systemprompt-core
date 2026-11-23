@@ -62,7 +62,7 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
             ),
             NetworkService::new(),
             database,
-            MonitoringService::new(),
+            MonitoringService::new(systemprompt_test_fixtures::fixture_health_probe()),
             app_paths,
         ),
         repo,
@@ -193,4 +193,28 @@ async fn restart_server_sweeps_stale_running_row_then_fails_on_missing_binary() 
     repo.delete_service(&name_id).await.ok();
 
     assert!(result.is_err(), "startup cannot succeed without a binary");
+}
+
+#[tokio::test]
+async fn health_check_non_mcp_listener_marks_service_error() {
+    let (life, repo) = make_lifecycle().await;
+    let mock = MockServer::start().await;
+    let port = mock.address().port();
+
+    let name = format!("hc-err-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
+    seed_service(&repo, &name_id, port).await;
+
+    let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
+
+    let status = repo
+        .find_service_by_name(&name_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .status;
+    repo.delete_service(&name_id).await.unwrap();
+
+    assert!(!healthy);
+    assert_eq!(status, ServiceStatus::Error);
 }

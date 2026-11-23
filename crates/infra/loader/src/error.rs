@@ -146,6 +146,9 @@ pub enum ConfigWriteError {
 
     #[error("Agent '{0}' not found in any configuration file")]
     AgentNotFound(AgentName),
+
+    #[error("the services configuration is invalid with this change; nothing was written")]
+    Rejected(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 #[derive(Debug, Error)]

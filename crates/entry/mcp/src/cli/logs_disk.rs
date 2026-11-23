@@ -12,13 +12,15 @@ use std::process::Command;
 
 use anyhow::{Context, Result, anyhow};
 
-use super::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use super::logs::LogsArgs;
 use super::types::McpLogsOutput;
 use systemprompt_extension::cli::{
     ChildSupervisor, CliConfig, CommandOutput, Prompter, resolve_required,
 };
 use systemprompt_models::artifacts::ListItem;
+use systemprompt_models::path_confine::logs::{
+    display_names, find_log_file, list_log_files, read_log_lines,
+};
 
 const PREFIX: &str = "mcp-";
 
@@ -108,7 +110,7 @@ fn select_log_file(
     let service = resolve_required(args.server.clone(), "server", config, || {
         prompt_log_selection(prompter, logs_path)
     })?;
-    let log_file = find_log_file(logs_path, PREFIX, &service)?;
+    let log_file = find_log_file(logs_path, PREFIX, "MCP server name", &service)?;
     Ok((service, log_file))
 }
 

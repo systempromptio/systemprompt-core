@@ -560,6 +560,9 @@ mod static_content_more;
 mod middleware_more;
 
 #[cfg(test)]
+#[path = "gateway_scanner_without_ai.rs"]
+mod gateway_scanner_without_ai;
+#[cfg(test)]
 #[path = "proxy_cli_attribution.rs"]
 mod proxy_cli_attribution;
 #[cfg(test)]

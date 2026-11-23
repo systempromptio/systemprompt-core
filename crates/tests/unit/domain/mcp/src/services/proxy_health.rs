@@ -7,10 +7,10 @@ use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 #[tokio::test]
 async fn can_route_traffic_missing_service_returns_false() {
     let db = test_db_pool().await;
-    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
-        &db,
-        unique_instance(),
-    ));
+    let p = ProxyHealthCheck::new(
+        systemprompt_database::ServiceRepository::new(&db, unique_instance()),
+        systemprompt_test_fixtures::fixture_health_probe(),
+    );
     let r = p
         .can_route_traffic(
             &ServiceName::new(format!("missing-{}", uuid::Uuid::new_v4().simple())),
@@ -29,7 +29,10 @@ async fn list_routable_services_excludes_service_with_unresponsive_port() {
     use systemprompt_identifiers::ServiceName;
     let db = test_db_pool().await;
     let repo = ServiceRepository::new(&db, unique_instance());
-    let p = ProxyHealthCheck::new(repo.clone());
+    let p = ProxyHealthCheck::new(
+        repo.clone(),
+        systemprompt_test_fixtures::fixture_health_probe(),
+    );
     let name = format!("ph-list-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65510;
@@ -65,7 +68,10 @@ async fn can_route_traffic_running_service_unreachable_port_returns_false() {
     use systemprompt_identifiers::ServiceName;
     let db = test_db_pool().await;
     let repo = ServiceRepository::new(&db, unique_instance());
-    let p = ProxyHealthCheck::new(repo.clone());
+    let p = ProxyHealthCheck::new(
+        repo.clone(),
+        systemprompt_test_fixtures::fixture_health_probe(),
+    );
     let name = format!("ph-run-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65519;
@@ -91,7 +97,10 @@ async fn can_route_traffic_stopped_service_returns_false() {
     use systemprompt_identifiers::ServiceName;
     let db = test_db_pool().await;
     let repo = ServiceRepository::new(&db, unique_instance());
-    let p = ProxyHealthCheck::new(repo.clone());
+    let p = ProxyHealthCheck::new(
+        repo.clone(),
+        systemprompt_test_fixtures::fixture_health_probe(),
+    );
     let name = format!("ph-stop-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
     let port = 65518;

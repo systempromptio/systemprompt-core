@@ -10,7 +10,7 @@ use systemprompt_cli::CommandContext;
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
-use crate::common::{agents_host, parse_agents, with_boot};
+use crate::common::{agents_host, logs_dir_in_root, parse_agents, with_boot};
 
 
 fn ctx(interactive: bool, answers: &[&str]) -> CommandContext {
@@ -40,7 +40,7 @@ fn seed_logs(dir: &Path) {
 
 #[tokio::test]
 async fn agent_logs_disk_lists_files_when_no_agent_given() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = logs_dir_in_root(&ctx(false, &[])).await;
     seed_logs(dir.path());
     agents::execute(
         parse_agents(&["logs", "--disk", "--logs-dir", dir.path().to_str().unwrap()]),
@@ -52,7 +52,7 @@ async fn agent_logs_disk_lists_files_when_no_agent_given() {
 
 #[tokio::test]
 async fn agent_logs_disk_reads_named_and_prompted_agent() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = logs_dir_in_root(&ctx(false, &[])).await;
     seed_logs(dir.path());
     let dir_arg = dir.path().to_str().unwrap();
 
@@ -78,7 +78,10 @@ async fn agent_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{missing:#}").contains("does not exist"));
+    assert!(
+        format!("{missing:#}").contains("must name a directory inside"),
+        "{missing:#}"
+    );
 
     let follow_missing = agents::execute(
         parse_agents(&["logs", "--follow", "--logs-dir", "/no/such/dir/cov"]),
@@ -86,9 +89,12 @@ async fn agent_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{follow_missing:#}").contains("does not exist"));
+    assert!(
+        format!("{follow_missing:#}").contains("must name a directory inside"),
+        "{follow_missing:#}"
+    );
 
-    let empty = tempfile::tempdir().unwrap();
+    let empty = logs_dir_in_root(&ctx(false, &[])).await;
     let no_files = agents::execute(
         parse_agents(&[
             "logs",

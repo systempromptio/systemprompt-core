@@ -10,6 +10,7 @@
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use crate::services::health_probe::HealthProbe;
 use crate::services::monitoring::health::{HealthCheckResult, HealthStatus, perform_health_check};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServiceStatus;
@@ -68,16 +69,17 @@ impl McpServiceStatus {
 
 pub async fn get_all_service_status(
     servers: &[McpServerConfig],
+    probe: &HealthProbe,
 ) -> McpDomainResult<Vec<McpServiceStatus>> {
     let mut statuses = Vec::with_capacity(servers.len());
     for server in servers {
-        statuses.push(get_service_status(server).await);
+        statuses.push(get_service_status(server, probe).await);
     }
     Ok(statuses)
 }
 
-async fn get_service_status(config: &McpServerConfig) -> McpServiceStatus {
-    match perform_health_check(config).await {
+async fn get_service_status(config: &McpServerConfig, probe: &HealthProbe) -> McpServiceStatus {
+    match perform_health_check(config, probe).await {
         Ok(check) => McpServiceStatus::observed(config, &check, None),
         Err(e) => {
             tracing::debug!(service = %config.name, error = %e, "Health check failed; reporting service unreachable");

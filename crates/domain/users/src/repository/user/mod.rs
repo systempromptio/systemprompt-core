@@ -19,6 +19,7 @@ mod bulk;
 mod declared;
 mod directory;
 mod find;
+pub(crate) use find::active_user_row;
 mod list;
 mod merge;
 pub(super) mod operations;

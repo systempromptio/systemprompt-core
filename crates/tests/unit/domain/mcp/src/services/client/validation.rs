@@ -91,8 +91,13 @@ async fn validate_connection_unreachable_port_returns_failure() {
 async fn validate_hosted_service_reports_a_listening_port_as_hop_protected() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().unwrap().port();
-    let r =
-        validate_hosted_service(&ServiceName::new("svc-oauth-up"), UNREACHABLE_HOST, port).await;
+    let r = validate_hosted_service(
+        &ServiceName::new("svc-oauth-up"),
+        UNREACHABLE_HOST,
+        port,
+        &systemprompt_mcp::services::health_probe::HealthProbe::Listening,
+    )
+    .await;
     assert!(r.success);
     assert_eq!(r.validation_type, "auth_required");
     assert!(
@@ -106,9 +111,74 @@ async fn validate_hosted_service_reports_a_listening_port_as_hop_protected() {
 #[tokio::test]
 async fn validate_hosted_service_reports_a_closed_port_unavailable() {
     let port = unused_port();
-    let r =
-        validate_hosted_service(&ServiceName::new("svc-oauth-down"), UNREACHABLE_HOST, port).await;
+    let r = validate_hosted_service(
+        &ServiceName::new("svc-oauth-down"),
+        UNREACHABLE_HOST,
+        port,
+        &systemprompt_mcp::services::health_probe::HealthProbe::Listening,
+    )
+    .await;
     assert!(!r.success);
     assert_eq!(r.validation_type, "port_unavailable");
     assert!(r.tools_count.is_none());
+}
+
+#[tokio::test]
+async fn a_hosted_listener_that_accepts_but_never_answers_is_unhealthy_under_the_handshake() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind ephemeral");
+    let port = listener.local_addr().expect("addr").port();
+    let held = tokio::spawn(async move {
+        let mut open = Vec::new();
+        while let Ok((socket, _)) = listener.accept().await {
+            open.push(socket);
+        }
+    });
+
+    let result = validate_hosted_service(
+        &ServiceName::new("val-hung"),
+        UNREACHABLE_HOST,
+        port,
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await;
+    held.abort();
+
+    assert!(
+        !result.success,
+        "a hung listener is not healthy: {result:?}"
+    );
+    assert!(
+        matches!(
+            result.validation_type.as_str(),
+            "timeout" | "connection_failed"
+        ),
+        "{result:?}"
+    );
+}
+
+#[tokio::test]
+async fn the_handshake_presents_a_health_hop_to_the_hosted_server() {
+    let mock = MockServer::start().await;
+    mount_mcp_endpoint(&mock, default_tools_json()).await;
+    let port = mock.address().port();
+
+    let result = validate_hosted_service(
+        &ServiceName::new("val-hop"),
+        UNREACHABLE_HOST,
+        port,
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await;
+
+    assert!(result.success, "{result:?}");
+    assert_eq!(result.validation_type, "mcp_validated");
+    let received = mock.received_requests().await.expect("requests recorded");
+    assert!(
+        received.iter().all(|r| r
+            .headers
+            .contains_key(systemprompt_identifiers::headers::MCP_HOP)),
+        "every handshake request carries the health hop"
+    );
 }

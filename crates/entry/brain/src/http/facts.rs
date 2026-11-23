@@ -55,7 +55,7 @@ pub(super) async fn search(
     Extension(req_ctx): Extension<RequestContext>,
     Query(params): Query<SearchParams>,
 ) -> Result<Json<FactPage>, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     let caller = caller.with_project(params.project.clone());
     let filter = filter(params)?;
     Ok(Json(service.search(&caller, &filter).await?))
@@ -67,7 +67,7 @@ pub(super) async fn subject(
     Path((kind, id)): Path<(String, String)>,
     Query(page): Query<PageParams>,
 ) -> Result<Json<FactPage>, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     let mut filter = FactFilter::new()
         .with_subject(SubjectKey::new(kind, id))
         .with_limit(limit(page.limit));
@@ -82,7 +82,7 @@ pub(super) async fn enter(
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<EnteredFact>,
 ) -> Result<(StatusCode, Json<EnterAccepted>), BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     let outbox_id = service.enter(&caller, &body).await?;
     Ok((StatusCode::ACCEPTED, Json(EnterAccepted { outbox_id })))
 }
@@ -92,7 +92,7 @@ pub(super) async fn get(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Result<Json<BrainFact>, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     Ok(Json(service.get(&caller, &id).await?))
 }
 
@@ -101,7 +101,7 @@ pub(super) async fn timeline(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Result<Json<Vec<FactRevision>>, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     Ok(Json(service.timeline(&caller, &id).await?))
 }
 
@@ -111,7 +111,7 @@ pub(super) async fn why(
     Path(id): Path<BrainFactId>,
     Query(params): Query<WhyParams>,
 ) -> Result<Json<FactWhy>, BrainHttpError> {
-    let (service, caller) = state.open(&req_ctx).await?;
+    let (service, caller) = state.open(&req_ctx)?;
     let caller = caller.with_project(params.project.clone());
     let mut ctx = RecallCtx::new(caller.user_id.clone(), caller.actor.clone(), Utc::now())
         .with_scopes(state.profile.recall.scopes.clone());

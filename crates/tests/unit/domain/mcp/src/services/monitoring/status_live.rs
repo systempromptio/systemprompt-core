@@ -18,9 +18,12 @@ async fn live_endpoint_reports_running_with_tool_count() {
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let config = external_mcp_config("status-live", &format!("{}/mcp", mock.uri()));
 
-    let statuses = get_all_service_status(std::slice::from_ref(&config))
-        .await
-        .expect("status map builds");
+    let statuses = get_all_service_status(
+        std::slice::from_ref(&config),
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await
+    .expect("status map builds");
 
     let status = entry(&statuses, "status-live").expect("entry present");
     assert_eq!(status.observed_state(), ServiceStatus::Running);
@@ -36,9 +39,12 @@ async fn live_endpoint_reports_running_with_tool_count() {
 async fn dead_endpoint_reports_stopped() {
     let config = external_mcp_config("status-dead", "http://127.0.0.1:1/mcp");
 
-    let statuses = get_all_service_status(std::slice::from_ref(&config))
-        .await
-        .expect("status map builds");
+    let statuses = get_all_service_status(
+        std::slice::from_ref(&config),
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await
+    .expect("status map builds");
 
     let status = entry(&statuses, "status-dead").expect("entry present");
     assert_eq!(status.observed_state(), ServiceStatus::Stopped);
@@ -100,9 +106,12 @@ async fn a_slow_but_reachable_endpoint_is_still_reported_running_and_marked_degr
         .await;
 
     let config = external_mcp_config("status-slow", &format!("{}/mcp", mock.uri()));
-    let statuses = get_all_service_status(std::slice::from_ref(&config))
-        .await
-        .expect("status map builds");
+    let statuses = get_all_service_status(
+        std::slice::from_ref(&config),
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await
+    .expect("status map builds");
 
     let status = entry(&statuses, "status-slow").expect("entry present");
     assert_eq!(
@@ -130,9 +139,12 @@ async fn an_auth_gated_service_reports_auth_required_even_when_unreachable() {
     let mut config = external_mcp_config("status-authgated", "http://127.0.0.1:1/mcp");
     config.oauth.required = true;
 
-    let statuses = get_all_service_status(std::slice::from_ref(&config))
-        .await
-        .expect("status map builds");
+    let statuses = get_all_service_status(
+        std::slice::from_ref(&config),
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await
+    .expect("status map builds");
 
     let status = entry(&statuses, "status-authgated").expect("entry present");
     assert!(
@@ -152,9 +164,12 @@ async fn invalid_internal_endpoint_is_reported_unreachable_without_aborting_othe
     invalid.port = None;
     invalid.oauth.required = true;
 
-    let statuses = get_all_service_status(&[invalid, healthy])
-        .await
-        .expect("one malformed service is represented rather than aborting aggregation");
+    let statuses = get_all_service_status(
+        &[invalid, healthy],
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await
+    .expect("one malformed service is represented rather than aborting aggregation");
     let unreachable = entry(&statuses, "status-invalid-internal").expect("invalid service entry");
     assert_eq!(unreachable.observed_state(), ServiceStatus::Stopped);
     assert_eq!(unreachable.health, HealthStatus::Unhealthy);

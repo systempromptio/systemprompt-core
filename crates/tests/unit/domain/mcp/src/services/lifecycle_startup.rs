@@ -6,7 +6,17 @@ use std::sync::Arc;
 
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::LifecycleService;
-use systemprompt_mcp::services::lifecycle::startup::{check_health_status, wait_for_startup};
+use systemprompt_mcp::services::lifecycle::startup::{
+    StartupAttempt, check_health_status, wait_for_startup,
+};
+
+const fn attempt(number: u32, started: std::time::Instant) -> StartupAttempt {
+    StartupAttempt {
+        number,
+        of: 15,
+        started,
+    }
+}
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 use systemprompt_traits::startup_channel;
@@ -35,7 +45,13 @@ async fn wait_for_startup_reports_ready_on_healthy_endpoint() {
         .spawn()
         .expect("spawn a live stand-in server process");
 
-    let startup = wait_for_startup(&config, server.id(), Some(&tx)).await;
+    let startup = wait_for_startup(
+        &config,
+        &systemprompt_test_fixtures::fixture_health_probe(),
+        server.id(),
+        Some(&tx),
+    )
+    .await;
     server.kill().expect("stop the stand-in server");
     server.wait().expect("reap the stand-in server");
 
@@ -56,9 +72,14 @@ async fn wait_for_startup_detects_dead_process() {
     child.wait().expect("child exits");
 
     let config = internal_at(&mock, "startup-dead");
-    let err = wait_for_startup(&config, pid, None)
-        .await
-        .expect_err("dead pid detected");
+    let err = wait_for_startup(
+        &config,
+        &systemprompt_test_fixtures::fixture_health_probe(),
+        pid,
+        None,
+    )
+    .await
+    .expect_err("dead pid detected");
     assert!(matches!(
         err,
         McpDomainError::ProcessDiedDuringStartup { pid: died, ref service }
@@ -76,9 +97,18 @@ async fn check_health_status_healthy_returns_elapsed() {
     let (tx, _rx) = startup_channel();
     let start = std::time::Instant::now();
 
-    let outcome = check_health_status(&config, 1, 15, start, Some(&tx))
-        .await
-        .expect("health check runs");
+    let outcome = check_health_status(
+        &config,
+        &systemprompt_test_fixtures::fixture_health_probe(),
+        StartupAttempt {
+            number: 1,
+            of: 15,
+            started: start,
+        },
+        Some(&tx),
+    )
+    .await
+    .expect("health check runs");
     outcome.expect("healthy endpoint yields elapsed");
 }
 
@@ -88,9 +118,18 @@ async fn check_health_status_unreachable_is_not_ready() {
     let config = internal_mcp_config("health-unreachable", 1);
     let start = std::time::Instant::now();
 
-    let outcome = check_health_status(&config, 1, 15, start, None)
-        .await
-        .expect("unreachable maps to not-ready");
+    let outcome = check_health_status(
+        &config,
+        &systemprompt_test_fixtures::fixture_health_probe(),
+        StartupAttempt {
+            number: 1,
+            of: 15,
+            started: start,
+        },
+        None,
+    )
+    .await
+    .expect("unreachable maps to not-ready");
     assert!(outcome.is_none());
 }
 
@@ -118,7 +157,9 @@ async fn start_server_rejects_external_servers() {
         ),
         systemprompt_mcp::services::NetworkService::new(),
         database,
-        systemprompt_mcp::services::MonitoringService::new(),
+        systemprompt_mcp::services::MonitoringService::new(
+            systemprompt_test_fixtures::fixture_health_probe(),
+        ),
         Arc::new(bootstrap.app_paths.clone()),
     );
 
@@ -128,4 +169,48 @@ async fn start_server_rejects_external_servers() {
         .await
         .expect_err("external servers are not spawned");
     assert!(err.to_string().contains("never spawned locally"), "{err}");
+}
+
+#[tokio::test]
+async fn check_health_status_accepts_degraded_near_exhaustion() {
+    let _ = ensure_test_bootstrap();
+    let mock = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .and(body_partial_json(
+            serde_json::json!({"jsonrpc": "2.0", "method": "initialize", "params": {"clientInfo": {}}}),
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .insert_header("mcp-session-id", "sess-slow")
+                .set_delay(Duration::from_millis(1100))
+                .set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "result": {
+                        "protocolVersion": "2025-03-26",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "slow", "version": "1.0.0"}
+                    }
+                })),
+        )
+        .mount(&mock)
+        .await;
+    mount_mcp_endpoint(&mock, default_tools_json()).await;
+
+    let config = internal_at(&mock, "health-degraded");
+    let probe = systemprompt_test_fixtures::fixture_health_probe();
+    let start = std::time::Instant::now();
+
+    let early = check_health_status(&config, &probe, attempt(1, start), None)
+        .await
+        .expect("slow endpoint early");
+    assert!(early.is_none());
+
+    let (tx, _rx) = startup_channel();
+    let late = check_health_status(&config, &probe, attempt(14, start), Some(&tx))
+        .await
+        .expect("slow endpoint near exhaustion");
+    late.expect("degraded endpoint accepted near exhaustion");
 }

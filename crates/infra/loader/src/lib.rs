@@ -48,7 +48,7 @@ pub mod vertex_discovery;
 pub use boot::BootContext;
 pub use bundle::{BundleError, BundleResult, ServicesSourceBootstrap};
 pub use config_loader::ConfigLoader;
-pub use config_writer::ConfigWriter;
+pub use config_writer::{CheckError, ConfigWriter};
 pub use error::{
     ConfigLoadError, ConfigLoadResult, ConfigWriteError, ConfigWriteResult, ExtensionLoadError,
     ExtensionLoadResult, ProfileLoadError, ProfileLoadResult,

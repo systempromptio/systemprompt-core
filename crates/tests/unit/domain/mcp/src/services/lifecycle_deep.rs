@@ -62,7 +62,7 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
         ),
         NetworkService::new(),
         database,
-        MonitoringService::new(),
+        MonitoringService::new(systemprompt_test_fixtures::fixture_health_probe()),
         app_paths,
     );
     (lifecycle, repo)

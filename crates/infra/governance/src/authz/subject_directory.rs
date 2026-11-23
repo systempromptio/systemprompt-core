@@ -19,8 +19,8 @@ use systemprompt_identifiers::UserId;
 
 use super::error::AuthzError;
 
-/// Answers which candidate roles no user holds, and which roles one user
-/// holds.
+/// Answers which candidate roles no user holds, and which roles one active
+/// user holds (`None` for a deactivated or unknown user).
 ///
 /// `#[async_trait]` because the directory is held as an `Arc<dyn …>` on the
 /// ingestion service, so the trait must stay `dyn`-compatible.
@@ -28,7 +28,7 @@ use super::error::AuthzError;
 pub trait RoleDirectory: Send + Sync + Debug {
     async fn unknown_roles(&self, candidates: &[String]) -> Result<Vec<String>, AuthzError>;
 
-    async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError>;
+    async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, AuthzError>;
 }
 
 pub type SharedRoleDirectory = Arc<dyn RoleDirectory>;

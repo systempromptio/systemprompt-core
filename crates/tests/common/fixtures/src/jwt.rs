@@ -181,10 +181,23 @@ pub fn fixture_verification_keys() -> systemprompt_security::keys::TokenVerifica
     test_signing_keys().verification_keys().clone()
 }
 
+pub fn fixture_health_probe() -> systemprompt_mcp::services::health_probe::HealthProbe {
+    systemprompt_mcp::services::health_probe::HealthProbe::Handshake(
+        systemprompt_mcp::services::health_probe::HealthHop::new(
+            test_signing_keys().clone(),
+            crate::bootstrap::FIXTURE_EXTERNAL_URL,
+        ),
+    )
+}
+
 pub fn fixture_mcp_spawn() -> systemprompt_mcp::McpSpawn {
     systemprompt_mcp::McpSpawn {
         spawner: crate::test_spawner(),
         secrets: crate::ensure_test_secrets_bootstrap(),
         verification_keys: fixture_verification_keys(),
+        health: systemprompt_mcp::services::health_probe::HealthHop::new(
+            test_signing_keys().clone(),
+            crate::bootstrap::FIXTURE_EXTERNAL_URL,
+        ),
     }
 }

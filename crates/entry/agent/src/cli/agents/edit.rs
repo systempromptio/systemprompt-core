@@ -1,4 +1,6 @@
-//! `admin agents edit` command.
+//! `admin agents edit` command. The edited agent file is kept only if the
+//! services configuration validates with it; a refused edit leaves the tree
+//! byte-identical.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -85,14 +87,11 @@ pub(super) fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<Command
 
     let services_dir = services_root(host)?;
 
-    ConfigWriter::update_agent(&name, &agent, &services_dir)
-        .with_context(|| format!("Failed to update agent '{}'", name))?;
-
-    reload_services_config(host).with_context(|| {
-        format!(
-            "Agent '{}' updated but validation failed. Please check the configuration.",
-            name
-        )
+    ConfigWriter::update_agent(&name, &agent, &services_dir, || {
+        reload_services_config(host).map(drop).map_err(Into::into)
+    })
+    .with_context(|| {
+        format!("Agent '{name}' was not updated: the configuration would be invalid")
     })?;
 
     let output = AgentEditOutput {

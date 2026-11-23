@@ -14,6 +14,7 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::models::ValidationResultType;
 use crate::services::client::McpConnectionResult;
+use crate::services::health_probe::HealthProbe;
 use crate::services::spawn_target::SpawnTarget;
 use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
@@ -134,12 +135,18 @@ impl HealthCheckResult {
     }
 }
 
-pub async fn check_service_health(config: &McpServerConfig) -> McpDomainResult<HealthStatus> {
-    let result = perform_health_check(config).await?;
+pub async fn check_service_health(
+    config: &McpServerConfig,
+    probe: &HealthProbe,
+) -> McpDomainResult<HealthStatus> {
+    let result = perform_health_check(config, probe).await?;
     Ok(result.status)
 }
 
-pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<HealthCheckResult> {
+pub async fn perform_health_check(
+    config: &McpServerConfig,
+    probe: &HealthProbe,
+) -> McpDomainResult<HealthCheckResult> {
     use crate::services::client::{validate_connection_by_url, validate_hosted_service};
     use systemprompt_models::mcp::McpServerType;
 
@@ -150,7 +157,12 @@ pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<H
     let connection_result = match config.server_type {
         McpServerType::Internal => timeout(
             Duration::from_secs(30),
-            validate_hosted_service(&config.service_name(), &config.host, config.spawn_port()?),
+            validate_hosted_service(
+                &config.service_name(),
+                &config.host,
+                config.spawn_port()?,
+                probe,
+            ),
         )
         .await
         .map(Ok),

@@ -23,7 +23,6 @@
 mod client;
 pub mod create;
 pub mod delete;
-mod disk_logs;
 mod edit;
 mod edit_apply;
 mod list;
