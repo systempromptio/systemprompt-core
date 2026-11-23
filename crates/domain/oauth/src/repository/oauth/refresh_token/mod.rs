@@ -6,7 +6,9 @@
 //! RFC 6819 §5.2.2.3. `authenticated_at` is when the person signed in for the
 //! grant and `session_started_at` is when the authorization code the family
 //! descends from was issued; a rotated token is stored with the values its
-//! predecessor carried.
+//! predecessor carried. A token that descends from a device link's code
+//! carries that link's `device_key_id`, taken from the code on redemption and
+//! from the family on rotation, never from the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

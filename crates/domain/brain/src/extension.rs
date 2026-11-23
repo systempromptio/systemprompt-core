@@ -18,7 +18,10 @@
 //! profile enables the brain, and, after the slot is built, the brain's
 //! [`MemoryRecall`] (open): it
 //! recalls through the bound handle and answers `skipped=disabled` while the
-//! handle is unbound. Recall reads facts as the principal it is handed.
+//! handle is unbound. Recall reads facts as the principal it is handed. It
+//! also provides, open and after the slot is built, the brain's MCP toolset
+//! source (`DynBrainToolsetSource`), which the toolset host's `brain`
+//! toolset builds from while the handle is bound.
 //!
 //! It requires the producer `DynNotificationSink`, which the `notifications`
 //! member provides: a profile that disables notifications and keeps the
@@ -31,7 +34,8 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{
-    BrainConsumerStart, BrainModelClient, DynBrainConsumerStart, DynBrainSink, MemoryRecall,
+    BrainConsumerStart, BrainModelClient, DynBrainConsumerStart, DynBrainSink,
+    DynBrainToolsetSource, MemoryRecall,
 };
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
@@ -46,6 +50,7 @@ use crate::handle::BrainHandleSlot;
 use crate::jobs::{
     BrainAnalysisJob, BrainConsolidateJob, BrainRetentionJob, BrainReviewJob, BrainUsageJob,
 };
+use crate::mcp::BoundBrainToolsets;
 use crate::plane::BrainPlane;
 use crate::recall::BoundMemoryRecall;
 use crate::schema::{BRAIN_SCHEMAS, BRAIN_VIEWS};
@@ -85,6 +90,12 @@ impl Extension for BrainExtension {
                 |r: &Resolved<'_>| -> Result<Arc<dyn MemoryRecall>, ProvideError> {
                     let brain = r.get::<Arc<BrainHandleSlot>>()?;
                     Ok(Arc::new(BoundMemoryRecall::new(brain)))
+                },
+            )
+            .provide_after_governance(
+                |r: &Resolved<'_>| -> Result<DynBrainToolsetSource, ProvideError> {
+                    let brain = r.get::<Arc<BrainHandleSlot>>()?;
+                    Ok(Arc::new(BoundBrainToolsets::new(brain)))
                 },
             )
             .provide_sealed_after_governance(

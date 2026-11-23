@@ -151,6 +151,34 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["id", "document_id", "user_id", "agent_name", "created_at"],
     ),
     (
+        "document_public_links",
+        include_str!("../schema/document_public_links.sql"),
+        &[
+            "id",
+            "document_id",
+            "token_hash",
+            "expires_at",
+            "created_by",
+        ],
+    ),
+    (
+        "document_link_attempts",
+        include_str!("../schema/document_link_attempts.sql"),
+        &["link_id", "client_ip", "attempted_at"],
+    ),
+    (
+        "document_invites",
+        include_str!("../schema/document_invites.sql"),
+        &[
+            "id",
+            "document_id",
+            "email",
+            "access_level",
+            "token_hash",
+            "invited_by",
+        ],
+    ),
+    (
         "document_access_requests",
         include_str!("../schema/document_access_requests.sql"),
         &["id", "document_id", "requester_user_id", "status"],

@@ -21,7 +21,9 @@ pub use client::{
     ClientOwnerScope, ClientRepository, CreateClientParams, DeclaredClientRow, DeclaredClientWrite,
     UpdateClientParams,
 };
-pub use exchange_code::CreateExchangeCodeParams;
+pub use exchange_code::{
+    ConsumedDeviceLink, CreateExchangeCodeParams, DeviceLinkUiGrant, StoredUiGrant,
+};
 pub use oauth::{
     AuthCodeParams, AuthCodeRedemption, AuthCodeValidationResult, CONSENT_TOKEN_TTL_SECS,
     ConsentBinding, JtiRevocationCache, JtiRevocationChecker, MintAuthCodeParams, OAuthRepository,

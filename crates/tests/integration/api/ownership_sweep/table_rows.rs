@@ -9,6 +9,7 @@ use super::table::{Row, owned, owned_at};
 
 const DOC: &str = "routes/documents/mod.rs::router";
 const COLLAB: &str = "routes/documents/mod.rs::with_collab";
+const EXTERNAL: &str = "routes/documents/external.rs::with_public_links";
 const VIEWS: &str = "routes/documents/mod.rs::with_views";
 const FOLDER: &str = "routes/documents/mod.rs::folders_router";
 const DRIVE: &str = "routes/documents/drive.rs::router";
@@ -86,6 +87,9 @@ pub(super) const OWNED: &[Row] = &[
     owned(DOC, "GET", r#""/{id}/grants""#, Documents, NotFound, Empty),
     owned(DOC, "POST", r#""/{id}/grants""#, Documents, NotFound, Json(SHARE)),
     owned_at(DOC, "DELETE", r#""/{id}/grants""#, "/{id}/grants?grant_id={grant}", (Documents, NotFound, Empty)),
+    owned(EXTERNAL, "GET", r#""/{id}/public-links""#, Documents, NotFound, Empty),
+    owned(EXTERNAL, "POST", r#""/{id}/public-links""#, Documents, NotFound, Json("{}")),
+    owned_at(EXTERNAL, "DELETE", r#""/{id}/public-links/{link_id}""#, "/{id}/public-links/8f14e45f-ceea-4e7a-9d3f-6a1e2b4c5d60", (Documents, NotFound, Empty)),
     owned(DOC, "GET", r#""/{id}/presence""#, Documents, NotFound, Empty),
     owned(DOC, "PUT", r#""/{id}/presence""#, Documents, NotFound, Json(r#"{"state":"viewing"}"#)),
     owned(DOC, "POST", r#""/{id}/lock""#, Documents, NotFound, Json(r#"{"holder_id":"sweep"}"#)),

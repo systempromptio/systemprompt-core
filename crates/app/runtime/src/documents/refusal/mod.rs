@@ -236,9 +236,10 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
     match error {
         DocumentsError::Conflict { .. } => Some(RefusalCode::StaleBase),
         DocumentsError::StaleAnchor { .. } => Some(RefusalCode::GuardMismatch),
-        DocumentsError::Forbidden { .. } | DocumentsError::ShareBelowExisting { .. } => {
-            Some(RefusalCode::Forbidden)
-        },
+        DocumentsError::Forbidden { .. }
+        | DocumentsError::ShareBelowExisting { .. }
+        | DocumentsError::ExternalSharingRefused { .. }
+        | DocumentsError::OwnershipChanged { .. } => Some(RefusalCode::Forbidden),
         DocumentsError::Trashed { .. } => Some(RefusalCode::Trashed),
         DocumentsError::AnchorsAffected { .. } => Some(RefusalCode::AnchorsAffected),
         DocumentsError::FindNone { .. } => Some(RefusalCode::FindNone),
@@ -255,7 +256,6 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         DocumentsError::FolderNotEmpty { .. } | DocumentsError::SubtreeChanged { .. } => {
             Some(RefusalCode::FolderNotEmpty)
         },
-        DocumentsError::OwnershipChanged { .. } => Some(RefusalCode::Forbidden),
         DocumentsError::ProposalClosed { .. } => Some(RefusalCode::ProposalClosed),
         DocumentsError::NameTaken { .. } | DocumentsError::FolderNameTaken { .. } => {
             Some(RefusalCode::NameTaken)
@@ -294,6 +294,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::Worker(_)
         | DocumentsError::Directory(_)
         | DocumentsError::Contexts(_)
+        | DocumentsError::LinkPassword { .. }
         | DocumentsError::LiveSession(_) => None,
     }
 }

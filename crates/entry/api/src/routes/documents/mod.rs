@@ -34,6 +34,7 @@ mod drive_local;
 mod drive_token;
 mod error;
 mod export;
+mod external;
 mod folder_sharing;
 mod folders;
 mod headers;
@@ -47,6 +48,7 @@ mod live;
 mod media;
 mod people;
 mod proposals;
+pub mod public_link;
 mod read;
 mod rendered;
 mod requests;
@@ -184,7 +186,7 @@ fn with_views(router: Router<DocumentsState>) -> Router<DocumentsState> {
 
 pub fn router(state: DocumentsState) -> Router {
     let stepped_up = step_up_of(&state);
-    with_views(with_collab(Router::new()))
+    external::with_public_links(with_views(with_collab(Router::new())), &state)
         .route("/", get(listing::list).post(items::create))
         .route("/import", post(import::import))
         .route("/schema", get(schema::schema))

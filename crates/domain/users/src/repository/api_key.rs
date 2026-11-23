@@ -153,6 +153,22 @@ impl UserRepository {
         Ok(result.rows_affected() > 0)
     }
 
+    pub async fn is_device_key_active(&self, id: &ApiKeyId) -> Result<bool> {
+        let active = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM user_api_keys
+                WHERE id = $1 AND kind = 'device' AND revoked_at IS NULL
+                  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+            ) AS "active!"
+            "#,
+            id.as_str(),
+        )
+        .fetch_one(&*self.write_pool)
+        .await?;
+        Ok(active)
+    }
+
     pub async fn list_revoked_api_key_ids_for_user(&self, user_id: &UserId) -> Result<Vec<String>> {
         let rows = sqlx::query_scalar!(
             r#"

@@ -10,8 +10,8 @@ mod exchange;
 mod provisioning;
 
 pub use exchange::{
-    BridgeExchangeCode, BridgeExchangeRequest, exchange_bridge_session_code, hash_exchange_code,
-    issue_bridge_exchange_code,
+    BridgeExchangeCode, BridgeExchangeRequest, DeviceLinkUiRequest, exchange_bridge_session_code,
+    hash_exchange_code, issue_bridge_exchange_code, issue_device_link_code,
 };
 pub use provisioning::{BridgeOAuthClient, provision_bridge_oauth_client};
 
@@ -31,7 +31,6 @@ use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
 };
-
 
 use crate::services::authenticated_user::load_authenticated_user;
 use crate::services::generation::{JwtConfig, JwtSigningParams, generate_jwt};

@@ -16,9 +16,14 @@ use systemprompt_identifiers::{DeviceId, TenantId, UserId};
 
 /// Body of `GET /v1/bridge/whoami`.
 ///
-/// The stock gateway fills `user_id`, `email`, `display_name` and `roles`. A
-/// white-label identity endpoint may also answer `tenant_id`, `provider` and
-/// keys of its own, which the bridge carries through `extra`.
+/// The stock gateway fills `user_id`, `email`, `display_name`, `roles` and
+/// `attributes`. A white-label identity endpoint may also answer `tenant_id`,
+/// `provider` and keys of its own, which the bridge carries through `extra`.
+///
+/// `attributes` holds the user's values per extension-declared subject
+/// dimension (`group`, `project`, ...), keyed by the dimension's rule type. A
+/// dimension the user holds no value for is listed with an empty array; the
+/// key is omitted when the deployment declares no dimension.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WhoamiResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -33,6 +38,8 @@ pub struct WhoamiResponse {
     pub provider: Option<String>,
     #[serde(default)]
     pub roles: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub attributes: BTreeMap<String, Vec<String>>,
     // JSON: identity endpoint response — unknown claims kept via `flatten`.
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
@@ -58,9 +65,15 @@ pub struct SelfEnrollResponse {
 
 /// Reply to `POST /v1/auth/bridge/session-pat`: the durable PAT minted from a
 /// one-time session exchange code.
+///
+/// `ui_code` is present when the device link was approved for a `person_ui`
+/// client: an authorization code that client redeems at the token endpoint
+/// with its PKCE verifier.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DevicePatResponse {
     pub pat: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_code: Option<String>,
 }
 
 /// One platform's newest published build, as advertised by

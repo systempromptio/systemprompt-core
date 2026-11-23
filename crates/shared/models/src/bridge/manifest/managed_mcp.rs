@@ -31,6 +31,8 @@ pub struct ManagedMcpServer {
     pub oauth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub toolsets: Vec<String>,
 }
 
 impl ManagedMcpServer {
@@ -68,6 +70,8 @@ struct ManagedMcpServerWire {
     oauth: Option<bool>,
     #[serde(default)]
     tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>,
+    #[serde(default)]
+    toolsets: Vec<String>,
 }
 
 impl From<ManagedMcpServerWire> for ManagedMcpServer {
@@ -80,6 +84,7 @@ impl From<ManagedMcpServerWire> for ManagedMcpServer {
             headers: wire.headers,
             oauth: wire.oauth,
             tool_policy: wire.tool_policy,
+            toolsets: wire.toolsets,
         }
     }
 }

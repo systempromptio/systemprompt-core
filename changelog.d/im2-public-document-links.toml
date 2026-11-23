@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Documents"
+text = "A document can be shared read-only outside the instance through a public link. The document's owner lists, creates and revokes its links under `/api/v1/documents/{id}/public-links`; creating one returns its token and `/s/{token}` path once, optionally behind a password and an expiry in days, and the token is not stored. `GET|POST /s/{token}` opens the link with no session and no authorization context: the link token is the credential and `POST` carries the password. A served document is never cached, sends no referrer, asks not to be indexed and carries a sandboxing CSP, and every refusal but throttling answers one `404` page. Files migration `046_document_external_sharing` adds `document_public_links`, `document_link_attempts` and `document_invites`."

@@ -43,6 +43,8 @@ mod drive_blob;
 mod drive_commit;
 mod drive_feed;
 mod drive_hint;
+mod external;
+mod external_open;
 mod file_create;
 mod first_revision;
 mod folder_moves;
@@ -107,6 +109,10 @@ pub use comments_export::ExportedDocument;
 pub use comments_reopen::ReopenCommentRequest;
 pub use drive::parse_drive_cursor;
 pub use drive_hint::DRIVE_HINT_INTERVAL;
+pub use external::{CreatedPublicLink, PublicLinkRequest};
+pub use external_open::{
+    MAX_FAILED_PASSWORDS, PASSWORD_WINDOW_MINUTES, PublicLinkOpen, PublicLinkRefusal,
+};
 pub use file_create::FileCreateRequest;
 pub use folder_update::FolderUpdateRequest;
 pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};

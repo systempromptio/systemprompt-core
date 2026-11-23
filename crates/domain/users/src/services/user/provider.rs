@@ -6,7 +6,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_traits::auth::{
     AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, FederatedResolution,
     LinkPolicy, RoleProvider, UserProvider,
@@ -37,6 +37,13 @@ impl UserProvider for UserService {
         self.find_by_id(id)
             .await
             .map(|opt| opt.map(AuthUser::from))
+            .map_err(|e| AuthProviderError::Internal(e.into()))
+    }
+
+    async fn device_key_stands(&self, key: &ApiKeyId) -> AuthResult<bool> {
+        self.repository
+            .is_device_key_active(key)
+            .await
             .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 

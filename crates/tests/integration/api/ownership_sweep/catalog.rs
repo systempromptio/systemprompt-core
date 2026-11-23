@@ -33,9 +33,12 @@ const CONSUMER: &str =
     "managed-consumer device protocol authenticated by the device enrollment credential";
 const TOKEN: &str = "issues a Drive sync token for the calling device user only";
 const STATIC: &str = "static site and prerendered page serving; no per-user resource";
+const PUBLIC_LINK: &str = "anonymous public-link open; the unguessable link token is the credential and names the one document it serves, re-checked against the external-sharing policy on every open (documents_public_links tests)";
 
 #[rustfmt::skip]
 pub(super) const NOT_USER_OWNED: &[Row] = &[
+    free("routes/documents/public_link.rs::router", "GET", r#""/{token}""#, PUBLIC_LINK),
+    free("routes/documents/public_link.rs::router", "POST", r#""/{token}""#, PUBLIC_LINK),
     free("routes/admin/cli.rs::router_with_binary", "POST", r#""/""#, ADMIN),
     free("routes/admin/keys.rs::router", "DELETE", r#""/{key_id}""#, ADMIN),
     free("routes/admin/keys.rs::router", "GET", r#""/""#, ADMIN),

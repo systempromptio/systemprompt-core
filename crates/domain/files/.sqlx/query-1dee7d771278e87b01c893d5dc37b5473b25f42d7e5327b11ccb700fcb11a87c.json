@@ -1,0 +1,114 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH l AS (\n                   INSERT INTO document_public_links\n                       (document_id, token_hash, password_hash, expires_at, created_by)\n                   VALUES ($1::text::uuid, $2, $3, $4, $5)\n                   RETURNING *),\n               e AS (\n                   INSERT INTO document_grant_events\n                       (event, target_kind, target_id, subject_kind, subject_value, new_level,\n                        valid_until, actor_user_id, trace_id)\n                   SELECT 'public_link.created', 'document', l.document_id, 'public_link',\n                          l.id::text, 'view', l.expires_at, $5, $6\n                   FROM l)\n               SELECT id::text AS \"id!: PublicLinkId\",\n                         document_id::text AS \"document_id!: DocumentId\",\n                         password_hash IS NOT NULL AS \"has_password!\", expires_at, revoked_at,\n                         created_by AS \"created_by: UserId\", created_at, open_count,\n                         last_opened_at\n               FROM l",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: PublicLinkId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "has_password!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "revoked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "revoked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "open_count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "open_count"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "last_opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "last_opened_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1dee7d771278e87b01c893d5dc37b5473b25f42d7e5327b11ccb700fcb11a87c"
+}

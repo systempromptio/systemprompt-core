@@ -49,6 +49,8 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::UnknownSubject { .. }
         | DocumentsError::OwnNotGrantable
         | DocumentsError::ShareBelowExisting { .. }
+        | DocumentsError::ExternalSharingRefused { .. }
+        | DocumentsError::LinkPassword { .. }
         | DocumentsError::FolderNotEmpty { .. }
         | DocumentsError::SubtreeChanged { .. }
         | DocumentsError::OwnershipChanged { .. }
@@ -286,6 +288,12 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
         (
             DocumentsError::OwnershipChanged {
                 document_id: DocumentId::generate(),
+            },
+            RefusalCode::Forbidden,
+        ),
+        (
+            DocumentsError::ExternalSharingRefused {
+                channel: "public_links",
             },
             RefusalCode::Forbidden,
         ),

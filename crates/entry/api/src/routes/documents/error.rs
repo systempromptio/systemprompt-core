@@ -228,6 +228,7 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
             AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. },
         ) => bad_request,
         DocumentsError::Forbidden { .. }
+        | DocumentsError::ExternalSharingRefused { .. }
         | DocumentsError::ShareBelowExisting { .. }
         | DocumentsError::SelfReview { .. }
         | DocumentsError::Agent(_) => forbidden,

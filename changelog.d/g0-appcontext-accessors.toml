@@ -1,9 +1,9 @@
 [root]
 section = "Removed"
 area = "Runtime"
-text = "The reader-less `AppContext` accessors `document_repositories`, `subject_handle`, `schema_install` and `content_routing` are removed."
+text = "The reader-less `AppContext` accessors `document_repositories`, `schema_install` and `content_routing` are removed."
 
 [[crate]]
 name = "systemprompt-runtime"
 section = "Breaking"
-text = "`AppContext::document_repositories`, `subject_handle`, `schema_install` and `content_routing` are removed; `schema_state` and `content_config` remain."
+text = "`AppContext::document_repositories`, `schema_install` and `content_routing` are removed; `schema_state` and `content_config` remain."

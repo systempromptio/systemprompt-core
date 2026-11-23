@@ -12,7 +12,7 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::{auth, bridge_manifest};
+use systemprompt_api::routes::gateway::{auth, bridge_manifest, device_link};
 use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_api::services::middleware::client_addr::ClientIp;
 use systemprompt_files::documents::agents::DocumentActor;
@@ -133,9 +133,9 @@ async fn session_with_unknown_code_is_unauthorized() -> Result<()> {
 #[tokio::test]
 async fn session_pat_with_blank_code_is_bad_request() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = auth::session_pat(
+    let err = device_link::session_pat(
         (*ctx).clone(),
-        Json(auth::SessionPatBody {
+        Json(device_link::SessionPatBody {
             code: String::new(),
             device_name: None,
         }),
@@ -149,9 +149,9 @@ async fn session_pat_with_blank_code_is_bad_request() -> Result<()> {
 #[tokio::test]
 async fn session_pat_with_unknown_code_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = auth::session_pat(
+    let err = device_link::session_pat(
         (*ctx).clone(),
-        Json(auth::SessionPatBody {
+        Json(device_link::SessionPatBody {
             code: format!("code-{}", uuid::Uuid::new_v4()),
             device_name: Some("my device".to_owned()),
         }),
@@ -161,7 +161,6 @@ async fn session_pat_with_unknown_code_is_unauthorized() -> Result<()> {
     assert_eq!(err.into_response().status(), StatusCode::UNAUTHORIZED);
     Ok(())
 }
-
 
 #[tokio::test]
 async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
@@ -207,9 +206,9 @@ async fn seed_exchange_code(
 async fn session_pat_with_valid_code_mints_pat() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
-    let resp = auth::session_pat(
+    let resp = device_link::session_pat(
         (*ctx).clone(),
-        Json(auth::SessionPatBody {
+        Json(device_link::SessionPatBody {
             code,
             device_name: Some("cov device".to_owned()),
         }),
@@ -291,9 +290,9 @@ fn is_attended(actor: &DocumentActor) -> bool {
 async fn device_key_from_session_pat_exchanges_for_an_attended_token() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
-    let Json(device) = auth::session_pat(
+    let Json(device) = device_link::session_pat(
         (*ctx).clone(),
-        Json(auth::SessionPatBody {
+        Json(device_link::SessionPatBody {
             code,
             device_name: Some("attended host".to_owned()),
         }),

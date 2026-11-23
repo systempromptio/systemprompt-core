@@ -5,6 +5,7 @@
 
 mod document_limits;
 mod documents;
+mod external_sharing;
 mod issues;
 mod remote_origin;
 mod rendered_csp;
@@ -22,6 +23,7 @@ pub use documents::{
     CollabConfig, CollabOwnerConfig, DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES,
     MIN_DOCUMENT_UPLOAD_BYTES,
 };
+pub use external_sharing::{ExternalChannel, ExternalSharingConfig};
 pub use issues::IssuesConfig;
 pub use remote_origin::RemoteOrigin;
 pub use rendered_html::{RenderedHtmlConfig, RenderedHtmlError, RenderedHtmlTier};

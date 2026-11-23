@@ -1,4 +1,8 @@
-//! The toolsets core itself contributes: `issues` and `documents`.
+//! The toolsets core itself contributes: `issues`, `documents` and `brain`.
+//!
+//! The `brain` toolset is built from the `DynBrainToolsetSource` the brain
+//! member provides; it offers no tools when that member is not admitted or
+//! the profile has the brain off, so a server that lists it still boots.
 //!
 //! Each wraps the public tool library of the same name, so a server that
 //! composes the library by hand keeps working while a YAML-declared server
@@ -12,6 +16,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Tool};
+use systemprompt_extension::brain::{BRAIN_TOOLSET, DynBrainToolsetSource};
 use systemprompt_extension::mcp::{McpToolset, ToolsetCall};
 use systemprompt_identifiers::McpServerId;
 
@@ -174,7 +179,19 @@ fn build_documents(host: &HostContext, server: &McpServerId) -> ToolsetBuildResu
     Ok(Some(Box::new(DocumentsToolset(tools))))
 }
 
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the signature is the ToolsetBuildFn pointer"
+)]
+fn build_brain(host: &HostContext, server: &McpServerId) -> ToolsetBuildResult {
+    Ok(host
+        .state()
+        .find::<DynBrainToolsetSource>()
+        .and_then(|source| source.toolset(server)))
+}
+
 pub(crate) fn contribute(slot: &mut ToolsetSlotBuilder) {
     slot.toolset(ISSUES_TOOLSET, build_issues)
-        .toolset(DOCUMENTS_TOOLSET, build_documents);
+        .toolset(DOCUMENTS_TOOLSET, build_documents)
+        .toolset(BRAIN_TOOLSET, build_brain);
 }

@@ -39,6 +39,7 @@ fn test_well_known_response_serialization() {
         ],
         ui_session_supported: true,
         ui_session: UiSessionDiscovery::from_config(&UiSessionConfig::default()),
+        device_link_ui_session_supported: true,
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -78,6 +79,7 @@ fn test_well_known_response_optional_registration_endpoint() {
         ],
         ui_session_supported: true,
         ui_session: UiSessionDiscovery::from_config(&UiSessionConfig::default()),
+        device_link_ui_session_supported: true,
     };
 
     let json = serde_json::to_value(&response).unwrap();

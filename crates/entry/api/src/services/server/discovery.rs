@@ -46,7 +46,8 @@ pub async fn handle_root_discovery(
                     "webauthn": format!("{}{}/webauthn", base, ApiPaths::OAUTH_BASE)
                 },
                 "ui_session_supported": true,
-                "ui_session": UiSessionDiscovery::from_config(&ctx.config().ui_session)
+                "ui_session": UiSessionDiscovery::from_config(&ctx.config().ui_session),
+                "device_link_ui_session_supported": true
             },
             "core": {
                 "href": format!("{}{}", base, ApiPaths::CORE_BASE),

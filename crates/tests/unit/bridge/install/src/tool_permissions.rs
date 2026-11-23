@@ -23,6 +23,7 @@ fn server(name: &str, policy: Option<BTreeMap<McpToolName, ToolPolicy>>) -> Mana
         headers: None,
         oauth: None,
         tool_policy: policy,
+        toolsets: Vec::new(),
     }
 }
 

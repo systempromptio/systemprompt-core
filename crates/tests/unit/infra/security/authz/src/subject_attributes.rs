@@ -223,3 +223,22 @@ fn an_extension_dimension_may_not_shadow_a_core_dimension_or_be_malformed() {
         "cost_centre_2"
     );
 }
+
+#[test]
+fn iterating_lists_every_gathered_dimension_in_order_with_its_values() {
+    let mut attributes = SubjectAttributes::new();
+    attributes.insert(
+        RuleType::extension("project").expect("valid slug"),
+        Vec::new(),
+    );
+    attributes.insert(
+        RuleType::extension("group").expect("valid slug"),
+        vec!["delivery".to_owned()],
+    );
+    let listed: Vec<(&str, &[String])> = attributes
+        .iter()
+        .map(|(dimension, values)| (dimension.as_str(), values))
+        .collect();
+    let delivery = ["delivery".to_owned()];
+    assert_eq!(listed, vec![("group", &delivery[..]), ("project", &[][..])]);
+}

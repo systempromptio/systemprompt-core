@@ -1,0 +1,9 @@
+[root]
+section = "Added"
+area = "Gateway"
+text = "`GET /v1/bridge/whoami` carries the user's subject attributes. `attributes` maps each subject dimension the deployment's extensions declare (`group`, `project`, ...) to the values the user holds, resolved from the bound `SubjectAttributeSource` on every request; a dimension the user holds no value for is listed with an empty array. The key is omitted when no dimension is declared, and when the source cannot be read the envelope is still answered without it and the failure is logged. A bridge that predates the field carries it through `extra`. `authz::SubjectAttributes::iter` lists the gathered dimensions with their values."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`bridge::gateway::WhoamiResponse` gains `attributes: BTreeMap<String, Vec<String>>`. Migrate a struct literal by adding `attributes: BTreeMap::new()` or `..WhoamiResponse::default()`; a body without the key decodes it empty."

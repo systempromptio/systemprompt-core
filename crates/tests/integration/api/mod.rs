@@ -217,6 +217,8 @@ mod documents_pdf;
 #[cfg(test)]
 mod documents_people;
 #[cfg(test)]
+mod documents_public_links;
+#[cfg(test)]
 mod documents_read_parity;
 #[cfg(test)]
 mod documents_rendered;
@@ -485,6 +487,8 @@ mod routes_oauth_clients;
 #[path = "routes_oauth_introspect_revoke.rs"]
 mod routes_oauth_introspect_revoke;
 
+#[cfg(test)]
+mod routes_oauth_device_link;
 #[cfg(test)]
 mod routes_oauth_person_ui;
 #[cfg(test)]

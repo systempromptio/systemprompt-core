@@ -1,7 +1,7 @@
 //! Mounts `/api/v1/documents`, `/api/v1/document-folders` and
-//! `/api/v1/uploads` with their router-scoped state, and, separately,
-//! `/api/v1/internal/links`, or nothing when `files.documents.enabled` is
-//! off.
+//! `/api/v1/uploads` with their router-scoped state, the anonymous public-link
+//! open `/s/{token}`, and, separately, `/api/v1/internal/links`, or nothing
+//! when `files.documents.enabled` is off.
 //!
 //! Documents and uploads are two-stage groups: the router is protected with
 //! the user context and policy, wrapped in its token gate (a download or
@@ -10,7 +10,8 @@
 //! documents rate limit outermost. Folders are a plain user declaration.
 //! Internal links authenticate by the MCP hop token they are presented, not
 //! a session, and are served wherever managed MCP servers run, a worker
-//! included.
+//! included. The public-link open is a public declaration: it reads no
+//! session and no authz context, and the link token is the credential.
 //!
 //! These three and the OAuth `/revoke` route are the only routers mounted
 //! behind the context middleware that admits a person's UI session (the `ui`
@@ -31,7 +32,7 @@ use systemprompt_runtime::documents::links::LinkMinter;
 use super::RouteMountError;
 use super::protocol::{MountCtx, declare};
 use crate::routes::documents::{
-    DocumentsState, folders_router, router as documents_router, with_download_tokens,
+    DocumentsState, folders_router, public_link, router as documents_router, with_download_tokens,
 };
 use crate::routes::internal::links_router;
 use crate::routes::uploads::{router as uploads_router, with_upload_tokens};
@@ -81,6 +82,18 @@ pub(super) fn mount_documents(
             ApiPaths::UPLOADS,
             AuthzPolicy::handler_verified(HandlerVerifier::DocumentUploadToken),
             ContextKind::HandlerResolved,
+            group,
+        )
+        .with_rate_limit(DOCUMENTS_RATE),
+    )?;
+
+    router = mount.mount(
+        router,
+        declare(
+            public_link::router(Arc::clone(&state.service)),
+            ApiPaths::PUBLIC_DOCUMENT_LINKS,
+            AuthzPolicy::public(),
+            ContextKind::Public,
             group,
         )
         .with_rate_limit(DOCUMENTS_RATE),

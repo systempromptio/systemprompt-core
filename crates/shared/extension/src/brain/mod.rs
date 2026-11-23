@@ -29,6 +29,8 @@ mod render;
 mod rerank;
 mod retrieval;
 mod source_access;
+#[cfg(feature = "mcp")]
+mod toolset;
 mod traits;
 
 pub use consolidate::{ConsolidationInput, FactConsolidator};
@@ -49,6 +51,8 @@ pub use retrieval::{
 };
 pub use source_access::{SourceAccess, SourceVerdict};
 pub use systemprompt_models::brain::WithheldReason;
+#[cfg(feature = "mcp")]
+pub use toolset::{BRAIN_TOOLSET, BrainToolsetSource, DynBrainToolsetSource};
 pub use traits::{
     BrainConsumerStart, BrainModelClient, DynBrainConsumerStart, EventFilter, FactExtractor,
     FactValidator, FilterVerdict, ImportanceModel, SourceContent, ValidationVerdict,

@@ -154,7 +154,6 @@ impl AppContext {
             .cloned()
     }
 
-
     pub fn app_paths(&self) -> &AppPaths {
         &self.cfg.app_paths
     }
@@ -169,6 +168,10 @@ impl AppContext {
 
     pub const fn event_router(&self) -> &EventRouter {
         &self.subsystems.event_router
+    }
+
+    pub const fn subject_handle(&self) -> &systemprompt_models::authz::SubjectSourceHandle {
+        &self.plugins.subjects
     }
 
     pub const fn subject_providers(&self) -> &systemprompt_governance::authz::SubjectProviderSet {

@@ -35,7 +35,7 @@ fn test_files_extension_metadata() {
 
 #[test]
 fn test_files_extension_schemas_count() {
-    assert_eq!(contributed().schemas().len(), 33);
+    assert_eq!(contributed().schemas().len(), 36);
 }
 
 #[test]
@@ -51,6 +51,9 @@ fn test_files_extension_schemas_names() {
         "document_upload_objects",
         "document_media",
         "document_blob_collections",
+        "document_public_links",
+        "document_link_attempts",
+        "document_invites",
     ] {
         assert!(names.contains(&table), "missing schema {table}");
     }

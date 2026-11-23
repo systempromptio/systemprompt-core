@@ -340,6 +340,18 @@ fn a_hosted_toolset_no_member_contributes_refuses_the_build() {
 }
 
 #[test]
+fn the_reference_composition_hosts_the_brain_toolset() {
+    let admitted = build(reference()).expect("the reference composition admits");
+    let toolsets: Arc<Toolsets> = built_with::<ToolsetSlot>(
+        &admitted,
+        Dependencies::default().with(services_hosting("brain")),
+    )
+    .expect("a server hosting the brain toolset builds")
+    .expect("the toolset slot is built");
+    assert!(toolsets.find("brain").is_some(), "{toolsets:?}");
+}
+
+#[test]
 fn a_disabled_members_toolset_is_not_hosted() {
     let admitted = reference()
         .with(toolset_probe("probe-toolset-off", "probe_toolset"))

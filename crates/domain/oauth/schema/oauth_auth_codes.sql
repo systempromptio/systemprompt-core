@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS oauth_auth_codes (
     used_at TIMESTAMPTZ,
     refresh_token_id TEXT,
     authenticated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    device_key_id TEXT,
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CHECK (expires_at > created_at),

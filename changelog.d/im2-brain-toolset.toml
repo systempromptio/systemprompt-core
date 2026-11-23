@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "MCP"
+text = "An internal MCP server hosts the brain's agent tools by listing `toolsets: [{id: brain}]`: search, propose, dispute, why, recall preview and the guide, never the governing acts. The brain member provides the toolset source (`systemprompt_extension::brain::DynBrainToolsetSource`); a server that lists the toolset while the brain is off or not composed boots and offers no brain tools. The bridge manifest names each managed server's enabled toolsets (`ManagedMcpServer::toolsets`)."
