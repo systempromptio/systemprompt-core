@@ -39,8 +39,7 @@ use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::extract::headers::optional_session_id;
 use crate::http::state::GatewayHttpState;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
-use systemprompt_extension::router::ApiHttpError;
-use systemprompt_extension::router::read_body_bounded;
+use systemprompt_extension::router::{ApiHttpError, read_body_bounded};
 use systemprompt_gateway::surface::credential::extract_credential;
 use systemprompt_models::api::ApiError;
 

@@ -4,7 +4,8 @@
 //! header is present, and otherwise from `Authorization` or `x-api-key`. A
 //! request that names it in the dedicated header keeps `Authorization` for
 //! the upstream: it is never read as identity, and it is the only credential
-//! a caller-credential hop presents ([`caller_auth`], [`presented_credential`]).
+//! a caller-credential hop presents ([`caller_auth`],
+//! [`presented_credential`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

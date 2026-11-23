@@ -26,8 +26,7 @@ use systemprompt_ai::{
     PersonalKeyEntry, PersonalKeyError, PersonalProviderCredentials, personal_credential,
     personal_credentials,
 };
-use systemprompt_extension::router::GatewayPrincipal;
-use systemprompt_extension::router::{ApiHttpError, unreadable_body};
+use systemprompt_extension::router::{ApiHttpError, GatewayPrincipal, unreadable_body};
 use systemprompt_identifiers::JwtToken;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential};
 use systemprompt_models::api::ApiError;
