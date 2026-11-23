@@ -16,7 +16,7 @@
 //! It provides the brain's outbox sink (`DynBrainSink`, open), which the
 //! document store and the gateway's session capture read only while the
 //! profile enables the brain, and, after the slot is built, the brain's
-//! [`MemoryRecall`](systemprompt_extension::brain::MemoryRecall) (open): it
+//! [`MemoryRecall`] (open): it
 //! recalls through the bound handle and answers `skipped=disabled` while the
 //! handle is unbound. Recall reads facts as the principal it is handed.
 //!

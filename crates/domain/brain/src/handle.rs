@@ -12,7 +12,7 @@
 //! It holds the repositories, the producer sink, the service, recall and the
 //! capture seams of the built [`BrainSeams`]. The capture consumer needs a
 //! model client the API composes from the gateway, so the API server starts
-//! it through [`BrainHandle::start_consumer`] and runs it as a supervised
+//! it through `BrainHandle::start_consumer` and runs it as a supervised
 //! runner service.
 //!
 //! [`BrainSlot`]: crate::BrainSlot
