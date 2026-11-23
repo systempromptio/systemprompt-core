@@ -173,7 +173,8 @@ impl Extension for McpExtension {
         );
         c.slot::<ServiceProcessSlot>().process_set(
             |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
-                Ok(Arc::new(McpProcessSet::from_resolved(r)?))
+                let services = ServiceRepository::new(&r.get::<DbPool>()?, r.get::<InstanceId>()?);
+                Ok(Arc::new(McpProcessSet::from_resolved(r, services)?))
             },
         );
         crate::jobs::contribute(c);

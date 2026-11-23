@@ -1,15 +1,19 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_brain::BrainSeams;
+use systemprompt_brain::BrainSlot;
 use systemprompt_brain::jobs::BrainAnalysisJob;
 use systemprompt_database::DbPool;
+use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::brain::{AnalysisWindow, BrainAnalysis, BrainAnalysisError};
-use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{ProposalDraft, ProposalKind};
-use systemprompt_test_fixtures::DisposableDb;
-use systemprompt_traits::{Dependencies, Job, JobContext, JobResult, RepositoryError};
+use systemprompt_runtime::documents::NotificationsUnavailableSink;
+use systemprompt_test_fixtures::composed::Probe;
+use systemprompt_test_fixtures::{
+    DisposableDb, ensure_test_bootstrap, fixture_brain_kernel_with, fixture_job_context_over,
+};
+use systemprompt_traits::{Dependencies, Job, JobResult, RepositoryError};
 
 struct DraftingAnalysis;
 
@@ -49,11 +53,31 @@ impl BrainAnalysis for FailingAnalysis {
     }
 }
 
-fn contributed() -> Arc<BrainSeams> {
-    Arc::new(BrainSeams {
-        analyses: vec![Arc::new(DraftingAnalysis), Arc::new(FailingAnalysis)],
-        ..BrainSeams::default()
-    })
+fn contributed(pool: &DbPool) -> Dependencies {
+    ensure_test_bootstrap();
+    let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
+    let probe = Probe::new("probe-analyses", |c| {
+        c.slot::<BrainSlot>()
+            .analysis(|_: &systemprompt_extension::Resolved<'_>| {
+                let analysis: Arc<dyn BrainAnalysis> = Arc::new(DraftingAnalysis);
+                Ok(analysis)
+            })
+            .analysis(|_: &systemprompt_extension::Resolved<'_>| {
+                let analysis: Arc<dyn BrainAnalysis> = Arc::new(FailingAnalysis);
+                Ok(analysis)
+            });
+    });
+    fixture_brain_kernel_with(
+        pool,
+        None,
+        notifications,
+        BrainProfile {
+            enabled: true,
+            ..BrainProfile::default()
+        },
+        vec![Box::new(probe)],
+    )
+    .runtime_state()
 }
 
 fn profile(enabled: bool) -> Arc<BrainProfile> {
@@ -63,8 +87,8 @@ fn profile(enabled: bool) -> Arc<BrainProfile> {
     })
 }
 
-async fn execute(deps: Dependencies) -> JobResult {
-    let ctx = JobContext::new(Actor::user(UserId::generate()), deps);
+async fn execute(pool: &DbPool, deps: Dependencies) -> JobResult {
+    let ctx = fixture_job_context_over(pool, deps);
     BrainAnalysisJob.execute(&ctx).await.expect("job runs")
 }
 
@@ -94,6 +118,7 @@ async fn a_disabled_brain_runs_no_analysis() {
     let pool = db.test_pool().await;
 
     let result = execute(
+        &pool,
         Dependencies::new()
             .with(profile(false))
             .with(Arc::clone(&pool)),
@@ -113,6 +138,7 @@ async fn core_analyses_over_an_empty_history_store_nothing_and_succeed() {
     let pool = db.test_pool().await;
 
     let result = execute(
+        &pool,
         Dependencies::new()
             .with(profile(true))
             .with(Arc::clone(&pool)),
@@ -131,15 +157,10 @@ async fn core_analyses_over_an_empty_history_store_nothing_and_succeed() {
 async fn contributed_analyses_store_one_fresh_proposal_and_count_failures() {
     let db = DisposableDb::with_schema("brain_analysis_ext").await;
     let pool = db.test_pool().await;
-    let seams = contributed();
-    let deps = || {
-        Dependencies::new()
-            .with(profile(true))
-            .with(Arc::clone(&pool))
-            .with(Arc::clone(&seams))
-    };
+    let state = contributed(&pool);
+    let deps = || state.clone();
 
-    let first = execute(deps()).await;
+    let first = execute(&pool, deps()).await;
     assert!(!first.success);
     assert_eq!(first.message.as_deref(), Some("1 brain analyses failed"));
     assert_eq!(first.items_processed, Some(1));
@@ -149,7 +170,7 @@ async fn contributed_analyses_store_one_fresh_proposal_and_count_failures() {
         vec![("test-drafting".to_owned(), "open".to_owned())]
     );
 
-    let second = execute(deps()).await;
+    let second = execute(&pool, deps()).await;
     assert_eq!(
         second.items_processed,
         Some(0),

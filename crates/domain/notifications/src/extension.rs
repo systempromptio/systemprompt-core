@@ -4,17 +4,18 @@
 //!
 //! It provides the producer sink (`DynNotificationSink`, the outbox sink over
 //! the write pool, stamped with the kernel's instance id) that members
-//! emitting notifications require, and two empty late-bound handles, the
-//! [`NotificationsServiceSlot`] and the [`NotificationsConsumerSlot`]. The
-//! service and the consumer are assembled over the built
+//! emitting notifications require. The service and the consumer are
+//! assembled over the built
 //! [`NotificationSeams`](crate::contract::NotificationSeams) when the kernel
-//! builds the [`NotificationsSlot`], which binds them; the build reads the
+//! builds the [`NotificationsSlot`], which creates their cells, binds them and
+//! returns the [`NotificationsServiceSlot`] read half; the build reads the
 //! kernel's `Arc<EventRouter>`, `Arc<NotificationsProfile>` and the host's
-//! `EscalationDelivery`. The consumer runs as this member's
-//! runner service once its handle is bound, and reports its backlog gauges on
-//! every sweep and its backlog on `/health/detail`, never `/readyz`.
+//! `EscalationDelivery`. No member provides or binds either cell. The
+//! consumer runs as this member's runner service, and reports its backlog
+//! gauges on every sweep and its backlog on `/health/detail`, never
+//! `/readyz`.
 //!
-//! It opens the [`NotificationsSlot`] itself, so the built seams are present
+//! It opens the [`NotificationsSlot`] itself, so the built value is present
 //! whenever this member is admitted and absent when the profile disables it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -28,7 +29,7 @@ use systemprompt_extension::{DiagnosticProbe, DynNotificationSink, MetricDescrip
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::RunnerService;
 
-use crate::consumer::{BacklogDiagnostic, BoundConsumerRunner, NotificationsConsumerSlot};
+use crate::consumer::{BacklogDiagnostic, BoundConsumerRunner};
 use crate::contract::NotificationsSlot;
 use crate::jobs::NotificationRetentionJob;
 use crate::pipeline::metrics::{BACKLOG_OLDEST_SECONDS, BACKLOG_PENDING};
@@ -66,26 +67,16 @@ impl Extension for NotificationsExtension {
                     Ok(OutboxNotificationSink::over_write_pool(&db, &instance))
                 },
             )
-            .provide(
-                |_: &Resolved<'_>| -> Result<NotificationsServiceSlot, ProvideError> {
-                    Ok(NotificationsServiceSlot::default())
-                },
-            )
-            .provide(
-                |_: &Resolved<'_>| -> Result<NotificationsConsumerSlot, ProvideError> {
-                    Ok(NotificationsConsumerSlot::default())
-                },
-            )
             .runner_service(
                 |r: &Resolved<'_>| -> Result<Arc<dyn RunnerService>, FactoryError> {
-                    let slot = r.get::<NotificationsConsumerSlot>()?;
-                    Ok(BoundConsumerRunner::new(slot).into_service())
+                    let slot = r.get::<Arc<NotificationsServiceSlot>>()?;
+                    Ok(BoundConsumerRunner::new(slot.consumer().clone()).into_service())
                 },
             )
             .diagnostic(
                 |r: &Resolved<'_>| -> Result<Arc<dyn DiagnosticProbe>, FactoryError> {
-                    let slot = r.get::<NotificationsConsumerSlot>()?;
-                    Ok(BacklogDiagnostic::new(slot).into_probe())
+                    let slot = r.get::<Arc<NotificationsServiceSlot>>()?;
+                    Ok(BacklogDiagnostic::new(slot.consumer().clone()).into_probe())
                 },
             )
             .metric(MetricDescriptor {

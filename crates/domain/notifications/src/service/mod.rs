@@ -24,6 +24,7 @@ use systemprompt_events::{EventRouter, RelayOutcome};
 use systemprompt_extension::LateBound;
 use systemprompt_extension::notifications::{DynNotificationSink, PublishPolicy};
 use systemprompt_identifiers::UserId;
+use systemprompt_models::AlreadyBound;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::notifications::{SimulateRequest, SimulateResponse};
 
@@ -32,15 +33,82 @@ pub use publish::{PublishOutcome, PublishRequest};
 
 pub use crate::models::SubscriptionView;
 
+use crate::consumer::{NotificationsConsumer, NotificationsConsumerSlot};
+use crate::contract::NotificationSeams;
 use crate::error::NotificationsResult;
 use crate::pipeline::NotificationPipeline;
 use crate::repository::NotificationRepositories;
 
-/// The host-bound notification service in the extension state.
+/// The notifications slot's built value, inserted as
+/// `Arc<NotificationsServiceSlot>`: the built seams and the read halves of the
+/// service and consumer cells.
 ///
-/// The extension provides it empty; the host that assembles the service
-/// binds it once. A surface that reads it unbound or absent does not serve.
-pub type NotificationsServiceSlot = LateBound<NotificationsService>;
+/// The slot build creates both cells, binds the service and the consumer it
+/// assembles over the built seams, and returns this read half; the bind
+/// halves never leave the build and the type has no public constructor, so no
+/// member can provide or bind it.
+#[derive(Clone)]
+pub struct NotificationsServiceSlot {
+    service: LateBound<NotificationsService>,
+    consumer: NotificationsConsumerSlot,
+    seams: Arc<NotificationSeams>,
+}
+
+pub(crate) struct NotificationsBinder {
+    service: LateBound<NotificationsService>,
+    consumer: NotificationsConsumerSlot,
+}
+
+impl NotificationsServiceSlot {
+    pub(crate) fn unbound(seams: NotificationSeams) -> (Self, NotificationsBinder) {
+        let service = LateBound::default();
+        let consumer = NotificationsConsumerSlot::default();
+        (
+            Self {
+                service: service.clone(),
+                consumer: consumer.clone(),
+                seams: Arc::new(seams),
+            },
+            NotificationsBinder { service, consumer },
+        )
+    }
+
+    #[must_use]
+    pub fn get(&self) -> Option<&Arc<NotificationsService>> {
+        self.service.get()
+    }
+
+    #[must_use]
+    pub const fn consumer(&self) -> &NotificationsConsumerSlot {
+        &self.consumer
+    }
+
+    #[must_use]
+    pub const fn seams(&self) -> &Arc<NotificationSeams> {
+        &self.seams
+    }
+}
+
+impl NotificationsBinder {
+    pub(crate) fn bind(
+        &self,
+        service: Arc<NotificationsService>,
+        consumer: Arc<NotificationsConsumer>,
+    ) -> Result<(), AlreadyBound> {
+        self.service.bind(service)?;
+        self.consumer.bind(consumer)
+    }
+}
+
+impl std::fmt::Debug for NotificationsServiceSlot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NotificationsServiceSlot")
+            .field("service", &self.service.is_bound())
+            .field("consumer", &self.consumer.is_bound())
+            .field("seams", &self.seams)
+            .finish()
+    }
+}
 
 /// Where an escalated notification is delivered.
 ///

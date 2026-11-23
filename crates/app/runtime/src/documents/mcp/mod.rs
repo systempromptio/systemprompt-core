@@ -189,7 +189,7 @@ impl DocumentsMcpTools {
             service: Arc::clone(parts.documents.service()),
             #[cfg(feature = "notifications")]
             notifications: extension_state
-                .find::<NotificationsServiceSlot>()
+                .find::<Arc<NotificationsServiceSlot>>()
                 .and_then(|slot| slot.get().cloned()),
             uploads: Some(Arc::clone(parts.documents.uploads())),
             users: Arc::clone(&parts.user_repository),

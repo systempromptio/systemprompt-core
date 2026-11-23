@@ -85,7 +85,6 @@ systemprompt-logging = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-files = { workspace = true }
-systemprompt-brain = { workspace = true, optional = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-database = { workspace = true }
@@ -114,7 +113,6 @@ opentelemetry-proto = { workspace = true, optional = true }
 
 [features]
 default = []
-brain = ["dep:systemprompt-brain", "systemprompt-runtime/brain", "systemprompt-gateway/brain", "systemprompt-scheduler/brain"]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
 otel = ["dep:opentelemetry-proto", "dep:prost", "systemprompt-scheduler/otel"]
 bridge = []

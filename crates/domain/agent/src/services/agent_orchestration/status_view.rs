@@ -29,9 +29,9 @@ impl std::fmt::Debug for AgentStatusView {
 
 impl AgentStatusView {
     #[must_use]
-    pub fn new(agent_services: AgentServiceRepository, services: ServicesView) -> Self {
+    pub fn new(repository: AgentServiceRepository, services: ServicesView) -> Self {
         Self {
-            database: AgentDatabaseService::new(agent_services, &services),
+            database: AgentDatabaseService::new(repository, &services),
             services,
         }
     }

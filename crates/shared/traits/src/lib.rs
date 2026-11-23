@@ -43,6 +43,7 @@
 
 pub mod agent_run_launcher;
 pub mod agent_server;
+pub mod ai_reports;
 pub mod service_process;
 pub use agent_run_launcher::{
     AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,
@@ -140,6 +141,10 @@ pub use coordination::{
     LeaseRepository, UnavailableCoordination,
 };
 
+pub use ai_reports::{
+    CatalogMigrationPort, DynCatalogMigrationPort, DynSafetyFindingsReader, LegacyCatalogEntry,
+    SafetyFindingRollup, SafetyFindingsReader,
+};
 pub use ownership::is_plain_identifier;
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,

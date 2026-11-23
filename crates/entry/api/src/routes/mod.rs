@@ -10,8 +10,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod admin;
-#[cfg(feature = "brain")]
-pub mod brain;
 pub mod documents;
 pub mod gateway;
 pub mod internal;

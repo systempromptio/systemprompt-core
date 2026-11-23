@@ -1,17 +1,58 @@
-use axum::body::Body;
+use std::sync::Arc;
+
+use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode};
 use axum::response::IntoResponse;
-use systemprompt_api::routes::brain::{
-    BrainHttpError, FieldsBody, ResolveBody, SearchParams, SimulateBody, admin_router, router,
-};
+use axum::{Extension, Router};
 use systemprompt_brain::BrainError;
-use systemprompt_identifiers::{BrainFactId, FactKindId};
+use systemprompt_brain_entry::http::{
+    BrainHttpError, FieldsBody, ResolveBody, SearchParams, SimulateBody, admin_routes, user_routes,
+};
+use systemprompt_extension::DynNotificationSink;
+use systemprompt_extension::router::RouteSet;
+use systemprompt_identifiers::{
+    AgentName, BrainFactId, ContextId, FactKindId, SessionId, TraceId, UserId,
+};
+use systemprompt_manifest::profile::BrainProfile;
+use systemprompt_models::RequestContext;
+use systemprompt_runtime::documents::NotificationsUnavailableSink;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_brain_kernel, lazy_pg_pool};
 use systemprompt_traits::RepositoryError;
 use tower::ServiceExt;
 
 const FACT: &str = "m_0190f5c2-7c1e-7a3b-9f2a-3c4d5e6f7a8b";
 
-async fn status_of(app: axum::Router, method: Method, path: &str) -> StatusCode {
+fn offline_pool() -> systemprompt_database::DbPool {
+    Arc::new(systemprompt_database::Database::from_pools(
+        lazy_pg_pool(),
+        None,
+    ))
+}
+
+fn disabled(set: &RouteSet) -> Router {
+    ensure_test_bootstrap();
+    let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
+    let kernel = fixture_brain_kernel(
+        &offline_pool(),
+        None,
+        notifications,
+        BrainProfile::default(),
+    );
+    let caller = RequestContext::new(
+        SessionId::generate(),
+        TraceId::generate(),
+        ContextId::generate(),
+        AgentName::try_new("brain-routes").expect("agent name"),
+        systemprompt_identifiers::Actor::user(UserId::generate()),
+    );
+    set.materialize(&kernel.resolved())
+        .expect("the brain route state resolves over the fixture kernel")
+        .into_iter()
+        .fold(Router::new(), Router::merge)
+        .layer(Extension(caller))
+}
+
+async fn status_of(app: Router, method: Method, path: &str) -> StatusCode {
     let request = Request::builder()
         .method(method)
         .uri(path)
@@ -19,6 +60,24 @@ async fn status_of(app: axum::Router, method: Method, path: &str) -> StatusCode 
         .body(Body::from("{}"))
         .unwrap();
     app.oneshot(request).await.unwrap().status()
+}
+
+#[tokio::test]
+async fn an_unbound_brain_answers_brain_disabled() {
+    let request = Request::builder()
+        .method(Method::GET)
+        .uri("/facts")
+        .body(Body::empty())
+        .unwrap();
+    let response = disabled(&user_routes()).oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(
+        body["error_key"],
+        serde_json::json!("brain_disabled"),
+        "{body}"
+    );
 }
 
 #[tokio::test]
@@ -41,16 +100,17 @@ async fn disabled_user_routes_answer_404_on_every_path() {
         (Method::GET, "/proposals".to_owned()),
         (Method::POST, "/proposals/x/approve".to_owned()),
         (Method::POST, "/proposals/x/reject".to_owned()),
+        (Method::POST, "/proposals/x/replay".to_owned()),
     ];
     for (method, path) in paths {
-        let status = status_of(router(None), method.clone(), &path).await;
+        let status = status_of(disabled(&user_routes()), method.clone(), &path).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{method} {path}");
     }
 }
 
 #[tokio::test]
 async fn disabled_admin_simulate_answers_404() {
-    let status = status_of(admin_router(None), Method::POST, "/simulate").await;
+    let status = status_of(disabled(&admin_routes()), Method::POST, "/simulate").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 

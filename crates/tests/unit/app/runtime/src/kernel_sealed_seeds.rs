@@ -164,7 +164,7 @@ async fn no_open_value_carries_a_member_sealed_capability() {
     let state = ctx.kernel().state();
     let runtime = ctx.kernel().runtime_state();
 
-    let probes: [(&str, [(TypeId, &str); 2]); 4] = [
+    let probes: Vec<(&str, [(TypeId, &str); 2])> = vec![
         (
             type_name::<DynManagedSkillResolver>(),
             carrier::<OrganizationSkillResolver>(),
@@ -182,6 +182,34 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         (
             type_name::<Arc<systemprompt_extension::service_process::ServiceProcessSets>>(),
             carrier::<systemprompt_mcp::services::process_set::McpProcessSet>(),
+        ),
+        (
+            type_name::<Arc<systemprompt_ai::repository::AiRepositories>>(),
+            carrier::<systemprompt_ai::repository::UserProviderCredentialRepository>(),
+        ),
+        (
+            type_name::<systemprompt_traits::DynSafetyFindingsReader>(),
+            carrier::<systemprompt_ai::AiSafetyFindingRepository>(),
+        ),
+        (
+            type_name::<systemprompt_traits::DynCatalogMigrationPort>(),
+            carrier::<systemprompt_ai::repository::CatalogMigrationRepository>(),
+        ),
+        (
+            type_name::<systemprompt_models::ai::DynAiProvider>(),
+            carrier::<systemprompt_ai::AiService>(),
+        ),
+        (
+            type_name::<systemprompt_traits::DynAiSessionProvider>(),
+            carrier::<systemprompt_users::UsersAiSessionProvider>(),
+        ),
+        (
+            type_name::<Arc<systemprompt_gateway::GatewayEngines>>(),
+            carrier::<systemprompt_gateway::client::GatewayClient>(),
+        ),
+        (
+            type_name::<systemprompt_extension::brain::DynBrainConsumerStart>(),
+            carrier::<systemprompt_brain::consumer::BrainConsumer>(),
         ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();

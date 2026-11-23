@@ -2,10 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use systemprompt_extension::notifications::{NotificationSink, NotificationSinkError};
-use systemprompt_identifiers::UserId;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::notifications::NotificationEvent;
-use systemprompt_traits::{Dependencies, Job, JobContext, JobResult};
+use systemprompt_traits::{Dependencies, Job, JobResult};
 
 use crate::harness::Harness;
 
@@ -47,17 +46,12 @@ pub(crate) async fn run(
     profile: BrainProfile,
     notices: Option<Arc<RecordedNotices>>,
 ) -> JobResult {
-    let mut deps = Dependencies::new()
-        .with(Arc::new(profile))
-        .with(Arc::clone(&h.pool));
+    let mut deps = Dependencies::new().with(Arc::new(profile));
     if let Some(notices) = notices {
         let sink: systemprompt_extension::notifications::DynNotificationSink = notices;
         deps.insert(sink);
     }
-    let ctx = JobContext::new(
-        systemprompt_identifiers::Actor::user(UserId::generate()),
-        deps,
-    );
+    let ctx = systemprompt_test_fixtures::fixture_job_context_over(&h.pool, deps);
     job.execute(&ctx).await.expect("job runs")
 }
 

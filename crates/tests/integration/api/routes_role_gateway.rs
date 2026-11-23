@@ -10,7 +10,6 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::services::server::routes::{Composed, configure_routes_for_role};
 use systemprompt_api::services::server::setup_api_server;
-use systemprompt_extension::prelude::Dependencies;
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_test_fixtures::{
     ComposedParts, ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
@@ -28,7 +27,8 @@ async fn router_for(role: NodeRole) -> anyhow::Result<Router> {
     config.role = role;
     let ctx = fixture_app_context_with_config(config).await?;
     let admitted = gateway_probe_admitted(ComposedParts::default());
-    let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
+    let kernel =
+        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
     setup_api_server(
         &ctx,
         Composed {
@@ -103,7 +103,8 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
     config.role = NodeRole::Api;
     let ctx = fixture_app_context_with_config(config).await?;
     let admitted = gateway_probe_admitted(ComposedParts::default());
-    let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
+    let kernel =
+        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
 
     let gateway = configure_routes_for_role(
         &ctx,
@@ -113,9 +114,8 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
         },
         NodeRole::Gateway,
         None,
-        &std::sync::Arc::new(systemprompt_api::routes::gateway::gateway_engines(
-            &ctx, &kernel,
-        )?),
+        &systemprompt_api::routes::gateway::gateway_engines(&kernel)
+            .expect("the gateway member provides its engines"),
     )?;
     assert!(is_mounted(&gateway, "/v1/models").await?);
     Ok(())

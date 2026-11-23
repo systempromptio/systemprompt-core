@@ -3,20 +3,22 @@
 //! erased identity 409, an undeclared kind or an invalid subject, statement
 //! or filter 422, each with its `error_key`. A storage, outbox or
 //! notification failure is a fixed 503 body and any other failure the fixed
-//! 500 body, with the cause logged once by [`ApiHttpError`].
+//! 500 body, with the cause logged once by [`ApiHttpError`]. A failed role
+//! or subject-attribute lookup is the fixed 500 body. The response is built
+//! by the shared `capability_error_response!`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::{IntoResponse, Response};
 use systemprompt_brain::BrainError;
 use systemprompt_extension::brain::RecallError;
+use systemprompt_extension::capability_error_response;
+use systemprompt_extension::router::{ApiHttpError, IntoApiError};
+use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::brain::{SubjectKeyError, UnknownFactStatus};
-use systemprompt_traits::{AuthProviderError, RepositoryError};
-
-use crate::kernel::ApiHttpError;
+use systemprompt_traits::RepositoryError;
 
 /// A brain route failure, rendered through the shared API error envelope.
 #[derive(Debug)]
@@ -29,11 +31,13 @@ impl BrainHttpError {
     }
 }
 
-impl IntoResponse for BrainHttpError {
-    fn into_response(self) -> Response {
-        (*self.0).into_response()
+impl IntoApiError for BrainHttpError {
+    fn into_api_error(self) -> ApiError {
+        self.into_inner()
     }
 }
+
+capability_error_response!(BrainHttpError);
 
 impl From<ApiHttpError> for BrainHttpError {
     fn from(error: ApiHttpError) -> Self {
@@ -100,9 +104,9 @@ fn repository(error: RepositoryError) -> ApiError {
     }
 }
 
-impl From<AuthProviderError> for BrainHttpError {
-    fn from(error: AuthProviderError) -> Self {
-        ApiError::internal("user lookup failed", error).into()
+impl From<AuthzError> for BrainHttpError {
+    fn from(error: AuthzError) -> Self {
+        ApiError::internal("Authorization lookup failed", error).into()
     }
 }
 

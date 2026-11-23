@@ -125,6 +125,8 @@ impl HostKernel {
                 path: std::path::PathBuf::from(&profile_path),
             },
             secrets: store,
+            secret_lookup: Arc::<GrantedSecrets>::clone(&secrets),
+            connector_tokens: Arc::default(),
             file_storage: Arc::clone(&file_storage),
             background_tasks: background_tasks.clone(),
             coordination: crate::KernelCoordination {
@@ -173,15 +175,7 @@ impl HostKernel {
         #[cfg(not(feature = "notifications"))]
         let notification_sink: systemprompt_extension::DynNotificationSink =
             Arc::new(crate::documents::NotificationsUnavailableSink);
-        #[cfg(feature = "brain")]
-        let brain_sink: systemprompt_extension::DynBrainSink = if profile.brain.enabled {
-            systemprompt_brain::OutboxBrainSink::over_write_pool(&database, &instance_id)
-        } else {
-            Arc::new(crate::documents::BrainUnavailableSink)
-        };
-        #[cfg(not(feature = "brain"))]
-        let brain_sink: systemprompt_extension::DynBrainSink =
-            Arc::new(crate::documents::BrainUnavailableSink);
+        let brain_sink = crate::documents::admitted_brain_sink(profile.brain.enabled, &r);
 
         let documents = build_documents(
             &DocumentsInputs {

@@ -82,7 +82,7 @@ pub(super) fn mount_agent(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
     mount.mount(
         router,
         declare(
-            crate::routes::proxy::agents::router(ctx),
+            crate::routes::proxy::agents::router(ctx)?,
             ApiPaths::AGENTS_BASE,
             AuthzPolicy::authenticated(),
             ContextKind::A2a,
@@ -108,7 +108,7 @@ pub(super) fn mount_mcp_and_stream(
         ApiPaths::MCP_BASE,
     )?;
     let proxy = mount.protect(
-        crate::routes::proxy::mcp::router(ctx),
+        crate::routes::proxy::mcp::router(ctx)?,
         &RouteProtection::new(AuthzPolicy::deferred_to_handler(), ContextKind::Mcp)
             .with_rate_limit(mcp_rate),
         ApiPaths::MCP_BASE,

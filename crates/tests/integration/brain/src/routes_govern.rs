@@ -1,19 +1,17 @@
 //! `/api/v1/brain` lifecycle actions, dispute resolution, the proposal
-//! queue and the admin simulator, driven through the brain routers.
+//! queue and the admin simulator, driven through the `brain-http` route sets.
 
 use anyhow::{Context, Result};
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
-use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::brain::admin_router;
+use systemprompt_brain_entry::http::admin_routes;
 use systemprompt_identifiers::{BrainProposalId, UserId};
 use systemprompt_models::brain::FactStatus;
 use systemprompt_test_fixtures::credential::seed_user_row_with_roles;
 use tower::ServiceExt;
 
-use super::brain_routes_facts::{brain_fixture, call, owner, seed_personal_fact};
-use super::common::{read_json, request_context};
+use super::routes_facts::{brain_fixture, call, mounted, owner, read_json, seed_personal_fact};
 
 #[tokio::test]
 async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<()> {
@@ -23,7 +21,7 @@ async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<
     let user = &me.user_id;
 
     let (status, confirmed) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::POST,
         &format!("/facts/{id}/confirm"),
@@ -34,7 +32,7 @@ async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<
     assert_eq!(confirmed["revision"], json!(2));
 
     let (status, pinned) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::POST,
         &format!("/facts/{id}/pin"),
@@ -43,7 +41,7 @@ async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<
     .await?;
     assert_eq!(status, StatusCode::OK, "{pinned}");
     let (status, unpinned) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::POST,
         &format!("/facts/{id}/unpin"),
@@ -54,7 +52,7 @@ async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<
 
     let fields = json!({"fields": {"owner": "platform"}});
     let (status, edited) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::PATCH,
         &format!("/facts/{id}/fields"),
@@ -62,11 +60,11 @@ async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<
     )
     .await?;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{edited}");
-    let (_, fact) = call(&fx.routes, user, Method::GET, &format!("/facts/{id}"), None).await?;
+    let (_, fact) = call(&fx.kernel, user, Method::GET, &format!("/facts/{id}"), None).await?;
     assert_eq!(fact["fields"]["owner"], json!("billing"), "{fact}");
 
     let (status, retracted) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::POST,
         &format!("/facts/{id}/retract"),
@@ -75,7 +73,7 @@ async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<
     .await?;
     assert_eq!(status, StatusCode::OK, "{retracted}");
     let (_, timeline) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::GET,
         &format!("/facts/{id}/timeline"),
@@ -95,7 +93,7 @@ async fn a_stranger_is_answered_not_found_for_every_action_on_a_personal_fact() 
 
     for action in ["confirm", "pin", "unpin", "erase"] {
         let (status, body) = call(
-            &fx.routes,
+            &fx.kernel,
             &other.user_id,
             Method::POST,
             &format!("/facts/{id}/{action}"),
@@ -110,7 +108,7 @@ async fn a_stranger_is_answered_not_found_for_every_action_on_a_personal_fact() 
         );
     }
     let (_, fact) = call(
-        &fx.routes,
+        &fx.kernel,
         &me.user_id,
         Method::GET,
         &format!("/facts/{id}"),
@@ -129,7 +127,7 @@ async fn a_dispute_is_opened_resolved_and_an_erased_fact_is_gone() -> Result<()>
     let user = &me.user_id;
 
     let (status, created) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::POST,
         &format!("/facts/{id}/dispute"),
@@ -144,7 +142,7 @@ async fn a_dispute_is_opened_resolved_and_an_erased_fact_is_gone() -> Result<()>
 
     let resolve = json!({"fact_id": id.as_str(), "outcome": "dismissed", "note": "still true"});
     let (status, body) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::POST,
         &format!("/disputes/{dispute}/resolve"),
@@ -154,7 +152,7 @@ async fn a_dispute_is_opened_resolved_and_an_erased_fact_is_gone() -> Result<()>
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
 
     let (status, body) = call(
-        &fx.routes,
+        &fx.kernel,
         user,
         Method::POST,
         &format!("/facts/{id}/erase"),
@@ -162,7 +160,7 @@ async fn a_dispute_is_opened_resolved_and_an_erased_fact_is_gone() -> Result<()>
     )
     .await?;
     assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
-    let (status, _) = call(&fx.routes, user, Method::GET, &format!("/facts/{id}"), None).await?;
+    let (status, _) = call(&fx.kernel, user, Method::GET, &format!("/facts/{id}"), None).await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
     Ok(())
 }
@@ -176,10 +174,10 @@ async fn only_an_admin_reads_and_decides_proposals() -> Result<()> {
     seed_user_row_with_roles(&fx.pool, &admin, &email, &["admin".to_owned()]).await?;
     let missing = BrainProposalId::generate();
 
-    let (status, _) = call(&fx.routes, &person.user_id, Method::GET, "/proposals", None).await?;
+    let (status, _) = call(&fx.kernel, &person.user_id, Method::GET, "/proposals", None).await?;
     assert_eq!(status, StatusCode::FORBIDDEN);
     let (status, _) = call(
-        &fx.routes,
+        &fx.kernel,
         &person.user_id,
         Method::POST,
         &format!("/proposals/{missing}/approve"),
@@ -189,12 +187,12 @@ async fn only_an_admin_reads_and_decides_proposals() -> Result<()> {
     assert_eq!(status, StatusCode::FORBIDDEN);
 
     let (status, listed) =
-        call(&fx.routes, &admin, Method::GET, "/proposals?limit=5", None).await?;
+        call(&fx.kernel, &admin, Method::GET, "/proposals?limit=5", None).await?;
     assert_eq!(status, StatusCode::OK, "{listed}");
     assert!(listed.is_array(), "{listed}");
     for action in ["approve", "reject"] {
         let (status, body) = call(
-            &fx.routes,
+            &fx.kernel,
             &admin,
             Method::POST,
             &format!("/proposals/{missing}/{action}"),
@@ -205,7 +203,7 @@ async fn only_an_admin_reads_and_decides_proposals() -> Result<()> {
     }
     let window = json!({"since": "2026-01-01T00:00:00Z", "until": "2026-02-01T00:00:00Z"});
     let (status, body) = call(
-        &fx.routes,
+        &fx.kernel,
         &admin,
         Method::POST,
         &format!("/proposals/{missing}/replay"),
@@ -217,12 +215,11 @@ async fn only_an_admin_reads_and_decides_proposals() -> Result<()> {
 }
 
 async fn simulate(
-    fx_routes: &systemprompt_api::routes::brain::BrainRoutes,
+    kernel: &systemprompt_runtime::Kernel,
     user: &UserId,
     body: Value,
 ) -> Result<(StatusCode, Value)> {
-    let app: Router =
-        admin_router(Some(fx_routes.clone())).layer(Extension(request_context(user.as_str())));
+    let app = mounted(kernel, &admin_routes(), user)?;
     let request = Request::builder()
         .method(Method::POST)
         .uri("/simulate")
@@ -247,7 +244,7 @@ async fn the_admin_simulator_answers_a_descriptor_for_a_principal() -> Result<()
             "prompt": "who owns the deploy gate for billing",
             "reuse": reuse,
         });
-        let (status, simulated) = simulate(&fx.routes, &me.user_id, body).await?;
+        let (status, simulated) = simulate(&fx.kernel, &me.user_id, body).await?;
         assert_eq!(status, StatusCode::OK, "{simulated}");
         assert!(simulated["descriptor"].is_string(), "{simulated}");
         assert!(
@@ -255,7 +252,7 @@ async fn the_admin_simulator_answers_a_descriptor_for_a_principal() -> Result<()
             "{simulated}"
         );
     }
-    let (status, _) = simulate(&fx.routes, &me.user_id, json!({"user_id": "x"})).await?;
+    let (status, _) = simulate(&fx.kernel, &me.user_id, json!({"user_id": "x"})).await?;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     Ok(())
 }
@@ -273,7 +270,7 @@ async fn the_simulator_takes_a_conversation_and_resolves_a_missing_project() -> 
         "reuse": true,
         "conversation_id": "ctx_00000000000000ff",
     });
-    let (status, simulated) = simulate(&fx.routes, &me.user_id, body).await?;
+    let (status, simulated) = simulate(&fx.kernel, &me.user_id, body).await?;
     assert_eq!(status, StatusCode::OK, "{simulated}");
     assert_eq!(simulated["skipped"], json!("not_new_turn"), "{simulated}");
 
@@ -282,7 +279,7 @@ async fn the_simulator_takes_a_conversation_and_resolves_a_missing_project() -> 
         "client": "claude-code",
         "prompt": "who owns the deploy gate",
     });
-    let (status, simulated) = simulate(&fx.routes, &me.user_id, body).await?;
+    let (status, simulated) = simulate(&fx.kernel, &me.user_id, body).await?;
     assert_eq!(
         status,
         StatusCode::OK,

@@ -9,20 +9,21 @@ use crate::kernel::ProxyService;
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 
-pub fn router(ctx: &AppContext) -> Router {
+pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
     let sessions = crate::repository::proxy_sessions(ctx.db_pool());
     let engine = ProxyService::new(
         sessions,
-        Arc::clone(ctx.connector_tokens()),
+        crate::services::kernel_seeds::connector_tokens(ctx)?,
         &ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),
         Arc::clone(ctx.secrets()),
     );
     let engine_with_path = engine.clone();
 
-    Router::new()
+    Ok(Router::new()
         .route(
             "/{service_name}",
             any(move |Path(service_name): Path<String>, state, request| {
@@ -49,5 +50,5 @@ pub fn router(ctx: &AppContext) -> Router {
                 },
             ),
         )
-        .with_state(ctx.clone())
+        .with_state(ctx.clone()))
 }

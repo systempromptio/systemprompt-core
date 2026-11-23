@@ -23,7 +23,7 @@ const EXECUTION: &str = "routes/proxy/mcp/executions.rs::executions_router";
 const NOTIFY: &str = "notifications/http/mod.rs::user_routes";
 const BRIDGE_NOTIFY: &str = "notifications/http/mod.rs::bridge_routes";
 const BYOK: &str = "routes/gateway/provider_credentials.rs::routes";
-const BRAIN: &str = "routes/brain/mod.rs::router";
+const BRAIN: &str = "brain/http/mount.rs::user_routes";
 const CLIENTS: &str = "routes/oauth/clients.rs::router";
 
 const SHARE: &str = r#"{"subject_kind":"user","subject_value":"sweep-nobody","level":"view"}"#;

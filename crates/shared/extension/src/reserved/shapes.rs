@@ -56,7 +56,9 @@ pub const CONTENT_REDIRECT_ROUTES: &[(Method, &str)] = &[(Method::GET, "/r/{shor
 pub const MCP_REGISTRY_ROUTES: &[(Method, &str)] = &[(Method::GET, "/")];
 pub const AGENT_REGISTRY_ROUTES: &[(Method, &str)] = &[(Method::GET, "/")];
 
-const ALWAYS: [PrivilegedShape; 17] = [
+const BRAIN_LIMITS: RouteLimits = limits(RateLimit::new("brain", RateBudget::Brain));
+
+const ALWAYS: [PrivilegedShape; 19] = [
     PrivilegedShape {
         owner: CoreId::ContentHttp,
         base: BaseRef::Path(BasePath::Api(ApiBase::Content)),
@@ -206,6 +208,22 @@ const ALWAYS: [PrivilegedShape; 17] = [
         ),
         routes: None,
     },
+    PrivilegedShape {
+        owner: CoreId::BrainHttp,
+        base: BaseRef::Path(BasePath::Api(ApiBase::Brain)),
+        group: RouteGroup::ContentAndMisc,
+        allowance: Allowance::ReservedPrefix,
+        shape: shape(AuthzPolicy::user(), ContextKind::User, BRAIN_LIMITS),
+        routes: None,
+    },
+    PrivilegedShape {
+        owner: CoreId::BrainHttp,
+        base: BaseRef::Path(BasePath::Api(ApiBase::AdminBrain)),
+        group: RouteGroup::ContentAndMisc,
+        allowance: Allowance::ReservedPrefix,
+        shape: shape(AuthzPolicy::admin(), ContextKind::User, BRAIN_LIMITS),
+        routes: None,
+    },
 ];
 
 #[cfg(feature = "slack")]
@@ -241,7 +259,7 @@ macro_rules! privileged_shapes {
         &[
             ALWAYS[0], ALWAYS[1], ALWAYS[2], ALWAYS[3], ALWAYS[4], ALWAYS[5], ALWAYS[6],
             ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10], ALWAYS[11], ALWAYS[12], ALWAYS[13],
-            ALWAYS[14], ALWAYS[15], ALWAYS[16] $(, $extra)*
+            ALWAYS[14], ALWAYS[15], ALWAYS[16], ALWAYS[17], ALWAYS[18] $(, $extra)*
         ]
     };
 }

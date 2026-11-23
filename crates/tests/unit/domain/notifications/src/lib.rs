@@ -1,6 +1,6 @@
 //! Unit tests for the pure parts of `systemprompt_notifications`: the rule
 //! evaluator, stream bands, coalescing and digest windows, the default router
-//! and publish policy, and action prompts.
+//! and publish policy, action prompts, and the member's contributions.
 
 #[cfg(test)]
 mod action;
@@ -16,3 +16,5 @@ mod fixtures;
 mod quiet_hours;
 #[cfg(test)]
 mod rules;
+#[cfg(test)]
+mod slot_handles;

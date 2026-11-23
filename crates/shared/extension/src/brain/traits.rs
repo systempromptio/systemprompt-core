@@ -5,18 +5,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "sqlx")]
 use std::sync::Arc;
 
 #[cfg(feature = "sqlx")]
 use systemprompt_identifiers::EventOutboxId;
 use systemprompt_identifiers::FactKindId;
+use systemprompt_models::AlreadyBound;
 #[cfg(feature = "sqlx")]
 use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::brain::{
     BrainEnvelope, BrainFact, BrainModelRequest, BrainModelResponse, ExtractionInput,
     ExtractionOutput, FactCandidate, FactSource, ImportanceConfig, KindDecl, RecallCtx, SourceText,
 };
+use systemprompt_traits::RunnerService;
 
 #[cfg(feature = "sqlx")]
 use super::errors::BrainSinkError;
@@ -148,3 +149,18 @@ pub trait BrainModelClient: Send + Sync {
         request: BrainModelRequest,
     ) -> Result<BrainModelResponse, BrainModelError>;
 }
+
+/// Starts the brain's capture consumer over the model client the host
+/// composes; the `brain` member provides it **sealed** as
+/// `DynBrainConsumerStart`, so only kernel code starts the consumer.
+///
+/// `start` answers `Ok(None)` while the profile disables the brain, and
+/// refuses a second start.
+pub trait BrainConsumerStart: Send + Sync {
+    fn start(
+        &self,
+        model: Arc<dyn BrainModelClient>,
+    ) -> Result<Option<Arc<dyn RunnerService>>, AlreadyBound>;
+}
+
+pub type DynBrainConsumerStart = Arc<dyn BrainConsumerStart>;

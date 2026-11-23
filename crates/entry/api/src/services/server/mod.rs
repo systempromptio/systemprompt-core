@@ -12,7 +12,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod boot_steps;
-#[cfg(feature = "brain")]
 mod brain;
 pub mod builder;
 mod discovery;

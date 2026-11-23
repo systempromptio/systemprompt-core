@@ -13,8 +13,8 @@ workspace = true
 [dependencies]
 reqwest = { workspace = true }
 http = { workspace = true }
-systemprompt-runtime = { workspace = true, features = ["geolocation", "notifications", "brain"] }
-systemprompt-mcp-host = { workspace = true, features = ["brain"] }
+systemprompt-runtime = { workspace = true, features = ["geolocation", "notifications"] }
+systemprompt-mcp-host = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-storage = { workspace = true }
@@ -36,6 +36,7 @@ systemprompt-content = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-mcp = { workspace = true }
+systemprompt-gateway = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }

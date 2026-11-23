@@ -10,10 +10,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::BrainError;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock, ErrorCode};
 use serde_json::json;
-use systemprompt_brain::BrainError;
 
 /// Why a brain tool refused a call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

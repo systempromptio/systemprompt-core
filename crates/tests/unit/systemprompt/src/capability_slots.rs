@@ -13,15 +13,12 @@ use std::any::TypeId;
 use std::sync::Arc;
 
 use systemprompt::analytics::repository::AnalyticsRepositories;
-use systemprompt::brain::{BrainSeams, BrainSlot};
+use systemprompt::brain::{BrainHandleSlot, BrainSeams, BrainSlot};
 use systemprompt::database::{Database, DbPool};
 use systemprompt::events::{EventBroadcasters, EventRouter};
 use systemprompt::models::brain::BrainEnvelope;
 use systemprompt::notifications::service::EscalationDelivery;
-use systemprompt::notifications::{
-    NotificationSeams, NotificationsConsumerSlot, NotificationsServiceSlot, NotificationsSlot,
-    OutboxNotificationSink,
-};
+use systemprompt::notifications::{NotificationSeams, NotificationsSlot, OutboxNotificationSink};
 use systemprompt::reference;
 use systemprompt::users::SessionRepository;
 use systemprompt_extension::brain::{
@@ -104,8 +101,6 @@ pub(crate) fn slot_seed() -> Dependencies {
             &pool,
             &InstanceId::new("capability-slots"),
         ))
-        .with(NotificationsServiceSlot::default())
-        .with(NotificationsConsumerSlot::default())
         .with(Arc::new(BrainProfile::default()))
 }
 
@@ -162,8 +157,8 @@ where
     Ok(state.find::<Arc<S::Built>>().cloned())
 }
 
-fn filter_names(seams: &BrainSeams) -> Vec<&'static str> {
-    seams.filters.iter().map(|f| f.name()).collect()
+fn filter_names(brain: &BrainHandleSlot) -> Vec<&'static str> {
+    brain.seams().filters.iter().map(|f| f.name()).collect()
 }
 
 #[test]
@@ -183,7 +178,7 @@ fn brain_and_notifications_open_their_own_slots() {
         .expect("the notifications slot builds")
         .expect("the notifications member's slot is built");
     assert_eq!(
-        notifications.routers.len(),
+        notifications.seams().routers.len(),
         1,
         "core contributes no seam; the default router follows the contributed ones"
     );
@@ -194,7 +189,7 @@ fn disabled_capability_members_leave_no_slot() {
     let admitted = reference()
         .declare()
         .expect("the reference composition declares")
-        .admit(&profile(&["brain", "notifications", "notifications-http"]).extensions)
+        .admit(&profile(&["brain", "brain-http", "notifications", "notifications-http"]).extensions)
         .expect("disabling the brain and notifications members admits");
     assert!(slot_owners::<BrainSlot>(&admitted).is_empty());
     assert!(slot_owners::<NotificationsSlot>(&admitted).is_empty());
@@ -255,10 +250,10 @@ fn disabled_member_notification_seam_is_never_built() {
         .expect("the probe declares")
         .admit(&profile(&["probe-off"]).extensions)
         .expect("admission succeeds");
-    let seams: Arc<NotificationSeams> = built::<NotificationsSlot>(&admitted)
+    let built = built::<NotificationsSlot>(&admitted)
         .expect("the disabled member's failing factory is dropped before the build")
         .expect("the notifications slot is built");
-    assert_eq!(seams.routers.len(), 1, "only the default router");
+    assert_eq!(built.seams().routers.len(), 1, "only the default router");
     assert_eq!(off.get(), 0, "a disabled member's seam factory never runs");
 }
 
@@ -452,14 +447,17 @@ fn notification_seams(users: bool, files: bool) -> NotificationSeams {
     let seed = with_owner_seams(slot_seed(), users, files);
     let kernel =
         kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
-    NotificationsSlot::build(Vec::new(), &kernel.resolved()).expect("the notifications slot builds")
+    let built = NotificationsSlot::build(Vec::new(), &kernel.resolved())
+        .expect("the notifications slot builds");
+    (**built.seams()).clone()
 }
 
 fn brain_seams(users: bool, files: bool) -> BrainSeams {
     let seed = with_owner_seams(slot_seed(), users, files);
     let kernel =
         kernel_with(with_audiences(seed, &BuiltState::default()).expect("audiences build"));
-    BrainSlot::build(Vec::new(), &kernel.resolved()).expect("the brain slot builds")
+    let built = BrainSlot::build(Vec::new(), &kernel.resolved()).expect("the brain slot builds");
+    (**built.seams()).clone()
 }
 
 fn kinds(seams: &NotificationSeams) -> Vec<&'static str> {
@@ -696,21 +694,21 @@ fn one_audience_registration_serves_notifications_and_brain_recall() {
         .expect("the brain slot builds")
         .expect("the brain slot is built");
     assert_eq!(
-        audience_names(&notifications.audiences),
+        audience_names(&notifications.seams().audiences),
         ["install-groups", "stub-roles"],
         "contributed resolvers come first, the core role resolver last"
     );
     assert_eq!(
-        audience_names(&brain.audiences),
+        audience_names(&brain.seams().audiences),
         ["install-groups", "stub-roles"],
         "brain recall reads the same set in the same order"
     );
     assert_eq!(
-        handler_of(&brain.audiences, &group("platform")),
+        handler_of(&brain.seams().audiences, &group("platform")),
         Some("install-groups")
     );
     assert_eq!(
-        handler_of(&notifications.audiences, &group("platform")),
+        handler_of(&notifications.seams().audiences, &group("platform")),
         Some("install-groups")
     );
     assert_eq!(hits.get(), 2, "the factory runs once per build of the set");
@@ -732,11 +730,14 @@ fn a_disabled_audience_member_leaves_both_readers_withholding() {
     let brain = built_over::<BrainSlot>(&admitted, seed)
         .expect("the brain slot builds")
         .expect("the brain slot is built");
-    assert!(audience_names(&notifications.audiences).is_empty());
-    assert!(audience_names(&brain.audiences).is_empty());
-    assert_eq!(handler_of(&brain.audiences, &group("platform")), None);
+    assert!(audience_names(&notifications.seams().audiences).is_empty());
+    assert!(audience_names(&brain.seams().audiences).is_empty());
     assert_eq!(
-        handler_of(&notifications.audiences, &group("platform")),
+        handler_of(&brain.seams().audiences, &group("platform")),
+        None
+    );
+    assert_eq!(
+        handler_of(&notifications.seams().audiences, &group("platform")),
         None
     );
     assert_eq!(

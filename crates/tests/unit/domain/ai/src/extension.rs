@@ -101,10 +101,32 @@ fn the_ai_rollups_are_bound_to_the_kernel_backfill_drainer() {
 }
 
 #[test]
-fn the_ai_member_provides_the_request_attribution_lookup() {
+fn the_ai_member_provides_its_lookups_its_sealed_stores_and_the_inference_provider() {
     let sink = contributed();
-    let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
-    assert_eq!(provided, [TypeId::of::<DynRequestAttributionLookup>()]);
+    let provided: Vec<(TypeId, bool)> = sink
+        .provides()
+        .iter()
+        .map(|p| (p.type_id(), p.is_sealed()))
+        .collect();
+    assert_eq!(
+        provided,
+        [
+            (TypeId::of::<DynRequestAttributionLookup>(), false),
+            (
+                TypeId::of::<std::sync::Arc<systemprompt_ai::repository::AiRepositories>>(),
+                true
+            ),
+            (
+                TypeId::of::<systemprompt_traits::DynSafetyFindingsReader>(),
+                true
+            ),
+            (
+                TypeId::of::<systemprompt_traits::DynCatalogMigrationPort>(),
+                true
+            ),
+            (TypeId::of::<systemprompt_models::ai::DynAiProvider>(), true),
+        ]
+    );
 }
 
 #[test]
