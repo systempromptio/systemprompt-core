@@ -8,7 +8,6 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems,
@@ -79,9 +78,6 @@ async fn plane_debug_impls_flag_optional_members() {
             )
             .expect("at-rest cipher"),
         )),
-        mcp_session_repository: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
-            &pool,
-        )),
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");
@@ -117,11 +113,6 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("content_config: true"), "got: {dbg}");
 
     let plugins = Plugins {
-        mcp_registry: RegistryService::new(
-            systemprompt_test_fixtures::fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_view(),
-            systemprompt_test_fixtures::test_config(),
-        ),
         subject_providers: Default::default(),
         subjects: Default::default(),
     };
@@ -149,8 +140,6 @@ async fn plane_debug_impls_flag_optional_members() {
         services: systemprompt_test_fixtures::fixture_services_state(),
         cache_epochs: systemprompt_traits::CacheEpochs::new(),
         ai_service: None,
-        artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)
-            .expect("artifact ingest"),
         schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
             systemprompt_database::SchemaInstallReport::default(),
         )),

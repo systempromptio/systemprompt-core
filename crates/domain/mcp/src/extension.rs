@@ -3,9 +3,13 @@
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
 //! resource scopes) and the read-only `Arc<McpServiceObserver>` (server
 //! health, recorded process ids and the running set; no spawner, no
-//! secrets), and, once governance has loaded, the per-server tool executions
-//! (`DynToolExecutions`, open: an execution records usage as the request
-//! context the host hands it and reads no secret). It opens the [`UiSlot`] and
+//! secrets), the MCP session repository (`Arc<McpSessionRepository>`, which
+//! the child host's streamable-HTTP session store reads) and the artifact
+//! ingest (`Arc<ArtifactIngest>`, which scans with the installation's secret
+//! scanner cell and records tool results), and, once governance has loaded,
+//! the per-server tool executions (`DynToolExecutions`, open: an execution
+//! records usage as the request context the host hands it and reads no
+//! secret). All of them are open. It opens the [`UiSlot`] and
 //! the [`AccessRecorderSlot`], so both built values are present whenever this
 //! member is admitted.
 //!
@@ -28,7 +32,7 @@ use systemprompt_traits::{
 };
 
 use crate::contract::{AccessRecorderSlot, UiSlot};
-use crate::repository::ToolUsageRepository;
+use crate::repository::{McpSessionRepository, ToolUsageRepository};
 use crate::services::McpServiceObserver;
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::process_set::McpProcessSet;
@@ -160,13 +164,14 @@ impl Extension for McpExtension {
                 )))
             },
         );
+        contribute_stores(c);
         c.provide_after_governance(
             |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
                 let db = r.get::<DbPool>()?;
                 Ok(Arc::new(McpToolExecutions::new(
                     Arc::new(ToolUsageRepository::new(&db)),
                     r.get::<DynToolCallIntentClaims>()?,
-                    Arc::new(ArtifactIngest::from_db(&db, r.get::<SecretScannerCell>()?)),
+                    r.get::<Arc<ArtifactIngest>>()?,
                     r.get::<Arc<UiRendererRegistry>>()?,
                 )))
             },
@@ -182,6 +187,22 @@ impl Extension for McpExtension {
         contribute_user_data(c);
         Ok(())
     }
+}
+
+fn contribute_stores(c: &mut Contributions<'_>) {
+    c.provide(
+        |r: &Resolved<'_>| -> Result<Arc<McpSessionRepository>, ProvideError> {
+            Ok(Arc::new(McpSessionRepository::new(&r.get::<DbPool>()?)))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<Arc<ArtifactIngest>, ProvideError> {
+            Ok(Arc::new(ArtifactIngest::from_db(
+                &r.get::<DbPool>()?,
+                r.get::<SecretScannerCell>()?,
+            )))
+        },
+    );
 }
 
 fn contribute_user_data(c: &mut Contributions<'_>) {

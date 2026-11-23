@@ -32,8 +32,8 @@ pub(crate) mod governance;
 pub(crate) mod kernel_state;
 mod options;
 use composition::{
-    build_artifact_ingest, build_data_plane, build_domain_layer, load_identity, new_plugins,
-    new_spawner, seeded_repositories,
+    bind_secret_scanner, build_data_plane, build_domain_layer, load_identity, mcp_registry_for_ai,
+    new_plugins, new_spawner, seeded_repositories,
 };
 use std::sync::Arc;
 
@@ -134,13 +134,12 @@ impl AppContextBuilder {
         )?;
         let seeded =
             seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
-        let (system_admin, mcp_registry) =
-            load_identity(&self.boot, &seeded.users, &services).await?;
+        let system_admin = load_identity(&self.boot, &seeded.users).await?;
         let (ai_service, connector_tokens) = ai_service::build_ai_service(
             &self.boot,
             &database,
             &seeded.ai,
-            &mcp_registry,
+            &mcp_registry_for_ai(&system_admin, &services, &config),
             &services,
         );
         let (router, bridge, listener_pool) =
@@ -209,13 +208,14 @@ impl AppContextBuilder {
         let governance = ConfigWatch::new(
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
+        bind_secret_scanner(&governance.get(), &r.get()?);
         let user_service = Arc::new(
             UserService::new(Arc::clone(&seeded.users))
                 .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
         );
         let repositories =
             build_domain_layer(&self.boot, &database, &seeded, &system_admin, &r).await?;
-        let plugins = new_plugins(mcp_registry, &market);
+        let plugins = new_plugins(&market);
 
         #[cfg(feature = "notifications")]
         let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
@@ -253,7 +253,6 @@ impl AppContextBuilder {
         )?;
         let subsystems = Subsystems {
             ai_service,
-            artifact_ingest: build_artifact_ingest(&database, &governance.get(), r.get()?),
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,

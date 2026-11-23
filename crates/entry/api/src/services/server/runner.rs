@@ -220,10 +220,18 @@ pub(in crate::services::server) fn create_mcp_orchestrator(
     let manager = McpOrchestrator::new(
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
+        mcp_registry(ctx),
         mcp_spawn(ctx),
     )?;
     Ok(Arc::new(manager))
+}
+
+pub(crate) fn mcp_registry(ctx: &AppContext) -> systemprompt_mcp::RegistryService {
+    systemprompt_mcp::RegistryService::new(
+        ctx.system_admin().id().clone(),
+        ctx.services_state().view(),
+        Arc::clone(ctx.config_arc()),
+    )
 }
 
 pub(crate) fn mcp_spawn(ctx: &AppContext) -> systemprompt_mcp::McpSpawn {

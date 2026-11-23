@@ -10,7 +10,7 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::api::ApiError;
-use systemprompt_traits::RegistryError;
+use systemprompt_traits::{BoxedSource, RegistryError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -115,7 +115,7 @@ pub enum ProxyError {
     RegistryUnavailable {
         service: String,
         #[source]
-        source: McpDomainError,
+        source: BoxedSource,
     },
 
     #[error("Request body exceeds the {limit}-byte limit")]

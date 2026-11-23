@@ -20,7 +20,6 @@ use systemprompt_extension::Admitted;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
-use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::FileStorage;
@@ -171,10 +170,6 @@ impl AppContext {
 
     pub const fn event_router(&self) -> &EventRouter {
         &self.subsystems.event_router
-    }
-
-    pub const fn mcp_registry(&self) -> &RegistryService {
-        &self.plugins.mcp_registry
     }
 
     pub const fn subject_providers(&self) -> &systemprompt_governance::authz::SubjectProviderSet {

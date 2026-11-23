@@ -14,7 +14,6 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
-use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
@@ -26,7 +25,7 @@ use systemprompt_users::{SessionRepository, UserRepository};
 
 use crate::builder::assembly::load_system_admin;
 use crate::builder::authz::{AuthzBuilt, authz_stage};
-use crate::builder::composition::{a2a_repositories, build_artifact_ingest};
+use crate::builder::composition::{a2a_repositories, bind_secret_scanner};
 use crate::builder::core_layer::init_files_config;
 use crate::builder::database::connect_database;
 use crate::builder::documents::{DocumentsInputs, build_documents};
@@ -165,6 +164,11 @@ impl HostKernel {
         )
         .await
         .map_err(RuntimeError::from)?;
+        bind_secret_scanner(
+            &governance,
+            &r.get::<systemprompt_governance::policy::secrets::SecretScannerCell>()
+                .map_err(RuntimeError::from)?,
+        );
 
         #[cfg(feature = "notifications")]
         let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
@@ -214,16 +218,9 @@ impl HostKernel {
         ));
 
         let parts = HostParts {
-            artifact_ingest: build_artifact_ingest(
-                &database,
-                &governance,
-                r.get::<systemprompt_governance::policy::secrets::SecretScannerCell>()
-                    .map_err(RuntimeError::from)?,
-            ),
             tool_call_intents: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
                 &database,
             )),
-            mcp_sessions: Arc::new(McpSessionRepository::new(&database)),
             tokens: Arc::new(VerifyingTokenAuthority::new(
                 verification.clone(),
                 config.jwt_issuer.clone(),

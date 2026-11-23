@@ -48,16 +48,28 @@ pub(super) async fn handle_mcp_protected_resource(
     let server = McpServerId::try_new(raw_server).map_err(ApiError::from)?;
     let base_url = state.ctx.config().api_external_url.clone();
 
-    let scopes = get_mcp_server_scopes(state.ctx.mcp_registry(), &server)
-        .await
-        .unwrap_or_else(|| vec!["user".to_owned()]);
+    let registry = match crate::services::proxy::mcp_registry(&state.ctx) {
+        Ok(registry) => Some(registry),
+        Err(absent) => {
+            tracing::debug!(error = %absent, "No MCP registry; advertising the default scope");
+            None
+        },
+    };
+    let scopes = match &registry {
+        Some(registry) => get_mcp_server_scopes(registry.as_ref(), &server).await,
+        None => None,
+    }
+    .unwrap_or_else(|| vec!["user".to_owned()]);
 
-    let mcp_extensions_supported =
-        if mcp_server_requires_ema(state.ctx.mcp_registry(), &server).await {
-            vec![McpExtensionId::EnterpriseManagedAuth]
-        } else {
-            Vec::new()
-        };
+    let requires_ema = match &registry {
+        Some(registry) => mcp_server_requires_ema(registry.as_ref(), &server).await,
+        None => false,
+    };
+    let mcp_extensions_supported = if requires_ema {
+        vec![McpExtensionId::EnterpriseManagedAuth]
+    } else {
+        Vec::new()
+    };
 
     let resource_url = format!("{}/api/v1/mcp/{}/mcp", base_url, server);
 

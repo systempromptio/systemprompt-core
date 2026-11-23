@@ -38,8 +38,6 @@ use systemprompt_identifiers::UserId;
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_mcp::ArtifactIngest;
-use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::authz::SubjectSourceHandle;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_provider_contracts::Dependencies;
@@ -104,9 +102,7 @@ pub struct HostParts {
     pub authz_hook: SharedAuthzHook,
     pub subject_providers: SubjectProviderSet,
     pub subjects: SubjectSourceHandle,
-    pub artifact_ingest: Arc<ArtifactIngest>,
     pub tool_call_intents: DynToolCallIntentClaims,
-    pub mcp_sessions: Arc<McpSessionRepository>,
     pub user_repository: Arc<UserRepository>,
     pub documents: Arc<DocumentsRuntime>,
     pub background_tasks: BackgroundTasks,

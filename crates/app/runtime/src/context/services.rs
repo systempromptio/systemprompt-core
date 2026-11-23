@@ -90,14 +90,4 @@ impl AppContext {
     pub const fn cache_epochs(&self) -> &CacheEpochs {
         &self.subsystems.cache_epochs
     }
-
-    #[must_use]
-    pub fn artifact_ingest(&self) -> &systemprompt_mcp::ArtifactIngest {
-        &self.subsystems.artifact_ingest
-    }
-
-    #[must_use]
-    pub fn artifact_ingest_arc(&self) -> Arc<systemprompt_mcp::ArtifactIngest> {
-        Arc::clone(&self.subsystems.artifact_ingest)
-    }
 }

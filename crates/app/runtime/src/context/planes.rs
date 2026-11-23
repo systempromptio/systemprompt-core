@@ -20,8 +20,6 @@ use systemprompt_loader::BootContext;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
-use systemprompt_mcp::repository::McpSessionRepository;
-use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
@@ -56,7 +54,6 @@ pub struct DataPlane {
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
     pub ai_repositories: Arc<AiRepositories>,
-    pub mcp_session_repository: Arc<McpSessionRepository>,
 }
 
 #[derive(Clone)]
@@ -72,7 +69,6 @@ pub struct ConfigPlane {
 
 #[derive(Clone)]
 pub struct Plugins {
-    pub mcp_registry: RegistryService,
     pub subject_providers: systemprompt_governance::authz::SubjectProviderSet,
     pub subjects: systemprompt_models::authz::SubjectSourceHandle,
 }
@@ -87,7 +83,6 @@ pub struct Subsystems {
     pub services: systemprompt_loader::ServicesState,
     pub cache_epochs: CacheEpochs,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
-    pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<crate::SchemaState>,
     pub event_bridge: Arc<EventBridgeHandle>,
     pub event_router: EventRouter,

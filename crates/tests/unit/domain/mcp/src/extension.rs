@@ -1,5 +1,5 @@
 //! What `McpExtension` contributes: its seven tables, its jobs and retention
-//! purge, the three values it provides, and the two slots it opens so their
+//! purge, the values it provides, and the two slots it opens so their
 //! built values exist whenever the member is admitted.
 
 use std::any::TypeId;
@@ -59,7 +59,7 @@ fn the_mcp_member_contributes_its_jobs_and_purge() {
 }
 
 #[test]
-fn the_mcp_member_provides_the_execution_lookup_the_registry_the_observer_and_the_tool_executions()
+fn the_mcp_member_provides_the_lookup_registry_observer_sessions_ingest_and_tool_executions()
 {
     let sink = contributed();
     let provided: Vec<TypeId> = sink.provides().iter().map(|p| p.type_id()).collect();
@@ -69,6 +69,8 @@ fn the_mcp_member_provides_the_execution_lookup_the_registry_the_observer_and_th
             TypeId::of::<DynToolExecutionLookup>(),
             TypeId::of::<Arc<dyn McpRegistryProvider>>(),
             TypeId::of::<Arc<McpServiceObserver>>(),
+            TypeId::of::<Arc<systemprompt_mcp::repository::McpSessionRepository>>(),
+            TypeId::of::<Arc<systemprompt_mcp::ArtifactIngest>>(),
             TypeId::of::<systemprompt_extension::mcp::DynToolExecutions>(),
         ]
     );

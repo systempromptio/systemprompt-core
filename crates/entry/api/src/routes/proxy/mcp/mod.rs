@@ -71,8 +71,15 @@ pub fn router(ctx: &AppContext) -> Router {
         Arc::clone(ctx.config_arc()),
         Arc::clone(ctx.secrets()),
     )
-    .with_tool_usage_repo(repo, ctx.tool_call_intents())
-    .with_artifact_ingest(ctx.artifact_ingest_arc());
+    .with_tool_usage_repo(repo, ctx.tool_call_intents());
+    let engine = match ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_mcp::ArtifactIngest>>()
+    {
+        Ok(ingest) => engine.with_artifact_ingest(Arc::clone(ingest)),
+        Err(_) => engine,
+    };
 
     let state = McpState { ctx: ctx.clone() };
 

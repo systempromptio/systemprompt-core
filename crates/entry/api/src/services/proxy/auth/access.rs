@@ -23,7 +23,7 @@ use systemprompt_models::auth::{AuthenticatedUser, Permission, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider, RegistryError};
+use systemprompt_traits::{AgentRegistryProvider, BoxedSource, RegistryError};
 
 use super::challenge::{AuthValidator, ChallengeRequest, challenge_or_error};
 
@@ -125,14 +125,17 @@ pub(crate) async fn mcp_oauth_requirement(
     ctx: &AppContext,
     service_name: &ServiceName,
 ) -> Result<OAuthRequirement, ProxyError> {
-    let registry = ctx.mcp_registry();
+    let unavailable = |source: BoxedSource| ProxyError::RegistryUnavailable {
+        service: service_name.to_string(),
+        source,
+    };
+    let registry = crate::services::proxy::mcp_registry(ctx).map_err(unavailable)?;
     registry
         .validate()
-        .map_err(|source| ProxyError::RegistryUnavailable {
-            service: service_name.to_string(),
-            source,
-        })?;
-    let info = McpRegistryProvider::get_server(registry, service_name.as_str())
+        .await
+        .map_err(|source| unavailable(Box::new(source)))?;
+    let info = registry
+        .get_server(service_name.as_str())
         .await
         .map_err(|error| registry_lookup_error(service_name, error))?;
     Ok(OAuthRequirement {

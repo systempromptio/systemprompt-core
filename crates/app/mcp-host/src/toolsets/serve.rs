@@ -23,6 +23,7 @@ use systemprompt_mcp::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts, serve_router,
 };
 use systemprompt_mcp::middleware::HopVerifier;
+use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::{McpHttpConfig, create_router};
 use systemprompt_provider_contracts::MissingDependency;
 use tokio::net::TcpListener;
@@ -150,9 +151,10 @@ pub async fn serve_on(
         .mcp_servers
         .get(server_id.as_str())
         .is_some_and(|deployment| deployment.oauth.required);
+    let sessions = Arc::clone(ctx.state().get::<Arc<McpSessionRepository>>()?);
     let router = create_router(
         server,
-        Arc::clone(ctx.mcp_session_repository()),
+        sessions,
         McpHttpConfig::default(),
         HopVerifier::new(
             ctx.verification_keys().clone(),

@@ -40,8 +40,6 @@ use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_mcp::ArtifactIngest;
-use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::HostParts;
 use systemprompt_runtime::documents::DocumentsRuntime;
@@ -144,18 +142,8 @@ impl HostContext {
     }
 
     #[must_use]
-    pub fn artifact_ingest(&self) -> Arc<ArtifactIngest> {
-        Arc::clone(&self.parts.artifact_ingest)
-    }
-
-    #[must_use]
     pub fn tool_call_intents(&self) -> DynToolCallIntentClaims {
         Arc::clone(&self.parts.tool_call_intents)
-    }
-
-    #[must_use]
-    pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {
-        &self.parts.mcp_sessions
     }
 
     #[must_use]
