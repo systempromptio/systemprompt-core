@@ -190,7 +190,8 @@ impl Resolved<'_> {
         };
         match provider {
             Some(DependencyProvider::Extension(provider)) => {
-                provider != viewer.owner && !self.conferred_on_viewer::<T>(provider.as_str(), viewer)
+                provider != viewer.owner
+                    && !self.conferred_on_viewer::<T>(provider.as_str(), viewer)
             },
             Some(DependencyProvider::Host) => {
                 !self.conferred_on_viewer::<T>(CoreId::Kernel.id(), viewer)
