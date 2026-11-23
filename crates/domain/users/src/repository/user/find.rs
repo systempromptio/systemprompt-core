@@ -9,6 +9,26 @@ use crate::error::Result;
 use crate::models::{User, UserRole, UserRow, UserStatus};
 use crate::repository::UserRepository;
 
+pub(crate) async fn active_user_row(
+    pool: &sqlx::PgPool,
+    user_id: &UserId,
+) -> std::result::Result<Option<UserRow>, sqlx::Error> {
+    let active_status = UserStatus::Active.as_str();
+    sqlx::query_as!(
+        UserRow,
+        r#"
+            SELECT id, name, email, full_name, display_name, status, email_verified,
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
+            FROM users
+            WHERE id = $1 AND status = $2
+            "#,
+        user_id.as_str(),
+        active_status
+    )
+    .fetch_optional(pool)
+    .await
+}
+
 impl UserRepository {
     pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
@@ -228,24 +248,10 @@ impl UserRepository {
     }
 
     pub async fn find_authenticated_user(&self, user_id: &UserId) -> Result<Option<User>> {
-        let active_status = UserStatus::Active.as_str();
-        let row = sqlx::query_as!(
-            UserRow,
-            r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
-            FROM users
-            WHERE id = $1 AND status = $2
-            "#,
-            user_id.as_str(),
-            active_status
-        )
-        .fetch_optional(&*self.pool)
-        .await?
-        .map(User::try_from)
-        .transpose()?;
-
-        Ok(row)
+        active_user_row(&self.pool, user_id)
+            .await?
+            .map(User::try_from)
+            .transpose()
     }
 }
 

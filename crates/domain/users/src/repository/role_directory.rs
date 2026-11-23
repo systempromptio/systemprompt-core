@@ -2,13 +2,16 @@
 //! roles does this user hold?": the role directory governance's
 //! `RoleDirectorySlot` holds, and the `role` subject-attribute provider the
 //! gateway quota resolver reads for `subject: role` windows. Both read the
-//! roles a user is granted on their `users` row.
+//! roles an **active** user is granted on their `users` row: a deactivated or
+//! unknown user holds no roles (`roles_of` answers `None`), read per call
+//! with no cache window.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use super::user::active_user_row;
 use async_trait::async_trait;
 use sqlx::PgPool;
 use systemprompt_governance::authz::{AuthzError, RoleDirectory, SharedRoleDirectory};
@@ -30,11 +33,8 @@ impl UsersRoleDirectory {
     }
 }
 
-async fn roles_of(pool: &PgPool, user: &UserId) -> Result<Vec<String>, sqlx::Error> {
-    let roles = sqlx::query_scalar!("SELECT roles FROM users WHERE id=$1", user.as_str())
-        .fetch_optional(pool)
-        .await?;
-    Ok(roles.unwrap_or_default())
+async fn active_roles(pool: &PgPool, user: &UserId) -> Result<Option<Vec<String>>, sqlx::Error> {
+    Ok(active_user_row(pool, user).await?.map(|row| row.roles))
 }
 
 #[async_trait]
@@ -55,8 +55,8 @@ impl RoleDirectory for UsersRoleDirectory {
         Ok(rows.into_iter().map(|row| row.candidate).collect())
     }
 
-    async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError> {
-        Ok(roles_of(&self.pool, user).await?)
+    async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, AuthzError> {
+        Ok(active_roles(&self.pool, user).await?)
     }
 }
 
@@ -83,8 +83,9 @@ impl SubjectAttributeProvider for UsersRoleSubjectProvider {
     }
 
     async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, SubjectAttributeError> {
-        roles_of(&self.pool, user_id)
+        active_roles(&self.pool, user_id)
             .await
+            .map(Option::unwrap_or_default)
             .map_err(|e| SubjectAttributeError::Lookup(Box::new(e)))
     }
 }

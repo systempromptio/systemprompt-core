@@ -78,13 +78,13 @@ impl RoleDirectory for UsersTableRoles {
         Ok(Vec::new())
     }
 
-    async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError> {
+    async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, AuthzError> {
         let found = self
             .0
             .find_by_id(user)
             .await
             .map_err(|e| AuthzError::Subject(SubjectAttributeError::Lookup(Box::new(e))))?;
-        Ok(found.map(|u| u.roles).unwrap_or_default())
+        Ok(found.filter(|u| u.is_active()).map(|u| u.roles))
     }
 }
 

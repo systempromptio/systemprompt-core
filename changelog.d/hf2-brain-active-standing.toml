@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "Brain routes refuse a caller whose account is not active with 403 `account_inactive` on the next request, with no cache window: the role directory answers only for active users."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`RoleDirectory::roles_of` returns `Option<Vec<String>>`: `None` for a deactivated or unknown user."
