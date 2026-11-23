@@ -8333,14 +8333,18 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-content-entry",
  "systemprompt-database",
+ "systemprompt-documents",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-files-entry",
  "systemprompt-gateway",
+ "systemprompt-gateway-entry",
  "systemprompt-generator",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-identity-entry",
+ "systemprompt-issues",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
@@ -10393,6 +10397,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-documents"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-documents-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-documents",
+ "systemprompt-test-hack",
+]
+
+[[package]]
 name = "systemprompt-events"
 version = "0.85.0"
 dependencies = [
@@ -10759,6 +10778,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-gateway-entry"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-gateway-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-gateway-entry",
+ "systemprompt-test-hack",
+]
+
+[[package]]
 name = "systemprompt-gateway-golden-tests"
 version = "0.0.11"
 dependencies = [
@@ -10983,6 +11017,36 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-test-hack",
  "uuid",
+]
+
+[[package]]
+name = "systemprompt-identity-entry"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-identity-entry-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-identity-entry",
+ "systemprompt-test-hack",
+]
+
+[[package]]
+name = "systemprompt-issues"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-issues-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-issues",
+ "systemprompt-test-hack",
 ]
 
 [[package]]

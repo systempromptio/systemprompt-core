@@ -77,6 +77,8 @@ members = [
     "unit/app/runtime",
     "unit/app/agent-runs",
     "unit/app/scheduler",
+    "unit/app/documents",
+    "unit/app/issues",
     # Unit tests - entry layer
     "unit/entry/agent-runs",
     "unit/entry/analytics",
@@ -87,6 +89,8 @@ members = [
     "unit/entry/mcp",
     "unit/entry/agent",
     "unit/entry/brain",
+    "unit/entry/gateway",
+    "unit/entry/identity",
     "unit/entry/api",
     "unit/entry/cli",
     "unit/entry/notifications",
@@ -319,6 +323,8 @@ systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
+systemprompt-documents = { path = "../app/documents" }
+systemprompt-issues = { path = "../app/issues" }
 systemprompt-api = { path = "../entry/api", features = ["collab"] }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-slack-entry = { path = "../entry/slack" }
@@ -332,6 +338,8 @@ systemprompt-files-entry = { path = "../entry/files" }
 systemprompt-mcp-entry = { path = "../entry/mcp" }
 systemprompt-agent-entry = { path = "../entry/agent" }
 systemprompt-brain-entry = { path = "../entry/brain" }
+systemprompt-gateway-entry = { path = "../entry/gateway" }
+systemprompt-identity-entry = { path = "../entry/identity" }
 systemprompt-notifications-entry = { path = "../entry/notifications" }
 systemprompt-bridge = { path = "../../bin/bridge" }
 

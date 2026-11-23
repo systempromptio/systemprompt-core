@@ -11,11 +11,11 @@ group_prefixes() {
     domain)      echo "/tests/unit/domain/" ;;
     # The gateway crate sits beside the runtime it is composed into; its unit
     # tests ride this shard rather than adding a CI matrix entry.
-    app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/ /tests/common/fixtures/" ;;
-    app-scheduler) echo "/tests/unit/app/scheduler/" ;;
+    app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/ /tests/unit/entry/gateway/ /tests/common/fixtures/" ;;
+    app-scheduler) echo "/tests/unit/app/scheduler/ /tests/unit/app/documents/ /tests/unit/app/issues/" ;;
     app-agent-runs)  echo "/tests/unit/app/agent-runs/ /tests/unit/entry/agent-runs/" ;;
     app-generator) echo "/tests/unit/app/generator/ /tests/unit/entry/content/" ;;
-    app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
+    app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/ /tests/unit/entry/identity/" ;;
     entry-api)     echo "/tests/unit/systemprompt/ /tests/unit/entry/api/ /tests/unit/entry/notifications/ /tests/unit/entry/slack/ /tests/unit/entry/teams/" ;;
     entry-cli)     echo "/tests/unit/entry/cli/ /tests/unit/entry/cloud/ /tests/unit/entry/analytics/ /tests/unit/entry/marketplace/ /tests/unit/entry/files/ /tests/unit/entry/mcp/ /tests/unit/entry/agent/ /tests/unit/entry/brain/" ;;
     bridge)        echo "/tests/unit/bridge/" ;;

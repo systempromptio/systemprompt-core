@@ -6314,14 +6314,18 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-content-entry",
  "systemprompt-database",
+ "systemprompt-documents",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-files-entry",
  "systemprompt-gateway",
+ "systemprompt-gateway-entry",
  "systemprompt-generator",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-identity-entry",
+ "systemprompt-issues",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
@@ -6943,6 +6947,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-documents"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
 name = "systemprompt-events"
 version = "0.85.0"
 dependencies = [
@@ -7107,6 +7118,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-gateway-entry"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
 name = "systemprompt-generator"
 version = "0.85.0"
 dependencies = [
@@ -7179,6 +7197,20 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.21",
  "uuid",
+]
+
+[[package]]
+name = "systemprompt-identity-entry"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-issues"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
 ]
 
 [[package]]

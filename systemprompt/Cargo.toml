@@ -48,6 +48,8 @@ api = [
     "dep:systemprompt-runtime",
     "dep:systemprompt-mcp-host",
     "dep:systemprompt-oauth-issuance",
+    "dep:systemprompt-gateway-entry",
+    "dep:systemprompt-identity-entry",
     "dep:axum",
     "systemprompt-extension?/router",
     "systemprompt-slack-entry?/http",
@@ -61,6 +63,8 @@ api = [
     "systemprompt-mcp-entry?/http",
     "systemprompt-agent-entry?/http",
     "systemprompt-brain-entry?/http",
+    "systemprompt-gateway-entry/http",
+    "systemprompt-identity-entry/http",
 ]
 
 # Cloud infrastructure (API client, credentials, OAuth)
@@ -96,7 +100,7 @@ marketplace = ["dep:systemprompt-marketplace", "dep:systemprompt-marketplace-ent
 
 # The files capability: the domain crate with its routes and commands from
 # `systemprompt-files-entry`. `full` implies it.
-files = ["dep:systemprompt-files", "dep:systemprompt-files-entry"]
+files = ["dep:systemprompt-files", "dep:systemprompt-files-entry", "dep:systemprompt-documents"]
 
 # The hosted MCP capability: the domain crate with its routes and commands
 # from `systemprompt-mcp-entry`. `full` implies it.
@@ -122,7 +126,7 @@ agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"
 
 # OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
 # job that ships the audit trail to a collector. `full` implies it.
-otel = ["systemprompt-api?/otel", "systemprompt-scheduler?/otel"]
+otel = ["systemprompt-api?/otel", "systemprompt-scheduler?/otel", "systemprompt-gateway-entry?/otel"]
 
 # The device-credential consumer surface the bridge reports installation
 # evidence through. `full` implies it.
@@ -150,6 +154,9 @@ notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notificatio
 # The brain: revisioned organisational memory, its capture consumer and gateway recall. `full` implies it.
 # Without it the documents store records no brain event and the gateway injects no team memory.
 brain = ["dep:systemprompt-brain", "dep:systemprompt-brain-entry", "notifications"]
+
+# Issue reports: intake, triage and their jobs. `full` implies it.
+issues = ["dep:systemprompt-issues"]
 
 # Full functionality including all domain modules and CLI
 full = [
@@ -179,6 +186,7 @@ full = [
     "bridge",
     "notifications",
     "brain",
+    "issues",
     # Infrastructure crates for extension authors
     "loader",
     "events",
@@ -216,6 +224,8 @@ systemprompt-mcp-host = { workspace = true, optional = true }
 systemprompt-generator = { workspace = true, optional = true }
 systemprompt-oauth-issuance = { workspace = true, optional = true }
 systemprompt-gateway = { workspace = true, optional = true }
+systemprompt-documents = { workspace = true, optional = true }
+systemprompt-issues = { workspace = true, optional = true }
 
 # Entry points
 systemprompt-api = { workspace = true, optional = true }
@@ -234,6 +244,8 @@ systemprompt-files-entry = { workspace = true, optional = true }
 systemprompt-mcp-entry = { workspace = true, optional = true }
 systemprompt-agent-entry = { workspace = true, optional = true }
 systemprompt-brain-entry = { workspace = true, optional = true }
+systemprompt-gateway-entry = { workspace = true, optional = true }
+systemprompt-identity-entry = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-analytics-entry = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
@@ -293,3 +305,6 @@ required-features = ["api"]
 [[example]]
 name = "cli"
 required-features = ["full"]
+
+[package.metadata.cargo-machete]
+ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry", "systemprompt-identity-entry"]

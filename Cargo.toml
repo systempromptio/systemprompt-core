@@ -43,6 +43,8 @@ members = [
     "crates/app/generator",
     "crates/app/oauth-issuance",
     "crates/app/gateway",
+    "crates/app/documents",
+    "crates/app/issues",
     # Entry layer
     "crates/entry/api",
     "crates/entry/cli",
@@ -58,6 +60,8 @@ members = [
     "crates/entry/mcp",
     "crates/entry/agent",
     "crates/entry/brain",
+    "crates/entry/gateway",
+    "crates/entry/identity",
     # Main library crate (for crates.io)
     "systemprompt",
 ]
@@ -366,6 +370,8 @@ systemprompt-agent-runs = { path = "crates/app/agent-runs", version = "0.85.0" }
 systemprompt-generator = { path = "crates/app/generator", version = "0.85.0" }
 systemprompt-oauth-issuance = { path = "crates/app/oauth-issuance", version = "0.85.0" }
 systemprompt-gateway = { path = "crates/app/gateway", version = "0.85.0" }
+systemprompt-documents = { path = "crates/app/documents", version = "0.85.0" }
+systemprompt-issues = { path = "crates/app/issues", version = "0.85.0" }
 systemprompt-api = { path = "crates/entry/api", version = "0.85.0" }
 systemprompt-cli = { path = "crates/entry/cli", version = "0.85.0" }
 systemprompt-slack-entry = { path = "crates/entry/slack", version = "0.85.0" }
@@ -380,6 +386,8 @@ systemprompt-files-entry = { path = "crates/entry/files", version = "0.85.0" }
 systemprompt-mcp-entry = { path = "crates/entry/mcp", version = "0.85.0" }
 systemprompt-agent-entry = { path = "crates/entry/agent", version = "0.85.0" }
 systemprompt-brain-entry = { path = "crates/entry/brain", version = "0.85.0" }
+systemprompt-gateway-entry = { path = "crates/entry/gateway", version = "0.85.0" }
+systemprompt-identity-entry = { path = "crates/entry/identity", version = "0.85.0" }
 
 # Why: several agents build one checkout against a core that moves daily, and
 # cargo never prunes stale incremental sessions; target/debug/incremental grew
