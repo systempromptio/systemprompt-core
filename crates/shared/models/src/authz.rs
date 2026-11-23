@@ -182,6 +182,12 @@ impl SubjectAttributes {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&RuleType, &[String])> {
+        self.0
+            .iter()
+            .map(|(rule_type, values)| (rule_type, values.as_slice()))
+    }
 }
 
 impl FromIterator<(RuleType, Vec<String>)> for SubjectAttributes {

@@ -263,6 +263,9 @@ mod bridge_manifest_version;
 mod bridge_version_window;
 
 #[cfg(test)]
+mod bridge_whoami;
+
+#[cfg(test)]
 mod mcp_deployment;
 
 #[cfg(test)]
