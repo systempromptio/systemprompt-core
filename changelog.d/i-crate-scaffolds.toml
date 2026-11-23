@@ -1,0 +1,29 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "New crates `systemprompt-documents` and `systemprompt-issues` (app layer), `systemprompt-gateway-entry` (`http` and `otel` features) and `systemprompt-identity-entry` (`http` feature) hold the document store, issue reports, gateway and identity surfaces; the facade features `files`, `issues`, `api` and `otel` carry them."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "New crate."
+
+[[crate]]
+name = "systemprompt-issues"
+section = "Added"
+text = "New crate."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Added"
+text = "New crate with `http` and `otel` features."
+
+[[crate]]
+name = "systemprompt-identity-entry"
+section = "Added"
+text = "New crate with an `http` feature."
+
+[[crate]]
+name = "systemprompt"
+section = "Added"
+text = "Feature `files` carries `systemprompt-documents`; the new feature `issues` (in `full`) carries `systemprompt-issues`; feature `api` carries `systemprompt-gateway-entry` and `systemprompt-identity-entry` with their `http` features, and `otel` forwards `systemprompt-gateway-entry/otel`."

@@ -24,6 +24,7 @@ systemprompt-loader                kernel
 systemprompt-users                 kernel
 systemprompt-oauth                 kernel
 systemprompt-oauth-issuance        kernel
+systemprompt-identity-entry        kernel
 systemprompt-runtime               kernel
 systemprompt-mcp-host              kernel
 systemprompt-api                   kernel
@@ -44,6 +45,7 @@ systemprompt-mcp                   capability:mcp
 systemprompt-mcp-entry             capability:mcp
 systemprompt-ai                    capability:ai
 systemprompt-gateway               capability:gateway
+systemprompt-gateway-entry         capability:gateway
 systemprompt-agent                 capability:agents
 systemprompt-agent-entry           capability:agents
 systemprompt-marketplace           capability:marketplace
@@ -56,6 +58,8 @@ systemprompt-notifications         capability:notifications
 systemprompt-notifications-entry   capability:notifications
 systemprompt-brain                 capability:brain
 systemprompt-brain-entry           capability:brain
+systemprompt-documents             capability:documents
+systemprompt-issues                capability:issues
 systemprompt-scheduler              kernel
 systemprompt-agent-runs            capability:agent-runs
 systemprompt-agent-runs-entry      capability:agent-runs

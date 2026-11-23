@@ -1,0 +1,18 @@
+[package]
+name = "systemprompt-gateway-entry-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Route tests for the systemprompt-gateway-entry crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
+
+[package.metadata.cargo-machete]
+ignored = ["systemprompt-gateway-entry"]
