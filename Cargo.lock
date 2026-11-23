@@ -6422,7 +6422,6 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.21",
- "tokio",
  "tracing",
  "uuid",
 ]
@@ -6674,7 +6673,6 @@ version = "0.85.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
- "bytes",
  "chrono",
  "clap",
  "console",
@@ -6729,7 +6727,6 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
- "uuid",
  "walkdir",
 ]
 

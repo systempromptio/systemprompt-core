@@ -69,11 +69,9 @@ schemars = { workspace = true }
 chrono = { workspace = true }
 console = { workspace = true }
 tabled = { workspace = true }
-uuid = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
 futures-util = { workspace = true }
-bytes = { workspace = true }
 # The CLI drives MCP servers over the streamable-HTTP client *trait*, supplying
 # our own reqwest-0.12 `HttpClientWithContext` via `with_client`. The `-reqwest`
 # impl feature (a second reqwest 0.13) is deliberately NOT enabled. The workspace
