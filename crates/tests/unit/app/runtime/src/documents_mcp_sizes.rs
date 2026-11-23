@@ -1,10 +1,10 @@
 use chrono::Utc;
 use rmcp::model::{CallToolResult, ContentBlock};
+use systemprompt_documents::mcp::{HistoryOutput, RevisionItem};
+use systemprompt_documents::views::EditOutput;
 use systemprompt_identifiers::{ArtifactId, DocumentRevisionId, McpExecutionId, UserId};
 use systemprompt_mcp::terse_execution_meta;
 use systemprompt_models::documents::{ActorKind, hash8};
-use systemprompt_runtime::documents::mcp::{HistoryOutput, RevisionItem};
-use systemprompt_runtime::documents::views::EditOutput;
 
 fn wire_bytes<T: serde::Serialize>(summary: String, output: &T) -> usize {
     let mut result = CallToolResult::success(vec![ContentBlock::text(summary)]);

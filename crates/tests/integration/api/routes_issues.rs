@@ -23,12 +23,13 @@ fn as_user(ctx: &AppContext, user: &UserId, permissions: Vec<Permission>) -> Rou
         "issue-tester@example.invalid".to_owned(),
         permissions,
     );
-    router(IssuesState::from_context(ctx))
+    router(IssuesState::from_context(ctx).expect("the issue routes build"))
         .layer(Extension(request_context(user.as_str()).with_user(authed)))
 }
 
 fn anonymous(ctx: &AppContext) -> Router {
-    router(IssuesState::from_context(ctx)).layer(Extension(request_context("nobody")))
+    router(IssuesState::from_context(ctx).expect("the issue routes build"))
+        .layer(Extension(request_context("nobody")))
 }
 
 async fn call(

@@ -3,21 +3,21 @@
 
 use std::sync::Arc;
 
+use systemprompt_documents::download::Rendition;
+use systemprompt_documents::links::{
+    IssuedLink, LinkMintError, LinkMinter, LinkRequest, LinkTarget, mint_link,
+};
 use systemprompt_files::uploads::models::NewUpload;
 use systemprompt_identifiers::{JwtToken, McpServerId, TraceId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, McpHopIdentity, UserType};
 use systemprompt_models::documents::content_hash;
-use systemprompt_runtime::documents::download::Rendition;
-use systemprompt_runtime::documents::links::{
-    IssuedLink, LinkMintError, LinkMinter, LinkRequest, LinkTarget, mint_link,
-};
 use systemprompt_security::jwt::{encode_mcp_hop, mcp_hop_claims};
 use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
 use systemprompt_test_fixtures::services_hosting;
 
 use crate::documents_mcp_rig::{Rig, rig};
 use crate::documents_mcp_support::{create_text, ctx_for, registered};
-use crate::link_rig::{LINKS_BASE, LINKS_ISSUER, hop_for, link_authority};
+use crate::link_rig::{LINKS_BASE, LINKS_ISSUER, hop_for, link_authority, link_tokens};
 
 const SERVER: &str = "documents";
 
@@ -27,7 +27,7 @@ fn minter(r: &Rig) -> LinkMinter {
 
 fn minter_hosting(r: &Rig, server: &str, toolsets: &[&str]) -> LinkMinter {
     LinkMinter {
-        tokens: link_authority(),
+        tokens: link_tokens(),
         documents: Arc::clone(r.runtime.service()),
         uploads: Arc::clone(r.runtime.uploads()),
         services: services_hosting(server, toolsets),

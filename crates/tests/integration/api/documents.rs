@@ -725,10 +725,8 @@ fn foreign_authority(ctx: &AppContext) -> Result<systemprompt_security::Deployme
 #[tokio::test]
 async fn a_signed_download_link_reads_only_its_document_revision() -> Result<()> {
     use systemprompt_api::routes::documents::with_download_tokens;
+    use systemprompt_documents::download::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
     use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
-    use systemprompt_runtime::documents::download::{
-        DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose,
-    };
 
     let (pool, ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-download").await?;
@@ -802,11 +800,9 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
 
     use axum::extract::ConnectInfo;
     use systemprompt_api::services::server::{ReadinessState, setup_api_server};
+    use systemprompt_documents::download::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
     use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
     use systemprompt_manifest::profile::RateLimitsConfig;
-    use systemprompt_runtime::documents::download::{
-        DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose,
-    };
     use systemprompt_test_fixtures::{
         ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
     };

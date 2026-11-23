@@ -1,5 +1,5 @@
+use systemprompt_documents::mcp::{DocumentsMcpTools, TOOL_NAMES};
 use systemprompt_identifiers::McpServerId;
-use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, TOOL_NAMES};
 
 use crate::documents_mcp_support::{SERVER, harness};
 

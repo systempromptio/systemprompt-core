@@ -260,6 +260,7 @@ impl SubjectDirectory for RoleDirectory {
 
 pub(crate) struct Harness {
     pub(crate) service: DocumentService,
+    pub(crate) uploads: Arc<UploadService>,
     pub(crate) access: Arc<DocumentAccessService>,
     pub(crate) repos: Arc<DocumentRepositories>,
     pub(crate) access_entities: Arc<AccessControlRepository>,
@@ -408,6 +409,7 @@ pub(crate) fn harness_wired(
     service.attach_uploads(&uploads);
     Harness {
         service,
+        uploads,
         access,
         repos,
         access_entities,

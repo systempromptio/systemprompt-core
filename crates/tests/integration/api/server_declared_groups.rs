@@ -19,11 +19,11 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
+use systemprompt_documents::links::LinkTarget;
+use systemprompt_documents::upload_links::UPLOAD_TOKEN_HEADER;
 use systemprompt_identifiers::{DocumentUploadId, JwtToken};
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_runtime::documents::links::LinkTarget;
-use systemprompt_runtime::documents::upload_links::UPLOAD_TOKEN_HEADER;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };

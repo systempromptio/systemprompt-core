@@ -4,11 +4,11 @@ use async_trait::async_trait;
 use systemprompt_brain::BrainSlot;
 use systemprompt_brain::jobs::BrainAnalysisJob;
 use systemprompt_database::DbPool;
+use systemprompt_documents::NotificationsUnavailableSink;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::brain::{AnalysisWindow, BrainAnalysis, BrainAnalysisError};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{ProposalDraft, ProposalKind};
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::composed::Probe;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, fixture_brain_kernel_with, fixture_job_context_over,

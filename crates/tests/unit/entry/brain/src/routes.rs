@@ -8,6 +8,7 @@ use systemprompt_brain::BrainError;
 use systemprompt_brain_entry::http::{
     BrainHttpError, FieldsBody, ResolveBody, SearchParams, SimulateBody, admin_routes, user_routes,
 };
+use systemprompt_documents::NotificationsUnavailableSink;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::router::RouteSet;
 use systemprompt_identifiers::{
@@ -15,7 +16,6 @@ use systemprompt_identifiers::{
 };
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_brain_kernel, lazy_pg_pool};
 use systemprompt_traits::RepositoryError;
 use tower::ServiceExt;

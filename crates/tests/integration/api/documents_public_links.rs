@@ -45,9 +45,10 @@ async fn instance(sharing: ExternalSharingConfig) -> Result<Instance> {
     )
     .await?;
     let config = Arc::new(fixture_config(&bootstrap.database_url));
-    let public = public_link::router(document_service(&ctx))
-        .layer(Extension(config))
-        .layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 7], 4000))));
+    let public =
+        public_link::router(document_service(&ctx).expect("the document store is enabled"))
+            .layer(Extension(config))
+            .layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 7], 4000))));
     Ok(Instance {
         state: DocumentsState::build(&ctx)?,
         ctx,

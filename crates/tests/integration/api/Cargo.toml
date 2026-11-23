@@ -21,7 +21,8 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true, features = ["bridge", "collab", "otel"] }
 systemprompt-brain-entry = { workspace = true, features = ["http"] }
 systemprompt-gateway = { workspace = true }
-systemprompt-runtime = { workspace = true, features = ["engine-loro", "notifications"] }
+systemprompt-runtime = { workspace = true, features = ["notifications"] }
+systemprompt-documents = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }

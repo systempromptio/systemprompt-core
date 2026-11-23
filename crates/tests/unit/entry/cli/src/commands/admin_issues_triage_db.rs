@@ -2,11 +2,9 @@
 
 use std::sync::Arc;
 
-use systemprompt_cli::admin::issues::{TriageArgs, triage_as};
-use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_files::issues::IssueFiling;
 use systemprompt_identifiers::{IssueReportId, UserId};
+use systemprompt_issues::commands::{TriageArgs, triage_as};
 use systemprompt_models::issues::{IssueContext, IssueKind, IssueSeverity, IssueStatus};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
@@ -17,17 +15,9 @@ async fn app() -> Arc<AppContext> {
     test_app_context(&url).await
 }
 
-fn ctx(app: &Arc<AppContext>) -> CommandContext {
-    let cli = CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json);
-    crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), Arc::clone(app))
-}
-
 async fn filed(app: &Arc<AppContext>) -> IssueReportId {
-    let (id, filed) = app
-        .documents()
-        .issues()
+    let (id, filed) = systemprompt_test_fixtures::documents_handles(&app)
+        .issues
         .file(IssueFiling {
             reporter: UserId::new(format!("cli-triage-{}", uuid::Uuid::new_v4())),
             via_agent: None,
@@ -62,7 +52,7 @@ async fn triage_moves_a_report_and_records_the_note() {
     let output = triage_as(
         args(id.as_str(), IssueStatus::NeedsInfo, Some("which browser?")),
         &triager,
-        &ctx(&app),
+        &systemprompt_test_fixtures::documents_handles(&app).issues,
     )
     .await
     .unwrap();
@@ -70,13 +60,18 @@ async fn triage_moves_a_report_and_records_the_note() {
     assert!(card.contains("needs_info"), "{card}");
     assert!(card.contains("which browser?"), "{card}");
 
-    let report = app.documents().issues().find(&id).await.unwrap().unwrap();
+    let report = systemprompt_test_fixtures::documents_handles(&app)
+        .issues
+        .find(&id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(report.status, IssueStatus::NeedsInfo);
 
     let again = triage_as(
         args(id.as_str(), IssueStatus::Resolved, None),
         &triager,
-        &ctx(&app),
+        &systemprompt_test_fixtures::documents_handles(&app).issues,
     )
     .await
     .unwrap();
@@ -93,7 +88,7 @@ async fn triage_refuses_a_malformed_id_before_querying() {
     let err = triage_as(
         args("not-a-uuid", IssueStatus::Closed, None),
         &UserId::new("cli-triager"),
-        &ctx(&app),
+        &systemprompt_test_fixtures::documents_handles(&app).issues,
     )
     .await
     .unwrap_err();
@@ -107,7 +102,7 @@ async fn triage_of_an_unknown_report_fails() {
     let err = triage_as(
         args(&missing, IssueStatus::Closed, None),
         &UserId::new("cli-triager"),
-        &ctx(&app),
+        &systemprompt_test_fixtures::documents_handles(&app).issues,
     )
     .await
     .unwrap_err();

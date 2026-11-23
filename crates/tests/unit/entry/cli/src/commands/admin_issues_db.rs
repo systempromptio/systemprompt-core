@@ -6,11 +6,11 @@
 use std::sync::Arc;
 
 use clap::Parser;
-use systemprompt_cli::admin::issues::{self, IssuesCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, DataImpact, OutputFormat};
 use systemprompt_files::issues::IssueFiling;
 use systemprompt_identifiers::{IssueReportId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_issues::commands::{self as issues, IssuesCommands};
 use systemprompt_models::issues::{IssueContext, IssueKind, IssueSeverity, IssueStatus};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
@@ -40,9 +40,8 @@ fn ctx(app: &Arc<AppContext>, format: OutputFormat) -> CommandContext {
 
 async fn seed(app: &Arc<AppContext>, context: IssueContext) -> (UserId, IssueReportId) {
     let reporter = UserId::new(format!("cli-issues-{}", uuid::Uuid::new_v4()));
-    let (id, filed) = app
-        .documents()
-        .issues()
+    let (id, filed) = systemprompt_test_fixtures::documents_handles(&app)
+        .issues
         .file(IssueFiling {
             reporter: reporter.clone(),
             via_agent: None,

@@ -7,12 +7,11 @@ use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_extension::brain::{SourceAccess, SourceContent};
 use systemprompt_extension::{DynNotificationSink, Extension};
 use systemprompt_files::documents::{
-    DocumentSourceAccess, DocumentSourceContent, DocumentsHandlesSlot,
+    DocumentSourceAccess, DocumentSourceContent, DocumentsHandles, DocumentsHandlesSlot,
 };
 use systemprompt_identifiers::{BrainFactId, FactKindId, TopicId, UserId};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{FactCandidate, FactScope, FactSource, FactStatus, SubjectKey};
-use systemprompt_runtime::documents::DocumentsRuntime;
 use systemprompt_runtime::Kernel;
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_traits::{core_seam, BackgroundTasks, CoreSeam, FileStorage};
@@ -26,7 +25,7 @@ use systemprompt_users::UsersExtension;
 // provides them in a host.
 pub fn fixture_brain_kernel(
     pool: &DbPool,
-    documents: Option<&Arc<DocumentsRuntime>>,
+    documents: Option<&DocumentsHandles>,
     notifications: DynNotificationSink,
     profile: BrainProfile,
 ) -> Kernel {
@@ -37,7 +36,7 @@ pub fn fixture_brain_kernel(
 // seams, say) admitted after the brain member.
 pub fn fixture_brain_kernel_with(
     pool: &DbPool,
-    documents: Option<&Arc<DocumentsRuntime>>,
+    documents: Option<&DocumentsHandles>,
     notifications: DynNotificationSink,
     profile: BrainProfile,
     members: Vec<Box<dyn Extension>>,
@@ -58,12 +57,12 @@ pub fn fixture_brain_kernel_with(
     seed.insert(notifications);
     if let Some(documents) = documents {
         let content: Arc<dyn SourceContent> = Arc::new(DocumentSourceContent::new(
-            Some(Arc::clone(documents.service())),
-            Arc::clone(documents.repositories()),
+            documents.service.clone(),
+            Arc::clone(&documents.repositories),
         ));
         let access: Arc<dyn SourceAccess> = Arc::new(DocumentSourceAccess::new(
-            Arc::clone(documents.access()),
-            Arc::clone(documents.repositories()),
+            Arc::clone(&documents.access),
+            Arc::clone(&documents.repositories),
         ));
         seed.insert(CoreSeam::<
             dyn SourceContent,
@@ -88,7 +87,7 @@ pub fn fixture_brain_slot(kernel: &Kernel) -> Arc<BrainHandleSlot> {
 
 pub fn fixture_brain(
     pool: &DbPool,
-    documents: Option<&Arc<DocumentsRuntime>>,
+    documents: Option<&DocumentsHandles>,
     notifications: DynNotificationSink,
     profile: BrainProfile,
 ) -> Option<Arc<BrainHandle>> {

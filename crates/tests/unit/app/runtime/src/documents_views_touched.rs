@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
+use systemprompt_documents::views::{MAX_WRITTEN, shown_written_lines, touched_lines};
 use systemprompt_files::documents::nodes::PATH_ATTR;
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::{
     DocumentFormat, NodeKind, Projection, ProjectionNode, content_hash, hash8,
 };
 use systemprompt_provider_contracts::documents::READ_ONLY_ATTR;
-use systemprompt_runtime::documents::views::{MAX_WRITTEN, shown_written_lines, touched_lines};
 
 fn node(
     id: &str,

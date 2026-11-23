@@ -4,6 +4,12 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_documents::mcp::{
+    DocumentsMcpTools, EditHandler, EditInput, HistoryHandler, HistoryInput, ReadHandler,
+};
+use systemprompt_documents::views::{
+    EditOutput, ReadInput, ReadOutput, ReadView, node_lines, outline, search_lines,
+};
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentOpId};
 use systemprompt_models::documents::{
@@ -11,12 +17,6 @@ use systemprompt_models::documents::{
     content_hash, hash8,
 };
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, EditHandler, EditInput, HistoryHandler, HistoryInput, ReadHandler,
-};
-use systemprompt_runtime::documents::views::{
-    EditOutput, ReadInput, ReadOutput, ReadView, node_lines, outline, search_lines,
-};
 
 use crate::documents_mcp_support::{
     create_text, ctx_for, exec, harness, line_for, read_text, registered,

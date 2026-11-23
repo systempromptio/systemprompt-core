@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use systemprompt_documents::NotificationsUnavailableSink;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::{closed_db_pool, fixture_brain};
 
 async fn handle_for(enabled: bool) -> Option<Arc<systemprompt_brain::BrainHandle>> {

@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-issues = { workspace = true }
 systemprompt-agent-runs = { workspace = true }
 systemprompt-cli = { workspace = true }
 systemprompt-cloud = { workspace = true }

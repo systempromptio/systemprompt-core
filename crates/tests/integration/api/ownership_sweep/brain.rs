@@ -5,12 +5,12 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::{Extension, Router};
 use systemprompt_brain_entry::http::user_routes;
+use systemprompt_documents::NotificationsUnavailableSink;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::FactStatus;
 use systemprompt_runtime::Kernel;
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::{fixture_brain_kernel, seed_brain_fact, seed_bridge_credential};
 use uuid::Uuid;
 
@@ -76,7 +76,7 @@ async fn a_second_user_is_refused_every_route_on_a_personal_fact() -> Result<()>
     let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
     let kernel = fixture_brain_kernel(
         &pool,
-        Some(ctx.documents()),
+        Some(&systemprompt_test_fixtures::documents_handles(&ctx)),
         notifications,
         BrainProfile {
             enabled: true,

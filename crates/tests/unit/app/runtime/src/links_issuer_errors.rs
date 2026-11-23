@@ -2,10 +2,10 @@
 //! link: a missing or misrouted endpoint names the status it got instead of
 //! claiming a signing failure, and only a 500 reads as one.
 
-use systemprompt_identifiers::{DocumentUploadId, JwtToken, McpServerId};
-use systemprompt_runtime::documents::links::{
+use systemprompt_documents::links::{
     ApiLinkIssuer, LinkIssueError, LinkIssuer, LinkRefusal, LinkTarget,
 };
+use systemprompt_identifiers::{DocumentUploadId, JwtToken, McpServerId};
 
 fn refused(status: u16) -> LinkIssueError {
     LinkIssueError::Refused {

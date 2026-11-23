@@ -1,14 +1,14 @@
 use base64::Engine;
 use serde_json::json;
+use systemprompt_documents::mcp::{
+    DocumentsMcpTools, UploadHandler, UploadInput, UploadMode, UploadOutput,
+};
+use systemprompt_documents::refusal::RefusalCode;
+use systemprompt_documents::upload_links::UPLOAD_TOKEN_HEADER;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::DocumentUploadId;
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, UploadHandler, UploadInput, UploadMode, UploadOutput,
-};
-use systemprompt_runtime::documents::refusal::RefusalCode;
-use systemprompt_runtime::documents::upload_links::UPLOAD_TOKEN_HEADER;
 
 use crate::documents_mcp_rig::{code_of, rig};
 use crate::documents_mcp_support::{ctx_for, exec, registered};

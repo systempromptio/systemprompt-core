@@ -1,11 +1,11 @@
-use systemprompt_extension::mcp::McpToolHandler;
-use systemprompt_identifiers::{DocumentId, UserId};
-use systemprompt_models::documents::AccessLevel;
-use systemprompt_runtime::documents::mcp::{
+use systemprompt_documents::mcp::{
     AccessHandler, AccessInput, DocumentInput, ReadHandler, ShareHandler, ShareInput, TrashHandler,
     refusal_result,
 };
-use systemprompt_runtime::documents::views::ReadInput;
+use systemprompt_documents::views::ReadInput;
+use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_identifiers::{DocumentId, UserId};
+use systemprompt_models::documents::AccessLevel;
 
 use crate::documents_mcp_support::{create_text, ctx_for, exec, harness, registered};
 

@@ -8,10 +8,10 @@ use axum::http::{Method, Request, StatusCode};
 use axum::response::Response;
 use systemprompt_api::routes::documents::DocumentsState;
 use systemprompt_api::routes::uploads::{router, with_upload_tokens};
-use systemprompt_identifiers::DocumentUploadId;
-use systemprompt_runtime::documents::upload_links::{
+use systemprompt_documents::upload_links::{
     UPLOAD_AUDIENCE, UPLOAD_LINK_TTL, UPLOAD_TOKEN_HEADER, UploadGrant, upload_purpose,
 };
+use systemprompt_identifiers::DocumentUploadId;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 

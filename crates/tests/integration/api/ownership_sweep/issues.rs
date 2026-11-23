@@ -28,7 +28,7 @@ fn as_user(ctx: &AppContext, user: &UserId) -> Router {
         "sweep-reporter@example.invalid".to_owned(),
         vec![Permission::User],
     );
-    router(IssuesState::from_context(ctx))
+    router(IssuesState::from_context(ctx).expect("the issue routes build"))
         .layer(Extension(request_context(user.as_str()).with_user(authed)))
 }
 

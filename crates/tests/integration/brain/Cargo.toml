@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-documents = { workspace = true }
 systemprompt-brain = { workspace = true }
 systemprompt-brain-entry = { workspace = true, features = ["http"] }
 systemprompt-runtime = { workspace = true }

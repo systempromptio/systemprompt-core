@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
+use systemprompt_documents::views::{
+    MAX_LINES, NodeRange, ReadInput, ReadView, parse_cell, render, split_cell_id,
+};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId};
 use systemprompt_models::documents::{
     DocumentFormat, NodeKind, Projection, ProjectionNode, content_hash, hash8,
-};
-use systemprompt_runtime::documents::views::{
-    MAX_LINES, NodeRange, ReadInput, ReadView, parse_cell, render, split_cell_id,
 };
 
 fn node(
@@ -222,14 +222,14 @@ fn written_lines_are_the_nodes_a_revision_added_or_changed() {
         ),
     ]);
     assert_eq!(
-        systemprompt_runtime::documents::views::written_lines(Some(&base), &head),
+        systemprompt_documents::views::written_lines(Some(&base), &head),
         vec![
             format!("p[1]:{}| new", hash8("new")),
             format!("p[3]:{}| # Title", hash8("Title")),
         ]
     );
     assert_eq!(
-        systemprompt_runtime::documents::views::written_lines(None, &base).len(),
+        systemprompt_documents::views::written_lines(None, &base).len(),
         2
     );
 }

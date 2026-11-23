@@ -60,7 +60,10 @@ async fn a_second_user_is_refused_every_owned_upload_route() -> Result<()> {
     let owner = seed_bridge_credential(&pool, "sweep-upload-owner").await?;
     let stranger = seed_bridge_credential(&pool, "sweep-upload-stranger").await?;
     let id = open(&state, &owner).await?;
-    let part_size = ctx.documents().uploads().limits().part_size_bytes;
+    let part_size = systemprompt_test_fixtures::documents_handles(&ctx)
+        .uploads
+        .limits()
+        .part_size_bytes;
     let part_limit = usize::try_from(part_size + 64 * 1024)?;
     sweep(
         &Uploads {

@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use systemprompt_brain::BrainHandle;
 use systemprompt_brain::mcp::BrainMcpTools;
+use systemprompt_documents::NotificationsUnavailableSink;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::brain::{BrainModelClient, BrainModelError, DynBrainConsumerStart};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BrainModelRequest, BrainModelResponse};
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::{fixture_brain, fixture_brain_kernel, fixture_brain_slot};
 
 use crate::documents_mcp_rig::{Rig, rig};
@@ -29,7 +29,13 @@ pub(crate) fn handle_for(r: &Rig) -> Arc<BrainHandle> {
         enabled: true,
         ..BrainProfile::default()
     };
-    fixture_brain(&r.pool, Some(&r.runtime), notifications, profile).expect("enabled brain")
+    fixture_brain(
+        &r.pool,
+        Some(&r.runtime.handles(true)),
+        notifications,
+        profile,
+    )
+    .expect("enabled brain")
 }
 
 pub(crate) fn tools(handle: &BrainHandle) -> BrainMcpTools {
@@ -43,7 +49,7 @@ async fn starting_the_consumer_twice_is_refused_and_keeps_the_first() {
     let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
     let kernel = fixture_brain_kernel(
         &r.pool,
-        Some(&r.runtime),
+        Some(&r.runtime.handles(true)),
         notifications,
         BrainProfile {
             enabled: true,
