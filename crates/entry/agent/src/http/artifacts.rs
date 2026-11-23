@@ -1,0 +1,192 @@
+//! Artifact retrieval routes for the agent surface.
+//!
+//! Handlers list artifacts by context, task, or user, fetch a single artifact,
+//! and render an artifact as MCP App UI. Every accessor enforces ownership
+//! against the authenticated [`RequestContext`] before returning data. The
+//! UI renderers are the `UiRendererRegistry` the `mcp` member builds; without
+//! it a UI request fails with the fixed 5xx body.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::extract::{Path, Query, State};
+use axum::http::{StatusCode, header};
+use axum::response::{IntoResponse, Response};
+use axum::{Extension, Json};
+use serde::Deserialize;
+
+use systemprompt_extension::router::ApiHttpError;
+use systemprompt_identifiers::{ArtifactId, TaskId};
+use systemprompt_mcp::McpDomainError;
+use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
+use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
+use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
+
+use super::{AgentHttpError, AgentHttpState, clamp_page_limit};
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct ArtifactQueryParams {
+    pub limit: Option<u32>,
+}
+
+pub async fn list_artifacts_by_context(
+    Extension(req_ctx): Extension<RequestContext>,
+    State(state): State<AgentHttpState>,
+    Path(context_id): Path<String>,
+) -> Result<impl IntoResponse, AgentHttpError> {
+    tracing::debug!(context_id = %context_id, "Listing artifacts by context");
+
+    let context_id_typed = super::parse_context_id(&context_id)?;
+
+    let context_repo = state.repositories.contexts.clone();
+    let owned = context_repo
+        .owned_context(&context_id_typed, req_ctx.user_id())
+        .await?;
+
+    let artifact_repo = state.repositories.artifacts.clone();
+    let artifacts = artifact_repo.get_artifacts_by_context(&owned).await?;
+
+    tracing::debug!(
+        context_id = %context_id,
+        count = artifacts.len(),
+        "Artifacts listed"
+    );
+    Ok((StatusCode::OK, Json(artifacts)))
+}
+
+pub async fn list_artifacts_by_task(
+    Extension(req_ctx): Extension<RequestContext>,
+    State(state): State<AgentHttpState>,
+    Path(task_id): Path<String>,
+) -> Result<impl IntoResponse, AgentHttpError> {
+    tracing::debug!(task_id = %task_id, "Listing artifacts by task");
+
+    let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
+
+    let task_repo = state.repositories.tasks.clone();
+    let owned = task_repo
+        .owned_task(&task_id_typed, req_ctx.user_id())
+        .await?;
+
+    let artifact_repo = state.repositories.artifacts.clone();
+    let artifacts = artifact_repo.artifacts_for_owned_task(&owned).await?;
+
+    tracing::debug!(
+        task_id = %task_id,
+        count = artifacts.len(),
+        "Artifacts listed"
+    );
+    Ok((StatusCode::OK, Json(artifacts)))
+}
+
+pub async fn get_artifact(
+    Extension(req_ctx): Extension<RequestContext>,
+    State(state): State<AgentHttpState>,
+    Path(artifact_id): Path<String>,
+) -> Result<impl IntoResponse, AgentHttpError> {
+    tracing::debug!(artifact_id = %artifact_id, "Retrieving artifact");
+
+    let artifact_repo = state.repositories.artifacts.clone();
+
+    let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
+    let owned = artifact_repo
+        .owned_artifact(&artifact_id_typed, req_ctx.user_id())
+        .await?;
+    let artifact = artifact_repo.find_owned_artifact(&owned).await?;
+
+    tracing::debug!("Artifact retrieved successfully");
+    Ok((StatusCode::OK, Json(artifact)))
+}
+
+pub async fn list_artifacts_by_user(
+    Extension(req_ctx): Extension<RequestContext>,
+    State(state): State<AgentHttpState>,
+    Query(params): Query<ArtifactQueryParams>,
+) -> Result<impl IntoResponse, AgentHttpError> {
+    let user_id = req_ctx.user_id();
+
+    tracing::debug!(user_id = %user_id, "Listing artifacts by user");
+
+    let artifact_repo = state.repositories.artifacts.clone();
+
+    let limit = i32::from(clamp_page_limit(params.limit));
+    let artifacts = artifact_repo
+        .get_artifacts_by_user_id(user_id, Some(limit))
+        .await?;
+
+    tracing::debug!(
+        user_id = %user_id,
+        count = artifacts.len(),
+        "Artifacts listed"
+    );
+    Ok((StatusCode::OK, Json(artifacts)))
+}
+
+pub async fn get_artifact_ui(
+    Extension(req_ctx): Extension<RequestContext>,
+    State(state): State<AgentHttpState>,
+    Path(artifact_id): Path<String>,
+) -> Result<Response, AgentHttpError> {
+    tracing::debug!(artifact_id = %artifact_id, "Rendering artifact as MCP App UI");
+
+    let artifact_repo = state.repositories.artifacts.clone();
+    let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
+
+    let owned = artifact_repo
+        .owned_artifact(&artifact_id_typed, req_ctx.user_id())
+        .await?;
+    let artifact = artifact_repo.find_owned_artifact(&owned).await?;
+
+    let registry = state
+        .renderers
+        .as_ref()
+        .ok_or(ArtifactUiError::Renderers)?;
+    let artifact_type = resolve_artifact_type(&artifact);
+
+    if !registry.supports(artifact_type) {
+        tracing::warn!(artifact_type = %artifact_type, "No UI renderer for artifact type");
+        return Err(ApiHttpError::bad_request(format!(
+            "No UI renderer available for artifact type '{artifact_type}'"
+        ))
+        .into());
+    }
+
+    let ui_resource: systemprompt_mcp::services::ui_renderer::UiResource = registry
+        .render(&artifact)
+        .map_err(ArtifactUiError::Render)?;
+
+    tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, MCP_APP_MIME_TYPE)
+        .header(
+            header::CONTENT_SECURITY_POLICY,
+            ui_resource.csp.to_header_value(),
+        )
+        .header(header::X_FRAME_OPTIONS, "SAMEORIGIN")
+        .body(axum::body::Body::from(ui_resource.html))
+        .map_err(|e| ArtifactUiError::Response(e).into())
+}
+
+#[derive(Debug, thiserror::Error)]
+enum ArtifactUiError {
+    #[error("no member provides the UI renderer registry")]
+    Renderers,
+    #[error("failed to render artifact UI")]
+    Render(#[source] McpDomainError),
+    #[error("failed to build artifact UI response")]
+    Response(#[source] http::Error),
+}
+
+impl From<ArtifactUiError> for AgentHttpError {
+    fn from(err: ArtifactUiError) -> Self {
+        let context = match &err {
+            ArtifactUiError::Renderers => "UI renderers unavailable",
+            ArtifactUiError::Render(_) => "Failed to render artifact UI",
+            ArtifactUiError::Response(_) => "Failed to build response",
+        };
+        ApiError::internal(context, err).into()
+    }
+}

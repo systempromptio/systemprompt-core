@@ -37,7 +37,8 @@ mod shapes;
 pub use cli::{RESERVED_CLI_PATHS, ReservedCliPath};
 pub use nesting::{nested_rows_are_bounded, nested_under_another_owner};
 pub use shapes::{
-    CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES, PRIVILEGED_SHAPES,
+    AGENT_REGISTRY_ROUTES, CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES,
+    PRIVILEGED_SHAPES,
 };
 
 pub const WEB_ROOT_BASE_PATH: &str = "/";
@@ -141,6 +142,10 @@ pub const RESERVED_PATHS: &[ReservedPath] = &[
     held(CoreId::Teams, ApiPaths::TEAMS_BASE),
     held(CoreId::Cloud, ApiPaths::CLOUD_TENANTS),
     exact(CoreId::McpHttp, ApiPaths::MCP_REGISTRY),
+    subtree(CoreId::AgentHttp, ApiPaths::CORE_CONTEXTS),
+    subtree(CoreId::AgentHttp, ApiPaths::CORE_TASKS),
+    subtree(CoreId::AgentHttp, ApiPaths::CORE_ARTIFACTS),
+    exact(CoreId::AgentHttp, ApiPaths::AGENTS_REGISTRY),
     held(CoreId::MarketplaceHttp, ApiPaths::MARKETPLACE_BASE),
     held(CoreId::BrainHttp, ApiPaths::BRAIN),
     subtree(CoreId::BrainHttp, ApiPaths::ADMIN_BRAIN),

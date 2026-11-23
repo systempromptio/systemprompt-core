@@ -2,13 +2,6 @@
 
 mod admin_access_control_export_db;
 mod admin_access_control_public_lifecycle;
-mod admin_agent_logs_all_filtering_db;
-mod admin_agent_tools_empty_output;
-mod admin_agents_create_full_fs;
-mod admin_agents_edit_flags_fs;
-mod admin_agents_message_stream;
-mod admin_agents_profile_fs;
-mod admin_agents_run_launcher;
 mod admin_bootstrap_db;
 mod admin_bridge_issue_code_db;
 mod admin_bridge_signing_rotation;
@@ -33,7 +26,6 @@ mod admin_issues_triage_db;
 mod admin_keys_generate_fs;
 mod admin_licence_status_db;
 mod admin_plugin_token_lifecycle;
-mod admin_prompts;
 mod admin_services_io;
 mod admin_session_login_admin_user_db;
 mod admin_session_show;
@@ -50,14 +42,6 @@ mod admin_users_role_session_db;
 mod admin_users_session_end_db;
 mod admin_users_show_db;
 mod admin_users_write_db;
-mod agent_logs_follow_lifecycle;
-mod agent_tools_mixed_lifecycle;
-mod agents_delete;
-mod agents_delete_flow;
-mod agents_logs_db;
-mod agents_logs_disk_selection;
-mod agents_registry_projection;
-mod agents_validate_checks;
 mod bridge_signing_key_fingerprint;
 mod build_mcp;
 mod build_mcp_in_root;
@@ -65,9 +49,6 @@ mod compose_render;
 mod config_paths_table_output_fs;
 mod config_secret;
 mod config_validators_exit;
-mod core_artifacts_db;
-mod core_contexts_db;
-mod core_contexts_public_lifecycle;
 mod core_database_scope_db;
 mod core_dispatcher_fs;
 mod core_hooks_validate_fs;
@@ -76,8 +57,8 @@ mod db_helpers;
 mod db_migrate_exec;
 mod dispatchers_invalid_input_fs;
 mod dispatchers_table_output_fs;
+mod infra_services_restart_agents;
 mod infrastructure;
-mod logs_disk_prompts;
 mod logs_search_mapping;
 mod plugins_dispatcher;
 mod rate_limits_diff;
@@ -113,7 +94,6 @@ mod web_validate_paths_fs;
 
 
 #[cfg(test)]
-mod agents_shared_args;
 
 #[cfg(test)]
 mod cli_pure_helpers;

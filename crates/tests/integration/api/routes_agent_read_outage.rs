@@ -2,10 +2,10 @@ use anyhow::Result;
 use axum::body::to_bytes;
 use axum::http::StatusCode;
 use axum::{Extension, Router};
-use systemprompt_api::routes::{artifacts_router, contexts_router, tasks_router};
+use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, UserId};
 use systemprompt_test_fixtures::{
-    DisposableDb, seed_user_row, seed_user_session, test_app_context,
+    DisposableDb, seed_user_row, seed_user_session,
 };
 use tower::ServiceExt;
 
@@ -54,9 +54,9 @@ async fn seed(db: &systemprompt_database::DbPool) -> Result<Seeded> {
 fn apps(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> (Router, Router, Router) {
     let layer = || Extension(request_context(user.as_str()));
     (
-        contexts_router().with_state(ctx.clone()).layer(layer()),
-        tasks_router().with_state(ctx.clone()).layer(layer()),
-        artifacts_router().with_state(ctx.clone()).layer(layer()),
+        crate::common::mounted_set(&ctx, contexts_routes()).layer(layer()),
+        crate::common::mounted_set(&ctx, tasks_routes()).layer(layer()),
+        crate::common::mounted_set(&ctx, artifacts_routes()).layer(layer()),
     )
 }
 
@@ -146,7 +146,7 @@ async fn agent_read_routes_report_database_outage_and_recover_without_data_loss(
     let owned = DisposableDb::with_schema("agent_read_outage").await;
     let db = owned.test_pool().await;
     let seeded = seed(&db).await?;
-    let ctx = test_app_context(owned.url()).await;
+    let ctx = crate::common::agent_app_context(owned.url()).await;
     assert_live(&ctx, &seeded).await?;
     let raw = db.pool();
     ctx.db_pool().pool().close().await;
@@ -156,7 +156,7 @@ async fn agent_read_routes_report_database_outage_and_recover_without_data_loss(
     drop(raw);
     drop(db);
     let recovered = owned.test_pool().await;
-    let recovered_ctx = test_app_context(owned.url()).await;
+    let recovered_ctx = crate::common::agent_app_context(owned.url()).await;
     assert_live(&recovered_ctx, &seeded).await?;
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM agent_tasks WHERE task_id=$1")
         .bind(seeded.task.as_str())

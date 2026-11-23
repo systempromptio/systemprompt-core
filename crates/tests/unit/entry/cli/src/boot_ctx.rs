@@ -73,21 +73,6 @@ pub fn new_on(
         .with_admitted(Some(fixture_admitted()))
 }
 
-pub async fn app_on_database(
-    bootstrap: &systemprompt_test_fixtures::TestBootstrap,
-    database_url: &str,
-) -> std::sync::Arc<systemprompt_runtime::AppContext> {
-    let mut config = systemprompt_manifest::Config::clone(bootstrap.boot_config());
-    config.database_url = database_url.to_owned();
-    systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
-        bootstrap,
-        config,
-        systemprompt_test_fixtures::fixture_admitted(),
-    )
-    .await
-    .expect("fixture app context on the bootstrap's own paths")
-}
-
 pub async fn app_reloaded_on_database(
     bootstrap: &systemprompt_test_fixtures::TestBootstrap,
     database_url: &str,

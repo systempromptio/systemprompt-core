@@ -26,7 +26,13 @@ pub(super) async fn construct_tasks_batch(
     let pool = Arc::clone(constructor.pool());
     let task_id_strings: Vec<String> = task_ids.iter().map(ToString::to_string).collect();
 
-    let task_rows = super::batch_queries::fetch_task_rows(&pool, &task_id_strings).await?;
+    let mut task_rows = super::batch_queries::fetch_task_rows(&pool, &task_id_strings).await?;
+    let position: HashMap<&TaskId, usize> = task_ids
+        .iter()
+        .enumerate()
+        .map(|(index, id)| (id, index))
+        .collect();
+    task_rows.sort_by_key(|row| position.get(&row.task_id).copied().unwrap_or(usize::MAX));
     let all_messages = super::batch_queries::fetch_messages(&pool, &task_id_strings).await?;
     let all_parts = super::batch_queries::fetch_message_parts(&pool, &task_id_strings).await?;
     let all_artifact_rows = super::batch_queries::fetch_artifacts(&pool, &task_id_strings).await?;

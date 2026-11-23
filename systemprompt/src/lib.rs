@@ -153,7 +153,7 @@ pub use systemprompt_governance as governance;
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod system {
-    pub use systemprompt_mcp_host::{AgentHost, AgentHostError, HostContext};
+    pub use systemprompt_mcp_host::HostContext;
     pub use systemprompt_runtime::*;
 }
 

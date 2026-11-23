@@ -1,4 +1,4 @@
-//! Inbound A2A notification handling through `contexts_router`.
+//! Inbound A2A notification handling through the `agent-http` contexts route set.
 //!
 //! Seeds a real user-owned context (and, for the status path, a task) and
 //! calls as that owner, so the handler persists the notification, applies the
@@ -8,13 +8,13 @@
 //! and bad-envelope arms drive the 404 and 400 branches.
 
 use axum::Extension;
-use systemprompt_api::routes::contexts_router;
+use systemprompt_agent_entry::http::contexts_routes;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, unique_user_id};
 use tower::ServiceExt;
 
-use super::common::{json_post, request_context, setup_ctx};
+use super::common::{json_post, request_context, setup_agent_ctx};
 
 async fn seed_context(pool: &DbPool) -> anyhow::Result<(UserId, ContextId)> {
     let user_id = unique_user_id("notif");
@@ -57,8 +57,7 @@ async fn seed_task(
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, caller: &UserId) -> axum::Router {
-    contexts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context(caller.as_str())))
 }
 
@@ -98,7 +97,7 @@ async fn notification_count(pool: &DbPool, context_id: &ContextId) -> anyhow::Re
 
 #[tokio::test]
 async fn owner_task_status_update_applies_and_stamps_completion() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
     let task_id = seed_task(&pool, &user_id, &context_id).await?;
 
@@ -117,7 +116,7 @@ async fn owner_task_status_update_applies_and_stamps_completion() -> anyhow::Res
 
 #[tokio::test]
 async fn non_owner_cannot_update_a_task_in_another_users_context() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (owner, context_id) = seed_context(&pool).await?;
     let (intruder, _intruder_context) = seed_context(&pool).await?;
     let task_id = seed_task(&pool, &owner, &context_id).await?;
@@ -137,7 +136,7 @@ async fn non_owner_cannot_update_a_task_in_another_users_context() -> anyhow::Re
 
 #[tokio::test]
 async fn own_context_cannot_carry_another_users_task() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (victim, victim_context) = seed_context(&pool).await?;
     let (intruder, intruder_context) = seed_context(&pool).await?;
     let task_id = seed_task(&pool, &victim, &victim_context).await?;
@@ -156,7 +155,7 @@ async fn own_context_cannot_carry_another_users_task() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn task_must_belong_to_the_addressed_context() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, task_context) = seed_context(&pool).await?;
     let task_id = seed_task(&pool, &user_id, &task_context).await?;
     let other_context = ContextId::generate();
@@ -181,7 +180,7 @@ async fn task_must_belong_to_the_addressed_context() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn task_status_update_missing_task_id_is_error() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let body = serde_json::json!({
@@ -197,7 +196,7 @@ async fn task_status_update_missing_task_id_is_error() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn artifact_created_broadcasts() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let body = serde_json::json!({
@@ -216,7 +215,7 @@ async fn artifact_created_broadcasts() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn message_added_broadcasts() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let body = serde_json::json!({
@@ -235,7 +234,7 @@ async fn message_added_broadcasts() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn unhandled_but_valid_method_persists_without_broadcast() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let body = serde_json::json!({
@@ -251,7 +250,7 @@ async fn unhandled_but_valid_method_persists_without_broadcast() -> anyhow::Resu
 
 #[tokio::test]
 async fn unknown_method_type_rejected_by_persistence() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let body = serde_json::json!({
@@ -274,7 +273,7 @@ async fn unknown_method_type_rejected_by_persistence() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn invalid_jsonrpc_version_returns_400() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let body = serde_json::json!({
@@ -290,7 +289,7 @@ async fn invalid_jsonrpc_version_returns_400() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn unknown_context_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, _context_id) = seed_context(&pool).await?;
     let missing = ContextId::generate();
     let body = serde_json::json!({

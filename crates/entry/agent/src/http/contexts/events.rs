@@ -1,0 +1,63 @@
+//! Context event-history endpoint.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::{Extension, Json};
+use serde_json::json;
+use systemprompt_models::{ContextEvent, RequestContext};
+
+use crate::http::{AgentHttpError, AgentHttpState};
+use crate::http::parse_context_id;
+
+
+pub async fn forward_event(
+    Extension(request_context): Extension<RequestContext>,
+    State(state): State<AgentHttpState>,
+    Path(context_id): Path<String>,
+    Json(event): Json<ContextEvent>,
+) -> Result<Response, AgentHttpError> {
+    let user_id = request_context.user_id();
+    let context_id_typed = parse_context_id(&context_id)?;
+
+    state
+        .repositories
+        .contexts
+        .validate_context_ownership(&context_id_typed, user_id)
+        .await?;
+
+    let (protocol, broadcast_count) = match event {
+        ContextEvent::AgUi(e) => {
+            let event_type = e.event_type();
+            let (agui, ctx) = state.events.agui(user_id, e).await;
+            tracing::debug!(event_type = ?event_type, agui = %agui, ctx = %ctx, "AG-UI event routed");
+            ("agui", agui + ctx)
+        },
+        ContextEvent::A2A(e) => {
+            let event_type = e.event_type();
+            let (a2a, ctx) = state.events.a2a(user_id, *e).await;
+            tracing::debug!(event_type = ?event_type, a2a = %a2a, ctx = %ctx, "A2A event routed");
+            ("a2a", a2a + ctx)
+        },
+        ContextEvent::System(e) => {
+            let event_type = e.event_type();
+            let ctx = state.events.system(user_id, e).await;
+            tracing::debug!(event_type = ?event_type, ctx = %ctx, "System event routed");
+            ("system", ctx)
+        },
+    };
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "success": true,
+            "protocol": protocol,
+            "broadcast_count": broadcast_count,
+            "context_id": context_id
+        })),
+    )
+        .into_response())
+}

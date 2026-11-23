@@ -1,0 +1,76 @@
+//! Context creation endpoint.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::Json;
+use axum::extract::{Extension, State};
+use axum::response::Response;
+
+use crate::http::AgentHttpState;
+use super::super::responses::{api_error_response, single_response_created};
+use systemprompt_agent::models::context::{ContextKind, CreateContextRequest};
+use systemprompt_models::{ApiError, ApiErrorExt, SystemEventBuilder};
+
+pub async fn create_context(
+    Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
+    State(state): State<AgentHttpState>,
+    Json(request): Json<CreateContextRequest>,
+) -> Response {
+    let context_repo = &state.repositories.contexts;
+    let user_id = &req_ctx.auth.actor.user_id;
+
+    let context_name = match request.name.as_deref().map(str::trim) {
+        Some("") => {
+            return api_error_response(
+                ApiError::bad_request("Context name cannot be empty")
+                    .with_request_context(&req_ctx),
+            );
+        },
+        Some(name) => name.to_owned(),
+        None => format!("Conversation {}", chrono::Utc::now().timestamp_millis()),
+    };
+
+    match context_repo
+        .create_context(
+            user_id,
+            Some(&req_ctx.request.session_id),
+            &context_name,
+            ContextKind::User,
+        )
+        .await
+    {
+        Ok(context_id) => {
+            tracing::debug!(
+                context_id = %context_id,
+                user_id = %user_id,
+                "Created context"
+            );
+
+            match context_repo.get_context(&context_id, user_id).await {
+                Ok(context) => {
+                    let event = SystemEventBuilder::context_created(
+                        context.context_id.clone(),
+                        context.name.clone(),
+                    );
+                    state.events.system(user_id, event).await;
+
+                    single_response_created(context)
+                },
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to retrieve created context");
+                    api_error_response(
+                        ApiError::internal("Context created but failed to retrieve", e)
+                            .with_request_context(&req_ctx),
+                    )
+                },
+            }
+        },
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to create context");
+            api_error_response(
+                ApiError::internal("Failed to create context", e).with_request_context(&req_ctx),
+            )
+        },
+    }
+}

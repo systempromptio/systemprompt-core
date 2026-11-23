@@ -1,4 +1,15 @@
 path	args	routing
+admin agents create	-	mutating
+admin agents delete	-	mutating
+admin agents edit	-	mutating
+admin agents list	-	mutating
+admin agents logs	-	mutating
+admin agents message	-	mutating
+admin agents registry	-	mutating
+admin agents show	-	mutating
+admin agents status	-	mutating
+admin agents task	-	mutating
+admin agents validate	-	mutating
 analytics agents list	-	read-only
 analytics agents show	x	read-only
 analytics agents stats	-	read-only
@@ -54,6 +65,8 @@ cloud tenant edit	-	local-only
 cloud tenant list	-	local-only
 cloud tenant rotate-credentials	-	local-only
 cloud tenant show	-	local-only
+core artifacts list	-	mutating
+core artifacts show	x	mutating
 core content analytics campaign	x	mutating
 core content analytics clicks	x	mutating
 core content analytics journey	-	mutating
@@ -75,6 +88,13 @@ core content search	x	mutating
 core content show	x	mutating
 core content status	--source x	mutating
 core content verify	x	mutating
+core contexts create	-	mutating
+core contexts delete	x	mutating
+core contexts edit	x --name y	mutating
+core contexts list	-	mutating
+core contexts new	-	mutating
+core contexts show	x	mutating
+core contexts use	x	mutating
 core files ai count	-	mutating
 core files ai list	-	mutating
 core files ai show	x	mutating

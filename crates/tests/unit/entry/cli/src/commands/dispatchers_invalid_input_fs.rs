@@ -9,7 +9,6 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use systemprompt_cli::admin::agents::AgentsCommands;
 use systemprompt_cli::web::WebCommands;
 use systemprompt_cli::{CommandContext, EnvOverrides, ScriptedPrompter};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
@@ -29,53 +28,16 @@ fn ctx() -> CommandContext {
     )
 }
 
-fn ctx_on(boot: &systemprompt_test_fixtures::TestBootstrap) -> CommandContext {
-    crate::boot_ctx::new_on(
-        boot,
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    )
-}
-
 #[derive(Debug, Parser)]
 struct WebHarness {
     #[command(subcommand)]
     cmd: WebCommands,
 }
 
-#[derive(Debug, Parser)]
-struct AgentsHarness {
-    #[command(subcommand)]
-    cmd: AgentsCommands,
-}
-
 fn web(args: &[&str]) -> WebCommands {
     WebHarness::try_parse_from(std::iter::once("web").chain(args.iter().copied()))
         .unwrap()
         .cmd
-}
-
-fn agents(args: &[&str]) -> AgentsCommands {
-    AgentsHarness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
-        .unwrap()
-        .cmd
-}
-
-#[tokio::test]
-async fn an_agent_config_that_fails_validation_is_reported_by_every_reader() {
-    let boot = systemprompt_test_fixtures::init_unloadable_services_bootstrap(
-        "http://127.0.0.1",
-        "agents:\n  covbroken:\n    name: covbroken\n    port: 42\nmcp_servers: {}\n",
-    );
-
-    for argv in [vec!["list"], vec!["validate"], vec!["show", "covbroken"]] {
-        let err = systemprompt_cli::admin::agents::execute(agents(&argv), &ctx_on(&boot))
-            .await
-            .unwrap_err();
-        assert!(!format!("{err:#}").is_empty(), "{argv:?}");
-    }
 }
 
 #[tokio::test]

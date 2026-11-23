@@ -94,7 +94,7 @@ pub fn gateway_repositories(
     let repos = systemprompt_gateway::GatewayRepositories::new(
         ctx.db_pool(),
         journal,
-        ctx.context_materializer(),
+        Arc::new(crate::repository::context_provider(ctx.db_pool())),
         systemprompt_gateway::GatewayHandles {
             background: ctx.background_tasks().clone(),
             cache_epochs: ctx.cache_epochs().clone(),

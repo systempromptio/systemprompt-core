@@ -53,6 +53,8 @@ pub struct GoogleSearchParams<'a> {
 pub trait AiProvider: Send + Sync {
     fn default_provider(&self) -> &str;
 
+    async fn drain_pending_writes(&self) {}
+
     fn default_model(&self) -> &str;
 
     fn default_max_output_tokens(&self) -> u32;

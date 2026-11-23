@@ -5,7 +5,7 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::{Extension, Router};
 use systemprompt_api::routes::proxy::mcp;
-use systemprompt_api::routes::{artifacts_router, contexts_router, tasks_router, webhook_router};
+use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId,
@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use super::engine::{Fixture, get, sweep};
 use super::table::Family;
-use crate::common::setup_ctx;
+use crate::common::setup_agent_ctx;
 
 struct Seeded {
     ctx: Arc<AppContext>,
@@ -49,7 +49,7 @@ async fn seed_user(pool: &DbPool, label: &str) -> Result<UserId> {
 }
 
 async fn seed() -> Result<Seeded> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let owner = seed_user(&pool, "sweep-agent-owner").await?;
     let stranger = seed_user(&pool, "sweep-agent-stranger").await?;
     let session = SessionId::generate();
@@ -160,19 +160,19 @@ impl Fixture for Scoped<'_> {
 }
 
 fn contexts(ctx: &AppContext) -> Router {
-    contexts_router().with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, contexts_routes())
 }
 
 fn tasks(ctx: &AppContext) -> Router {
-    tasks_router().with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, tasks_routes())
 }
 
 fn artifacts(ctx: &AppContext) -> Router {
-    artifacts_router().with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, artifacts_routes())
 }
 
 fn webhooks(ctx: &AppContext) -> Router {
-    webhook_router().with_state(ctx.clone())
+    crate::common::webhook_app(&ctx)
 }
 
 fn executions(ctx: &AppContext) -> Router {

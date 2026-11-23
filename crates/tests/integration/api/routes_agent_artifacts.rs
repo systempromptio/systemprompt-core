@@ -1,4 +1,4 @@
-//! Agent artifact retrieval routes through `artifacts_router`.
+//! Agent artifact retrieval routes through the `agent-http` artifacts route set.
 //!
 //! Drives `list_artifacts_by_user`, `get_artifact`, and `get_artifact_ui`
 //! against a real DB with an injected `RequestContext` (the full router injects
@@ -8,23 +8,22 @@
 //! ownership-validation and not-found branches.
 
 use axum::Extension;
-use systemprompt_api::routes::artifacts_router;
+use systemprompt_agent_entry::http::artifacts_routes;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{empty_get, request_context, setup_ctx};
+use super::common::{empty_get, request_context, setup_agent_ctx};
 
 fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
-    artifacts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, artifacts_routes())
         .layer(Extension(request_context(user)))
 }
 
 #[tokio::test]
 async fn list_artifacts_by_user_returns_array() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let user = UserId::new(format!("art-{}", Uuid::new_v4()));
     let resp = app_for(&ctx, user.as_str()).oneshot(empty_get("/")).await?;
     assert!(resp.status().is_success(), "{}", resp.status());
@@ -33,7 +32,7 @@ async fn list_artifacts_by_user_returns_array() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn list_artifacts_by_user_accepts_limit() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let user = UserId::new(format!("art-{}", Uuid::new_v4()));
     let resp = app_for(&ctx, user.as_str())
         .oneshot(empty_get("/?limit=10"))
@@ -44,7 +43,7 @@ async fn list_artifacts_by_user_accepts_limit() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_unknown_artifact_returns_4xx() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let user = UserId::new(format!("art-{}", Uuid::new_v4()));
     let resp = app_for(&ctx, user.as_str())
         .oneshot(empty_get("/artifact_does_not_exist"))
@@ -55,7 +54,7 @@ async fn get_unknown_artifact_returns_4xx() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn get_unknown_artifact_ui_returns_4xx() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let user = UserId::new(format!("art-{}", Uuid::new_v4()));
     let resp = app_for(&ctx, user.as_str())
         .oneshot(empty_get("/artifact_does_not_exist/ui"))
@@ -73,7 +72,7 @@ mod owned {
     use axum::body::to_bytes;
     use axum::extract::{Path, State};
     use axum::response::IntoResponse;
-    use systemprompt_api::routes::agent::artifacts::{
+    use systemprompt_agent_entry::http::artifacts::{
         list_artifacts_by_context, list_artifacts_by_task,
     };
     use systemprompt_database::DbPool;
@@ -84,7 +83,7 @@ mod owned {
     use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
     use uuid::Uuid;
 
-    use crate::common::setup_ctx;
+    use crate::common::setup_agent_ctx;
 
     fn ctx_for(user: &UserId) -> RequestContext {
         RequestContext::new(
@@ -121,13 +120,13 @@ mod owned {
 
     #[tokio::test]
     async fn an_owner_lists_the_artifacts_of_their_own_context() -> Result<()> {
-        let (db, ctx) = setup_ctx().await?;
+        let (db, ctx) = setup_agent_ctx().await?;
         let user = seed_user(&db).await?;
         let context = seed_context(&db, &user).await?;
 
         let response = list_artifacts_by_context(
             Extension(ctx_for(&user)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(context.as_str().to_owned()),
         )
         .await
@@ -147,14 +146,14 @@ mod owned {
 
     #[tokio::test]
     async fn a_stranger_cannot_list_another_users_context() -> Result<()> {
-        let (db, ctx) = setup_ctx().await?;
+        let (db, ctx) = setup_agent_ctx().await?;
         let owner = seed_user(&db).await?;
         let stranger = seed_user(&db).await?;
         let context = seed_context(&db, &owner).await?;
 
         let result = list_artifacts_by_context(
             Extension(ctx_for(&stranger)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(context.as_str().to_owned()),
         )
         .await;
@@ -168,12 +167,12 @@ mod owned {
 
     #[tokio::test]
     async fn an_unknown_context_is_refused_rather_than_listed_empty() -> Result<()> {
-        let (db, ctx) = setup_ctx().await?;
+        let (db, ctx) = setup_agent_ctx().await?;
         let user = seed_user(&db).await?;
 
         let result = list_artifacts_by_context(
             Extension(ctx_for(&user)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(ContextId::generate().as_str().to_owned()),
         )
         .await;
@@ -187,12 +186,12 @@ mod owned {
 
     #[tokio::test]
     async fn an_unknown_task_is_refused() -> Result<()> {
-        let (db, ctx) = setup_ctx().await?;
+        let (db, ctx) = setup_agent_ctx().await?;
         let user = seed_user(&db).await?;
 
         let result = list_artifacts_by_task(
             Extension(ctx_for(&user)),
-            State((*ctx).clone()),
+            State(crate::common::agent_http_state(&ctx)),
             Path(TaskId::generate().as_str().to_owned()),
         )
         .await;

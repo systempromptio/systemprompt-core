@@ -1,5 +1,5 @@
 //! The Wave H seams keep their seal: the API's agent dispatch cell and the
-//! supervised process sets are sealed (kernel code and core slot builds read
+//! supervised process sets and the agent server are sealed (kernel code and core slot builds read
 //! them, no member command resolver or runtime context does), while the
 //! conversation-context seams the agent member provides are open.
 
@@ -14,7 +14,7 @@ use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
-    AppContext as AppContextTrait, BackgroundTasks, DynContextDirectory, DynServiceProcessSet,
+    AppContext as AppContextTrait, BackgroundTasks, DynAgentServer, DynContextDirectory, DynServiceProcessSet,
     DynSessionContextIssuer, RestartMode, ServiceProcessError, ServiceProcessKind,
     ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
 };
@@ -47,6 +47,24 @@ async fn the_agent_dispatch_cell_is_sealed_from_member_code() {
     assert!(
         kernel.runtime_state().find::<AgentDispatchCell>().is_none(),
         "no job, runner or plane context reads it"
+    );
+}
+
+#[tokio::test]
+async fn the_agent_server_is_sealed_from_member_code() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    assert!(state.is_sealed::<DynAgentServer>());
+    assert!(
+        state.find::<DynAgentServer>().is_some(),
+        "kernel code reads it"
+    );
+    let kernel = command_kernel(&ctx);
+    let member = Resolved::__member_command(&kernel, kernel.state());
+    assert!(member.optional::<DynAgentServer>().is_none());
+    assert!(
+        kernel.runtime_state().find::<DynAgentServer>().is_none(),
+        "no job, runner or route context reads it"
     );
 }
 

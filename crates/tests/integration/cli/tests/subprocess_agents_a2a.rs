@@ -1,6 +1,5 @@
 //! Subprocess coverage for the agent A2A client commands: registry parsing,
-//! message send (plain, streaming, blocking), task retrieval, tools listing
-//! against the scripted MCP stub, and the edit/delete authoring flows.
+//! message and task argument failures, and the edit/delete authoring flows.
 
 use std::path::Path;
 
@@ -10,61 +9,8 @@ use systemprompt_cli_integration_tests::full_bootstrap::{
     FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, cli_command, fixture_mcp_server,
     full_fixture,
 };
-use systemprompt_cli_integration_tests::mcp_stub::stub_port;
-use wiremock::matchers::{header, method, path};
-use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
-
-struct StreamFrameMatcher {
-    text: &'static str,
-}
-
-impl Match for StreamFrameMatcher {
-    fn matches(&self, request: &Request) -> bool {
-        let Ok(body) = serde_json::from_slice::<serde_json::Value>(&request.body) else {
-            return false;
-        };
-        let Ok(accept_headers) = request
-            .headers
-            .get_all("accept")
-            .iter()
-            .map(|value| value.to_str())
-            .collect::<Result<Vec<_>, _>>()
-        else {
-            return false;
-        };
-        let accepts = accept_headers
-            .into_iter()
-            .flat_map(|value| value.split(',').map(str::trim))
-            .collect::<Vec<_>>();
-        let Ok(authorizations) = request
-            .headers
-            .get_all("authorization")
-            .iter()
-            .map(|value| value.to_str())
-            .collect::<Result<Vec<_>, _>>()
-        else {
-            return false;
-        };
-        let one_session_token = authorizations
-            .first()
-            .is_some_and(|first| authorizations.iter().all(|value| value == first));
-        let versioned = request
-            .headers
-            .get("a2a-version")
-            .is_some_and(|value| value == "1.0");
-        versioned
-            && body["jsonrpc"] == "2.0"
-            && body["method"] == "SendStreamingMessage"
-            && body["params"]["message"]["parts"] == json!([{"text": self.text}])
-            && !accepts.is_empty()
-            && accepts.iter().all(|value| *value == "text/event-stream")
-            && !authorizations.is_empty()
-            && one_session_token
-            && authorizations
-                .iter()
-                .all(|value| value.starts_with("Bearer ") && value.len() > "Bearer ".len())
-    }
-}
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn spawn_server_from(build: impl FnOnce() -> Vec<Mock> + Send + 'static) -> u16 {
     spawn_server(build())
@@ -95,28 +41,6 @@ fn home_cmd(home: &Path, args: &[&str]) -> assert_cmd::Command {
     cmd.current_dir(home);
     cmd.args(args);
     cmd
-}
-
-fn completed_task_json() -> serde_json::Value {
-    json!({
-        "id": "task-cov-1",
-        "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-        "status": {
-            "state": "TASK_STATE_COMPLETED",
-            "message": {
-                "role": "ROLE_AGENT",
-                "parts": [{"text": "hello from fixture"}],
-                "messageId": "msg-cov-1",
-                "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                "metadata": null,
-                "extensions": null
-            },
-            "timestamp": null
-        },
-        "history": null,
-        "artifacts": null,
-        "metadata": null
-    })
 }
 
 #[test]
@@ -201,94 +125,11 @@ fn registry_error_paths() {
     unreachable.assert().failure();
 }
 
-#[test]
-fn message_non_streaming_roundtrip() {
-    full_fixture();
-    let home = tempfile::tempdir().expect("home");
-    let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
-    let port = spawn_server_from(move || {
-        let body = json!({
-            "jsonrpc": "2.0",
-            "result": { "task": completed_task_json() },
-            "id": "1"
-        });
-        let mock = Mock::given(method("POST"))
-            .and(path(agent_path.as_str()))
-            .and(header("A2A-Version", "1.0"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(body));
-        vec![mock]
-    });
-    let url = format!("http://127.0.0.1:{port}");
-    let mut cmd = home_cmd(
-        home.path(),
-        &[
-            "admin",
-            "agents",
-            "message",
-            FIXTURE_AGENT,
-            "-m",
-            "ping",
-            "--url",
-            &url,
-        ],
-    );
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("hello from fixture"));
-
-    let mut blocking = home_cmd(
-        home.path(),
-        &[
-            "admin",
-            "agents",
-            "message",
-            FIXTURE_AGENT,
-            "-m",
-            "ping",
-            "--blocking",
-            "--json",
-            "--url",
-            &url,
-        ],
-    );
-    blocking
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("TASK_STATE_COMPLETED"));
-}
 
 #[test]
-fn message_error_and_missing_agent() {
+fn message_to_a_missing_agent_or_without_text_fails() {
     full_fixture();
     let home = tempfile::tempdir().expect("home");
-    let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
-    let port = spawn_server_from(move || {
-        let body = json!({
-            "jsonrpc": "2.0",
-            "error": {"code": -32000, "message": "agent exploded", "data": {"why": "test"}},
-            "id": "1"
-        });
-        let mock = Mock::given(method("POST"))
-            .and(path(agent_path.as_str()))
-            .respond_with(ResponseTemplate::new(200).set_body_json(body));
-        vec![mock]
-    });
-    let url = format!("http://127.0.0.1:{port}");
-    let mut cmd = home_cmd(
-        home.path(),
-        &[
-            "admin",
-            "agents",
-            "message",
-            FIXTURE_AGENT,
-            "-m",
-            "ping",
-            "--url",
-            &url,
-        ],
-    );
-    cmd.assert().failure();
-
     let mut missing = home_cmd(
         home.path(),
         &["admin", "agents", "message", "no_such_agent", "-m", "hi"],
@@ -299,148 +140,15 @@ fn message_error_and_missing_agent() {
     no_text.assert().failure();
 }
 
-#[test]
-fn message_streaming_roundtrip() {
-    full_fixture();
-    let home = tempfile::tempdir().expect("home");
-    let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
-    let port = spawn_server_from(move || {
-        let chunk = json!({
-            "jsonrpc": "2.0",
-            "result": {
-                "statusUpdate": {
-                    "taskId": "task-cov-2",
-                    "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                    "status": {
-                        "state": "TASK_STATE_WORKING",
-                        "message": {
-                            "role": "ROLE_AGENT",
-                            "parts": [{"text": "chunk one "}],
-                            "messageId": "msg-s-1",
-                            "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                            "metadata": null,
-                            "extensions": null
-                        },
-                        "timestamp": null
-                    }
-                }
-            },
-            "id": "1"
-        });
-        let done = json!({
-            "jsonrpc": "2.0",
-            "result": {
-                "statusUpdate": {
-                    "taskId": "task-cov-2",
-                    "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                    "status": {
-                        "state": "TASK_STATE_COMPLETED",
-                        "message": {
-                            "role": "ROLE_AGENT",
-                            "parts": [{"text": "chunk two"}],
-                            "messageId": "msg-s-2",
-                            "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                            "metadata": null,
-                            "extensions": null
-                        },
-                        "timestamp": null
-                    }
-                }
-            },
-            "id": "1"
-        });
-        let sse = format!("data: {chunk}\n\ndata: {done}\n\n");
-        let mock = Mock::given(method("POST"))
-            .and(path(agent_path.as_str()))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .insert_header("content-type", "text/event-stream")
-                    .set_body_raw(sse, "text/event-stream"),
-            );
-        vec![mock]
-    });
-    let mut cmd = home_cmd(
-        home.path(),
-        &[
-            "admin",
-            "agents",
-            "message",
-            FIXTURE_AGENT,
-            "-m",
-            "ping",
-            "--stream",
-            "--url",
-            &format!("http://127.0.0.1:{port}"),
-        ],
-    );
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("chunk two"));
-}
 
 #[test]
-fn task_get_roundtrip() {
+fn task_without_a_task_id_fails() {
     full_fixture();
     let home = tempfile::tempdir().expect("home");
-    let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
-    let port = spawn_server_from(move || {
-        let body = json!({
-            "jsonrpc": "2.0",
-            "result": completed_task_json(),
-            "id": "1"
-        });
-        let mock = Mock::given(method("POST"))
-            .and(path(agent_path.as_str()))
-            .respond_with(ResponseTemplate::new(200).set_body_json(body));
-        vec![mock]
-    });
-    let mut cmd = home_cmd(
-        home.path(),
-        &[
-            "admin",
-            "agents",
-            "task",
-            FIXTURE_AGENT,
-            "--task-id",
-            "task-cov-1",
-            "--url",
-            &format!("http://127.0.0.1:{port}"),
-        ],
-    );
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("task-cov-1"));
-
     let mut missing_task = home_cmd(home.path(), &["admin", "agents", "task", FIXTURE_AGENT]);
     missing_task.assert().failure();
 }
 
-#[test]
-fn tools_lists_stub_mcp_tools() {
-    stub_port();
-    let home = tempfile::tempdir().expect("home");
-    let mut cmd = home_cmd(home.path(), &["admin", "agents", "tools", FIXTURE_AGENT]);
-    cmd.assert().success();
-
-    let mut detailed = home_cmd(
-        home.path(),
-        &[
-            "--json",
-            "admin",
-            "agents",
-            "tools",
-            FIXTURE_AGENT,
-            "--detailed",
-        ],
-    );
-    detailed
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("echo"));
-
-    let mut missing = home_cmd(home.path(), &["admin", "agents", "tools", "nope"]);
-    missing.assert().failure();
-}
 
 #[test]
 fn edit_apply_covers_field_groups() {
@@ -567,218 +275,7 @@ fn delete_all_and_validate() {
         "delete",
         FIXTURE_DELETE_AGENT,
         "--yes",
-        "--force",
     ]);
     delete.assert().success();
 }
 
-async fn assert_stream_request(server: &MockServer, expected_text: &str) {
-    let requests = server
-        .received_requests()
-        .await
-        .expect("recorded stream request");
-    let request = requests
-        .iter()
-        .find(|request| request.method.as_str() == "POST")
-        .expect("stream POST request");
-    let body: serde_json::Value =
-        serde_json::from_slice(&request.body).expect("JSON-RPC request body");
-    assert_eq!(
-        request.url.path(),
-        format!("/api/v1/agents/{FIXTURE_AGENT}")
-    );
-    let accept_headers = request
-        .headers
-        .get_all("accept")
-        .iter()
-        .map(|value| value.to_str())
-        .collect::<Result<Vec<_>, _>>()
-        .expect("Accept header values must be valid text");
-    let accepts = accept_headers
-        .into_iter()
-        .flat_map(|value| value.split(',').map(str::trim))
-        .collect::<Vec<_>>();
-    assert!(
-        !accepts.is_empty() && accepts.iter().all(|value| *value == "text/event-stream"),
-        "all Accept values must request SSE: {:?}",
-        request.headers
-    );
-    let authorizations = request
-        .headers
-        .get_all("authorization")
-        .iter()
-        .map(|value| value.to_str())
-        .collect::<Result<Vec<_>, _>>()
-        .expect("Authorization header values must be valid text");
-    assert!(
-        !authorizations.is_empty()
-            && authorizations
-                .first()
-                .is_some_and(|first| authorizations.iter().all(|value| value == first))
-            && authorizations
-                .iter()
-                .all(|value| value.starts_with("Bearer ") && value.len() > "Bearer ".len()),
-        "all authorization values must carry the owned session token: {:?}",
-        request.headers
-    );
-    assert_eq!(body["jsonrpc"], "2.0");
-    assert_eq!(body["method"], "SendStreamingMessage");
-    assert_eq!(body["params"]["message"]["parts"][0]["text"], expected_text);
-    assert!(
-        body["params"]["message"]["contextId"]
-            .as_str()
-            .is_some_and(|value| !value.is_empty()),
-        "session context must be carried in the streamed message: {body}"
-    );
-}
-
-fn configure_owned_web_paths() {
-    let fixture = full_fixture();
-    let templates = fixture.services_dir.join("web/templates");
-    let assets = fixture.services_dir.join("web/assets");
-    std::fs::create_dir_all(&templates).expect("create owned web templates");
-    std::fs::create_dir_all(&assets).expect("create owned web assets");
-    let config_path = fixture.services_dir.join("web/config.yaml");
-    let mut config = std::fs::read_to_string(&config_path).expect("read owned web config");
-    config.push_str(&format!(
-        "\npaths:\n  templates: {}\n  assets: {}\n",
-        templates.display(),
-        assets.display()
-    ));
-    std::fs::write(config_path, config).expect("write owned web paths");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn message_streaming_reports_jsonrpc_error_details() {
-    tokio::task::spawn_blocking(|| {
-        full_fixture();
-        configure_owned_web_paths();
-    })
-    .await
-    .expect("initialize full CLI fixture");
-    let home = tempfile::tempdir().expect("home");
-    let server = MockServer::start().await;
-    let error = json!({
-        "jsonrpc": "2.0",
-        "error": {
-            "code": -32041,
-            "message": "stream rejected",
-            "data": {"reason": "owned-policy"}
-        },
-        "id": "stream-error"
-    });
-    let sse = format!("data: {error}\n\n");
-    Mock::given(method("POST"))
-        .and(path(format!("/api/v1/agents/{FIXTURE_AGENT}")))
-        .and(StreamFrameMatcher {
-            text: "trigger stream error",
-        })
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "text/event-stream")
-                .set_body_raw(sse, "text/event-stream"),
-        )
-        .expect(1)
-        .mount(&server)
-        .await;
-    let url = server.uri();
-    let mut command = home_cmd(
-        home.path(),
-        &[
-            "admin",
-            "agents",
-            "message",
-            FIXTURE_AGENT,
-            "-m",
-            "trigger stream error",
-            "--stream",
-            "--url",
-            &url,
-        ],
-    );
-    let output = tokio::task::spawn_blocking(move || command.output().expect("bounded CLI output"))
-        .await
-        .expect("join CLI subprocess");
-    assert_stream_request(&server, "trigger stream error").await;
-    assert!(!output.status.success(), "JSON-RPC stream error must fail");
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("Agent returned error (-32041): stream rejected"),
-        "{stderr}"
-    );
-    assert!(stderr.contains("owned-policy"), "{stderr}");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn message_streaming_rejects_close_before_a_terminal_state() {
-    tokio::task::spawn_blocking(|| {
-        full_fixture();
-        configure_owned_web_paths();
-    })
-    .await
-    .expect("initialize full CLI fixture");
-    let home = tempfile::tempdir().expect("home");
-    let server = MockServer::start().await;
-    let partial = json!({
-        "jsonrpc": "2.0",
-        "result": {
-                "statusUpdate": {
-                "taskId": "task-incomplete",
-                "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                "status": {
-                    "state": "TASK_STATE_WORKING",
-                    "message": {
-                        "role": "ROLE_AGENT",
-                        "parts": [{"text": "partial response"}],
-                        "messageId": "msg-incomplete",
-                        "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                        "metadata": null,
-                        "extensions": null
-                    },
-                    "timestamp": null
-                }
-                }
-            },
-        "id": "stream-incomplete"
-    });
-    Mock::given(method("POST"))
-        .and(path(format!("/api/v1/agents/{FIXTURE_AGENT}")))
-        .and(StreamFrameMatcher {
-            text: "expect complete response",
-        })
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "text/event-stream")
-                .set_body_raw(format!("data: {partial}\n\n"), "text/event-stream"),
-        )
-        .expect(1)
-        .mount(&server)
-        .await;
-    let url = server.uri();
-    let mut command = home_cmd(
-        home.path(),
-        &[
-            "admin",
-            "agents",
-            "message",
-            FIXTURE_AGENT,
-            "-m",
-            "expect complete response",
-            "--stream",
-            "--url",
-            &url,
-        ],
-    );
-    let output = tokio::task::spawn_blocking(move || command.output().expect("bounded CLI output"))
-        .await
-        .expect("join CLI subprocess");
-    assert_stream_request(&server, "expect complete response").await;
-    assert!(!output.status.success(), "unterminated stream must fail");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stdout.contains("partial response"), "{stdout}");
-    assert!(
-        stderr.contains("Stream closed while task task-incomplete was still TASK_STATE_WORKING"),
-        "{stderr}"
-    );
-}

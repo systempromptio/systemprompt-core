@@ -87,7 +87,7 @@ async fn api_node_refuses_the_gateway_and_serves_api_surfaces() -> anyhow::Resul
 
     assert!(!is_mounted(&app, "/v1/models").await?);
     assert_eq!(
-        get(&app, "/api/v1/core/contexts").await?.0,
+        get(&app, "/api/v1/agents/role-probe").await?.0,
         StatusCode::UNAUTHORIZED
     );
     assert_eq!(get(&app, "/livez").await?.0, StatusCode::OK);

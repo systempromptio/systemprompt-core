@@ -8,8 +8,8 @@
 //! `NotStarted` with no row and the row's own status once one exists.
 
 use axum::Extension;
-use systemprompt_api::routes::agent::registry::create_mcp_extensions_from_config;
-use systemprompt_api::routes::registry_router;
+use systemprompt_agent_entry::http::registry::create_mcp_extensions_from_config;
+use systemprompt_agent_entry::http::registry_routes;
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{
     ensure_messaging_bootstrap, seed_running_service, test_app_context_on, test_db_pool,
@@ -28,7 +28,7 @@ async fn setup() -> anyhow::Result<(DbPool, std::sync::Arc<systemprompt_runtime:
 
 async fn list_cards() -> anyhow::Result<serde_json::Value> {
     let (_pool, ctx) = setup().await?;
-    let app = registry_router(&ctx).layer(Extension(request_context("registry_reader")));
+    let app = crate::common::mounted_set(&ctx, registry_routes()).layer(Extension(request_context("registry_reader")));
     let resp = app.oneshot(empty_get("/")).await?;
     let (status, body) = body_to_string(resp).await?;
     assert_eq!(status.as_u16(), 200, "{body}");
@@ -65,7 +65,7 @@ async fn a_card_reports_the_status_of_the_agents_service_row() -> anyhow::Result
     let (_pool, ctx) = setup().await?;
     seed_running_service(&ctx, agent, "agent", 9250).await?;
 
-    let app = registry_router(&ctx).layer(Extension(request_context("registry_reader")));
+    let app = crate::common::mounted_set(&ctx, registry_routes()).layer(Extension(request_context("registry_reader")));
     let resp = app.oneshot(empty_get("/")).await?;
     let (status, body) = body_to_string(resp).await?;
     assert_eq!(status.as_u16(), 200, "{body}");
@@ -194,7 +194,7 @@ async fn multi_agent_registry_sorts_default_first_and_retains_runtime_and_mcp_me
     );
     let ctx = test_app_context_on(&boot).await;
     seed_running_service(&ctx, "a_secondary", "agent", 9322).await?;
-    let app = registry_router(&ctx).layer(Extension(request_context("registry_order")));
+    let app = crate::common::mounted_set(&ctx, registry_routes()).layer(Extension(request_context("registry_order")));
     let response = app.oneshot(empty_get("/")).await?;
     let (status, body) = body_to_string(response).await?;
     assert_eq!(status.as_u16(), 200, "{body}");
@@ -232,7 +232,7 @@ async fn registry_preserves_configured_cards_with_unknown_status_when_database_i
     ctx.db_pool().pool().close().await;
     ctx.db_pool().write_pool().close().await;
 
-    let app = registry_router(&ctx).layer(Extension(request_context("registry_db_fault")));
+    let app = crate::common::mounted_set(&ctx, registry_routes()).layer(Extension(request_context("registry_db_fault")));
     let response = app.oneshot(empty_get("/")).await?;
     let (status, body) = body_to_string(response).await?;
     assert_eq!(status.as_u16(), 200, "{body}");

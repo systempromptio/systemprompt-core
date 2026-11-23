@@ -28,6 +28,26 @@ pub struct CardSite<'a> {
     pub skills_dir: &'a Path,
 }
 
+/// The public URL and skills directory agent cards are published with.
+///
+/// The agent member provides it open, narrowed from the configuration, so
+/// agent-card readers never hold the configuration itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AgentCardSite {
+    pub api_external_url: String,
+    pub skills_dir: std::path::PathBuf,
+}
+
+impl AgentCardSite {
+    #[must_use]
+    pub fn card_site(&self) -> CardSite<'_> {
+        CardSite {
+            api_external_url: &self.api_external_url,
+            skills_dir: &self.skills_dir,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct AgentRegistry {
     config: Arc<ServicesConfig>,

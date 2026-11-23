@@ -39,19 +39,19 @@ fn only_servers_and_child_hosts_own_their_signals() {
 }
 
 #[test]
-fn admin_agents_run_is_a_child_host() {
+fn admin_agent_host_run_is_a_child_host() {
     let matches = Cli::command()
         .try_get_matches_from([
             "systemprompt",
             "admin",
-            "agents",
+            "agent-host",
             "run",
             "--agent-name",
             "child",
             "--port",
             "9000",
         ])
-        .expect("admin agents run parses");
+        .expect("admin agent-host run parses");
     let cli = Cli::from_arg_matches(&matches).expect("cli");
     let desc = cli.command.expect("a command").descriptor();
     assert_child_host(desc);

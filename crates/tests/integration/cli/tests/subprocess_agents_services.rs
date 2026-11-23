@@ -34,11 +34,6 @@ fn agents_validate_all() {
 }
 
 #[test]
-fn agents_tools_fixture() {
-    run_with_formats(&["admin", "agents", "tools", "covagent"]);
-}
-
-#[test]
 fn agents_logs_fixture() {
     run(&["admin", "agents", "logs", "covagent"]);
     run(&["admin", "agents", "logs", "covagent", "--lines", "5"]);
@@ -107,15 +102,8 @@ fn agents_create_invalid_port() {
 }
 
 #[test]
-fn agents_delete_missing_with_force() {
-    run(&[
-        "admin",
-        "agents",
-        "delete",
-        "no_such_agent",
-        "--yes",
-        "--force",
-    ]);
+fn agents_delete_missing() {
+    run(&["admin", "agents", "delete", "no_such_agent", "--yes"]);
 }
 
 #[test]

@@ -35,6 +35,23 @@ pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     Ok((pool, ctx))
 }
 
+pub async fn agent_app_context(database_url: &str) -> Arc<AppContext> {
+    ensure_test_bootstrap();
+    systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        fixture_config(database_url),
+        reference_admitted(&[]).expect("the reference composition admits"),
+    )
+    .await
+    .expect("app context with the agent-http member admitted")
+}
+
+pub async fn setup_agent_ctx() -> Result<(DbPool, Arc<AppContext>)> {
+    let b = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = agent_app_context(&b.database_url).await;
+    Ok((pool, ctx))
+}
+
 pub async fn setup_drive_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
@@ -151,4 +168,25 @@ pub fn assert_forwarded_with_execution_stamp(forwarded: &[u8], upstream_body: &s
         .expect("result object")
         .remove("_meta");
     assert_eq!(forwarded, upstream);
+}
+
+pub fn mounted_set(ctx: &AppContext, set: systemprompt_extension::router::RouteSet) -> axum::Router {
+    set.materialize(&ctx.kernel().resolved())
+        .expect("the admitted kernel holds the route set's state")
+        .into_iter()
+        .fold(axum::Router::new(), axum::Router::merge)
+}
+
+pub fn webhook_app(ctx: &AppContext) -> axum::Router {
+    systemprompt_api::routes::webhook::router(
+        systemprompt_api::routes::webhook::WebhookState::from_context(ctx)
+            .expect("the admitted kernel holds the webhook state"),
+    )
+}
+
+pub fn agent_http_state(ctx: &AppContext) -> systemprompt_agent_entry::http::AgentHttpState {
+    <systemprompt_agent_entry::http::AgentHttpState as systemprompt_extension::FromState>::from_state(
+        &ctx.kernel().resolved(),
+    )
+    .expect("the admitted kernel holds the agent route state")
 }

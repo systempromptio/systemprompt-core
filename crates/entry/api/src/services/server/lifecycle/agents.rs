@@ -16,6 +16,7 @@ use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWeb
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::repository::{A2ARepositories, A2aDependencies};
 use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_manifest::AgentConfig;
@@ -79,7 +80,19 @@ pub(super) async fn build_orchestrator(
             jwt_provider,
             verification_keys: ctx.signing_keys().keyring().clone(),
         },
-        Arc::clone(ctx.a2a_repositories()),
+        Arc::new(A2ARepositories::new(
+            ctx.db_pool(),
+            A2aDependencies {
+                session_usage: crate::repository::session_usage(ctx.db_pool()),
+                instance_id: ctx.config().instance_id.clone(),
+                managed_skills: Arc::clone(
+                    ctx.kernel()
+                        .state()
+                        .get::<systemprompt_traits::DynManagedSkillResolver>()?,
+                ),
+                tool_executions: crate::repository::tool_usage(ctx.db_pool()),
+            },
+        )),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
         ctx.services_state().view(),
     ));

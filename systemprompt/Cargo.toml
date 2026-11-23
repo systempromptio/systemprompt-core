@@ -293,6 +293,3 @@ required-features = ["api"]
 [[example]]
 name = "cli"
 required-features = ["full"]
-
-[package.metadata.cargo-machete]
-ignored = ["systemprompt-agent-entry"]

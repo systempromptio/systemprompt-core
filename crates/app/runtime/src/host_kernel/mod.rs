@@ -27,7 +27,6 @@ mod boot;
 
 use std::sync::Arc;
 
-use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, GrantedSecretsError, LoadedProfile};
 use systemprompt_database::DbPool;
@@ -116,7 +115,6 @@ pub struct HostParts {
     pub kernel: Arc<Kernel>,
     pub admitted: Arc<Admitted>,
     pub system_owner: UserId,
-    pub a2a: Arc<A2ARepositories>,
 }
 
 impl std::fmt::Debug for HostParts {

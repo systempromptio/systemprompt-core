@@ -1,4 +1,4 @@
-//! `POST /{id}/events` forwarding through `contexts_router`.
+//! `POST /{id}/events` forwarding through the `agent-http` contexts route set.
 //!
 //! Seeds a user-owned context and drives all three `ContextEvent` arms
 //! (AG-UI, A2A, System) past ownership validation into the event router, which
@@ -6,7 +6,7 @@
 //! context arms drive the ownership-404 branch.
 
 use axum::Extension;
-use systemprompt_api::routes::contexts_router;
+use systemprompt_agent_entry::http::contexts_routes;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::a2a::TaskState;
@@ -16,7 +16,7 @@ use systemprompt_models::{
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, unique_user_id};
 use tower::ServiceExt;
 
-use super::common::{json_post, setup_ctx};
+use super::common::{json_post, setup_agent_ctx};
 
 async fn seed_context(pool: &DbPool) -> anyhow::Result<(UserId, ContextId)> {
     let user_id = unique_user_id("evt");
@@ -50,14 +50,13 @@ fn request_context_for(user: &UserId) -> RequestContext {
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
-    contexts_router()
-        .with_state(ctx.clone())
+    crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context_for(user)))
 }
 
 #[tokio::test]
 async fn forward_agui_event_succeeds() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let event = ContextEvent::AgUi(AgUiEventBuilder::run_started(
@@ -75,7 +74,7 @@ async fn forward_agui_event_succeeds() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_a2a_event_succeeds() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let event = ContextEvent::A2A(Box::new(A2AEventBuilder::task_status_update(
@@ -94,7 +93,7 @@ async fn forward_a2a_event_succeeds() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_system_event_succeeds() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (user_id, context_id) = seed_context(&pool).await?;
 
     let event = ContextEvent::System(SystemEventBuilder::heartbeat());
@@ -108,7 +107,7 @@ async fn forward_system_event_succeeds() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_event_foreign_user_returns_404() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_agent_ctx().await?;
     let (_owner, context_id) = seed_context(&pool).await?;
     let intruder = unique_user_id("evt-intruder");
 
@@ -123,7 +122,7 @@ async fn forward_event_foreign_user_returns_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn forward_event_unknown_context_returns_404() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_agent_ctx().await?;
     let user_id = unique_user_id("evt-nobody");
     let missing = ContextId::generate();
 

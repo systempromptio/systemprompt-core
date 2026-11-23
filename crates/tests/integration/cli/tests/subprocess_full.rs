@@ -97,10 +97,6 @@ fn admin_agents_listing_and_lookups() {
         &["admin", "agents", "logs", "no-such-agent"],
         "Failed to get agent logs",
     );
-    fails_with(
-        &["admin", "agents", "tools", "no-such-agent"],
-        "Failed to list agent tools",
-    );
 }
 
 #[test]

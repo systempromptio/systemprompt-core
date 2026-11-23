@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
 use systemprompt_mcp::repository::McpSessionRepository;
@@ -16,10 +15,6 @@ use systemprompt_users::UserRepository;
 use super::AppContext;
 
 impl AppContext {
-    pub const fn a2a_repositories(&self) -> &Arc<A2ARepositories> {
-        &self.data.a2a_repositories
-    }
-
     pub const fn content_repositories(&self) -> &Arc<ContentRepositories> {
         &self.data.content_repositories
     }

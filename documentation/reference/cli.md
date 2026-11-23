@@ -136,7 +136,7 @@ systemprompt infra logs traces
 | Subcommand | Notable commands | Purpose |
 |------------|------------------|---------|
 | `admin users` | `list`, `show`, `search`, `create`, `update`, `delete`, `count`, `export`, `stats`, `merge`, `roles`, `sessions`, `bans`, `webauthn` | User management and IP banning. |
-| `admin agents` | `list`, `show`, `validate`, `create`, `edit`, `delete`, `status`, `logs`, `running`, `send`, `task`, `tools`, `run` | Agent management and A2A interaction. |
+| `admin agents` | `list`, `show`, `validate`, `create`, `edit`, `delete`, `status`, `logs`, `registry`, `message`, `task` | Agent management and A2A interaction. `delete` refuses a running agent; stop it with `infra services stop agent <name>`. |
 | `admin config` | — | Configuration management, rate limits, and declared config planes (`planes list`, `diff`, `export`, `apply`, see [config planes](../concepts/config-authority.md)). |
 | `admin setup` | — | Interactive setup wizard for local development. |
 | `admin bootstrap` | — | Idempotently ensure the platform admin user exists. |

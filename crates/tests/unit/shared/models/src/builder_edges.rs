@@ -365,7 +365,7 @@ fn cli_paths_name_the_operator_commands() {
     use systemprompt_models::CliPaths;
 
     assert_eq!(CliPaths::db_migrate_cmd(), "infra db migrate");
-    assert_eq!(CliPaths::agent_run_cmd_pattern(), "admin agents run");
+    assert_eq!(CliPaths::agent_run_args().join(" "), "admin agent-host run");
 }
 
 #[test]

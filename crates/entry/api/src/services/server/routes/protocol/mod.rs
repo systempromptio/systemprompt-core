@@ -1,7 +1,7 @@
 //! Protocol-surface route mounting.
 //!
-//! Mounts the agent (A2A), MCP, stream, and content/admin route
-//! groups onto the server router. Each group is an [`KernelRoutes`]
+//! Mounts the kernel's agent (the A2A proxy and the webhook broadcasts), MCP,
+//! stream, and content/admin route groups onto the server router. Each group is an [`KernelRoutes`]
 //! declaration — base path, `AuthzPolicy`, context kind, rate limit, body
 //! limit — mounted through the one declaration mount in
 //! `services::middleware::mount`. [`MountCtx`] carries the enforcement
@@ -69,60 +69,14 @@ pub(super) fn mount_agent(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
     router = mount.mount(
         router,
         declare(
-            crate::routes::agent::contexts_router().with_state(ctx.clone()),
-            ApiPaths::CORE_CONTEXTS,
-            AuthzPolicy::user(),
-            ContextKind::User,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("contexts", RateBudget::Contexts)),
-    )?;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::agent::webhook_router().with_state(ctx.clone()),
+            crate::routes::webhook::router(crate::routes::webhook::WebhookState::from_context(
+                ctx,
+            )?),
             ApiPaths::WEBHOOK,
             AuthzPolicy::authenticated(),
             ContextKind::User,
             group,
         ),
-    )?;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::agent::tasks_router().with_state(ctx.clone()),
-            ApiPaths::CORE_TASKS,
-            AuthzPolicy::user(),
-            ContextKind::User,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("tasks", RateBudget::Tasks)),
-    )?;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::agent::artifacts_router().with_state(ctx.clone()),
-            ApiPaths::CORE_ARTIFACTS,
-            AuthzPolicy::user(),
-            ContextKind::User,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("artifacts", RateBudget::Artifacts)),
-    )?;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::agent::registry_router(ctx),
-            ApiPaths::AGENTS_REGISTRY,
-            AuthzPolicy::public(),
-            ContextKind::Public,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("agent_registry", RateBudget::AgentRegistry)),
     )?;
 
     mount.mount(

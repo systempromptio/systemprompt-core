@@ -3,14 +3,15 @@
 //! modules that the per-feature suites do not touch.
 
 use axum::Extension;
+use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
 use systemprompt_api::routes;
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
 
-use super::common::{empty_delete, empty_get, json_post, request_context, setup_ctx};
+use super::common::{empty_delete, empty_get, json_post, request_context, setup_agent_ctx};
 
 async fn ctx() -> anyhow::Result<std::sync::Arc<AppContext>> {
-    Ok(setup_ctx().await?.1)
+    Ok(setup_agent_ctx().await?.1)
 }
 
 #[tokio::test]
@@ -83,10 +84,9 @@ async fn proxy_mcp_authz_server_well_known() -> anyhow::Result<()> {
 #[tokio::test]
 async fn contexts_router_smoke() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::contexts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, contexts_routes())
         .layer(Extension(request_context("u")));
-    // contexts_router parses ContextId via path; pass a real UUID v4.
+    // the contexts route set parses ContextId via path; pass a real UUID v4.
     let resp = app
         .oneshot(empty_get("/00000000-0000-4000-8000-000000000000"))
         .await?;
@@ -97,8 +97,7 @@ async fn contexts_router_smoke() -> anyhow::Result<()> {
 #[tokio::test]
 async fn artifacts_router_user_list() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::artifacts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, artifacts_routes())
         .layer(Extension(request_context("u_artifacts")));
     let resp = app.oneshot(empty_get("/")).await?;
     assert!(resp.status().as_u16() >= 200);
@@ -108,8 +107,7 @@ async fn artifacts_router_user_list() -> anyhow::Result<()> {
 #[tokio::test]
 async fn artifacts_router_get_missing() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::artifacts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, artifacts_routes())
         .layer(Extension(request_context("u_artifacts")));
     let resp = app.oneshot(empty_get("/art_missing")).await?;
     assert_eq!(resp.status().as_u16(), 404);
@@ -119,8 +117,7 @@ async fn artifacts_router_get_missing() -> anyhow::Result<()> {
 #[tokio::test]
 async fn artifacts_router_ui_missing() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::artifacts_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, artifacts_routes())
         .layer(Extension(request_context("u_artifacts")));
     let resp = app.oneshot(empty_get("/art_missing/ui")).await?;
     assert!(resp.status().as_u16() >= 200);
@@ -130,8 +127,7 @@ async fn artifacts_router_ui_missing() -> anyhow::Result<()> {
 #[tokio::test]
 async fn tasks_artifacts_for_missing_task_returns_array() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::tasks_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::mounted_set(&ctx, tasks_routes())
         .layer(Extension(request_context("u_tasks")));
     let resp = app.oneshot(empty_get("/task_x/artifacts")).await?;
     assert!(resp.status().as_u16() >= 200);
@@ -141,8 +137,7 @@ async fn tasks_artifacts_for_missing_task_returns_array() -> anyhow::Result<()> 
 #[tokio::test]
 async fn webhook_router_smoke() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::webhook_router()
-        .with_state((*ctx).clone())
+    let app = crate::common::webhook_app(&ctx)
         .layer(Extension(request_context("u_wh")));
     let resp = app
         .oneshot(json_post(

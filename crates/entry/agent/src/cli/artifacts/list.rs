@@ -1,0 +1,86 @@
+//! `core artifacts list` command.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::{Context, Result};
+use clap::Args;
+use systemprompt_agent::repository::ContextRepository;
+use systemprompt_agent::repository::content::artifact::ArtifactRepository;
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::ContextId;
+
+use super::types::{ArtifactListOutput, ArtifactSummary};
+use systemprompt_database::pool_from_handle;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+
+#[derive(Debug, Args)]
+pub struct ListArgs {
+    #[arg(long = "context-id", short = 'c', help = "Filter by context ID")]
+    pub context: Option<String>,
+
+    #[arg(
+        long,
+        short = 'l',
+        default_value = "20",
+        help = "Maximum artifacts to show"
+    )]
+    pub limit: i32,
+}
+
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let caller = host.caller_session().await?;
+    let pool = pool_from_handle(host.db().await?)?;
+    execute_with_pool(args, caller.user_id(), &pool).await
+}
+
+pub async fn execute_with_pool(
+    args: ListArgs,
+    user_id: &systemprompt_identifiers::UserId,
+    pool: &DbPool,
+) -> Result<CommandOutput> {
+    let repo = ArtifactRepository::new(pool);
+
+    let artifacts = if let Some(ref ctx_id) = args.context {
+        let context_id = ContextId::try_new(ctx_id).context("Invalid --context id")?;
+        let owned = ContextRepository::new(pool)
+            .owned_context(&context_id, user_id)
+            .await
+            .context("Context not found for the CLI session user")?;
+        repo.get_artifacts_by_context(&owned)
+            .await
+            .context("Failed to fetch artifacts by context")?
+    } else {
+        repo.get_artifacts_by_user_id(user_id, Some(args.limit))
+            .await
+            .context("Failed to fetch artifacts")?
+    };
+
+    let summaries: Vec<ArtifactSummary> = artifacts
+        .iter()
+        .take(args.limit as usize)
+        .map(|a| ArtifactSummary {
+            artifact_id: a.id.clone(),
+            name: a.title.clone(),
+            artifact_type: a.metadata.artifact_type.clone(),
+            tool_name: a.metadata.tool_name.clone(),
+            task_id: a.metadata.task_id.clone(),
+            created_at: chrono::DateTime::parse_from_rfc3339(&a.metadata.created_at)
+                .map_or_else(|_| chrono::Utc::now(), |dt| dt.with_timezone(&chrono::Utc)),
+        })
+        .collect();
+
+    let total = summaries.len();
+
+    let output = ArtifactListOutput {
+        artifacts: summaries,
+        total,
+        context: args.context.clone(),
+    };
+
+    Ok(CommandOutput::table_of(
+        vec!["id", "name", "artifact_type", "tool_name", "created_at"],
+        &output.artifacts,
+    )
+    .with_title("Artifacts"))
+}

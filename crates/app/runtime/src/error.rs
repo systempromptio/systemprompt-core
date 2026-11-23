@@ -15,7 +15,6 @@
 
 use std::path::PathBuf;
 
-use systemprompt_agent::AgentError;
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::paths::PathError;
 use systemprompt_config::{
@@ -72,9 +71,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Mcp(#[from] McpDomainError),
-
-    #[error(transparent)]
-    Agent(#[from] AgentError),
 
     #[error(transparent)]
     Content(#[from] ContentError),

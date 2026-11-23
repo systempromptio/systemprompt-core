@@ -24,6 +24,8 @@ use systemprompt_models::subprocess::SecretGrant;
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
 pub const DEFAULT_AGENT_SYSTEM_PROMPT_FILE: &str = "system_prompt.md";
 
+pub const RESERVED_AGENT_NAMES: &[&str] = &["registry"];
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AgentConfig {
@@ -64,6 +66,13 @@ impl AgentConfig {
             return Err(ServicesValidationError::invalid_field(format!(
                 "Agent name '{}' must be lowercase alphanumeric with underscores only",
                 self.name
+            )));
+        }
+
+        if RESERVED_AGENT_NAMES.contains(&self.name.as_str()) {
+            return Err(ServicesValidationError::invalid_field(format!(
+                "Agent name '{}' is reserved: /api/v1/agents/{} is the agent registry",
+                self.name, self.name
             )));
         }
 
