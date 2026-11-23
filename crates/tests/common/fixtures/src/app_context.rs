@@ -514,6 +514,7 @@ pub fn fixture_kernel_seed(
             profile: bootstrap.boot.profile(),
             config: bootstrap.boot_config(),
             cache_epochs: &systemprompt_traits::CacheEpochs::new(),
+            verification: crate::jwt::test_signing_keys().keyring(),
             services: fixture_services_view(),
             services_root: crate::bootstrap::test_boot_active_services_root(),
             profile_path: systemprompt_manifest::services::root::ActiveProfilePath {

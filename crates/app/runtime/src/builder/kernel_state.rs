@@ -44,6 +44,11 @@
 //! conferral row; `AppContext::token_authority` hands out the same value. A
 //! child host holds verification keys only, so it seeds no token authority.
 //!
+//! Every host seeds its verification keyring (`VerificationKeyring`, public
+//! keys only: the API's from its signing keys, a child host's from the
+//! verification keys it was handed), open; the request authenticator verifies
+//! against it.
+//!
 //! The API seeds the token revocation check (`DynTokenRevocations`, the jti
 //! table behind its cache) open; the users member builds the request
 //! authenticator over it.
@@ -110,7 +115,7 @@ use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::{JtiRevocationChecker, OAuthRepositories};
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_security::credential::TokenCache;
-use systemprompt_security::keys::SigningKeys;
+use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
 use systemprompt_traits::{
     BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry, DynJwtValidationProvider,
     DynLeaseRepository, FileStorage, MessagingDispatcher, SecretLookup, SecretStore,
@@ -131,6 +136,7 @@ pub struct KernelSeed<'a> {
     pub profile: &'a Profile,
     pub config: &'a Arc<Config>,
     pub cache_epochs: &'a CacheEpochs,
+    pub verification: &'a VerificationKeyring,
     pub services: systemprompt_manifest::services::ServicesView,
     pub services_root: ActiveServicesRoot,
     pub profile_path: ActiveProfilePath,
@@ -215,6 +221,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(Arc::clone(seed.config))
         .with_sealed(seed.cache_epochs.clone())
         .with(seed.cache_epochs.view())
+        .with(seed.verification.clone())
         .with(seed.services)
         .with_sealed(seed.services_root)
         .with_sealed(seed.profile_path)
@@ -258,7 +265,6 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
         .with(jwt)
-        .with(seed.signing_keys.keyring().clone())
         .with(seed.signing_keys.verification_keys().clone())
         .with(Arc::clone(seed.oauth))
         .with(revocations)

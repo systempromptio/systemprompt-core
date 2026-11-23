@@ -121,6 +121,10 @@ fn the_ai_member_provides_its_lookups_its_sealed_stores_and_the_inference_provid
                 true
             ),
             (
+                TypeId::of::<std::sync::Arc<systemprompt_ai::PersonalProviderCredentials>>(),
+                true
+            ),
+            (
                 TypeId::of::<systemprompt_traits::DynSafetyFindingsReader>(),
                 true
             ),

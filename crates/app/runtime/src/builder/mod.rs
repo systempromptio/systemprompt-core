@@ -156,6 +156,7 @@ impl AppContextBuilder {
                 profile,
                 config: &config,
                 cache_epochs: &cache_epochs,
+                verification: signing_keys.keyring(),
                 services: services.view(),
                 services_root,
                 profile_path: ActiveProfilePath {
