@@ -7403,7 +7403,6 @@ dependencies = [
  "systemprompt-manifest",
  "systemprompt-mcp",
  "systemprompt-models",
- "systemprompt-oauth",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",
