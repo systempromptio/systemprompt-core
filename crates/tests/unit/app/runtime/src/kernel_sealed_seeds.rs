@@ -307,6 +307,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_security::DeploymentTokenAuthority>(),
         ),
         (
+            type_name::<Arc<systemprompt_files_entry::http::FilesHttpRepositories>>(),
+            carrier::<systemprompt_users::UserRepository>(),
+        ),
+        (
             type_name::<systemprompt_traits::DynDriveTokens>(),
             carrier::<systemprompt_documents::tokens::DocumentDriveTokens>(),
         ),

@@ -6,7 +6,7 @@
 //! open `/s/{token}` and `/api/v1/issues`.
 //!
 //! [`FilesHttpSurface::build`] reads the `files-http` route-scoped state: the
-//! open document store cell, the open configuration, the
+//! open document store cell, the member's open [`FilesHttpSettings`], the
 //! [`DocumentLinkTokens`](systemprompt_documents::tokens::DocumentLinkTokens)
 //! view conferred on `files-http` and the member's own
 //! [`FilesHttpRepositories`]. The layering (gates, rate limits, policies)
@@ -27,6 +27,8 @@ use systemprompt_documents::http::surface::{
     DocumentRoutes, FilesRouteState, FilesRoutes, FilesSurface, FilesSurfaceError, TokenGatedRoutes,
 };
 use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot, bound};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_users::UserRepository;
 
 use self::documents::DocumentsState;
@@ -37,6 +39,24 @@ use self::issues::IssuesState;
 #[derive(Debug)]
 pub struct FilesHttpRepositories {
     pub users: Arc<UserRepository>,
+}
+
+/// The configuration facts the files routes read, copied out of the
+/// application configuration by the member's provide.
+#[derive(Debug, Clone)]
+pub struct FilesHttpSettings {
+    pub ui_session: UiSessionConfig,
+    pub api_external_url: Arc<str>,
+}
+
+impl FilesHttpSettings {
+    #[must_use]
+    pub fn of(config: &Config) -> Self {
+        Self {
+            ui_session: config.ui_session,
+            api_external_url: Arc::from(config.api_external_url.as_str()),
+        }
+    }
 }
 
 /// The `files-http` member's [`FilesSurface`].

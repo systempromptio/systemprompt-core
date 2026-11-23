@@ -30,9 +30,8 @@ use systemprompt_models::auth::AuthenticatedUser;
 
 use crate::http::error::ApiHttpError;
 use systemprompt_documents::http::surface::{FilesRouteState, FilesSurfaceError};
-use systemprompt_manifest::Config;
 
-use crate::http::files_handles;
+use crate::http::{FilesHttpSettings, files_handles};
 
 /// Router-scoped state of the issue routes: the issue and upload services,
 /// the authority that signs upload links and the external base URL they
@@ -54,12 +53,12 @@ impl std::fmt::Debug for IssuesState {
 impl IssuesState {
     pub fn build(state: &FilesRouteState<'_>) -> Result<Self, FilesSurfaceError> {
         let handles = files_handles(state)?;
-        let config = state.resolved.get::<Arc<Config>>()?;
+        let settings = state.resolved.get::<FilesHttpSettings>()?;
         Ok(Self {
             issues: Arc::clone(&handles.issues),
             uploads: Arc::clone(&handles.uploads),
             tokens: state.resolved.get::<Arc<DocumentLinkTokens>>()?,
-            base_url: Arc::from(config.api_external_url.as_str()),
+            base_url: settings.api_external_url,
         })
     }
 }

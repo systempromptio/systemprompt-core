@@ -7111,7 +7111,6 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "systemprompt-users",
- "thiserror 2.0.21",
  "tokio",
  "tower",
  "tracing",

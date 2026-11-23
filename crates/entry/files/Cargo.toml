@@ -43,7 +43,6 @@ http = [
     "dep:futures-util",
     "dep:serde",
     "dep:serde_json",
-    "dep:thiserror",
     "dep:tokio",
     "dep:tracing",
     "dep:tower",
@@ -91,7 +90,6 @@ schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
-thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["fs"] }
 tower = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }

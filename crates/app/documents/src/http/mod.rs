@@ -10,6 +10,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "collab")]
+mod collab_error;
 pub mod error;
 pub mod headers;
 pub mod surface;

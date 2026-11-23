@@ -63,14 +63,13 @@ use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
 use systemprompt_files::uploads::UploadService;
-use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::UiSessionConfig;
 #[cfg(feature = "collab")]
 use systemprompt_traits::BackgroundTasks;
 use systemprompt_traits::{DynContextDirectory, UserProvider};
 use systemprompt_users::UserRepository;
 
-use crate::http::{FilesHttpRepositories, files_handles};
+use crate::http::{FilesHttpRepositories, FilesHttpSettings, files_handles};
 
 /// Router-scoped state of the document and upload routes: the one document
 /// service, the upload service, the user provider that resolves a caller's
@@ -103,7 +102,7 @@ impl DocumentsState {
         let Some(service) = handles.service.clone() else {
             return Ok(None);
         };
-        let config = state.resolved.get::<Arc<Config>>()?;
+        let settings = state.resolved.get::<FilesHttpSettings>()?;
         Ok(Some(Self {
             service,
             uploads: Arc::clone(&handles.uploads),
@@ -115,7 +114,7 @@ impl DocumentsState {
             user_repository: Arc::clone(&state.resolved.get::<Arc<FilesHttpRepositories>>()?.users),
             tokens: state.resolved.get::<Arc<DocumentLinkTokens>>()?,
             contexts: Arc::clone(&handles.contexts),
-            ui_session: config.ui_session,
+            ui_session: settings.ui_session,
             client_ip: Arc::clone(&state.host.client_ip),
             #[cfg(feature = "collab")]
             collab: Arc::clone(&handles.collab),

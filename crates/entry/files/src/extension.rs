@@ -4,7 +4,9 @@
 //! With `http` it contributes the open
 //! [`DynFilesSurface`](systemprompt_documents::http::surface::DynFilesSurface)
 //! the API mount builds the document, upload, public-link and issue routes
-//! from (see [`crate::http`]), and provides sealed the
+//! from (see [`crate::http`]) and the open
+//! [`FilesHttpSettings`](crate::http::FilesHttpSettings) it copies out of the
+//! application configuration, and provides sealed the
 //! [`FilesHttpRepositories`](crate::http::FilesHttpRepositories) those routes
 //! read. The API keeps their layering: the two-stage token and user gates of
 //! documents and uploads, the policies and the rate limits.
@@ -66,12 +68,20 @@ mod surface {
     use systemprompt_extension::prelude::*;
     use systemprompt_users::UserRepository;
 
-    use crate::http::{FilesHttpRepositories, FilesHttpSurface};
+    use systemprompt_manifest::Config;
+
+    use crate::http::{FilesHttpRepositories, FilesHttpSettings, FilesHttpSurface};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.provide(
             |_r: &Resolved<'_>| -> Result<DynFilesSurface, ProvideError> {
                 Ok(Arc::new(FilesHttpSurface))
+            },
+        )
+        .provide(
+            |r: &Resolved<'_>| -> Result<FilesHttpSettings, ProvideError> {
+                let config = r.get::<Arc<Config>>()?;
+                Ok(FilesHttpSettings::of(&config))
             },
         )
         .provide_sealed(repositories);
