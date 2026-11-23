@@ -9,21 +9,6 @@ use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_mcp_entry::cli::validate::{
     FailureDetail, failure_output, run_connection_validation, success_output,
 };
-use systemprompt_models::Deployment;
-
-fn deployment(port: u16) -> Deployment {
-    serde_yaml::from_str(&format!(
-        "binary: test-server\npackage: null\nport: {port}\nenabled: true\ndisplay_in_web: false\noauth:\n  required: false\n  scopes: []\n  audience: mcp\n  client_id: null\n"
-    ))
-    .unwrap()
-}
-
-fn oauth_deployment(port: u16) -> Deployment {
-    serde_yaml::from_str(&format!(
-        "binary: test-server\npackage: null\nport: {port}\nenabled: true\ndisplay_in_web: false\noauth:\n  required: true\n  scopes: []\n  audience: mcp\n  client_id: null\n"
-    ))
-    .unwrap()
-}
 
 #[test]
 fn failure_output_maps_detail_fields() {
@@ -117,45 +102,7 @@ fn success_output_ignores_empty_error_message() {
 }
 
 #[tokio::test]
-async fn run_connection_validation_reports_connection_error_for_closed_port() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
-
-    let out =
-        run_connection_validation(&ServiceName::new("svc"), &deployment(port), port, 30).await;
-
-    assert!(!out.valid);
-    assert_eq!(out.validation_type, "connection_failed");
-    assert!(!out.issues.is_empty());
-    assert!(out.tools_count.is_none());
-}
-
-#[tokio::test]
-async fn run_connection_validation_times_out_against_silent_listener() {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let hold = tokio::spawn(async move {
-        let mut sockets = Vec::new();
-        loop {
-            let Ok((socket, _)) = listener.accept().await else {
-                break;
-            };
-            sockets.push(socket);
-        }
-    });
-
-    let out = run_connection_validation(&ServiceName::new("svc"), &deployment(port), port, 1).await;
-    hold.abort();
-
-    assert!(!out.valid);
-    assert_eq!(out.validation_type, "timeout");
-    assert_eq!(out.latency_ms, 1000);
-    assert!(out.issues[0].contains("timed out after 1 seconds"));
-}
-
-#[tokio::test]
-async fn run_connection_validation_accepts_an_oauth_protected_reachable_service() {
+async fn run_connection_validation_accepts_a_listening_hosted_service() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let accepted = tokio::spawn(async move {
@@ -163,12 +110,7 @@ async fn run_connection_validation_accepts_an_oauth_protected_reachable_service(
         peer
     });
 
-    let out = run_connection_validation(
-        &ServiceName::new("oauth-svc"),
-        &oauth_deployment(port),
-        port,
-        1,
-    )
+    let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1)
     .await;
     let peer = accepted.await.unwrap();
 
@@ -181,17 +123,12 @@ async fn run_connection_validation_accepts_an_oauth_protected_reachable_service(
 }
 
 #[tokio::test]
-async fn run_connection_validation_reports_an_unavailable_oauth_port() {
+async fn run_connection_validation_reports_an_unavailable_port() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    let out = run_connection_validation(
-        &ServiceName::new("oauth-svc"),
-        &oauth_deployment(port),
-        port,
-        1,
-    )
+    let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1)
     .await;
 
     assert!(!out.valid);

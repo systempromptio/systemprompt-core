@@ -1,7 +1,7 @@
 //! Unit tests for RBAC middleware types
 
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
-use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
+use systemprompt_mcp_host::serving::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";

@@ -5,7 +5,7 @@
 use rmcp::model::InitializeRequestParams;
 use rmcp::transport::streamable_http_server::session::store::{SessionState, SessionStore};
 use systemprompt_identifiers::McpServerId;
-use systemprompt_mcp::middleware::{PostgresSessionStore, RestorePrincipal, run_as};
+use systemprompt_mcp_host::serving::middleware::{PostgresSessionStore, RestorePrincipal, run_as};
 use systemprompt_test_fixtures::closed_db_pool;
 
 fn sample_state() -> SessionState {

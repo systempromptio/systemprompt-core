@@ -17,9 +17,8 @@ mod session_store;
 pub use session_store::PostgresSessionStore;
 
 use std::fmt;
-use std::sync::Arc;
 
-use crate::repository::McpSessionRepository;
+use systemprompt_extension::mcp::{DynMcpSessionStore, McpSessionStoreError};
 use rmcp::transport::streamable_http_server::session::SessionId;
 use rmcp::transport::streamable_http_server::session::local::{
     LocalSessionManager, LocalSessionManagerError,
@@ -29,7 +28,7 @@ use systemprompt_identifiers::McpServerId;
 #[derive(Debug)]
 pub enum DatabaseSessionHandlerError {
     Local(LocalSessionManagerError),
-    Database(crate::error::McpDomainError),
+    Database(McpSessionStoreError),
     SessionNotFound(String),
     SessionExpired(String),
     SessionNeedsReconnect(String),
@@ -65,7 +64,7 @@ impl From<LocalSessionManagerError> for DatabaseSessionHandlerError {
 
 pub struct DatabaseSessionHandler {
     local_sessions: LocalSessionManager,
-    repository: Arc<McpSessionRepository>,
+    repository: DynMcpSessionStore,
     server_id: Option<McpServerId>,
 }
 
@@ -80,13 +79,13 @@ impl fmt::Debug for DatabaseSessionHandler {
 }
 
 impl DatabaseSessionHandler {
-    pub fn new(repository: Arc<McpSessionRepository>) -> Self {
-        Self::with_timeouts(repository, crate::SessionTimeouts::default(), None)
+    pub fn new(repository: DynMcpSessionStore) -> Self {
+        Self::with_timeouts(repository, crate::serving::SessionTimeouts::default(), None)
     }
 
     pub fn with_timeouts(
-        repository: Arc<McpSessionRepository>,
-        timeouts: crate::SessionTimeouts,
+        repository: DynMcpSessionStore,
+        timeouts: crate::serving::SessionTimeouts,
         server_id: Option<McpServerId>,
     ) -> Self {
         let mut local_sessions = LocalSessionManager::default();
@@ -105,7 +104,6 @@ impl DatabaseSessionHandler {
             .repository
             .create(
                 &systemprompt_identifiers::SessionId::new(session_id.as_ref()),
-                None,
                 self.server_id.as_ref(),
             )
             .await
@@ -155,9 +153,8 @@ impl DatabaseSessionHandler {
         else {
             return Some(false);
         };
-        match self.repository.find_active(&stored_id).await {
-            Ok(Some(_)) => Some(true),
-            Ok(None) => Some(false),
+        match self.repository.is_active(&stored_id).await {
+            Ok(active) => Some(active),
             Err(e) => {
                 tracing::warn!(
                     session_id = %session_id,

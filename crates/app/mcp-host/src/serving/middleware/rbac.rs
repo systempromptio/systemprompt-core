@@ -116,12 +116,12 @@ pub async fn enforce_rbac_from_registry(
         tracing::error!(
             server = %server_id,
             "MCP request carries a hop token but this server's router does not verify it; \
-             build the router with systemprompt_mcp::create_router"
+             build the router with systemprompt_mcp_host::serving::create_router"
         );
         return Err(McpError::internal_error(
             format!(
                 "MCP server '{server_id}' does not verify the platform hop token; it must be \
-                 served through systemprompt_mcp::create_router."
+                 served through systemprompt_mcp_host::serving::create_router."
             ),
             None,
         ));

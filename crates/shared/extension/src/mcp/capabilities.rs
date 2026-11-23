@@ -1,4 +1,6 @@
-//! MCP server capability declarations.
+//! MCP server capability declarations and the transport's request-body
+//! ceiling ([`MAX_REQUEST_BODY_BYTES`]), shared by the toolset host and the
+//! forwarding proxy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,6 +10,8 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_models::mcp::{
     McpAppsUiConfig, McpExtensionId, McpUiToolMeta, ToolVisibility, UI_META_KEY,
 };
+
+pub const MAX_REQUEST_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 // JSON: MCP capability `extensions` entry — the spec types each as an open
 // object.

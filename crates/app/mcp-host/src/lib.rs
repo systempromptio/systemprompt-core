@@ -12,7 +12,8 @@
 //! - [`toolsets`] serves a YAML-declared MCP server: the deployment's
 //!   `toolsets:` built from the toolsets contributed through
 //!   [`ToolsetSlot`](contract::ToolsetSlot), behind the hop-verifying MCP
-//!   router. A server that names no `binary:` is this product binary re-run as
+//!   router of [`serving`] (every request must carry the API proxy's hop
+//!   token for this server). A server that names no `binary:` is this product binary re-run as
 //!   `admin mcp serve --server <id>`.
 //! - [`AgentHost`] composes an agent's collaborators on a [`HostContext`].
 //!
@@ -21,9 +22,8 @@
 //! A factory receives the [`HostContext`] and its server id. It can reach the
 //! database pool, the services view, the granted secrets (only those the
 //! manifest grants), the verify-only key ring, the authz hook and subject
-//! providers, the artifact ingest, the MCP session repository, the user
-//! repository, the document store, the extension state (the notification
-//! service among it, when the runtime assembles one) and a
+//! providers, the user repository, the document store, the extension state
+//! (the notification service among it, when the runtime assembles one) and a
 //! [`LinkIssuer`](systemprompt_runtime::documents::links::LinkIssuer) for what
 //! only the API may sign. The per-user subject of a call is not a factory
 //! input: it arrives with each call as the hop-verified `RequestContext` in
@@ -46,6 +46,7 @@ pub mod agent_host;
 pub mod contract;
 pub(crate) mod extension;
 pub mod host;
+pub mod serving;
 pub mod toolsets;
 
 pub use agent_host::{AgentHost, AgentHostError};

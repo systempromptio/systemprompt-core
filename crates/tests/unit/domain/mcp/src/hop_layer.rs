@@ -10,9 +10,10 @@ use axum::body::Body;
 use chrono::{Duration, Utc};
 use http::StatusCode;
 use systemprompt_identifiers::{McpServerId, UserId};
-use systemprompt_mcp::middleware::HopVerifier;
+use systemprompt_mcp_host::serving::middleware::HopVerifier;
+use systemprompt_extension::mcp::DynMcpSessionStore;
 use systemprompt_mcp::repository::McpSessionRepository;
-use systemprompt_mcp::{McpHttpConfig, create_router};
+use systemprompt_mcp_host::serving::{McpHttpConfig, create_router};
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_security::jwt::{encode_mcp_hop, mcp_hop_claims};
 use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
@@ -37,12 +38,12 @@ fn user() -> AuthenticatedUser {
     )
 }
 
-async fn router_requiring(required: bool) -> axum::Router {
+async fn router() -> axum::Router {
     let _ = ensure_test_bootstrap();
     let db = test_db_pool().await;
     create_router(
         NullHandler,
-        Arc::new(McpSessionRepository::new(&db)),
+        Arc::new(McpSessionRepository::new(&db)) as DynMcpSessionStore,
         McpHttpConfig::default(),
         HopVerifier::new(
             systemprompt_test_fixtures::test_signing_keys()
@@ -50,13 +51,8 @@ async fn router_requiring(required: bool) -> axum::Router {
                 .clone(),
             FIXTURE_EXTERNAL_URL,
             McpServerId::new(SERVER),
-        )
-        .requiring_hop(required),
+        ),
     )
-}
-
-async fn router() -> axum::Router {
-    router_requiring(false).await
 }
 
 fn bare(method: &str, headers: &[(&str, &str)]) -> http::Request<Body> {
@@ -205,8 +201,8 @@ async fn a_forged_hop_value_is_refused() {
 }
 
 #[tokio::test]
-async fn a_server_requiring_authentication_refuses_a_request_without_a_hop_token() {
-    let status = router_requiring(true)
+async fn a_request_without_a_hop_token_is_refused_by_every_server() {
+    let status = router()
         .await
         .oneshot(initialize(&[
             ("x-proxy-verified", "true"),
@@ -219,9 +215,9 @@ async fn a_server_requiring_authentication_refuses_a_request_without_a_hop_token
 }
 
 #[tokio::test]
-async fn a_public_server_admits_a_request_without_a_hop_token_anonymously() {
+async fn a_bare_request_without_a_hop_token_is_refused() {
     let status = status(&[]).await;
-    assert_eq!(status, StatusCode::OK);
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -240,7 +236,7 @@ async fn the_stream_and_delete_routes_refuse_a_hop_token_for_another_server() {
 
 #[tokio::test]
 async fn the_stream_route_refuses_a_missing_hop_token_when_one_is_required() {
-    let status = router_requiring(true)
+    let status = router()
         .await
         .oneshot(bare("GET", &[]))
         .await
@@ -279,10 +275,9 @@ async fn promoting_the_staged_key_needs_no_restart_of_the_server() {
     .clone();
     let server = create_router(
         NullHandler,
-        Arc::new(McpSessionRepository::new(&db)),
+        Arc::new(McpSessionRepository::new(&db)) as DynMcpSessionStore,
         McpHttpConfig::default(),
-        HopVerifier::new(keyring, FIXTURE_EXTERNAL_URL, McpServerId::new(SERVER))
-            .requiring_hop(true),
+        HopVerifier::new(keyring, FIXTURE_EXTERNAL_URL, McpServerId::new(SERVER)),
     );
     let promoted = SigningKeys::new(staged, &[3; 32]).expect("promoted keys");
     let claims = mcp_hop_claims(

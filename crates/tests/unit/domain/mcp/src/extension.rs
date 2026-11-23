@@ -9,7 +9,8 @@ use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Contributions, Extension};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_mcp::McpExtension;
-use systemprompt_mcp::contract::{AccessRecorderSlot, UiSlot};
+use systemprompt_mcp::contract::UiSlot;
+use systemprompt_extension::mcp::AccessRecorderSlot;
 use systemprompt_mcp::services::McpServiceObserver;
 use systemprompt_traits::{DynToolExecutionLookup, McpRegistryProvider};
 

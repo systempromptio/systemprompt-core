@@ -25,7 +25,11 @@ brain = ["systemprompt-runtime/brain"]
 
 [dependencies]
 async-trait = { workspace = true }
-rmcp = { workspace = true }
+axum = { workspace = true }
+futures = { workspace = true }
+http = { workspace = true }
+rmcp = { workspace = true, features = ["transport-streamable-http-server", "transport-streamable-http-server-session"] }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

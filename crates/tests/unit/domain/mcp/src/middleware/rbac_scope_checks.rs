@@ -3,7 +3,7 @@
 //! granted.
 
 use systemprompt_identifiers::McpServerId;
-use systemprompt_mcp::middleware::rbac::scopes::validate_scopes_for_permissions;
+use systemprompt_mcp_host::serving::middleware::rbac::scopes::validate_scopes_for_permissions;
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 

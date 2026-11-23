@@ -1,21 +1,24 @@
-//! The MCP capability's contribution points: [`UiSlot`] (artifact themes and
-//! UI renderers) and [`AccessRecorderSlot`] (toolset-host access recorders).
+//! The MCP capability's artifact UI contribution point, [`UiSlot`].
 //!
-//! A member contributes with `c.slot::<UiSlot>()` or
-//! `c.slot::<AccessRecorderSlot>()` and the matching builder method; each
+//! The slot collects artifact themes and UI renderers. The toolset-host
+//! access-recorder slot is part of the extension contract
+//! (`systemprompt_extension::mcp::AccessRecorderSlot`); the `mcp` member
+//! opens it.
+//!
+//! A member contributes with `c.slot::<UiSlot>()` and the matching builder
+//! method; each
 //! method stores and runs nothing. Admission drops a disabled member's
 //! builder before any factory runs, and the kernel then builds each slot once
 //! against the resolved state, in composition order, and inserts the result
-//! as `Arc<Built>`. The `mcp` member opens both slots, so the built values
-//! are present exactly when that member is admitted.
+//! as `Arc<Built>`. The `mcp` member opens the slot, so the built value is
+//! present exactly when that member is admitted.
 //!
 //! [`UiSlot`] builds a [`UiRendererRegistry`]: core's renderers, then every
 //! contributed renderer (a contributed renderer for an artifact type with a
 //! built-in replaces it; two contributed renderers for one artifact type are
 //! refused with [`SlotError::DuplicateTag`]), and at most one theme (a second
 //! is refused with [`SlotError::MultipleEntries`], because two themes have no
-//! meaningful winner). [`AccessRecorderSlot`] builds [`AccessRecorders`], every
-//! contributed recorder. A factory that fails, or reads a value nothing
+//! meaningful winner). A factory that fails, or reads a value nothing
 //! provides, refuses the build.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -30,11 +33,9 @@ use systemprompt_extension::{
 };
 use systemprompt_identifiers::ExtensionId;
 
-use crate::host::SharedMcpAccessRecorder;
 use crate::services::ui_renderer::{ArtifactTheme, UiRenderer, UiRendererRegistry};
 
 const UI_SLOT: &str = "mcp_ui";
-const RECORDER_SLOT: &str = "mcp_access_recorders";
 
 type Factories<T> = Vec<Box<dyn Factory<Arc<T>>>>;
 
@@ -117,73 +118,5 @@ impl Slot for UiSlot {
             },
         }
         Ok(registry)
-    }
-}
-
-/// The toolset-host access-audit contribution point, owned by the `mcp`
-/// capability.
-#[derive(Debug, Clone, Copy)]
-pub struct AccessRecorderSlot;
-
-/// One member's access recorders, stored until the slot is built.
-#[derive(Default)]
-pub struct AccessRecorderSlotBuilder {
-    recorders: Vec<Box<dyn Factory<SharedMcpAccessRecorder>>>,
-}
-
-impl AccessRecorderSlotBuilder {
-    pub fn recorder<F: Factory<SharedMcpAccessRecorder>>(&mut self, f: F) -> &mut Self {
-        self.recorders.push(Box::new(f));
-        self
-    }
-}
-
-impl fmt::Debug for AccessRecorderSlotBuilder {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("AccessRecorderSlotBuilder")
-            .field("recorders", &self.recorders.len())
-            .finish()
-    }
-}
-
-/// Every contributed access recorder, in composition order.
-#[derive(Clone, Default)]
-pub struct AccessRecorders(Vec<SharedMcpAccessRecorder>);
-
-impl AccessRecorders {
-    #[must_use]
-    pub fn to_vec(&self) -> Vec<SharedMcpAccessRecorder> {
-        self.0.clone()
-    }
-}
-
-impl fmt::Debug for AccessRecorders {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("AccessRecorders")
-            .field(&self.0.len())
-            .finish()
-    }
-}
-
-impl Slot for AccessRecorderSlot {
-    type Builder = AccessRecorderSlotBuilder;
-    type Built = AccessRecorders;
-    const ORDER: SlotOrder = SlotOrder::Composition;
-
-    fn build(
-        entries: Vec<SlotEntry<Self::Builder>>,
-        r: &Resolved<'_>,
-    ) -> Result<Self::Built, SlotError> {
-        let mut recorders = Vec::new();
-        for entry in entries {
-            for factory in &entry.builder.recorders {
-                recorders.push(
-                    factory
-                        .build(r)
-                        .map_err(|error| error.into_slot_error(RECORDER_SLOT, &entry.owner))?,
-                );
-            }
-        }
-        Ok(AccessRecorders(recorders))
     }
 }

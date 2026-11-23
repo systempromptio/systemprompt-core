@@ -2,7 +2,7 @@
 //! `AuthenticatedRequestContext`.
 
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
-use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
+use systemprompt_mcp_host::serving::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 
 fn ctx(tag: &str) -> RequestContext {

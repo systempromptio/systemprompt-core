@@ -14,7 +14,6 @@ use crate::services::ui_renderer::{
     CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, UiRendererRegistry,
     artifact_ui_resource, parse_artifact_resource_uri,
 };
-use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 use systemprompt_identifiers::{ArtifactId, McpServerId, UserId};
 use systemprompt_models::mcp::McpResourceUiMeta;
 
@@ -164,14 +163,3 @@ pub async fn read_artifact_resource(
         .with_cache_scope(CacheScope::Private))
 }
 
-#[must_use]
-pub fn default_server_icons() -> Vec<Icon> {
-    vec![
-        Icon::new(format!("{WEBSITE_URL}/files/images/favicon-32x32.png"))
-            .with_mime_type("image/png")
-            .with_sizes(vec!["32x32".to_owned()]),
-        Icon::new(format!("{WEBSITE_URL}/files/images/favicon-96x96.png"))
-            .with_mime_type("image/png")
-            .with_sizes(vec!["96x96".to_owned()]),
-    ]
-}

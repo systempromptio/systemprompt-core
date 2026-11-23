@@ -9,9 +9,9 @@ use rmcp::ErrorData as McpError;
 use rmcp::service::{RequestContext, RoleServer};
 use systemprompt_models::RequestContext as SysRequestContext;
 
-use super::recorder::{McpAccessEvent, McpAccessOutcome};
+use systemprompt_extension::mcp::{McpAccessEvent, McpAccessOutcome};
 use super::server::ToolsetServer;
-use crate::middleware::rbac::{AuthResult, enforce_rbac_from_registry};
+use crate::serving::middleware::rbac::{AuthResult, enforce_rbac_from_registry};
 
 const GROUP_DIMENSION: &str = "group";
 

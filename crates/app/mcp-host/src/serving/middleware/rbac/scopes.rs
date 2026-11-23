@@ -10,7 +10,7 @@ use systemprompt_models::auth::Permission;
 pub fn validate_scopes_for_permissions(
     server_id: &McpServerId,
     user_permissions: &[Permission],
-    oauth_config: &crate::OAuthRequirement,
+    oauth_config: &systemprompt_models::mcp::OAuthRequirement,
 ) -> Result<(), McpError> {
     let required_scopes = &oauth_config.scopes;
 

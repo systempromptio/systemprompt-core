@@ -7,7 +7,7 @@ use futures::StreamExt;
 use rmcp::model::ClientJsonRpcMessage;
 use rmcp::transport::streamable_http_server::session::{SessionId, SessionManager};
 use rmcp::{ServerHandler, ServiceExt};
-use systemprompt_mcp::middleware::DatabaseSessionHandler;
+use systemprompt_mcp_host::serving::middleware::DatabaseSessionHandler;
 use systemprompt_test_fixtures::test_db_pool;
 
 #[derive(Clone)]
@@ -125,7 +125,7 @@ async fn session_manager_drives_full_streamable_http_lifecycle() {
 
 #[tokio::test]
 async fn database_only_session_requires_reconnect_and_is_closed_durably() {
-    use systemprompt_mcp::middleware::session_handler::DatabaseSessionHandlerError;
+    use systemprompt_mcp_host::serving::middleware::session_handler::DatabaseSessionHandlerError;
     use systemprompt_test_fixtures::DisposableDb;
 
     let database = DisposableDb::with_schema("mcp_session_reconnect").await;

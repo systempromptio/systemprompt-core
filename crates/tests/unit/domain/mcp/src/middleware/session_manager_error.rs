@@ -1,7 +1,7 @@
 //! Tests for [`DatabaseSessionHandlerError`] Display and Error source.
 
 use systemprompt_mcp::McpDomainError;
-use systemprompt_mcp::middleware::session_handler::DatabaseSessionHandlerError;
+use systemprompt_mcp_host::serving::middleware::session_handler::DatabaseSessionHandlerError;
 
 #[test]
 fn session_not_found_display() {

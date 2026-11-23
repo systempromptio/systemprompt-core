@@ -1,7 +1,7 @@
 //! [`ToolsetServer`]: the rmcp `ServerHandler` that serves hosted toolsets.
 //!
 //! Every list and call authenticates through
-//! [`enforce_rbac_from_registry`](crate::middleware::rbac::enforce_rbac_from_registry),
+//! [`enforce_rbac_from_registry`](crate::serving::middleware::rbac::enforce_rbac_from_registry),
 //! which also runs the governance authz hook for the server. `tools/list` then
 //! answers only the tools whose resolved access admits the caller; `tools/call`
 //! refuses a tool the caller may not see with a forbidden error and a recorded
@@ -24,9 +24,9 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServicesView;
 
 use super::catalog::{HostedCatalog, ToolsetHostError};
-use super::recorder::{McpAccessOutcome, SharedMcpAccessRecorder};
-use crate::middleware::hop::VerifiedHop;
-use crate::{build_tool_list_result, client_profile_from_peer, default_server_icons};
+use super::wire::{build_tool_list_result, client_profile_from_peer, default_server_icons};
+use systemprompt_extension::mcp::{McpAccessOutcome, SharedMcpAccessRecorder};
+use crate::serving::middleware::hop::VerifiedHop;
 use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 use systemprompt_extension::mcp::{DynToolExecution, McpToolset, ToolsetCall};
 

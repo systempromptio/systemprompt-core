@@ -16,7 +16,7 @@ use systemprompt_governance::authz::{
     SharedAuthzHook,
 };
 use systemprompt_identifiers::UserId;
-use systemprompt_mcp::middleware::{
+use systemprompt_mcp_host::serving::middleware::{
     AuthResult, HopVerifier, admit_request, enforce_rbac_from_registry,
 };
 use systemprompt_models::auth::{AuthenticatedUser, Permission};

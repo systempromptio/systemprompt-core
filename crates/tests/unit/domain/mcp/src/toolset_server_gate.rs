@@ -5,8 +5,8 @@ use rmcp::model::{
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt};
 use systemprompt_identifiers::McpServerId;
-use systemprompt_mcp::host::ToolsetServer;
-use systemprompt_mcp::middleware::{HopVerifier, admit_request};
+use systemprompt_mcp_host::serving::host::ToolsetServer;
+use systemprompt_mcp_host::serving::middleware::{HopVerifier, admit_request};
 use systemprompt_test_fixtures::FIXTURE_EXTERNAL_URL;
 
 #[derive(Clone)]

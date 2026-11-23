@@ -7,6 +7,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod store;
+
 use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

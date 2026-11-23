@@ -21,8 +21,9 @@ use systemprompt_extension::{Admitted, FactoryError, Resolved, RouteGroup, Slot,
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_mcp::McpDomainResult;
-use systemprompt_mcp::contract::{AccessRecorderSlot, AccessRecorders, UiSlot};
-use systemprompt_mcp::host::{McpAccessEvent, McpAccessRecorder, SharedMcpAccessRecorder};
+use systemprompt_mcp::contract::UiSlot;
+use systemprompt_extension::mcp::{AccessRecorderSlot, AccessRecorders};
+use systemprompt_extension::mcp::{McpAccessEvent, McpAccessRecorder, SharedMcpAccessRecorder};
 use systemprompt_mcp::services::ui_renderer::{
     ArtifactTheme, UiRenderer, UiRendererRegistry, UiResource,
 };

@@ -3,14 +3,15 @@
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
 //! resource scopes) and the read-only `Arc<McpServiceObserver>` (server
 //! health, recorded process ids and the running set; no spawner, no
-//! secrets), the MCP session repository (`Arc<McpSessionRepository>`, which
-//! the child host's streamable-HTTP session store reads) and the artifact
-//! ingest (`Arc<ArtifactIngest>`, which scans with the installation's secret
+//! secrets), the MCP session store (`DynMcpSessionStore`, **sealed**: a
+//! restore lookup takes the server and user to match, so only the toolset host
+//! reads it, with the principal it verified), the artifact ingest
+//! (`Arc<ArtifactIngest>`, open: it scans with the installation's secret
 //! scanner cell and records tool results), and, once governance has loaded,
 //! the per-server tool executions (`DynToolExecutions`, open: an execution
 //! records usage as the request context the host hands it and reads no
-//! secret). All of them are open. It opens the [`UiSlot`] and
-//! the [`AccessRecorderSlot`], so both built values are present whenever this
+//! secret). It opens the [`UiSlot`] and the extension contract's
+//! [`AccessRecorderSlot`], so both built values are present whenever this
 //! member is admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -20,7 +21,7 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, ServiceRepository};
-use systemprompt_extension::mcp::DynToolExecutions;
+use systemprompt_extension::mcp::{AccessRecorderSlot, DynMcpSessionStore, DynToolExecutions};
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::service_process::ServiceProcessSlot;
 use systemprompt_governance::policy::secrets::SecretScannerCell;
@@ -31,7 +32,7 @@ use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
 };
 
-use crate::contract::{AccessRecorderSlot, UiSlot};
+use crate::contract::UiSlot;
 use crate::repository::{McpSessionRepository, ToolUsageRepository};
 use crate::services::McpServiceObserver;
 use crate::services::artifact_ingest::ArtifactIngest;
@@ -190,8 +191,8 @@ impl Extension for McpExtension {
 }
 
 fn contribute_stores(c: &mut Contributions<'_>) {
-    c.provide(
-        |r: &Resolved<'_>| -> Result<Arc<McpSessionRepository>, ProvideError> {
+    c.provide_sealed(
+        |r: &Resolved<'_>| -> Result<DynMcpSessionStore, ProvideError> {
             Ok(Arc::new(McpSessionRepository::new(&r.get::<DbPool>()?)))
         },
     )

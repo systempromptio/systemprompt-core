@@ -13,7 +13,7 @@ use systemprompt_governance::authz::{
     SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
 };
 use systemprompt_identifiers::{ExtensionId, McpServerId, UserId};
-use systemprompt_mcp::host::{
+use systemprompt_mcp_host::serving::host::{
     McpAccessEvent, McpAccessRecorder, ToolsetAuthz, ToolsetHostError, ToolsetServer,
     ToolsetServerParts,
 };

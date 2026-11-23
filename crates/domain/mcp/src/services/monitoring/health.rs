@@ -140,7 +140,7 @@ pub async fn check_service_health(config: &McpServerConfig) -> McpDomainResult<H
 }
 
 pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<HealthCheckResult> {
-    use crate::services::client::{validate_connection_by_url, validate_connection_with_auth};
+    use crate::services::client::{validate_connection_by_url, validate_hosted_service};
     use systemprompt_models::mcp::McpServerType;
 
     if matches!(config.server_type, McpServerType::External) && config.external_auth.is_some() {
@@ -151,14 +151,10 @@ pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<H
         McpServerType::Internal => {
             timeout(
                 Duration::from_secs(30),
-                validate_connection_with_auth(
-                    &config.service_name(),
-                    &config.host,
-                    config.spawn_port()?,
-                    config.oauth.required,
-                ),
+                validate_hosted_service(&config.service_name(), &config.host, config.spawn_port()?),
             )
             .await
+            .map(Ok)
         },
         McpServerType::External => {
             timeout(

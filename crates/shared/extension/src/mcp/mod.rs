@@ -1,7 +1,8 @@
 //! The MCP tool contract.
 //!
-//! Typed tool handlers, their artifact output schema, declarative toolsets and
-//! the execution seam a toolset runs a handler through. Compiled with the
+//! Typed tool handlers, their artifact output schema, declarative toolsets,
+//! the execution seam a toolset runs a handler through, the access-recorder
+//! slot and the session store the toolset host reads. Compiled with the
 //! `mcp` feature; the MCP member provides the
 //! execution implementation (`ToolExecutions`), and the toolset host and the
 //! members that contribute toolsets name only this module.
@@ -12,7 +13,10 @@
 pub mod capabilities;
 mod execution;
 mod handler;
+mod recorder;
+mod recorders;
 mod schema;
+mod session_store;
 mod toolset;
 
 pub use execution::{
@@ -21,4 +25,9 @@ pub use execution::{
 };
 pub use handler::{McpToolHandler, object_input_schema};
 pub use schema::McpOutputSchema;
+pub use recorder::{McpAccessEvent, McpAccessOutcome, McpAccessRecorder, SharedMcpAccessRecorder};
+pub use recorders::{AccessRecorderSlot, AccessRecorderSlotBuilder, AccessRecorders};
+pub use session_store::{
+    DynMcpSessionStore, McpSessionStore, McpSessionStoreError, McpSessionStoreResult,
+};
 pub use toolset::{McpToolset, ToolsetCall};

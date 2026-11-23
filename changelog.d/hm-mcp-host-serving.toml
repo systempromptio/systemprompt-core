@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "MCP"
+text = "Every hosted MCP server answers its own loopback port only to a request carrying the API proxy's hop token, whatever its `oauth.required`; a direct request without one is refused with 401. Health checks of a hosted server (`plugins mcp validate`, the orchestrator and the agent tool provider) probe the port only and report `auth_required` without a tool count. A proxied MCP request that names a context (`x-context-id`) is refused with 403 `context_not_owned` unless the caller the proxy verified owns that context."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Added"
+text = "`serving`: the toolset host (`serving::host`), its hop, RBAC and session middleware (`serving::middleware`), `create_router` (over the sealed `DynMcpSessionStore`), `McpHttpConfig`, `SessionTimeouts` and `bind_loopback`, moved from `systemprompt-mcp`. `HopVerifier::requiring_hop` is removed; `HopVerifier::verify` returns the verified hop or a rejection."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "Removed `host`, `middleware`, `create_router`, `McpHttpConfig`, `SessionTimeouts`, `MAX_REQUEST_BODY_BYTES`, `bind_loopback`, `client_profile_from_peer`, `build_tool_list_result`, `default_server_icons` and `contract::{AccessRecorderSlot, AccessRecorderSlotBuilder, AccessRecorders}`; `services::client::validate_connection_with_auth` is replaced by `validate_hosted_service`. The member provides the session store sealed (`DynMcpSessionStore`) instead of `Arc<McpSessionRepository>`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`mcp::{McpSessionStore, DynMcpSessionStore, McpSessionStoreError}`, `mcp::{AccessRecorderSlot, AccessRecorders, McpAccessRecorder, McpAccessEvent, McpAccessOutcome}` and `mcp::capabilities::MAX_REQUEST_BODY_BYTES`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The MCP proxy checks a presented context id against the verified caller (`ProxyError::{ContextNotOwned, ContextLookupFailed}`)."
+
+[[crate]]
+name = "systemprompt-marketplace-entry"
+section = "Breaking"
+text = "`plugins validate` and `plugins generate` work on the plugins of the loaded services configuration: `validate_plugin` and `generate_plugin` take a `&PluginConfig`; `collect_plugin_ids` is removed and `selected_plugins` added; the directory-name mismatch warning is gone."

@@ -8,7 +8,7 @@ use systemprompt_governance::authz::{AuthzContext, EntityRef};
 use systemprompt_identifiers::{
     Actor, AgentName, ClientId, ContextId, McpServerId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_mcp::middleware::rbac::build_hop_authz_request;
+use systemprompt_mcp_host::serving::middleware::rbac::build_hop_authz_request;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 

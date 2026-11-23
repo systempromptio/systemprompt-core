@@ -2,7 +2,7 @@
 //!
 //! An [`McpToolset`] is a named group of tools a binary links in. A deployment
 //! lists the ids it hosts under `toolsets:` and core's generic host
-//! (`systemprompt_mcp::host::ToolsetServer`) serves their union: it filters the
+//! (`systemprompt_mcp_host::serving::host::ToolsetServer`) serves their union: it filters the
 //! tool list per caller and gates every call on the access the YAML resolves
 //! for that tool. The toolset itself only lists its tools and executes a call
 //! that has already been authenticated and authorised.

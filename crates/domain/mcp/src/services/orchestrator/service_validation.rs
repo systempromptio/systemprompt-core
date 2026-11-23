@@ -6,7 +6,7 @@
 use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
 
-use crate::services::client::{validate_connection_by_url, validate_connection_with_auth};
+use crate::services::client::{validate_connection_by_url, validate_hosted_service};
 use crate::services::database::DatabaseService;
 use crate::services::registry::RegistryService;
 use systemprompt_identifiers::ServiceName;
@@ -62,13 +62,8 @@ pub(super) async fn validate_service(
 
     tracing::debug!(service = %service_name, "Connecting to MCP service");
 
-    let validation_result = validate_connection_with_auth(
-        service_name,
-        "127.0.0.1",
-        server.spawn_port()?,
-        server.oauth.required,
-    )
-    .await?;
+    let validation_result =
+        validate_hosted_service(service_name, "127.0.0.1", server.spawn_port()?).await;
 
     log_validation_result(service_name, &validation_result);
 

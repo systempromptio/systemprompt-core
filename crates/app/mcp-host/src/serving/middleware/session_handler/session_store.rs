@@ -22,19 +22,18 @@ use rmcp::model::InitializeRequestParams;
 use rmcp::transport::streamable_http_server::session::store::{
     SessionState, SessionStore, SessionStoreError,
 };
-use std::sync::Arc;
 use systemprompt_identifiers::SessionId;
 
-use crate::middleware::hop::restore_principal;
-use crate::repository::McpSessionRepository;
+use crate::serving::middleware::hop::restore_principal;
+use systemprompt_extension::mcp::DynMcpSessionStore;
 
 #[derive(Debug)]
 pub struct PostgresSessionStore {
-    repository: Arc<McpSessionRepository>,
+    repository: DynMcpSessionStore,
 }
 
 impl PostgresSessionStore {
-    pub const fn new(repository: Arc<McpSessionRepository>) -> Self {
+    pub fn new(repository: DynMcpSessionStore) -> Self {
         Self { repository }
     }
 }

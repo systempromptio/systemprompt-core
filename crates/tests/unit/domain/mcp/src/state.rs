@@ -1,5 +1,5 @@
 use std::time::Duration;
-use systemprompt_mcp::{McpHttpConfig, SessionTimeouts};
+use systemprompt_mcp_host::serving::{McpHttpConfig, SessionTimeouts};
 
 #[test]
 fn session_timeouts_both_none() {

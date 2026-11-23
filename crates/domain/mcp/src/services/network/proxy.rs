@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::mcp::capabilities::MAX_REQUEST_BODY_BYTES;
 use axum::Router;
 use axum::body::Body;
 use axum::extract::Request;
@@ -58,7 +59,7 @@ async fn forward_request(
         }
     }
 
-    let body_bytes = axum::body::to_bytes(req.into_body(), crate::MAX_REQUEST_BODY_BYTES)
+    let body_bytes = axum::body::to_bytes(req.into_body(), MAX_REQUEST_BODY_BYTES)
         .await
         .map_err(|_e| StatusCode::PAYLOAD_TOO_LARGE)?;
 
