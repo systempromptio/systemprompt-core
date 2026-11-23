@@ -377,8 +377,9 @@ mod database_layer {
 
         let debug_metadata = rows
             .iter()
-            .find(|r| r.0 == "DEBUG")
-            .and_then(|r| r.1.clone())
+            .filter(|r| r.0 == "DEBUG")
+            .filter_map(|r| r.1.clone())
+            .find(|metadata| metadata.contains("oauth_tokens"))
             .expect("debug metadata");
         assert!(
             !debug_metadata.contains("hunter2") && debug_metadata.contains("[REDACTED]"),

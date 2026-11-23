@@ -69,8 +69,6 @@ tabled = { workspace = true }
 reqwest = { workspace = true }
 rustls = { workspace = true }
 futures-util = { workspace = true }
-sse-stream = { workspace = true }
-bytes = { workspace = true }
 dialoguer = { workspace = true }
 base64 = { workspace = true }
 ed25519-dalek = { workspace = true }
