@@ -6,7 +6,7 @@
 
 use thiserror::Error;
 
-use crate::dependencies::MissingDependency;
+use crate::dependency_errors::MissingDependency;
 
 pub type ConfigPlaneResult<T> = Result<T, ConfigPlaneError>;
 

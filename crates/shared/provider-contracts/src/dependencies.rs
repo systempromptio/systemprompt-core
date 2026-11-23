@@ -53,7 +53,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
-use thiserror::Error;
+
+use crate::conferred::Conferred;
+use crate::dependency_errors::{DuplicateDependency, MissingDependency};
 
 /// Who put an entry into a [`Dependencies`] map.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,16 +87,7 @@ pub struct Dependencies {
     entries: Arc<HashMap<TypeId, Entry>>,
     reserved: Arc<HashMap<TypeId, &'static str>>,
     sealed: Arc<HashSet<TypeId>>,
-    conferred: Arc<HashMap<TypeId, Conferred>>,
-}
-
-/// The one member a sealed value is conferred on, and the reserved row that
-/// names the pair; the value is a member's sealed provide or a sealed host
-/// seed.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Conferred {
-    pub holder: ExtensionId,
-    pub row: &'static str,
+    pub(crate) conferred: Arc<HashMap<TypeId, Conferred>>,
 }
 
 impl Dependencies {
@@ -112,17 +105,6 @@ impl Dependencies {
     #[must_use]
     pub fn with_sealed<T: Any + Send + Sync>(mut self, value: T) -> Self {
         self.insert_sealed(value);
-        self
-    }
-
-    #[must_use]
-    pub fn with_sealed_conferred<T: Any + Send + Sync>(
-        mut self,
-        value: T,
-        conferred: Conferred,
-    ) -> Self {
-        self.insert_sealed(value);
-        Arc::make_mut(&mut self.conferred).insert(TypeId::of::<T>(), conferred);
         self
     }
 
@@ -232,22 +214,6 @@ impl Dependencies {
         Ok(())
     }
 
-    pub fn provide_conferred<T: Any + Send + Sync>(
-        &mut self,
-        provider: &ExtensionId,
-        value: Arc<T>,
-        conferred: Conferred,
-    ) -> Result<(), DuplicateDependency> {
-        self.provide_sealed(provider, value)?;
-        Arc::make_mut(&mut self.conferred).insert(TypeId::of::<T>(), conferred);
-        Ok(())
-    }
-
-    #[must_use]
-    pub fn conferral_of<T: Any + Send + Sync>(&self) -> Option<&Conferred> {
-        self.conferred.get(&TypeId::of::<T>())
-    }
-
     pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
         self.find::<T>().ok_or_else(MissingDependency::of::<T>)
     }
@@ -303,35 +269,4 @@ impl fmt::Debug for Dependencies {
             .field("sealed", &sealed)
             .finish()
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-#[error("provider context has no {type_name} dependency")]
-pub struct MissingDependency {
-    type_name: &'static str,
-}
-
-impl MissingDependency {
-    #[must_use]
-    pub fn of<T: Any>() -> Self {
-        Self {
-            type_name: type_name::<T>(),
-        }
-    }
-
-    #[must_use]
-    pub const fn type_name(&self) -> &'static str {
-        self.type_name
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-#[error(
-    "{type_name} is already provided by {first}; extension '{second}' cannot provide it again, \
-     every type has exactly one provider"
-)]
-pub struct DuplicateDependency {
-    pub type_name: &'static str,
-    pub first: DependencyProvider,
-    pub second: ExtensionId,
 }

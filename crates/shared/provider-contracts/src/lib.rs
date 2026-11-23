@@ -45,9 +45,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod component;
+mod conferred;
 pub mod config_plane;
 mod content_data;
 mod dependencies;
+mod dependency_errors;
 mod doctor;
 pub mod documents;
 mod error;
@@ -69,6 +71,7 @@ pub mod web_config;
 pub use component::{
     ComponentContext, ComponentRenderer, PartialSource, PartialTemplate, RenderedComponent,
 };
+pub use conferred::Conferred;
 pub use config_plane::{
     ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource,
     ChangeSourceError, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet,
@@ -77,9 +80,8 @@ pub use config_plane::{
     ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash, resolve_apply,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
-pub use dependencies::{
-    Conferred, Dependencies, DependencyProvider, DuplicateDependency, MissingDependency,
-};
+pub use dependencies::{Dependencies, DependencyProvider};
+pub use dependency_errors::{DuplicateDependency, MissingDependency};
 pub use doctor::{
     DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
     GitCredentialSource, SecretPresence,

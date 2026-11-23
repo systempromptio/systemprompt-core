@@ -12,7 +12,8 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::any::Any;
 
-use crate::dependencies::{Dependencies, MissingDependency};
+use crate::dependencies::Dependencies;
+use crate::dependency_errors::MissingDependency;
 use crate::error::ProviderResult;
 
 pub struct ContentDataContext<'a> {
