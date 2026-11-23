@@ -10,6 +10,7 @@ use super::table::{Row, owned, owned_at};
 const DOC: &str = "routes/documents/mod.rs::router";
 const COLLAB: &str = "routes/documents/mod.rs::with_collab";
 const VIEWS: &str = "routes/documents/mod.rs::with_views";
+const EXTERNAL: &str = "routes/documents/external.rs::with_public_links";
 const FOLDER: &str = "routes/documents/mod.rs::folders_router";
 const DRIVE: &str = "routes/documents/drive.rs::router";
 const UPLOAD: &str = "routes/uploads/mod.rs::routes";
@@ -86,6 +87,12 @@ pub(super) const OWNED: &[Row] = &[
     owned(DOC, "GET", r#""/{id}/grants""#, Documents, NotFound, Empty),
     owned(DOC, "POST", r#""/{id}/grants""#, Documents, NotFound, Json(SHARE)),
     owned_at(DOC, "DELETE", r#""/{id}/grants""#, "/{id}/grants?grant_id={grant}", (Documents, NotFound, Empty)),
+    owned(EXTERNAL, "GET", r#""/{id}/public-links""#, Documents, NotFound, Empty),
+    owned(EXTERNAL, "POST", r#""/{id}/public-links""#, Documents, NotFound, Json("{}")),
+    owned(EXTERNAL, "DELETE", r#""/{id}/public-links/{link_id}""#, Documents, NotFound, Empty),
+    owned(EXTERNAL, "GET", r#""/{id}/invites""#, Documents, NotFound, Empty),
+    owned(EXTERNAL, "POST", r#""/{id}/invites""#, Documents, NotFound, Json(r#"{"email":"sweep@example.com","level":"view"}"#)),
+    owned(EXTERNAL, "DELETE", r#""/{id}/invites/{invite_id}""#, Documents, NotFound, Empty),
     owned(DOC, "GET", r#""/{id}/presence""#, Documents, NotFound, Empty),
     owned(DOC, "PUT", r#""/{id}/presence""#, Documents, NotFound, Json(r#"{"state":"viewing"}"#)),
     owned(DOC, "POST", r#""/{id}/lock""#, Documents, NotFound, Json(r#"{"holder_id":"sweep"}"#)),

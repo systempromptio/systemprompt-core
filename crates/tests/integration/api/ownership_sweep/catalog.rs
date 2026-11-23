@@ -14,6 +14,8 @@ const WEBHOOK: &str =
     "inbound platform webhook authenticated by the platform's signature, not by a user";
 const CONTENT: &str =
     "published content and link redirects/analytics, readable by design and not owned by a user";
+const PUBLIC_LINK: &str = "anonymous open of a public link or invite link; the unguessable token is the credential, no session is read and no resource is addressed by id";
+const INVITE_CLAIM: &str = "invite claim by the caller's own verified email; the token names the invite, and any mismatch answers the same not_found as an unknown token";
 const MCP_HOP: &str = "session-less MCP-server call authenticated by the proxy hop token; the subject comes from the token and its ownership of the target is re-checked before signing (internal_links tests)";
 const CATALOG: &str = "org-wide catalog (marketplace, registry, schema, subject directory) identical for every caller";
 const PROXY: &str = "service proxy authorised per service by the proxy access check; owned resources behind it are probed on their own routes";
@@ -65,6 +67,9 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("routes/content/mod.rs::redirect_router", "GET", r#""/r/{short_code}""#, CONTENT),
     free("routes/documents/drive.rs::router", "POST", "ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_TOKEN)", TOKEN),
     free("routes/documents/mod.rs::router", "GET", r#""/people""#, CATALOG),
+    free("routes/documents/external.rs::with_public_links", "POST", r#""/invites/claim""#, INVITE_CLAIM),
+    free("routes/documents/public_link.rs::router", "GET", r#""/{token}""#, PUBLIC_LINK),
+    free("routes/documents/public_link.rs::router", "POST", r#""/{token}""#, PUBLIC_LINK),
     free("routes/documents/mod.rs::router", "GET", r#""/schema""#, CATALOG),
     free("routes/documents/mod.rs::router", "GET", r#""/subject-kinds""#, CATALOG),
     free("routes/documents/mod.rs::router", "GET", r#""/subjects""#, CATALOG),
