@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Fixed
+
+- The schema catalog digest and the trigger-routine check read again when concurrent DDL drops an object they listed (`XX000`) or deadlocks with their scan (`40P01` and the other retryable lock SQLSTATEs), up to ten reads within a second.
+
 ## [0.82.0] - 2026-11-16
 
 ### Added

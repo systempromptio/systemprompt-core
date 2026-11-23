@@ -2,8 +2,9 @@
 //! the document store is on and, when it is, where its routes are and the
 //! byte limits an upload, a part of one and an inline upload stay within, and
 //! the rendered-HTML policy (`renderedHtml`: `scripts`, `remoteOrigins` and
-//! the `agentAuthored` tier), so a client learns the Drive from discovery
-//! instead of probing for a `404`.
+//! the `agentAuthored` tier), and whether a document may be shared outside
+//! the instance (`publicLinks`, `externalInvites`), so a client learns the
+//! Drive from discovery instead of probing for a `404`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,6 +29,8 @@ struct DocumentsSurface {
     uploads: String,
     limits: DocumentsLimits,
     rendered_html: RenderedHtmlConfig,
+    public_links: bool,
+    external_invites: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -60,6 +63,8 @@ impl DocumentsDiscovery {
                     upload_part: config.uploads.part_size_bytes,
                 },
                 rendered_html: config.rendered_html.clone(),
+                public_links: config.external_sharing.public_links,
+                external_invites: config.external_sharing.invites,
             }),
         }
     }

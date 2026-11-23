@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH i AS (\n                   UPDATE document_invites\n                   SET claimed_by_user_id = $2, claimed_at = now()\n                   WHERE id = $1::text::uuid AND claimed_at IS NULL AND revoked_at IS NULL\n                     AND expires_at > now()\n                   RETURNING id, document_id, email, access_level),\n               e AS (\n                   INSERT INTO document_grant_events\n                       (event, target_kind, target_id, subject_kind, subject_value, new_level,\n                        actor_user_id, trace_id)\n                   SELECT 'invite.claimed', 'document', i.document_id, 'invite', i.email,\n                          i.access_level, $2, $3\n                   FROM i)\n               SELECT COUNT(*) AS \"claimed!\" FROM i",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "claimed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d9c60cbe9213c97832dca8d6cd0456b0e8e71203982cfac9b8e4ddf9623f8127"
+}

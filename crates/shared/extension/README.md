@@ -42,7 +42,7 @@ A member implements `Extension`: `metadata()` and one `contribute(&mut Contribut
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.85"
+systemprompt-extension = "0.86"
 ```
 
 ```rust

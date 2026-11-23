@@ -85,7 +85,7 @@ Artefact variants: `Table`, `List`, `Card`, `Text`, `CopyPasteText`, `Chart`, `F
 
 ```toml
 [dependencies]
-systemprompt-cli = "0.85"
+systemprompt-cli = "0.86"
 ```
 
 This crate is a library. The `systemprompt` binary is built by the

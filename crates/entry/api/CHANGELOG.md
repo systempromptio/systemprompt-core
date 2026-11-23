@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Breaking
+
+- `services::proxy::ProxyError` gains `ContextNotOwned { service }` and `ContextLookupFailed { service, source }`. Migrate an exhaustive `match` by adding the two arms.
+- `routes::oauth::discovery::WellKnownResponse` gains `device_link_ui_session_supported: bool`, and `routes::gateway::auth::{session_pat, SessionPatBody}` move to `routes::gateway::device_link`. Migrate a struct literal by setting the field and an import by its new path.
+
+### Added
+
+- Document external sharing routes: `/api/v1/documents/{id}/public-links`, `/api/v1/documents/{id}/invites`, `/api/v1/documents/invites/claim`, and the anonymous read-only page at `/s/{token}`; `endpoints.documents` advertises `publicLinks` and `externalInvites`.
+- `POST /v1/auth/bridge/session-pat` answers a device link carrying a UI session with `ui_code`; the discovery documents advertise `device_link_ui_session_supported`.
+- `GET /v1/bridge/whoami` carries the user's subject `attributes`.
+
+### Fixed
+
+- The MCP proxy honours an `x-context-id` header only for a context the verified caller owns, and refuses any other with `403` `context_not_owned`.
+
 ## [0.85.0] - 2026-11-21
 
 ### Breaking

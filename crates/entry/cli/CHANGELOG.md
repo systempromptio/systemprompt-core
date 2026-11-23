@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Breaking
+
+- `shared::disk_logs` is removed; its helpers are `systemprompt_models::path_confine::logs`. Migrate by importing from there.
+
+### Fixed
+
+- `admin agents logs` and `plugins mcp logs` read only beneath the profile's logs root: `--logs-dir` must lie inside it, names must be one path segment, links resolving outside are refused, and `plugins mcp logs` no longer falls back to `/var/log`.
+- `infra services stop`, `restart` and `cleanup` wait for the process to exit against the profile's shutdown deadlines before SIGKILL.
+
 ## [0.85.0] - 2026-11-21
 
 ### Changed

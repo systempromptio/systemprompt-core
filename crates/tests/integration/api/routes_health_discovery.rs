@@ -11,7 +11,9 @@ use systemprompt_api::services::server::builder::{
     handle_agents_discovery, handle_core_discovery, handle_health, handle_mcp_discovery,
     handle_root_discovery,
 };
-use systemprompt_files::{DocumentsConfig, RemoteOrigin, RenderedHtmlConfig, RenderedHtmlTier};
+use systemprompt_files::{
+    DocumentsConfig, ExternalSharingConfig, RemoteOrigin, RenderedHtmlConfig, RenderedHtmlTier,
+};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_test_fixtures::{
     fixture_admitted, fixture_app_context_on_bootstrap, fixture_config, init_documents_bootstrap,
@@ -71,6 +73,8 @@ async fn root_discovery_advertises_the_enabled_document_store() -> anyhow::Resul
                 "remoteOrigins": [],
                 "agentAuthored": { "scripts": false, "remoteOrigins": [] },
             },
+            "publicLinks": false,
+            "externalInvites": false,
         })
     );
     Ok(())
@@ -105,6 +109,24 @@ async fn root_discovery_publishes_the_rendered_html_tiers() -> anyhow::Result<()
             "agentAuthored": { "scripts": false, "remoteOrigins": ["https://cdn.example.com"] },
         })
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn root_discovery_says_which_external_sharing_channels_are_on() -> anyhow::Result<()> {
+    let bootstrap = init_documents_bootstrap(DocumentsConfig {
+        enabled: true,
+        external_sharing: ExternalSharingConfig {
+            public_links: true,
+            ..ExternalSharingConfig::default()
+        },
+        ..DocumentsConfig::default()
+    });
+    let config = fixture_config(&bootstrap.database_url);
+    let ctx = fixture_app_context_on_bootstrap(&bootstrap, config, fixture_admitted()).await?;
+    let block = root_documents_block(discovery_router_over(&ctx)).await?;
+    assert_eq!(block["publicLinks"], true);
+    assert_eq!(block["externalInvites"], false);
     Ok(())
 }
 

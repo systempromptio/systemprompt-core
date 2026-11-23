@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Added
+
+- `PublicLinkId` and `DocumentInviteId`.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

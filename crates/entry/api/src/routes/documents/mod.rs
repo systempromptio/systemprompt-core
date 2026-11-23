@@ -40,6 +40,7 @@ mod folders;
 mod headers;
 mod history;
 mod import;
+mod invites;
 mod items;
 mod items_multipart;
 mod lifecycle;
