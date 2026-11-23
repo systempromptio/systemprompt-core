@@ -199,11 +199,18 @@ fn gemini_4_is_priced_on_the_gemini_wire_at_the_documented_rate() {
     for (id, upstream, input, output) in [
         ("vertex-gemini-4-argon", "google/gemini-4-argon", 4.0, 20.0),
         (
+            "vertex-gemini-4-carbon",
+            "google/gemini-4-carbon",
+            4.0,
+            20.0,
+        ),
+        (
             "vertex-gemini-4-hydrogen",
             "google/gemini-4-hydrogen",
             1.5,
             7.5,
         ),
+        ("vertex-gemini-4-neon", "google/gemini-4-neon", 3.0, 15.0),
     ] {
         let entry = card.lookup(upstream).expect("priced");
         assert_eq!(entry.id.as_str(), id);

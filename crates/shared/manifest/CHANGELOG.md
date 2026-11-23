@@ -5,6 +5,7 @@
 ### Added
 
 - The Vertex rate card prices `google/gemini-4-argon` (`vertex-gemini-4-argon`, 4.00 / 20.00 per million, cache read 0.20) and `google/gemini-4-hydrogen` (`vertex-gemini-4-hydrogen`, 1.50 / 7.50, cache read 0.075, `price_until` 2027-01-11), both GA on the gemini wire, so Vertex discovery publishes them where the project lists them.
+- The Vertex rate card prices `google/gemini-4-carbon` (`vertex-gemini-4-carbon`, 4.00 / 20.00 per million, cache read 0.20) and `google/gemini-4-neon` (`vertex-gemini-4-neon`, 3.00 / 15.00, cache read 0.15, `price_until` 2027-01-11). Google documents both as available to verified enterprise customers; discovery publishes them only in a project whose publisher listing carries them.
 
 ## [0.85.0] - 2026-11-21
 
