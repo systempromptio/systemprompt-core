@@ -1,4 +1,4 @@
-//! A spawned agent composes its `AgentHost` on the child environment alone:
+//! The `admin agent-host run` child host boots on the child environment alone:
 //! it never reads the profile's secrets source, ignores a pepper, seed or
 //! signing key placed in its environment, holds only the secrets it was
 //! granted, and verifies bearers against the public key set it was handed.
@@ -7,14 +7,14 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_mcp_host::{AgentHost, HostContext};
+use systemprompt_mcp_host::HostContext;
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{
     TestBootstrap, host_child_env, init_services_bootstrap, mint_admin_jwt,
     seed_fixture_system_admin, test_db_pool,
 };
-use systemprompt_traits::JwtProviderError;
+use systemprompt_traits::{DynAgentServer, DynJwtValidationProvider, JwtProviderError};
 
 const SERVICES: &str = r#"agents:
   host_agent:
@@ -73,17 +73,16 @@ fn agent_child_env(bootstrap: &TestBootstrap) -> BTreeMap<String, String> {
     env
 }
 
-async fn compose(env: BTreeMap<String, String>) -> AgentHost {
+async fn compose(env: BTreeMap<String, String>) -> HostContext {
     seed_fixture_system_admin(&test_db_pool().await)
         .await
         .expect("seed the system admin");
-    let host = HostContext::boot(
+    HostContext::boot(
         move |name| env.get(name).cloned(),
         crate::boot::core_admit(),
     )
     .await
-    .expect("host boots");
-    AgentHost::compose(host).expect("agent composes")
+    .expect("host boots")
 }
 
 #[tokio::test]
@@ -118,10 +117,9 @@ async fn an_agent_composes_without_the_profile_secrets_source_and_ignores_boot_s
         "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n".to_owned(),
     );
 
-    let agent = compose(env).await;
+    let host = compose(env).await;
 
     assert!(!absent.exists(), "the secrets file was never created");
-    let host = agent.host();
     assert_eq!(
         host.granted_secrets().granted_names(),
         vec!["anthropic_api_key".to_owned()]
@@ -135,14 +133,20 @@ async fn an_agent_composes_without_the_profile_secrets_source_and_ignores_boot_s
 
 #[tokio::test]
 async fn the_agent_verifies_bearers_against_the_key_set_it_was_handed() {
-    let agent = compose(agent_child_env(bootstrap())).await;
-    let auth = agent.agent_auth();
-    let issuer = agent.host().config().jwt_issuer.clone();
+    let host = compose(agent_child_env(bootstrap())).await;
+    assert!(
+        host.state().find::<DynAgentServer>().is_some(),
+        "the child host holds the agent member's server"
+    );
+    let jwt = host
+        .state()
+        .find::<DynJwtValidationProvider>()
+        .expect("the child host seeds the verifying JWT provider");
+    let issuer = host.config().jwt_issuer.clone();
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
 
     let token = mint_admin_jwt(&user, "agent-host@test.invalid", &issuer);
-    let claims = auth
-        .jwt_provider
+    let claims = jwt
         .validate_token(token.as_str())
         .expect("a token from the deployment key verifies");
     assert_eq!(claims.subject, user);
@@ -161,8 +165,7 @@ async fn the_agent_verifies_bearers_against_the_key_set_it_was_handed() {
         },
     )
     .expect("mint with a foreign key");
-    let err = auth
-        .jwt_provider
+    let err = jwt
         .validate_token(forged.as_str())
         .expect_err("a key outside the set never verifies");
     assert!(matches!(err, JwtProviderError::InvalidToken), "{err:?}");

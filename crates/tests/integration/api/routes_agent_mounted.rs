@@ -4,7 +4,7 @@
 //! | path | anonymous | signed-in user | `agent-http` disabled |
 //! |---|---|---|---|
 //! | `GET /api/v1/core/{contexts,tasks,artifacts}` | 401 | 200 | 404 |
-//! | `GET /api/v1/agents/registry` | 200 | 200 | the kernel agent proxy's 401 |
+//! | `GET /api/v1/agents/registry` | 200 | 200 | the kernel agent proxy: 401 anonymous, 400 signed in |
 //!
 //! The registry set holds that one path: a path below it is the kernel agent
 //! proxy's, never the registry's. A profile that disables `agent` while
@@ -120,6 +120,13 @@ async fn disabling_agent_http_unmounts_every_set() -> Result<()> {
         "the registry path falls through to the kernel agent proxy: {body}"
     );
     assert!(body.contains("Missing Authorization header"), "{body}");
+    let (authed, body) = get(&app, REGISTRY, Some(&user.jwt)).await?;
+    assert_eq!(
+        authed,
+        StatusCode::BAD_REQUEST,
+        "the proxy's A2A context middleware reads the empty GET body before any agent lookup: {body}"
+    );
+    assert!(body.contains("body is not valid JSON"), "{body}");
     Ok(())
 }
 

@@ -167,3 +167,110 @@ fn an_included_fragment_is_interpolated() {
     assert!(path.ends_with("fragment.yaml"), "{}", path.display());
     assert_eq!(source.variable, "WPF_FRAGMENT_VAR");
 }
+
+fn agent_root() -> String {
+    format!("includes:\n  - agent.yaml\n{ROOT}")
+}
+
+const VALID_AGENT: &str = r#"agents:
+  verbatim_agent:
+    name: verbatim_agent
+    port: 4100
+    endpoint: /api/v1/agents/verbatim_agent/
+    enabled: true
+    dev_only: false
+    is_primary: false
+    default: false
+    tags: []
+    card:
+      protocolVersion: 0.3.0
+      name: verbatim_agent
+      displayName: Verbatim Agent
+      description: "Answers for ${WPF_API_PATH}"
+      version: 1.0.0
+      preferredTransport: JSONRPC
+      capabilities:
+        streaming: true
+        pushNotifications: false
+      defaultInputModes:
+      - text/plain
+      defaultOutputModes:
+      - text/plain
+    metadata:
+      systemPrompt: You are a fixture agent.
+    oauth:
+      required: false
+      scopes: []
+      audience: a2a
+"#;
+
+const MISNAMED_AGENT: &str = r#"agents:
+  verbatim_agent:
+    name: another_name
+    port: 4100
+    endpoint: /api/v1/agents/another_name/
+    enabled: true
+    dev_only: false
+    is_primary: false
+    default: false
+    tags: []
+    card:
+      protocolVersion: 0.3.0
+      name: another_name
+      displayName: Verbatim Agent
+      description: "Answers for ${WPF_API_PATH}"
+      version: 1.0.0
+      preferredTransport: JSONRPC
+      capabilities:
+        streaming: true
+        pushNotifications: false
+      defaultInputModes:
+      - text/plain
+      defaultOutputModes:
+      - text/plain
+    metadata:
+      systemPrompt: You are a fixture agent.
+    oauth:
+      required: false
+      scopes: []
+      audience: a2a
+"#;
+
+#[test]
+fn a_verbatim_load_refuses_a_tree_that_does_not_validate() {
+    let tree = write_tree(
+        &agent_root(),
+        &[("agent.yaml", MISNAMED_AGENT)],
+    );
+
+    let err = ConfigLoader::new(tree.root.clone())
+        .with_env_lookup(fixture_env)
+        .verbatim()
+        .load()
+        .expect_err("a key that differs from its name field fails validation");
+
+    assert!(
+        format!("{err:#}").contains("does not match name field"),
+        "{err:#}"
+    );
+}
+
+#[test]
+fn a_valid_verbatim_tree_round_trips_its_placeholder() {
+    let tree = write_tree(
+        &agent_root(),
+        &[("agent.yaml", VALID_AGENT)],
+    );
+
+    let config = ConfigLoader::new(tree.root.clone())
+        .with_env_lookup(fixture_env)
+        .verbatim()
+        .load()
+        .expect("a valid tree loads verbatim");
+
+    let agent = &config.agents["verbatim_agent"];
+    assert_eq!(agent.card.description, "Answers for ${WPF_API_PATH}");
+    let written = serde_yaml::to_string(&config.agents).expect("re-serialise the agents");
+    assert!(written.contains("${WPF_API_PATH}"), "{written}");
+    assert!(!written.contains("proxy/v1"), "{written}");
+}

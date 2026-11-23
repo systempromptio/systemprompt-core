@@ -183,6 +183,30 @@ async fn create_rejects_an_invalid_agent_name() {
 }
 
 #[tokio::test]
+async fn create_refuses_the_reserved_registry_name() {
+    let root = seed_agents();
+
+    let err = run(&[
+        "create",
+        "--name",
+        "registry",
+        "--port",
+        "9136",
+        "--display-name",
+        "Registry",
+        "--description",
+        "Shadows the agent registry",
+        "--system-prompt",
+        "Never created.",
+    ])
+    .await
+    .unwrap_err();
+
+    assert!(format!("{err:#}").contains("reserved"), "{err:#}");
+    assert!(!root.join("agents/registry.yaml").exists());
+}
+
+#[tokio::test]
 async fn create_requires_a_name_in_non_interactive_mode() {
     seed_agents();
 

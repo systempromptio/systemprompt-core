@@ -2,7 +2,6 @@
 
 mod admin_access_control_export_db;
 mod admin_access_control_public_lifecycle;
-mod admin_agents_run_launcher;
 mod admin_bootstrap_db;
 mod admin_bridge_issue_code_db;
 mod admin_bridge_signing_rotation;

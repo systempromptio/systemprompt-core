@@ -13,6 +13,8 @@
 #[cfg(test)]
 mod agent_host;
 #[cfg(test)]
+mod agent_server_unavailable;
+#[cfg(test)]
 mod app_context_parts;
 #[cfg(test)]
 mod boot;
