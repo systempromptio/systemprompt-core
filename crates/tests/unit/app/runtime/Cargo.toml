@@ -37,6 +37,7 @@ systemprompt-oauth = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-gateway = { workspace = true }
+systemprompt-gateway-entry = { workspace = true, features = ["http"] }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }

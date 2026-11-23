@@ -23,7 +23,7 @@ const ARTIFACT: &str = "agent/http/mod.rs::artifacts_routes";
 const EXECUTION: &str = "routes/proxy/mcp/executions.rs::executions_router";
 const NOTIFY: &str = "notifications/http/mod.rs::user_routes";
 const BRIDGE_NOTIFY: &str = "notifications/http/mod.rs::bridge_routes";
-const BYOK: &str = "routes/gateway/provider_credentials.rs::routes";
+const BYOK: &str = "gateway/http/provider_credentials.rs::routes";
 const BRAIN: &str = "brain/http/mount.rs::user_routes";
 const CLIENTS: &str = "routes/oauth/clients.rs::router";
 

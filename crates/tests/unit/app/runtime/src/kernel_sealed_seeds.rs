@@ -302,6 +302,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             type_name::<Arc<systemprompt_ai::PersonalProviderCredentials>>(),
             carrier::<systemprompt_ai::repository::UserProviderCredentialRepository>(),
         ),
+        (
+            type_name::<Arc<systemprompt_gateway_entry::http::state::GatewayHttpRepositories>>(),
+            carrier::<systemprompt_gateway_entry::http::state::GatewayApiKeys>(),
+        ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();
     let member_sealed: BTreeSet<&str> = state

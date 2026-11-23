@@ -5,7 +5,10 @@
 //! route-scoped state of `gateway-http` it builds the inference proxy
 //! (`/messages`, `/responses`, `/chat/completions`, each bound to an
 //! [`InboundAdapter`]), `/messages/count_tokens` and, with the `otel`
-//! feature, the credential-gated `/otel` ingest. The API mount wraps what it
+//! feature, the credential-gated `/otel` ingest, and — while the `ai` member
+//! provides the personal credential view conferred on `gateway-http` — the
+//! caller's `/me/provider-credentials` routes (absent, so a confined 404,
+//! when it does not). The API mount wraps what it
 //! returns in the gateway layering; nothing here limits, confines or logs
 //! access.
 //!
@@ -50,7 +53,7 @@ impl GatewaySurface for GatewayHttpSurface {
         let own = resolved.get::<Arc<GatewayHttpRepositories>>()?;
         let db = resolved.get::<DbPool>()?;
         let repos = gateway_repositories(&resolved, &host, Arc::clone(&own.contexts), &db)?;
-        let credentials = resolved.get::<Arc<systemprompt_ai::PersonalProviderCredentials>>()?;
+        let credentials = resolved.optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>();
         let state = GatewayHttpState {
             authenticator: resolved.get()?,
             api_keys: own.api_keys.clone(),
@@ -60,12 +63,16 @@ impl GatewaySurface for GatewayHttpSurface {
             host,
             db,
         };
-        Ok(routes(&state).merge(provider_credentials::routes(
-            &provider_credentials::ProviderCredentialsState {
-                gateway: state.clone(),
-                credentials,
-            },
-        )))
+        let router = routes(&state);
+        Ok(match credentials {
+            Some(credentials) => router.merge(provider_credentials::routes(
+                &provider_credentials::ProviderCredentialsState {
+                    gateway: state.clone(),
+                    credentials,
+                },
+            )),
+            None => router,
+        })
     }
 }
 
@@ -83,16 +90,18 @@ fn routes(state: &GatewayHttpState) -> Router {
             "/chat/completions",
             inference(state, Arc::new(OpenAiChatInbound)),
         )
-        .route("/messages/count_tokens", {
-            let state = state.clone();
-            post(move |request| {
-                let state = state.clone();
-                async move { count_tokens::handle(state, request).await }
-            })
-        });
+        .route("/messages/count_tokens", token_count(state));
     #[cfg(feature = "otel")]
     let router = otel_routes(router, state);
     router
+}
+
+fn token_count(state: &GatewayHttpState) -> axum::routing::MethodRouter {
+    let state = state.clone();
+    post(move |request| {
+        let state = state.clone();
+        async move { count_tokens::handle(state, request).await }
+    })
 }
 
 fn inference(
@@ -110,13 +119,16 @@ fn inference(
 #[cfg(feature = "otel")]
 fn otel_routes(router: Router, state: &GatewayHttpState) -> Router {
     use systemprompt_models::ApiPaths;
-    let handler = |state: GatewayHttpState| {
-        post(move |request| {
-            let state = state.clone();
-            async move { otel::handle(state, request).await }
-        })
-    };
     router
-        .route(ApiPaths::OTEL, handler(state.clone()))
-        .route(ApiPaths::OTEL_REST_ROUTE, handler(state.clone()))
+        .route(ApiPaths::OTEL, otel_ingest(state))
+        .route(ApiPaths::OTEL_REST_ROUTE, otel_ingest(state))
+}
+
+#[cfg(feature = "otel")]
+fn otel_ingest(state: &GatewayHttpState) -> axum::routing::MethodRouter {
+    let state = state.clone();
+    post(move |request| {
+        let state = state.clone();
+        async move { otel::handle(state, request).await }
+    })
 }
