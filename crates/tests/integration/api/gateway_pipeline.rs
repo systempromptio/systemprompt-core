@@ -1440,6 +1440,13 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         let response = result?;
         assert_eq!(response.status(), http::StatusCode::OK);
         to_bytes(response.into_body(), 1024 * 1024).await?;
+        assert_eq!(
+            repositories
+                .background
+                .drain(std::time::Duration::from_secs(30))
+                .await,
+            systemprompt_traits::DrainOutcome::Drained
+        );
         let audit: serde_json::Value = sqlx::query_scalar("SELECT evaluated_rules FROM governance_decisions WHERE user_id=$1 AND policy='quota' AND decision='warn'")
             .bind(cred.user_id.as_str()).fetch_one(raw.as_ref()).await?;
         assert_eq!(audit["call_id"], request_id.as_str());
