@@ -960,7 +960,6 @@ async fn private_harness_with_provider(label: &str, provider_url: &str) -> anyho
     harness_with_database(None, Some(database), Some(provider_url)).await
 }
 
-
 struct RawProviderTask(Option<tokio::task::JoinHandle<anyhow::Result<usize>>>);
 
 impl Drop for RawProviderTask {

@@ -14,7 +14,7 @@ use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span};
 use prost::Message;
-use systemprompt_api::routes::gateway::otel::ingest_envelope;
+use systemprompt_gateway_entry::http::otel::ingest_envelope;
 
 fn request(body: Vec<u8>) -> Request<Body> {
     Request::builder()

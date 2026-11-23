@@ -9,10 +9,6 @@
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::Response;
-use systemprompt_api::routes::gateway::messages::dispatch::errors::{
-    build_error_response, classify_dispatch_error, map_dispatch_error,
-};
-use systemprompt_api::routes::gateway::messages::error::RejectionError;
 use systemprompt_gateway::OverridePolicy;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::protocol::{
@@ -23,6 +19,10 @@ use systemprompt_gateway::service::finalize::{apply_system_prompt_override, atta
 use systemprompt_gateway::service::{
     DispatchError, GatewayError, PolicyDenied, QuotaExceeded, REQUEST_ID_HEADER, SafetyBlocked,
 };
+use systemprompt_gateway_entry::http::messages::dispatch::errors::{
+    build_error_response, classify_dispatch_error, map_dispatch_error,
+};
+use systemprompt_gateway_entry::http::messages::error::RejectionError;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_manifest::services::{GatewayConfig, OverrideRuleAction, SystemPromptRule};
 

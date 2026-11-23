@@ -4,8 +4,6 @@
 //! JSON logs) is counted under its own label on
 //! `gateway_desktop_telemetry_exports_total`.
 
-use std::sync::Arc;
-
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -17,9 +15,8 @@ use opentelemetry_proto::tonic::metrics::v1::{Metric, ResourceMetrics, ScopeMetr
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span};
 use prost::Message;
-use systemprompt_api::routes::gateway::otel::{handle, ingest_envelope};
-use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_api::services::server::metrics::install_recorder;
+use systemprompt_gateway_entry::http::otel::{handle, ingest_envelope};
 use systemprompt_identifiers::{InstanceId, SessionId};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -30,9 +27,40 @@ use systemprompt_test_fixtures::{
 const EXPORTS: &str = "gateway_desktop_telemetry_exports_total";
 
 struct Harness {
-    ctx: Arc<AppContext>,
-    extractor: Arc<JwtContextExtractor>,
+    state: systemprompt_gateway_entry::http::state::GatewayHttpState,
     authed: AuthedFixture,
+}
+
+fn gateway_http_state(
+    ctx: &AppContext,
+) -> systemprompt_gateway_entry::http::state::GatewayHttpState {
+    let state = ctx.kernel().state();
+    systemprompt_gateway_entry::http::state::GatewayHttpState {
+        authenticator: state
+            .get::<systemprompt_models::auth::DynRequestAuthenticator>()
+            .cloned()
+            .expect("request authenticator"),
+        api_keys: systemprompt_gateway_entry::http::state::GatewayApiKeys::new(
+            systemprompt_users::ApiKeyService::new(
+                std::sync::Arc::clone(ctx.user_repository()),
+                systemprompt_users::ApiKeyLifetime::from_max_days(
+                    ctx.config().api_key_max_lifetime_days,
+                ),
+            ),
+        ),
+        session_mint: state
+            .get::<systemprompt_traits::DynGatewaySessionMint>()
+            .cloned()
+            .expect("gateway session mint"),
+        repos: std::sync::Arc::new(
+            systemprompt_api::routes::gateway::gateway_repositories(ctx)
+                .expect("gateway repositories"),
+        ),
+        engines: systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
+            .expect("gateway engines"),
+        host: systemprompt_api::routes::gateway::host_handles(ctx),
+        db: std::sync::Arc::clone(ctx.db_pool()),
+    }
 }
 
 async fn harness() -> Harness {
@@ -40,17 +68,11 @@ async fn harness() -> Harness {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&url).await;
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
+    let state = gateway_http_state(&ctx);
     let authed = seed_bridge_credential(&pool, "otel@gateway-otel.invalid")
         .await
         .expect("bridge credential");
-    Harness {
-        ctx,
-        extractor,
-        authed,
-    }
+    Harness { state, authed }
 }
 
 fn exports(signal: &str) -> f64 {
@@ -151,12 +173,7 @@ async fn an_attested_session_is_accepted_and_each_protobuf_signal_is_counted() {
         ("/otel/v1/metrics", metrics_export(), "metrics"),
     ] {
         let before = exports(signal);
-        let resp = handle(
-            Arc::clone(&h.extractor),
-            (*h.ctx).clone(),
-            authed(&h, uri, &session, body),
-        )
-        .await;
+        let resp = handle(h.state.clone(), authed(&h, uri, &session, body)).await;
         assert_eq!(resp.status(), StatusCode::ACCEPTED, "{uri}");
         assert!(
             exports(signal) > before,
@@ -170,8 +187,7 @@ async fn a_session_header_that_differs_from_the_claim_is_accepted_on_the_claim()
     let h = harness().await;
     let before = exports("traces");
     let resp = handle(
-        Arc::clone(&h.extractor),
-        (*h.ctx).clone(),
+        h.state.clone(),
         authed(&h, "/otel/v1/traces", &SessionId::generate(), traces()),
     )
     .await;
@@ -190,7 +206,7 @@ async fn a_jwt_without_a_session_header_is_bound_to_its_claim() {
         .header("authorization", format!("Bearer {}", h.authed.jwt.as_str()))
         .body(Body::from(traces()))
         .expect("request");
-    let resp = handle(Arc::clone(&h.extractor), (*h.ctx).clone(), request).await;
+    let resp = handle(h.state.clone(), request).await;
     assert_eq!(
         resp.status(),
         StatusCode::ACCEPTED,

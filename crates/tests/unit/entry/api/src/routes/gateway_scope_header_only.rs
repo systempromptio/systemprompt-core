@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
-use systemprompt_api::routes::gateway::messages::extract::RejectionPartial;
-use systemprompt_api::routes::gateway::messages::extract::scope::{
+use systemprompt_gateway_entry::http::messages::extract::RejectionPartial;
+use systemprompt_gateway_entry::http::messages::extract::scope::{
     ScopeHeaders, ScopeResolution, resolve_scope_attribution,
 };
 use systemprompt_governance::authz::{
@@ -47,8 +47,7 @@ impl SubjectAttributeProvider for HeaderOnlyProvider {
 
 async fn resolve(
     header: Option<&str>,
-) -> Result<RequestAttribution, systemprompt_api::routes::gateway::messages::error::RejectionError>
-{
+) -> Result<RequestAttribution, systemprompt_gateway_entry::http::messages::error::RejectionError> {
     let providers =
         SubjectProviderSet::new(vec![systemprompt_governance::authz::SubjectProviderEntry {
             owner: systemprompt_identifiers::ExtensionId::new("test"),

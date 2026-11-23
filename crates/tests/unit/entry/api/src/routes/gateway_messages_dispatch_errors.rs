@@ -9,17 +9,17 @@
 
 use axum::http::StatusCode;
 use systemprompt_ai::UpstreamTargetError;
-use systemprompt_api::routes::gateway::messages::dispatch::errors::{
-    classify_dispatch_error, map_dispatch_error,
-};
-use systemprompt_api::routes::gateway::messages::error::{
-    GATEWAY_SERVER_ERROR_MESSAGE, RejectionError,
-};
 use systemprompt_gateway::pricing::MissingPricing;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::service::{
     DispatchError, GatewayError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded,
     SafetyBlocked,
+};
+use systemprompt_gateway_entry::http::messages::dispatch::errors::{
+    classify_dispatch_error, map_dispatch_error,
+};
+use systemprompt_gateway_entry::http::messages::error::{
+    GATEWAY_SERVER_ERROR_MESSAGE, RejectionError,
 };
 use systemprompt_identifiers::ProviderRequestId;
 
@@ -451,7 +451,7 @@ async fn a_nonstandard_but_representable_status_is_still_relayed() {
 
 #[tokio::test]
 async fn coverage_gateway_error_envelopes_round_trip_control_characters_and_unicode() {
-    use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
+    use systemprompt_gateway_entry::http::messages::dispatch::errors::build_error_response;
     for message in [
         "line one\nline two",
         "tab\tcarriage\rreturn",

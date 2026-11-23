@@ -97,7 +97,7 @@ fn surface_routes(
     })
 }
 
-fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
+pub fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
     let profile = ctx.profile();
     GatewayHostHandles {
         services: ctx.services_state().clone(),

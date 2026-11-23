@@ -9,25 +9,54 @@
 //! re-judged there.
 
 use axum::http::StatusCode;
-use std::sync::Arc;
-use systemprompt_api::routes::gateway::messages::auth::{AuthInputs, authenticate};
-use systemprompt_api::services::middleware::JwtContextExtractor;
+use systemprompt_gateway_entry::http::messages::auth::{AuthInputs, authenticate};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 
 struct Harness {
-    ctx: Arc<AppContext>,
-    extractor: JwtContextExtractor,
+    state: systemprompt_gateway_entry::http::state::GatewayHttpState,
+}
+
+fn gateway_http_state(
+    ctx: &AppContext,
+) -> systemprompt_gateway_entry::http::state::GatewayHttpState {
+    let state = ctx.kernel().state();
+    systemprompt_gateway_entry::http::state::GatewayHttpState {
+        authenticator: state
+            .get::<systemprompt_models::auth::DynRequestAuthenticator>()
+            .cloned()
+            .expect("request authenticator"),
+        api_keys: systemprompt_gateway_entry::http::state::GatewayApiKeys::new(
+            systemprompt_users::ApiKeyService::new(
+                std::sync::Arc::clone(ctx.user_repository()),
+                systemprompt_users::ApiKeyLifetime::from_max_days(
+                    ctx.config().api_key_max_lifetime_days,
+                ),
+            ),
+        ),
+        session_mint: state
+            .get::<systemprompt_traits::DynGatewaySessionMint>()
+            .cloned()
+            .expect("gateway session mint"),
+        repos: std::sync::Arc::new(
+            systemprompt_api::routes::gateway::gateway_repositories(ctx)
+                .expect("gateway repositories"),
+        ),
+        engines: systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
+            .expect("gateway engines"),
+        host: systemprompt_api::routes::gateway::host_handles(ctx),
+        db: std::sync::Arc::clone(ctx.db_pool()),
+    }
 }
 
 async fn harness() -> Harness {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&boot.database_url).await;
-    let extractor =
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator");
-    Harness { ctx, extractor }
+    Harness {
+        state: gateway_http_state(&ctx),
+    }
 }
 
 async fn reject(credential: &str) -> (StatusCode, String) {
@@ -39,9 +68,8 @@ async fn reject(credential: &str) -> (StatusCode, String) {
         AuthInputs {
             header_session: Some(&session),
             headers: &axum::http::HeaderMap::new(),
-            jwt_extractor: &harness.extractor,
             providers: &providers,
-            ctx: &harness.ctx,
+            state: &harness.state,
         },
     )
     .await

@@ -5,7 +5,6 @@
 //! and clearing the cookie), a non-UUID user logging out the same way, plus
 //! the missing-jti and out-of-range expiry error branches.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};

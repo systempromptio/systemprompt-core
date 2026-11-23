@@ -13,21 +13,21 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
-use systemprompt_api::routes::gateway::messages::error::RejectionError;
-use systemprompt_api::routes::gateway::messages::extract::attribution::{
-    AttributionHeaders, classify_client, entry_origin,
-};
-use systemprompt_api::routes::gateway::messages::extract::headers::{
-    body_read_error, optional_gateway_conversation_id, optional_session_id, read_gateway_body,
-};
-use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
     CanonicalTooling, Role,
 };
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway_entry::http::messages::dispatch::errors::build_error_response;
+use systemprompt_gateway_entry::http::messages::error::RejectionError;
+use systemprompt_gateway_entry::http::messages::extract::attribution::{
+    AttributionHeaders, classify_client, entry_origin,
+};
+use systemprompt_gateway_entry::http::messages::extract::headers::{
+    body_read_error, optional_gateway_conversation_id, optional_session_id, read_gateway_body,
+};
+use systemprompt_gateway_entry::http::messages::extract::{RejectionPartial, derive_conversation};
 use systemprompt_identifiers::headers::{
     CLIENT_ATTESTATION, CLIENT_KIND, GATEWAY_CONVERSATION_ID, SESSION_ID,
 };
@@ -461,20 +461,18 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
 #[tokio::test]
 async fn a_body_read_past_the_limit_maps_to_413() {
     let oversized = vec![b'x'; 64];
-    let error =
-        systemprompt_extension::router::read_body_bounded(Body::from(oversized), 16)
-            .await
-            .expect_err("a body past the limit fails to read");
+    let error = systemprompt_extension::router::read_body_bounded(Body::from(oversized), 16)
+        .await
+        .expect_err("a body past the limit fails to read");
 
     assert_eq!(body_read_error(error).status, StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[test]
 fn a_body_read_that_fails_for_any_other_reason_maps_to_400() {
-    let error =
-        systemprompt_extension::router::BodyReadError::Unreadable(axum::Error::new(
-            std::io::Error::new(std::io::ErrorKind::ConnectionReset, "client went away"),
-        ));
+    let error = systemprompt_extension::router::BodyReadError::Unreadable(axum::Error::new(
+        std::io::Error::new(std::io::ErrorKind::ConnectionReset, "client went away"),
+    ));
 
     let RejectionError {
         status, message, ..

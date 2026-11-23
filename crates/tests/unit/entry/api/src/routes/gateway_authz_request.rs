@@ -4,9 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_api::routes::gateway::messages::{
-    GatewayAuthzRequestInput, build_gateway_authz_request,
-};
+use systemprompt_gateway::surface::authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 use systemprompt_governance::authz::{AuthzContext, EntityRef};
 use systemprompt_identifiers::{ContextId, ModelId, RouteId, TraceId, UserId};
 

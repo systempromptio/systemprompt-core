@@ -7,8 +7,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use systemprompt_api::routes::gateway::messages::auth::AuthedPrincipal;
-use systemprompt_api::routes::gateway::messages::extract::authz::{
+use systemprompt_gateway_entry::http::messages::auth::AuthedPrincipal;
+use systemprompt_gateway_entry::http::messages::extract::authz::{
     DispatchTarget, enforce_authz_pre_dispatch,
 };
 use systemprompt_governance::authz::types::{Access, EntityKind, RuleType};

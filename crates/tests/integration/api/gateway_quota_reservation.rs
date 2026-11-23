@@ -5,11 +5,11 @@
 //! keyed by a scope dimension counts the attributed value.
 
 use axum::body::to_bytes;
-use systemprompt_api::routes::gateway::messages::dispatch::map_dispatch_error;
 use systemprompt_database::DbPool;
 use systemprompt_gateway::GatewayRepositories;
 use systemprompt_gateway::protocol::CanonicalContent;
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
+use systemprompt_gateway_entry::http::messages::dispatch::map_dispatch_error;
 use systemprompt_identifiers::ScopeDimension;
 use systemprompt_manifest::services::{ModelPricing, ResolvedCatalog};
 use systemprompt_models::attribution::{AttributionEntry, AttributionSource, RequestAttribution};

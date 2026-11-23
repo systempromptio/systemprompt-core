@@ -53,7 +53,6 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     .expect("gateway journal opens")
 }
 
-
 pub(super) fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_gateway::GatewayRepositories {
@@ -1573,7 +1572,7 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
     .await
     .unwrap_err();
     let response =
-        systemprompt_api::routes::gateway::messages::dispatch::errors::map_dispatch_error(error)
+        systemprompt_gateway_entry::http::messages::dispatch::errors::map_dispatch_error(error)
             .unwrap();
     assert_eq!(response.status(), status);
     if status == http::StatusCode::TOO_MANY_REQUESTS {

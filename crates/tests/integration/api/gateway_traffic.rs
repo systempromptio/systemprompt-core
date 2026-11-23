@@ -5,12 +5,12 @@
 use std::sync::Arc;
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
-use systemprompt_api::routes::gateway::messages::error::RejectionError;
-use systemprompt_api::routes::gateway::messages::extract::RejectionPartial;
-use systemprompt_api::routes::gateway::messages::extract::scope::{
+use systemprompt_gateway_entry::http::messages::error::RejectionError;
+use systemprompt_gateway_entry::http::messages::extract::RejectionPartial;
+use systemprompt_gateway_entry::http::messages::extract::scope::{
     ScopeHeaders, ScopeResolution, resolve_scope_attribution,
 };
-use systemprompt_api::routes::gateway::messages::rejection::persist_rejection;
+use systemprompt_gateway_entry::http::messages::rejection::persist_rejection;
 use systemprompt_governance::authz::{
     ScopeBindingError, SubjectAttributeProvider, SubjectProviderSet, TrafficProvider,
 };

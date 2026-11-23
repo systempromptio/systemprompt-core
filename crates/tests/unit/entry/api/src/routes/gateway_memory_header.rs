@@ -2,7 +2,7 @@
 //! turns team-memory recall off for the request.
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_api::routes::gateway::messages::extract::memory_preference;
+use systemprompt_gateway_entry::http::messages::extract::memory_preference;
 use systemprompt_identifiers::headers::MEMORY;
 use systemprompt_models::origin::MemoryPreference;
 

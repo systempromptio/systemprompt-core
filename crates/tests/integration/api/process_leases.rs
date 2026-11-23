@@ -6,7 +6,6 @@
 
 use std::collections::BTreeMap;
 
-
 use systemprompt_api::services::server::lifecycle::process_ownership::{
     KeyAction, LEASE_TTL, OwnershipStep, ProcessKey, key_action, ownership_step,
 };

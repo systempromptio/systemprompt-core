@@ -6,11 +6,11 @@ use std::sync::Arc;
 
 use axum::body::to_bytes;
 use axum::http::StatusCode;
-use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
-use systemprompt_api::routes::gateway::messages::extract::scope::{
+use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
+use systemprompt_gateway_entry::http::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
+use systemprompt_gateway_entry::http::messages::extract::scope::{
     api_key_windows, enforce_key_model_allowlist,
 };
-use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_identifiers::{ScopeDimension, SessionId, TraceId};
 use systemprompt_models::attribution::{RequestAttribution, ScopeBinding};
 use systemprompt_models::providers::ClientFamily;

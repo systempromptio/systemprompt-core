@@ -14,7 +14,6 @@
 //! the passkey ceremony proves who the user is, not that the request in the
 //! query string is the one `/authorize` admitted.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};

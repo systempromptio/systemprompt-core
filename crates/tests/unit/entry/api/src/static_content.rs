@@ -83,7 +83,6 @@ fn unhashed_assets_are_served_revalidating() {
     }
 }
 
-
 #[test]
 fn test_static_content_matcher_empty_no_matches() {
     let matcher = StaticContentMatcher::empty();
@@ -93,7 +92,6 @@ fn test_static_content_matcher_empty_no_matches() {
     assert!(matcher.matches("/").is_none());
     assert!(matcher.matches("").is_none());
 }
-
 
 #[test]
 fn test_static_content_matcher_matches_various_paths() {
@@ -129,7 +127,6 @@ fn test_static_content_matcher_empty_returns_none_for_special_chars() {
     assert!(matcher.matches("/blog/post.with.dots").is_none());
     assert!(matcher.matches("/blog/post%20encoded").is_none());
 }
-
 
 #[test]
 fn test_static_content_matcher_clone_is_independent() {

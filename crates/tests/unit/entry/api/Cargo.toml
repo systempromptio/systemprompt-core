@@ -14,7 +14,8 @@ workspace = true
 semver = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 jsonschema = { workspace = true }
-systemprompt-api = { workspace = true, features = ["bridge", "collab", "otel"] }
+systemprompt-api = { workspace = true, features = ["bridge", "collab"] }
+systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
 systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router"] }
