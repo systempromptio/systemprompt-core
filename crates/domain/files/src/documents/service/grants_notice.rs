@@ -3,7 +3,7 @@
 //! (checked again by the write itself, so a concurrent stronger grant is
 //! never downgraded), the share notification is written on the grant's own
 //! transaction, and the live share events are published once it has
-//! committed.
+//! committed, after the Drive-change hint for the target.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +12,7 @@ use sqlx::PgConnection;
 use systemprompt_models::auth::AuthenticatedUser;
 
 use super::DocumentService;
+use super::drive_hint::DriveHint;
 use super::grants::{CheckedShare, owner_of};
 use super::notify::ShareNotice;
 use super::ownership::ShareCause;
@@ -79,6 +80,7 @@ impl DocumentService {
         checked: CheckedShare,
         grant: &DocumentGrant,
     ) {
+        self.hint_drive_changed(DriveHint::of(&checked.granted, &who.id));
         if let Some(document) = &checked.granted.document {
             let cause = ShareCause {
                 via_agent: checked.via_agent,

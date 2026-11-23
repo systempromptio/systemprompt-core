@@ -38,6 +38,7 @@ mod commit_build;
 mod content;
 mod documents;
 mod drive;
+mod drive_audience;
 mod drive_blob;
 mod drive_commit;
 mod drive_feed;

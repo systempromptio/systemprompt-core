@@ -1,7 +1,10 @@
-//! The `document.drive.changed` hint a landed revision sends: who receives
-//! it (grant subjects on the document and its folder chain, never a stranger
-//! or a revoked user), the cap on its audience, that a resolver failure
-//! withholds it from everyone, and how revisions inside one window coalesce.
+//! The `document.drive.changed` hint: who receives the one a landed
+//! revision sends (grant subjects on the document and its folder chain, never
+//! a stranger or a revoked user), the cap on its audience, that a resolver
+//! failure withholds it from everyone, how changes inside one window
+//! coalesce, and the hints that follow a rename, a move, a trash, a grant
+//! written or removed and a folder rename, including to the users who lose
+//! access.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -117,7 +120,164 @@ fn share(target: GrantTarget, kind: &str, value: &str, level: AccessLevel) -> Sh
 }
 
 async fn quiet() {
-    tokio::time::sleep(DRIVE_HINT_INTERVAL + Duration::from_millis(300)).await;
+    tokio::time::sleep(DRIVE_HINT_INTERVAL * 2 + Duration::from_millis(300)).await;
+}
+
+async fn folder(h: &Harness, owner: &AuthenticatedUser, name: &str) -> DocumentFolderId {
+    h.service
+        .create_folder(
+            owner,
+            NewFolderRequest {
+                parent: None,
+                name: unique(name),
+            },
+            &trace(),
+        )
+        .await
+        .expect("folder")
+        .id
+}
+
+async fn grant(
+    h: &Harness,
+    owner: &AuthenticatedUser,
+    target: GrantTarget,
+    to: &AuthenticatedUser,
+) {
+    h.service
+        .share(
+            owner,
+            share(target, "user", to.id.as_str(), AccessLevel::View),
+            &trace(),
+        )
+        .await
+        .expect("share");
+}
+
+const SOON: Duration = Duration::from_secs(1);
+
+#[tokio::test]
+async fn a_rename_hints_the_access_holders_and_no_stranger() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("hint-rename-owner");
+    let reader = person("hint-rename-reader");
+    let stranger = person("hint-rename-stranger");
+    let (id, _) = document(&h, &owner, None).await;
+    grant(&h, &owner, GrantTarget::Document(id.clone()), &reader).await;
+    quiet().await;
+    let mut owner_rx = listen(&h, &owner).await;
+    let mut reader_rx = listen(&h, &reader).await;
+    let mut stranger_rx = listen(&h, &stranger).await;
+
+    h.service
+        .rename(&owner, &id, &unique("renamed"), &trace())
+        .await
+        .expect("rename");
+    assert_eq!(hints_within(&mut owner_rx, SOON).await, 1);
+    assert_eq!(hints_within(&mut reader_rx, SOON).await, 1);
+    assert_eq!(hints_within(&mut stranger_rx, SOON).await, 0);
+}
+
+#[tokio::test]
+async fn a_share_hints_the_user_who_gains_access_and_a_revoke_the_user_who_loses_it() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("hint-grant-owner");
+    let reader = person("hint-grant-reader");
+    let (id, _) = document(&h, &owner, None).await;
+    quiet().await;
+    let mut reader_rx = listen(&h, &reader).await;
+    let target = GrantTarget::Document(id);
+
+    let granted = h
+        .service
+        .share(
+            &owner,
+            share(
+                target.clone(),
+                "user",
+                reader.id.as_str(),
+                AccessLevel::View,
+            ),
+            &trace(),
+        )
+        .await
+        .expect("share");
+    assert_eq!(
+        hints_within(&mut reader_rx, SOON).await,
+        1,
+        "the document appears for the user it was shared with"
+    );
+
+    quiet().await;
+    h.service
+        .revoke(&owner, &target, granted.id, &trace())
+        .await
+        .expect("revoke");
+    assert_eq!(
+        hints_within(&mut reader_rx, SOON).await,
+        1,
+        "the document disappears for the user whose grant was removed"
+    );
+}
+
+#[tokio::test]
+async fn a_trash_hints_the_users_who_held_access() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("hint-trash-owner");
+    let reader = person("hint-trash-reader");
+    let (id, _) = document(&h, &owner, None).await;
+    grant(&h, &owner, GrantTarget::Document(id.clone()), &reader).await;
+    quiet().await;
+    let mut owner_rx = listen(&h, &owner).await;
+    let mut reader_rx = listen(&h, &reader).await;
+
+    h.service.trash(&owner, &id, &trace()).await.expect("trash");
+    assert_eq!(hints_within(&mut owner_rx, SOON).await, 1);
+    assert_eq!(hints_within(&mut reader_rx, SOON).await, 1);
+}
+
+#[tokio::test]
+async fn a_move_hints_the_holders_of_the_folder_the_document_left() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("hint-move-owner");
+    let inheritor = person("hint-move-inheritor");
+    let shared = folder(&h, &owner, "Hint shared").await;
+    grant(&h, &owner, GrantTarget::Folder(shared.clone()), &inheritor).await;
+    let (id, _) = document(&h, &owner, Some(&shared)).await;
+    quiet().await;
+    let mut inheritor_rx = listen(&h, &inheritor).await;
+
+    h.service
+        .move_to(&owner, &id, None, &trace())
+        .await
+        .expect("move to the root");
+    assert_eq!(
+        hints_within(&mut inheritor_rx, SOON).await,
+        1,
+        "a user who read the document through the folder it left is told"
+    );
+}
+
+#[tokio::test]
+async fn a_folder_rename_hints_the_holders_of_a_grant_on_it() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("hint-folder-owner");
+    let inheritor = person("hint-folder-inheritor");
+    let stranger = person("hint-folder-stranger");
+    let shared = folder(&h, &owner, "Hint folder").await;
+    grant(&h, &owner, GrantTarget::Folder(shared.clone()), &inheritor).await;
+    quiet().await;
+    let mut owner_rx = listen(&h, &owner).await;
+    let mut inheritor_rx = listen(&h, &inheritor).await;
+    let mut stranger_rx = listen(&h, &stranger).await;
+
+    h.service
+        .rename_folder(&owner, &shared, &unique("Hint renamed"), &trace())
+        .await
+        .expect("rename folder");
+    assert_eq!(hints_within(&mut owner_rx, SOON).await, 1);
+    assert_eq!(hints_within(&mut inheritor_rx, SOON).await, 1);
+    assert_eq!(hints_within(&mut stranger_rx, SOON).await, 0);
 }
 
 #[tokio::test]

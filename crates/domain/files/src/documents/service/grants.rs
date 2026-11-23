@@ -28,6 +28,7 @@ use uuid::Uuid;
 use systemprompt_traits::RepositoryError;
 
 use super::DocumentService;
+use super::drive_hint::DriveHint;
 use super::ownership::USER_SUBJECT;
 use crate::documents::access::{AccessTarget, Granted, SubjectValidation};
 use crate::documents::error::DocumentsError;
@@ -219,6 +220,11 @@ impl DocumentService {
         }
         self.clear_presence(&grant, owner_of(&granted).as_ref())
             .await;
+        self.hint_after_revoke(
+            DriveHint::of(&granted, &who.id),
+            std::slice::from_ref(&grant),
+        )
+        .await;
         Ok(())
     }
 
