@@ -60,7 +60,6 @@ const GOVERNING_TOOLS: [&str; 6] = [
     "brain_resolve",
 ];
 
-/// What a server hosting the brain toolset tells the model once.
 pub const INSTRUCTIONS: &str = "Shared memory. Confirmed facts reach you in a <team_memory> \
 block; you do not fetch memory to use it. brain_search lists the facts you may see and \
 brain_why explains one. brain_propose enters a fact as proposed for a person to confirm, in \

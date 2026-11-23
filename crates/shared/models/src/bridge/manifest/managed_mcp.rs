@@ -31,9 +31,6 @@ pub struct ManagedMcpServer {
     pub oauth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>,
-    /// The enabled toolsets the server hosts (`toolsets:` in its YAML), so a
-    /// client recognises a capability, such as `documents`, by what the server
-    /// serves rather than by what it is called. Absent from older manifests.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub toolsets: Vec<String>,
 }

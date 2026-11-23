@@ -194,7 +194,6 @@ impl HostContext {
         &self.notifications
     }
 
-    /// The brain, when the profile enables it: what the `brain` toolset serves.
     #[cfg(feature = "brain")]
     #[must_use]
     pub fn brain(&self) -> Option<&crate::brain::BrainHandle> {
