@@ -48,6 +48,7 @@ mod component;
 pub mod config_plane;
 mod content_data;
 mod dependencies;
+mod dependency_error;
 mod doctor;
 pub mod documents;
 mod error;
@@ -77,9 +78,8 @@ pub use config_plane::{
     ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash, resolve_apply,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
-pub use dependencies::{
-    Conferred, Dependencies, DependencyProvider, DuplicateDependency, MissingDependency,
-};
+pub use dependencies::{Conferred, Dependencies, DependencyProvider};
+pub use dependency_error::{DuplicateDependency, MissingDependency};
 pub use doctor::{
     DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
     GitCredentialSource, SecretPresence,

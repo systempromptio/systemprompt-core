@@ -17,7 +17,13 @@ pub(super) fn admitted_factories<T: 'static>(
     let resolved = ctx.kernel().resolved();
     let mut built = Vec::new();
     for member in ctx.admitted().built().members() {
-        for value in build_factories(slot, &member.owner, factories(&member.sink), &resolved)? {
+        for value in build_factories(
+            slot,
+            &member.owner,
+            member.standing,
+            factories(&member.sink),
+            &resolved,
+        )? {
             built.push((member.owner.clone(), value));
         }
     }

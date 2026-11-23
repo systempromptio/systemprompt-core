@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "No route set's state reads a host-sealed seed, whatever its owner's standing: `Resolved::__route_scoped` withholds every host-sealed seed for core and install route sets alike. The content, marketplace, agent-runs, Slack and Teams route sets read values their own member builds in a provide fn instead: `ContentHttpSettings` (the external URL and content negotiation), `MarketplaceHttpSettings` (the external URL and the system admin's id), `Arc<A2aRunnerConfig>` (the run layouts), and the sealed `SlackSecrets` / `TeamsSecrets` (an app's signing secret, bot token or password by the custom-secret refs its config names). Mounted policies, context kinds and refusals are unchanged."
+
+[[crate]]
+name = "systemprompt-content-entry"
+section = "Breaking"
+text = "`ContentHttpState::new` takes `ContentHttpSettings` instead of `&Config`; `ContentHttpSettings::of(&Config)` builds it."
+
+[[crate]]
+name = "systemprompt-marketplace-entry"
+section = "Added"
+text = "`http::MarketplaceHttpSettings`, provided by the member and read by `MarketplaceHttpState`."
+
+[[crate]]
+name = "systemprompt-slack-entry"
+section = "Added"
+text = "`http::SlackSecrets`, the member's sealed provide over `CustomSecrets`."
+
+[[crate]]
+name = "systemprompt-teams-entry"
+section = "Added"
+text = "`http::TeamsSecrets`, the member's sealed provide over `CustomSecrets`."

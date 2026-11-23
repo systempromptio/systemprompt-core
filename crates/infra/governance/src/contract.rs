@@ -82,6 +82,7 @@ impl Slot for AuthzHookSlot {
             hooks.extend(build_factories(
                 AUTHZ_HOOK_SLOT,
                 &entry.owner,
+                entry.standing(),
                 &entry.builder.hooks,
                 r,
             )?);
@@ -155,13 +156,15 @@ impl Slot for RoleDirectorySlot {
         }
         let mut directory = None;
         for entry in entries {
-            for factory in entry.builder.directories {
-                directory = Some(
-                    factory
-                        .build(r)
-                        .map_err(|e| e.into_slot_error(ROLE_DIRECTORY_SLOT, &entry.owner))?,
-                );
-            }
+            directory = build_factories(
+                ROLE_DIRECTORY_SLOT,
+                &entry.owner,
+                entry.standing(),
+                &entry.builder.directories,
+                r,
+            )?
+            .pop()
+            .or(directory);
         }
         Ok(RoleDirectories { directory })
     }

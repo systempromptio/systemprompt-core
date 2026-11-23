@@ -174,6 +174,8 @@ mod shutdown_request;
 #[cfg(test)]
 mod stage3_sheet;
 #[cfg(test)]
+mod stage3_standing;
+#[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
 mod storage_backends;

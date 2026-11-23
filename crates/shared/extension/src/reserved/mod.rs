@@ -1,5 +1,6 @@
 //! The kernel's reservations: reserved paths, built-in gateway prefixes, CLI
-//! paths and the closed set of privileged route shapes.
+//! paths, the closed set of privileged route shapes, the sealed conferrals
+//! and the host-sealed seeds an install may read.
 //!
 //! These are paths and shapes, each privileged one named for the core member
 //! ([`CoreId`]) that alone may hold it. They are enforced whether or not any
@@ -32,6 +33,7 @@ use crate::router::{Allowance, BaseRef, RouteShape};
 
 mod cli;
 mod conferrals;
+mod install_seeds;
 mod nesting;
 mod shapes;
 
@@ -39,6 +41,7 @@ pub use cli::{RESERVED_CLI_PATHS, ReservedCliPath};
 pub use conferrals::{
     ConferralRow, SEALED_CONFERRALS, SealedConferral, conferral_admits, conferral_named,
 };
+pub use install_seeds::{INSTALL_SEEDS, InstallSeed, install_reads};
 pub use nesting::{nested_rows_are_bounded, nested_under_another_owner};
 pub use shapes::{
     AGENT_REGISTRY_ROUTES, CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES,

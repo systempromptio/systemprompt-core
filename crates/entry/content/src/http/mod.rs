@@ -12,8 +12,10 @@
 //! All three are in the content-and-misc role group under the `content`
 //! rate-limit scope and budget with the default body limit. Every handler
 //! reads [`ContentHttpState`]: the content repositories the `content` member
-//! provides, and the API's external URL and content-negotiation settings from
-//! the application configuration.
+//! provides, and the [`ContentHttpSettings`] the `content-http` member's own
+//! provide fn builds from the application configuration — the API's external
+//! URL and the content-negotiation settings, plain values with no capability.
+//! The route state reads no host seed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -53,6 +55,24 @@ const LIMITS: RouteLimits = RouteLimits {
 const PUBLIC: RouteSpec = RouteSpec::new(AuthzPolicy::public(), ContextKind::Public, LIMITS);
 const USER: RouteSpec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, LIMITS);
 
+/// The application settings the content routes read, copied out of the
+/// configuration by the member's provide fn.
+#[derive(Debug, Clone)]
+pub struct ContentHttpSettings {
+    api_external_url: Arc<str>,
+    content_negotiation: Arc<ContentNegotiationConfig>,
+}
+
+impl ContentHttpSettings {
+    #[must_use]
+    pub fn of(config: &Config) -> Self {
+        Self {
+            api_external_url: Arc::from(config.api_external_url.as_str()),
+            content_negotiation: Arc::new(config.content_negotiation.clone()),
+        }
+    }
+}
+
 /// Router-scoped state of the content routes.
 #[derive(Clone)]
 pub struct ContentHttpState {
@@ -71,11 +91,11 @@ impl std::fmt::Debug for ContentHttpState {
 }
 
 impl ContentHttpState {
-    pub fn new(repositories: Arc<ContentRepositories>, config: &Config) -> Self {
+    pub fn new(repositories: Arc<ContentRepositories>, settings: ContentHttpSettings) -> Self {
         Self {
             repositories,
-            api_external_url: Arc::from(config.api_external_url.as_str()),
-            content_negotiation: Arc::new(config.content_negotiation.clone()),
+            api_external_url: settings.api_external_url,
+            content_negotiation: settings.content_negotiation,
         }
     }
 
@@ -88,8 +108,7 @@ impl ContentHttpState {
 
 impl FromState for ContentHttpState {
     fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
-        let config = r.get::<Arc<Config>>()?;
-        Ok(Self::new(r.get()?, &config))
+        Ok(Self::new(r.get()?, r.get()?))
     }
 }
 

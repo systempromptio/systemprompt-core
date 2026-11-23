@@ -44,7 +44,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::Actor;
 
-use crate::dependencies::{Dependencies, MissingDependency};
+use crate::dependencies::Dependencies;
+use crate::dependency_error::MissingDependency;
 use crate::error::ProviderResult;
 
 #[derive(Debug, Clone)]

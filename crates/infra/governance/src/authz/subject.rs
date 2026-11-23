@@ -150,13 +150,12 @@ impl SubjectProviderSet {
         let mut entries = Vec::new();
         for member in built.members() {
             for factory in member.sink.subject_providers() {
-                let provider =
-                    factory
-                        .build(r)
-                        .map_err(|source| SubjectProviderError::Factory {
-                            owner: member.owner.clone(),
-                            source,
-                        })?;
+                let provider = factory
+                    .build(&r.scoped_to(&member.owner, member.standing))
+                    .map_err(|source| SubjectProviderError::Factory {
+                        owner: member.owner.clone(),
+                        source,
+                    })?;
                 entries.push(SubjectProviderEntry {
                     owner: member.owner.clone(),
                     standing: member.standing,

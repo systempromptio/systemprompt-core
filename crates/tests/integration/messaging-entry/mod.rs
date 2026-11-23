@@ -14,6 +14,10 @@ mod declared_groups;
 mod dispatch_seal;
 
 #[cfg(test)]
+#[path = "route_state_seeds.rs"]
+mod route_state_seeds;
+
+#[cfg(test)]
 #[path = "routes_slack.rs"]
 mod routes_slack;
 

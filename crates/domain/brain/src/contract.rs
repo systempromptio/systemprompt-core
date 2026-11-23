@@ -223,41 +223,50 @@ impl Slot for BrainSlot {
     ) -> Result<Self::Built, SlotError> {
         let mut seams = BrainSeams::default();
         for entry in entries {
+            let standing = entry.standing();
             let owner = &entry.owner;
             let b = entry.builder;
             seams
                 .filters
-                .extend(build_factories(SLOT, owner, &b.filters, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.filters, r)?);
             seams
                 .extractors
-                .extend(build_factories(SLOT, owner, &b.extractors, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.extractors, r)?);
             seams
                 .validators
-                .extend(build_factories(SLOT, owner, &b.validators, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.validators, r)?);
             seams
                 .importance
-                .extend(build_factories(SLOT, owner, &b.importance, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.importance, r)?);
             seams
                 .sources
-                .extend(build_factories(SLOT, owner, &b.sources, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.sources, r)?);
             seams
                 .retrievers
-                .extend(build_factories(SLOT, owner, &b.retrievers, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.retrievers, r)?);
             seams
                 .rerankers
-                .extend(build_factories(SLOT, owner, &b.rerankers, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.rerankers, r)?);
             seams
                 .injection
-                .extend(build_factories(SLOT, owner, &b.injection, r)?);
-            seams
-                .outcome_signals
-                .extend(build_factories(SLOT, owner, &b.outcome_signals, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.injection, r)?);
+            seams.outcome_signals.extend(build_factories(
+                SLOT,
+                owner,
+                standing,
+                &b.outcome_signals,
+                r,
+            )?);
             seams
                 .analyses
-                .extend(build_factories(SLOT, owner, &b.analyses, r)?);
-            seams
-                .consolidators
-                .extend(build_factories(SLOT, owner, &b.consolidators, r)?);
+                .extend(build_factories(SLOT, owner, standing, &b.analyses, r)?);
+            seams.consolidators.extend(build_factories(
+                SLOT,
+                owner,
+                standing,
+                &b.consolidators,
+                r,
+            )?);
         }
         append_core_defaults(&mut seams, r)?;
         crate::assembly::bind_handle(seams, r)

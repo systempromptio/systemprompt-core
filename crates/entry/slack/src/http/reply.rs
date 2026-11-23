@@ -14,7 +14,7 @@ use systemprompt_traits::{
 };
 
 use super::SlackState;
-use super::verify::{SlackVerified, bot_token};
+use super::verify::SlackVerified;
 
 #[derive(Debug, Clone)]
 pub(super) enum ReplyTarget {
@@ -30,7 +30,7 @@ pub(super) fn spawn_reply(
     reply: ReplyTarget,
     app: &SlackAppConfig,
 ) {
-    let bot_token = bot_token(state.secrets(), app);
+    let bot_token = state.secrets().bot_token(app);
     let link_by_email = app.authz.link.link_by_email;
     let state = state.clone();
     let background = state.background().clone();

@@ -7,8 +7,8 @@ use anyhow::Result;
 use axum::{Extension, Router};
 use http::StatusCode;
 use serde_json::{Value, json};
-use systemprompt_agent_runs::AgentRunRepository;
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
+use systemprompt_agent_runs::{A2aRunnerConfig, AgentRunRepository};
 use systemprompt_agent_runs_entry::http::routes;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::{AppContext, Kernel};
@@ -47,7 +47,11 @@ pub(crate) fn agent_runs(
     let seed = Dependencies::default()
         .with(Arc::clone(pool))
         .with(Arc::clone(ctx.app_paths_arc()))
-        .with(Arc::clone(ctx.config_arc()))
+        .with(Arc::new(A2aRunnerConfig::new(
+            &ctx.config().api_internal_url,
+            &ctx.config().jwt_issuer,
+            ctx.app_paths().storage().data(),
+        )))
         .with(runs.clone())
         .with(AdmittedRunOrigins::new(origins.iter().copied()));
     let kernel = Arc::new(fixture_kernel(pool, seed));

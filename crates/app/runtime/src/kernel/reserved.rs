@@ -59,7 +59,7 @@ pub(super) fn refuse_unlisted_conferrals(built: &BuiltState) -> Result<(), Kerne
             .sink
             .provides()
             .iter()
-            .filter_map(|entry| entry.conferral())
+            .filter_map(systemprompt_extension::contribute::ProvideEntry::conferral)
         {
             let listed = row.entry().provider == member.owner.as_str();
             if !listed || member.standing != StandingTag::Core {
@@ -81,7 +81,7 @@ pub(super) fn gateway_guards(
     for member in built.members() {
         for factory in member.sink.gateway_guards() {
             let guard = factory
-                .build(r)
+                .build(&r.scoped_to(&member.owner, member.standing))
                 .map_err(|source| KernelError::GatewayGuard {
                     owner: member.owner.clone(),
                     source,

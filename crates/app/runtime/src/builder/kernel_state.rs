@@ -25,19 +25,23 @@
 //! and the AI service) are sealed seeds on every host: they resolve and cache
 //! provider credentials.
 //!
-//! The runtime `Config`, the secret store, the system admin, the active
-//! services root, the profile's services bundle sources (`BundleSources`:
-//! the pinned sources, bundle cache and base tree, never another profile
-//! value) and the event router are sealed, and so are the JWT signing
-//! keys the API seeds: a provide fn, a factory, a slot build, a kernel command
-//! and a route set read them, and every context handed to member runtime code
-//! (a job, a runner service, a config plane, a member command) is built
-//! without them. `Config`, the secret store and the signing keys carry
-//! credentials; the system admin, the services root and the bundle sources
-//! are boot-only identity and layout; the event router publishes to and
-//! subscribes on every user's stream. Every other seed is open. A member whose
-//! runtime code needs a capability derived from a sealed seed builds a narrow
-//! handle in its provide fn or factory.
+//! The runtime `Config`, the secret store, its custom-secret reads
+//! (`CustomSecrets`: a custom secret by name, nothing else of the store), the
+//! system admin, the active services root, the profile's services bundle
+//! sources (`BundleSources`: the pinned sources, bundle cache and base tree,
+//! never another profile value) and the event router are sealed, and so are
+//! the JWT signing keys the API seeds: kernel code and a core member's provide
+//! fns, factories and slot builds read them; an install member's provide fns,
+//! factories and slot builds read only the rows of
+//! `systemprompt_extension::reserved::INSTALL_SEEDS`; no route set's state
+//! reads one; and every context handed to member runtime code (a job, a
+//! runner service, a config plane, a member command) is built without them.
+//! `Config`, the secret store and the signing keys carry credentials; the
+//! system admin, the services root and the bundle sources are boot-only
+//! identity and layout; the event router publishes to and subscribes on every
+//! user's stream. Every other seed is open. A member whose runtime code needs a
+//! capability derived from a sealed seed builds a narrow handle in its provide
+//! fn or factory.
 //!
 //! Every late-bound cell is split ([`late_pair`]): the state holds only the
 //! read half, and the write half is returned beside the state
@@ -96,8 +100,9 @@ use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
-    BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynJwtValidationProvider,
-    DynLeaseRepository, FileStorage, MessagingDispatcher, SecretLookup, SecretStore,
+    BackgroundTasks, CustomSecrets, DynAdvisoryLocks, DynInstanceRegistry,
+    DynJwtValidationProvider, DynLeaseRepository, FileStorage, MessagingDispatcher, SecretLookup,
+    SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.
@@ -199,6 +204,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(seed.services_root)
         .with_sealed(seed.profile_path)
         .with_sealed(BundleSources::of(seed.profile))
+        .with_sealed(CustomSecrets::over(Arc::clone(&seed.secrets)))
         .with_sealed(seed.secrets)
         .with_sealed(seed.secret_lookup)
         .with_sealed(seed.connector_tokens)

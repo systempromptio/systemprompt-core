@@ -133,9 +133,20 @@ async fn documents_and_issues_jobs_and_commands_read_the_documents_handles() {
 }
 
 #[tokio::test]
-async fn agent_route_set_reads_the_dispatch_cell_and_the_context_seams() {
+async fn agent_member_reads_the_dispatch_cell_in_provide_and_its_route_set_the_context_seams() {
     let ctx = context().await;
-    assert!(route_reads::<AgentDispatchCell>(&ctx, "agent-http"));
+    let agent = ExtensionId::new("agent-http");
+    assert!(
+        ctx.kernel()
+            .member_resolved(&agent, StandingTag::Core)
+            .get::<AgentDispatchCell>()
+            .is_ok(),
+        "the agent member's provide fns read the sealed dispatch cell"
+    );
+    assert!(
+        !route_reads::<AgentDispatchCell>(&ctx, "agent-http"),
+        "no route state reads a host-sealed seed"
+    );
     assert!(route_reads::<DynContextDirectory>(&ctx, "agent-http"));
     assert!(route_reads::<DynSessionContextIssuer>(&ctx, "agent-http"));
 }
@@ -158,11 +169,17 @@ async fn runtime_context_seams_resolve_for_jobs_and_member_commands() {
 }
 
 #[tokio::test]
-async fn core_route_sets_still_read_host_sealed_seeds_that_installs_are_refused() {
+async fn core_and_install_route_sets_are_refused_every_host_sealed_seed() {
     let ctx = context().await;
-    for owner in ["content-http", "marketplace-http", "slack", "teams"] {
-        assert!(route_reads::<Arc<Config>>(&ctx, owner), "{owner}");
-        assert!(route_reads::<Arc<dyn SecretStore>>(&ctx, owner), "{owner}");
+    for owner in [
+        "content-http",
+        "marketplace-http",
+        "agent_runs_api",
+        "slack",
+        "teams",
+    ] {
+        assert!(!route_reads::<Arc<Config>>(&ctx, owner), "{owner}");
+        assert!(!route_reads::<Arc<dyn SecretStore>>(&ctx, owner), "{owner}");
     }
     assert!(!install_reads::<Arc<Config>>(&ctx));
     assert!(!install_reads::<Arc<dyn SecretStore>>(&ctx));

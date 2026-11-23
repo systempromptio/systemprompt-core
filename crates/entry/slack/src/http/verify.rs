@@ -5,7 +5,7 @@
 //! handle accepts beside the inbound message.
 //!
 //! The signing secret and bot token resolve on demand by their named refs
-//! from the extension's custom-secret store; config validation refuses a ref
+//! through the member's [`SlackSecrets`]; config validation refuses a ref
 //! that names a built-in platform secret. [`verify_any_app`] exists
 //! because the `url_verification` handshake carries no workspace id, so it must
 //! succeed against any configured app's secret.
@@ -17,7 +17,8 @@ use axum::http::HeaderMap;
 use systemprompt_identifiers::SlackWorkspaceId;
 use systemprompt_manifest::services::{ServicesConfig, SlackAppConfig};
 use systemprompt_slack::signature::verify_slack_signature;
-use systemprompt_traits::SecretStore;
+
+use super::state::SlackSecrets;
 
 pub(super) fn resolve_app(
     services: &ServicesConfig,
@@ -30,35 +31,23 @@ pub(super) fn resolve_app(
         .cloned()
 }
 
-fn signing_secret(secrets: &dyn SecretStore, app: &SlackAppConfig) -> Option<String> {
-    secrets
-        .secret(app.signing_secret_ref.as_str())
-        .map(|secret| secret.expose().to_owned())
-}
-
-pub(super) fn bot_token(secrets: &dyn SecretStore, app: &SlackAppConfig) -> Option<String> {
-    secrets
-        .secret(app.bot_token_ref.as_str())
-        .map(|secret| secret.expose().to_owned())
-}
-
 #[derive(Debug)]
 pub(crate) struct SlackVerified {
     _verified: (),
 }
 
 pub(super) fn verify_app(
-    secrets: &dyn SecretStore,
+    secrets: &SlackSecrets,
     app: &SlackAppConfig,
     headers: &HeaderMap,
     body: &[u8],
 ) -> Option<SlackVerified> {
-    let secret = signing_secret(secrets, app)?;
+    let secret = secrets.signing_secret(app)?;
     verify_signature(headers, body, secret.as_bytes()).then_some(SlackVerified { _verified: () })
 }
 
 pub(super) fn verify_any_app(
-    secrets: &dyn SecretStore,
+    secrets: &SlackSecrets,
     services: &ServicesConfig,
     headers: &HeaderMap,
     body: &[u8],
@@ -67,7 +56,7 @@ pub(super) fn verify_any_app(
         .slack_apps
         .values()
         .filter(|app| app.enabled)
-        .filter_map(|app| signing_secret(secrets, app))
+        .filter_map(|app| secrets.signing_secret(app))
         .any(|secret| verify_signature(headers, body, secret.as_bytes()))
 }
 

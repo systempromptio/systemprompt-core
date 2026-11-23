@@ -11,6 +11,11 @@
 //! holds it past router build: every read goes to the current generation, so a
 //! handle kept by a handler sees reloads.
 //!
+//! [`CustomSecrets`] is the narrow read of that store: a custom secret by
+//! name and nothing else — no built-in secret, none of the platform's own
+//! sealing and signing material ([`PLATFORM_SECRET_KEYS`], which the store
+//! keeps beside the custom secrets), no key listing, no reload.
+//!
 //! [`SecretLookup`] is what a platform service (the in-process AI service, the
 //! MCP client) resolves its credentials through, so a spawned child can run
 //! the same service over its granted secrets alone.
@@ -26,6 +31,12 @@ use serde::Serialize;
 use zeroize::Zeroize;
 
 pub const SECRET_SEED_BYTES: usize = 32;
+
+pub const PLATFORM_SECRET_KEYS: &[&str] = &[
+    "encryption_master_key",
+    "oauth_at_rest_pepper",
+    "manifest_signing_secret_seed",
+];
 
 pub struct ExtensionSecret {
     value: String,
@@ -109,6 +120,37 @@ pub trait SecretStore: Send + Sync + fmt::Debug {
     fn refresh_interval(&self) -> Option<Duration>;
 
     async fn reload(&self) -> Result<ReloadOutcome, SecretStoreError>;
+}
+
+/// The custom-secret reads of the deployment's live secrets, built by the
+/// kernel over the store and exposing nothing else of it.
+#[derive(Clone)]
+pub struct CustomSecrets {
+    store: std::sync::Arc<dyn SecretStore>,
+}
+
+impl CustomSecrets {
+    #[must_use]
+    pub fn over(store: std::sync::Arc<dyn SecretStore>) -> Self {
+        Self { store }
+    }
+
+    #[must_use]
+    pub fn secret(&self, name: &str) -> Option<ExtensionSecret> {
+        if PLATFORM_SECRET_KEYS
+            .iter()
+            .any(|platform| platform.eq_ignore_ascii_case(name))
+        {
+            return None;
+        }
+        self.store.secret(name)
+    }
+}
+
+impl fmt::Debug for CustomSecrets {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CustomSecrets").finish_non_exhaustive()
+    }
 }
 
 /// Name-to-value resolution over the secrets a platform service was handed.

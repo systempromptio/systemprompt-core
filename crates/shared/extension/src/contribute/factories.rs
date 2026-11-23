@@ -1,4 +1,6 @@
-//! The boxed factory and shared value types a member's sink stores.
+//! The deferred constructor of a contributed value ([`Factory`]), the
+//! standing-scoped build of one member's factories ([`build_factories`]), and
+//! the boxed factory and shared value types a member's sink stores.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +12,11 @@ use systemprompt_provider_contracts::governance::GovernancePolicy;
 use systemprompt_traits::RunnerService;
 use systemprompt_traits::authz::SubjectAttributeProvider;
 
-use super::resolved::Factory;
+use systemprompt_identifiers::ExtensionId;
+
+use super::error::{FactoryError, SlotError};
+use super::resolved::Resolved;
+use super::standing::StandingTag;
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::gateway_guard::GatewayRequestGuard;
 use crate::health::{DiagnosticProbe, ReadinessCheck};
@@ -25,3 +31,35 @@ pub type SubjectProviderFactory = Box<dyn Factory<Arc<dyn SubjectAttributeProvid
 pub type PolicyFactory = Box<dyn Factory<Arc<dyn GovernancePolicy>>>;
 pub type AudienceResolverFactory = Box<dyn Factory<Arc<dyn NotificationAudienceResolver>>>;
 pub type DoctorCheckRef = Arc<dyn DoctorCheck>;
+
+/// A deferred constructor of one contributed service, run after admission.
+pub trait Factory<T>: Send + Sync + 'static {
+    fn build(&self, r: &Resolved<'_>) -> Result<T, FactoryError>;
+}
+
+impl<T, F> Factory<T> for F
+where
+    F: Fn(&Resolved<'_>) -> Result<T, FactoryError> + Send + Sync + 'static,
+{
+    fn build(&self, r: &Resolved<'_>) -> Result<T, FactoryError> {
+        self(r)
+    }
+}
+
+pub fn build_factories<T: 'static>(
+    slot: &'static str,
+    owner: &ExtensionId,
+    standing: StandingTag,
+    factories: &[Box<dyn Factory<T>>],
+    r: &Resolved<'_>,
+) -> Result<Vec<T>, SlotError> {
+    let r = r.scoped_to(owner, standing);
+    factories
+        .iter()
+        .map(|factory| {
+            factory
+                .build(&r)
+                .map_err(|error| error.into_slot_error(slot, owner))
+        })
+        .collect()
+}

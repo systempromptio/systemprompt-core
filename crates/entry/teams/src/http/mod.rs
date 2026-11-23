@@ -19,7 +19,7 @@
 
 mod state;
 
-pub use state::{TeamsClients, TeamsDispatch, TeamsState};
+pub use state::{TeamsClients, TeamsDispatch, TeamsSecrets, TeamsState};
 
 use state::TeamsVerified;
 
@@ -39,8 +39,7 @@ use systemprompt_manifest::services::{ServicesConfig, TeamsAppConfig};
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 use systemprompt_traits::{
-    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SecretStore,
-    SenderIdentity,
+    DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SenderIdentity,
 };
 
 const ISSUER: &str = "https://api.botframework.com";
@@ -89,7 +88,7 @@ async fn handle_messages(
     let Some(agent) = app.agent_for(&normalized.routing_key).cloned() else {
         return StatusCode::OK.into_response();
     };
-    let Some(app_password) = app_password(state.secrets(), &app) else {
+    let Some(app_password) = state.secrets().app_password(&app) else {
         tracing::error!(
             tenant = %normalized.tenant_id.as_str(),
             secret = %app.app_password_ref,
@@ -181,12 +180,6 @@ fn resolve_app(services: &ServicesConfig, tenant_id: &TeamsTenantId) -> Option<T
         .values()
         .find(|app| app.enabled && app.tenant_id == *tenant_id)
         .cloned()
-}
-
-fn app_password(secrets: &dyn SecretStore, app: &TeamsAppConfig) -> Option<String> {
-    secrets
-        .secret(app.app_password_ref.as_str())
-        .map(|secret| secret.expose().to_owned())
 }
 
 fn bearer(headers: &HeaderMap) -> Option<&str> {

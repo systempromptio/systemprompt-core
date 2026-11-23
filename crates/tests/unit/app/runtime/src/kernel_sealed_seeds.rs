@@ -7,26 +7,37 @@
 //! state is a member-sealed value's implementor, wraps one, or shares its
 //! allocation, and no open type names a host- or member-sealed capability, a
 //! capability a sealed value is a subset of (the session store over the AI
-//! session provider), or the `AppContext`.
+//! session provider), or the `AppContext`. That pin matches types by name, so
+//! a member newtype laundering a sealed capability carries no marker it can
+//! see; the laundering source is closed instead: an install member's provide
+//! fn is refused every host-sealed capability, so the newtype is never built.
 
 use std::any::{TypeId, type_name};
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
+use std::any::Any;
+
+use systemprompt_config::DynChildSecretEnv;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::{Resolved, StandingTag};
+use systemprompt_extension::{LateRead, ProvideError, Resolved, StandingTag};
 use systemprompt_identifiers::{ExtensionId, InstanceId};
+use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_marketplace::inventory::InventoryRefresher;
 use systemprompt_marketplace::managed::{OrganizationSkillResolver, OwnerSkillView};
-use systemprompt_runtime::{AppContext, Kernel};
+use systemprompt_models::a2a::dispatch::AgentDispatchCell;
+use systemprompt_runtime::{AppContext, Kernel, KernelError};
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
+use systemprompt_test_fixtures::{
+    ComposedParts, Probe, ensure_test_bootstrap, fixture_admitted_of, probe_admitted,
+    test_database_url,
+};
 use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, DynInventoryPublisher, DynManagedSkillResolver,
-    SecretStore,
+    MessagingDispatcher, SecretStore,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -331,4 +342,80 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         Arc::as_ptr(view).cast::<()>(),
         "the open view is not the sealed resolver's allocation"
     );
+}
+
+#[derive(Clone)]
+struct Laundered(Arc<dyn Any + Send + Sync>);
+
+fn launder<T: Clone + Send + Sync + 'static>(id: &'static str) -> Probe {
+    Probe::new(id, |c| {
+        c.provide(|r: &Resolved<'_>| -> Result<Laundered, ProvideError> {
+            Ok(Laundered(Arc::new(r.get::<T>()?)))
+        });
+    })
+}
+
+fn resolve_over(
+    ctx: &AppContext,
+    admitted: &systemprompt_extension::Admitted,
+) -> Result<Kernel, KernelError> {
+    let mut kernel = Kernel::detached(BackgroundTasks::new(), ctx.kernel().state().clone());
+    kernel.resolve(admitted)?;
+    Ok(kernel)
+}
+
+fn installed(probe: Probe) -> systemprompt_extension::Admitted {
+    probe_admitted(ComposedParts {
+        probes: vec![probe],
+        ..ComposedParts::default()
+    })
+}
+
+fn install_cannot_launder<T: Clone + Send + Sync + 'static>(ctx: &AppContext) {
+    let error = resolve_over(ctx, &installed(launder::<T>("forged-install")))
+        .err()
+        .unwrap_or_else(|| panic!("an install launders {}", type_name::<T>()));
+    assert!(
+        matches!(
+            &error,
+            KernelError::Provide { owner, source: ProvideError::Missing(missing), .. }
+                if owner.as_str() == "forged-install" && missing.type_name() == type_name::<T>()
+        ),
+        "unexpected error laundering {}: {error:?}",
+        type_name::<T>()
+    );
+}
+
+#[tokio::test]
+async fn a_forged_install_provide_cannot_launder_a_sealed_capability_into_an_open_value() {
+    let ctx = context().await;
+
+    let core = resolve_over(
+        &ctx,
+        &fixture_admitted_of(vec![Box::new(launder::<Arc<Spawner>>("core-launderer"))]),
+    )
+    .expect("a core provide reads the spawner");
+    let laundered = core
+        .state()
+        .find::<Laundered>()
+        .expect("the newtype is provided open");
+    assert!(laundered.0.downcast_ref::<Arc<Spawner>>().is_some());
+    let open_names = format!("{:?}", core.runtime_state());
+    assert!(
+        open_names.contains(type_name::<Laundered>())
+            && !names_capability(
+                open_types_of(&open_names),
+                capability_of(type_name::<Arc<Spawner>>())
+            ),
+        "the name pin cannot see a member newtype: {open_names}"
+    );
+
+    install_cannot_launder::<Arc<Spawner>>(&ctx);
+    install_cannot_launder::<SigningKeys>(&ctx);
+    install_cannot_launder::<DynChildSecretEnv>(&ctx);
+    install_cannot_launder::<AgentDispatchCell>(&ctx);
+    install_cannot_launder::<LateRead<dyn MessagingDispatcher>>(&ctx);
+    install_cannot_launder::<Arc<dyn SecretStore>>(&ctx);
+    install_cannot_launder::<Arc<EventRouter>>(&ctx);
+    install_cannot_launder::<DynManagedSkillResolver>(&ctx);
 }

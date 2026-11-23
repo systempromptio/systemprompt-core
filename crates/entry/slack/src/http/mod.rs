@@ -26,7 +26,7 @@ mod reply;
 mod state;
 mod verify;
 
-pub use state::{SlackClients, SlackDispatch, SlackState};
+pub use state::{SlackClients, SlackDispatch, SlackSecrets, SlackState};
 
 use std::collections::HashMap;
 

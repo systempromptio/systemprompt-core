@@ -21,6 +21,11 @@
 //! the runtime from the member's admitted standing; a [`SlotEntry`] built
 //! outside this crate is always [`StandingTag::Install`].
 //!
+//! [`Slot::build`] runs with the resolution scoped to that owner's standing,
+//! and each entry's factories run scoped to the entry's own owner and
+//! standing (`build_factories`, `Resolved::scoped_to`), so an install's
+//! factory reads only what an install provide fn may read.
+//!
 //! The type-erased record ([`SlotRecord`]) is keyed by the slot's `TypeId`
 //! and carries a monomorphised build function, so the runtime can build every
 //! slot without naming any. It also names the `Arc<S::Built>` type it
@@ -226,6 +231,7 @@ pub fn build_slot(
     let (slot, order, build, insert) = (first.slot, first.order, first.build, first.insert);
     let slot_type = first.built;
     let mut owner = first.entry.owner.clone();
+    let mut standing = first.entry.standing;
     inputs.retain(|input| input.slot == slot);
     let core_present = inputs
         .iter()
@@ -250,9 +256,10 @@ pub fn build_slot(
         .find(|input| input.entry.standing == StandingTag::Core)
     {
         owner = core.entry.owner.clone();
+        standing = StandingTag::Core;
     }
     let entries = inputs.into_iter().map(|input| input.entry).collect();
-    let value = build(entries, r)?;
+    let value = build(entries, &r.scoped_to(&owner, standing))?;
     Ok(Some(SlotBuilt {
         value,
         insert,
