@@ -43,7 +43,7 @@ pub const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
 #[derive(Clone, Debug)]
 pub struct McpToolExecutor {
     tool_usage_repo: Arc<ToolUsageRepository>,
-    intent_claims: IntentClaimService,
+    intent_claims: Option<IntentClaimService>,
     ingest: Arc<ArtifactIngest>,
     renderers: Arc<UiRendererRegistry>,
     server_name: McpServerId,
@@ -52,13 +52,14 @@ pub struct McpToolExecutor {
 impl McpToolExecutor {
     pub fn new(
         tool_usage_repo: Arc<ToolUsageRepository>,
-        intents: DynToolCallIntentClaims,
+        intents: Option<DynToolCallIntentClaims>,
         ingest: Arc<ArtifactIngest>,
         renderers: Arc<UiRendererRegistry>,
         server_name: McpServerId,
     ) -> Self {
         Self {
-            intent_claims: IntentClaimService::new(intents, Arc::clone(&tool_usage_repo)),
+            intent_claims: intents
+                .map(|intents| IntentClaimService::new(intents, Arc::clone(&tool_usage_repo))),
             tool_usage_repo,
             ingest,
             renderers,
@@ -75,14 +76,16 @@ impl McpToolExecutor {
         ctx: &RequestContext,
         exec_id: &McpExecutionId,
     ) -> RequestContext {
+        let Some(intent_claims) = &self.intent_claims else {
+            return ctx.clone();
+        };
         if let Some(call_id) = ctx.ai_tool_call_id() {
-            if let Err(e) = self.intent_claims.claim_exact(call_id, exec_id).await {
+            if let Err(e) = intent_claims.claim_exact(call_id, exec_id).await {
                 tracing::warn!(tool = %tool_name, %exec_id, error = %e, "Intent not claimed");
             }
             return ctx.clone();
         }
-        match self
-            .intent_claims
+        match intent_claims
             .claim_inferred(
                 ctx.session_id(),
                 tool_name,

@@ -36,7 +36,7 @@ pub(super) fn assemble_content_and_geoip(
     let content_config = AppContext::load_content_config(config, app_paths);
     let content_routing = content_routing_from(content_config.as_ref());
     let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(content_routing));
-    let sessions: systemprompt_traits::DynSessionStore =
+    let sessions: systemprompt_traits::DynSessionTelemetry =
         Arc::new(systemprompt_users::SessionRepository::new(database));
     let fingerprint_repo = Some(Arc::new(FingerprintRepository::new(database, sessions)));
 

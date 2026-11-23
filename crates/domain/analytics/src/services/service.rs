@@ -8,7 +8,7 @@ use std::sync::Arc;
 use http::HeaderMap;
 
 use systemprompt_models::ContentRouting;
-use systemprompt_traits::{DynSessionStore, ExtractSignals};
+use systemprompt_traits::{DynSessionTelemetry, ExtractSignals};
 
 use crate::GeoIpReader;
 use crate::repository::{AnalyticsRepositories, CostAnalyticsRepository};
@@ -18,7 +18,7 @@ use crate::services::{ProfileUsageService, SessionAnalytics, SessionAnalyticsBui
 pub struct AnalyticsService {
     geoip_reader: Option<GeoIpReader>,
     content_routing: Option<Arc<dyn ContentRouting>>,
-    session_store: DynSessionStore,
+    session_store: DynSessionTelemetry,
     cost_repo: CostAnalyticsRepository,
 }
 
@@ -84,7 +84,7 @@ impl AnalyticsService {
         ProfileUsageService::new(self.cost_repo.clone())
     }
 
-    pub const fn session_store(&self) -> &DynSessionStore {
+    pub const fn session_store(&self) -> &DynSessionTelemetry {
         &self.session_store
     }
 }

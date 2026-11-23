@@ -1,10 +1,15 @@
 //! Router state for the Teams surface, resolved from the kernel state: the
 //! live services view, the platform secret lookup (built-in and
-//! custom names), the background-task owner, the messaging dispatcher slot, one
+//! custom names), the background-task owner, the member's dispatch handle
+//! ([`TeamsDispatch`]), one
 //! outbound HTTP client with connect and request timeouts for
 //! operator-configured endpoints, the untrusted-guarded client replies to the
 //! payload-supplied `serviceUrl` travel on, and one [`ActivityTokenVerifier`]
 //! per configured app so each verifier's JWKS cache survives across activities.
+//!
+//! [`TeamsState::verify`] alone builds the `TeamsVerified` proof that an
+//! activity's Bot Connector bearer verified; the dispatch handle accepts
+//! nothing else beside the inbound message.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use systemprompt_client::{GuardedClient, GuardedClientConfig};
-use systemprompt_extension::{FromState, LateBound, Resolved};
+use systemprompt_extension::{FromState, LateRead, Resolved};
 use systemprompt_identifiers::TeamsAppId;
 use systemprompt_manifest::services::{ServicesView, TeamsAppConfig};
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
@@ -67,12 +72,50 @@ impl TeamsClients {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct TeamsVerified {
+    _verified: (),
+}
+
+/// The Teams member's handle on the sealed messaging dispatcher: built only
+/// by the member's own provide fn, provided sealed, and driven only with the
+/// [`TeamsVerified`] proof the token verifier returns.
+#[derive(Clone)]
+pub struct TeamsDispatch {
+    dispatcher: LateRead<dyn MessagingDispatcher>,
+}
+
+impl std::fmt::Debug for TeamsDispatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TeamsDispatch")
+            .field("bound", &self.dispatcher.is_bound())
+            .finish()
+    }
+}
+
+impl TeamsDispatch {
+    pub(crate) const fn over(dispatcher: LateRead<dyn MessagingDispatcher>) -> Self {
+        Self { dispatcher }
+    }
+
+    async fn dispatch(
+        &self,
+        _verified: TeamsVerified,
+        inbound: MessagingInbound,
+    ) -> Result<DispatchOutcome, MessagingDispatchError> {
+        let Some(dispatcher) = self.dispatcher.get() else {
+            return Err(MessagingDispatchError::Unavailable);
+        };
+        dispatcher.dispatch(inbound).await
+    }
+}
+
 #[derive(Clone)]
 pub struct TeamsState {
     services: ServicesView,
     secrets: Arc<dyn SecretStore>,
     background: BackgroundTasks,
-    dispatcher: LateBound<dyn MessagingDispatcher>,
+    dispatch: TeamsDispatch,
     http: reqwest::Client,
     service_url_client: GuardedClient,
     verifiers: Verifiers,
@@ -91,7 +134,7 @@ impl FromState for TeamsState {
             services: r.get()?,
             secrets: r.get()?,
             background: r.tasks().clone(),
-            dispatcher: r.get()?,
+            dispatch: r.get()?,
             http: clients.http,
             service_url_client: clients.service_url,
             verifiers: clients.verifiers,
@@ -122,15 +165,26 @@ impl TeamsState {
 
     pub(super) async fn dispatch(
         &self,
+        verified: TeamsVerified,
         inbound: MessagingInbound,
     ) -> Result<DispatchOutcome, MessagingDispatchError> {
-        let Some(dispatcher) = self.dispatcher.get() else {
-            return Err(MessagingDispatchError::Unavailable);
-        };
-        dispatcher.dispatch(inbound).await
+        self.dispatch.dispatch(verified, inbound).await
     }
 
-    pub(super) fn verifier(&self, app: &TeamsAppConfig) -> Arc<ActivityTokenVerifier> {
+    pub(super) async fn verify(
+        &self,
+        app: &TeamsAppConfig,
+        token: &str,
+        service_url: &str,
+    ) -> Option<TeamsVerified> {
+        self.verifier(app)
+            .verify(token, service_url, chrono::Utc::now().timestamp())
+            .await
+            .ok()
+            .map(|_claims| TeamsVerified { _verified: () })
+    }
+
+    fn verifier(&self, app: &TeamsAppConfig) -> Arc<ActivityTokenVerifier> {
         let key = VerifierKey {
             app_id: app.app_id.clone(),
             openid_config_url: app.endpoints.openid_config_url.clone(),

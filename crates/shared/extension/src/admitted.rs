@@ -55,6 +55,14 @@ impl BuiltState {
     pub fn contains(&self, owner: &ExtensionId) -> bool {
         self.members.iter().any(|member| &member.owner == owner)
     }
+
+    #[must_use]
+    pub fn standing_of(&self, owner: &ExtensionId) -> Option<StandingTag> {
+        self.members
+            .iter()
+            .find(|member| &member.owner == owner)
+            .map(|member| member.standing)
+    }
 }
 
 /// The parts the facade assembles an [`Admitted`] from.

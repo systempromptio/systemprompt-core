@@ -98,13 +98,12 @@ pub(super) fn new_plugins(inputs: &PluginInputs) -> Plugins {
 
 pub(crate) fn bind_secret_scanner(
     governance: &systemprompt_governance::policy::GovernanceEngine,
-    scanner: &systemprompt_governance::policy::secrets::SecretScannerCell,
-) {
-    if let Some(configured) = governance.secret_scanner()
-        && scanner.bind(Arc::new(configured.clone())).is_err()
-    {
-        tracing::debug!("the secret scanner cell was bound before this host loaded governance");
+    binder: systemprompt_governance::policy::secrets::SecretScannerBinder,
+) -> RuntimeResult<()> {
+    if let Some(configured) = governance.secret_scanner() {
+        binder.bind(Arc::new(configured.clone()))?;
     }
+    Ok(())
 }
 
 pub(super) async fn load_identity(

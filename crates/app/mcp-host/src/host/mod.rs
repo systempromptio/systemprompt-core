@@ -45,7 +45,7 @@ use systemprompt_runtime::HostParts;
 use systemprompt_runtime::documents::DocumentsRuntime;
 use systemprompt_runtime::documents::links::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
 use systemprompt_security::keys::VerificationKeyring;
-use systemprompt_traits::{BackgroundTasks, DynToolCallIntentClaims, SecretStore};
+use systemprompt_traits::{BackgroundTasks, SecretStore};
 use systemprompt_users::UserRepository;
 
 pub use systemprompt_runtime::{HostBootError, PROFILE_ENV};
@@ -139,11 +139,6 @@ impl HostContext {
     #[must_use]
     pub const fn subject_providers(&self) -> &SubjectProviderSet {
         &self.parts.subject_providers
-    }
-
-    #[must_use]
-    pub fn tool_call_intents(&self) -> DynToolCallIntentClaims {
-        Arc::clone(&self.parts.tool_call_intents)
     }
 
     #[must_use]

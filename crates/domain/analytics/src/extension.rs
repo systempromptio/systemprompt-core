@@ -34,7 +34,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
 use systemprompt_traits::{
-    DynContentPopularity, DynIpBanStore, DynSessionBehaviourScorer, DynSessionStore,
+    DynContentPopularity, DynIpBanStore, DynSessionBehaviourScorer, DynSessionTelemetry,
 };
 
 use systemprompt_logging::AnalyticsRepository;
@@ -74,7 +74,7 @@ impl Extension for AnalyticsExtension {
             })
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
-                let sessions = r.get::<DynSessionStore>()?;
+                let sessions = r.get::<DynSessionTelemetry>()?;
                 let event_log = Arc::new(AnalyticsRepository::new(&db));
                 Ok(Arc::new(AnalyticsRepositories::new(
                     &db, sessions, event_log,
@@ -94,7 +94,7 @@ impl Extension for AnalyticsExtension {
             })
             .provide(|r: &Resolved<'_>| {
                 let repositories = r.get::<Arc<AnalyticsRepositories>>()?;
-                let sessions = r.get::<DynSessionStore>()?;
+                let sessions = r.get::<DynSessionTelemetry>()?;
                 let scorer: DynSessionBehaviourScorer =
                     SessionBehaviourService::new(sessions, repositories.session_signals.clone())
                         .into_scorer();

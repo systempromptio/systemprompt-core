@@ -180,29 +180,21 @@ pub struct IpSessionCount {
 use crate::{AnalyticsResult, SessionProvider, SessionUsageCounters};
 use async_trait::async_trait;
 
-/// Users-owned session persistence injected into analytics as
-/// `dyn SessionStore`, hence `#[async_trait]`.
+/// The session operations the analytics classifiers need.
+///
+/// Fingerprint and bot signals, request and AI-usage counters, geo backfill
+/// and the inactive sweep. It creates no session for a user, revokes none,
+/// ends none by id and lists none by user; that authority is
+/// [`SessionStore`]'s, which is sealed. Injected as `dyn SessionTelemetry`,
+/// hence `#[async_trait]`.
 #[async_trait]
-pub trait SessionStore: SessionProvider + SessionUsageCounters {
+pub trait SessionTelemetry: Send + Sync {
     async fn fingerprint_session_ids(
         &self,
         fingerprint: &str,
         window_days: i64,
     ) -> AnalyticsResult<Vec<SessionId>>;
-    async fn find_by_id(&self, session_id: &SessionId) -> AnalyticsResult<Option<SessionSnapshot>>;
-    async fn find_active_by_id(
-        &self,
-        session_id: &SessionId,
-    ) -> AnalyticsResult<Option<ActiveSessionLookup>>;
-    async fn revoke_all_for_user(&self, user_id: &UserId) -> AnalyticsResult<u64>;
-    async fn find_by_fingerprint(
-        &self,
-        fingerprint_hash: &str,
-        user_id: &UserId,
-    ) -> AnalyticsResult<Option<SessionSnapshot>>;
-    async fn list_active_by_user(&self, user_id: &UserId) -> AnalyticsResult<Vec<SessionSnapshot>>;
     async fn increment_request_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
-    async fn end_session(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn mark_as_scanner(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn mark_converted(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn mark_ghost_sessions_as_bots(&self) -> AnalyticsResult<u64>;
@@ -215,12 +207,6 @@ pub trait SessionStore: SessionProvider + SessionUsageCounters {
     async fn cleanup_inactive(&self, inactive_hours: i32) -> AnalyticsResult<u64>;
     async fn count_inactive(&self, inactive_hours: i32) -> AnalyticsResult<i64>;
     async fn count_sessions_missing_geo(&self) -> AnalyticsResult<i64>;
-    async fn insert_session(&self, params: &CreateSessionParams<'_>) -> AnalyticsResult<()>;
-    async fn find_recent_by_fingerprint(
-        &self,
-        fingerprint_hash: &str,
-        max_age_seconds: i64,
-    ) -> AnalyticsResult<Option<SessionRecord>>;
     async fn increment_ai_usage(
         &self,
         session_id: &SessionId,
@@ -278,5 +264,35 @@ pub trait SessionStore: SessionProvider + SessionUsageCounters {
         &self,
         query: IpSessionQuery,
     ) -> AnalyticsResult<Vec<IpSessionCount>>;
+}
+
+pub type DynSessionTelemetry = std::sync::Arc<dyn SessionTelemetry>;
+
+/// Users-owned session persistence.
+///
+/// Every [`SessionTelemetry`] operation plus creating, ending and revoking
+/// sessions for any user. Provided sealed by the users member; injected as
+/// `dyn SessionStore`, hence `#[async_trait]`.
+#[async_trait]
+pub trait SessionStore: SessionTelemetry + SessionProvider + SessionUsageCounters {
+    async fn find_by_id(&self, session_id: &SessionId) -> AnalyticsResult<Option<SessionSnapshot>>;
+    async fn find_active_by_id(
+        &self,
+        session_id: &SessionId,
+    ) -> AnalyticsResult<Option<ActiveSessionLookup>>;
+    async fn revoke_all_for_user(&self, user_id: &UserId) -> AnalyticsResult<u64>;
+    async fn find_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        user_id: &UserId,
+    ) -> AnalyticsResult<Option<SessionSnapshot>>;
+    async fn list_active_by_user(&self, user_id: &UserId) -> AnalyticsResult<Vec<SessionSnapshot>>;
+    async fn end_session(&self, session_id: &SessionId) -> AnalyticsResult<()>;
+    async fn insert_session(&self, params: &CreateSessionParams<'_>) -> AnalyticsResult<()>;
+    async fn find_recent_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        max_age_seconds: i64,
+    ) -> AnalyticsResult<Option<SessionRecord>>;
 }
 pub type DynSessionStore = std::sync::Arc<dyn SessionStore>;

@@ -1,0 +1,14 @@
+[root]
+section = "Security"
+area = "Security"
+text = "The session store, which creates a session for any user and revokes all of a user's sessions, is provided sealed by the users member. Analytics and the request-analytics middleware read the open `SessionTelemetry` view instead: bot, fingerprint, counter and geo operations with no create, revoke or end."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`SessionTelemetry` and `DynSessionTelemetry` are added and the analytics operations move from `SessionStore` into them; `SessionStore` requires `SessionTelemetry`."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`AnalyticsRepositories`, `AnalyticsService::session_store`, `FingerprintRepository`, `SessionSignalsRepository` and `SessionBehaviourService` take or return `DynSessionTelemetry` instead of `DynSessionStore`."

@@ -110,7 +110,7 @@ impl HostKernel {
 
         let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
         let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
-        let seed = crate::base_kernel_state(KernelSeed {
+        let (seed, binders) = crate::base_kernel_state(KernelSeed {
             database: &database,
             app_paths: &app_paths,
             files_config: &files_config,
@@ -169,11 +169,7 @@ impl HostKernel {
         )
         .await
         .map_err(RuntimeError::from)?;
-        bind_secret_scanner(
-            &governance,
-            &r.get::<systemprompt_governance::policy::secrets::SecretScannerCell>()
-                .map_err(RuntimeError::from)?,
-        );
+        bind_secret_scanner(&governance, binders.secret_scanner)?;
 
         #[cfg(feature = "notifications")]
         let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
@@ -205,9 +201,6 @@ impl HostKernel {
 
 
         let parts = HostParts {
-            tool_call_intents: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
-                &database,
-            )),
             tokens: Arc::new(VerifyingTokenAuthority::new(
                 verification.clone(),
                 config.jwt_issuer.clone(),

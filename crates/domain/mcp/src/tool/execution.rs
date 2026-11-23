@@ -158,7 +158,7 @@ impl McpOutputSchema for ErasedOutput {
 
 pub struct McpToolExecutions {
     tool_usage_repo: Arc<ToolUsageRepository>,
-    intents: DynToolCallIntentClaims,
+    intents: Option<DynToolCallIntentClaims>,
     ingest: Arc<ArtifactIngest>,
     renderers: Arc<UiRendererRegistry>,
 }
@@ -166,7 +166,7 @@ pub struct McpToolExecutions {
 impl McpToolExecutions {
     pub fn new(
         tool_usage_repo: Arc<ToolUsageRepository>,
-        intents: DynToolCallIntentClaims,
+        intents: Option<DynToolCallIntentClaims>,
         ingest: Arc<ArtifactIngest>,
         renderers: Arc<UiRendererRegistry>,
     ) -> Self {
@@ -189,7 +189,7 @@ impl ToolExecutions for McpToolExecutions {
     fn for_server(&self, server: McpServerId) -> DynToolExecution {
         Arc::new(McpToolExecutor::new(
             Arc::clone(&self.tool_usage_repo),
-            Arc::clone(&self.intents),
+            self.intents.clone(),
             Arc::clone(&self.ingest),
             Arc::clone(&self.renderers),
             server,

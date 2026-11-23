@@ -27,11 +27,11 @@ pub const ABUSE_THRESHOLD_FOR_BAN: i32 = 3;
 pub struct FingerprintRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
-    sessions: systemprompt_traits::DynSessionStore,
+    sessions: systemprompt_traits::DynSessionTelemetry,
 }
 
 impl FingerprintRepository {
-    pub fn new(db: &DbPool, sessions: systemprompt_traits::DynSessionStore) -> Self {
+    pub fn new(db: &DbPool, sessions: systemprompt_traits::DynSessionTelemetry) -> Self {
         let pool = db.pool();
         let write_pool = db.write_pool();
         Self {

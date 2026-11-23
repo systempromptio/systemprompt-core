@@ -145,7 +145,7 @@ pub use execution::{
     TrackedStep,
 };
 pub use extension::{BuildType, DiscoveredExtension, ExtensionManifest};
-pub use late_bound::{AlreadyBound, LateBound};
+pub use late_bound::{AlreadyBound, LateBinder, LateBound, LateRead, late_pair};
 pub use mcp::{Deployment, McpServerConfig};
 pub use modules::{ApiPaths, CliPaths};
 pub use routing::{RouteClassifier, RouteType};

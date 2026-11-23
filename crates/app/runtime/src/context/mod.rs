@@ -94,6 +94,11 @@ impl AppContext {
     }
 
     #[must_use]
+    pub fn take_late_binders(&self) -> Option<crate::ApiLateBinders> {
+        self.subsystems.late_binders.take()
+    }
+
+    #[must_use]
     pub const fn kernel(&self) -> &Arc<Kernel> {
         &self.kernel
     }

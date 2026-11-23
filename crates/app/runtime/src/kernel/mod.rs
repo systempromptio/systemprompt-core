@@ -59,7 +59,7 @@ use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedOwnerReassignments,
     AdmittedProjections, AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId,
-    KernelHandle, ProvidePhase, Resolved,
+    KernelHandle, ProvidePhase, Resolved, StandingTag,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -146,9 +146,10 @@ impl Kernel {
     pub fn route_scoped<'a>(
         &'a self,
         owner: &'a ExtensionId,
+        standing: StandingTag,
         conferred: &'a [HandleId],
     ) -> Resolved<'a> {
-        Resolved::__route_scoped(self, &self.state, owner, conferred)
+        Resolved::__route_scoped(self, &self.state, owner, standing, conferred)
     }
 
     #[must_use]

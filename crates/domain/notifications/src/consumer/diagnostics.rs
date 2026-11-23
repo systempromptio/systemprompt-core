@@ -9,11 +9,13 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::json;
-use systemprompt_extension::{DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, LateBound};
+use systemprompt_extension::{DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, LateRead};
 
 use super::NotificationsConsumer;
 
-pub type NotificationsConsumerSlot = LateBound<NotificationsConsumer>;
+/// The read half of the consumer cell; the slot build alone holds the bind
+/// half.
+pub type NotificationsConsumerSlot = LateRead<NotificationsConsumer>;
 
 #[derive(Debug, Clone)]
 pub struct BacklogDiagnostic {
