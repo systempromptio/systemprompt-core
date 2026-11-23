@@ -177,7 +177,7 @@ impl JtiRevocationCache {
 /// admitting an unverifiable one.
 #[derive(Clone)]
 pub struct JtiRevocationChecker {
-    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
     cache: Arc<JtiRevocationCache>,
 }
 
@@ -192,7 +192,7 @@ impl JtiRevocationChecker {
     #[must_use]
     pub fn new(db: &DbPool, epochs: CacheEpochView) -> Self {
         Self {
-            pool: db.write_pool(),
+            write_pool: db.write_pool(),
             cache: Arc::new(JtiRevocationCache::new(epochs)),
         }
     }
@@ -208,7 +208,7 @@ impl TokenRevocations for JtiRevocationChecker {
         }
 
         let epoch = self.cache.epoch();
-        let revoked = jti_revoked(&self.pool, jti).await.map_err(|e| {
+        let revoked = jti_revoked(&self.write_pool, jti).await.map_err(|e| {
             ContextExtractionError::DatabaseError {
                 context: "JTI revocation lookup failed".to_owned(),
                 source: e.into(),
