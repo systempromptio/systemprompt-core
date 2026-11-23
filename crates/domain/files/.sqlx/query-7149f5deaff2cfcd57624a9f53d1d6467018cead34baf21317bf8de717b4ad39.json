@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH l AS (\n                   UPDATE document_public_links SET revoked_at = now()\n                   WHERE id = $1::text::uuid AND document_id = $2::text::uuid\n                     AND revoked_at IS NULL\n                   RETURNING id, document_id),\n               e AS (\n                   INSERT INTO document_grant_events\n                       (event, target_kind, target_id, subject_kind, subject_value, old_level,\n                        actor_user_id, trace_id)\n                   SELECT 'public_link.revoked', 'document', l.document_id, 'public_link',\n                          l.id::text, 'view', $3, $4\n                   FROM l)\n               SELECT COUNT(*) AS \"revoked!\" FROM l",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "revoked!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "7149f5deaff2cfcd57624a9f53d1d6467018cead34baf21317bf8de717b4ad39"
+}

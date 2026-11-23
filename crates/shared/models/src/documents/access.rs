@@ -205,6 +205,18 @@ pub enum GrantEventKind {
     RevokedAll,
     Transferred,
     Expired,
+    #[serde(rename = "public_link.created")]
+    PublicLinkCreated,
+    #[serde(rename = "public_link.opened")]
+    PublicLinkOpened,
+    #[serde(rename = "public_link.revoked")]
+    PublicLinkRevoked,
+    #[serde(rename = "invite.created")]
+    InviteCreated,
+    #[serde(rename = "invite.claimed")]
+    InviteClaimed,
+    #[serde(rename = "invite.revoked")]
+    InviteRevoked,
 }
 
 wire_enum!(GrantEventKind, "grant event", {
@@ -214,6 +226,12 @@ wire_enum!(GrantEventKind, "grant event", {
     RevokedAll => "revoked_all",
     Transferred => "transferred",
     Expired => "expired",
+    PublicLinkCreated => "public_link.created",
+    PublicLinkOpened => "public_link.opened",
+    PublicLinkRevoked => "public_link.revoked",
+    InviteCreated => "invite.created",
+    InviteClaimed => "invite.claimed",
+    InviteRevoked => "invite.revoked",
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]

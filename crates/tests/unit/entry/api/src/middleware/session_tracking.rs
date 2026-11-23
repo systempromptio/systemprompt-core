@@ -23,6 +23,15 @@ fn api_v1_is_skipped() {
 }
 
 #[test]
+fn a_public_document_link_is_skipped_so_it_never_sets_a_session_cookie() {
+    assert!(should_skip_session_tracking(
+        "/s/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    ));
+    assert!(!should_skip_session_tracking("/services"));
+    assert!(!should_skip_session_tracking("/s"));
+}
+
+#[test]
 fn mcp_base_is_skipped() {
     assert!(should_skip_session_tracking(ApiPaths::MCP_BASE));
 }

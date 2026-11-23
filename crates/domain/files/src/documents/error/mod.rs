@@ -86,6 +86,16 @@ pub enum DocumentsError {
         policy: Option<String>,
         owner: Option<UserId>,
     },
+    #[error(
+        "this document may not be shared outside the instance by {channel}: the external \
+         sharing policy withholds it"
+    )]
+    ExternalSharingRefused { channel: &'static str },
+    #[error("link password hashing failed")]
+    LinkPassword {
+        #[source]
+        source: bcrypt::BcryptError,
+    },
     #[error("{}", trashed(.document_id))]
     Trashed { document_id: DocumentId },
     #[error(

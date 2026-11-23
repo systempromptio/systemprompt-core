@@ -201,6 +201,8 @@ mod documents_pdf;
 #[cfg(test)]
 mod documents_people;
 #[cfg(test)]
+mod documents_public_links;
+#[cfg(test)]
 mod documents_read_parity;
 #[cfg(test)]
 mod documents_rendered;

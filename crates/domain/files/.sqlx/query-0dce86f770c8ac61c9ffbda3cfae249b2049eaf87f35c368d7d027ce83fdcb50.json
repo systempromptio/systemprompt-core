@@ -1,0 +1,109 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: PublicLinkId\",\n                         document_id::text AS \"document_id!: DocumentId\",\n                         password_hash IS NOT NULL AS \"has_password!\", expires_at, revoked_at,\n                         created_by AS \"created_by: UserId\", created_at, open_count,\n                         last_opened_at\n               FROM document_public_links\n               WHERE document_id = $1::text::uuid\n               ORDER BY created_at DESC, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: PublicLinkId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "has_password!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "revoked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "revoked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "open_count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "open_count"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "last_opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_public_links",
+            "name": "last_opened_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "0dce86f770c8ac61c9ffbda3cfae249b2049eaf87f35c368d7d027ce83fdcb50"
+}

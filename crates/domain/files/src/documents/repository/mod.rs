@@ -60,6 +60,7 @@ mod path_changes;
 mod presence;
 mod proposal_settle;
 mod proposals;
+mod public_links;
 mod purge;
 mod revision_landing;
 mod revisions;
@@ -104,6 +105,7 @@ pub use node_ids::DocumentNodeIdRepository;
 pub use path_changes::{DocumentPathChange, PathMove, SubjectAccess};
 pub use presence::DocumentPresenceRepository;
 pub use proposals::DocumentProposalRepository;
+pub use public_links::DocumentPublicLinkRepository;
 pub use revisions::DocumentRevisionRepository;
 pub use text_index::{DocumentTextIndexRepository, SearchPage};
 pub use write_acks::DocumentWriteAckRepository;
@@ -128,6 +130,7 @@ pub struct DocumentRepositories {
     pub write_acks: Arc<DocumentWriteAckRepository>,
     pub comments: Arc<DocumentCommentRepository>,
     pub proposals: Arc<DocumentProposalRepository>,
+    pub public_links: Arc<DocumentPublicLinkRepository>,
 }
 
 impl DocumentRepositories {
@@ -151,6 +154,7 @@ impl DocumentRepositories {
             write_acks: Arc::new(DocumentWriteAckRepository::new(db)),
             comments: Arc::new(DocumentCommentRepository::new(db)),
             proposals: Arc::new(DocumentProposalRepository::new(db)),
+            public_links: Arc::new(DocumentPublicLinkRepository::new(db)),
         }
     }
 }
