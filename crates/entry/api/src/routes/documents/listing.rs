@@ -11,12 +11,12 @@
 use axum::extract::{Query, State};
 use axum::{Extension, Json};
 use serde::Deserialize;
+use systemprompt_documents::attribution::attributed_context;
 use systemprompt_files::documents::models::{ListScope, ListSort, ListingCursor};
 use systemprompt_files::documents::service::ListFolderRequest;
 use systemprompt_identifiers::ContextId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_runtime::documents::attribution::attributed_context;
 
 use super::DocumentsState;
 use super::caller::caller;

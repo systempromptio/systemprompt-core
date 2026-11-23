@@ -21,7 +21,7 @@ use super::outputs::{
     SearchHit, SearchOutput,
 };
 use super::support::{caller, clamp_limit, tool_error};
-use crate::documents::attribution::{attributed_context, owned_context_names};
+use crate::attribution::{attributed_context, owned_context_names};
 
 fn document_uri(document: &Document) -> DocumentUri {
     let uri = DocumentUri::new(document.id.clone());

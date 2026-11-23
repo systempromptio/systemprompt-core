@@ -22,13 +22,15 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::{get, patch, post};
+use systemprompt_documents::tokens::DocumentLinkTokens;
 use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
+use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_runtime::AppContext;
 
 use crate::kernel::ApiHttpError;
+use crate::routes::documents::{DocumentsMountError, documents_handles, link_tokens};
 
 pub const ISSUES_PATH: &str = "/api/v1/issues";
 
@@ -39,7 +41,7 @@ pub const ISSUES_PATH: &str = "/api/v1/issues";
 pub struct IssuesState {
     pub(crate) issues: Arc<IssueService>,
     pub(crate) uploads: Arc<UploadService>,
-    pub(crate) tokens: Arc<dyn TokenAuthority>,
+    pub(crate) tokens: Arc<DocumentLinkTokens>,
     pub(crate) base_url: Arc<str>,
 }
 
@@ -50,14 +52,14 @@ impl std::fmt::Debug for IssuesState {
 }
 
 impl IssuesState {
-    #[must_use]
-    pub fn from_context(ctx: &AppContext) -> Self {
-        Self {
-            issues: Arc::clone(ctx.documents().issues()),
-            uploads: Arc::clone(ctx.documents().uploads()),
-            tokens: ctx.token_authority(),
+    pub fn from_context(ctx: &AppContext) -> Result<Self, DocumentsMountError> {
+        let handles = documents_handles(ctx)?;
+        Ok(Self {
+            issues: Arc::clone(&handles.issues),
+            uploads: Arc::clone(&handles.uploads),
+            tokens: link_tokens(ctx).ok_or(DocumentsMountError::MissingLinkTokens)?,
             base_url: Arc::from(ctx.config().api_external_url.as_str()),
-        }
+        })
     }
 }
 

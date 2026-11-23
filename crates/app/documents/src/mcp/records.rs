@@ -9,7 +9,7 @@ use serde::Serialize;
 use systemprompt_extension::mcp::McpOutputSchema;
 
 use super::outputs::{DocumentItem, documents_output};
-use crate::documents::views::{AccessOutput, CommentOutput};
+use crate::views::{AccessOutput, CommentOutput};
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct DocumentAck {

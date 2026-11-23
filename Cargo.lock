@@ -6600,12 +6600,14 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-config",
  "systemprompt-database",
+ "systemprompt-documents",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-issues",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
@@ -6950,7 +6952,33 @@ dependencies = [
 name = "systemprompt-documents"
 version = "0.85.0"
 dependencies = [
+ "async-trait",
+ "base64 0.23.1",
+ "chrono",
+ "http",
+ "reqwest",
+ "rmcp",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "systemprompt-client",
+ "systemprompt-database",
+ "systemprompt-events",
  "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-notifications",
+ "systemprompt-oauth-issuance",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.21",
+ "tracing",
 ]
 
 [[package]]
@@ -7212,7 +7240,19 @@ dependencies = [
 name = "systemprompt-issues"
 version = "0.85.0"
 dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "rmcp",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "systemprompt-documents",
  "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tracing",
 ]
 
 [[package]]
@@ -7431,10 +7471,12 @@ dependencies = [
  "serde_json",
  "systemprompt-config",
  "systemprompt-database",
+ "systemprompt-documents",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-issues",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",

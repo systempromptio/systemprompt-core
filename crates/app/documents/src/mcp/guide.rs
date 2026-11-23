@@ -20,7 +20,7 @@ use super::guide_topics::{
 };
 use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
-use crate::documents::refusal::RefusalCode;
+use crate::refusal::RefusalCode;
 
 #[cfg(feature = "notifications")]
 const INBOX_TOPIC: &str = "inbox and ";

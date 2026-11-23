@@ -134,7 +134,6 @@ fn selected_match<'a>(
         .map_or_else(|| captures.get(0), |name| captures.name(name))
 }
 
-
 #[derive(Debug)]
 pub struct MatchedSecretPattern {
     pub id: SecretPatternId,

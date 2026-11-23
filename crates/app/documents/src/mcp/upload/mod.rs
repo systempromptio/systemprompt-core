@@ -28,9 +28,9 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::refusal::refusal;
 use super::support::caller;
-use crate::documents::links::issue_upload_links;
-use crate::documents::refusal::RefusalCode;
-use crate::documents::upload_links::UPLOAD_TOKEN_HEADER;
+use crate::links::issue_upload_links;
+use crate::refusal::RefusalCode;
+use crate::upload_links::UPLOAD_TOKEN_HEADER;
 
 mod io;
 

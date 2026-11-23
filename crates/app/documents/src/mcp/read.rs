@@ -10,7 +10,7 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::support::{caller, tool_error};
-use crate::documents::views::{ReadInput, ReadOutput, read_view};
+use crate::views::{ReadInput, ReadOutput, read_view};
 
 fn summary(output: &ReadOutput) -> String {
     if let Some(meta) = &output.meta {

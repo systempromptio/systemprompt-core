@@ -23,6 +23,7 @@ use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
+use systemprompt_documents::refusal::stale_base;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
@@ -36,7 +37,6 @@ use systemprompt_identifiers::{
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::{EditMode, EditOp};
-use systemprompt_runtime::documents::refusal::stale_base;
 
 use super::DocumentsState;
 use super::caller::{api_author, caller};

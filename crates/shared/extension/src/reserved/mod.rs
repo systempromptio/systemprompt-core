@@ -209,11 +209,12 @@ pub enum CoreId {
     BrainHttp,
     GatewayHttp,
     IdentityHttp,
+    Issues,
     Kernel,
 }
 
 impl CoreId {
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::ContentHttp,
         Self::AnalyticsHttp,
         Self::NotificationsHttp,
@@ -228,6 +229,7 @@ impl CoreId {
         Self::BrainHttp,
         Self::GatewayHttp,
         Self::IdentityHttp,
+        Self::Issues,
         Self::Kernel,
     ];
 
@@ -253,6 +255,7 @@ impl CoreId {
             Self::BrainHttp => "brain-http",
             Self::GatewayHttp => "gateway-http",
             Self::IdentityHttp => "identity-http",
+            Self::Issues => "issues",
             Self::Kernel => "kernel",
         }
     }

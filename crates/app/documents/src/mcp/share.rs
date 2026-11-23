@@ -11,16 +11,16 @@ use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::execution::context::RequestContext;
 
-use crate::documents::actor::signed_agent_name;
-use crate::documents::{active_user_display, subject_display};
+use crate::actor::signed_agent_name;
+use crate::{active_user_display, subject_display};
 
 use super::DocumentsMcpTools;
 use super::inputs::ShareInput;
 use super::outputs::ShareOutput;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
-use crate::documents::refusal::RefusalCode;
-use crate::documents::views::GrantItem;
+use crate::refusal::RefusalCode;
+use crate::views::GrantItem;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ShareHandler<'a> {

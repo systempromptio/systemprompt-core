@@ -25,8 +25,8 @@ use super::outputs::{ProposalItem, ProposalsOutput, ReviewOutput};
 use super::refusal::refusal;
 use super::support::{agent_author, caller, tool_error};
 use super::write::EditCall;
-use crate::documents::refusal::RefusalCode;
-use crate::documents::views::{EditOutput, written_lines};
+use crate::refusal::RefusalCode;
+use crate::views::{EditOutput, written_lines};
 
 pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
     let applied = call.ops.len();

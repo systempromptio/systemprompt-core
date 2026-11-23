@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use serde::Serialize;
-use systemprompt_files::issues::IssueListQuery;
+use systemprompt_files::issues::{IssueListQuery, IssueService};
 use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::{IssueKind, IssueReport, IssueSeverity, IssueStatus};
 
@@ -62,17 +61,14 @@ impl From<IssueReport> for IssueRow {
     }
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = crate::commands::admin::state::app(host).await?;
+pub(super) async fn execute(args: ListArgs, issues: &IssueService) -> Result<CommandOutput> {
     let query = IssueListQuery {
         reporter: args.reporter.as_deref().map(UserId::new),
         status: args.status,
         before: None,
         limit: args.limit,
     };
-    let rows: Vec<IssueRow> = app
-        .documents()
-        .issues()
+    let rows: Vec<IssueRow> = issues
         .list(&query)
         .await?
         .into_iter()

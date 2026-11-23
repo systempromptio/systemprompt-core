@@ -12,7 +12,7 @@
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock, ErrorCode};
 
-use crate::documents::refusal::{Refusal, RefusalCode, Refused};
+use crate::refusal::{Refusal, RefusalCode, Refused};
 
 #[must_use]
 pub fn refused_error(refused: Refused) -> McpError {

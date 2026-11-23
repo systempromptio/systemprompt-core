@@ -23,7 +23,7 @@ use super::inputs::{FolderAction, FolderInput};
 use super::outputs::FolderItem;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
-use crate::documents::refusal::RefusalCode;
+use crate::refusal::RefusalCode;
 
 fn folder_item(folder: DocumentFolder) -> FolderItem {
     FolderItem {

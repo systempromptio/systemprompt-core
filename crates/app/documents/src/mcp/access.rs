@@ -13,7 +13,7 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::inputs::AccessInput;
 use super::support::{caller, tool_error};
-use crate::documents::views::{AccessOutput, access_view};
+use crate::views::{AccessOutput, access_view};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AccessHandler<'a> {

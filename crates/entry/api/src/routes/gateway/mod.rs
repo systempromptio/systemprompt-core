@@ -143,11 +143,11 @@ pub fn gateway_repositories(
 }
 
 fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
-    if !ctx.files_config().documents_config().is_enabled() {
+    let Some(service) = crate::routes::documents::document_service(ctx) else {
         return Router::new();
-    }
+    };
     crate::routes::documents::drive::router(crate::routes::documents::drive::DriveState::new(
-        crate::routes::documents::document_service(ctx),
+        service,
         Arc::clone(jwt_extractor),
         ctx.token_authority(),
     ))

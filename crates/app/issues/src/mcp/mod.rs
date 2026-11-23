@@ -33,11 +33,11 @@ use self::attach::AttachmentHandler;
 use self::read::{ListHandler, StatusHandler};
 use self::refusal::refusal_result;
 use self::report::ReportHandler;
-use crate::documents::links::LinkIssuer;
+use systemprompt_documents::links::LinkIssuer;
 
 pub use self::refusal::IssueRefusalCode;
 
-pub const TOOLSET_ID: &str = "issues";
+pub const TOOLSET_ID: &str = systemprompt_documents::links::ISSUES_TOOLSET;
 
 pub const INSTRUCTIONS: &str = "Issue reports. File a bug or feedback report with report_issue \
 when a tool keeps failing, returns something wrong, or refuses where it should not; report a \

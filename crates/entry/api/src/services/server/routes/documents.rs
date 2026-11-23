@@ -23,11 +23,11 @@
 use std::sync::Arc;
 
 use axum::Router;
+use systemprompt_documents::links::LinkMinter;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteGroup, RouteProtection,
 };
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_runtime::documents::links::LinkMinter;
 
 use super::RouteMountError;
 use super::protocol::{MountCtx, declare};
@@ -119,11 +119,12 @@ pub(super) fn mount_internal_links(
     if !mount.ctx.files_config().documents_config().is_enabled() {
         return Ok(router);
     }
-    let documents = mount.ctx.documents();
+    let state = DocumentsState::build(mount.ctx)
+        .map_err(|source| RouteMountError::initialization("internal_links", source))?;
     let minter = LinkMinter {
-        tokens: mount.ctx.token_authority(),
-        documents: Arc::clone(documents.service()),
-        uploads: Arc::clone(documents.uploads()),
+        tokens: Arc::clone(&state.tokens),
+        documents: Arc::clone(&state.service),
+        uploads: Arc::clone(&state.uploads),
         services: mount.ctx.services_state().clone(),
         api_external_url: mount.ctx.config().api_external_url.clone(),
     };

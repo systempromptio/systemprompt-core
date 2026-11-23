@@ -1,9 +1,9 @@
 //! The document store's MCP tools.
 //!
-//! [`DocumentsMcpTools`](crate::documents::mcp::DocumentsMcpTools) is what an
+//! [`DocumentsMcpTools`](crate::mcp::DocumentsMcpTools) is what an
 //! extension's MCP server binary composes:
-//! [`DocumentsMcpTools::list_tools`](crate::documents::mcp::DocumentsMcpTools::list_tools) for `tools/list`,
-//! [`DocumentsMcpTools::call`](crate::documents::mcp::DocumentsMcpTools::call)
+//! [`DocumentsMcpTools::list_tools`](crate::mcp::DocumentsMcpTools::list_tools) for `tools/list`,
+//! [`DocumentsMcpTools::call`](crate::mcp::DocumentsMcpTools::call)
 //! to run one tool through core's
 //! the MCP member's `ToolExecution` after the binary has
 //! authenticated the request. Every handler acts as the authenticated user on
@@ -54,8 +54,8 @@ use systemprompt_extension::mcp::ToolExecution;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
-use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::agents::act_as;
+use systemprompt_files::documents::{DocumentService, DocumentsHandles};
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
 use systemprompt_models::execution::context::RequestContext;
@@ -99,7 +99,7 @@ pub use support::tool_error;
 pub use upload::{UploadHandler, UploadInput, UploadMode, UploadOutput};
 pub use write::EditHandler;
 
-use crate::documents::links::LinkIssuer;
+use crate::links::LinkIssuer;
 
 pub const TOOLSET_ID: &str = "documents";
 
@@ -174,29 +174,30 @@ impl DocumentsMcpTools {
         not(feature = "notifications"),
         expect(
             unused_variables,
-            reason = "the notification service is read from the extension state only when the \
-                      runtime assembles it"
+            reason = "the notification service is read from the extension state only with the \
+                      notifications feature"
         )
     )]
     #[must_use]
     pub fn for_host(
-        parts: &crate::HostParts,
+        handles: &DocumentsHandles,
+        users: Arc<UserRepository>,
         extension_state: &Dependencies,
         links: Arc<dyn LinkIssuer>,
         server_name: McpServerId,
-    ) -> Self {
-        Self::new(DocumentsMcpConfig {
-            service: Arc::clone(parts.documents.service()),
+    ) -> Option<Self> {
+        Some(Self::new(DocumentsMcpConfig {
+            service: Arc::clone(handles.service.as_ref()?),
             #[cfg(feature = "notifications")]
             notifications: extension_state
                 .find::<Arc<NotificationsServiceSlot>>()
                 .and_then(|slot| slot.get().cloned()),
-            uploads: Some(Arc::clone(parts.documents.uploads())),
-            users: Arc::clone(&parts.user_repository),
+            uploads: Some(Arc::clone(&handles.uploads)),
+            users,
             links,
-            contexts: Arc::clone(parts.documents.contexts()),
+            contexts: Arc::clone(&handles.contexts),
             server_name,
-        })
+        }))
     }
 
     #[must_use]

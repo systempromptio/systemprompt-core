@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::documents::refusal::RefusalCode;
+use crate::refusal::RefusalCode;
 
 pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
     match code {

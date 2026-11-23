@@ -3,7 +3,7 @@
 //!
 //! A first-party browser session is the person, and so is the UI session a
 //! `person_ui` client holds; any other bearer token is an agent (see
-//! [`systemprompt_runtime::documents::actor`]). A request that reaches
+//! [`systemprompt_documents::actor`]). A request that reaches
 //! the routes without a context is refused `401`, and a browser-session
 //! request on a router without the site configuration is a wiring fault
 //! answered `500`.
@@ -25,10 +25,10 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use systemprompt_documents::actor::request_actor;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::actor::request_actor;
 
 use crate::kernel::ApiHttpError;
 

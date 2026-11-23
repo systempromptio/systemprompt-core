@@ -6,15 +6,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_files::issues::IssueService;
 use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::IssueStatus;
-
-use crate::session::get_or_create_session;
-use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct TriageArgs {
@@ -39,22 +37,14 @@ struct TriageOutput {
     note: Option<String>,
 }
 
-pub(super) async fn execute(args: TriageArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(host).await?;
-    execute_as(args, &session_ctx.session.user_id, host).await
-}
-
 pub async fn execute_as(
     args: TriageArgs,
     triager: &UserId,
-    host: &dyn KernelHost,
+    issues: &IssueService,
 ) -> Result<CommandOutput> {
-    let app = crate::commands::admin::state::app(host).await?;
     let id = IssueReportId::try_new(args.id.as_str())
         .with_context(|| format!("invalid issue report id: {}", args.id))?;
-    let from = app
-        .documents()
-        .issues()
+    let from = issues
         .set_status(&id, args.status, args.note.clone(), triager)
         .await?;
     let output = TriageOutput {

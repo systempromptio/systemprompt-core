@@ -62,12 +62,14 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{MethodRouter, delete, get, patch, post, put};
-use systemprompt_files::documents::DocumentService;
+use systemprompt_documents::tokens::DocumentLinkTokens;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
+use systemprompt_files::documents::{
+    DocumentService, DocumentsHandles, DocumentsHandlesSlot, DocumentsUnbound, bound,
+};
 use systemprompt_files::uploads::UploadService;
 use systemprompt_manifest::profile::UiSessionConfig;
-use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 #[cfg(feature = "collab")]
 use systemprompt_traits::BackgroundTasks;
@@ -83,7 +85,7 @@ pub struct DocumentsState {
     pub(crate) uploads: Arc<UploadService>,
     pub(crate) users: Arc<dyn UserProvider>,
     pub(crate) user_repository: Arc<UserRepository>,
-    pub(crate) tokens: Arc<dyn TokenAuthority>,
+    pub(crate) tokens: Arc<DocumentLinkTokens>,
     pub(crate) contexts: DynContextDirectory,
     pub(crate) ui_session: UiSessionConfig,
     #[cfg(feature = "collab")]
@@ -102,22 +104,48 @@ impl std::fmt::Debug for DocumentsState {
 pub enum DocumentsMountError {
     #[error("document routes need a user provider")]
     MissingUserProvider,
+    #[error("document routes need the document store")]
+    Unbound(#[from] DocumentsUnbound),
+    #[error("document routes need the document store enabled")]
+    Disabled,
+    #[error("document routes need the documents member's link token view")]
+    MissingLinkTokens,
+}
+
+pub fn documents_handles(ctx: &AppContext) -> Result<Arc<DocumentsHandles>, DocumentsUnbound> {
+    let slot = ctx
+        .kernel()
+        .state()
+        .find::<DocumentsHandlesSlot>()
+        .ok_or(DocumentsUnbound)?;
+    bound(slot).cloned()
+}
+
+pub fn link_tokens(ctx: &AppContext) -> Option<Arc<DocumentLinkTokens>> {
+    ctx.kernel()
+        .state()
+        .find::<Arc<DocumentLinkTokens>>()
+        .cloned()
 }
 
 impl DocumentsState {
     pub fn build(ctx: &AppContext) -> Result<Self, DocumentsMountError> {
+        let handles = documents_handles(ctx)?;
         Ok(Self {
-            service: document_service(ctx),
-            uploads: Arc::clone(ctx.documents().uploads()),
+            service: handles
+                .service
+                .clone()
+                .ok_or(DocumentsMountError::Disabled)?,
+            uploads: Arc::clone(&handles.uploads),
             users: ctx
                 .user_provider()
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
             user_repository: Arc::clone(ctx.user_repository()),
-            tokens: ctx.token_authority(),
-            contexts: Arc::clone(ctx.documents().contexts()),
+            tokens: link_tokens(ctx).ok_or(DocumentsMountError::MissingLinkTokens)?,
+            contexts: Arc::clone(&handles.contexts),
             ui_session: ctx.config().ui_session,
             #[cfg(feature = "collab")]
-            collab: collab_service(ctx),
+            collab: Arc::clone(&handles.collab),
             #[cfg(feature = "collab")]
             background: ctx.background_tasks().clone(),
         })
@@ -139,13 +167,8 @@ pub(crate) fn body_limit(service: &DocumentService) -> usize {
     usize::try_from(limit).unwrap_or(usize::MAX)
 }
 
-pub fn document_service(ctx: &AppContext) -> Arc<DocumentService> {
-    Arc::clone(ctx.documents().service())
-}
-
-#[cfg(feature = "collab")]
-fn collab_service(ctx: &AppContext) -> Arc<CollabService> {
-    Arc::clone(ctx.documents().collab())
+pub fn document_service(ctx: &AppContext) -> Option<Arc<DocumentService>> {
+    documents_handles(ctx).ok()?.service.clone()
 }
 
 #[cfg(feature = "collab")]

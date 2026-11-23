@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, LoadedProfile};
-use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -25,7 +24,6 @@ use crate::builder::authz::{AuthzBuilt, authz_stage};
 use crate::builder::composition::bind_secret_scanner;
 use crate::builder::core_layer::init_files_config;
 use crate::builder::database::connect_database;
-use crate::builder::documents::{DocumentsInputs, build_documents};
 use crate::builder::events::event_plane;
 use crate::builder::governance::load_governance;
 use crate::builder::kernel_state::KernelSeed;
@@ -109,7 +107,6 @@ impl HostKernel {
         let system_owner = system_admin.id().clone();
 
         let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
-        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let (seed, binders) = crate::base_kernel_state(KernelSeed {
             database: &database,
             app_paths: &app_paths,
@@ -135,7 +132,7 @@ impl HostKernel {
             },
             system_admin: &system_admin,
             event_router: &event_router,
-            documents: documents_slot,
+            catalog_roles: crate::builder::composition::catalog_roles(&admitted),
             #[cfg(feature = "notifications")]
             escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
         });
@@ -158,6 +155,10 @@ impl HostKernel {
                 hooks: &*r.get::<Arc<AuthzHooks>>().map_err(RuntimeError::from)?,
             },
         )?;
+        binders
+            .authz_hook
+            .bind(Arc::clone(&authz_hook))
+            .map_err(RuntimeError::from)?;
         let governance = load_governance(
             profile,
             &database,
@@ -166,34 +167,6 @@ impl HostKernel {
         .await
         .map_err(RuntimeError::from)?;
         bind_secret_scanner(&governance, binders.secret_scanner)?;
-
-        #[cfg(feature = "notifications")]
-        let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
-            &database,
-            &instance_id,
-        );
-        #[cfg(not(feature = "notifications"))]
-        let notification_sink: systemprompt_extension::DynNotificationSink =
-            Arc::new(crate::documents::NotificationsUnavailableSink);
-        let brain_sink = crate::documents::admitted_brain_sink(profile.brain.enabled, &r);
-
-        let documents = build_documents(
-            &DocumentsInputs {
-                services_root: &services_root.path,
-                database: &database,
-                file_storage: &file_storage,
-                authz_hook: &authz_hook,
-                subjects: &market.subjects,
-                event_router: &event_router,
-                files_config: &files_config,
-                background_tasks: &background_tasks,
-                admitted: &admitted,
-                notifications: &notification_sink,
-                brain: &brain_sink,
-                binder: &documents_binder,
-            },
-            &r,
-        )?;
 
         let parts = HostParts {
             tokens: Arc::new(VerifyingTokenAuthority::new(
@@ -213,7 +186,6 @@ impl HostKernel {
             secrets,
             verification,
             authz_hook,
-            documents,
             background_tasks,
             log_sink,
             file_storage,

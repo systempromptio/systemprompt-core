@@ -49,8 +49,8 @@ use super::media::{image_refs, resolve_media};
 use super::proposals::{proposal_ack, propose_ops};
 use super::refusal::refusal;
 use super::support::{agent_author, caller, stale_base, tool_error};
-use crate::documents::refusal::RefusalCode;
-use crate::documents::views::{EditOutput, edit_ack};
+use crate::refusal::RefusalCode;
+use crate::views::{EditOutput, edit_ack};
 
 const CONVERTED: &str = "Written as a proposal, not landed: agents may only suggest on this \
                          document (its agent cap is suggest, or its folder's agent edit policy \

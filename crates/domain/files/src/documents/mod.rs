@@ -74,7 +74,8 @@ pub use brain_content::{BRAIN_ACTOR, DocumentSourceContent, DocumentsSourceUnava
 pub use error::DocumentsError;
 pub use events::DocumentEvents;
 pub use handles::{
-    DocumentsHandles, DocumentsHandlesBinder, DocumentsHandlesSlot, DocumentsUnbound,
+    DocumentsHandles, DocumentsHandlesBinder, DocumentsHandlesSlot, DocumentsUnbound, bound,
+    bound_service,
 };
 pub use notification_visibility::DocumentVisibility;
 pub use service::{DocumentService, DocumentServiceParts};

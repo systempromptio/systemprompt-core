@@ -13,8 +13,9 @@ pub(super) async fn reconcile_document_folders(ctx: &AppContext) -> Result<()> {
         tracing::info!("document store disabled");
         return Ok(());
     }
-    let registered = ctx
-        .documents()
+    let registered = crate::routes::documents::documents_handles(ctx)
+        .context("document store")?
+        .access
         .reconcile_folder_entities()
         .await
         .context("document folder entities")?;

@@ -20,16 +20,17 @@ use systemprompt_extension::brain::{BRAIN_TOOLSET, DynBrainToolsetSource};
 use systemprompt_extension::mcp::{McpToolset, ToolsetCall};
 use systemprompt_identifiers::McpServerId;
 
-use systemprompt_runtime::documents::links::LinkIssueError;
-use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, DocumentsToolCall};
-use systemprompt_runtime::issues::mcp::{IssuesMcpTools, IssuesToolCall};
+use systemprompt_documents::links::LinkIssueError;
+use systemprompt_documents::mcp::{DocumentsMcpTools, DocumentsToolCall};
+use systemprompt_files::documents::DocumentsUnbound;
+use systemprompt_issues::mcp::{IssuesMcpTools, IssuesToolCall};
 
 use super::factory::ToolsetBuildResult;
 use crate::HostContext;
 use crate::contract::ToolsetSlotBuilder;
 
-pub use systemprompt_runtime::documents::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;
-pub use systemprompt_runtime::issues::mcp::TOOLSET_ID as ISSUES_TOOLSET;
+pub use systemprompt_documents::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;
+pub use systemprompt_issues::mcp::TOOLSET_ID as ISSUES_TOOLSET;
 
 /// Why the issue report tools could not be built for a hosted server.
 #[derive(Debug, thiserror::Error)]
@@ -44,6 +45,12 @@ pub enum IssuesMcpError {
         server_name: McpServerId,
         #[source]
         source: LinkIssueError,
+    },
+    #[error("MCP server {server_name}: the document store is not bound on this host")]
+    Unbound {
+        server_name: McpServerId,
+        #[source]
+        source: DocumentsUnbound,
     },
 }
 
@@ -61,6 +68,12 @@ pub enum DocumentsMcpError {
         #[source]
         source: LinkIssueError,
     },
+    #[error("MCP server {server_name}: the document store is not bound on this host")]
+    Unbound {
+        server_name: McpServerId,
+        #[source]
+        source: DocumentsUnbound,
+    },
 }
 
 pub fn issues_tools(
@@ -70,11 +83,15 @@ pub fn issues_tools(
     if !host.files_config().issues_config().is_enabled() {
         return Err(IssuesMcpError::Disabled { server_name });
     }
+    let handles = host.documents().map_err(|source| IssuesMcpError::Unbound {
+        server_name: server_name.clone(),
+        source,
+    })?;
     let uploads = host
         .files_config()
         .documents_config()
         .is_enabled()
-        .then(|| Arc::clone(host.documents().uploads()));
+        .then(|| Arc::clone(&handles.uploads));
     let links = host
         .link_issuer(&server_name)
         .map_err(|source| IssuesMcpError::Links {
@@ -82,7 +99,7 @@ pub fn issues_tools(
             source,
         })?;
     Ok(IssuesMcpTools::new(
-        Arc::clone(host.documents().issues()),
+        Arc::clone(&handles.issues),
         uploads,
         links,
         server_name,
@@ -102,12 +119,20 @@ pub fn documents_tools(
             server_name: server_name.clone(),
             source,
         })?;
-    Ok(DocumentsMcpTools::for_host(
-        host.parts(),
+    let handles = host
+        .documents()
+        .map_err(|source| DocumentsMcpError::Unbound {
+            server_name: server_name.clone(),
+            source,
+        })?;
+    DocumentsMcpTools::for_host(
+        handles,
+        Arc::clone(host.user_repository()),
         host.state(),
         links,
-        server_name,
-    ))
+        server_name.clone(),
+    )
+    .ok_or(DocumentsMcpError::Disabled { server_name })
 }
 
 #[derive(Debug)]
@@ -120,7 +145,7 @@ impl McpToolset for IssuesToolset {
     }
 
     fn instructions(&self) -> &'static str {
-        systemprompt_runtime::issues::mcp::INSTRUCTIONS
+        systemprompt_issues::mcp::INSTRUCTIONS
     }
 
     fn tools(&self) -> Vec<Tool> {
@@ -150,7 +175,7 @@ impl McpToolset for DocumentsToolset {
     }
 
     fn instructions(&self) -> &'static str {
-        systemprompt_runtime::documents::mcp::INSTRUCTIONS
+        systemprompt_documents::mcp::INSTRUCTIONS
     }
 
     fn tools(&self) -> Vec<Tool> {

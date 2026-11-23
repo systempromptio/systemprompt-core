@@ -6,10 +6,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use serde::Serialize;
+use systemprompt_files::issues::IssueService;
 use systemprompt_identifiers::IssueReportId;
 use systemprompt_models::issues::IssueReport;
 
@@ -28,13 +28,10 @@ struct IssueDetailOutput {
     follow_up: Vec<String>,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = crate::commands::admin::state::app(host).await?;
+pub(super) async fn execute(args: ShowArgs, issues: &IssueService) -> Result<CommandOutput> {
     let id = IssueReportId::try_new(args.id.as_str())
         .with_context(|| format!("invalid issue report id: {}", args.id))?;
-    let report = app
-        .documents()
-        .issues()
+    let report = issues
         .find(&id)
         .await?
         .ok_or_else(|| anyhow!("Issue report not found: {}", args.id))?;

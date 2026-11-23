@@ -15,7 +15,7 @@ use systemprompt_identifiers::{
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_traits::ContextDirectory;
 
-use crate::documents::attribution::owned_context_names;
+use crate::attribution::owned_context_names;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct CommentAnchorItem {

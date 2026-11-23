@@ -23,8 +23,8 @@ use super::inputs::{CommentAction, CommentInput};
 use super::mentions::{agent_origin, resolve_mentions};
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
-use crate::documents::refusal::RefusalCode;
-use crate::documents::views::{CommentOutput, comments_view};
+use crate::refusal::RefusalCode;
+use crate::views::{CommentOutput, comments_view};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CommentHandler<'a> {

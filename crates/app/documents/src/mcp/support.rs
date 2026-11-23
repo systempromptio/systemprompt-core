@@ -22,8 +22,8 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::refusal::{refusal, refusal_result, refused_error};
 use super::{DocumentsMcpTools, DocumentsToolCall};
-use crate::documents::attribution::request_author;
-use crate::documents::refusal::{RefusalCode, refusal_of, stale_base as stale_base_refusal};
+use crate::attribution::request_author;
+use crate::refusal::{RefusalCode, refusal_of, stale_base as stale_base_refusal};
 
 pub(super) const DEFAULT_LIMIT: i64 = 50;
 

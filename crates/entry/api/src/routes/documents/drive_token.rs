@@ -18,13 +18,13 @@
 use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderMap;
+use systemprompt_documents::actor::bearer_actor;
 use systemprompt_files::documents::agents::{AgentChannel, DocumentActor};
 use systemprompt_identifiers::JwtToken;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DriveSyncToken;
 use systemprompt_oauth_issuance::drive_sync::{device_audiences, drive_audiences};
-use systemprompt_runtime::documents::actor::bearer_actor;
 
 use super::caller::authenticated;
 use super::drive::DriveState;

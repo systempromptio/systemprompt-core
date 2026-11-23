@@ -14,7 +14,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-
 /// A marketplace Claude Code fetches itself, as the manifest carries it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManifestExternalMarketplace {

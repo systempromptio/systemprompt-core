@@ -21,8 +21,8 @@ use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
 use super::refusal::refusal;
 use super::support::{agent_author, caller, tool_error};
-use crate::documents::refusal::RefusalCode;
-use crate::documents::views::written_lines;
+use crate::refusal::RefusalCode;
+use crate::views::written_lines;
 
 const CONTENT_SHAPES: &str = "content is exactly {\"model\": <ModelViewV2>} or {\"markdown\": \
                               \"<text>\"} (schema: GET /api/v1/documents/schema)";

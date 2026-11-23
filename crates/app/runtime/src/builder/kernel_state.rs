@@ -14,10 +14,11 @@
 //! view and active services root, the secret store, the system admin, the
 //! event router and the escalation delivery mode the notifications member
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
-//! child host, which delivers through the serving host's consumer). The
-//! document store is built from the resolved state, so it is not seeded;
-//! the read half of its cell (`DocumentsHandlesSlot`) is, and the host keeps
-//! the bind half outside the state and binds it once the store is built.
+//! child host, which delivers through the serving host's consumer), and the
+//! names of the roles the admitted members declare (`CatalogRoleNames`).
+//! The authz hook is built from the resolved state, so it is not seeded; the
+//! read half of its cell (`AuthzHookCell`) is, sealed, and the host keeps the
+//! bind half outside the state and binds it once the hook is built.
 //!
 //! The provider-key lookup (`Arc<dyn SecretLookup>`: the whole secrets
 //! document on the API, the granted set on a child host) and the connector
@@ -99,7 +100,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::FilesConfig;
-use systemprompt_files::documents::DocumentsHandlesSlot;
+use systemprompt_governance::authz::AuthzDecisionHook;
 use systemprompt_governance::policy::secrets::SecretScanner;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_loader::subprocess::Spawner;
@@ -107,6 +108,7 @@ use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::a2a::dispatch::AgentDispatch;
+use systemprompt_models::authz::CatalogRoleNames;
 use systemprompt_models::{ContentConfigRaw, late_pair};
 
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
@@ -151,7 +153,7 @@ pub struct KernelSeed<'a> {
     pub coordination: KernelCoordination,
     pub system_admin: &'a SystemAdmin,
     pub event_router: &'a EventRouter,
-    pub documents: DocumentsHandlesSlot,
+    pub catalog_roles: CatalogRoleNames,
     #[cfg(feature = "notifications")]
     pub escalation: EscalationDelivery,
 }
@@ -208,6 +210,7 @@ impl std::fmt::Debug for ApiKernelSeed<'_> {
 
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) {
     let (scanner, secret_scanner) = late_pair::<SecretScanner>();
+    let (authz_cell, authz_hook) = late_pair::<dyn AuthzDecisionHook>();
     let revocations: DynTokenRevocations = Arc::new(JtiRevocationChecker::new(
         seed.database,
         seed.cache_epochs.view(),
@@ -239,10 +242,17 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(seed.connector_tokens)
         .with_sealed(seed.system_admin.clone())
         .with_sealed(Arc::new(seed.event_router.clone()))
-        .with(seed.documents);
+        .with_sealed(authz_cell)
+        .with(Arc::new(seed.catalog_roles));
     #[cfg(feature = "notifications")]
     let state = state.with(seed.escalation);
-    (state, KernelBinders { secret_scanner })
+    (
+        state,
+        KernelBinders {
+            secret_scanner,
+            authz_hook,
+        },
+    )
 }
 
 pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders) {

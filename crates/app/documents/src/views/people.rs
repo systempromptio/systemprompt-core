@@ -18,7 +18,7 @@ use systemprompt_identifiers::{DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::AccessLevel;
 
-use crate::documents::USER_SUBJECT_KIND;
+use crate::USER_SUBJECT_KIND;
 
 pub const DEFAULT_PEOPLE: usize = 10;
 

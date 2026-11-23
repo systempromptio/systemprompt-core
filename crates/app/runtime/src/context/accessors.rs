@@ -50,10 +50,6 @@ impl AppContext {
         self.subsystems.event_router.broadcasters()
     }
 
-    pub const fn documents(&self) -> &Arc<crate::documents::DocumentsRuntime> {
-        &self.subsystems.documents
-    }
-
     #[must_use]
     pub fn token_authority(&self) -> Arc<dyn TokenAuthority> {
         Arc::clone(&self.subsystems.token_authority)

@@ -27,7 +27,7 @@ use super::inputs::ImportInput;
 use super::outputs::CreateOutput;
 use super::support::{agent_author, caller, tool_error};
 use super::upload::{upload_error, uploads};
-use crate::documents::views::written_lines;
+use crate::views::written_lines;
 
 pub(super) async fn owned_blob(
     tools: &DocumentsMcpTools,

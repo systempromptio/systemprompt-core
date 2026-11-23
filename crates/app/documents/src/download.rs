@@ -29,9 +29,9 @@ use systemprompt_files::documents::agents::UNNAMED_AGENT;
 use systemprompt_identifiers::{
     AccessTokenId, AgentName, DocumentId, DocumentRevisionId, SessionId,
 };
-use systemprompt_models::auth::{
-    AuthenticatedUser, JwtAudience, TokenAuthority, TokenError, UserJwtRequest,
-};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenError, UserJwtRequest};
+
+use crate::tokens::DocumentLinkTokens;
 use systemprompt_models::modules::ApiPaths;
 
 pub const DOWNLOAD_AUDIENCE: &str = "documents.download";
@@ -103,7 +103,7 @@ pub struct DownloadTarget<'a> {
 }
 
 pub fn signed_download_url(
-    authority: &dyn TokenAuthority,
+    tokens: &DocumentLinkTokens,
     target: DownloadTarget<'_>,
 ) -> Result<(String, DateTime<Utc>), DownloadLinkError> {
     let request = UserJwtRequest {
@@ -125,9 +125,7 @@ pub fn signed_download_url(
         ui_session: false,
         auth_time: None,
     };
-    let token = authority
-        .mint_user_jwt(&request)
-        .map_err(DownloadLinkError)?;
+    let token = tokens.mint_link(&request).map_err(DownloadLinkError)?;
     let rendition = match target.rendition {
         Rendition::Native => String::new(),
         Rendition::Pdf => format!("&{DOWNLOAD_FORMAT_QUERY}={DOWNLOAD_FORMAT_PDF}"),

@@ -23,8 +23,8 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::IssuesMcpTools;
 use super::refusal::{IssueRefusalCode, caller, refusal, tool_error};
-use crate::documents::links::issue_upload_links;
-use crate::documents::upload_links::UPLOAD_TOKEN_HEADER;
+use systemprompt_documents::links::issue_upload_links;
+use systemprompt_documents::upload_links::UPLOAD_TOKEN_HEADER;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

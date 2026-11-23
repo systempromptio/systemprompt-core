@@ -15,9 +15,9 @@ use super::inputs::CommentInput;
 use super::mentions::resolve_mentions;
 use super::refusal::refusal;
 use super::support::tool_error;
-use crate::documents::attribution::edit_origin;
-use crate::documents::refusal::RefusalCode;
-use crate::documents::views::{CommentOutput, comments_view};
+use crate::attribution::edit_origin;
+use crate::refusal::RefusalCode;
+use crate::views::{CommentOutput, comments_view};
 
 impl CommentHandler<'_> {
     pub(super) async fn edit(

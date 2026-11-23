@@ -17,7 +17,7 @@ use systemprompt_models::documents::DocumentUri;
 
 use super::support::tool_error;
 use super::write::EditCall;
-use crate::documents::views::{self, EditOutput};
+use crate::views::{self, EditOutput};
 
 pub(super) async fn edit_live(
     call: &EditCall<'_>,

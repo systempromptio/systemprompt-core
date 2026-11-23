@@ -13,13 +13,13 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_documents::views::{ProposalChange, proposal_changes, proposal_lines};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::DocumentProposal;
 use systemprompt_files::documents::service::{Proposed, ReviewRequest};
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::{ActorKind, ProposalStatus};
-use systemprompt_runtime::documents::views::{ProposalChange, proposal_changes, proposal_lines};
 
 use super::DocumentsState;
 use super::caller::{Caller, api_author, caller};

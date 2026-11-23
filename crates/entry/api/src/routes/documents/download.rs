@@ -15,14 +15,13 @@ use axum::extract::{Request, State};
 use axum::http::{HeaderMap, Method};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use systemprompt_documents::actor::bearer_actor;
+use systemprompt_documents::download::{
+    DOWNLOAD_FORMAT_QUERY, DOWNLOAD_TOKEN_QUERY, download_agent,
+};
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_identifiers::{DocumentRevisionId, TraceId, UserId};
 use systemprompt_models::api::ApiError;
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_runtime::documents::actor::bearer_actor;
-use systemprompt_runtime::documents::download::{
-    DOWNLOAD_AUDIENCE, DOWNLOAD_FORMAT_QUERY, DOWNLOAD_TOKEN_QUERY, download_agent,
-};
 
 use super::DocumentsState;
 use super::caller::{Caller, load};
@@ -90,10 +89,9 @@ async fn download(
     id: &str,
     query: DownloadQuery,
 ) -> DocumentsResult<Response> {
-    let audience = [JwtAudience::Resource(DOWNLOAD_AUDIENCE.to_owned())];
     let claims = state
         .tokens
-        .verify_bearer(&query.token, &audience)
+        .verify_download(&query.token)
         .map_err(|source| {
             ApiError::unauthorized("download link is invalid or has expired").with_source(source)
         })?;

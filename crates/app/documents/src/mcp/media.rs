@@ -21,7 +21,7 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
-use crate::documents::refusal::RefusalCode;
+use crate::refusal::RefusalCode;
 
 pub(super) fn image_refs(model: Option<&RichText>, ops: &[EditOp]) -> Vec<String> {
     let mut blocks = Vec::new();

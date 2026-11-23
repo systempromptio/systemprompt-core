@@ -20,6 +20,7 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
+use systemprompt_documents::download::{DOWNLOAD_FORMAT_PDF, Rendition};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::blob_store::BlobStoreError;
 use systemprompt_files::documents::codecs::file::PDF_MIME_TYPE;
@@ -27,7 +28,6 @@ use systemprompt_files::documents::service::StreamRequest;
 use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::content_hash;
-use systemprompt_runtime::documents::download::{DOWNLOAD_FORMAT_PDF, Rendition};
 use systemprompt_traits::{FileStorageError, StoredFileRead};
 
 use super::DocumentsState;

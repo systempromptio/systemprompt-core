@@ -22,8 +22,6 @@ workspace = true
 [features]
 default = []
 geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
-collab = ["systemprompt-files/collab"]
-engine-loro = ["collab", "systemprompt-files/collab-loro"]
 notifications = ["dep:systemprompt-notifications"]
 
 [dependencies]

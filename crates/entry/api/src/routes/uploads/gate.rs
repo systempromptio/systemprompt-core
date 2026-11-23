@@ -17,13 +17,10 @@ use axum::extract::{Request, State};
 use axum::http::Method;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use systemprompt_documents::download::DOWNLOAD_TOKEN_QUERY;
+use systemprompt_documents::upload_links::{UPLOAD_TOKEN_HEADER, purpose_permits};
 use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
 use systemprompt_models::api::ApiError;
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_runtime::documents::download::DOWNLOAD_TOKEN_QUERY;
-use systemprompt_runtime::documents::upload_links::{
-    UPLOAD_AUDIENCE, UPLOAD_TOKEN_HEADER, purpose_permits,
-};
 use tower::ServiceExt;
 
 use super::principal::{TokenUploader, Uploader};
@@ -78,13 +75,9 @@ async fn authorize(
     method: &Method,
     path: &str,
 ) -> Result<Uploader, ApiHttpError> {
-    let audience = [JwtAudience::Resource(UPLOAD_AUDIENCE.to_owned())];
-    let claims = state
-        .tokens
-        .verify_bearer(token, &audience)
-        .map_err(|source| {
-            ApiError::unauthorized("upload link is invalid or has expired").with_source(source)
-        })?;
+    let claims = state.tokens.verify_upload(token).map_err(|source| {
+        ApiError::unauthorized("upload link is invalid or has expired").with_source(source)
+    })?;
     let path = path.trim_matches('/');
     let (id, rest) = path.split_once('/').unwrap_or((path, ""));
     let id = DocumentUploadId::try_new(id)?;

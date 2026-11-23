@@ -16,7 +16,7 @@ use systemprompt_models::documents::{
 };
 
 use super::write::EditCall;
-use crate::documents::views::EditOutput;
+use crate::views::EditOutput;
 
 pub(super) async fn announce_agent(call: &EditCall<'_>, output: &EditOutput) {
     let agent = call.ctx.agent_name().to_string();

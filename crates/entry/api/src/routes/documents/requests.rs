@@ -15,14 +15,14 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
+use systemprompt_documents::active_user_display;
+use systemprompt_documents::views::AccessRequestItem;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::service::{AccessDecision, AccessRequestInput, DecideRequest};
 use systemprompt_identifiers::{DocumentAccessRequestId, DocumentId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::AccessLevel;
-use systemprompt_runtime::documents::active_user_display;
-use systemprompt_runtime::documents::views::AccessRequestItem;
 
 use crate::kernel::ApiHttpError;
 

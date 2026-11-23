@@ -25,6 +25,8 @@ pub use issuer::{ApiLinkIssuer, LinkIssueError, LinkIssuer, LinkRefusal};
 pub use mint::{LinkMintError, LinkMinter, mint_link, mint_verified, verify_link_hop};
 
 use super::download::Rendition;
+
+pub const ISSUES_TOOLSET: &str = "issues";
 use super::upload_links::SignedUploadLinks;
 
 /// The link an MCP server asks the API to sign.

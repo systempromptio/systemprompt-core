@@ -11,12 +11,12 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json};
+use systemprompt_documents::upload_links::{
+    UPLOAD_TOKEN_HEADER, UploadGrant, UploadLinkTarget, signed_upload_links,
+};
 use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::{DocumentUploadId, IssueReportId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::upload_links::{
-    UPLOAD_TOKEN_HEADER, UploadGrant, UploadLinkTarget, signed_upload_links,
-};
 
 use super::views::{AttachmentBody, AttachmentUploadJson};
 use super::{IssuesState, caller};
@@ -42,7 +42,7 @@ pub(super) async fn declare(
         .create(&user.id, request, req_ctx.trace_id())
         .await?;
     let links = signed_upload_links(
-        state.tokens.as_ref(),
+        &state.tokens,
         UploadLinkTarget {
             grant: UploadGrant::Write,
             base_url: &state.base_url,

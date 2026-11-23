@@ -18,7 +18,7 @@ use systemprompt_identifiers::{
     DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
 };
 
-use crate::documents::views::{EditOutput, GrantItem, PeopleOutput, ReadOutput};
+use crate::views::{EditOutput, GrantItem, PeopleOutput, ReadOutput};
 use systemprompt_models::documents::{
     AccessLevel, ActorKind, DocumentFormat, DocumentUri, ProposalStatus,
 };

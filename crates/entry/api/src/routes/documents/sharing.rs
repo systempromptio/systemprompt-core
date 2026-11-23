@@ -19,8 +19,8 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
 use crate::kernel::ApiHttpError;
+use systemprompt_documents::subject_display;
 use systemprompt_models::documents::{AccessLevel, PresenceBeacon, PresenceSource, PresenceState};
-use systemprompt_runtime::documents::subject_display;
 use uuid::Uuid;
 
 use super::DocumentsState;
@@ -28,7 +28,7 @@ use super::caller::{Caller, caller};
 use super::error::{DocumentsResult, with_detail};
 use super::items::document_id;
 use super::views::{GrantJson, LockJson, PresenceJson};
-use systemprompt_runtime::documents::refusal::{Refusal, RefusalCode};
+use systemprompt_documents::refusal::{Refusal, RefusalCode};
 
 const DEFAULT_LOCK_SECS: u64 = 300;
 const MAX_LOCK_SECS: u64 = 3600;

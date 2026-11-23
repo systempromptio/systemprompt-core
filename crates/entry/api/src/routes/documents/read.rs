@@ -9,12 +9,10 @@
 use axum::extract::{Path, Query, State};
 use axum::{Extension, Json};
 use serde::Deserialize;
+use systemprompt_documents::views::{NodeRange, ReadInput, ReadOutput, ReadView, read_view};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::views::{
-    NodeRange, ReadInput, ReadOutput, ReadView, read_view,
-};
 
 use super::DocumentsState;
 use super::caller::caller;

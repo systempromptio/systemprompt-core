@@ -24,6 +24,8 @@ pub enum ConferralRow {
     GatewaySessionMint,
     GatewayProviderCredentials,
     IdentityTokenAuthority,
+    DocumentLinkTokens,
+    DriveTokens,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -39,6 +41,8 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::GatewaySessionMint.entry(),
     ConferralRow::GatewayProviderCredentials.entry(),
     ConferralRow::IdentityTokenAuthority.entry(),
+    ConferralRow::DocumentLinkTokens.entry(),
+    ConferralRow::DriveTokens.entry(),
 ];
 
 impl ConferralRow {
@@ -49,6 +53,8 @@ impl ConferralRow {
             Self::GatewaySessionMint => "gateway-session-mint",
             Self::GatewayProviderCredentials => "gateway-provider-credentials",
             Self::IdentityTokenAuthority => "identity-token-authority",
+            Self::DocumentLinkTokens => "document-link-tokens",
+            Self::DriveTokens => "drive-tokens",
         }
     }
 
@@ -59,6 +65,8 @@ impl ConferralRow {
             Self::GatewaySessionMint => ("users", CoreId::GatewayHttp),
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
             Self::IdentityTokenAuthority => (CoreId::Kernel.id(), CoreId::IdentityHttp),
+            Self::DocumentLinkTokens => ("documents", CoreId::FilesHttp),
+            Self::DriveTokens => ("documents", CoreId::GatewayHttp),
         };
         SealedConferral {
             row: self,

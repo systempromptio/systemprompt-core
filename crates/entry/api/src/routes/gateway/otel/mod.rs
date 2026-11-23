@@ -190,7 +190,6 @@ fn accepted() -> Response<Body> {
         .unwrap_or_else(|_| Response::new(Body::empty()))
 }
 
-
 fn bind_identity(
     resource: &mut Option<opentelemetry_proto::tonic::resource::v1::Resource>,
     identity: Option<&(UserId, SessionId)>,

@@ -14,12 +14,12 @@
 use axum::extract::{Query, State};
 use axum::{Extension, Json};
 use serde::Deserialize;
+use systemprompt_documents::views::{
+    DEFAULT_PEOPLE, PeopleOutput, PeopleSearch, people_lookup_view, people_search_view,
+};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::views::{
-    DEFAULT_PEOPLE, PeopleOutput, PeopleSearch, people_lookup_view, people_search_view,
-};
 
 use super::DocumentsState;
 use super::caller::caller;

@@ -18,9 +18,9 @@ use super::inputs::{ExportAs, ExportFormat, ExportInput};
 use super::outputs::ExportOutput;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
-use crate::documents::download::Rendition;
-use crate::documents::links::{LinkTarget, issue_download_link};
-use crate::documents::refusal::RefusalCode;
+use crate::download::Rendition;
+use crate::links::{LinkTarget, issue_download_link};
+use crate::refusal::RefusalCode;
 
 enum Plan {
     Link(Rendition),

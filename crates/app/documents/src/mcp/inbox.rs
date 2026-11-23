@@ -20,7 +20,7 @@ use systemprompt_traits::RepositoryError;
 use super::DocumentsMcpTools;
 use super::refusal::refusal;
 use super::support::caller;
-use crate::documents::refusal::RefusalCode;
+use crate::refusal::RefusalCode;
 
 const DEFAULT_LIMIT: u32 = 50;
 

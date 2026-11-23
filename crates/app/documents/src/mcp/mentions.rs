@@ -19,9 +19,9 @@ use systemprompt_users::{User, UserRepository, normalise_email};
 use super::DocumentsMcpTools;
 use super::refusal::refusal;
 use super::support::tool_error;
-use crate::documents::actor::request_actor;
-use crate::documents::attribution::comment_origin;
-use crate::documents::refusal::RefusalCode;
+use crate::actor::request_actor;
+use crate::attribution::comment_origin;
+use crate::refusal::RefusalCode;
 
 const MAX_MENTIONS: usize = 20;
 

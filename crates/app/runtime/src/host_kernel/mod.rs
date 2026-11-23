@@ -7,16 +7,15 @@
 //! against the loaded profile), seeds its kernel with [`base_kernel_state`]
 //! (escalations go to the serving host's consumer,
 //! `EscalationDelivery::Consumer`), resolves it, and then runs the stages
-//! that read the resolved state — authz, governance, documents — over that
+//! that read the resolved state — authz, governance — over that
 //! narrower input, so a child enforces the API's authorization by
 //! construction. It never reads the profile's secrets source and builds no
 //! OAuth repository.
 //!
 //! [`HostKernel::boot`] returns the composed handles in [`HostParts`],
 //! including the resolved [`Kernel`] whose state the child's extension
-//! context reads. The notifications member binds its own service slot while
-//! the kernel resolves; the child binds only the files member's document
-//! store slot.
+//! context reads. The notifications and documents members bind their own
+//! cells while the kernel resolves; the child binds only the authz hook cell.
 //!
 //! [`base_kernel_state`]: crate::base_kernel_state
 //!
@@ -45,7 +44,6 @@ use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{BackgroundTasks, BoxedSource, FileStorage};
 use systemprompt_users::UserRepository;
 
-use crate::documents::DocumentsRuntime;
 use crate::error::RuntimeError;
 use crate::kernel::Kernel;
 
@@ -102,7 +100,6 @@ pub struct HostParts {
     pub subject_providers: SubjectProviderSet,
     pub subjects: SubjectSourceHandle,
     pub user_repository: Arc<UserRepository>,
-    pub documents: Arc<DocumentsRuntime>,
     pub background_tasks: BackgroundTasks,
     pub log_sink: systemprompt_logging::LogSink,
     pub tokens: Arc<VerifyingTokenAuthority>,

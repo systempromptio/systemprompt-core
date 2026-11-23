@@ -34,7 +34,11 @@ use std::sync::Arc;
 use systemprompt_config::GrantedSecrets;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
+use systemprompt_documents::links::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
 use systemprompt_files::FilesConfig;
+use systemprompt_files::documents::{
+    DocumentsHandles, DocumentsHandlesSlot, DocumentsUnbound, bound,
+};
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
 use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_loader::ServicesState;
@@ -42,8 +46,6 @@ use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::HostParts;
-use systemprompt_runtime::documents::DocumentsRuntime;
-use systemprompt_runtime::documents::links::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
 use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{BackgroundTasks, SecretStore};
 use systemprompt_users::UserRepository;
@@ -146,9 +148,11 @@ impl HostContext {
         &self.parts.user_repository
     }
 
-    #[must_use]
-    pub const fn documents(&self) -> &Arc<DocumentsRuntime> {
-        &self.parts.documents
+    pub fn documents(&self) -> Result<&Arc<DocumentsHandles>, DocumentsUnbound> {
+        self.state()
+            .find::<DocumentsHandlesSlot>()
+            .ok_or(DocumentsUnbound)
+            .and_then(bound)
     }
 
     #[must_use]

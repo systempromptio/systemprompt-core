@@ -9,10 +9,10 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Response;
 use axum::{Extension, Json};
+use systemprompt_documents::views::{AccessOutput, folder_access_view};
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_identifiers::DocumentFolderId;
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::views::{AccessOutput, folder_access_view};
 
 use super::DocumentsState;
 use super::access::HistoryQuery;

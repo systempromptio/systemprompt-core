@@ -25,7 +25,6 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, DescribeCommand};
 
-
 #[derive(Debug, Subcommand)]
 pub enum PluginsCommands {
     #[command(about = "List all discovered extensions")]

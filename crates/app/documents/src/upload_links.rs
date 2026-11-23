@@ -26,10 +26,11 @@
 use chrono::{DateTime, Duration, Utc};
 use http::Method;
 use systemprompt_identifiers::{AccessTokenId, DocumentUploadId, SessionId};
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenAuthority, UserJwtRequest};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, UserJwtRequest};
 use systemprompt_models::modules::ApiPaths;
 
 use super::download::DownloadLinkError;
+use crate::tokens::DocumentLinkTokens;
 
 pub const UPLOAD_AUDIENCE: &str = "documents.upload";
 pub const UPLOAD_LINK_TTL: Duration = Duration::minutes(15);
@@ -96,7 +97,7 @@ pub struct SignedUploadLinks {
 }
 
 pub fn signed_upload_links(
-    authority: &dyn TokenAuthority,
+    tokens: &DocumentLinkTokens,
     target: UploadLinkTarget<'_>,
 ) -> Result<SignedUploadLinks, DownloadLinkError> {
     let request = UserJwtRequest {
@@ -114,8 +115,8 @@ pub fn signed_upload_links(
         ui_session: false,
         auth_time: None,
     };
-    let token = authority
-        .mint_user_jwt(&request)
+    let token = tokens
+        .mint_link(&request)
         .map_err(DownloadLinkError::from)?;
     let base = format!(
         "{}{}/{}",

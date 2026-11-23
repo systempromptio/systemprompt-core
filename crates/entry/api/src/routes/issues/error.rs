@@ -11,7 +11,7 @@
 use systemprompt_files::issues::IssuesError;
 use systemprompt_models::api::ApiError;
 
-use systemprompt_runtime::documents::download::DownloadLinkError;
+use systemprompt_documents::download::DownloadLinkError;
 
 use crate::kernel::ApiHttpError;
 

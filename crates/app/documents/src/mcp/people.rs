@@ -18,7 +18,7 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::inputs::PeopleInput;
 use super::support::{caller, tool_error};
-use crate::documents::views::{DEFAULT_PEOPLE, PeopleOutput, PeopleSearch, people_search_view};
+use crate::views::{DEFAULT_PEOPLE, PeopleOutput, PeopleSearch, people_search_view};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PeopleHandler<'a> {

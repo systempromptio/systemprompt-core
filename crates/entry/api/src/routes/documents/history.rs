@@ -15,6 +15,7 @@ use axum::http::{HeaderValue, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
+use systemprompt_documents::attribution::owned_context_names;
 use systemprompt_extension::FrameOptionsOverride;
 use systemprompt_files::documents::codecs::file::PDF_MIME_TYPE;
 use systemprompt_files::documents::service::HistoryPage;
@@ -22,7 +23,6 @@ use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_provider_contracts::FrameOptions;
-use systemprompt_runtime::documents::attribution::owned_context_names;
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};

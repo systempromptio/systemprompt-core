@@ -23,7 +23,7 @@
 //! manifest grants), the verify-only key ring, the authz hook and subject
 //! providers, the user repository, the document store, the extension state
 //! (the notification service among it, when the runtime assembles one) and a
-//! [`LinkIssuer`](systemprompt_runtime::documents::links::LinkIssuer) for what
+//! [`LinkIssuer`](systemprompt_documents::links::LinkIssuer) for what
 //! only the API may sign. The per-user subject of a call is not a factory
 //! input: it arrives with each call as the hop-verified `RequestContext` in
 //! [`ToolsetCall`](systemprompt_extension::mcp::ToolsetCall), so a toolset

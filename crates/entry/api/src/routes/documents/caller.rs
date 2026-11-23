@@ -10,6 +10,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
+use systemprompt_documents::actor::request_actor;
+use systemprompt_documents::attribution::{comment_origin, request_author};
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::models::RevisionOrigin;
 use systemprompt_files::documents::service::{Author, CommentOrigin};
@@ -17,8 +19,6 @@ use systemprompt_identifiers::{ContextId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ActorKind;
-use systemprompt_runtime::documents::actor::request_actor;
-use systemprompt_runtime::documents::attribution::{comment_origin, request_author};
 use systemprompt_traits::{AuthUser, UserProvider};
 
 use super::DocumentsState;

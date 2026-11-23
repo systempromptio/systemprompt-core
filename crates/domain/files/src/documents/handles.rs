@@ -1,18 +1,19 @@
-//! The document store handles a host binds after its kernel resolves.
+//! The document store handles the `documents` member binds after its
+//! kernel resolves.
 //!
 //! The document store is built from slot outputs of the same resolve the
-//! files member provides into, so the member cannot read the store while it
-//! provides. The host creates the cell instead, with
-//! [`DocumentsHandlesSlot::unbound`]: it seeds the read half,
-//! [`DocumentsHandlesSlot`], into its kernel state before any member
-//! provides, and keeps the bind half, [`DocumentsHandlesBinder`], outside the
-//! state. The files member's core seams hold the read half and read it when
-//! they are called; the host binds the cell once, after it has built the store
-//! from the resolved state. No member can bind it: the binder is never in the
-//! state, a binder from another `unbound` call binds only its own cell, and a
-//! member cannot provide the slot type the kernel already holds. A call
-//! before the host binds the slot fails with [`DocumentsUnbound`], never with
-//! a default verdict.
+//! files member provides into, so the store cannot exist while the files
+//! member provides. The `documents` member creates the cell with
+//! [`DocumentsHandlesSlot::unbound`] in its early provide, provides the read
+//! half, [`DocumentsHandlesSlot`], and keeps the bind half,
+//! [`DocumentsHandlesBinder`], outside the state, shared only with its own
+//! after-governance provide, which builds the store and binds the cell once.
+//! The files member's core seams, the document jobs, the routes and the
+//! commands hold the read half and read it when they are called. No other
+//! member can bind it: the binder is never in the state, a binder from
+//! another `unbound` call binds only its own cell, and a second provider of
+//! the slot type is refused as a duplicate. A call before the cell is bound
+//! fails with [`DocumentsUnbound`], never with a default verdict.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,13 +40,20 @@ use super::{
 };
 use crate::issues::{ISSUE_SUBJECT, IssueService, IssueVisibility};
 
-/// The document store a host built from its resolved kernel state.
+/// The document store built from a host's resolved kernel state.
+///
+/// `service` is `None` while `files.documents.enabled` is off; `uploads`,
+/// `issues` and `contexts` are always present.
 #[derive(Clone)]
 pub struct DocumentsHandles {
     pub access: Arc<DocumentAccessService>,
     pub repositories: Arc<DocumentRepositories>,
     pub issues: Arc<IssueService>,
     pub service: Option<Arc<DocumentService>>,
+    pub uploads: Arc<crate::uploads::UploadService>,
+    pub contexts: systemprompt_traits::DynContextDirectory,
+    #[cfg(feature = "collab")]
+    pub collab: Arc<super::collab::CollabService>,
 }
 
 impl std::fmt::Debug for DocumentsHandles {
@@ -56,12 +64,11 @@ impl std::fmt::Debug for DocumentsHandles {
     }
 }
 
-/// The read half of the document store cell the host seeds; see the module
-/// docs.
+/// The read half of the document store cell; see the module docs.
 #[derive(Clone)]
 pub struct DocumentsHandlesSlot(LateBound<DocumentsHandles>);
 
-/// The bind half of the document store cell, held by the host alone.
+/// The bind half of the document store cell, held by its creator alone.
 pub struct DocumentsHandlesBinder(LateBound<DocumentsHandles>);
 
 impl DocumentsHandlesSlot {
@@ -99,7 +106,7 @@ impl std::fmt::Debug for DocumentsHandlesBinder {
     }
 }
 
-/// The host has not bound the document store yet.
+/// The document store is not bound yet.
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 #[error("the document store is not bound on this host")]
 pub struct DocumentsUnbound;

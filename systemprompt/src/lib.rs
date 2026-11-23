@@ -21,7 +21,7 @@
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
-//! | `runtime` | `cli` + `systemprompt-extension` | The `systemprompt::runtime` module (a custom binary runs the CLI through `Composition::run`); it also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
+//! | `runtime` | `cli` + `systemprompt-extension` | A custom binary runs the CLI through `Composition::run`. Under `full`, `systemprompt::documents` is the document store crate (its MCP tools are `systemprompt::documents::mcp`) and `systemprompt::issues` the issue report crate. |
 //! | `analytics` | `systemprompt-analytics`, and the `/api/v1/analytics` and engagement routes and the `analytics` command group from `systemprompt-analytics-entry` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. The routes need `api`, the commands `cli`; `core content popular` also needs `content`. In `full`. |
 //! | `content` | the `systemprompt::content` module, and the `/api/v1/content` and link-redirect routes and the `core content` commands from `systemprompt-content-entry` (with `analytics`, also the `core content popular` leaf) | Content ingestion, links and campaigns without the rest of `full`. The routes need `api`, the commands `cli`. In `full`. |
 //! | `slack` | the `systemprompt::slack` module and the `/api/v1/slack` routes from `systemprompt-slack-entry` | Slack Events API, slash commands, interactivity. Not part of `full`. |
@@ -184,9 +184,17 @@ pub mod cli {
     pub use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 }
 
-#[cfg(any(feature = "runtime", feature = "full"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "runtime", feature = "full"))))]
-pub mod runtime;
+#[cfg(feature = "full")]
+#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+pub mod documents {
+    pub use systemprompt_documents::*;
+}
+
+#[cfg(all(feature = "issues", feature = "full"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "issues", feature = "full"))))]
+pub mod issues {
+    pub use systemprompt_issues::*;
+}
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]

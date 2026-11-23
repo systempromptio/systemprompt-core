@@ -7,9 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use systemprompt_extension::{BrainSink, BrainSinkError, DynBrainSink, Resolved};
+use systemprompt_extension::{BrainSink, BrainSinkError};
 use systemprompt_identifiers::EventOutboxId;
 use systemprompt_models::brain::BrainEvent;
 
@@ -30,11 +28,4 @@ impl BrainSink for BrainUnavailableSink {
     ) -> Result<EventOutboxId, BrainSinkError> {
         Err(BrainSinkError::Unavailable)
     }
-}
-
-pub(crate) fn admitted_brain_sink(brain_enabled: bool, r: &Resolved<'_>) -> DynBrainSink {
-    brain_enabled
-        .then(|| r.optional::<DynBrainSink>())
-        .flatten()
-        .unwrap_or_else(|| Arc::new(BrainUnavailableSink))
 }

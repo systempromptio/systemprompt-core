@@ -10,14 +10,15 @@ use systemprompt_files::documents::{DocumentService, DocumentsError};
 use systemprompt_files::uploads::{UploadError, UploadService, UploadStatus};
 use systemprompt_identifiers::{McpServerId, TraceId};
 use systemprompt_loader::ServicesState;
-use systemprompt_models::auth::{self, McpHopClaims, TokenAuthority, TokenError};
+use systemprompt_models::auth::{self, McpHopClaims, TokenError};
 
+use super::ISSUES_TOOLSET;
 use super::{IssuedLink, LinkRequest, LinkTarget};
-use crate::documents::actor::bearer_actor;
-use crate::documents::download::{DownloadLinkError, DownloadTarget, signed_download_url};
-use crate::documents::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;
-use crate::documents::upload_links::{UploadGrant, UploadLinkTarget, signed_upload_links};
-use crate::issues::mcp::TOOLSET_ID as ISSUES_TOOLSET;
+use crate::actor::bearer_actor;
+use crate::download::{DownloadLinkError, DownloadTarget, signed_download_url};
+use crate::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;
+use crate::tokens::DocumentLinkTokens;
+use crate::upload_links::{UploadGrant, UploadLinkTarget, signed_upload_links};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkMintError {
@@ -40,7 +41,7 @@ pub enum LinkMintError {
 /// What [`mint_link`] signs and checks with.
 #[derive(Clone)]
 pub struct LinkMinter {
-    pub tokens: Arc<dyn TokenAuthority>,
+    pub tokens: Arc<DocumentLinkTokens>,
     pub documents: Arc<DocumentService>,
     pub uploads: Arc<UploadService>,
     pub services: ServicesState,
@@ -62,7 +63,7 @@ pub fn verify_link_hop(
 ) -> Result<McpHopClaims, LinkMintError> {
     minter
         .tokens
-        .verify_mcp_hop(hop, &request.server)
+        .verify_link_hop(hop, &request.server)
         .map_err(LinkMintError::Hop)
 }
 
@@ -99,7 +100,7 @@ pub async fn mint_verified(
                 });
             }
             let links = signed_upload_links(
-                minter.tokens.as_ref(),
+                &minter.tokens,
                 UploadLinkTarget {
                     grant: UploadGrant::Write,
                     base_url: &minter.api_external_url,
@@ -133,7 +134,7 @@ pub async fn mint_verified(
             .map_err(LinkMintError::Document)?;
             let agent = agent_of(claims);
             let (url, expires_at) = signed_download_url(
-                minter.tokens.as_ref(),
+                &minter.tokens,
                 DownloadTarget {
                     rendition: *rendition,
                     base_url: &minter.api_external_url,

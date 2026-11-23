@@ -21,7 +21,6 @@ use std::collections::HashMap;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 
-
 use systemprompt_files::documents::nodes::path_of;
 
 use super::outline::{node_lines, outline, search_lines, shown_roots};
