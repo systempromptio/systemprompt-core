@@ -28,6 +28,7 @@ mod reconciler_db {
         let _reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
     }
 
@@ -37,6 +38,7 @@ mod reconciler_db {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
 
         let result = reconciler
@@ -60,6 +62,7 @@ mod reconciler_db {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
 
         let configs = [ServiceConfig {
@@ -83,6 +86,7 @@ mod reconciler_db {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
 
         let configs = [ServiceConfig {
@@ -129,6 +133,7 @@ mod reconciler_db {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
 
         let configs = vec![
@@ -160,6 +165,7 @@ mod reconciler_db {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, isolated_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
 
         let configs = [ServiceConfig {
@@ -441,8 +447,11 @@ mod reconciler_action_arms {
         let pool = test_db_pool().await;
         let instance = isolated_instance();
         let repo = ServiceRepository::new(&pool, instance.clone());
-        let reconciler =
-            ServiceReconciler::new(Arc::clone(&pool), ServiceRepository::new(&pool, instance));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            ServiceRepository::new(&pool, instance),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         Seeded {
             pool,
             repo,
@@ -490,12 +499,34 @@ mod reconciler_action_arms {
     }
 
     fn spawn_port_holder(marked_as: Option<&ServiceName>) -> (PortHolder, u32, u16) {
+        spawn_holder(marked_as, "time.sleep(60)", None)
+    }
+
+    fn spawn_draining_holder(
+        marked_as: &ServiceName,
+        drained: &std::path::Path,
+    ) -> (PortHolder, u32, u16) {
+        spawn_holder(
+            Some(marked_as),
+            "import signal,pathlib\ndef drain(*_):\n    time.sleep(1)\n    pathlib.Path(sys.argv[1]).write_text('drained')\n    sys.exit(0)\nsignal.signal(signal.SIGTERM, drain)\ntime.sleep(60)",
+            Some(drained),
+        )
+    }
+
+    fn spawn_holder(
+        marked_as: Option<&ServiceName>,
+        tail: &str,
+        arg: Option<&std::path::Path>,
+    ) -> (PortHolder, u32, u16) {
         let mut command = Command::new("python3");
         command
             .args([
                 "-c",
-                "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
+                &format!(
+                    "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\n{tail}"
+                ),
             ])
+            .args(arg)
             .stdout(Stdio::piped());
         if let Some(service) = marked_as {
             subprocess::mark_child(&mut command, ChildKind::Mcp, service);
@@ -710,6 +741,36 @@ mod reconciler_action_arms {
         assert!(
             !subprocess::is_running(pid).await,
             "the marked service process is stopped"
+        );
+
+        t.repo.delete_service(&name).await.expect("cleanup row");
+    }
+
+    #[tokio::test]
+    async fn a_stop_waits_for_a_draining_service_to_exit_within_the_child_grace() {
+        let t = seeded().await;
+        let name = unique_service_name("rec-drain");
+        let dir = tempfile::tempdir().expect("marker dir");
+        let drained = dir.path().join("drained");
+        let (_holder, pid, port) = spawn_draining_holder(&name, &drained);
+        insert_service(&t.repo, &name, ServiceStatus::Running, Some(pid), port).await;
+
+        let configs = [ServiceConfig {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port,
+            enabled: false,
+        }];
+        let result = t
+            .reconciler
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
+            .await
+            .expect("reconcile");
+
+        assert_eq!(result.stopped, vec![name.clone()], "{result:?}");
+        assert!(
+            drained.exists(),
+            "a service that drains within child_grace_secs exits on its own; it is not killed"
         );
 
         t.repo.delete_service(&name).await.expect("cleanup row");

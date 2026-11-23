@@ -462,6 +462,7 @@ mod reconciler_seeded {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -503,6 +504,7 @@ mod reconciler_seeded {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -542,6 +544,7 @@ mod reconciler_seeded {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -593,6 +596,7 @@ mod reconciler_seeded {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
         let configs = vec![
             ServiceConfig {
@@ -631,6 +635,7 @@ mod reconciler_seeded {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -659,6 +664,7 @@ mod reconciler_seeded {
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),

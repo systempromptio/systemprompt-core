@@ -56,7 +56,9 @@ pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Resul
         CliService::info(&format!("Stopping API server (PID: {})...", pid));
     }
 
-    let stops = ServiceManagementService::stop_api_by_port(port, false).await?;
+    let stops =
+        ServiceManagementService::stop_api_by_port(port, &ctx.profile()?.server.shutdown, false)
+            .await?;
     if let Some(foreign) = stops
         .iter()
         .find(|stop| stop.outcome == StopOutcome::NotOurs)
