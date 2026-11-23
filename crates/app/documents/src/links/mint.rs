@@ -12,8 +12,7 @@ use systemprompt_identifiers::{McpServerId, TraceId};
 use systemprompt_loader::ServicesState;
 use systemprompt_models::auth::{self, McpHopClaims, TokenError};
 
-use super::ISSUES_TOOLSET;
-use super::{IssuedLink, LinkRequest, LinkTarget};
+use super::{ISSUES_TOOLSET, IssuedLink, LinkRequest, LinkTarget};
 use crate::actor::bearer_actor;
 use crate::download::{DownloadLinkError, DownloadTarget, signed_download_url};
 use crate::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;

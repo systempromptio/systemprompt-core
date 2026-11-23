@@ -2,7 +2,8 @@
 //!
 //! [`DocumentsMcpTools`](crate::mcp::DocumentsMcpTools) is what an
 //! extension's MCP server binary composes:
-//! [`DocumentsMcpTools::list_tools`](crate::mcp::DocumentsMcpTools::list_tools) for `tools/list`,
+//! [`DocumentsMcpTools::list_tools`](crate::mcp::DocumentsMcpTools::list_tools)
+//! for `tools/list`,
 //! [`DocumentsMcpTools::call`](crate::mcp::DocumentsMcpTools::call)
 //! to run one tool through core's
 //! the MCP member's `ToolExecution` after the binary has

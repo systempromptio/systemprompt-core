@@ -18,10 +18,8 @@
 //! names of the roles the admitted members declare (`CatalogRoleNames`).
 //! The authz hook and the document store are built from the resolved state,
 //! so neither is seeded; the read half of each cell is (`AuthzHookCell`
-//! sealed, `DocumentsHandlesSlot` open), and the host keeps each bind half
-//! outside the state and binds it once the value is built: the authz hook
-//! after the authz stage, the document store from the handles the `documents`
-//! member provides sealed.
+//! sealed, `DocumentsHandlesSlot` open); the host keeps each bind half and
+//! binds it once the value is built (the store from the `documents` member).
 //!
 //! The provider-key lookup (`Arc<dyn SecretLookup>`: the whole secrets
 //! document on the API, the granted set on a child host) and the connector

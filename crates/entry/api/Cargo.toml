@@ -86,7 +86,6 @@ systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-documents = { workspace = true }
-systemprompt-issues = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-database = { workspace = true }
