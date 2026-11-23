@@ -133,13 +133,12 @@ where
         .with_max_request_body_bytes(MAX_REQUEST_BODY_BYTES);
     let session_store: std::sync::Arc<
         dyn rmcp::transport::streamable_http_server::session::store::SessionStore,
-    > = std::sync::Arc::new(middleware::PostgresSessionStore::new(std::sync::Arc::clone(
-        &sessions,
-    )));
+    > = std::sync::Arc::new(middleware::PostgresSessionStore::new(
+        std::sync::Arc::clone(&sessions),
+    ));
     config.session_store = Some(session_store);
 
-    let session_handler =
-        DatabaseSessionHandler::with_timeouts(sessions, session, Some(server_id));
+    let session_handler = DatabaseSessionHandler::with_timeouts(sessions, session, Some(server_id));
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_handler.into(), config);

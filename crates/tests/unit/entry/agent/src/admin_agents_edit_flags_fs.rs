@@ -81,7 +81,9 @@ fn written(root: &std::path::Path) -> String {
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
     let ctx = with_boot(json_cli());
-    execute(parse_agents(args), &agents_host(&ctx)).await.map(drop)
+    execute(parse_agents(args), &agents_host(&ctx))
+        .await
+        .map(drop)
 }
 
 #[tokio::test]

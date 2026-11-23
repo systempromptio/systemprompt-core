@@ -8,8 +8,7 @@ use std::fs;
 use std::path::Path;
 
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
-use systemprompt_agent_entry::cli::agents::delete::delete_single_agent;
-use systemprompt_agent_entry::cli::agents::delete::AgentDeleteError;
+use systemprompt_agent_entry::cli::agents::delete::{AgentDeleteError, delete_single_agent};
 use systemprompt_identifiers::AgentName;
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -130,7 +129,10 @@ fn a_running_agent_is_refused_and_its_definition_kept() {
 
     let error = delete_single_agent(&AgentName::new("busy"), true, &authoring)
         .expect_err("a running agent must not be deleted");
-    assert!(matches!(error, AgentDeleteError::Running { .. }), "{error:?}");
+    assert!(
+        matches!(error, AgentDeleteError::Running { .. }),
+        "{error:?}"
+    );
     assert!(
         error.to_string().contains("infra services stop agent busy"),
         "{error}"

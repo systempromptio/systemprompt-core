@@ -34,7 +34,12 @@ async fn the_mcp_member_provides_the_tool_provider_sealed() {
     );
     let member = Resolved::__member_command(&kernel, kernel.state());
     assert!(member.optional::<Arc<dyn ToolProvider>>().is_none());
-    assert!(kernel.runtime_state().find::<Arc<dyn ToolProvider>>().is_none());
+    assert!(
+        kernel
+            .runtime_state()
+            .find::<Arc<dyn ToolProvider>>()
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -55,9 +60,11 @@ async fn the_provided_tool_provider_is_the_mcp_registry_not_the_no_tools_fallbac
         .call_tool(
             &request,
             &systemprompt_identifiers::McpServerId::new("no_such_server"),
-            &systemprompt_provider_contracts::ToolContext::new(systemprompt_identifiers::Actor::anonymous(
-                systemprompt_identifiers::UserId::new("tool-provider-probe"),
-            )),
+            &systemprompt_provider_contracts::ToolContext::new(
+                systemprompt_identifiers::Actor::anonymous(systemprompt_identifiers::UserId::new(
+                    "tool-provider-probe",
+                )),
+            ),
         )
         .await
         .expect_err("an undeclared server is refused");

@@ -1,4 +1,5 @@
-//! Inbound A2A notification handling through the `agent-http` contexts route set.
+//! Inbound A2A notification handling through the `agent-http` contexts route
+//! set.
 //!
 //! Seeds a real user-owned context (and, for the status path, a task) and
 //! calls as that owner, so the handler persists the notification, applies the

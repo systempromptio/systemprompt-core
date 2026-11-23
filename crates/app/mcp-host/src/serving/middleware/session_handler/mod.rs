@@ -18,11 +18,11 @@ pub use session_store::PostgresSessionStore;
 
 use std::fmt;
 
-use systemprompt_extension::mcp::{DynMcpSessionStore, McpSessionStoreError};
 use rmcp::transport::streamable_http_server::session::SessionId;
 use rmcp::transport::streamable_http_server::session::local::{
     LocalSessionManager, LocalSessionManagerError,
 };
+use systemprompt_extension::mcp::{DynMcpSessionStore, McpSessionStoreError};
 use systemprompt_identifiers::McpServerId;
 
 #[derive(Debug)]

@@ -129,9 +129,7 @@ impl DescribeCommand for AdminCommands {
         match self {
             Self::Session(cmd) => cmd.descriptor(),
             Self::Config(cmd) => cmd.descriptor(),
-            Self::AgentHost(_) | Self::Mcp(_) => {
-                CommandDescriptor::CHILD_HOST
-            },
+            Self::AgentHost(_) | Self::Mcp(_) => CommandDescriptor::CHILD_HOST,
             Self::Bridge(bridge::BridgeCommands::SigningKeyFingerprint(_)) => {
                 CommandDescriptor::PROFILE_AND_SECRETS
             },

@@ -1,6 +1,7 @@
-//! Shared helpers for the `admin agents` and `core contexts` command tests: clap harnesses, member hosts holding the grants each
-//! group's reserved path lists, and command contexts whose kernel holds
-//! exactly the values the agent members provide to the commands.
+//! Shared helpers for the `admin agents` and `core contexts` command tests:
+//! clap harnesses, member hosts holding the grants each group's reserved path
+//! lists, and command contexts whose kernel holds exactly the values the agent
+//! members provide to the commands.
 
 use std::collections::HashMap;
 use std::sync::Arc;

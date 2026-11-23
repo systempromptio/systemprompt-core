@@ -18,8 +18,8 @@ const WEBHOOK_USER: &str = "00000000-0000-4000-8000-0000000000a3";
 #[tokio::test]
 async fn broadcast_user_mismatch_returns_403() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context(AUTHENTICATED_USER)));
+    let app =
+        crate::common::webhook_app(&ctx).layer(Extension(request_context(AUTHENTICATED_USER)));
     // The authenticated actor is `AUTHENTICATED_USER`; the payload claims a
     // different user_id, so the handler must reject with 403 before any DB
     // lookup.
@@ -37,8 +37,7 @@ async fn broadcast_user_mismatch_returns_403() -> anyhow::Result<()> {
 #[tokio::test]
 async fn broadcast_unowned_context_returns_403() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context(WEBHOOK_USER)));
+    let app = crate::common::webhook_app(&ctx).layer(Extension(request_context(WEBHOOK_USER)));
     // user_id matches the actor, but the context is not owned by this user, so
     // ownership validation fails with 403.
     let body = serde_json::json!({
@@ -55,8 +54,7 @@ async fn broadcast_unowned_context_returns_403() -> anyhow::Result<()> {
 #[tokio::test]
 async fn broadcast_invalid_body_returns_4xx() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context(WEBHOOK_USER)));
+    let app = crate::common::webhook_app(&ctx).layer(Extension(request_context(WEBHOOK_USER)));
     let resp = app
         .oneshot(json_post("/broadcast", serde_json::json!({ "junk": true })))
         .await?;
@@ -67,8 +65,7 @@ async fn broadcast_invalid_body_returns_4xx() -> anyhow::Result<()> {
 #[tokio::test]
 async fn broadcast_unknown_event_type_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context(WEBHOOK_USER)));
+    let app = crate::common::webhook_app(&ctx).layer(Extension(request_context(WEBHOOK_USER)));
     // An unknown event_type with a matching user_id and an unowned context
     // still trips ownership validation first (403); this drives the request
     // deserialisation + ownership branch.
@@ -87,8 +84,7 @@ async fn broadcast_unknown_event_type_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agui_broadcast_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context(WEBHOOK_USER)));
+    let app = crate::common::webhook_app(&ctx).layer(Extension(request_context(WEBHOOK_USER)));
     let resp = app
         .oneshot(json_post(
             "/agui",
@@ -103,8 +99,7 @@ async fn agui_broadcast_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn a2a_broadcast_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context(WEBHOOK_USER)));
+    let app = crate::common::webhook_app(&ctx).layer(Extension(request_context(WEBHOOK_USER)));
     let resp = app
         .oneshot(json_post(
             "/a2a",

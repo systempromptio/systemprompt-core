@@ -5,9 +5,7 @@ use axum::Extension;
 use axum::http::StatusCode;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent_entry::http::contexts_routes;
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, seed_user_row,
-};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, seed_user_row};
 use tower::ServiceExt;
 
 use super::common::{empty_delete, empty_get, json_post, request_context, setup_agent_ctx};
@@ -81,8 +79,7 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
         .contexts
         .create_context(request.user_id(), None, "delete me", ContextKind::User)
         .await?;
-    let app = crate::common::mounted_set(&ctx, contexts_routes())
-        .layer(Extension(request.clone()));
+    let app = crate::common::mounted_set(&ctx, contexts_routes()).layer(Extension(request.clone()));
 
     let response = app.oneshot(empty_delete(&format!("/{context_id}"))).await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);

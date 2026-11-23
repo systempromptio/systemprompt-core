@@ -7,8 +7,8 @@ use axum::Json;
 use axum::extract::{Extension, State};
 use axum::response::Response;
 
-use crate::http::AgentHttpState;
 use super::super::responses::{api_error_response, single_response_created};
+use crate::http::AgentHttpState;
 use systemprompt_agent::models::context::{ContextKind, CreateContextRequest};
 use systemprompt_models::{ApiError, ApiErrorExt, SystemEventBuilder};
 

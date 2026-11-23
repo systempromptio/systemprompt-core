@@ -170,7 +170,7 @@ scan() {
         -g '!**/target/**' \
         -g '!**/.sqlx/**' \
         -g '!crates/entry/api/src/routes/oauth/**' \
-        -g '!crates/domain/mcp/src/middleware/session_handler/session_store.rs' \
+        -g '!crates/app/mcp-host/src/serving/middleware/session_handler/session_store.rs' \
         -g '!crates/shared/wire/src/**' \
         -g '!crates/domain/*/src/models/rows.rs' \
         -e "$1" \

@@ -325,7 +325,10 @@ pub fn point_external_url_at(fixture: &FullBootstrap, port: u16) {
         "  external_url: http://127.0.0.1\n",
         &format!("  external_url: http://127.0.0.1:{port}\n"),
     );
-    assert_ne!(profile, pointed, "the fixture profile names its external URL");
+    assert_ne!(
+        profile, pointed,
+        "the fixture profile names its external URL"
+    );
     std::fs::write(&fixture.profile_path, pointed).expect("rewrite profile.yaml");
 }
 

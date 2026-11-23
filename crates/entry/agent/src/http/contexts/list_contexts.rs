@@ -6,8 +6,8 @@
 use axum::extract::{Extension, State};
 use axum::response::Response;
 
-use crate::http::AgentHttpState;
 use super::super::responses::{api_error_response, collection_response};
+use crate::http::AgentHttpState;
 use systemprompt_models::ApiError;
 
 pub async fn list_contexts(

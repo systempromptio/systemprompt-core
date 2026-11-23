@@ -3,9 +3,9 @@
 //! hop-token layer every request passes before the MCP service sees it.
 
 use axum::body::Body;
+use systemprompt_extension::mcp::capabilities::MAX_REQUEST_BODY_BYTES;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp_host::serving::middleware::HopVerifier;
-use systemprompt_extension::mcp::capabilities::MAX_REQUEST_BODY_BYTES;
 use systemprompt_mcp_host::serving::{McpHttpConfig, SessionTimeouts, create_router};
 use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, ensure_test_bootstrap, test_db_pool};
 use tower::ServiceExt;

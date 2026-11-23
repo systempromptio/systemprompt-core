@@ -18,8 +18,8 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_extension::router::ApiHttpError;
+use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_models::RequestContext;
 
 use crate::http::{AgentHttpError, AgentHttpState, parse_context_id};
@@ -108,13 +108,8 @@ async fn broadcast_and_mark(
     notification: &A2aNotification,
     notification_id: i32,
 ) {
-    let broadcast_count = broadcast_notification(
-        &state.events,
-        context_id.as_str(),
-        user_id,
-        notification,
-    )
-    .await;
+    let broadcast_count =
+        broadcast_notification(&state.events, context_id.as_str(), user_id, notification).await;
     tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
 
     let notifications_repo = &state.repositories.context_notifications;

@@ -139,10 +139,7 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    for args in [
-        vec!["config", "show"],
-        vec!["keys", "generate"],
-    ] {
+    for args in [vec!["config", "show"], vec!["keys", "generate"]] {
         let err = admin::execute(parse(&args), &ctx).await.unwrap_err();
         assert!(
             format!("{err:#}").contains("requires full profile context"),

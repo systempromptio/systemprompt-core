@@ -121,13 +121,12 @@ impl HostedAgentServer {
                 tool_executions: Arc::clone(&inputs.tool_executions),
             },
         );
-        let webhooks =
-            HttpWebhookBroadcaster::from_config(&inputs.config).map_err(|source| {
-                AgentServeError::Serve {
-                    agent: agent.clone(),
-                    source: Box::new(source),
-                }
-            })?;
+        let webhooks = HttpWebhookBroadcaster::from_config(&inputs.config).map_err(|source| {
+            AgentServeError::Serve {
+                agent: agent.clone(),
+                source: Box::new(source),
+            }
+        })?;
         let state = AgentState::new(
             Arc::clone(&inputs.db),
             Arc::clone(&inputs.config),

@@ -15,11 +15,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod context_owner;
 pub mod external;
 mod external_governance;
 mod external_sessions;
 pub mod fixed_arguments;
-mod context_owner;
 mod handlers;
 pub mod hop;
 pub mod mcp_session;

@@ -122,7 +122,10 @@ fn render_artifact(artifact: &Artifact, parts: &[ArtifactPartOutput], full: bool
         lines.push(format!("Source: {source}"));
     }
     lines.push(format!("Task ID: {}", artifact.metadata.task_id.as_str()));
-    lines.push(format!("Context ID: {}", artifact.metadata.context_id.as_str()));
+    lines.push(format!(
+        "Context ID: {}",
+        artifact.metadata.context_id.as_str()
+    ));
     if let Some(skill_name) = &artifact.metadata.skill_name {
         lines.push(format!("Skill: {skill_name}"));
     }

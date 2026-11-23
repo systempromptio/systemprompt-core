@@ -22,8 +22,8 @@ use systemprompt_manifest::profile::{RateLimitsConfig, UiSessionConfig};
 use systemprompt_oauth::repository::{AuthCodeParams, ClientRepository, CreateClientParams};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, TEST_CLIENT_SECRET, TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
-    ensure_test_bootstrap, fixture_config,
-    oauth_fixture_repository, pkce_pair, seed_oauth_client, test_db_pool,
+    ensure_test_bootstrap, fixture_config, oauth_fixture_repository, pkce_pair, seed_oauth_client,
+    test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;

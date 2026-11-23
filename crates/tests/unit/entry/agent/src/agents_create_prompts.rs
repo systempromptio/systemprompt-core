@@ -42,28 +42,32 @@ fn validate_port_input_enforces_non_privileged_range() {
 #[test]
 fn prompt_name_retries_until_valid() {
     let prompter = scripted(&["ab", "Bad", "good_name"]);
-    let name = prompt_name(&prompter, &agents_host(&with_boot(json_cli()))).expect("eventually valid");
+    let name =
+        prompt_name(&prompter, &agents_host(&with_boot(json_cli()))).expect("eventually valid");
     assert_eq!(name, "good_name");
 }
 
 #[test]
 fn prompt_name_exhausted_after_invalid_errors() {
     let prompter = scripted(&["ab"]);
-    let err = prompt_name(&prompter, &agents_host(&with_boot(json_cli()))).expect_err("no valid answer left");
+    let err = prompt_name(&prompter, &agents_host(&with_boot(json_cli())))
+        .expect_err("no valid answer left");
     assert!(format!("{err:#}").contains("exhausted"));
 }
 
 #[test]
 fn prompt_port_retries_on_unparseable_then_invalid() {
     let prompter = scripted(&["not-a-port", "80", "9000"]);
-    let port = prompt_port(&prompter, &agents_host(&with_boot(json_cli()))).expect("eventually valid");
+    let port =
+        prompt_port(&prompter, &agents_host(&with_boot(json_cli()))).expect("eventually valid");
     assert_eq!(port, 9000);
 }
 
 #[test]
 fn prompt_port_uses_default_on_empty_answer() {
     let prompter = scripted(&[""]);
-    let port = prompt_port(&prompter, &agents_host(&with_boot(json_cli()))).expect("default is valid");
+    let port =
+        prompt_port(&prompter, &agents_host(&with_boot(json_cli()))).expect("default is valid");
     assert_eq!(port, 8001);
 }
 

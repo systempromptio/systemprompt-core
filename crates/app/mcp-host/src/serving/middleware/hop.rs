@@ -10,9 +10,9 @@
 //! carries. A request that presents none, one that does not verify, or one
 //! that names a different MCP session than the one the token was minted for,
 //! is refused with 401 before the MCP service sees it: every hosted server
-//! answers only the platform. The verified principal also scopes session restore: a
-//! session evicted from memory is restored only for the server and user it is
-//! bound to (see [`restore_principal`]).
+//! answers only the platform. The verified principal also scopes session
+//! restore: a session evicted from memory is restored only for the server and
+//! user it is bound to (see [`restore_principal`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

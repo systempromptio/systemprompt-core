@@ -70,8 +70,7 @@ async fn seed_artifact(
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
-    crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context(user.as_str())))
+    crate::common::webhook_app(&ctx).layer(Extension(request_context(user.as_str())))
 }
 
 fn body(

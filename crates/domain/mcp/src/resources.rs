@@ -162,4 +162,3 @@ pub async fn read_artifact_resource(
         .with_ttl_ms(0)
         .with_cache_scope(CacheScope::Private))
 }
-

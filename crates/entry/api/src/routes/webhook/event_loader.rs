@@ -7,16 +7,15 @@ use serde_json::json;
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 use systemprompt_models::ExecutionStep;
 
+use super::WebhookRepositories;
 use super::error::LoadEventError;
 use super::types::{AgUiWebhookData, WebhookRequest};
 use super::validation::validate_json_serializable;
-use super::WebhookRepositories;
 
 pub(super) async fn load_event_data(
     repos: &WebhookRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
-
     match request.event_type.as_str() {
         "task_completed" => load_task_completed(repos, request).await,
         "artifact_created" => load_artifact_created(repos, request).await,

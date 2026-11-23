@@ -166,9 +166,18 @@ const ALWAYS: [PrivilegedShape; 19] = [
         ),
         routes: Some(MCP_REGISTRY_ROUTES),
     },
-    agent_user(ApiBase::CoreContexts, RateLimit::new("contexts", RateBudget::Contexts)),
-    agent_user(ApiBase::CoreTasks, RateLimit::new("tasks", RateBudget::Tasks)),
-    agent_user(ApiBase::CoreArtifacts, RateLimit::new("artifacts", RateBudget::Artifacts)),
+    agent_user(
+        ApiBase::CoreContexts,
+        RateLimit::new("contexts", RateBudget::Contexts),
+    ),
+    agent_user(
+        ApiBase::CoreTasks,
+        RateLimit::new("tasks", RateBudget::Tasks),
+    ),
+    agent_user(
+        ApiBase::CoreArtifacts,
+        RateLimit::new("artifacts", RateBudget::Artifacts),
+    ),
     PrivilegedShape {
         owner: CoreId::AgentHttp,
         base: BaseRef::Path(BasePath::Api(ApiBase::AgentsRegistry)),

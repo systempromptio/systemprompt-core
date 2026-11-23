@@ -50,8 +50,7 @@ fn request_context_for(user: &UserId) -> RequestContext {
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
-    crate::common::mounted_set(&ctx, contexts_routes())
-        .layer(Extension(request_context_for(user)))
+    crate::common::mounted_set(&ctx, contexts_routes()).layer(Extension(request_context_for(user)))
 }
 
 #[tokio::test]

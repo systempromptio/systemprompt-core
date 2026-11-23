@@ -91,7 +91,8 @@ async fn validate_connection_unreachable_port_returns_failure() {
 async fn validate_hosted_service_reports_a_listening_port_as_hop_protected() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().unwrap().port();
-    let r = validate_hosted_service(&ServiceName::new("svc-oauth-up"), UNREACHABLE_HOST, port).await;
+    let r =
+        validate_hosted_service(&ServiceName::new("svc-oauth-up"), UNREACHABLE_HOST, port).await;
     assert!(r.success);
     assert_eq!(r.validation_type, "auth_required");
     assert!(
@@ -105,9 +106,9 @@ async fn validate_hosted_service_reports_a_listening_port_as_hop_protected() {
 #[tokio::test]
 async fn validate_hosted_service_reports_a_closed_port_unavailable() {
     let port = unused_port();
-    let r = validate_hosted_service(&ServiceName::new("svc-oauth-down"), UNREACHABLE_HOST, port).await;
+    let r =
+        validate_hosted_service(&ServiceName::new("svc-oauth-down"), UNREACHABLE_HOST, port).await;
     assert!(!r.success);
     assert_eq!(r.validation_type, "port_unavailable");
     assert!(r.tools_count.is_none());
 }
-

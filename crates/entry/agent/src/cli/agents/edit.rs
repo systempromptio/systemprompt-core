@@ -89,11 +89,11 @@ pub(super) fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<Command
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
     reload_services_config(host).with_context(|| {
-            format!(
-                "Agent '{}' updated but validation failed. Please check the configuration.",
-                name
-            )
-        })?;
+        format!(
+            "Agent '{}' updated but validation failed. Please check the configuration.",
+            name
+        )
+    })?;
 
     let output = AgentEditOutput {
         name: name.clone(),

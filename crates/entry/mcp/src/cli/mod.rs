@@ -1,9 +1,9 @@
 //! `plugins mcp` command group: observe and exercise configured MCP servers.
 //!
 //! `mcp-http` contributes the group under the kernel's `plugins` group with
-//! the `services-tree` and `caller-session` grants. Every command preserves data. The commands
-//! reach kernel-held material only by type through the member's resolved
-//! state and that one grant:
+//! the `services-tree` and `caller-session` grants. Every command preserves
+//! data. The commands reach kernel-held material only by type through the
+//! member's resolved state and that one grant:
 //!
 //! | command | reads |
 //! |---|---|

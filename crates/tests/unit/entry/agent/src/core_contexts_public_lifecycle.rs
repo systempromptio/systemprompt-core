@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::common::{app_on_database, contexts_host, parse_contexts, rendered, with_app};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent_entry::cli::contexts;
@@ -14,7 +15,6 @@ use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::auth::UserType;
-use crate::common::{app_on_database, contexts_host, parse_contexts, rendered, with_app};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, seed_user_session,
 };
@@ -121,21 +121,11 @@ async fn public_context_lifecycle_helper() {
     .await;
     run_marked(
         "CONTEXT_EDIT",
-        &[
-            "edit",
-            "Created Context",
-            "--name",
-            "Renamed Context",
-        ],
+        &["edit", "Created Context", "--name", "Renamed Context"],
         &host,
     )
     .await;
-    run_marked(
-        "CONTEXT_USE",
-        &["use", "Renamed Context"],
-        &host,
-    )
-    .await;
+    run_marked("CONTEXT_USE", &["use", "Renamed Context"], &host).await;
     run_marked(
         "CONTEXT_NEW",
         &["new", "--name", "Active New Context"],

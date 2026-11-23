@@ -84,8 +84,8 @@ async fn proxy_mcp_authz_server_well_known() -> anyhow::Result<()> {
 #[tokio::test]
 async fn contexts_router_smoke() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = crate::common::mounted_set(&ctx, contexts_routes())
-        .layer(Extension(request_context("u")));
+    let app =
+        crate::common::mounted_set(&ctx, contexts_routes()).layer(Extension(request_context("u")));
     // the contexts route set parses ContextId via path; pass a real UUID v4.
     let resp = app
         .oneshot(empty_get("/00000000-0000-4000-8000-000000000000"))
@@ -137,8 +137,7 @@ async fn tasks_artifacts_for_missing_task_returns_array() -> anyhow::Result<()> 
 #[tokio::test]
 async fn webhook_router_smoke() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context("u_wh")));
+    let app = crate::common::webhook_app(&ctx).layer(Extension(request_context("u_wh")));
     let resp = app
         .oneshot(json_post(
             "/00000000-0000-4000-8000-000000000000/webhook",

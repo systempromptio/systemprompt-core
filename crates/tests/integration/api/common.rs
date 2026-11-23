@@ -170,7 +170,10 @@ pub fn assert_forwarded_with_execution_stamp(forwarded: &[u8], upstream_body: &s
     assert_eq!(forwarded, upstream);
 }
 
-pub fn mounted_set(ctx: &AppContext, set: systemprompt_extension::router::RouteSet) -> axum::Router {
+pub fn mounted_set(
+    ctx: &AppContext,
+    set: systemprompt_extension::router::RouteSet,
+) -> axum::Router {
     set.materialize(&ctx.kernel().resolved())
         .expect("the admitted kernel holds the route set's state")
         .into_iter()

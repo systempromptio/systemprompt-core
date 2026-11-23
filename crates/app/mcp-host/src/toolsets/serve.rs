@@ -16,15 +16,15 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::mcp::{
-    AccessRecorders, DynMcpSessionStore, DynToolExecutions, McpToolset,
-};
-use systemprompt_identifiers::McpServerId;
 use crate::serving::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts, serve_router,
 };
 use crate::serving::middleware::HopVerifier;
 use crate::serving::{McpHttpConfig, bind_loopback, create_router};
+use systemprompt_extension::mcp::{
+    AccessRecorders, DynMcpSessionStore, DynToolExecutions, McpToolset,
+};
+use systemprompt_identifiers::McpServerId;
 use systemprompt_provider_contracts::MissingDependency;
 use tokio::net::TcpListener;
 
@@ -54,7 +54,9 @@ pub enum McpHostError {
     },
     #[error(transparent)]
     Host(#[from] ToolsetHostError),
-    #[error("the host's composed state lacks a value this server needs; is the mcp member admitted?")]
+    #[error(
+        "the host's composed state lacks a value this server needs; is the mcp member admitted?"
+    )]
     State(#[from] MissingDependency),
     #[error("MCP server '{server}' has no `port:` in its YAML")]
     NoPort { server: McpServerId },

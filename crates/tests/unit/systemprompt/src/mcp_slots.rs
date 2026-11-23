@@ -16,14 +16,15 @@ use async_trait::async_trait;
 use systemprompt::reference;
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::build_slot;
+use systemprompt_extension::mcp::{
+    AccessRecorderSlot, AccessRecorders, McpAccessEvent, McpAccessRecorder, SharedMcpAccessRecorder,
+};
 use systemprompt_extension::router::{ApiBase, BasePath, BaseRef};
 use systemprompt_extension::{Admitted, FactoryError, Resolved, RouteGroup, Slot, SlotError};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_mcp::McpDomainResult;
 use systemprompt_mcp::contract::UiSlot;
-use systemprompt_extension::mcp::{AccessRecorderSlot, AccessRecorders};
-use systemprompt_extension::mcp::{McpAccessEvent, McpAccessRecorder, SharedMcpAccessRecorder};
 use systemprompt_mcp::services::ui_renderer::{
     ArtifactTheme, UiRenderer, UiRendererRegistry, UiResource,
 };

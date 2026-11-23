@@ -6,15 +6,20 @@
 use std::collections::HashMap;
 
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_identifiers::{McpServerId, ServiceName};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_mcp_entry::cli::prompt_server_selection;
 
 fn validate_prompt_server_selection(
     prompter: &ScriptedPrompter,
     config: &ServicesConfig,
 ) -> anyhow::Result<ServiceName> {
-    prompt_server_selection(prompter, config, "Select MCP server to validate", ServiceName::new)
+    prompt_server_selection(
+        prompter,
+        config,
+        "Select MCP server to validate",
+        ServiceName::new,
+    )
 }
 
 fn call_prompt_server_selection(

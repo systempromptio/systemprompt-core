@@ -18,8 +18,7 @@ fn app(ctx: &AppContext) -> axum::Router {
 }
 
 fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
-    crate::common::mounted_set(&ctx, tasks_routes())
-        .layer(Extension(request_context(user)))
+    crate::common::mounted_set(&ctx, tasks_routes()).layer(Extension(request_context(user)))
 }
 
 async fn seed_owned_task(pool: &DbPool, owner: &UserId) -> anyhow::Result<(ContextId, TaskId)> {

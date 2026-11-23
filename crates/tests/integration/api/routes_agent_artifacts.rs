@@ -1,4 +1,5 @@
-//! Agent artifact retrieval routes through the `agent-http` artifacts route set.
+//! Agent artifact retrieval routes through the `agent-http` artifacts route
+//! set.
 //!
 //! Drives `list_artifacts_by_user`, `get_artifact`, and `get_artifact_ui`
 //! against a real DB with an injected `RequestContext` (the full router injects
@@ -17,8 +18,7 @@ use uuid::Uuid;
 use super::common::{empty_get, request_context, setup_agent_ctx};
 
 fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
-    crate::common::mounted_set(&ctx, artifacts_routes())
-        .layer(Extension(request_context(user)))
+    crate::common::mounted_set(&ctx, artifacts_routes()).layer(Extension(request_context(user)))
 }
 
 #[tokio::test]

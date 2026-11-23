@@ -8,8 +8,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::ContextId;
 
-use crate::http::AgentHttpState;
 use super::super::responses::api_error_response;
+use crate::http::AgentHttpState;
 use systemprompt_models::{ApiError, SystemEventBuilder};
 
 pub async fn delete_context(

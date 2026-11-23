@@ -269,13 +269,6 @@ fn delete_all_and_validate() {
     let _ = validate.assert();
 
     let mut delete = cli_command();
-    delete.args([
-        "admin",
-        "agents",
-        "delete",
-        FIXTURE_DELETE_AGENT,
-        "--yes",
-    ]);
+    delete.args(["admin", "agents", "delete", FIXTURE_DELETE_AGENT, "--yes"]);
     delete.assert().success();
 }
-

@@ -64,7 +64,10 @@ async fn the_api_proxy_receives_the_callers_token_and_ids() {
     let target = McpTarget::through_proxy(&api.uri(), McpServerId::new("hosted"), &caller);
     let _refused_by_fixture = list_tools(&target, 5).await;
 
-    let requests = api.received_requests().await.expect("recorded MCP requests");
+    let requests = api
+        .received_requests()
+        .await
+        .expect("recorded MCP requests");
     let first = requests.first().expect("the client reached the API");
     assert_eq!(first.url.path(), "/api/v1/mcp/hosted/mcp");
     let headers: Vec<String> = first
@@ -73,7 +76,9 @@ async fn the_api_proxy_receives_the_callers_token_and_ids() {
         .map(|(_, value)| value.to_str().unwrap_or_default().to_owned())
         .collect();
     assert!(
-        headers.iter().any(|value| value == &format!("Bearer {TOKEN}")),
+        headers
+            .iter()
+            .any(|value| value == &format!("Bearer {TOKEN}")),
         "the caller's token is presented to the API: {headers:?}"
     );
     for id in ["sess-caller", CALLER_CONTEXT] {

@@ -5,9 +5,8 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_cli::presentation::tables::{
-    ai_requests_table, execution_steps_table,
-    extract_latency_from_metadata, format_metadata_value, mcp_tool_calls_table,
-    task_artifacts_table, task_info_table, trace_events_table, truncate_cell,
+    ai_requests_table, execution_steps_table, extract_latency_from_metadata, format_metadata_value,
+    mcp_tool_calls_table, task_artifacts_table, task_info_table, trace_events_table, truncate_cell,
 };
 use systemprompt_identifiers::{
     AgentName, AiRequestId, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, McpServerId,

@@ -13,8 +13,7 @@ use systemprompt_agent_entry::cli::agents::execute;
 use systemprompt_cli::EnvOverrides;
 
 use crate::common::{
-    agents_host, app_reloaded_on_database, json_cli, parse_agents, rendered,
-    with_app, with_boot,
+    agents_host, app_reloaded_on_database, json_cli, parse_agents, rendered, with_app, with_boot,
 };
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
@@ -88,7 +87,9 @@ fn seed_agents() -> PathBuf {
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
     let ctx = with_boot(json_cli());
-    execute(parse_agents(args), &agents_host(&ctx)).await.map(drop)
+    execute(parse_agents(args), &agents_host(&ctx))
+        .await
+        .map(drop)
 }
 
 #[tokio::test]
@@ -267,8 +268,7 @@ async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
     assert!(config.agents.contains_key("covdormant"));
 }
 
-const DELETE_ALL_HELPER: &str =
-    "admin_agents_profile_fs::delete_all_agents_public_helper";
+const DELETE_ALL_HELPER: &str = "admin_agents_profile_fs::delete_all_agents_public_helper";
 
 #[tokio::test]
 #[ignore = "re-executed by delete_all_reports_exact_targets_and_preserves_unrelated_configuration"]

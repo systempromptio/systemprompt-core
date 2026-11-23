@@ -12,7 +12,9 @@ use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,
     AgentModelChoice, AgentPlacement,
 };
-use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter, resolve_required};
+use systemprompt_extension::cli::{
+    CliConfig, CommandHost, CommandOutput, Prompter, resolve_required,
+};
 
 use super::{notice, reload_services_config, services_root};
 
@@ -164,11 +166,11 @@ fn write_agent_config(
         .with_context(|| format!("Failed to create agent '{}'", name))?;
 
     reload_services_config(host).with_context(|| {
-            format!(
-                "Agent file created at {} but validation failed. Please check the configuration.",
-                agent_file.display()
-            )
-        })?;
+        format!(
+            "Agent file created at {} but validation failed. Please check the configuration.",
+            agent_file.display()
+        )
+    })?;
 
     Ok(agent_file)
 }

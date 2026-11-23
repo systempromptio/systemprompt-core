@@ -119,4 +119,3 @@ pub fn create_mcp_extensions_from_config(
         })),
     }]
 }
-

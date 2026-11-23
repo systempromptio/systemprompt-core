@@ -133,13 +133,13 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
     let repository =
         std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db));
     let original = DatabaseSessionHandler::new(
-        std::sync::Arc::clone(&repository) as systemprompt_extension::mcp::DynMcpSessionStore,
+        std::sync::Arc::clone(&repository) as systemprompt_extension::mcp::DynMcpSessionStore
     );
     let (id, transport) = original.create_session().await.expect("session created");
     drop(transport);
 
     let restarted = DatabaseSessionHandler::new(
-        std::sync::Arc::clone(&repository) as systemprompt_extension::mcp::DynMcpSessionStore,
+        std::sync::Arc::clone(&repository) as systemprompt_extension::mcp::DynMcpSessionStore
     );
     assert!(
         !restarted

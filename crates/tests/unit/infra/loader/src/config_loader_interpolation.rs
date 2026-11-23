@@ -238,10 +238,7 @@ const MISNAMED_AGENT: &str = r#"agents:
 
 #[test]
 fn a_verbatim_load_refuses_a_tree_that_does_not_validate() {
-    let tree = write_tree(
-        &agent_root(),
-        &[("agent.yaml", MISNAMED_AGENT)],
-    );
+    let tree = write_tree(&agent_root(), &[("agent.yaml", MISNAMED_AGENT)]);
 
     let err = ConfigLoader::new(tree.root.clone())
         .with_env_lookup(fixture_env)
@@ -257,10 +254,7 @@ fn a_verbatim_load_refuses_a_tree_that_does_not_validate() {
 
 #[test]
 fn a_valid_verbatim_tree_round_trips_its_placeholder() {
-    let tree = write_tree(
-        &agent_root(),
-        &[("agent.yaml", VALID_AGENT)],
-    );
+    let tree = write_tree(&agent_root(), &[("agent.yaml", VALID_AGENT)]);
 
     let config = ConfigLoader::new(tree.root.clone())
         .with_env_lookup(fixture_env)

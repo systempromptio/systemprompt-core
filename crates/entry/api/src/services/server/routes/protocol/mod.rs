@@ -1,9 +1,9 @@
 //! Protocol-surface route mounting.
 //!
 //! Mounts the kernel's agent (the A2A proxy and the webhook broadcasts), MCP,
-//! stream, and content/admin route groups onto the server router. Each group is an [`KernelRoutes`]
-//! declaration — base path, `AuthzPolicy`, context kind, rate limit, body
-//! limit — mounted through the one declaration mount in
+//! stream, and content/admin route groups onto the server router. Each group is
+//! an [`KernelRoutes`] declaration — base path, `AuthzPolicy`, context kind,
+//! rate limit, body limit — mounted through the one declaration mount in
 //! `services::middleware::mount`. [`MountCtx`] carries the enforcement
 //! primitives every route mount in this module tree shares.
 //!

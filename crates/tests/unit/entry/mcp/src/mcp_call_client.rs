@@ -9,7 +9,9 @@ use systemprompt_extension::cli::CallerSession;
 use systemprompt_identifiers::{
     ContextId, McpServerId, McpToolName, SessionId, SessionToken, UserId,
 };
-use systemprompt_mcp_entry::cli::call_client::{ToolCallParams, convert_content, execute_tool_call};
+use systemprompt_mcp_entry::cli::call_client::{
+    ToolCallParams, convert_content, execute_tool_call,
+};
 use systemprompt_mcp_entry::cli::probe::{McpCallError, McpTarget, list_tools};
 use systemprompt_models::auth::UserType;
 
@@ -344,7 +346,11 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            target: &McpTarget::through_proxy(&success.uri(), McpServerId::new("strict"), &session()),
+            target: &McpTarget::through_proxy(
+                &success.uri(),
+                McpServerId::new("strict"),
+                &session(),
+            ),
             tool_name: &McpToolName::new("echo"),
             arguments: Some(serde_json::json!({"message": "owned-value"})),
             timeout_secs: 5,
@@ -386,7 +392,11 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            target: &McpTarget::through_proxy(&rejected.uri(), McpServerId::new("strict"), &session()),
+            target: &McpTarget::through_proxy(
+                &rejected.uri(),
+                McpServerId::new("strict"),
+                &session(),
+            ),
             tool_name: &McpToolName::new("denied"),
             arguments: None,
             timeout_secs: 5,
@@ -433,7 +443,11 @@ async fn execute_tool_call_timeout_bounds_a_call_the_server_never_answers() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(20),
         execute_tool_call(ToolCallParams {
-            target: &McpTarget::through_proxy(&server.uri(), McpServerId::new("strict"), &session()),
+            target: &McpTarget::through_proxy(
+                &server.uri(),
+                McpServerId::new("strict"),
+                &session(),
+            ),
             tool_name: &McpToolName::new("hang"),
             arguments: None,
             timeout_secs: 1,

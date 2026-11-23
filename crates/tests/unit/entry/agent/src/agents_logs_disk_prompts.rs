@@ -24,9 +24,9 @@ fn ctx(interactive: bool, answers: &[&str]) -> CommandContext {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json)
     };
-    with_boot(config).with_prompter(Box::new(
-        ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned())),
-    ))
+    with_boot(config).with_prompter(Box::new(ScriptedPrompter::new(
+        answers.iter().map(|s| (*s).to_owned()),
+    )))
 }
 
 fn seed_logs(dir: &Path) {

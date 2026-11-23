@@ -214,8 +214,7 @@ fn admin_agents_task_help() {
     assert_help_ok(&["admin", "agents", "task"]);
 }
 #[test]
-fn admin_agents_tools_help() {
-}
+fn admin_agents_tools_help() {}
 #[test]
 fn admin_agents_registry_help() {
     assert_help_ok(&["admin", "agents", "registry"]);

@@ -3,10 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::router::ApiHttpError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
 use serde::Serialize;
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_models::{ApiError, CollectionResponse, SingleResponse};
 
 pub fn api_error_response(error: ApiError) -> Response {

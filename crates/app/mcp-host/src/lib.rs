@@ -12,9 +12,9 @@
 //! - [`toolsets`] serves a YAML-declared MCP server: the deployment's
 //!   `toolsets:` built from the toolsets contributed through
 //!   [`ToolsetSlot`](contract::ToolsetSlot), behind the hop-verifying MCP
-//!   router of [`serving`] (every request must carry the API proxy's hop
-//!   token for this server). A server that names no `binary:` is this product binary re-run as
-//!   `admin mcp serve --server <id>`.
+//!   router of [`serving`] (every request must carry the API proxy's hop token
+//!   for this server). A server that names no `binary:` is this product binary
+//!   re-run as `admin mcp serve --server <id>`.
 //!
 //! # What a toolset factory can reach
 //!

@@ -77,7 +77,14 @@ pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<C
         0
     } else {
         let (api_url, session) = proxy_caller(host).await?;
-        collect_tools(&selection.servers, &api_url, &session, &args, &mut collected).await
+        collect_tools(
+            &selection.servers,
+            &api_url,
+            &session,
+            &args,
+            &mut collected,
+        )
+        .await
     };
     let Collected {
         tools: mut all_tools,
@@ -103,10 +110,10 @@ pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<C
         unavailable_servers: unavailable,
     };
 
-    let title = args
-        .agent
-        .as_ref()
-        .map_or_else(|| "MCP Tools".to_owned(), |agent| format!("MCP Tools: {agent}"));
+    let title = args.agent.as_ref().map_or_else(
+        || "MCP Tools".to_owned(),
+        |agent| format!("MCP Tools: {agent}"),
+    );
     Ok(CommandOutput::table_of(
         vec!["name", "server", "description", "parameters_count"],
         &output.tools,

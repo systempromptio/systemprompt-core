@@ -4,8 +4,8 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::http::Request;
 use axum::{Extension, Router};
-use systemprompt_api::routes::proxy::mcp;
 use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
+use systemprompt_api::routes::proxy::mcp;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId,

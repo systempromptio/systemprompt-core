@@ -75,8 +75,7 @@ async fn seed_context(pool: &DbPool, owner: &Owner) -> anyhow::Result<ContextId>
 }
 
 fn contexts_app(ctx: &systemprompt_runtime::AppContext, rc: RequestContext) -> axum::Router {
-    crate::common::mounted_set(&ctx, contexts_routes())
-        .layer(Extension(rc))
+    crate::common::mounted_set(&ctx, contexts_routes()).layer(Extension(rc))
 }
 
 #[tokio::test]
@@ -266,8 +265,7 @@ async fn seed_artifact(
 }
 
 fn artifacts_app(ctx: &systemprompt_runtime::AppContext, rc: RequestContext) -> axum::Router {
-    crate::common::mounted_set(&ctx, artifacts_routes())
-        .layer(Extension(rc))
+    crate::common::mounted_set(&ctx, artifacts_routes()).layer(Extension(rc))
 }
 
 #[tokio::test]

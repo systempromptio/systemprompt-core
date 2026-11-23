@@ -94,8 +94,7 @@ fn request_context_for(user: &UserId) -> RequestContext {
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
-    crate::common::webhook_app(&ctx)
-        .layer(Extension(request_context_for(user)))
+    crate::common::webhook_app(&ctx).layer(Extension(request_context_for(user)))
 }
 
 fn with_user_id(mut value: serde_json::Value, user: &UserId) -> serde_json::Value {

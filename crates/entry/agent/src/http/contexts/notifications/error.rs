@@ -31,7 +31,9 @@ impl From<NotificationError> for AgentHttpError {
             NotificationError::Serde(e) => {
                 ApiError::internal("Invalid notification payload", e).into()
             },
-            e @ NotificationError::InvalidParams(_) => ApiHttpError::bad_request(e.to_string()).into(),
+            e @ NotificationError::InvalidParams(_) => {
+                ApiHttpError::bad_request(e.to_string()).into()
+            },
         }
     }
 }

@@ -4,7 +4,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::mcp::capabilities::MAX_REQUEST_BODY_BYTES;
 use axum::Router;
 use axum::body::Body;
 use axum::extract::Request;
@@ -12,6 +11,7 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use axum::routing::any;
 use futures::TryStreamExt;
+use systemprompt_extension::mcp::capabilities::MAX_REQUEST_BODY_BYTES;
 
 pub fn create_proxy_router(client: reqwest::Client, target_host: &str, target_port: u16) -> Router {
     let target_url = format!("http://{target_host}:{target_port}");

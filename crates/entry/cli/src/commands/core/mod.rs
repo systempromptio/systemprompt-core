@@ -1,9 +1,9 @@
 //! `core` command group: the platform's primary domain commands.
 //!
-//! Dispatches the [`CoreCommands`] subgroups — hooks and services bundles. Each requires a full profile context; none is
-//! served on a `--database-url` invocation. Capabilities contribute further
-//! subgroups under `core` (such as `core contexts`, `core artifacts`,
-//! `core content`, `core files`,
+//! Dispatches the [`CoreCommands`] subgroups — hooks and services bundles. Each
+//! requires a full profile context; none is served on a `--database-url`
+//! invocation. Capabilities contribute further subgroups under `core` (such as
+//! `core contexts`, `core artifacts`, `core content`, `core files`,
 //! `core marketplace`, `core plugins` and `core skills`) with
 //! `CommandDecl::group_under`.
 //!

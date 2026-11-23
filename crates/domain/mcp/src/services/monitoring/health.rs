@@ -148,14 +148,12 @@ pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<H
     }
 
     let connection_result = match config.server_type {
-        McpServerType::Internal => {
-            timeout(
-                Duration::from_secs(30),
-                validate_hosted_service(&config.service_name(), &config.host, config.spawn_port()?),
-            )
-            .await
-            .map(Ok)
-        },
+        McpServerType::Internal => timeout(
+            Duration::from_secs(30),
+            validate_hosted_service(&config.service_name(), &config.host, config.spawn_port()?),
+        )
+        .await
+        .map(Ok),
         McpServerType::External => {
             timeout(
                 Duration::from_secs(30),

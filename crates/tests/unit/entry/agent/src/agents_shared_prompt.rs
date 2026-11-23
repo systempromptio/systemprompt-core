@@ -3,7 +3,9 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_agent_entry::cli::agents::shared::{prompt_agent_selection, select_agent_from_names};
+use systemprompt_agent_entry::cli::agents::shared::{
+    prompt_agent_selection, select_agent_from_names,
+};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_manifest::ServicesConfig;
 

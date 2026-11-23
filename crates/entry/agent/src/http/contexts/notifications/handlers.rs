@@ -14,8 +14,8 @@ use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload}
 use systemprompt_traits::RepositoryError;
 
 use super::A2aNotification;
-use crate::http::ContextEventPublisher;
 use super::error::NotificationError;
+use crate::http::ContextEventPublisher;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

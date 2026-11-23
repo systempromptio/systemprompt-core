@@ -11,8 +11,8 @@ pub use systemprompt_mcp::*;
 /// [`serve`](host::serve) a deployment's `toolsets:`. A member contributes
 /// toolsets into the host's `ToolsetSlot` from its `contribute`.
 pub mod host {
-    pub use systemprompt_mcp_host::serving::host::*;
     pub use systemprompt_mcp_host::McpHostExtension;
     pub use systemprompt_mcp_host::contract::ToolsetSlot;
+    pub use systemprompt_mcp_host::serving::host::*;
     pub use systemprompt_mcp_host::toolsets::*;
 }

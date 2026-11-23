@@ -22,7 +22,8 @@ pub struct ContextEventPublisher {
 
 impl std::fmt::Debug for ContextEventPublisher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ContextEventPublisher").finish_non_exhaustive()
+        f.debug_struct("ContextEventPublisher")
+            .finish_non_exhaustive()
     }
 }
 

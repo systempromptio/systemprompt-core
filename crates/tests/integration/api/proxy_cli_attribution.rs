@@ -14,7 +14,9 @@ use std::sync::Arc;
 use http::StatusCode;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_extension::cli::CallerSession;
-use systemprompt_identifiers::{ContextId, McpServerId, McpToolName, ServiceName, SessionToken, UserId};
+use systemprompt_identifiers::{
+    ContextId, McpServerId, McpToolName, ServiceName, SessionToken, UserId,
+};
 use systemprompt_mcp_entry::cli::call_client::{ToolCallParams, execute_tool_call};
 use systemprompt_mcp_entry::cli::probe::McpTarget;
 use systemprompt_models::auth::UserType;
@@ -102,11 +104,13 @@ async fn mount_backend(backend: &MockServer, server: &str) {
 
 async fn seed_context(ctx: &AppContext, owner: &UserId) -> anyhow::Result<ContextId> {
     let context = ContextId::generate();
-    sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, 'cli-attribution')")
-        .bind(context.as_str())
-        .bind(owner.as_str())
-        .execute(ctx.db_pool().pool().as_ref())
-        .await?;
+    sqlx::query(
+        "INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, 'cli-attribution')",
+    )
+    .bind(context.as_str())
+    .bind(owner.as_str())
+    .execute(ctx.db_pool().pool().as_ref())
+    .await?;
     Ok(context)
 }
 
@@ -247,7 +251,8 @@ fn initialize_request(h: &Harness, bearer: &str, context: &ContextId) -> reqwest
 }
 
 #[tokio::test]
-async fn a_cli_call_is_attributed_to_the_verified_token_and_an_owned_context() -> anyhow::Result<()> {
+async fn a_cli_call_is_attributed_to_the_verified_token_and_an_owned_context() -> anyhow::Result<()>
+{
     let h = harness().await?;
     let caller = session(&h.caller, &h.owned);
     let target = McpTarget::through_proxy(&h.api, McpServerId::new(h.server.as_str()), &caller);
@@ -308,7 +313,11 @@ async fn a_context_the_caller_does_not_own_is_refused_before_the_backend() -> an
     let owned = initialize_request(&h, h.caller.jwt.as_str(), &h.owned)
         .send()
         .await?;
-    assert_eq!(owned.status(), StatusCode::OK, "the owned context is admitted");
+    assert_eq!(
+        owned.status(),
+        StatusCode::OK,
+        "the owned context is admitted"
+    );
     Ok(())
 }
 

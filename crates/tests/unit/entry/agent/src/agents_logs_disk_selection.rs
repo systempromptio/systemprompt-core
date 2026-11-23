@@ -4,8 +4,8 @@
 
 use std::path::Path;
 
-use systemprompt_cli::ScriptedPrompter;
 use systemprompt_agent_entry::cli::agents::logs_disk::select_agent_from_log_files;
+use systemprompt_cli::ScriptedPrompter;
 
 #[test]
 fn selection_maps_the_chosen_index_back_to_an_agent_name() {

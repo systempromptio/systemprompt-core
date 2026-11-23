@@ -17,9 +17,7 @@ use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
-use systemprompt_traits::{
-    BackgroundTasks, CacheEpochs, DatabaseHandle, SecretStore,
-};
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, DatabaseHandle, SecretStore};
 use systemprompt_users::UserRepository;
 
 use crate::builder::assembly::load_system_admin;
@@ -139,9 +137,11 @@ impl HostKernel {
             #[cfg(feature = "notifications")]
             escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
         });
-        let jwt: systemprompt_traits::DynJwtValidationProvider = Arc::new(
-            systemprompt_oauth::JwtValidationProviderImpl::from_config(&config, verification.clone()),
-        );
+        let jwt: systemprompt_traits::DynJwtValidationProvider =
+            Arc::new(systemprompt_oauth::JwtValidationProviderImpl::from_config(
+                &config,
+                verification.clone(),
+            ));
         let seed = seed.with(verification.clone()).with(jwt);
         let handle: Arc<dyn DatabaseHandle> =
             Arc::<systemprompt_database::Database>::clone(&database);

@@ -10,8 +10,7 @@ use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_models::{ContextEvent, RequestContext};
 
-use crate::http::{AgentHttpError, AgentHttpState};
-use crate::http::parse_context_id;
+use crate::http::{AgentHttpError, AgentHttpState, parse_context_id};
 
 
 pub async fn forward_event(

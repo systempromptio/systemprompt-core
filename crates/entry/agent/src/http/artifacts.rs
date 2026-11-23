@@ -18,8 +18,8 @@ use serde::Deserialize;
 use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{ArtifactId, TaskId};
 use systemprompt_mcp::McpDomainError;
-use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
 use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
+use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
@@ -138,10 +138,7 @@ pub async fn get_artifact_ui(
         .await?;
     let artifact = artifact_repo.find_owned_artifact(&owned).await?;
 
-    let registry = state
-        .renderers
-        .as_ref()
-        .ok_or(ArtifactUiError::Renderers)?;
+    let registry = state.renderers.as_ref().ok_or(ArtifactUiError::Renderers)?;
     let artifact_type = resolve_artifact_type(&artifact);
 
     if !registry.supports(artifact_type) {

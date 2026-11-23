@@ -29,7 +29,9 @@ use systemprompt_traits::{BackgroundTasks, DynContextDirectory, FileStorage};
 
 use systemprompt_users::UserRepository;
 
-use crate::documents::{ContextsUnavailable, DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory};
+use crate::documents::{
+    ContextsUnavailable, DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
+};
 use crate::error::RuntimeResult;
 
 pub(crate) struct DocumentsInputs<'a> {

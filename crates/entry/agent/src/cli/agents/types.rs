@@ -84,8 +84,6 @@ pub struct AgentDeleteOutput {
 }
 
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentLogsOutput {
     #[serde(skip_serializing_if = "Option::is_none")]

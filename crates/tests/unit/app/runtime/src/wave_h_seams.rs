@@ -1,7 +1,8 @@
 //! The Wave H seams keep their seal: the API's agent dispatch cell and the
-//! supervised process sets and the agent server are sealed (kernel code and core slot builds read
-//! them, no member command resolver or runtime context does), while the
-//! conversation-context seams the agent member provides are open.
+//! supervised process sets and the agent server are sealed (kernel code and
+//! core slot builds read them, no member command resolver or runtime context
+//! does), while the conversation-context seams the agent member provides are
+//! open.
 
 use std::sync::Arc;
 
@@ -14,9 +15,9 @@ use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
-    AppContext as AppContextTrait, BackgroundTasks, DynAgentServer, DynContextDirectory, DynServiceProcessSet,
-    DynSessionContextIssuer, RestartMode, ServiceProcessError, ServiceProcessKind,
-    ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
+    AppContext as AppContextTrait, BackgroundTasks, DynAgentServer, DynContextDirectory,
+    DynServiceProcessSet, DynSessionContextIssuer, RestartMode, ServiceProcessError,
+    ServiceProcessKind, ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
 };
 
 async fn context() -> Arc<AppContext> {

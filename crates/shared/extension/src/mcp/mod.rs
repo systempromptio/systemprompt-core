@@ -24,9 +24,9 @@ pub use execution::{
     execute,
 };
 pub use handler::{McpToolHandler, object_input_schema};
-pub use schema::McpOutputSchema;
 pub use recorder::{McpAccessEvent, McpAccessOutcome, McpAccessRecorder, SharedMcpAccessRecorder};
 pub use recorders::{AccessRecorderSlot, AccessRecorderSlotBuilder, AccessRecorders};
+pub use schema::McpOutputSchema;
 pub use session_store::{
     DynMcpSessionStore, McpSessionStore, McpSessionStoreError, McpSessionStoreResult,
 };

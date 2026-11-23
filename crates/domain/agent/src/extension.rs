@@ -3,9 +3,10 @@
 //! by type: `DynContextDirectory`, `DynContextMaterializer` and
 //! `DynSessionContextIssuer`, each open (database-only), the open
 //! status-only `Arc<AgentStatusView>`, the sealed `DynAgentServer` a child host
-//! serves one agent through (after governance: it reads the AI provider), and the open `Arc<AgentCardSite>`
-//! (the public URL and skills directory, narrowed from the configuration). It contributes its supervised process
-//! set to the sealed `ServiceProcessSlot`.
+//! serves one agent through (after governance: it reads the AI provider), and
+//! the open `Arc<AgentCardSite>` (the public URL and skills directory, narrowed
+//! from the configuration). It contributes its supervised process set to the
+//! sealed `ServiceProcessSlot`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,8 +28,8 @@ use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
 use crate::repository::ContextRepository;
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::ContextProviderService;
-use crate::services::agent_orchestration::process_set::AgentProcessSet;
 use crate::services::a2a_server::serve::HostedAgentServer;
+use crate::services::agent_orchestration::process_set::AgentProcessSet;
 use crate::services::agent_orchestration::status_view::AgentStatusView;
 use crate::services::registry::AgentCardSite;
 
@@ -208,11 +209,9 @@ fn provide_seams(c: &mut Contributions<'_>) {
             )))
         },
     );
-    c.provide_sealed_after_governance(
-        |r: &Resolved<'_>| -> Result<DynAgentServer, ProvideError> {
-            Ok(Arc::new(HostedAgentServer::from_resolved(r)?))
-        },
-    );
+    c.provide_sealed_after_governance(|r: &Resolved<'_>| -> Result<DynAgentServer, ProvideError> {
+        Ok(Arc::new(HostedAgentServer::from_resolved(r)?))
+    });
     c.slot::<ServiceProcessSlot>().process_set(
         |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
             Ok(Arc::new(AgentProcessSet::from_resolved(r)?))

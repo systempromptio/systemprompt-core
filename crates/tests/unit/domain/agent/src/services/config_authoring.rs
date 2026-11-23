@@ -695,7 +695,9 @@ fn the_registry_name_is_reserved_for_the_agent_registry() {
 fn an_agent_config_named_registry_does_not_validate() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let mut agent = create_and_load(tmp.path(), "registry_probe", 9471);
-    agent.validate("registry_probe").expect("negative control: the probe validates");
+    agent
+        .validate("registry_probe")
+        .expect("negative control: the probe validates");
     agent.name = "registry".to_owned();
     let err = agent
         .validate("registry")
@@ -709,6 +711,9 @@ fn creating_an_agent_named_registry_is_refused() {
     let err = AgentConfigAuthoringService::new(tmp.path())
         .create(create_request("registry", 9472))
         .expect_err("registry cannot be created");
-    assert!(matches!(err, ConfigAuthoringError::NameReserved(_)), "{err:?}");
+    assert!(
+        matches!(err, ConfigAuthoringError::NameReserved(_)),
+        "{err:?}"
+    );
     assert!(!tmp.path().join("agents/registry.yaml").exists());
 }

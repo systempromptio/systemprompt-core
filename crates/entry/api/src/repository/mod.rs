@@ -24,7 +24,9 @@ pub fn webhook(db: &DbPool, sessions: DynSessionUsageCounters) -> WebhookReposit
         contexts: systemprompt_agent::repository::ContextRepository::new(db),
         tasks: systemprompt_agent::repository::task::TaskRepository::new(db, sessions),
         artifacts: systemprompt_agent::repository::content::ArtifactRepository::new(db),
-        execution_steps: systemprompt_agent::repository::execution::ExecutionStepRepository::new(db),
+        execution_steps: systemprompt_agent::repository::execution::ExecutionStepRepository::new(
+            db,
+        ),
     }
 }
 

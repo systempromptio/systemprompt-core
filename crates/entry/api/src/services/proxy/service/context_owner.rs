@@ -5,10 +5,10 @@
 //! against it, so the id is honoured only when the caller the edge verified
 //! owns the context (`DynContextDirectory`, provided by the agent member). On
 //! a server that requires no OAuth the presented bearer is verified for this
-//! check alone. A request with no verified caller, one naming another user's context, or one
-//! arriving when no context directory is admitted is refused before anything
-//! is forwarded. A request that names no context keeps the context of its
-//! session.
+//! check alone. A request with no verified caller, one naming another user's
+//! context, or one arriving when no context directory is admitted is refused
+//! before anything is forwarded. A request that names no context keeps the
+//! context of its session.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

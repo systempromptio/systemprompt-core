@@ -29,7 +29,9 @@ use systemprompt_extension::cli::CallerSession;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_manifest::services::{McpConfig, ResilienceSettings};
-use systemprompt_mcp::services::client::{HttpClientWithContext, McpClientLimits, McpTransportError};
+use systemprompt_mcp::services::client::{
+    HttpClientWithContext, McpClientLimits, McpTransportError,
+};
 use systemprompt_models::modules::ApiPaths;
 use tokio::time::timeout;
 
@@ -72,7 +74,10 @@ pub enum McpCallError {
         source: Box<ServiceError>,
     },
     #[error("listing tools on '{server}' did not finish within {}s", limit.as_secs())]
-    Timeout { server: McpServerId, limit: Duration },
+    Timeout {
+        server: McpServerId,
+        limit: Duration,
+    },
 }
 
 #[derive(Debug)]
@@ -176,10 +181,17 @@ async fn api_answers(url: &str) -> bool {
         return false;
     };
     let authority = rest.split('/').next().unwrap_or_default();
-    let address = if authority.rsplit_once(':').is_some_and(|(_, port)| port.parse::<u16>().is_ok()) {
+    let address = if authority
+        .rsplit_once(':')
+        .is_some_and(|(_, port)| port.parse::<u16>().is_ok())
+    {
         authority.to_owned()
     } else {
-        let port = if scheme.eq_ignore_ascii_case("https") { 443 } else { 80 };
+        let port = if scheme.eq_ignore_ascii_case("https") {
+            443
+        } else {
+            80
+        };
         format!("{authority}:{port}")
     };
     matches!(

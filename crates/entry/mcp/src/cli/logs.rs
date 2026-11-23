@@ -73,8 +73,12 @@ pub fn confined_logs_dir(logs_root: &Path, requested: Option<&str>) -> Result<Pa
         return Ok(logs_root.to_path_buf());
     };
     let candidate = logs_root.join(dir);
-    confine_within(logs_root, &candidate)
-        .with_context(|| format!("--logs-dir must name a directory inside {}", logs_root.display()))
+    confine_within(logs_root, &candidate).with_context(|| {
+        format!(
+            "--logs-dir must name a directory inside {}",
+            logs_root.display()
+        )
+    })
 }
 
 pub(super) async fn execute(args: LogsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {

@@ -7,8 +7,8 @@ use axum::extract::{Extension, Path, State};
 use axum::response::Response;
 use systemprompt_identifiers::ContextId;
 
-use crate::http::AgentHttpState;
 use super::super::responses::{api_error_response, single_response};
+use crate::http::AgentHttpState;
 use systemprompt_models::{ApiError, ApiErrorExt};
 
 pub async fn get_context(

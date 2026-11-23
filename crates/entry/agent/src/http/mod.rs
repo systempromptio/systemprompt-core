@@ -236,8 +236,18 @@ pub fn tasks_routes() -> RouteSet {
 #[must_use]
 pub fn artifacts_routes() -> RouteSet {
     RouteSet::at::<AgentHttpState>(BasePath::Api(ApiBase::CoreArtifacts), RouteGroup::Agent)
-        .route(Method::GET, "/", artifacts::list_artifacts_by_user, ARTIFACTS)
-        .route(Method::GET, "/{artifact_id}", artifacts::get_artifact, ARTIFACTS)
+        .route(
+            Method::GET,
+            "/",
+            artifacts::list_artifacts_by_user,
+            ARTIFACTS,
+        )
+        .route(
+            Method::GET,
+            "/{artifact_id}",
+            artifacts::get_artifact,
+            ARTIFACTS,
+        )
         .route(
             Method::GET,
             "/{artifact_id}/ui",

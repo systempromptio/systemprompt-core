@@ -110,8 +110,7 @@ async fn run_connection_validation_accepts_a_listening_hosted_service() {
         peer
     });
 
-    let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1)
-    .await;
+    let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1).await;
     let peer = accepted.await.unwrap();
 
     assert!(peer.ip().is_loopback());
@@ -128,8 +127,7 @@ async fn run_connection_validation_reports_an_unavailable_port() {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1)
-    .await;
+    let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1).await;
 
     assert!(!out.valid);
     assert_eq!(out.health_status, "unhealthy");
@@ -141,7 +139,13 @@ async fn run_connection_validation_reports_an_unavailable_port() {
 fn prompt_server_selection_errors_without_servers_and_returns_sorted_choice() {
     let empty: ServicesConfig = serde_yaml::from_str("agents: {}\n").unwrap();
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    let err = systemprompt_mcp_entry::cli::prompt_server_selection(&prompter, &empty, "Select MCP server to validate", ServiceName::new).unwrap_err();
+    let err = systemprompt_mcp_entry::cli::prompt_server_selection(
+        &prompter,
+        &empty,
+        "Select MCP server to validate",
+        ServiceName::new,
+    )
+    .unwrap_err();
     assert!(err.to_string().contains("No MCP servers configured"));
 
     let config: ServicesConfig = serde_yaml::from_str(
@@ -149,6 +153,12 @@ fn prompt_server_selection_errors_without_servers_and_returns_sorted_choice() {
     )
     .unwrap();
     let prompter = ScriptedPrompter::new(["1"]);
-    let picked = systemprompt_mcp_entry::cli::prompt_server_selection(&prompter, &config, "Select MCP server to validate", ServiceName::new).unwrap();
+    let picked = systemprompt_mcp_entry::cli::prompt_server_selection(
+        &prompter,
+        &config,
+        "Select MCP server to validate",
+        ServiceName::new,
+    )
+    .unwrap();
     assert_eq!(picked, "zeta");
 }

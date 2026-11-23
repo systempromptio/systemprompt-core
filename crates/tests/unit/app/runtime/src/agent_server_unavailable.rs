@@ -19,7 +19,10 @@ async fn a_host_without_an_ai_provider_builds_the_server_and_refuses_to_serve() 
         .await
         .expect_err("a host with no AI provider cannot serve an agent");
 
-    let AgentServeError::Serve { agent: named, source } = &err;
+    let AgentServeError::Serve {
+        agent: named,
+        source,
+    } = &err;
     assert_eq!(named, &agent);
     assert_eq!(
         source.downcast_ref::<AgentServerUnavailable>(),

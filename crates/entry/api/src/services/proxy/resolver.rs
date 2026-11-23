@@ -96,7 +96,9 @@ impl ServiceResolver {
         mut service: ServiceConfig,
         ctx: &AppContext,
     ) -> ServiceConfig {
-        let config = match crate::services::server::runner::mcp_registry(ctx).find_server(service_name.as_str()) {
+        let config = match crate::services::server::runner::mcp_registry(ctx)
+            .find_server(service_name.as_str())
+        {
             Ok(Some(config)) => config,
             Ok(None) => return service,
             Err(e) => {

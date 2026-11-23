@@ -9,7 +9,8 @@ use super::common::{empty_get, request_context, setup_agent_ctx};
 #[tokio::test]
 async fn agent_registry_handles_missing_profile() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_agent_ctx().await?;
-    let app = crate::common::mounted_set(&ctx, registry_routes()).layer(Extension(request_context("user_test")));
+    let app = crate::common::mounted_set(&ctx, registry_routes())
+        .layer(Extension(request_context("user_test")));
 
     let resp = app.oneshot(empty_get("/")).await?;
     // Without a profile the AgentRegistry::new() returns an error which
