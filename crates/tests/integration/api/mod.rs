@@ -167,6 +167,7 @@ mod services_quota_sharding;
 #[path = "routes_bridge_data.rs"]
 mod routes_bridge_data;
 
+mod gateway_http_member;
 #[cfg(test)]
 #[path = "routes_gateway_bridge_jwt.rs"]
 mod routes_gateway_bridge_jwt;
