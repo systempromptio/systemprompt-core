@@ -55,7 +55,7 @@ pub use view::ServicesView;
 pub use agent_config::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
     AgentSummary, CapabilitiesConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE, DiskAgentConfig,
-    OAuthConfig, RetiredCardKeyError,
+    OAuthConfig, RESERVED_AGENT_NAMES, RetiredCardKeyError,
 };
 pub use ai::{
     AiConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition, ModelGovernance,

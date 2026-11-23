@@ -14,6 +14,7 @@ pub mod auth;
 pub mod errors;
 pub mod handlers;
 pub mod processing;
+pub mod serve;
 pub mod server;
 pub mod standalone;
 pub mod streaming;

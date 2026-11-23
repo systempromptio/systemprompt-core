@@ -16,7 +16,11 @@
 //! parameter route (`/api/v1/mcp/{service_name}/{*path}`), and an install
 //! parameter, catch-all or service cannot answer an unclaimed path inside a
 //! kernel namespace. A holder routes inside a nested entry it owns
-//! (`/api/v1/admin/notifications`) without holding the enclosing one.
+//! (`/api/v1/admin/notifications`) without holding the enclosing one. The
+//! owner of an enclosing prefix keeps the rest of it: its parameter segment at
+//! the place of another owner's nested literal (`/api/v1/agents/{service_name}`
+//! beside `/api/v1/agents/registry`) is not refused, because the literal route
+//! takes precedence and the nested owner's row holds it.
 //!
 //! A gateway route def is confined to the gateway path its set claims: its
 //! gateway-relative path lies within the claim, and no built-in gateway
@@ -174,6 +178,19 @@ fn patterns(path: &str, service: bool) -> Vec<Vec<Segment<'_>>> {
     vec![exact, below]
 }
 
+fn nested_param(pattern: &[Segment<'_>], entry: &ReservedPath, own: &[&ReservedPath]) -> bool {
+    let held = held_segments(entry);
+    let last_is_param = held
+        .len()
+        .checked_sub(1)
+        .is_some_and(|index| matches!(pattern.get(index), Some(Segment::Param)));
+    last_is_param
+        && own.iter().any(|outer| {
+            outer.reach == ReservedReach::Prefix
+                && crate::reserved::nested_under_another_owner(entry, std::slice::from_ref(outer))
+        })
+}
+
 fn first_unheld(
     patterns: &[Vec<Segment<'_>>],
     holder: Option<CoreId>,
@@ -187,6 +204,7 @@ fn first_unheld(
             Some(entry.owner) != holder
                 && reaches(pattern, entry)
                 && !own.iter().any(|held| encloses(entry, held))
+                && !nested_param(pattern, entry, &own)
         })
     })
 }

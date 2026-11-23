@@ -12,8 +12,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_agent::repository::ContextRepository;
-use systemprompt_agent::services::ContextProviderService;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{
@@ -27,11 +25,11 @@ use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesBinder};
 use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
-use systemprompt_traits::{BackgroundTasks, FileStorage};
+use systemprompt_traits::{BackgroundTasks, DynContextDirectory, FileStorage};
 
 use systemprompt_users::UserRepository;
 
-use crate::documents::{DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory};
+use crate::documents::{ContextsUnavailable, DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory};
 use crate::error::RuntimeResult;
 
 pub(crate) struct DocumentsInputs<'a> {
@@ -81,9 +79,9 @@ pub(crate) fn build_documents(
         blob_holders: r.get::<Arc<BlobHolders>>()?,
         seams: r.get::<Arc<DocumentSeams>>()?,
         agent_access: r.get::<Arc<AgentAccess>>()?,
-        contexts: Arc::new(ContextProviderService::new(ContextRepository::new(
-            inputs.database,
-        ))),
+        contexts: r
+            .optional::<DynContextDirectory>()
+            .unwrap_or_else(|| Arc::new(ContextsUnavailable)),
     }));
     bind_documents(&documents, inputs.files_config, inputs.binder)?;
     Ok(documents)

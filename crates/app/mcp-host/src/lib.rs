@@ -14,7 +14,6 @@
 //!   [`ToolsetSlot`](contract::ToolsetSlot), behind the hop-verifying MCP
 //!   router. A server that names no `binary:` is this product binary re-run as
 //!   `admin mcp serve --server <id>`.
-//! - [`AgentHost`] composes an agent's collaborators on a [`HostContext`].
 //!
 //! # What a toolset factory can reach
 //!
@@ -36,18 +35,16 @@
 //!
 //! | Feature         | Effect                                                     |
 //! |-----------------|------------------------------------------------------------|
-//! | (default)       | Host context, toolset host, agent host                     |
+//! | (default)       | Host context, toolset host                                 |
 //! | `brain`         | Builds the runtime with the brain                          |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod agent_host;
 pub mod contract;
 pub(crate) mod extension;
 pub mod host;
 pub mod toolsets;
 
-pub use agent_host::{AgentHost, AgentHostError};
 pub use extension::McpHostExtension;
 pub use host::{HostBootError, HostContext, PROFILE_ENV};

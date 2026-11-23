@@ -22,8 +22,11 @@
 //! load naming the file, key path and variable); [`ConfigLoader::inspecting`]
 //! leaves unset placeholders as text for validate/show/doctor flows, and
 //! [`ConfigLoader::verbatim`] reads the tree as written for a result that is
-//! saved back to disk: no interpolation, no profile port offset and no
-//! validation, which the writer's follow-up resolved load performs.
+//! saved back to disk: no interpolation and no profile port offset in the
+//! returned tree. The same tree is first loaded again with set variables
+//! resolved and the port offset applied, and validated as every other load
+//! is, so an invalid tree is refused before anything is written; only the
+//! verbatim result is returned.
 //!
 //! Every entry point is a fresh read; the process holds the parsed result in
 //! [`crate::ServicesState`].
@@ -114,6 +117,16 @@ impl ConfigLoader {
     pub const fn with_env_lookup(mut self, lookup: fn(&str) -> Option<String>) -> Self {
         self.env_lookup = lookup;
         self
+    }
+
+    fn validating_copy(&self) -> Self {
+        Self {
+            base_path: self.base_path.clone(),
+            config_path: self.config_path.clone(),
+            port_offset: self.port_offset,
+            interpolation: ServicesInterpolation::Inspect,
+            env_lookup: self.env_lookup,
+        }
     }
 
     const fn interpolator(&self) -> Interpolator {
@@ -208,6 +221,7 @@ impl ConfigLoader {
         }
 
         if self.interpolation == ServicesInterpolation::Verbatim {
+            self.validating_copy().run_from_content(content)?;
             return Ok(merged);
         }
 

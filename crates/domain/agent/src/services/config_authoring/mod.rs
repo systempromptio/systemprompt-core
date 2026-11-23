@@ -46,6 +46,9 @@ pub enum ConfigAuthoringError {
     #[error("Agent name must be lowercase alphanumeric with underscores only")]
     NameCharset,
 
+    #[error("Agent name '{0}' is reserved")]
+    NameReserved(String),
+
     #[error("Port cannot be 0")]
     PortZero,
 
@@ -117,6 +120,9 @@ impl AgentConfigAuthoringService {
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         {
             return Err(ConfigAuthoringError::NameCharset);
+        }
+        if systemprompt_manifest::services::RESERVED_AGENT_NAMES.contains(&name) {
+            return Err(ConfigAuthoringError::NameReserved(name.to_owned()));
         }
         Ok(())
     }

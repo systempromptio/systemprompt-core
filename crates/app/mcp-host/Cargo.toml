@@ -28,8 +28,6 @@ rmcp = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-systemprompt-agent = { workspace = true }
-systemprompt-ai = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["mcp"] }

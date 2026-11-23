@@ -6707,7 +6707,6 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "sqlx",
- "systemprompt-agent",
  "systemprompt-api",
  "systemprompt-client",
  "systemprompt-cloud",
@@ -7393,8 +7392,6 @@ version = "0.85.0"
 dependencies = [
  "async-trait",
  "rmcp",
- "systemprompt-agent",
- "systemprompt-ai",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",

@@ -24,6 +24,11 @@ impl AiProvider for AiService {
         Self::default_provider(self)
     }
 
+    async fn drain_pending_writes(&self) {
+        self.audit_tasks().close();
+        self.audit_tasks().wait().await;
+    }
+
     fn default_model(&self) -> &str {
         Self::default_model(self)
     }

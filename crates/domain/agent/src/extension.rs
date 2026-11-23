@@ -2,7 +2,8 @@
 //! provides the conversation-context seams other members and the kernel read
 //! by type: `DynContextDirectory`, `DynContextMaterializer` and
 //! `DynSessionContextIssuer`, each open (database-only), the open
-//! status-only `Arc<AgentStatusView>` and the open `Arc<AgentCardSite>`
+//! status-only `Arc<AgentStatusView>`, the sealed `DynAgentServer` a child host
+//! serves one agent through (after governance: it reads the AI provider), and the open `Arc<AgentCardSite>`
 //! (the public URL and skills directory, narrowed from the configuration). It contributes its supervised process
 //! set to the sealed `ServiceProcessSlot`.
 //!
@@ -18,7 +19,8 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{
-    DynContextDirectory, DynContextMaterializer, DynServiceProcessSet, DynSessionContextIssuer,
+    DynAgentServer, DynContextDirectory, DynContextMaterializer, DynServiceProcessSet,
+    DynSessionContextIssuer,
 };
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
@@ -26,6 +28,7 @@ use crate::repository::ContextRepository;
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::ContextProviderService;
 use crate::services::agent_orchestration::process_set::AgentProcessSet;
+use crate::services::a2a_server::serve::HostedAgentServer;
 use crate::services::agent_orchestration::status_view::AgentStatusView;
 use crate::services::registry::AgentCardSite;
 
@@ -203,6 +206,11 @@ fn provide_seams(c: &mut Contributions<'_>) {
                 AgentServiceRepository::new(&r.get::<DbPool>()?, r.get::<InstanceId>()?),
                 r.get::<ServicesView>()?,
             )))
+        },
+    );
+    c.provide_sealed_after_governance(
+        |r: &Resolved<'_>| -> Result<DynAgentServer, ProvideError> {
+            Ok(Arc::new(HostedAgentServer::from_resolved(r)?))
         },
     );
     c.slot::<ServiceProcessSlot>().process_set(

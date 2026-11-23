@@ -28,6 +28,7 @@ pub mod mcp;
 pub mod refusal;
 mod subjects;
 mod unavailable_brain_sink;
+mod unavailable_contexts;
 mod unavailable_sink;
 /// Signed URLs for the resumable upload API.
 pub mod upload_links;
@@ -39,5 +40,6 @@ pub use directory::UserSubjectDirectory;
 pub use subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND, active_user_display, subject_display};
 pub use unavailable_brain_sink::BrainUnavailableSink;
 pub(crate) use unavailable_brain_sink::admitted_brain_sink;
+pub use unavailable_contexts::ContextsUnavailable;
 pub use unavailable_sink::NotificationsUnavailableSink;
 pub use wiring::{DocumentsRuntime, DocumentsRuntimeParts};
