@@ -96,6 +96,16 @@ With `files.documents.accessRequests` on, a signed-in user who holds no level on
 
 A caller with no level is still answered `not_found`. With access requests on, a signed-in caller's refusal on a document that exists also carries `can_request: true`, which tells that caller the document exists. That is the trade-off of the setting, and why it is off by default: with it off, a document you cannot open is indistinguishable from one that does not exist.
 
+### Sharing outside the instance
+
+Two channels share a document with someone the instance does not know. Both are off by default and governed by `files.documents.externalSharing`; the policy is checked when a link or invite is made and again on every open, so tightening it closes links already handed out.
+
+- **Public link (read-only).** `POST /api/v1/documents/{id}/public-links {password?, days?}` returns the link once: `{link, token, path}`, where `path` is `/s/{token}`. The token is 256 random bits; only its SHA-256 is stored, so it cannot be shown again. An optional password (8 to 72 bytes) is stored only as its bcrypt hash. A link lives `days` (default and ceiling `maxLinkDays`). `GET /{id}/public-links` lists links with their open count; `DELETE /{id}/public-links/{link_id}` revokes one.
+- **Invite (view or comment).** `POST /api/v1/documents/{id}/invites {email, level, days?}` addresses one email at `view` or `comment` and returns `{invite, token, path}` once. **The platform sends no email**: the sharer, or the client application, delivers the link by its own means. The link reads the document anonymously, whatever the invite's level. To comment, the invitee signs in to the instance and calls `POST /api/v1/documents/invites/claim {token}`; the claim succeeds only for a caller whose **verified** email is the invite's, turns the invite into an ordinary `user` grant at its level (never lowering a level they already hold), closes the anonymous link and sends the Drive-change hint. Any mismatch answers the same `not_found` as an unknown invite. `GET /{id}/invites` and `DELETE /{id}/invites/{invite_id}` list and revoke.
+- **Who may share.** Creating, listing and revoking needs `share` on the document and the same step-up as a grant. Agents are refused whatever their cap: only a person hands a document outside the instance. There are no MCP tools for these channels for that reason.
+- **Opening `/s/{token}`.** `GET` serves the head revision; `POST` with a form field `password` opens a password link. The route reads no session and sets no cookie. Responses carry `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow` and a sandboxing CSP: an HTML document is served inline under the rendered view's policy, Markdown and text inline as plain text, any other format as a download. An unknown, revoked, expired, claimed or policy-withheld link, a trashed document and a missing or wrong password all answer one identical `404` page that offers the password form. After 5 wrong passwords for one link from one client address within 15 minutes, the next attempt answers `429`.
+- **Audit.** Each create, open, revoke and claim writes a grant audit log row: `public_link.created`, `public_link.opened`, `public_link.revoked`, `invite.created`, `invite.claimed`, `invite.revoked`. Discovery advertises `endpoints.documents.publicLinks` and `externalInvites`.
+
 ## Revision engine
 
 `DocumentService` is the single write path for MCP, HTTP and the bridge. A commit carries an optional base revision and either whole bytes or edit operations.
@@ -236,6 +246,9 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `GET /api/v1/documents/{id}/projection`, `/preview` | Node projection and HTML preview. |
 | `GET /api/v1/documents/{id}/rendered` | An HTML document's stored bytes, inline and sandboxed, as its author designed it. |
 | `GET`, `POST`, `DELETE /api/v1/documents/{id}/grants` | Grants; `POST` takes an optional `message`. |
+| `GET`, `POST /api/v1/documents/{id}/public-links`, `DELETE /api/v1/documents/{id}/public-links/{link_id}` | Read-only public links. See [Sharing outside the instance](#sharing-outside-the-instance). |
+| `GET`, `POST /api/v1/documents/{id}/invites`, `DELETE /api/v1/documents/{id}/invites/{invite_id}`, `POST /api/v1/documents/invites/claim` | Invites to an email outside the instance, and the invitee's claim. |
+| `GET`, `POST /s/{token}` | The anonymous open of a public link or an invite's link, with no session. |
 | `GET`, `POST`, `DELETE /api/v1/document-folders/{id}/grants`, `GET /api/v1/document-folders/{id}/access` | Folder grants and access, in the same shapes as a document's. |
 | `PUT`, `GET /api/v1/documents/{id}/presence` | Presence beacons. |
 | `POST`, `DELETE /api/v1/documents/{id}/lock` | Lease lock. |
@@ -361,6 +374,11 @@ The store reads the `files.documents` section of `<services>/config/files.yaml`.
 | `presenceTtlSecs` | 90 | at least 1 | How long a presence beacon stays valid. |
 | `trashRetentionDays` | 30 | at least 1 | How long a trashed document is kept before it is deleted. |
 | `accessRequests` | `false` | | Lets a signed-in user with no level request access, and adds `can_request: true` to their `not_found` refusals. |
+| `externalSharing.publicLinks` | `false` | | Allows read-only public links (see [Sharing outside the instance](#sharing-outside-the-instance)). |
+| `externalSharing.invites` | `false` | | Allows invites to an email outside the instance. |
+| `externalSharing.denyFormats` | `[]` | document formats | Formats never shared outside the instance (`html`, `docx`, ...). |
+| `externalSharing.denyFolders` | `[]` | folder ids | Folders whose whole subtree is never shared outside the instance. |
+| `externalSharing.maxLinkDays` | 30 | 1 to 365 | Lifetime of a link or invite, and the ceiling on a requested `days`. |
 | `renderedHtml.scripts` | `false` | | Lets a rendered HTML document no agent has written run its scripts inside its sandbox. |
 | `renderedHtml.remoteOrigins` | `[]` | `https` origins only | Origins (`https://cdn.example.com`, no path, query, fragment, userinfo or wildcard, written lowercase as their own origin) a rendered HTML document no agent has written may load styles, images, fonts and media from (and scripts, with `scripts` on). Any other entry is refused when the profile loads. |
 | `renderedHtml.agentAuthored.scripts` | `false` | not wider than `scripts` | The same switch for a document that carries agent content. |
