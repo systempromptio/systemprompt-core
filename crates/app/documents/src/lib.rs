@@ -27,6 +27,7 @@ pub mod mcp;
 mod provides;
 /// The refusal vocabulary shared by the MCP tools and the HTTP routes.
 pub mod refusal;
+mod runtime_handles;
 mod subjects;
 /// The narrow token views the member confers.
 pub mod tokens;

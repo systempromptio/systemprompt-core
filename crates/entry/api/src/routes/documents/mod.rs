@@ -37,6 +37,7 @@ mod export;
 mod external;
 mod folder_sharing;
 mod folders;
+mod handles;
 mod headers;
 mod history;
 mod import;
@@ -65,9 +66,9 @@ use axum::routing::{MethodRouter, delete, get, patch, post, put};
 use systemprompt_documents::tokens::DocumentLinkTokens;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
-use systemprompt_files::documents::{
-    DocumentService, DocumentsHandles, DocumentsHandlesSlot, DocumentsUnbound, bound,
-};
+use systemprompt_files::documents::{DocumentService, DocumentsUnbound};
+
+pub use handles::{documents_handles, link_tokens};
 use systemprompt_files::uploads::UploadService;
 use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_runtime::AppContext;
@@ -110,22 +111,6 @@ pub enum DocumentsMountError {
     Disabled,
     #[error("document routes need the documents member's link token view")]
     MissingLinkTokens,
-}
-
-pub fn documents_handles(ctx: &AppContext) -> Result<Arc<DocumentsHandles>, DocumentsUnbound> {
-    let slot = ctx
-        .kernel()
-        .state()
-        .find::<DocumentsHandlesSlot>()
-        .ok_or(DocumentsUnbound)?;
-    bound(slot).cloned()
-}
-
-pub fn link_tokens(ctx: &AppContext) -> Option<Arc<DocumentLinkTokens>> {
-    ctx.kernel()
-        .state()
-        .find::<Arc<DocumentLinkTokens>>()
-        .cloned()
 }
 
 impl DocumentsState {

@@ -1,22 +1,19 @@
-//! The documents member's composed provides: the document store cell, the
-//! store built from the resolved state and bound into it, and the two narrow
-//! token views it confers.
+//! The documents member's composed provides: the document store built from
+//! the resolved state, and the two narrow token views it confers.
 //!
-//! The store is built from slot outputs of the same resolve the files member
-//! provides into (the blob holders, the document seams, the agent access
-//! policy) while the files member's own seams read the store, so the cell is
-//! late-bound. The early provide creates a fresh cell per resolve and
-//! provides its read half, [`DocumentsHandlesSlot`]; the bind half stays in
-//! [`HandlesBinderHold`], which only this member's two provide fns share and
-//! which never enters the state. The after-governance provide builds the
-//! store and binds the cell. Its access checks decide through
-//! [`LateAuthzHook`] over the host's sealed `AuthzHookCell`, which the host
-//! binds once it has built its authz hook; until then every check denies.
+//! The store is built after governance from slot outputs of the same resolve
+//! the files member provides into (the blob holders, the document seams, the
+//! agent access policy) and is provided sealed as its bound handles
+//! (`Arc<DocumentsHandles>`): only kernel code reads it, and the host binds
+//! it into the `DocumentsHandlesSlot` it seeded, through the binder it keeps
+//! outside the state. Its access checks decide through [`LateAuthzHook`]
+//! over the host's sealed `AuthzHookCell`, which the host binds once it has
+//! built its authz hook; until then every check denies.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
@@ -24,9 +21,9 @@ use systemprompt_extension::prelude::{ProvideError, Resolved};
 use systemprompt_extension::{AudienceResolvers, DynBrainSink, DynNotificationSink};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::contract::{AgentAccess, DocumentSeams};
+use systemprompt_files::documents::DocumentsHandles;
 use systemprompt_files::documents::repository::BlobHolders;
 use systemprompt_files::documents::templates::load_catalog;
-use systemprompt_files::documents::{DocumentsHandlesBinder, DocumentsHandlesSlot};
 use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_governance::authz::{
     AccessControlRepository, AuthzHookCell, LateAuthzHook, SubjectProviderSet,
@@ -44,39 +41,11 @@ use crate::{
     NotificationsUnavailableSink, UserSubjectDirectory,
 };
 
-/// The bind half of the cell the early provide creates, held between this
-/// member's two provide fns and nowhere else.
-#[derive(Debug, Default)]
-pub(crate) struct HandlesBinderHold(Mutex<Option<DocumentsHandlesBinder>>);
-
-#[derive(Debug, thiserror::Error)]
-enum DocumentsProvideError {
-    #[error("the document store cell was not created before the store was built")]
-    NoCell,
-    #[error("the document store cell is already bound")]
-    AlreadyBound,
-}
-
 fn failed(error: impl std::error::Error + Send + Sync + 'static) -> ProvideError {
     ProvideError::Failed(Box::new(error))
 }
 
-pub(crate) fn handles_slot(hold: &HandlesBinderHold) -> DocumentsHandlesSlot {
-    let (slot, binder) = DocumentsHandlesSlot::unbound();
-    *hold.0.lock().unwrap_or_else(PoisonError::into_inner) = Some(binder);
-    slot
-}
-
-pub(crate) fn documents_runtime(
-    hold: &HandlesBinderHold,
-    r: &Resolved<'_>,
-) -> Result<Arc<DocumentsRuntime>, ProvideError> {
-    let binder = hold
-        .0
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .take()
-        .ok_or_else(|| failed(DocumentsProvideError::NoCell))?;
+pub(crate) fn documents_handles(r: &Resolved<'_>) -> Result<Arc<DocumentsHandles>, ProvideError> {
     let database = r.get::<DbPool>()?;
     let files_config = r.get::<Arc<FilesConfig>>()?;
     let services_root = r.get::<ActiveServicesRoot>()?;
@@ -123,10 +92,9 @@ pub(crate) fn documents_runtime(
             .optional::<DynContextDirectory>()
             .unwrap_or_else(|| Arc::new(ContextsUnavailable)),
     }));
-    binder
-        .bind(Arc::new(documents.handles(&files_config)))
-        .map_err(|_bound| failed(DocumentsProvideError::AlreadyBound))?;
-    Ok(documents)
+    Ok(Arc::new(
+        documents.handles(files_config.documents_config().is_enabled()),
+    ))
 }
 
 pub(crate) fn link_tokens(r: &Resolved<'_>) -> Arc<DocumentLinkTokens> {

@@ -1,19 +1,20 @@
-//! The document store handles the `documents` member binds after its
-//! kernel resolves.
+//! The document store handles a host binds after its kernel resolves.
 //!
 //! The document store is built from slot outputs of the same resolve the
 //! files member provides into, so the store cannot exist while the files
-//! member provides. The `documents` member creates the cell with
-//! [`DocumentsHandlesSlot::unbound`] in its early provide, provides the read
-//! half, [`DocumentsHandlesSlot`], and keeps the bind half,
-//! [`DocumentsHandlesBinder`], outside the state, shared only with its own
-//! after-governance provide, which builds the store and binds the cell once.
-//! The files member's core seams, the document jobs, the routes and the
-//! commands hold the read half and read it when they are called. No other
-//! member can bind it: the binder is never in the state, a binder from
-//! another `unbound` call binds only its own cell, and a second provider of
-//! the slot type is refused as a duplicate. A call before the cell is bound
-//! fails with [`DocumentsUnbound`], never with a default verdict.
+//! member provides. The host creates the cell instead, with
+//! [`DocumentsHandlesSlot::unbound`]: it seeds the read half,
+//! [`DocumentsHandlesSlot`], into its kernel state before any member
+//! provides, and keeps the bind half, [`DocumentsHandlesBinder`], outside the
+//! state. The `documents` member builds the store after governance and
+//! provides its handles sealed; the host binds the cell to them once the
+//! kernel has resolved. The files member's core seams, the document jobs, the
+//! routes and the commands hold the read half and read it when they are
+//! called. No member can bind it: the binder is never in the state, a binder
+//! from another `unbound` call binds only its own cell, and a member cannot
+//! provide the slot type the kernel already holds. A call before the host
+//! binds the slot fails with [`DocumentsUnbound`], never with a default
+//! verdict.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -64,11 +65,12 @@ impl std::fmt::Debug for DocumentsHandles {
     }
 }
 
-/// The read half of the document store cell; see the module docs.
+/// The read half of the document store cell the host seeds; see the module
+/// docs.
 #[derive(Clone)]
 pub struct DocumentsHandlesSlot(LateBound<DocumentsHandles>);
 
-/// The bind half of the document store cell, held by its creator alone.
+/// The bind half of the document store cell, held by the host alone.
 pub struct DocumentsHandlesBinder(LateBound<DocumentsHandles>);
 
 impl DocumentsHandlesSlot {

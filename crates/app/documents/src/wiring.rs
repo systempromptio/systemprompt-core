@@ -10,6 +10,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{DynBrainSink, DynNotificationSink};
+use systemprompt_files::DocumentsConfig;
 use systemprompt_files::contract::{AgentAccess, DocumentSeams};
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::blob_store::BlobStore;
@@ -17,11 +18,10 @@ use systemprompt_files::documents::repository::{BlobHolders, DocumentRepositorie
 use systemprompt_files::documents::templates::{CatalogTemplate, TemplateRegistry};
 use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
-    DocumentServiceParts, DocumentsError, DocumentsHandles, SubjectDirectory,
+    DocumentServiceParts, DocumentsError, SubjectDirectory,
 };
 use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::{UploadService, UploadServiceParts};
-use systemprompt_files::{DocumentsConfig, FilesConfig};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_traits::{BackgroundTasks, DynContextDirectory, FileStorage};
@@ -229,23 +229,6 @@ impl DocumentsRuntime {
 
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {
         self.service.access().reconcile_folder_entities().await
-    }
-
-    #[must_use]
-    pub fn handles(&self, files_config: &FilesConfig) -> DocumentsHandles {
-        DocumentsHandles {
-            access: Arc::clone(&self.access),
-            repositories: Arc::clone(&self.repositories),
-            issues: Arc::clone(&self.issues),
-            service: files_config
-                .documents_config()
-                .is_enabled()
-                .then(|| Arc::clone(&self.service)),
-            uploads: Arc::clone(&self.uploads),
-            contexts: Arc::clone(&self.contexts),
-            #[cfg(feature = "collab")]
-            collab: Arc::clone(&self.collab),
-        }
     }
 }
 

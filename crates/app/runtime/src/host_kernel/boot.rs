@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, LoadedProfile};
+use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -107,6 +108,7 @@ impl HostKernel {
         let system_owner = system_admin.id().clone();
 
         let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
+        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let (seed, binders) = crate::base_kernel_state(KernelSeed {
             database: &database,
             app_paths: &app_paths,
@@ -132,6 +134,7 @@ impl HostKernel {
             },
             system_admin: &system_admin,
             event_router: &event_router,
+            documents: documents_slot,
             catalog_roles: crate::builder::composition::catalog_roles(&admitted),
             #[cfg(feature = "notifications")]
             escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
@@ -141,6 +144,11 @@ impl HostKernel {
         let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);
         kernel.resolve(&admitted).map_err(RuntimeError::from)?;
         let r = kernel.resolved();
+        if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
+            documents_binder
+                .bind(documents)
+                .map_err(RuntimeError::from)?;
+        }
 
         let (authz_hook, market) = authz_stage(
             profile,

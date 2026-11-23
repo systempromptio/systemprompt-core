@@ -14,8 +14,10 @@
 //!
 //! [`HostKernel::boot`] returns the composed handles in [`HostParts`],
 //! including the resolved [`Kernel`] whose state the child's extension
-//! context reads. The notifications and documents members bind their own
-//! cells while the kernel resolves; the child binds only the authz hook cell.
+//! context reads. The notifications member binds its own service slot while
+//! the kernel resolves; the child binds the document store cell to the
+//! handles the `documents` member provides and the authz hook cell to the
+//! hook it builds.
 //!
 //! [`base_kernel_state`]: crate::base_kernel_state
 //!

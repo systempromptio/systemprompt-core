@@ -16,9 +16,12 @@
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
 //! child host, which delivers through the serving host's consumer), and the
 //! names of the roles the admitted members declare (`CatalogRoleNames`).
-//! The authz hook is built from the resolved state, so it is not seeded; the
-//! read half of its cell (`AuthzHookCell`) is, sealed, and the host keeps the
-//! bind half outside the state and binds it once the hook is built.
+//! The authz hook and the document store are built from the resolved state,
+//! so neither is seeded; the read half of each cell is (`AuthzHookCell`
+//! sealed, `DocumentsHandlesSlot` open), and the host keeps each bind half
+//! outside the state and binds it once the value is built: the authz hook
+//! after the authz stage, the document store from the handles the `documents`
+//! member provides sealed.
 //!
 //! The provider-key lookup (`Arc<dyn SecretLookup>`: the whole secrets
 //! document on the API, the granted set on a child host) and the connector
@@ -100,6 +103,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::FilesConfig;
+use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_governance::authz::AuthzDecisionHook;
 use systemprompt_governance::policy::secrets::SecretScanner;
 use systemprompt_loader::bundle::BundleSources;
@@ -153,6 +157,7 @@ pub struct KernelSeed<'a> {
     pub coordination: KernelCoordination,
     pub system_admin: &'a SystemAdmin,
     pub event_router: &'a EventRouter,
+    pub documents: DocumentsHandlesSlot,
     pub catalog_roles: CatalogRoleNames,
     #[cfg(feature = "notifications")]
     pub escalation: EscalationDelivery,
@@ -243,7 +248,8 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(seed.system_admin.clone())
         .with_sealed(Arc::new(seed.event_router.clone()))
         .with_sealed(authz_cell)
-        .with(Arc::new(seed.catalog_roles));
+        .with(Arc::new(seed.catalog_roles))
+        .with(seed.documents);
     #[cfg(feature = "notifications")]
     let state = state.with(seed.escalation);
     (

@@ -12,7 +12,10 @@
 //! cell (`AuthzHookCell`) and binds it, through the binder it kept out of the
 //! state, as soon as the hook exists, so a member service that decides
 //! through the cell denies until then and decides through the one hook from
-//! then on. A failing step propagates as
+//! then on. The host seeds the read half of the document store cell
+//! (`DocumentsHandlesSlot`) too and binds it, through its binder, to the
+//! handles the `documents` member provides sealed, right after the kernel
+//! resolves. A failing step propagates as
 //! [`RuntimeError`](crate::error::RuntimeError); helpers are in [`assembly`].
 //!
 //! [`Kernel::resolve`]: crate::Kernel::resolve
@@ -40,6 +43,7 @@ use std::sync::Arc;
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{Admitted, AdmittedOwnerReassignments};
+use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -140,6 +144,7 @@ impl AppContextBuilder {
         let background_tasks = self.background_tasks.unwrap_or_default();
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
+        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let spawner = new_spawner()?;
         let token_authority: Arc<dyn systemprompt_models::auth::TokenAuthority> =
             Arc::new(systemprompt_security::DeploymentTokenAuthority::new(
@@ -170,6 +175,7 @@ impl AppContextBuilder {
                 coordination: KernelCoordination::over(&seeded.services, &seeded.coordination),
                 system_admin: &system_admin,
                 event_router: &router,
+                documents: documents_slot,
                 catalog_roles: composition::catalog_roles(&self.admitted),
                 #[cfg(feature = "notifications")]
                 escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
@@ -194,6 +200,9 @@ impl AppContextBuilder {
         );
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
+        if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
+            documents_binder.bind(documents)?;
+        }
 
         let (authz_hook, market) = authz_stage(
             profile,
