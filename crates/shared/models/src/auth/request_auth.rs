@@ -46,7 +46,7 @@ pub struct JwtUserContext {
 }
 
 /// Verifies a request and yields the caller; injected as
-/// `DynRequestAuthenticator`, hence `#[async_trait]`.
+/// `dyn RequestAuthenticator`, hence `#[async_trait]`.
 ///
 /// `authenticate` reads the context id from the `x-context-id` header (or
 /// derives it from the session) and admits the given audiences.
@@ -83,7 +83,7 @@ pub trait RequestAuthenticator: Send + Sync + std::fmt::Debug {
 
 pub type DynRequestAuthenticator = Arc<dyn RequestAuthenticator>;
 
-/// Whether a token id has been revoked; injected as `DynTokenRevocations`,
+/// Whether a token id has been revoked; injected as `dyn TokenRevocations`,
 /// hence `#[async_trait]`.
 #[async_trait]
 pub trait TokenRevocations: Send + Sync + std::fmt::Debug {
