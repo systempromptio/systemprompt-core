@@ -1,5 +1,7 @@
-//! The `ai` member's two composed provides: the sealed repositories, keyed
-//! from the sealed secret store, and the sealed inference provider.
+//! The `ai` member's composed provides: the sealed repositories, keyed from
+//! the sealed secret store, the caller-bound personal credential view built
+//! from them and conferred on `gateway-http`, and the sealed inference
+//! provider.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,13 +16,14 @@ use systemprompt_models::ai::DynAiProvider;
 use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{
-    DynAiSessionProvider, DynContextMaterializer, SecretLookup, SecretStore, ToolProvider,
+    DynAiSessionProvider, DynContextMaterializer, ProviderTokenCache, SecretLookup, SecretStore,
+    ToolProvider,
 };
 
 use crate::repository::{AiRepositories, AiRequestRepositories};
 use crate::services::core::{InferenceNotConfigured, InferenceUnavailable};
 use crate::services::tools::NoopToolProvider;
-use crate::{AiService, AiServiceProviders};
+use crate::{AiService, AiServiceProviders, PersonalProviderCredentials};
 
 pub(crate) fn repositories(r: &Resolved<'_>) -> Result<Arc<AiRepositories>, ProvideError> {
     let db = r.get::<DbPool>()?;
@@ -35,6 +38,17 @@ pub(crate) fn repositories(r: &Resolved<'_>) -> Result<Arc<AiRepositories>, Prov
         },
     };
     Ok(Arc::new(AiRepositories::new(&db, cipher)))
+}
+
+pub(crate) fn personal_credentials(
+    r: &Resolved<'_>,
+) -> Result<Arc<PersonalProviderCredentials>, ProvideError> {
+    let repositories = r.get::<Arc<AiRepositories>>()?;
+    let tokens: Arc<dyn ProviderTokenCache> = r.get::<Arc<TokenCache>>()?;
+    Ok(Arc::new(PersonalProviderCredentials::new(
+        repositories.user_provider_credentials.clone(),
+        tokens,
+    )))
 }
 
 pub(crate) fn inference(r: &Resolved<'_>) -> Result<DynAiProvider, ProvideError> {

@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_ai::PersonalProviderCredentials;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_database::DbPool;
 use systemprompt_extension::{DynBrainSink, Resolved, StandingTag};
@@ -19,7 +20,8 @@ use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, DynAiSessionProvider, DynContextDirectory,
-    DynSessionContextIssuer, DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters,
+    DynGatewaySessionMint, DynSessionContextIssuer, DynSessionStore, DynSessionTelemetry,
+    DynSessionUsageCounters,
     FileStorage, SecretStore,
 };
 
@@ -101,6 +103,40 @@ async fn gateway_route_set_is_refused_the_users_and_ai_sealed_provides() {
     assert!(!route_reads::<DynSessionStore>(&ctx, "gateway"));
     assert!(!route_reads::<DynAiSessionProvider>(&ctx, "gateway"));
     assert!(!route_reads::<Arc<AiRepositories>>(&ctx, "gateway"));
+}
+
+fn conferred_on_gateway_http_alone<T: Clone + Send + Sync + 'static>(ctx: &AppContext, provider: &str) {
+    assert!(route_reads::<T>(ctx, "gateway-http"));
+    assert!(route_reads::<T>(ctx, provider));
+    for owner in ["gateway", "identity-http", "files-http", "agent-http", "mcp-http"] {
+        if owner != provider {
+            assert!(!route_reads::<T>(ctx, owner), "{owner}");
+        }
+    }
+    assert!(!install_reads::<T>(ctx));
+    assert!(!member_command_reads::<T>(ctx));
+    assert!(!job_reads::<T>(ctx));
+}
+
+#[tokio::test]
+async fn gateway_http_alone_reads_the_conferred_session_mint() {
+    let ctx = context().await;
+    conferred_on_gateway_http_alone::<DynGatewaySessionMint>(&ctx, "users");
+    assert!(!route_reads::<DynSessionStore>(&ctx, "gateway-http"));
+}
+
+#[tokio::test]
+async fn gateway_http_alone_reads_the_conferred_personal_credential_view() {
+    let ctx = context().await;
+    conferred_on_gateway_http_alone::<Arc<PersonalProviderCredentials>>(&ctx, "ai");
+}
+
+#[tokio::test]
+async fn gateway_http_builds_its_rejection_records_from_open_values_only() {
+    let ctx = context().await;
+    assert!(route_reads::<DbPool>(&ctx, "gateway-http"));
+    assert!(route_reads::<DynSessionUsageCounters>(&ctx, "gateway-http"));
+    assert!(!route_reads::<Arc<AiRepositories>>(&ctx, "gateway-http"));
 }
 
 #[tokio::test]
