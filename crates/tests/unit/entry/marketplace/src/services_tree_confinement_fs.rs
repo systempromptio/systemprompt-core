@@ -11,7 +11,6 @@ use std::fs;
 
 use systemprompt_identifiers::{PluginId, SkillId};
 use systemprompt_manifest::PluginConfigFile;
-use systemprompt_marketplace_entry::cli::plugins::collect_plugin_ids;
 use systemprompt_marketplace_entry::cli::plugins::generate::marketplace;
 use systemprompt_marketplace_entry::cli::plugins::generate::skills::generate_skills;
 use systemprompt_marketplace_entry::cli::plugins::list::scan_plugins;
@@ -183,8 +182,6 @@ fn plugin_enumerations_refuse_a_plugin_directory_linked_outside_the_tree() {
 
     let listed = scan_plugins(plugins.path()).unwrap_err();
     assert!(format!("{listed:#}").contains("outside"), "{listed:#}");
-    let ids = collect_plugin_ids(plugins.path()).unwrap_err();
-    assert!(format!("{ids:#}").contains("outside"), "{ids:#}");
 }
 
 #[cfg(unix)]
@@ -238,9 +235,11 @@ fn validate_reports_a_skill_linked_outside_the_tree() {
     let plugins = tempfile::tempdir().unwrap();
     fs::create_dir_all(plugins.path().join("demo")).unwrap();
     let yaml = PLUGIN_YAML.replace("    include: []\n  agents", "    include: [leak]\n  agents");
-    fs::write(plugins.path().join("demo/config.yaml"), yaml).unwrap();
+    let plugin = serde_yaml::from_str::<PluginConfigFile>(&yaml)
+        .unwrap()
+        .plugin;
 
-    let report = validate_plugin(&PluginId::new("demo"), plugins.path(), skills.path());
+    let report = validate_plugin(&plugin, plugins.path(), skills.path());
     assert!(!report.valid);
     assert!(
         report.errors.iter().any(|e| e.contains("outside")),

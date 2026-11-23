@@ -1,19 +1,19 @@
 //! `plugins validate` subcommand.
 //!
-//! Checks one or all plugin `config.yaml` files for parse errors, id/directory
-//! mismatches, missing skill references, and missing script sources, returning
-//! a per-plugin pass/fail report.
+//! Checks one or all plugins of the loaded services configuration (which the
+//! loader has already parsed from each `config.yaml`) for invalid fields,
+//! missing skill references and missing script sources, returning a
+//! per-plugin pass/fail report.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
-use super::collect_plugin_ids;
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;
 use systemprompt_models::path_confine::{
@@ -30,29 +30,20 @@ pub struct ValidateArgs {
     pub id: Option<PluginId>,
 }
 
-pub(super) fn execute(args: ValidateArgs, host: &dyn CommandHost) -> Result<(CommandOutput, bool)> {
+pub(super) async fn execute(
+    args: ValidateArgs,
+    host: &dyn CommandHost,
+) -> Result<(CommandOutput, bool)> {
     let tree = host.services_tree()?;
     let plugins_path = tree.plugins();
     let skills_path = tree.skills();
+    let services = crate::cli::services_config(host).await?;
 
-    let plugin_ids = match args.id {
-        Some(id) => {
-            let plugin_dir = plugins_path.join(id.as_str());
-            if !plugin_dir.exists() {
-                return Err(anyhow!("Plugin '{}' not found", id));
-            }
-            confine_within(&plugins_path, &plugin_dir)?;
-            vec![id]
-        },
-        None => collect_plugin_ids(&plugins_path)?,
-    };
-
-    let mut results = Vec::new();
-
-    for plugin_id in &plugin_ids {
-        let result = validate_plugin(plugin_id, &plugins_path, &skills_path);
-        results.push(result);
-    }
+    let plugins = super::selected_plugins(&services, args.id.as_ref())?;
+    let results: Vec<PluginValidateOutput> = plugins
+        .into_iter()
+        .map(|plugin| validate_plugin(plugin, &plugins_path, &skills_path))
+        .collect();
 
     let valid = results.iter().all(|result| result.valid);
     let output = PluginValidateAllOutput { results };
@@ -68,73 +59,22 @@ pub(super) fn execute(args: ValidateArgs, host: &dyn CommandHost) -> Result<(Com
 }
 
 pub fn validate_plugin(
-    plugin_id: &PluginId,
+    plugin: &systemprompt_manifest::PluginConfig,
     plugins_path: &Path,
     skills_path: &Path,
 ) -> PluginValidateOutput {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
-    let config_path = match confine_within(
-        plugins_path,
-        &plugins_path.join(plugin_id.as_str()).join("config.yaml"),
-    ) {
-        Ok(path) => path,
-        Err(e) => {
-            errors.push(format!("Failed to read config.yaml: {}", e));
-            return PluginValidateOutput {
-                plugin_id: plugin_id.clone(),
-                valid: false,
-                errors,
-                warnings,
-            };
-        },
-    };
-    let content = match std::fs::read_to_string(&config_path) {
-        Ok(c) => c,
-        Err(e) => {
-            errors.push(format!("Failed to read config.yaml: {}", e));
-            return PluginValidateOutput {
-                plugin_id: plugin_id.clone(),
-                valid: false,
-                errors,
-                warnings,
-            };
-        },
-    };
-
-    let plugin_file: systemprompt_manifest::PluginConfigFile = match serde_yaml::from_str(&content)
-    {
-        Ok(p) => p,
-        Err(e) => {
-            errors.push(format!("Failed to parse config.yaml: {}", e));
-            return PluginValidateOutput {
-                plugin_id: plugin_id.clone(),
-                valid: false,
-                errors,
-                warnings,
-            };
-        },
-    };
-
-    let plugin = &plugin_file.plugin;
-
-    if let Err(e) = plugin.validate(plugin_id.as_str()) {
+    if let Err(e) = plugin.validate(plugin.id.as_str()) {
         errors.push(format!("{}", e));
     }
 
-    if plugin.id != *plugin_id {
-        warnings.push(format!(
-            "Plugin id '{}' does not match directory name '{}'",
-            plugin.id, plugin_id
-        ));
-    }
-
     validate_skill_refs(plugin, skills_path, &mut errors, &mut warnings);
-    validate_scripts(plugin, plugins_path, plugin_id, &mut errors);
+    validate_scripts(plugin, plugins_path, &plugin.id, &mut errors);
 
     PluginValidateOutput {
-        plugin_id: plugin_id.clone(),
+        plugin_id: plugin.id.clone(),
         valid: errors.is_empty(),
         errors,
         warnings,

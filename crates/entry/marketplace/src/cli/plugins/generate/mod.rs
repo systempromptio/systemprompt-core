@@ -1,7 +1,7 @@
 //! Generation of Claude Code plugin output from `config.yaml` definitions.
 //!
-//! `execute` reads one or all plugin configs under the services tree's
-//! plugins directory and materialises skill, agent, MCP, script, and
+//! `execute` takes one or all plugins of the loaded services configuration
+//! (parsed by the loader from the plugins directory) and materialises skill, agent, MCP, script, and
 //! marketplace artifacts into the plugins storage directory. The per-component
 //! generators live in the `agents`, `mcp`, `skills`, and `marketplace`
 //! submodules.
@@ -14,15 +14,13 @@ pub mod marketplace;
 pub mod mcp;
 pub mod skills;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use clap::Args;
 use std::path::{Path, PathBuf};
 
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
 use systemprompt_identifiers::PluginId;
-use systemprompt_models::path_confine::confine_within;
 
-use super::collect_plugin_ids;
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};
 
 const DEFAULT_AGENT_TOOLS: &str = "Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch";
@@ -54,17 +52,10 @@ pub(super) async fn execute(args: &GenerateArgs, host: &dyn CommandHost) -> Resu
     let plugins_path = tree.plugins();
     let skills_path = tree.skills();
 
-    let plugin_ids = match &args.id {
-        Some(id) => {
-            let plugin_dir = plugins_path.join(id.as_str());
-            if !plugin_dir.exists() {
-                return Err(anyhow!("Plugin '{}' not found", id));
-            }
-            confine_within(&plugins_path, &plugin_dir)?;
-            vec![id.clone()]
-        },
-        None => collect_plugin_ids(&plugins_path)?,
-    };
+    let services = crate::cli::services_config(host)
+        .await
+        .context("Failed to load services config")?;
+    let plugins = super::selected_plugins(&services, args.id.as_ref())?;
 
     let ctx = PluginGenerateContext {
         plugins_path: &plugins_path,
@@ -75,9 +66,8 @@ pub(super) async fn execute(args: &GenerateArgs, host: &dyn CommandHost) -> Resu
 
     let mut results = Vec::new();
 
-    for plugin_id in &plugin_ids {
-        let result = generate_plugin(plugin_id, &ctx)?;
-        results.push(result);
+    for plugin in plugins {
+        results.push(generate_plugin(plugin, &ctx)?);
     }
 
     let plugins_output_path = services_path
@@ -85,9 +75,6 @@ pub(super) async fn execute(args: &GenerateArgs, host: &dyn CommandHost) -> Resu
         .join("storage")
         .join("files")
         .join("plugins");
-    let services = crate::cli::services_config(host)
-        .await
-        .context("Failed to load services config")?;
     marketplace::generate_marketplace_json(&services, &plugins_output_path)?;
 
     let install_hint = extract_install_command(tree.site_github_link());
@@ -104,17 +91,10 @@ pub(super) async fn execute(args: &GenerateArgs, host: &dyn CommandHost) -> Resu
 }
 
 pub fn generate_plugin(
-    plugin_id: &PluginId,
+    plugin: &systemprompt_manifest::PluginConfig,
     ctx: &PluginGenerateContext<'_>,
 ) -> Result<PluginGenerateOutput> {
-    let config_path = confine_within(
-        ctx.plugins_path,
-        &ctx.plugins_path
-            .join(plugin_id.as_str())
-            .join("config.yaml"),
-    )?;
-    let plugin_file = super::read_plugin_config(&config_path)?;
-    let plugin = &plugin_file.plugin;
+    let plugin_id = &plugin.id;
 
     let output_dir = ctx.output_dir_override.map_or_else(
         || {
