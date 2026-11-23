@@ -59,7 +59,10 @@ impl Extension for GatewayExtension {
         c.slot::<SafetyScannerSlot>();
         c.slot::<OutboundSlot>();
         c.provide_conferred_after_governance(ConferralRow::GatewayEngines, provide_engines);
-        c.provide_conferred(ConferralRow::GatewayAtRest, provide_at_rest);
+        c.provide_conferred(
+            ConferralRow::GatewayAtRest,
+            |r: &Resolved<'_>| -> Result<Arc<GatewayAtRest>, ProvideError> { Ok(at_rest(r)) },
+        );
         Ok(())
     }
 }
@@ -81,7 +84,7 @@ fn provide_engines(r: &Resolved<'_>) -> Result<Arc<GatewayEngines>, ProvideError
     }))
 }
 
-fn provide_at_rest(r: &Resolved<'_>) -> Result<Arc<GatewayAtRest>, ProvideError> {
+fn at_rest(r: &Resolved<'_>) -> Arc<GatewayAtRest> {
     let key = match r
         .optional::<Arc<dyn SecretStore>>()
         .ok_or(None)
@@ -96,9 +99,9 @@ fn provide_at_rest(r: &Resolved<'_>) -> Result<Arc<GatewayAtRest>, ProvideError>
             None
         },
     };
-    Ok(Arc::new(GatewayAtRest::new(
+    Arc::new(GatewayAtRest::new(
         r.optional::<Arc<AppPaths>>()
             .map(|paths| paths.storage().data().to_path_buf()),
         key,
-    )))
+    ))
 }

@@ -101,7 +101,7 @@ pub fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
     GatewayHostHandles {
         services: ctx.services_state().clone(),
         governance: ctx.governance_watch().clone(),
-        authz_hook: ctx.authz_hook().clone(),
+        authz_hook: Arc::clone(ctx.authz_hook()),
         analytics: ctx.analytics_provider(),
         logging: ctx.logging().clone(),
         payload_cap_bytes: profile.payload_cap_bytes(),

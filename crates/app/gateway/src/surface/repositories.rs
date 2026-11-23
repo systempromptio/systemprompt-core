@@ -47,7 +47,7 @@ pub fn gateway_repositories(
         },
     )
     .with_payload_cap(host.payload_cap_bytes)
-    .with_quota_sharding(host.quota.clone())
+    .with_quota_sharding(host.quota)
     .with_session_usage(r.get::<DynSessionUsageCounters>()?)
     .with_brain_recall(host.brain.recall.clone());
     let repos = match r.optional::<Arc<ArtifactIngest>>() {
