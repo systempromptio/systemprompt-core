@@ -20,11 +20,12 @@ use systemprompt_identifiers::{AgentName, InstanceId, ServiceName};
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
 use systemprompt_traits::{
-    DynJwtValidationProvider, DynManagedSkillResolver, DynSessionUsageCounters,
-    DynToolExecutionLookup, RestartMode, ServiceProcessError, ServiceProcessKind,
-    ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
+    DynManagedSkillResolver, DynSessionUsageCounters, DynToolExecutionLookup, RestartMode,
+    ServiceProcessError, ServiceProcessKind, ServiceProcessSet, ServiceProcessStatus, ServiceRun,
+    StatusDepth, StopMode,
 };
 
 use super::AgentOrchestrator;
@@ -71,10 +72,10 @@ fn factory_failed(source: impl std::error::Error + Send + Sync + 'static) -> Fac
 
 impl AgentProcessSet {
     pub fn from_resolved(r: &Resolved<'_>) -> Result<Self, FactoryError> {
-        let (Some(spawner), Some(secrets), Some(jwt), Some(keyring), Some(keys)) = (
+        let (Some(spawner), Some(secrets), Some(authenticator), Some(keyring), Some(keys)) = (
             r.optional::<Arc<Spawner>>(),
             r.optional::<DynChildSecretEnv>(),
-            r.optional::<DynJwtValidationProvider>(),
+            r.optional::<DynRequestAuthenticator>(),
             r.optional::<VerificationKeyring>(),
             r.optional::<TokenVerificationKeys>(),
         ) else {
@@ -104,7 +105,7 @@ impl AgentProcessSet {
             db,
             Arc::clone(&config),
             AgentAuth {
-                jwt_provider: jwt,
+                authenticator,
                 verification_keys: keyring,
             },
             Arc::new(repositories),

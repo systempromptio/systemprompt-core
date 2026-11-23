@@ -29,6 +29,7 @@
 pub mod declaration;
 mod files;
 mod person_ui;
+mod references;
 mod secrets;
 
 use std::collections::{BTreeMap, HashMap};
@@ -46,6 +47,7 @@ use systemprompt_users::{DeclaredUserWrite, UserRepository};
 
 use files::{backend, declared_secret_hash, encode, invalid};
 pub use files::{declared_entities, render_document};
+pub use references::IdentitySecretReferences;
 pub use secrets::IdentityClientSecrets;
 
 use declaration::{CLIENT_PREFIX, ClientValue, USER_PREFIX, UserValue, client_key, user_key};

@@ -30,22 +30,7 @@ use systemprompt_models::AiProvider;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_test_mocks::MockAiProvider;
-use systemprompt_traits::{
-    AgentJwtClaims, DynJwtValidationProvider, JwtProviderError, JwtResult, JwtValidationProvider,
-};
 use tokio::sync::{RwLock, Semaphore};
-
-struct StubJwtProvider;
-
-impl JwtValidationProvider for StubJwtProvider {
-    fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
-        Err(JwtProviderError::InvalidToken)
-    }
-
-    fn generate_secure_token(&self, prefix: &str) -> String {
-        format!("{prefix}-stub")
-    }
-}
 
 fn fixture_agent_config() -> AgentConfig {
     AgentConfig {
@@ -87,14 +72,14 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
         &bootstrap.database_url,
     ));
 
-    let jwt_provider: DynJwtValidationProvider = Arc::new(StubJwtProvider);
+    let authenticator = systemprompt_test_fixtures::fixture_request_authenticator(&db_pool);
 
     let repositories = systemprompt_test_fixtures::a2a_repositories(&db_pool);
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(&db_pool),
         Arc::clone(&global_config),
         systemprompt_agent::AgentAuth {
-            jwt_provider: Arc::clone(&jwt_provider),
+            authenticator: Arc::clone(&authenticator),
             verification_keys: systemprompt_test_fixtures::test_signing_keys()
                 .keyring()
                 .clone(),
@@ -108,13 +93,9 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
         AgentOAuthState::new(
             Arc::clone(&db_pool),
             AgentOAuthConfig::default(),
-            global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
-            systemprompt_test_fixtures::test_signing_keys()
-                .keyring()
-                .clone(),
         )
-        .with_jwt_provider(Arc::clone(&jwt_provider)),
+        .with_authenticator(authenticator),
     );
 
     let ai_service: Arc<dyn AiProvider> = Arc::new(MockAiProvider::default());

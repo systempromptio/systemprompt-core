@@ -1,12 +1,12 @@
 use chrono::{Duration, Utc};
-use http::HeaderMap;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{
     CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
     UserType,
 };
-use systemprompt_security::{AuthError, AuthValidationService};
+use systemprompt_security::AuthError;
+use systemprompt_security::jwt::{ValidationPolicy, extract_user_context_for};
 
 fn sample_claims(iss: &str) -> JwtClaims {
     let now = Utc::now();
@@ -42,13 +42,12 @@ fn sample_claims(iss: &str) -> JwtClaims {
     }
 }
 
-fn auth_header(token: &str) -> HeaderMap {
-    let mut h = HeaderMap::new();
-    h.insert(
-        "authorization",
-        format!("Bearer {token}").parse().expect("hv"),
-    );
-    h
+fn decode(token: &str) -> Result<systemprompt_models::auth::JwtUserContext, AuthError> {
+    extract_user_context_for(
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
+        token,
+        &ValidationPolicy::issuer_scoped("integration-issuer", &[JwtAudience::Api]),
+    )
 }
 
 #[tokio::test]
@@ -62,16 +61,7 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
     )
     .expect("encode hs256");
 
-    let svc = AuthValidationService::new(
-        "integration-issuer".to_string(),
-        vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys()
-            .keyring()
-            .clone(),
-    );
-    let err = svc
-        .validate_request(&auth_header(&token))
-        .expect_err("hs256 must be rejected");
+    let err = decode(&token).expect_err("hs256 must be rejected");
     assert!(
         matches!(err, AuthError::UnsupportedAlgorithm { .. }),
         "expected UnsupportedAlgorithm, got {err:?}",
@@ -86,16 +76,7 @@ async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
     let header = Header::new(Algorithm::RS256);
     let token = encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
 
-    let svc = AuthValidationService::new(
-        "integration-issuer".to_string(),
-        vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys()
-            .keyring()
-            .clone(),
-    );
-    let err = svc
-        .validate_request(&auth_header(&token))
-        .expect_err("missing kid must be rejected");
+    let err = decode(&token).expect_err("missing kid must be rejected");
     assert!(
         matches!(err, AuthError::MissingKid),
         "expected MissingKid, got {err:?}",
@@ -111,16 +92,7 @@ async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
     header.kid = Some(foreign.kid().to_string());
     let token = encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
 
-    let svc = AuthValidationService::new(
-        "integration-issuer".to_string(),
-        vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys()
-            .keyring()
-            .clone(),
-    );
-    let err = svc
-        .validate_request(&auth_header(&token))
-        .expect_err("foreign kid must be rejected");
+    let err = decode(&token).expect_err("foreign kid must be rejected");
     assert!(
         matches!(err, AuthError::UnknownKid(ref k) if k == foreign.kid()),
         "expected UnknownKid({}), got {err:?}",

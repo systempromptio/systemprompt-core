@@ -24,19 +24,7 @@ use systemprompt_manifest::secrets::Secrets;
 use super::{SecretsBootstrapError, SecretsService, loader};
 use crate::error::{ConfigError, ConfigResult};
 
-pub const PINNED_SECRET_KEYS: &[&str] = &[
-    "encryption_master_key",
-    "oauth_at_rest_pepper",
-    "manifest_signing_secret_seed",
-    "database_url",
-    "database_write_url",
-    "database_session_url",
-    "signing_key_pem",
-    "signing_key_staged_pem",
-    "signing_key_previous_keys",
-    "jwt_secret",
-];
-
+use systemprompt_traits::PINNED_SECRET_KEYS;
 pub use systemprompt_traits::{ReloadOutcome, SecretsStatus};
 
 #[derive(Debug)]

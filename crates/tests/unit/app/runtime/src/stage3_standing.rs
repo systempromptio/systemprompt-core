@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use systemprompt_extension::reserved::{INSTALL_SEEDS, InstallSeed};
 use systemprompt_extension::{
-    FactoryError, GatewayRequestGuard, LateRead, MissingDependency, ProvideError, Resolved,
-    SlotError, StandingTag,
+    FactoryError, GatewayRequestGuard, LateRead, MemberResolved, MemberScope, MissingDependency,
+    ProvideError, Resolved, SlotError, StandingTag,
 };
 use systemprompt_files::contract::AgentAccessSlot;
 use systemprompt_files::documents::agents::AgentAccessPolicy;
@@ -26,9 +26,7 @@ use systemprompt_test_fixtures::{
     ComposedParts, Probe, ensure_test_bootstrap, fixture_admitted_of, probe_admitted,
     test_database_url,
 };
-use systemprompt_traits::{
-    BackgroundTasks, CustomSecrets, DynInventoryPublisher, MessagingDispatcher,
-};
+use systemprompt_traits::{BackgroundTasks, DynInventoryPublisher, MessagingDispatcher};
 
 type MessagingCell = LateRead<dyn MessagingDispatcher>;
 
@@ -173,7 +171,6 @@ async fn an_install_governance_factory_reading_the_spawner_fails_typed() {
 #[derive(Clone)]
 struct AllowListed {
     config: Arc<Config>,
-    secrets: CustomSecrets,
     admin: SystemAdmin,
     instance: InstanceId,
 }
@@ -183,11 +180,7 @@ async fn an_install_provide_reads_every_allow_listed_seed() {
     let ctx = context().await;
     assert_eq!(
         INSTALL_SEEDS,
-        &[
-            InstallSeed::Config,
-            InstallSeed::CustomSecrets,
-            InstallSeed::SystemAdmin
-        ],
+        &[InstallSeed::Config, InstallSeed::SystemAdmin],
         "a row added to the table is a reviewed decision: extend this case with it"
     );
     for seed in INSTALL_SEEDS {
@@ -204,7 +197,6 @@ async fn an_install_provide_reads_every_allow_listed_seed() {
         c.provide(|r: &Resolved<'_>| -> Result<AllowListed, ProvideError> {
             Ok(AllowListed {
                 config: r.get()?,
-                secrets: r.get()?,
                 admin: r.get()?,
                 instance: r.get()?,
             })
@@ -225,25 +217,12 @@ async fn an_install_provide_reads_every_allow_listed_seed() {
             .id()
     );
     assert!(
-        read.secrets.secret("signing_key_pem").is_none(),
-        "no built-in secret"
+        ctx.kernel()
+            .state()
+            .is_sealed::<Arc<dyn systemprompt_traits::SecretStore>>(),
+        "the secret store is sealed and not a row: an install reads only its declared secrets"
     );
-    let store = ctx
-        .kernel()
-        .state()
-        .get::<Arc<dyn systemprompt_traits::SecretStore>>()
-        .expect("the secret store is a kernel seed");
-    assert!(
-        store.secret("encryption_master_key").is_some(),
-        "the store serves the master key, so the refusal below is the view's"
-    );
-    for platform in systemprompt_traits::PLATFORM_SECRET_KEYS {
-        assert!(
-            read.secrets.secret(platform).is_none(),
-            "{platform} is the platform's own material"
-        );
-        assert!(read.secrets.secret(&platform.to_uppercase()).is_none());
-    }
+    assert_install_provide_refused::<Arc<dyn systemprompt_traits::SecretStore>>(&ctx).await;
 }
 
 #[derive(Clone)]
@@ -280,11 +259,17 @@ async fn a_core_member_provide_still_reads_the_sealed_seeds() {
 async fn rescoping_an_install_resolution_never_widens_it() {
     let ctx = context().await;
     let kernel = ctx.kernel();
-    let install = ExtensionId::new("an-install");
-    let core = ExtensionId::new("users");
-    let scoped = kernel.member_resolved(&install, StandingTag::Install);
+    let install = MemberScope::install(ExtensionId::new("an-install"));
+    let core = ctx
+        .admitted()
+        .built()
+        .members()
+        .find(|member| member.standing == StandingTag::Core)
+        .expect("a core member is admitted")
+        .scope();
+    let scoped = kernel.member_resolved(&install);
     assert!(scoped.get::<SigningKeys>().is_err());
-    let rescoped = scoped.scoped_to(&core, StandingTag::Core);
+    let rescoped = MemberResolved::within(&scoped, &core);
     assert_eq!(
         rescoped
             .get::<SigningKeys>()
@@ -295,10 +280,13 @@ async fn rescoping_an_install_resolution_never_widens_it() {
         rescoped.get::<Arc<Config>>().is_ok(),
         "an allow-listed seed stays readable"
     );
+    let core_resolved = kernel.member_resolved(&core);
     assert!(
-        kernel
-            .member_resolved(&core, StandingTag::Core)
-            .scoped_to(&install, StandingTag::Install)
+        core_resolved.get::<SigningKeys>().is_ok(),
+        "core standing reads it"
+    );
+    assert!(
+        MemberResolved::within(&core_resolved, &install)
             .get::<SigningKeys>()
             .is_err(),
         "a core resolution narrows to an install"

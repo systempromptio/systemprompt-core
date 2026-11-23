@@ -23,10 +23,11 @@ use systemprompt_identifiers::{AgentName, InstanceId};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::ai::DynAiProvider;
+use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{
-    AgentServeError, AgentServer, DynAgentRunLauncher, DynJwtValidationProvider,
-    DynManagedSkillResolver, DynSessionUsageCounters, DynToolExecutionLookup,
+    AgentServeError, AgentServer, DynAgentRunLauncher, DynManagedSkillResolver,
+    DynSessionUsageCounters, DynToolExecutionLookup,
 };
 
 use super::run_standalone;
@@ -52,7 +53,7 @@ pub enum AgentServerUnavailable {
 #[derive(Clone)]
 struct Inputs {
     ai: DynAiProvider,
-    jwt: DynJwtValidationProvider,
+    authenticator: DynRequestAuthenticator,
     keyring: VerificationKeyring,
     managed_skills: DynManagedSkillResolver,
     tool_executions: DynToolExecutionLookup,
@@ -84,13 +85,20 @@ impl HostedAgentServer {
     }
 
     fn collect(r: &Resolved<'_>) -> Result<Option<Inputs>, ProvideError> {
-        let (Some(ai), Some(jwt), Some(keyring), Some(managed_skills), Some(tool_executions)) = (
+        let (
+            Some(ai),
+            Some(authenticator),
+            Some(keyring),
+            Some(managed_skills),
+            Some(tool_executions),
+        ) = (
             r.optional::<DynAiProvider>(),
-            r.optional::<DynJwtValidationProvider>(),
+            r.optional::<DynRequestAuthenticator>(),
             r.optional::<VerificationKeyring>(),
             r.optional::<DynManagedSkillResolver>(),
             r.optional::<DynToolExecutionLookup>(),
-        ) else {
+        )
+        else {
             return Ok(None);
         };
         let Some(session_usage) = r.optional::<DynSessionUsageCounters>() else {
@@ -98,7 +106,7 @@ impl HostedAgentServer {
         };
         Ok(Some(Inputs {
             ai,
-            jwt,
+            authenticator,
             keyring,
             managed_skills,
             tool_executions,
@@ -131,7 +139,7 @@ impl HostedAgentServer {
             Arc::clone(&inputs.db),
             Arc::clone(&inputs.config),
             AgentAuth {
-                jwt_provider: Arc::clone(&inputs.jwt),
+                authenticator: Arc::clone(&inputs.authenticator),
                 verification_keys: inputs.keyring.clone(),
             },
             Arc::new(repositories),
@@ -152,7 +160,7 @@ impl HostedAgentServer {
 fn missing(r: &Resolved<'_>) -> AgentServerUnavailable {
     if r.optional::<DynAiProvider>().is_none() {
         AgentServerUnavailable::AiProvider
-    } else if r.optional::<DynJwtValidationProvider>().is_none()
+    } else if r.optional::<DynRequestAuthenticator>().is_none()
         || r.optional::<VerificationKeyring>().is_none()
     {
         AgentServerUnavailable::Verification

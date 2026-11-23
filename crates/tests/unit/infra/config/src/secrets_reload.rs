@@ -1,7 +1,8 @@
 //! Tests for the generation diff that decides whether a reload swaps.
 
-use systemprompt_config::{PINNED_SECRET_KEYS, SecretsBootstrapError, diff_secrets};
+use systemprompt_config::{SecretsBootstrapError, diff_secrets};
 use systemprompt_manifest::secrets::Secrets;
+use systemprompt_traits::PINNED_SECRET_KEYS;
 
 const PEPPER: &str = "pppppppppppppppppppppppppppppppppppppppp";
 

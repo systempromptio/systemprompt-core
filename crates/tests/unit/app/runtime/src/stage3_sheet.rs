@@ -246,10 +246,16 @@ async fn documents_and_issues_jobs_and_commands_read_the_documents_handles() {
 #[tokio::test]
 async fn agent_member_reads_the_dispatch_cell_in_provide_and_its_route_set_the_context_seams() {
     let ctx = context().await;
-    let agent = ExtensionId::new("agent-http");
+    let agent = ctx
+        .admitted()
+        .built()
+        .members()
+        .find(|member| member.standing == StandingTag::Core)
+        .expect("a core member is admitted")
+        .scope();
     assert!(
         ctx.kernel()
-            .member_resolved(&agent, StandingTag::Core)
+            .member_resolved(&agent)
             .get::<AgentDispatchCell>()
             .is_ok(),
         "the agent member's provide fns read the sealed dispatch cell"

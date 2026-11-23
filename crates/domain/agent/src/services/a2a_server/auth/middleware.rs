@@ -17,17 +17,28 @@ pub async fn agent_oauth_middleware(
     mut request: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    let headers = request.headers();
+    let headers = request.headers().clone();
     let has_auth_header = headers.get("authorization").is_some();
+    if !has_auth_header {
+        tracing::warn!("Agent request refused: no Authorization header");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let Some(authenticator) = state.authenticator.as_ref() else {
+        tracing::warn!("Agent request refused: no request authenticator is composed");
+        return Err(StatusCode::UNAUTHORIZED);
+    };
 
-    let context = state.auth_service.validate_request(headers).map_err(|e| {
-        tracing::warn!(
-            has_auth_header = has_auth_header,
-            error = %e,
-            "Agent auth validation failed"
-        );
-        StatusCode::UNAUTHORIZED
-    })?;
+    let context = authenticator
+        .authenticate(&headers, &state.audiences)
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                has_auth_header = has_auth_header,
+                error = %e,
+                "Agent auth validation failed"
+            );
+            StatusCode::UNAUTHORIZED
+        })?;
 
     let has_auth_token = context.auth_token().is_some();
     tracing::debug!(

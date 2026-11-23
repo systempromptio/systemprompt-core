@@ -8,13 +8,15 @@ use std::sync::OnceLock;
 
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_mcp_host::HostContext;
+use systemprompt_models::auth::DynRequestAuthenticator;
+use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{
-    TestBootstrap, host_child_env, init_services_bootstrap, mint_admin_jwt,
-    seed_fixture_system_admin, test_db_pool,
+    TestBootstrap, host_child_env, init_services_bootstrap, seed_fixture_system_admin,
+    seed_user_row, seed_user_session, test_db_pool,
 };
-use systemprompt_traits::{DynAgentServer, DynJwtValidationProvider, JwtProviderError};
+use systemprompt_traits::DynAgentServer;
 
 const SERVICES: &str = r#"agents:
   host_agent:
@@ -138,35 +140,52 @@ async fn the_agent_verifies_bearers_against_the_key_set_it_was_handed() {
         host.state().find::<DynAgentServer>().is_some(),
         "the child host holds the agent member's server"
     );
-    let jwt = host
+    let authenticator = host
         .state()
-        .find::<DynJwtValidationProvider>()
-        .expect("the child host seeds the verifying JWT provider");
+        .find::<DynRequestAuthenticator>()
+        .expect("the child host holds the request authenticator")
+        .clone();
     let issuer = host.config().jwt_issuer.clone();
+    let pool = test_db_pool().await;
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
+    let session = SessionId::generate();
+    let email = format!("{user}@agent-host.invalid");
+    seed_user_row(&pool, &user, &email)
+        .await
+        .expect("seed user");
+    seed_user_session(&pool, &user, &session)
+        .await
+        .expect("seed session");
+    let mint = |keys: &SigningKeys| {
+        JwtService::generate_admin_token(
+            keys,
+            &AdminTokenParams {
+                user_id: &user,
+                session_id: &session,
+                email: &email,
+                issuer: &issuer,
+                duration: chrono::Duration::hours(1),
+                client_id: None,
+            },
+        )
+        .expect("mint")
+    };
 
-    let token = mint_admin_jwt(&user, "agent-host@test.invalid", &issuer);
-    let claims = jwt
-        .validate_token(token.as_str())
-        .expect("a token from the deployment key verifies");
-    assert_eq!(claims.subject, user);
+    let (claims, verified) = authenticator
+        .decode_for_gateway(&mint(&systemprompt_test_fixtures::test_signing_keys()))
+        .await
+        .expect("a token from the deployment key over a live session verifies");
+    assert_eq!(claims.user_id, user);
+    assert_eq!(verified.id, user);
 
     let foreign = SigningKeys::new(systemprompt_test_fixtures::keys::test_key(1), &[0; 32])
         .expect("foreign keys");
-    let forged = JwtService::generate_admin_token(
-        &foreign,
-        &AdminTokenParams {
-            user_id: &user,
-            session_id: &SessionId::generate(),
-            email: "agent-host@test.invalid",
-            issuer: &issuer,
-            duration: chrono::Duration::hours(1),
-            client_id: None,
-        },
-    )
-    .expect("mint with a foreign key");
-    let err = jwt
-        .validate_token(forged.as_str())
+    let err = authenticator
+        .decode_for_gateway(&mint(&foreign))
+        .await
         .expect_err("a key outside the set never verifies");
-    assert!(matches!(err, JwtProviderError::InvalidToken), "{err:?}");
+    assert!(
+        matches!(err, ContextExtractionError::InvalidToken(_)),
+        "{err:?}"
+    );
 }

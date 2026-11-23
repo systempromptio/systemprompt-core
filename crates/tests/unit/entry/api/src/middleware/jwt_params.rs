@@ -19,6 +19,7 @@ fn jwt_context(user_id: &UserId, session_id: &SessionId) -> JwtUserContext {
         user_id: user_id.clone(),
         session_id: session_id.clone(),
         role: Permission::User,
+        scope: vec![Permission::User],
         user_type: UserType::User,
         client_id: None,
         act_chain: vec![Actor::user(UserId::new("delegator"))],

@@ -11,10 +11,13 @@
 //! holds it past router build: every read goes to the current generation, so a
 //! handle kept by a handler sees reloads.
 //!
-//! [`CustomSecrets`] is the narrow read of that store: a custom secret by
-//! name and nothing else — no built-in secret, none of the platform's own
-//! sealing and signing material ([`PLATFORM_SECRET_KEYS`], which the store
-//! keeps beside the custom secrets), no key listing, no reload.
+//! [`DeclaredSecrets`] is an install member's read of that store: only the
+//! custom secrets the member declared at contribution, and of those only a
+//! name no core member, the profile or the platform references
+//! ([`SecretReferences`], checked on every read so a reference added by a
+//! config reload is refused from then on). It has no key listing and no
+//! reload. [`PINNED_SECRET_KEYS`] is the one list of the platform's own
+//! sealing, signing and connection material.
 //!
 //! [`SecretLookup`] is what a platform service (the in-process AI service, the
 //! MCP client) resolves its credentials through, so a spawned child can run
@@ -28,14 +31,22 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use systemprompt_identifiers::SecretName;
 use zeroize::Zeroize;
 
 pub const SECRET_SEED_BYTES: usize = 32;
 
-pub const PLATFORM_SECRET_KEYS: &[&str] = &[
+pub const PINNED_SECRET_KEYS: &[&str] = &[
     "encryption_master_key",
     "oauth_at_rest_pepper",
     "manifest_signing_secret_seed",
+    "database_url",
+    "database_write_url",
+    "database_session_url",
+    "signing_key_pem",
+    "signing_key_staged_pem",
+    "signing_key_previous_keys",
+    "jwt_secret",
 ];
 
 pub struct ExtensionSecret {
@@ -122,24 +133,45 @@ pub trait SecretStore: Send + Sync + fmt::Debug {
     async fn reload(&self) -> Result<ReloadOutcome, SecretStoreError>;
 }
 
-/// The custom-secret reads of the deployment's live secrets, built by the
-/// kernel over the store and exposing nothing else of it.
-#[derive(Clone)]
-pub struct CustomSecrets {
-    store: std::sync::Arc<dyn SecretStore>,
+/// The secret names no install may read or declare.
+///
+/// A core member, the profile or the platform reads these. Held as
+/// `Arc<dyn SecretReferences>`; a name is compared without regard to ASCII
+/// case, as the store's lookup is.
+pub trait SecretReferences: Send + Sync + fmt::Debug {
+    fn references(&self, name: &str) -> bool;
 }
 
-impl CustomSecrets {
+/// One install member's read of the live secrets: a custom secret by a name
+/// the member declared, refused when any [`SecretReferences`] names it.
+#[derive(Clone)]
+pub struct DeclaredSecrets {
+    store: std::sync::Arc<dyn SecretStore>,
+    declared: std::sync::Arc<[SecretName]>,
+    references: std::sync::Arc<dyn SecretReferences>,
+}
+
+impl DeclaredSecrets {
     #[must_use]
-    pub fn over(store: std::sync::Arc<dyn SecretStore>) -> Self {
-        Self { store }
+    pub fn over(
+        store: std::sync::Arc<dyn SecretStore>,
+        declared: std::sync::Arc<[SecretName]>,
+        references: std::sync::Arc<dyn SecretReferences>,
+    ) -> Self {
+        Self {
+            store,
+            declared,
+            references,
+        }
     }
 
     #[must_use]
     pub fn secret(&self, name: &str) -> Option<ExtensionSecret> {
-        if PLATFORM_SECRET_KEYS
+        if !self
+            .declared
             .iter()
-            .any(|platform| platform.eq_ignore_ascii_case(name))
+            .any(|declared| declared.as_str() == name)
+            || self.references.references(name)
         {
             return None;
         }
@@ -147,9 +179,11 @@ impl CustomSecrets {
     }
 }
 
-impl fmt::Debug for CustomSecrets {
+impl fmt::Debug for DeclaredSecrets {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CustomSecrets").finish_non_exhaustive()
+        f.debug_struct("DeclaredSecrets")
+            .field("declared", &self.declared)
+            .finish_non_exhaustive()
     }
 }
 

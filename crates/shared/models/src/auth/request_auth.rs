@@ -31,6 +31,7 @@ pub struct JwtUserContext {
     pub user_id: UserId,
     pub session_id: SessionId,
     pub role: Permission,
+    pub scope: Vec<Permission>,
     pub user_type: UserType,
     pub client_id: Option<ClientId>,
     pub act_chain: Vec<Actor>,
@@ -51,8 +52,8 @@ pub struct JwtUserContext {
 /// `authenticate` reads the context id from the `x-context-id` header (or
 /// derives it from the session) and admits the given audiences.
 /// `decode_for_audiences` and `decode_for_gateway` verify a presented token and
-/// return its claims and user; `verified_claims` checks signature and issuer
-/// only, for callers that attest the session themselves.
+/// return its claims and user. Every method checks the user row, the session
+/// row and revocation; nothing on this trait verifies a token less.
 #[async_trait]
 pub trait RequestAuthenticator: Send + Sync + std::fmt::Debug {
     async fn authenticate(
@@ -77,8 +78,6 @@ pub trait RequestAuthenticator: Send + Sync + std::fmt::Debug {
         user_id: &UserId,
         route_context: &str,
     ) -> Result<AuthUser, ContextExtractionError>;
-
-    fn verified_claims(&self, token: &str) -> Option<JwtUserContext>;
 }
 
 pub type DynRequestAuthenticator = Arc<dyn RequestAuthenticator>;

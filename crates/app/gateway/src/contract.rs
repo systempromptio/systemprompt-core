@@ -23,9 +23,9 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
+    Factory, MemberResolved, MemberScope, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    build_factories,
 };
-use systemprompt_identifiers::ExtensionId;
 
 use crate::policies::{
     OverridePolicy, RouteSelector, RouteSelectorChain, ScannerFactory, SystemPromptOverride,
@@ -43,12 +43,12 @@ type NamedFactory<T> = (&'static str, Box<dyn Factory<Arc<T>>>);
 
 fn build_all<T: 'static>(
     slot: &'static str,
-    entries: Vec<(ExtensionId, StandingTag, Factories<T>)>,
+    entries: Vec<(MemberScope, Factories<T>)>,
     r: &Resolved<'_>,
 ) -> Result<Vec<T>, SlotError> {
     let mut built = Vec::new();
-    for (owner, standing, factories) in entries {
-        built.extend(build_factories(slot, &owner, standing, &factories, r)?);
+    for (scope, factories) in entries {
+        built.extend(build_factories(slot, &scope, &factories, r)?);
     }
     Ok(built)
 }
@@ -88,10 +88,7 @@ impl Slot for RouteSelectorSlot {
     ) -> Result<Self::Built, SlotError> {
         let entries = entries
             .into_iter()
-            .map(|e| {
-                let standing = e.standing();
-                (e.owner, standing, e.builder.selectors)
-            })
+            .map(|e| (e.scope(), e.builder.selectors))
             .collect();
         Ok(RouteSelectorChain::new(build_all(
             ROUTE_SELECTOR_SLOT,
@@ -139,10 +136,7 @@ impl Slot for OverrideSlot {
     ) -> Result<Self::Built, SlotError> {
         let entries = entries
             .into_iter()
-            .map(|e| {
-                let standing = e.standing();
-                (e.owner, standing, e.builder.overrides)
-            })
+            .map(|e| (e.scope(), e.builder.overrides))
             .collect();
         Ok(OverridePolicy::new(build_all(OVERRIDE_SLOT, entries, r)?))
     }
@@ -194,7 +188,8 @@ impl Slot for SafetyScannerSlot {
     ) -> Result<Self::Built, SlotError> {
         let mut registry = SafetyScannerRegistry::builtin();
         for entry in entries {
-            let scoped = r.scoped_to(&entry.owner, entry.standing());
+            let scope = entry.scope();
+            let scoped = MemberResolved::within(r, &scope);
             for (name, factory) in entry.builder.scanners {
                 if registry.contains(name) {
                     return Err(SlotError::DuplicateId {
@@ -258,7 +253,8 @@ impl Slot for OutboundSlot {
     ) -> Result<Self::Built, SlotError> {
         let mut registry = GatewayUpstreamRegistry::builtin();
         for entry in entries {
-            let scoped = r.scoped_to(&entry.owner, entry.standing());
+            let scope = entry.scope();
+            let scoped = MemberResolved::within(r, &scope);
             for (tag, factory) in entry.builder.adapters {
                 if GatewayUpstreamRegistry::is_builtin(tag) {
                     return Err(SlotError::OutboundShadowsBuiltin {

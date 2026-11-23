@@ -71,7 +71,7 @@ use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedOwnerReassignments,
     AdmittedProjections, AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId,
-    KernelHandle, ProvidePhase, Resolved, StandingTag,
+    KernelHandle, MemberResolved, MemberScope, ProvidePhase, Resolved, StandingTag,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -82,7 +82,9 @@ use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 use self::reserved::{gateway_guards, refuse_kernel_types, refuse_unlisted_conferrals};
 
 mod error;
+mod factories;
 mod reserved;
+mod secrets;
 
 pub use error::KernelError;
 
@@ -138,6 +140,9 @@ impl Kernel {
         self.state.insert(AdmittedAssets::of(admitted.built()));
         refuse_kernel_types(admitted.built())?;
         refuse_unlisted_conferrals(admitted.built())?;
+        let declarations =
+            secrets::declarations(admitted.built(), &Resolved::__new(&*self, &self.state))?;
+        self.state.insert_sealed(Arc::new(declarations));
         self.provide_all(admitted, ProvidePhase::Early)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));
@@ -156,12 +161,8 @@ impl Kernel {
     }
 
     #[must_use]
-    pub fn member_resolved<'a>(
-        &'a self,
-        owner: &'a ExtensionId,
-        standing: StandingTag,
-    ) -> Resolved<'a> {
-        Resolved::__member_scoped(self, &self.state, owner, standing)
+    pub fn member_resolved<'a>(&'a self, scope: &'a MemberScope) -> MemberResolved<'a> {
+        Resolved::__member_scoped(self, &self.state, scope)
     }
 
     #[must_use]
@@ -192,8 +193,9 @@ impl Kernel {
                 .iter()
                 .filter(|entry| entry.phase() == phase)
             {
+                let scope = member.scope();
                 let value = entry
-                    .compute(&self.member_resolved(&member.owner, member.standing))
+                    .compute(&self.member_resolved(&scope))
                     .map_err(|source| KernelError::Provide {
                         owner: member.owner.clone(),
                         ty: entry.type_name(),

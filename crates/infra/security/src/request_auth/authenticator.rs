@@ -27,6 +27,10 @@ use crate::keys::VerificationKeyring;
 #[error("a ui_session token is a bearer credential and is refused as the session cookie")]
 struct UiSessionCookieRefused;
 
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("a token without a jti cannot be checked for revocation and is refused")]
+struct TokenIdMissing;
+
 /// What a [`JwtRequestAuthenticator`] is built from.
 pub struct JwtRequestAuthenticatorParts {
     pub sessions: Arc<dyn SessionProvider>,
@@ -112,9 +116,11 @@ impl JwtRequestAuthenticator {
         )
         .await?;
         validate_session_exists(&self.sessions, jwt_context, route_context).await?;
-        if let Some(jti) = &jwt_context.jti {
-            self.revocations.ensure_not_revoked(jti).await?;
-        }
+        let jti = jwt_context
+            .jti
+            .as_ref()
+            .ok_or_else(|| ContextExtractionError::InvalidToken(Box::new(TokenIdMissing)))?;
+        self.revocations.ensure_not_revoked(jti).await?;
         Ok(validated.user)
     }
 
@@ -198,9 +204,5 @@ impl RequestAuthenticator for JwtRequestAuthenticator {
         validate_user_exists(&self.users, &self.user_cache, user_id, route_context)
             .await
             .map(|validated| validated.user)
-    }
-
-    fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
-        extract_user_context(&self.keyring, token, &self.issuer).ok()
     }
 }

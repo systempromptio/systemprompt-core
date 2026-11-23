@@ -12,9 +12,11 @@ use crate::error::OauthResult;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use lru::LruCache;
+use sqlx::PgPool;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_models::auth::TokenRevocations;
 use systemprompt_models::execution::context::ContextExtractionError;
@@ -23,6 +25,19 @@ use systemprompt_traits::{CacheDomain, CacheEpochView};
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
 const DEFAULT_CACHE_CAPACITY: usize = 5_000;
+
+async fn jti_revoked(pool: &PgPool, jti: &AccessTokenId) -> OauthResult<bool> {
+    let revoked = sqlx::query_scalar!(
+        r#"SELECT EXISTS(
+                 SELECT 1 FROM oauth_jti_revocations
+                  WHERE jti = $1 AND exp > now()
+               ) AS "exists!""#,
+        jti.as_str(),
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(revoked)
+}
 
 impl OAuthRepository {
     pub async fn revoke_jti(
@@ -45,16 +60,7 @@ impl OAuthRepository {
     }
 
     pub async fn is_jti_revoked(&self, jti: &AccessTokenId) -> OauthResult<bool> {
-        let revoked = sqlx::query_scalar!(
-            r#"SELECT EXISTS(
-                 SELECT 1 FROM oauth_jti_revocations
-                  WHERE jti = $1 AND exp > now()
-               ) AS "exists!""#,
-            jti.as_str(),
-        )
-        .fetch_one(self.write_pool_ref())
-        .await?;
-        Ok(revoked)
+        jti_revoked(self.write_pool_ref(), jti).await
     }
 
     pub async fn revoke_jtis_for_user(
@@ -171,7 +177,7 @@ impl JtiRevocationCache {
 /// admitting an unverifiable one.
 #[derive(Clone)]
 pub struct JtiRevocationChecker {
-    repo: Arc<OAuthRepository>,
+    pool: Arc<PgPool>,
     cache: Arc<JtiRevocationCache>,
 }
 
@@ -184,9 +190,9 @@ impl std::fmt::Debug for JtiRevocationChecker {
 
 impl JtiRevocationChecker {
     #[must_use]
-    pub fn from_repository(repo: OAuthRepository, epochs: CacheEpochView) -> Self {
+    pub fn new(db: &DbPool, epochs: CacheEpochView) -> Self {
         Self {
-            repo: Arc::new(repo),
+            pool: db.write_pool(),
             cache: Arc::new(JtiRevocationCache::new(epochs)),
         }
     }
@@ -202,7 +208,7 @@ impl TokenRevocations for JtiRevocationChecker {
         }
 
         let epoch = self.cache.epoch();
-        let revoked = self.repo.is_jti_revoked(jti).await.map_err(|e| {
+        let revoked = jti_revoked(&self.pool, jti).await.map_err(|e| {
             ContextExtractionError::DatabaseError {
                 context: "JTI revocation lookup failed".to_owned(),
                 source: e.into(),

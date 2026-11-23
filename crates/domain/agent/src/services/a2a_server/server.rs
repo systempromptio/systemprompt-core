@@ -102,15 +102,12 @@ impl Server {
 
         let oauth_config = AgentOAuthConfig::default();
         let global_config = agent_state.config();
-        let mut oauth_state = AgentOAuthState::new(
+        let oauth_state = AgentOAuthState::new(
             Arc::clone(agent_state.db_pool()),
             oauth_config,
-            global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
-            agent_state.verification_keys().clone(),
-        );
-
-        oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));
+        )
+        .with_authenticator(Arc::clone(agent_state.authenticator()));
         let cors = cors_layer(&global_config.cors_allowed_origins)?;
         let stream_semaphore = Arc::new(Semaphore::new(global_config.max_concurrent_streams));
 

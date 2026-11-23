@@ -81,8 +81,7 @@ impl Slot for AuthzHookSlot {
         for entry in entries {
             hooks.extend(build_factories(
                 AUTHZ_HOOK_SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.hooks,
                 r,
             )?);
@@ -158,8 +157,7 @@ impl Slot for RoleDirectorySlot {
         for entry in entries {
             directory = build_factories(
                 ROLE_DIRECTORY_SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.directories,
                 r,
             )?

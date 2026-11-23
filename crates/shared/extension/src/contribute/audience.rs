@@ -67,13 +67,8 @@ impl AudienceResolvers {
     pub fn from_admitted(built: &BuiltState, r: &Resolved<'_>) -> Result<Self, SlotError> {
         let mut contributed = Vec::new();
         for member in built.members() {
-            let resolvers = build_factories(
-                POINT,
-                &member.owner,
-                member.standing,
-                member.sink.audience_resolvers(),
-                r,
-            )?;
+            let resolvers =
+                build_factories(POINT, &member.scope(), member.sink.audience_resolvers(), r)?;
             contributed.extend(resolvers.into_iter().map(|resolver| AudienceEntry {
                 owner: member.owner.clone(),
                 standing: member.standing,

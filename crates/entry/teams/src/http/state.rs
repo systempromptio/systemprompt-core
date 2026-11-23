@@ -25,8 +25,8 @@ use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_teams::auth::ActivityTokenVerifier;
 use systemprompt_traits::{
-    BackgroundTasks, CustomSecrets, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
-    MessagingInbound,
+    BackgroundTasks, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
+    MessagingInbound, SecretStore,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -76,11 +76,11 @@ impl TeamsClients {
 ///
 /// An app's password by the custom-secret ref its config names, and nothing
 /// else. Built only by the member's own provide fn over the kernel's
-/// custom-secret reads and provided sealed, so only the member's route state
+/// sealed secret store and provided sealed, so only the member's route state
 /// reads it.
 #[derive(Clone)]
 pub struct TeamsSecrets {
-    secrets: CustomSecrets,
+    secrets: Arc<dyn SecretStore>,
 }
 
 impl std::fmt::Debug for TeamsSecrets {
@@ -90,7 +90,7 @@ impl std::fmt::Debug for TeamsSecrets {
 }
 
 impl TeamsSecrets {
-    pub(crate) const fn over(secrets: CustomSecrets) -> Self {
+    pub(crate) const fn over(secrets: Arc<dyn SecretStore>) -> Self {
         Self { secrets }
     }
 

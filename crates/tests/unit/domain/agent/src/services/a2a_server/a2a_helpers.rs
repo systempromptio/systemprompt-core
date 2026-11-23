@@ -24,24 +24,7 @@ use systemprompt_models::ai::{
 use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as ProviderResult};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::plugin::PluginComponentRef;
-use systemprompt_traits::{AgentJwtClaims, JwtProviderError, JwtResult, JwtValidationProvider};
 use tokio::sync::{RwLock, Semaphore};
-
-// A JWT provider that rejects every token; sufficient for state construction.
-struct RejectingJwtProvider;
-
-impl JwtValidationProvider for RejectingJwtProvider {
-    fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
-        Err(JwtProviderError::InvalidToken)
-    }
-    fn generate_secure_token(&self, prefix: &str) -> String {
-        format!("{prefix}-stub")
-    }
-}
-
-pub(crate) fn stub_jwt() -> systemprompt_traits::DynJwtValidationProvider {
-    Arc::new(RejectingJwtProvider)
-}
 
 // A configurable in-test Ai provider. Streams are queued as chunk batches;
 // `generate` returns a queued response or a canned default.
@@ -342,7 +325,7 @@ pub(crate) fn make_agent_state_for(pool: &DbPool, instance: &InstanceId) -> Arc<
         Arc::clone(pool),
         Arc::new(config),
         systemprompt_agent::AgentAuth {
-            jwt_provider: stub_jwt(),
+            authenticator: systemprompt_test_fixtures::fixture_request_authenticator(pool),
             verification_keys: systemprompt_test_fixtures::test_signing_keys()
                 .keyring()
                 .clone(),
@@ -354,15 +337,12 @@ pub(crate) fn make_agent_state_for(pool: &DbPool, instance: &InstanceId) -> Arc<
 }
 
 pub(crate) fn make_oauth_state(pool: &DbPool) -> Arc<AgentOAuthState> {
-    Arc::new(AgentOAuthState::new(
-        Arc::clone(pool),
-        AgentOAuthConfig::default(),
-        "test-issuer".to_owned(),
-        vec![],
-        systemprompt_test_fixtures::test_signing_keys()
-            .keyring()
-            .clone(),
-    ))
+    Arc::new(
+        AgentOAuthState::new(Arc::clone(pool), AgentOAuthConfig::default(), vec![])
+            .with_authenticator(systemprompt_test_fixtures::fixture_request_authenticator(
+                pool,
+            )),
+    )
 }
 
 // Build a handler state with the given AI provider and stream permits.
@@ -477,7 +457,7 @@ pub(crate) fn make_handler_state_with_launcher(
             Arc::clone(pool),
             Arc::new(config),
             systemprompt_agent::AgentAuth {
-                jwt_provider: stub_jwt(),
+                authenticator: systemprompt_test_fixtures::fixture_request_authenticator(pool),
                 verification_keys: systemprompt_test_fixtures::test_signing_keys()
                     .keyring()
                     .clone(),

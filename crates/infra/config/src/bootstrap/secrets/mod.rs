@@ -73,9 +73,7 @@ pub use registry::{
     EnvLookup, SecretsSourceFactory, SecretsSourceRegistration, SecretsSources,
     SharedSecretsProvider, build_external_provider, process_env_lookup,
 };
-pub use reload::{
-    PINNED_SECRET_KEYS, ReloadOutcome, SecretsStatus, diff_secrets, refresh_interval_for,
-};
+pub use reload::{ReloadOutcome, SecretsStatus, diff_secrets, refresh_interval_for};
 
 use reload::SecretsState;
 

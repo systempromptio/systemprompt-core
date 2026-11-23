@@ -4,22 +4,25 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Request;
-use axum::http::header;
+use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
-use systemprompt_models::auth::{DynRequestAuthenticator, Permission};
+use systemprompt_models::auth::{DynRequestAuthenticator, JwtAudience, Permission};
 use systemprompt_security::TokenExtractor;
 
 use crate::services::session_cookie::SessionCookie;
+
+const SITE_AUDIENCES: &[JwtAudience] = &[JwtAudience::Web];
 
 const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
     ".map", ".webp", ".avif",
 ];
 
-/// How the site gate verifies a session token (the kernel's request
-/// authenticator) and clears a rejected one.
+/// How the site gate verifies a session (the kernel's request authenticator:
+/// the web audience, the user row, the session row and revocation; the role is
+/// the user row's) and clears a rejected one.
 #[derive(Debug, Clone, Copy)]
 pub struct SiteAuthSession<'a> {
     pub authenticator: &'a DynRequestAuthenticator,
@@ -66,7 +69,8 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
-    match authorize(&request, &config, session.authenticator) {
+    let outcome = authorize(request.headers(), path, &config, session.authenticator).await;
+    match outcome {
         AuthOutcome::Authorized => next.run(request).await,
         outcome => {
             let redirect = login_redirect(config.login_path, request.uri());
@@ -87,18 +91,19 @@ enum AuthOutcome {
     Unauthorized,
 }
 
-fn authorize(
-    request: &Request,
+async fn authorize(
+    headers: &HeaderMap,
+    path: &str,
     config: &SiteAuthConfig,
     authenticator: &DynRequestAuthenticator,
 ) -> AuthOutcome {
-    let path = request.uri().path();
-    let Ok(token) = TokenExtractor::browser_only()
-        .extract(request.headers())
+    if TokenExtractor::browser_only()
+        .extract(headers)
         .map_err(|e| tracing::debug!(error = %e, %path, "token extraction failed"))
-    else {
+        .is_err()
+    {
         return AuthOutcome::Unauthorized;
-    };
+    }
     let Ok(required) = config.required_scope.parse::<Permission>().map_err(|e| {
         tracing::warn!(
             error = %e,
@@ -108,11 +113,23 @@ fn authorize(
     }) else {
         return AuthOutcome::Unauthorized;
     };
-    let Some(user_ctx) = authenticator.verified_claims(&token) else {
-        tracing::debug!(%path, "jwt validation failed; clearing cookie");
-        return AuthOutcome::InvalidToken;
+    let user = match authenticator.authenticate(headers, SITE_AUDIENCES).await {
+        Ok(context) => authenticator.load_user(context.user_id(), "site").await,
+        Err(error) => Err(error),
     };
-    if user_ctx.role.grants(&required) {
+    let user = match user {
+        Ok(user) => user,
+        Err(error) => {
+            tracing::debug!(error = %error, %path, "site session refused; clearing cookie");
+            return AuthOutcome::InvalidToken;
+        },
+    };
+    if user
+        .roles
+        .iter()
+        .filter_map(|role| role.parse::<Permission>().ok())
+        .any(|role| role.grants(&required))
+    {
         AuthOutcome::Authorized
     } else {
         AuthOutcome::Unauthorized

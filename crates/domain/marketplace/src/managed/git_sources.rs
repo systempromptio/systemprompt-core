@@ -4,7 +4,8 @@
 //! only the custom secret `GIT_SOURCE__<HOST>__<LABEL>`, where `<HOST>` is the
 //! source repository's lowercased authority. Secrets outside that namespace
 //! are unreachable, and a credential stored for one host is never sent to
-//! another.
+//! another. [`GitCredentialReferences`] reserves the whole namespace, so no
+//! install member may declare or read a name in it.
 //!
 //! The name uses only `[A-Z0-9_]`, so every secrets source (file, `env`,
 //! Vault, cloud secret push) can carry it. Host and label are encoded byte by
@@ -23,7 +24,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{ManagedSourceId, UserId};
-use systemprompt_traits::SecretStore;
+use systemprompt_traits::{SecretReferences, SecretStore};
 
 use super::{GitSyncRequest, GitSyncResult, ManagedError, ManagedRepository, SourceSpec};
 
@@ -146,3 +147,23 @@ fn encode_part(part: &str) -> String {
 pub const GIT_CREDENTIAL_NAMESPACE: &str = "GIT_SOURCE";
 
 pub const MIGRATE_GIT_CREDENTIALS_COMMAND: &str = "admin config secret migrate-git-credentials";
+
+/// Every name in the Git-source credential namespace (`GIT_SOURCE__…`): the
+/// managed marketplace reads these, so no install may declare or read one.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GitCredentialReferences;
+
+impl GitCredentialReferences {
+    #[must_use]
+    pub fn shared() -> Arc<dyn SecretReferences> {
+        Arc::new(Self)
+    }
+}
+
+impl SecretReferences for GitCredentialReferences {
+    fn references(&self, name: &str) -> bool {
+        let prefix = format!("{GIT_CREDENTIAL_NAMESPACE}__");
+        name.get(..prefix.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(&prefix))
+    }
+}

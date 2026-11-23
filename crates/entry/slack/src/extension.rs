@@ -5,7 +5,7 @@
 //! over the sealed messaging dispatcher it requires — the handle dispatches
 //! only a request the member's signature verifier has verified — and the
 //! secret reads (`SlackSecrets`, an app's signing secret and bot token) over
-//! the kernel's custom-secret reads. Its route state reads only these and
+//! the kernel's sealed secret store. Its route state reads only these and
 //! open values, never a host seed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

@@ -12,6 +12,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_identifiers::SecretName;
 use systemprompt_provider_contracts::ConfigPlane;
 use systemprompt_traits::{JobRunScope, RunOrigin};
 
@@ -30,6 +31,7 @@ use crate::retention::RetentionDecl;
 use crate::seed::Seed;
 use crate::state::StateRequirement;
 
+use super::factories::SecretReferenceFactory;
 pub use super::factories::{
     AssetFn, AudienceResolverFactory, DiagnosticFactory, DoctorCheckRef, GatewayGuardFactory,
     PolicyFactory, ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
@@ -68,6 +70,8 @@ pub struct ContributionSink {
     pub(crate) subject_providers: Vec<SubjectProviderFactory>,
     pub(crate) audience_resolvers: Vec<AudienceResolverFactory>,
     pub(crate) policies: Vec<PolicyFactory>,
+    pub(crate) declared_secrets: Vec<SecretName>,
+    pub(crate) secret_references: Vec<SecretReferenceFactory>,
     pub(crate) slots: Vec<SlotRecord>,
     #[cfg(feature = "router")]
     pub(crate) routes: Vec<crate::router::RouteSet>,

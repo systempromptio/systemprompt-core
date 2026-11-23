@@ -4,8 +4,8 @@
 //! HTTP clients, and provides **sealed** the dispatch handle (`TeamsDispatch`)
 //! over the sealed messaging dispatcher it requires — the handle dispatches
 //! only an activity the member's token verifier has verified — and the secret
-//! reads (`TeamsSecrets`, an app's password) over the kernel's custom-secret
-//! reads. Its route state reads only these and open values, never a host
+//! reads (`TeamsSecrets`, an app's password) over the kernel's sealed secret
+//! store. Its route state reads only these and open values, never a host
 //! seed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

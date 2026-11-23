@@ -126,15 +126,13 @@ impl Slot for MarketplaceSlot {
         for entry in entries {
             filters.extend(build_factories(
                 SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.filters,
                 r,
             )?);
             gates.extend(build_factories(
                 SLOT,
-                &entry.owner,
-                entry.standing(),
+                &entry.scope(),
                 &entry.builder.gates,
                 r,
             )?);

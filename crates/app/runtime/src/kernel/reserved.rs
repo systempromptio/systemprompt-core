@@ -11,15 +11,17 @@ use std::sync::Arc;
 
 use systemprompt_extension::contribute::ProvideEntry;
 use systemprompt_extension::{
-    AdmittedOwnerReassignments, AudienceResolvers, BuiltState, GatewayGuards, Resolved, StandingTag,
+    AdmittedOwnerReassignments, AudienceResolvers, BuiltState, GatewayGuards, MemberResolved,
+    Resolved, SecretDeclarations, StandingTag,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
 
 use super::KernelError;
 
-const fn kernel_inserted() -> [TypeId; 5] {
+const fn kernel_inserted() -> [TypeId; 6] {
     [
+        TypeId::of::<Arc<SecretDeclarations>>(),
         TypeId::of::<Arc<AudienceResolvers>>(),
         TypeId::of::<Arc<AdmittedOwnerReassignments>>(),
         TypeId::of::<Arc<SubjectProviderSet>>(),
@@ -81,8 +83,9 @@ pub(super) fn gateway_guards(
     let mut installed = Vec::new();
     for member in built.members() {
         for factory in member.sink.gateway_guards() {
+            let scope = member.scope();
             let guard = factory
-                .build(&r.scoped_to(&member.owner, member.standing))
+                .build(&MemberResolved::within(r, &scope))
                 .map_err(|source| KernelError::GatewayGuard {
                     owner: member.owner.clone(),
                     source,

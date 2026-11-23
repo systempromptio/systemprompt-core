@@ -40,11 +40,16 @@ mod gate {
     use axum::http::{StatusCode, header};
     use axum::routing::get;
     use axum::{Router, middleware};
+    use chrono::{Duration, Utc};
     use systemprompt_api::services::middleware::{SiteAuthSession, site_auth_gate};
     use systemprompt_api::services::session_cookie::SessionCookie;
+    use systemprompt_database::DbPool;
     use systemprompt_extension::SiteAuthConfig;
-    use systemprompt_identifiers::UserId;
-    use systemprompt_test_fixtures::{fixture_config, mint_admin_jwt};
+    use systemprompt_identifiers::{AccessTokenId, UserId};
+    use systemprompt_models::auth::{JwtAudience, Permission};
+    use systemprompt_test_fixtures::{
+        fixture_request_authenticator, seed_user_row_with_roles, session_cookie_with, test_db_pool,
+    };
     use tower::ServiceExt;
 
     const CONFIG: SiteAuthConfig = SiteAuthConfig {
@@ -54,8 +59,22 @@ mod gate {
         required_scope: "admin",
     };
 
-    fn app(config: SiteAuthConfig) -> Router {
-        let authenticator = systemprompt_test_fixtures::fixture_claims_authenticator();
+    const USER_SITE: SiteAuthConfig = SiteAuthConfig {
+        login_path: "/app/login",
+        protected_prefixes: &["/app"],
+        public_prefixes: &[],
+        required_scope: "user",
+    };
+
+    struct Signed {
+        pool: DbPool,
+        user: UserId,
+        cookie: String,
+        jti: AccessTokenId,
+    }
+
+    fn app(config: SiteAuthConfig, pool: &DbPool) -> Router {
+        let authenticator = fixture_request_authenticator(pool);
         Router::new()
             .fallback(get(|| async { "handler-reached" }))
             .layer(middleware::from_fn(move |req, next| {
@@ -76,26 +95,64 @@ mod gate {
             }))
     }
 
-    async fn request(uri: &str, cookie: Option<&str>) -> axum::http::Response<Body> {
+    async fn signed_in_with(
+        roles: &[&str],
+        edit: impl FnOnce(&mut systemprompt_models::auth::UserJwtRequest),
+    ) -> Signed {
+        let pool = test_db_pool().await;
+        let user = UserId::new(uuid::Uuid::new_v4().to_string());
+        let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
+        seed_user_row_with_roles(&pool, &user, &format!("{user}@site-auth.invalid"), &roles)
+            .await
+            .expect("seed user");
+        let jti = AccessTokenId::generate();
+        let minted = jti.clone();
+        let cookie = session_cookie_with(&pool, &user, 0, move |request| {
+            request.jti = minted;
+            request.permissions = vec![Permission::Admin];
+            edit(request);
+        })
+        .await
+        .expect("mint session cookie");
+        Signed {
+            pool,
+            user,
+            cookie,
+            jti,
+        }
+    }
+
+    async fn signed_in(roles: &[&str]) -> Signed {
+        signed_in_with(roles, |_| {}).await
+    }
+
+    async fn send(
+        config: SiteAuthConfig,
+        pool: &DbPool,
+        uri: &str,
+        cookie: Option<&str>,
+    ) -> axum::http::Response<Body> {
         let mut builder = Request::builder().uri(uri);
         if let Some(cookie) = cookie {
-            builder = builder.header(header::COOKIE, format!("access_token={cookie}"));
+            builder = builder.header(header::COOKIE, cookie);
         }
-        app(CONFIG)
+        app(config, pool)
             .oneshot(builder.body(Body::empty()).expect("request must build"))
             .await
             .expect("request must complete")
     }
 
-    fn admin_token() -> String {
-        let config = fixture_config("postgres://unused/unused");
-        mint_admin_jwt(
-            &UserId::new("00000000-0000-4000-8000-00000000517e"),
-            "site-auth@example.invalid",
-            &config.jwt_issuer,
-        )
-        .as_str()
-        .to_owned()
+    async fn request(uri: &str, cookie: Option<&str>) -> axum::http::Response<Body> {
+        send(CONFIG, &test_db_pool().await, uri, cookie).await
+    }
+
+    fn redirected_and_cleared(resp: &axum::http::Response<Body>) -> bool {
+        resp.status() == StatusCode::SEE_OTHER
+            && resp
+                .headers()
+                .get(header::SET_COOKIE)
+                .and_then(|v| v.to_str().ok())
+                .is_some_and(|cookie| cookie.contains("access_token=;"))
     }
 
     #[tokio::test]
@@ -152,7 +209,7 @@ mod gate {
 
     #[tokio::test]
     async fn an_unparseable_token_is_cleared_on_the_way_to_login() {
-        let resp = request("/admin/agents", Some("not-a-jwt")).await;
+        let resp = request("/admin/agents", Some("access_token=not-a-jwt")).await;
 
         assert_eq!(resp.status(), StatusCode::SEE_OTHER);
         let cookie = resp
@@ -160,8 +217,6 @@ mod gate {
             .get(header::SET_COOKIE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default();
-        // Without this the browser bounces between login and the protected
-        // page forever, re-presenting the same unusable token.
         assert!(cookie.contains("access_token=;"), "{cookie}");
         assert!(cookie.contains("Max-Age=0"), "{cookie}");
         assert!(cookie.contains("Secure"), "{cookie}");
@@ -178,14 +233,110 @@ mod gate {
     }
 
     #[tokio::test]
-    async fn a_valid_admin_token_reaches_the_handler() {
-        let resp = request("/admin/agents", Some(&admin_token())).await;
+    async fn a_live_admin_session_reaches_the_handler() {
+        let admin = signed_in(&["admin", "user"]).await;
+        let resp = send(CONFIG, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
 
         assert_eq!(
             resp.status(),
             StatusCode::OK,
             "an admin must reach an admin page"
         );
+    }
+
+    #[tokio::test]
+    async fn a_logged_out_admins_unexpired_token_is_refused() {
+        let admin = signed_in(&["admin", "user"]).await;
+        sqlx::query("UPDATE user_sessions SET revoked_at = now() WHERE user_id = $1")
+            .bind(admin.user.as_str())
+            .execute(admin.pool.write_pool().as_ref())
+            .await
+            .expect("end the session");
+
+        let resp = send(CONFIG, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
+
+        assert!(redirected_and_cleared(&resp), "{:?}", resp.status());
+    }
+
+    #[tokio::test]
+    async fn a_revoked_admin_token_is_refused() {
+        let admin = signed_in(&["admin", "user"]).await;
+        systemprompt_test_fixtures::oauth_fixture_repository(&admin.pool)
+            .revoke_jti(&admin.jti, &admin.user, Utc::now() + Duration::hours(1))
+            .await
+            .expect("revoke the token id");
+
+        let resp = send(CONFIG, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
+
+        assert!(redirected_and_cleared(&resp), "{:?}", resp.status());
+    }
+
+    #[tokio::test]
+    async fn a_demoted_admins_admin_scoped_token_is_refused_the_admin_site() {
+        let admin = signed_in(&["admin", "user"]).await;
+        sqlx::query("UPDATE users SET roles = ARRAY['user'] WHERE id = $1")
+            .bind(admin.user.as_str())
+            .execute(admin.pool.write_pool().as_ref())
+            .await
+            .expect("demote the user");
+
+        let resp = send(CONFIG, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
+
+        assert_eq!(
+            resp.status(),
+            StatusCode::SEE_OTHER,
+            "the role is the user row's, never the token's scope"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_deleted_users_token_is_refused() {
+        let admin = signed_in(&["admin", "user"]).await;
+        sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(admin.user.as_str())
+            .execute(admin.pool.write_pool().as_ref())
+            .await
+            .expect("delete the user");
+
+        let resp = send(CONFIG, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
+
+        assert!(redirected_and_cleared(&resp), "{:?}", resp.status());
+    }
+
+    #[tokio::test]
+    async fn a_token_of_another_audience_is_refused() {
+        let admin = signed_in_with(&["admin", "user"], |request| {
+            request.audience = vec![JwtAudience::Mcp];
+        })
+        .await;
+
+        let resp = send(CONFIG, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
+
+        assert!(redirected_and_cleared(&resp), "{:?}", resp.status());
+    }
+
+    #[tokio::test]
+    async fn a_session_naming_another_user_is_refused() {
+        let admin = signed_in(&["admin", "user"]).await;
+        let other = UserId::new(uuid::Uuid::new_v4().to_string());
+        seed_user_row_with_roles(
+            &admin.pool,
+            &other,
+            &format!("{other}@site-auth.invalid"),
+            &[],
+        )
+        .await
+        .expect("seed the other user");
+        sqlx::query("UPDATE user_sessions SET user_id = $1 WHERE user_id = $2")
+            .bind(other.as_str())
+            .bind(admin.user.as_str())
+            .execute(admin.pool.write_pool().as_ref())
+            .await
+            .expect("rebind the session");
+
+        let resp = send(CONFIG, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
+
+        assert!(redirected_and_cleared(&resp), "{:?}", resp.status());
     }
 
     #[tokio::test]
@@ -196,21 +347,10 @@ mod gate {
             public_prefixes: &[],
             required_scope: "not-a-real-permission",
         };
-        let token = admin_token();
+        let admin = signed_in(&["admin", "user"]).await;
 
-        let resp = app(BROKEN)
-            .oneshot(
-                Request::builder()
-                    .uri("/admin/agents")
-                    .header(header::COOKIE, format!("access_token={token}"))
-                    .body(Body::empty())
-                    .expect("request must build"),
-            )
-            .await
-            .expect("request must complete");
+        let resp = send(BROKEN, &admin.pool, "/admin/agents", Some(&admin.cookie)).await;
 
-        // A misconfigured scope must fail closed: admitting everyone would turn
-        // a config typo into an open admin panel.
         assert_eq!(resp.status(), StatusCode::SEE_OTHER);
     }
 
@@ -223,15 +363,7 @@ mod gate {
             required_scope: "admin",
         };
 
-        let resp = app(GATE_ALL)
-            .oneshot(
-                Request::builder()
-                    .uri("/anything-at-all")
-                    .body(Body::empty())
-                    .expect("request must build"),
-            )
-            .await
-            .expect("request must complete");
+        let resp = send(GATE_ALL, &test_db_pool().await, "/anything-at-all", None).await;
 
         assert_eq!(
             resp.status(),
@@ -240,51 +372,91 @@ mod gate {
         );
     }
 
-    async fn request_with(
-        config: SiteAuthConfig,
-        uri: &str,
-        token: &str,
-    ) -> axum::http::Response<Body> {
-        let req = Request::builder()
-            .uri(uri)
-            .header(header::COOKIE, format!("access_token={token}"))
-            .body(Body::empty())
-            .expect("request must build");
-        app(config)
-            .oneshot(req)
-            .await
-            .expect("request must complete")
-    }
-
-    fn user_token() -> String {
-        let config = fixture_config("postgres://unused/unused");
-        systemprompt_test_fixtures::mint_bridge_jwt(
-            &UserId::new("00000000-0000-4000-8000-00000000517f"),
-            "site-user@example.invalid",
-            &config.jwt_issuer,
-        )
-        .as_str()
-        .to_owned()
-    }
-
-    const USER_SITE: SiteAuthConfig = SiteAuthConfig {
-        login_path: "/app/login",
-        protected_prefixes: &["/app"],
-        public_prefixes: &[],
-        required_scope: "user",
-    };
-
     #[tokio::test]
-    async fn a_user_scoped_site_admits_user_and_admin_tokens() {
-        for token in [user_token(), admin_token()] {
-            let resp = request_with(USER_SITE, "/app/home", &token).await;
-            assert_eq!(resp.status(), StatusCode::OK);
+    async fn a_user_scoped_site_admits_user_and_admin_rows() {
+        for roles in [&["user"][..], &["admin", "user"][..]] {
+            let signed = signed_in(roles).await;
+            let resp = send(USER_SITE, &signed.pool, "/app/home", Some(&signed.cookie)).await;
+            assert_eq!(resp.status(), StatusCode::OK, "{roles:?}");
         }
     }
 
     #[tokio::test]
-    async fn an_admin_scoped_site_refuses_a_user_token() {
-        let resp = request_with(CONFIG, "/admin/agents", &user_token()).await;
+    async fn an_admin_scoped_site_refuses_a_user_row_whatever_the_token_scope() {
+        let user = signed_in(&["user"]).await;
+        let resp = send(CONFIG, &user.pool, "/admin/agents", Some(&user.cookie)).await;
         assert_ne!(resp.status(), StatusCode::OK);
+    }
+
+
+    #[tokio::test]
+    async fn a_token_without_a_jti_is_refused() {
+        use systemprompt_models::auth::{
+            CustomClaims, JwtClaims, RateLimitTier, RegisteredClaims, TokenType, UserType,
+        };
+        let pool = test_db_pool().await;
+        let user = UserId::new(uuid::Uuid::new_v4().to_string());
+        seed_user_row_with_roles(
+            &pool,
+            &user,
+            &format!("{user}@site-auth.invalid"),
+            &["admin".to_owned(), "user".to_owned()],
+        )
+        .await
+        .expect("seed user");
+        let session = systemprompt_identifiers::SessionId::generate();
+        systemprompt_test_fixtures::seed_user_session(&pool, &user, &session)
+            .await
+            .expect("seed session");
+        let now = Utc::now();
+        let claims = JwtClaims {
+            registered: RegisteredClaims {
+                sub: user.to_string(),
+                iat: now.timestamp(),
+                exp: (now + Duration::hours(1)).timestamp(),
+                nbf: Some(now.timestamp()),
+                iss: systemprompt_test_fixtures::FIXTURE_JWT_ISSUER.to_owned(),
+                aud: JwtAudience::standard(),
+                jti: String::new(),
+            },
+            custom: CustomClaims {
+                scope: vec![Permission::Admin],
+                username: user.to_string(),
+                email: format!("{user}@site-auth.invalid"),
+                user_type: UserType::Admin,
+                roles: vec!["admin".to_owned()],
+                attributes: std::collections::BTreeMap::new(),
+                client_id: None,
+                token_type: TokenType::Bearer,
+                auth_time: now.timestamp(),
+                session_id: Some(session),
+                rate_limit_tier: Some(RateLimitTier::Admin),
+                plugin_id: None,
+                act: None,
+                purpose: None,
+                interaction: None,
+                browser_session: true,
+                ui_session: false,
+            },
+        };
+        let keys = systemprompt_test_fixtures::test_signing_keys();
+        let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+        header.kid = Some(keys.active_kid().to_owned());
+        let token =
+            jsonwebtoken::encode(&header, &claims, keys.encoding_key()).expect("encode the token");
+
+        let resp = send(
+            CONFIG,
+            &pool,
+            "/admin/agents",
+            Some(&format!("access_token={token}")),
+        )
+        .await;
+
+        assert!(
+            redirected_and_cleared(&resp),
+            "a token revocation cannot be checked for is refused: {:?}",
+            resp.status()
+        );
     }
 }

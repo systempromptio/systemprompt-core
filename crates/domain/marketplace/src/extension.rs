@@ -50,6 +50,7 @@ use crate::contract::{MarketplaceSeams, MarketplaceSlot};
 use crate::inventory::{
     InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, MemberRefresher, PublishGuard,
 };
+use crate::managed::git_sources::GitCredentialReferences;
 use crate::managed::{
     GitCredentialCheck, ManagedRepository, OrganizationSkillResolver, OwnerSkillView,
     PublicationPolicy,
@@ -88,7 +89,10 @@ impl Extension for ManagedResourcesExtension {
         provide_state(c);
         c.slot::<MarketplaceSlot>();
         c.job(InventoryRefreshJob::default())
-            .doctor_check(Arc::new(GitCredentialCheck));
+            .doctor_check(Arc::new(GitCredentialCheck))
+            .secret_references(|_: &Resolved<'_>| {
+                Ok::<_, FactoryError>(GitCredentialReferences::shared())
+            });
         Ok(())
     }
 }

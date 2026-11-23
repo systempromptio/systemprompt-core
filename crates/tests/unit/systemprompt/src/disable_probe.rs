@@ -10,7 +10,8 @@ use systemprompt_extension::contribute::build_slot;
 use systemprompt_extension::health::ReadinessCheck;
 use systemprompt_extension::router::{BasePath, WebBase};
 use systemprompt_extension::{
-    Admitted, FactoryError, MissingDependency, Resolved, Slot, SlotEntry, SlotError, SlotOrder,
+    Admitted, FactoryError, MemberResolved, MissingDependency, Resolved, Slot, SlotEntry,
+    SlotError, SlotOrder,
 };
 
 use crate::cli_probe::ProbeGroup;
@@ -101,8 +102,13 @@ fn run_admitted_probes(admitted: &Admitted) {
         for entry in member.sink.provides() {
             assert!(entry.compute(&resolved).is_ok());
         }
+        let scope = member.scope();
         for factory in member.sink.readiness() {
-            assert!(factory.build(&resolved).is_err());
+            assert!(
+                factory
+                    .build(&MemberResolved::within(&resolved, &scope))
+                    .is_err()
+            );
         }
         for record in member.sink.slots() {
             inputs.extend(record.take_entry(member.owner.clone(), member.standing));

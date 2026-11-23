@@ -177,7 +177,7 @@ async fn enforce_oauth(
         headers,
         request_id,
         &required_scopes,
-        state.oauth_state.jwt_provider.as_ref(),
+        state.oauth_state.authenticator.as_ref(),
     )
     .await
     .map(|_| ())

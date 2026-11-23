@@ -121,33 +121,23 @@ impl Slot for NotificationsSlot {
     ) -> Result<Self::Built, SlotError> {
         let mut seams = NotificationSeams::default();
         for entry in entries {
-            let standing = entry.standing();
-            let owner = &entry.owner;
+            let scope = entry.scope();
             let builder = entry.builder;
             seams
                 .routers
-                .extend(build_factories(SLOT, owner, standing, &builder.routers, r)?);
-            seams.channels.extend(build_factories(
-                SLOT,
-                owner,
-                standing,
-                &builder.channels,
-                r,
-            )?);
+                .extend(build_factories(SLOT, &scope, &builder.routers, r)?);
+            seams
+                .channels
+                .extend(build_factories(SLOT, &scope, &builder.channels, r)?);
             seams.publish_policies.extend(build_factories(
                 SLOT,
-                owner,
-                standing,
+                &scope,
                 &builder.publish_policies,
                 r,
             )?);
-            seams.visibilities.extend(build_factories(
-                SLOT,
-                owner,
-                standing,
-                &builder.visibilities,
-                r,
-            )?);
+            seams
+                .visibilities
+                .extend(build_factories(SLOT, &scope, &builder.visibilities, r)?);
         }
         crate::assembly::append_core_defaults(&mut seams, r)?;
         crate::assembly::bind_service(seams, r)

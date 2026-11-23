@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Extensions"
+text = "Every contributed factory runs only through a member-scoped resolution: `Factory::build` takes a `MemberResolved`, built only from an admitted member's or slot entry's `MemberScope` (or an install scope), and narrowing never widens. `Resolved::scoped_to` is no longer public."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`Factory::build(&self, r: &MemberResolved<'_>)`; `build_factories(slot, &MemberScope, factories, r)`; `Resolved::__member_scoped` takes a `&MemberScope` and returns a `MemberResolved`. A closure factory over `&Resolved<'_>` is unchanged."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`MemberScope`, `MemberResolved`, `FactoryKind`, `AdmittedMember::scope`, `SlotEntry::scope` and `ContributionSink::factory_count`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`Kernel::member_resolved(&MemberScope)`; `Kernel::admitted_factories` builds one factory kind of every admitted member, each scoped to its member."

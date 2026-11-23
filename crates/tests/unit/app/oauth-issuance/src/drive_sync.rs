@@ -64,6 +64,7 @@ fn device(expires_in_secs: i64) -> JwtUserContext {
         user_id: UserId::new("drive-user"),
         session_id: SessionId::new("drive-session"),
         role: Permission::User,
+        scope: vec![Permission::User],
         user_type: UserType::User,
         client_id: Some(ClientId::bridge()),
         act_chain: Vec::new(),

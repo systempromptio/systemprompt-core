@@ -5,8 +5,8 @@
 //! validates an existing JWT session, and refreshes or recreates the session
 //! when the token is stale, issuing a `Set-Cookie` for newly minted tokens.
 //!
-//! A cookie's token is verified by the kernel's request authenticator
-//! (`DynRequestAuthenticator::verified_claims`) and its session attested by
+//! A cookie's token is checked for signature and issuer (`SessionClaims`;
+//! this is attribution, never authorization) and its session attested by
 //! [`systemprompt_security::attest_session`], the same predicate the JWT and
 //! gateway credential paths use: a cookie must name a session the server issued
 //! *to that user*. An existence-only check would let a signed token borrow
@@ -37,6 +37,7 @@ mod skip;
 pub use skip::should_skip_session_tracking;
 
 use crate::error::ApiHttpError;
+use crate::services::middleware::jwt::SessionClaims;
 use crate::services::session_cookie::{SameSite, SessionCookie};
 use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
@@ -48,7 +49,6 @@ use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::HeaderExtractor;
@@ -70,7 +70,7 @@ pub struct SessionMiddleware {
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
     config: Arc<Config>,
-    authenticator: DynRequestAuthenticator,
+    claims: SessionClaims,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
@@ -121,16 +121,7 @@ impl SessionMiddleware {
             session_creation_service: Arc::new(session_creation_service),
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
             config: Arc::clone(ctx.config_arc()),
-            authenticator: ctx
-                .kernel()
-                .state()
-                .get::<DynRequestAuthenticator>()
-                .cloned()
-                .map_err(|_missing| {
-                    LoaderError::missing_provider::<DynRequestAuthenticator>(ExtensionId::new(
-                        "session",
-                    ))
-                })?,
+            claims: SessionClaims::from_kernel(ctx.kernel().state())?,
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
             )),

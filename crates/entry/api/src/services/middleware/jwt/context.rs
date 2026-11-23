@@ -16,6 +16,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::HeaderMap;
 
+use super::SessionClaims;
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::{ContextId, ExtensionId, JwtToken, UserId, headers as sp_headers};
@@ -27,26 +28,26 @@ use systemprompt_traits::AuthUser;
 #[derive(Clone, Debug)]
 pub struct JwtContextExtractor {
     authenticator: DynRequestAuthenticator,
+    claims: SessionClaims,
     audiences: &'static [JwtAudience],
 }
 
 impl JwtContextExtractor {
-    #[must_use]
-    pub fn new(authenticator: DynRequestAuthenticator) -> Self {
-        Self {
-            authenticator,
-            audiences: JwtAudience::FIRST_PARTY,
-        }
-    }
-
     pub fn from_kernel(state: &Dependencies) -> Result<Self, LoaderError> {
-        state
-            .get::<DynRequestAuthenticator>()
-            .cloned()
-            .map(Self::new)
-            .map_err(|_missing| {
-                LoaderError::missing_provider::<DynRequestAuthenticator>(ExtensionId::new("users"))
-            })
+        let authenticator =
+            state
+                .get::<DynRequestAuthenticator>()
+                .cloned()
+                .map_err(|_missing| {
+                    LoaderError::missing_provider::<DynRequestAuthenticator>(ExtensionId::new(
+                        "users",
+                    ))
+                })?;
+        Ok(Self {
+            authenticator,
+            claims: SessionClaims::from_kernel(state)?,
+            audiences: JwtAudience::FIRST_PARTY,
+        })
     }
 
     #[must_use]
@@ -77,8 +78,8 @@ impl JwtContextExtractor {
         self.authenticator.load_user(user_id, route_context).await
     }
 
-    pub fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
-        self.authenticator.verified_claims(token)
+    pub(crate) fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
+        self.claims.verified_claims(token)
     }
 
     pub async fn decode_for_audiences(

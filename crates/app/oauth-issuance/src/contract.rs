@@ -23,7 +23,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
+    Factory, MemberResolved, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::sso::{AuthEventSink, SsoProvider};
@@ -136,9 +136,9 @@ impl Slot for SsoSlot {
         let mut built = SsoProviders::default();
         let mut resolver: Option<(ExtensionId, Arc<dyn RoleResolver>)> = None;
         for entry in entries {
-            let standing = entry.standing();
+            let scope = entry.scope();
             let owner = entry.owner;
-            let scoped = r.scoped_to(&owner, standing);
+            let scoped = MemberResolved::within(r, &scope);
             for factory in entry.builder.providers {
                 let Some(provider) = factory
                     .build(&scoped)
@@ -156,8 +156,7 @@ impl Slot for SsoSlot {
             }
             built.sinks.extend(build_factories(
                 SSO_SINK_SLOT,
-                &owner,
-                standing,
+                &scope,
                 &entry.builder.sinks,
                 r,
             )?);
