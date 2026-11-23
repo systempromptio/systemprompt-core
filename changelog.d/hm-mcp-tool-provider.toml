@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-mcp"
+section = "Added"
+text = "The `mcp` member provides the tool provider the ai member's inference path reads (`Arc<dyn ToolProvider>`, sealed, before governance so the ai member's after-governance provide sees it in any composition order). With the `mcp` member disabled the ai member still boots and its inference path has no tools."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "The runtime no longer builds an MCP registry or tool provider for the AI service."

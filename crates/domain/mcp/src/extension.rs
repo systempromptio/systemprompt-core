@@ -10,7 +10,11 @@
 //! scanner cell and records tool results), and, once governance has loaded,
 //! the per-server tool executions (`DynToolExecutions`, open: an execution
 //! records usage as the request context the host hands it and reads no
-//! secret). It opens the [`UiSlot`] and the extension contract's
+//! secret) and the tool provider the ai member's inference path reads
+//! (`Arc<dyn ToolProvider>`, **sealed**: it calls servers with the
+//! connector-token cache and the secret lookup; provided before governance so
+//! the ai member's after-governance inference provide sees it whatever the
+//! composition order). It opens the [`UiSlot`] and the extension contract's
 //! [`AccessRecorderSlot`], so both built values are present whenever this
 //! member is admitted.
 //!
@@ -28,8 +32,10 @@ use systemprompt_governance::policy::secrets::SecretScannerCell;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
+    SecretLookup, ToolProvider,
 };
 
 use crate::contract::UiSlot;
@@ -38,6 +44,7 @@ use crate::services::McpServiceObserver;
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::process_set::McpProcessSet;
 use crate::services::registry::RegistryService;
+use crate::services::tool_provider::McpToolProvider;
 use crate::services::ui_renderer::UiRendererRegistry;
 use crate::tool::McpToolExecutions;
 
@@ -166,6 +173,7 @@ impl Extension for McpExtension {
             },
         );
         contribute_stores(c);
+        contribute_tool_provider(c);
         c.provide_after_governance(
             |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
                 let db = r.get::<DbPool>()?;
@@ -189,6 +197,27 @@ impl Extension for McpExtension {
         contribute_user_data(c);
         Ok(())
     }
+}
+
+fn contribute_tool_provider(c: &mut Contributions<'_>) {
+    c.provide_sealed(
+        |r: &Resolved<'_>| -> Result<Arc<dyn ToolProvider>, ProvideError> {
+            let services = r.get::<ServicesView>()?;
+            let resilience = services.config().ai.mcp.resilience;
+            let registry = RegistryService::new(
+                r.get::<SystemAdmin>()?.id().clone(),
+                services,
+                r.get::<Arc<Config>>()?,
+            );
+            Ok(Arc::new(McpToolProvider::new(
+                r.get::<DbPool>()?,
+                registry,
+                &resilience,
+                r.get::<Arc<TokenCache>>()?,
+                r.get::<Arc<dyn SecretLookup>>()?,
+            )))
+        },
+    );
 }
 
 fn contribute_stores(c: &mut Contributions<'_>) {
