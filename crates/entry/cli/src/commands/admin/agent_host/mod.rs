@@ -1,7 +1,7 @@
 //! `admin agent-host`: the kernel's child host for a spawned agent process.
 //!
-//! The API spawns each agent as `admin agent-host run --agent-name <n> --port
-//! <p>` with the host context it grants the process; the path is reserved to
+//! The API spawns each agent as
+//! `admin agent-host run --agent-name <n> --port <p>` with the host context it grants the process; the path is reserved to
 //! the kernel with the `child-host` grant, so no member can hold it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

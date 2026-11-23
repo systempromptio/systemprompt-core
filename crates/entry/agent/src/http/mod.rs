@@ -153,7 +153,7 @@ impl std::fmt::Debug for AgentRegistryState {
 
 impl AgentRegistryState {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         services: ServicesView,
         service_table: Arc<ServiceRepository>,
         site: Arc<AgentCardSite>,

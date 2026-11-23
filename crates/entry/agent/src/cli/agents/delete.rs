@@ -1,5 +1,7 @@
 //! `admin agents delete` command: removes agent definitions from the services
-//! tree. An agent the service table records as running is refused with
+//! tree.
+//!
+//! An agent the service table records as running is refused with
 //! [`AgentDeleteError::Running`], which names the kernel command that stops
 //! it; this command never stops or signals a process.
 //!
@@ -49,7 +51,7 @@ pub enum AgentDeleteError {
     Remove {
         agent: AgentName,
         #[source]
-        source: ConfigAuthoringError,
+        source: Box<ConfigAuthoringError>,
     },
 }
 
@@ -190,6 +192,6 @@ pub fn delete_single_agent(
         .delete(agent_name)
         .map_err(|source| AgentDeleteError::Remove {
             agent: agent_name.clone(),
-            source,
+            source: Box::new(source),
         })
 }

@@ -65,7 +65,7 @@ impl DescribeCommand for CoreCommands {
                 }
             },
             Self::Hooks(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
-            _ => CommandDescriptor::FULL,
+            Self::Services(_) => CommandDescriptor::FULL,
         }
     }
 }

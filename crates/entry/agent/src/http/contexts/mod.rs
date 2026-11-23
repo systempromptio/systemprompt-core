@@ -1,5 +1,7 @@
-//! Context resource handlers for the agent surface: the caller's contexts,
-//! their notifications and the events forwarded to their streams. The
+//! Context resource handlers for the agent surface.
+//!
+//! They serve the caller's contexts, their notifications and the events
+//! forwarded to their streams. The
 //! `/api/v1/core/contexts` route set in [`crate::http`] mounts them with the
 //! nested task and artifact listings.
 //!
