@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod context_owner;
 pub mod external;
 mod external_governance;
 mod external_sessions;
@@ -173,6 +174,16 @@ impl ProxyService {
             req_ctx.as_ref(),
         )
         .await?;
+        if service.module_name == ServiceModule::Mcp {
+            context_owner::ensure_owned(
+                &ctx,
+                service_name,
+                request.headers(),
+                authenticated_user.as_ref(),
+                req_ctx.as_ref(),
+            )
+            .await?;
+        }
 
         let tokens = ctx.token_authority();
         self.proxy_managed(

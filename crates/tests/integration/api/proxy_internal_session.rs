@@ -1,6 +1,7 @@
 //! Managed-MCP proxy edge: every request is authenticated on its own
 //! credential, a session id is bound to its server and principal, the proxy
-//! owns the identity headers the backend sees, and the request body is capped.
+//! owns the identity headers the backend sees, the request body is capped, and
+//! a named context id is honoured only for the caller who owns it.
 
 use axum::body::Body;
 use axum::http::Request;
@@ -10,6 +11,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::contexts::ContextKind;
 use systemprompt_test_fixtures::{
     TestBootstrap, init_services_bootstrap, mint_admin_jwt, seed_running_service, seed_user_row,
     test_app_context_on, test_config, test_db_pool,
@@ -313,5 +315,68 @@ async fn a_streamed_body_past_the_cap_is_refused() -> anyhow::Result<()> {
     let (status, body) = send(&edge, request(&edge, Some(&alice), None, body)?).await?;
 
     assert_eq!(status, http::StatusCode::PAYLOAD_TOO_LARGE, "{body}");
+    Ok(())
+}
+
+async fn context_of(edge: &Edge, owner: &UserId) -> anyhow::Result<ContextId> {
+    Ok(edge
+        .ctx
+        .a2a_repositories()
+        .contexts
+        .create_context(owner, None, "proxy-edge", ContextKind::User)
+        .await?)
+}
+
+fn naming_context(edge: &Edge, who: &Caller, context: &str) -> anyhow::Result<Request<Body>> {
+    let mut request = request(edge, Some(who), None, Body::from(INIT))?;
+    request
+        .headers_mut()
+        .insert("x-context-id", http::HeaderValue::from_str(context)?);
+    Ok(request)
+}
+
+#[tokio::test]
+async fn a_context_id_the_caller_does_not_own_is_refused_before_the_backend() -> anyhow::Result<()>
+{
+    let edge = edge(&issued()).await?;
+    let alice = caller(&edge.pool).await;
+    let bob = caller(&edge.pool).await;
+    let foreign = context_of(&edge, &bob.user).await?;
+
+    let (status, body) = send(&edge, naming_context(&edge, &alice, foreign.as_str())?).await?;
+
+    assert_eq!(status, http::StatusCode::FORBIDDEN, "{body}");
+    assert!(body.contains("context_not_owned"), "{body}");
+    assert_eq!(upstream_count(&edge).await, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_context_id_nobody_owns_is_refused_before_the_backend() -> anyhow::Result<()> {
+    let edge = edge(&issued()).await?;
+    let alice = caller(&edge.pool).await;
+
+    let (status, body) = send(
+        &edge,
+        naming_context(&edge, &alice, ContextId::generate().as_str())?,
+    )
+    .await?;
+
+    assert_eq!(status, http::StatusCode::FORBIDDEN, "{body}");
+    assert!(body.contains("context_not_owned"), "{body}");
+    assert_eq!(upstream_count(&edge).await, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_context_id_the_caller_owns_reaches_the_backend() -> anyhow::Result<()> {
+    let edge = edge(&issued()).await?;
+    let alice = caller(&edge.pool).await;
+    let owned = context_of(&edge, &alice.user).await?;
+
+    let (status, body) = send(&edge, naming_context(&edge, &alice, owned.as_str())?).await?;
+
+    assert_eq!(status, http::StatusCode::OK, "{body}");
+    assert_eq!(upstream_count(&edge).await, 1);
     Ok(())
 }
