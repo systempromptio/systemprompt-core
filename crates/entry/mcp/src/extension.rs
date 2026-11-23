@@ -9,10 +9,12 @@
 //! reads the MCP server registry the `mcp` member provides.
 //!
 //! With `cli` it contributes the `plugins mcp` group under the kernel's
-//! `plugins` group, requesting only the `caller-session` grant its reserved
-//! path lists. The commands read the registry and the read-only
-//! `Arc<McpServiceObserver>` the `mcp` member provides; neither can start,
-//! stop or signal a server. The member `requires` each value it reads.
+//! `plugins` group, requesting the `services-tree` grant (for the API's
+//! external URL) and the `caller-session` grant its reserved path lists. The
+//! commands read the registry and the read-only `Arc<McpServiceObserver>` the
+//! `mcp` member provides; none of them can start, stop or signal a server,
+//! and `tools` and `call` reach a server only through the API's MCP proxy
+//! with the caller's own session. The member `requires` each value it reads.
 //!
 //! The MCP executions and proxy routes under `/api/v1/mcp`, the MCP OAuth
 //! discovery documents, the MCP child host and `admin mcp` are the kernel's.
@@ -74,7 +76,7 @@ mod commands {
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<McpServiceObserver>>().command(
             CommandDecl::group_under::<parents::Plugins, McpCommands>()
-                .requesting(&[KernelGrant::CallerSession])
+                .requesting(&[KernelGrant::ServicesTree, KernelGrant::CallerSession])
                 .claiming(&[CommandClaim::PreservesData]),
         );
     }

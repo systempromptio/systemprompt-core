@@ -7,14 +7,15 @@ use systemprompt_test_fixtures::bounded_output;
 
 use systemprompt_mcp_entry::cli as mcp;
 
-use crate::common::{json_cli, member, parse, rendered, with_boot};
+use crate::common::{json_cli, logs_root, member, parse, rendered, with_boot};
 
 const HELPER: &str = "mcp_logs_follow_lifecycle::mcp_logs_follow_helper";
 
 #[tokio::test]
 #[ignore = "re-executed by mcp_follow_uses_the_resolved_server_log_and_surfaces_tail_failure"]
 async fn mcp_logs_follow_helper() {
-    let fixture = tempfile::tempdir().expect("MCP log fixture");
+    let fixture = tempfile::tempdir_in(logs_root(&with_boot(json_cli())).await)
+        .expect("MCP log fixture inside the logs root");
     let logs = fixture.path().join("logs");
     let bin = fixture.path().join("bin");
     std::fs::create_dir_all(&logs).unwrap();

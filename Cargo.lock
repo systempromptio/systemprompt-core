@@ -6660,7 +6660,6 @@ dependencies = [
  "rand 0.10.3",
  "regex",
  "reqwest",
- "rmcp",
  "rustls",
  "schemars 1.2.3",
  "semver",

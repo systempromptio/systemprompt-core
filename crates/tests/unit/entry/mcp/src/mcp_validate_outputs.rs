@@ -7,8 +7,7 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
 use systemprompt_mcp_entry::cli::validate::{
-    FailureDetail, failure_output, prompt_server_selection, run_connection_validation,
-    success_output,
+    FailureDetail, failure_output, run_connection_validation, success_output,
 };
 use systemprompt_models::Deployment;
 
@@ -205,7 +204,7 @@ async fn run_connection_validation_reports_an_unavailable_oauth_port() {
 fn prompt_server_selection_errors_without_servers_and_returns_sorted_choice() {
     let empty: ServicesConfig = serde_yaml::from_str("agents: {}\n").unwrap();
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    let err = prompt_server_selection(&prompter, &empty).unwrap_err();
+    let err = systemprompt_mcp_entry::cli::prompt_server_selection(&prompter, &empty, "Select MCP server to validate", ServiceName::new).unwrap_err();
     assert!(err.to_string().contains("No MCP servers configured"));
 
     let config: ServicesConfig = serde_yaml::from_str(
@@ -213,6 +212,6 @@ fn prompt_server_selection_errors_without_servers_and_returns_sorted_choice() {
     )
     .unwrap();
     let prompter = ScriptedPrompter::new(["1"]);
-    let picked = prompt_server_selection(&prompter, &config).unwrap();
+    let picked = systemprompt_mcp_entry::cli::prompt_server_selection(&prompter, &config, "Select MCP server to validate", ServiceName::new).unwrap();
     assert_eq!(picked, "zeta");
 }

@@ -1,9 +1,12 @@
 //! Scripted streamable-HTTP MCP endpoint for subprocess tests.
 //!
 //! [`stub_port`] lazily starts a wiremock server on an ephemeral port that
-//! answers the MCP handshake, `tools/list`, and `tools/call`, then rewrites
-//! the shared fixture's services config so the fixture MCP server points at it
-//! and upserts a `running` services row so `resolve_running_port` finds it.
+//! answers the MCP handshake, `tools/list`, and `tools/call` at the API's MCP
+//! proxy path (`/api/v1/mcp/<server>/mcp`), then points the fixture profile's
+//! external URL at it, rewrites the shared fixture's services config so the
+//! fixture MCP server names its port, and upserts a `running` services row so
+//! the observer reports it running. `plugins mcp tools|call` reach a server
+//! only through that proxy path, so the stub stands in for the API.
 //!
 //! The server name is per-process ([`fixture_mcp_server`]) so concurrent test
 //! processes cannot repoint each other's `services` row.
@@ -17,7 +20,8 @@ use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::full_bootstrap::{
-    fixture_instance_id, fixture_mcp_server, full_fixture, rewrite_services_config,
+    fixture_instance_id, fixture_mcp_server, full_fixture, point_external_url_at,
+    rewrite_services_config,
 };
 
 static STUB: OnceLock<u16> = OnceLock::new();
@@ -29,6 +33,7 @@ pub fn stub_port() -> u16 {
         let url = test_database_url();
         let port = start_stub_server();
         rewrite_services_config(fixture, port);
+        point_external_url_at(fixture, port);
         register_running_service(&url, port);
         port
     })
@@ -61,6 +66,10 @@ fn identity_holder_pid() -> u32 {
                 .expect("spawn mcp stub identity holder")
         })
         .id()
+}
+
+fn proxy_path() -> String {
+    format!("/api/v1/mcp/{}/mcp", fixture_mcp_server())
 }
 
 fn start_stub_server() -> u16 {
@@ -113,7 +122,7 @@ fn register_running_service(database_url: &str, port: u16) {
 
 async fn mount_mcp_mocks(server: &MockServer) {
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .and(body_partial_json(
             serde_json::json!({"jsonrpc": "2.0", "method": "initialize", "params": {"clientInfo": {}}}),
         ))
@@ -135,7 +144,7 @@ async fn mount_mcp_mocks(server: &MockServer) {
         .await;
 
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .and(body_partial_json(
             serde_json::json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
         ))
@@ -144,7 +153,7 @@ async fn mount_mcp_mocks(server: &MockServer) {
         .await;
 
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .and(body_partial_json(
             serde_json::json!({"jsonrpc": "2.0", "method": "tools/list", "params": {}}),
         ))
@@ -176,7 +185,7 @@ async fn mount_mcp_mocks(server: &MockServer) {
         .await;
 
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .and(body_partial_json(serde_json::json!({
             "method": "tools/call",
             "params": {"name": "boom"}
@@ -198,7 +207,7 @@ async fn mount_mcp_mocks(server: &MockServer) {
         .await;
 
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .and(body_partial_json(serde_json::json!({
             "method": "tools/call",
             "params": {"name": "reject"}
@@ -217,7 +226,7 @@ async fn mount_mcp_mocks(server: &MockServer) {
         .await;
 
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .and(body_partial_json(
             serde_json::json!({"jsonrpc": "2.0", "method": "tools/call", "params": {}}),
         ))
@@ -237,13 +246,13 @@ async fn mount_mcp_mocks(server: &MockServer) {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .respond_with(ResponseTemplate::new(405))
         .mount(server)
         .await;
 
     Mock::given(method("DELETE"))
-        .and(path("/mcp"))
+        .and(path(proxy_path()))
         .respond_with(ResponseTemplate::new(200))
         .mount(server)
         .await;

@@ -1,0 +1,34 @@
+[root]
+section = "Changed"
+area = "MCP"
+text = "`plugins mcp tools` and `plugins mcp call` reach every MCP server through the API's MCP proxy (`/api/v1/mcp/<server>/mcp`) with the caller's own session, so the user, session and context of each execution come from the verified token and external servers receive their per-user bearer from the proxy; with no API answering they fail with a typed `ApiUnreachable`. `plugins mcp tools --agent <name>` lists the tools of the servers an agent includes. `plugins mcp logs --logs-dir` is confined to the profile's logs root, and no symbolic link leads a log read out of it."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "Removed `AppContext::{mcp_registry, artifact_ingest, artifact_ingest_arc, mcp_session_repository}`, `Plugins::mcp_registry`, `DataPlane::mcp_session_repository`, `Subsystems::artifact_ingest`, `HostParts::{artifact_ingest, mcp_sessions}` and `RuntimeError::Mcp`; the MCP registry, session repository and artifact ingest are read from the kernel state the `mcp` member provides."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Added"
+text = "The `mcp` member provides `Arc<McpSessionRepository>` and `Arc<ArtifactIngest>` (open); its tool executions record through that one ingest, so the gateway scanner the API registers applies to them."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "Removed `HostContext::{artifact_ingest, mcp_session_repository}`; the host reads both from its kernel state."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "Removed `commands::shared::mcp_tools` and the kernel re-exports `kernel::{mcp_tools, McpToolEntry}`; the probe is `systemprompt_mcp_entry::cli::probe`."
+
+[[crate]]
+name = "systemprompt-mcp-entry"
+section = "Breaking"
+text = "`cli::probe::{McpTarget::through_proxy, McpCallError, proxy_url, connect, list_tools, cli_limits}` replace `cli::call_client::{McpTarget::resolve, ServerCredential, CredentialRefused, server_credential, list_tools, cli_limits}`; `cli::prompt_server_selection` replaces the `call` and `validate` twins; `plugins mcp` requests the `services-tree` grant; `McpToolsOutput` gains `agent` and `unavailable_servers`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The proxy, discovery and OAuth readers take the MCP registry from the kernel state (`Arc<dyn McpRegistryProvider>`); the lifecycle builds its own `RegistryService`. `ProxyError::RegistryUnavailable` keeps its key and carries a boxed source."

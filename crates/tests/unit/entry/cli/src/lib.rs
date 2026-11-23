@@ -49,8 +49,6 @@ mod kernel_host;
 #[cfg(test)]
 mod kernel_state_isolation;
 #[cfg(test)]
-mod mcp_probe_flows;
-#[cfg(test)]
 mod member_host_grants;
 #[cfg(test)]
 mod paths;

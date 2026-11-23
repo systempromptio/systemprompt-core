@@ -10,7 +10,7 @@ use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_mcp_entry::cli as mcp;
 
-use crate::common::{member, parse, with_boot};
+use crate::common::{logs_dir_in_root, logs_root, member, parse, with_boot};
 
 fn ctx(interactive: bool, answers: &[&str]) -> CommandContext {
     let config = if interactive {
@@ -42,7 +42,7 @@ fn seed_logs(dir: &Path) {
 
 #[tokio::test]
 async fn mcp_logs_disk_lists_files_when_no_server_given() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = logs_dir_in_root(&ctx(false, &[])).await;
     seed_logs(dir.path());
     mcp::execute(
         parse(&["logs", "--disk", "--logs-dir", dir.path().to_str().unwrap()]),
@@ -54,7 +54,7 @@ async fn mcp_logs_disk_lists_files_when_no_server_given() {
 
 #[tokio::test]
 async fn mcp_logs_disk_reads_named_server_with_level_filter() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = logs_dir_in_root(&ctx(false, &[])).await;
     seed_logs(dir.path());
     let dir_arg = dir.path().to_str().unwrap();
     let ctx = ctx(false, &[]);
@@ -99,7 +99,7 @@ async fn mcp_logs_disk_reads_named_server_with_level_filter() {
 
 #[tokio::test]
 async fn mcp_logs_disk_prompts_for_selection_when_interactive() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = logs_dir_in_root(&ctx(false, &[])).await;
     seed_logs(dir.path());
     mcp::execute(
         parse(&["logs", "--disk", "--logs-dir", dir.path().to_str().unwrap()]),
@@ -117,7 +117,10 @@ async fn mcp_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{missing:#}").contains("does not exist"));
+    assert!(
+        format!("{missing:#}").contains("must name a directory inside"),
+        "{missing:#}"
+    );
 
     let follow_missing = mcp::execute(
         parse(&["logs", "--follow", "--logs-dir", "/no/such/dir/cov"]),
@@ -125,9 +128,12 @@ async fn mcp_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{follow_missing:#}").contains("does not exist"));
+    assert!(
+        format!("{follow_missing:#}").contains("must name a directory inside"),
+        "{follow_missing:#}"
+    );
 
-    let empty = tempfile::tempdir().unwrap();
+    let empty = logs_dir_in_root(&ctx(false, &[])).await;
     let no_files = mcp::execute(
         parse(&[
             "logs",
@@ -154,4 +160,97 @@ async fn mcp_logs_disk_error_branches() {
     .await
     .unwrap_err();
     assert!(!format!("{unknown:#}").is_empty());
+}
+
+#[tokio::test]
+async fn mcp_logs_dir_outside_the_logs_root_is_refused() {
+    logs_root(&ctx(false, &[])).await;
+    let outside = tempfile::tempdir().unwrap();
+    seed_logs(outside.path());
+    let error = mcp::execute(
+        parse(&[
+            "logs",
+            "alpha",
+            "--disk",
+            "--logs-dir",
+            outside.path().to_str().unwrap(),
+        ]),
+        &member(&ctx(false, &[])),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("resolves outside"),
+        "{error:#}"
+    );
+
+    let error = mcp::execute(
+        parse(&["logs", "alpha", "--disk", "--logs-dir", "../.."]),
+        &member(&ctx(false, &[])),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("resolves outside"),
+        "{error:#}"
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn mcp_logs_dir_symlinked_out_of_the_logs_root_is_refused() {
+    let outside = tempfile::tempdir().unwrap();
+    seed_logs(outside.path());
+    let ctx = ctx(false, &[]);
+    let root = logs_root(&ctx).await;
+    let link = root.join(format!("escape-{}", std::process::id()));
+    let _ = std::fs::remove_file(&link);
+    std::os::unix::fs::symlink(outside.path(), &link).unwrap();
+    let error = mcp::execute(
+        parse(&[
+            "logs",
+            "alpha",
+            "--disk",
+            "--logs-dir",
+            link.file_name().unwrap().to_str().unwrap(),
+        ]),
+        &member(&ctx),
+    )
+    .await
+    .unwrap_err();
+    std::fs::remove_file(&link).unwrap();
+    assert!(
+        format!("{error:#}").contains("resolves outside"),
+        "{error:#}"
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_log_file_symlinked_out_of_the_logs_dir_is_not_read() {
+    let outside = tempfile::tempdir().unwrap();
+    std::fs::write(outside.path().join("secret.log"), "SECRET\n").unwrap();
+    let ctx = ctx(false, &[]);
+    let dir = logs_dir_in_root(&ctx).await;
+    std::os::unix::fs::symlink(
+        outside.path().join("secret.log"),
+        dir.path().join("mcp-alpha.log"),
+    )
+    .unwrap();
+    let error = mcp::execute(
+        parse(&[
+            "logs",
+            "alpha",
+            "--disk",
+            "--logs-dir",
+            dir.path().to_str().unwrap(),
+        ]),
+        &member(&ctx),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("resolves outside"),
+        "{error:#}"
+    );
 }

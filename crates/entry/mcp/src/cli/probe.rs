@@ -1,57 +1,123 @@
-//! MCP tool probing for `admin agents tools`, and the [`McpToolEntry`] row it
-//! renders.
+//! The connection `plugins mcp tools` and `plugins mcp call` make to an MCP
+//! server.
+//!
+//! Every connection goes through the API's MCP proxy at
+//! `<api_external_url>/api/v1/mcp/<server>/mcp` and presents the caller's own
+//! session. The session token is a platform credential and reaches only the
+//! API: the proxy verifies it, attributes the request to the token's user and
+//! session, checks the forwarded context id against that user, injects an
+//! external server's per-user bearer, and audits the call as it audits any
+//! caller. No command connects to a server's loopback port or presents the
+//! session to an external endpoint. When nothing answers at the API's
+//! address the connection fails with [`McpCallError::ApiUnreachable`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
+use std::collections::HashMap;
+use std::time::Duration;
+
 use rmcp::ServiceExt;
-use rmcp::model::{ClientCapabilities, ClientConfig, Implementation, ProtocolVersion};
+use rmcp::model::{
+    ClientCapabilities, ClientConfig, Implementation, PaginatedRequestParams, ProtocolVersion,
+};
+use rmcp::service::{ClientInitializeError, RoleClient, RunningService, ServiceError};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, SessionToken, TraceId, UserId,
-};
+use systemprompt_extension::cli::CallerSession;
+use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_manifest::services::{McpConfig, ResilienceSettings};
-use systemprompt_mcp::McpServerConfig;
-use systemprompt_mcp::services::SpawnTarget;
-use systemprompt_mcp::services::client::{HttpClientWithContext, McpClientLimits};
-use systemprompt_models::execution::context::RequestContext;
+use systemprompt_mcp::services::client::{HttpClientWithContext, McpClientLimits, McpTransportError};
+use systemprompt_models::modules::ApiPaths;
 use tokio::time::timeout;
-use tracing::debug;
 
-fn probe_context(server_name: &McpServerId) -> RequestContext {
-    RequestContext::new(
-        SessionId::new(format!("cli-{server_name}")),
-        TraceId::generate(),
-        ContextId::derived_from_cli_probe(server_name),
-        AgentName::system(),
-        Actor::anonymous(UserId::generate()),
-    )
+use super::types::ToolInfo;
+
+#[derive(Debug, thiserror::Error)]
+pub enum McpCallError {
+    #[error(
+        "the API at {url} is not reachable; MCP servers are reached only through its proxy, so \
+         start it (`infra services start`) and retry"
+    )]
+    ApiUnreachable {
+        url: String,
+        #[source]
+        source: Box<ClientInitializeError>,
+    },
+    #[error("failed to connect to MCP server '{server}' through the API proxy at {url}")]
+    Connect {
+        server: McpServerId,
+        url: String,
+        #[source]
+        source: Box<ClientInitializeError>,
+    },
+    #[error("MCP server name '{server}' does not form a valid agent name")]
+    AgentName {
+        server: McpServerId,
+        #[source]
+        source: IdValidationError,
+    },
+    #[error("the MCP client for '{server}' could not be built")]
+    Client {
+        server: McpServerId,
+        #[source]
+        source: Box<McpTransportError>,
+    },
+    #[error("listing tools on '{server}' failed")]
+    ListTools {
+        server: McpServerId,
+        #[source]
+        source: Box<ServiceError>,
+    },
+    #[error("listing tools on '{server}' did not finish within {}s", limit.as_secs())]
+    Timeout { server: McpServerId, limit: Duration },
 }
 
 #[derive(Debug)]
-pub struct ToolInfo {
-    pub name: String,
-    pub description: Option<String>,
-    pub parameters_count: usize,
-    pub input_schema: Option<serde_json::Value>,
-    pub output_schema: Option<serde_json::Value>,
+pub struct McpTarget<'a> {
+    server_name: McpServerId,
+    url: String,
+    session: &'a CallerSession,
 }
 
-// Why: an internal server is spawned on a local port and reached there
-// directly; an external one is never spawned and is reached at its endpoint.
-pub fn direct_url(server: &McpServerConfig) -> Result<String> {
-    if server.is_external() {
-        return Ok(server.remote_endpoint.clone());
+impl<'a> McpTarget<'a> {
+    #[must_use]
+    pub fn through_proxy(
+        api_external_url: &str,
+        server_name: McpServerId,
+        session: &'a CallerSession,
+    ) -> Self {
+        let url = proxy_url(api_external_url, &server_name);
+        Self {
+            server_name,
+            url,
+            session,
+        }
     }
-    Ok(format!("http://127.0.0.1:{}/mcp", server.spawn_port()?))
+
+    #[must_use]
+    pub const fn server_name(&self) -> &McpServerId {
+        &self.server_name
+    }
+
+    #[must_use]
+    pub fn url(&self) -> &str {
+        &self.url
+    }
 }
 
+#[must_use]
+pub fn proxy_url(api_external_url: &str, server: &McpServerId) -> String {
+    format!(
+        "{}{}",
+        api_external_url.trim_end_matches('/'),
+        ApiPaths::mcp_server_endpoint(server.as_str())
+    )
+}
+
+#[must_use]
 pub fn cli_limits(timeout_secs: u64) -> McpClientLimits {
     McpClientLimits::from(&ResilienceSettings {
         request_timeout_ms: timeout_secs.saturating_mul(1000),
@@ -59,148 +125,100 @@ pub fn cli_limits(timeout_secs: u64) -> McpClientLimits {
     })
 }
 
-pub async fn list_tools_unauthenticated(
-    server_name: &McpServerId,
-    url: &str,
+pub async fn connect(
+    target: &McpTarget<'_>,
     timeout_secs: u64,
-) -> Result<Vec<ToolInfo>> {
-    let config = StreamableHttpClientTransportConfig::with_uri(url);
-    let transport = StreamableHttpClientTransport::with_client(
-        HttpClientWithContext::new(probe_context(server_name), cli_limits(timeout_secs))?,
-        config,
-    );
+) -> Result<RunningService<RoleClient, ClientConfig>, McpCallError> {
+    let server = target.server_name();
+    let agent_name =
+        AgentName::try_new(format!("cli-{server}")).map_err(|source| McpCallError::AgentName {
+            server: server.clone(),
+            source,
+        })?;
+    let http_client = HttpClientWithContext::forwarding(
+        target.session.request_context(agent_name),
+        HashMap::new(),
+        cli_limits(timeout_secs),
+    )
+    .map_err(|source| McpCallError::Client {
+        server: server.clone(),
+        source: Box::new(source),
+    })?;
+    let config = StreamableHttpClientTransportConfig::with_uri(target.url.clone())
+        .auth_header(target.session.token().as_str().to_owned());
+    let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientConfig::new(
         ClientCapabilities::default(),
-        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
+        Implementation::new(format!("systemprompt-cli-{server}"), "1.0.0"),
     )
     .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
 
-    let client = timeout(
-        Duration::from_secs(timeout_secs),
-        client_info.serve(transport),
-    )
-    .await
-    .context("Connection timeout")?
-    .context("Failed to connect to MCP server")?;
-
-    let tools_response = client
-        // Why: rmcp serialises a `None` params as `"params": null`, which a
-        // strict server (Google's MCP) refuses with -32602; send `{}`.
-        .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
-        .await
-        .context("Failed to list tools")?;
-
-    let tools: Vec<ToolInfo> = tools_response
-        .tools
-        .into_iter()
-        .map(convert_tool_info)
-        .collect();
-
-    client.cancel().await?;
-    Ok(tools)
+    match client_info.serve(transport).await {
+        Ok(client) => Ok(client),
+        Err(source) => Err(if api_answers(&target.url).await {
+            McpCallError::Connect {
+                server: server.clone(),
+                url: target.url.clone(),
+                source: Box::new(source),
+            }
+        } else {
+            McpCallError::ApiUnreachable {
+                url: target.url.clone(),
+                source: Box::new(source),
+            }
+        }),
+    }
 }
 
-pub async fn list_tools_authenticated(
-    server_name: &McpServerId,
-    url: &str,
-    token: &SessionToken,
-    timeout_secs: u64,
-) -> Result<Vec<ToolInfo>> {
-    let config =
-        StreamableHttpClientTransportConfig::with_uri(url).auth_header(token.as_str().to_owned());
-    let context = probe_context(server_name).with_auth_token(JwtToken::new(token.as_str()));
-    let transport = StreamableHttpClientTransport::with_client(
-        HttpClientWithContext::new(context, cli_limits(timeout_secs))?,
-        config,
-    );
-
-    let client_info = ClientConfig::new(
-        ClientCapabilities::default(),
-        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    )
-    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
-
-    let client = timeout(
-        Duration::from_secs(timeout_secs),
-        client_info.serve(transport),
-    )
-    .await
-    .context("Connection timeout")?
-    .context("Failed to connect to MCP server")?;
-
-    let tools_response = client
-        // Why: rmcp serialises a `None` params as `"params": null`, which a
-        // strict server (Google's MCP) refuses with -32602; send `{}`.
-        .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
-        .await
-        .context("Failed to list tools")?;
-
-    let tools: Vec<ToolInfo> = tools_response
-        .tools
-        .into_iter()
-        .map(convert_tool_info)
-        .collect();
-
-    client.cancel().await?;
-    Ok(tools)
-}
-
-fn convert_tool_info(tool: rmcp::model::Tool) -> ToolInfo {
-    let input_schema = match serde_json::to_value(&tool.input_schema) {
-        Ok(schema) => Some(schema),
-        Err(e) => {
-            debug!(tool = %tool.name, error = %e, "Failed to serialize input schema");
-            None
-        },
+async fn api_answers(url: &str) -> bool {
+    let Some((scheme, rest)) = url.split_once("://") else {
+        return false;
     };
-    let output_schema =
-        tool.output_schema
-            .as_ref()
-            .and_then(|s| match serde_json::to_value(s.as_ref()) {
-                Ok(schema) => Some(schema),
-                Err(e) => {
-                    debug!(tool = %tool.name, error = %e, "Failed to serialize output schema");
-                    None
-                },
-            });
-    let parameters_count = input_schema
-        .as_ref()
-        .and_then(|s| s.get("properties"))
-        .and_then(|p| p.as_object())
-        .map_or(0, serde_json::Map::len);
-
-    ToolInfo {
-        name: tool.name.to_string(),
-        description: tool.description.map(|d| d.to_string()),
-        parameters_count,
-        input_schema,
-        output_schema,
-    }
+    let authority = rest.split('/').next().unwrap_or_default();
+    let address = if authority.rsplit_once(':').is_some_and(|(_, port)| port.parse::<u16>().is_ok()) {
+        authority.to_owned()
+    } else {
+        let port = if scheme.eq_ignore_ascii_case("https") { 443 } else { 80 };
+        format!("{authority}:{port}")
+    };
+    matches!(
+        timeout(API_PROBE_TIMEOUT, tokio::net::TcpStream::connect(address)).await,
+        Ok(Ok(_))
+    )
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct McpToolEntry {
-    pub name: String,
-    pub server: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    pub parameters_count: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub input_schema: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output_schema: Option<serde_json::Value>,
+const API_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+
+pub async fn list_tools(
+    target: &McpTarget<'_>,
+    timeout_secs: u64,
+) -> Result<Vec<ToolInfo>, McpCallError> {
+    let limit = Duration::from_secs(timeout_secs);
+    timeout(limit, fetch_tools(target, timeout_secs))
+        .await
+        .map_err(|_elapsed| McpCallError::Timeout {
+            server: target.server_name().clone(),
+            limit,
+        })?
 }
 
-impl McpToolEntry {
-    pub fn from_probe(tool: ToolInfo, server: String, with_schemas: bool) -> Self {
-        Self {
-            name: tool.name,
-            server,
-            description: tool.description,
-            parameters_count: tool.parameters_count,
-            input_schema: with_schemas.then_some(tool.input_schema).flatten(),
-            output_schema: with_schemas.then_some(tool.output_schema).flatten(),
-        }
+async fn fetch_tools(
+    target: &McpTarget<'_>,
+    timeout_secs: u64,
+) -> Result<Vec<ToolInfo>, McpCallError> {
+    let client = connect(target, timeout_secs).await?;
+    let listed = client
+        // Why: rmcp serialises a `None` params as `"params": null`, which a
+        // strict server (Google's MCP) refuses with -32602; send `{}`.
+        .list_tools(Some(PaginatedRequestParams::default()))
+        .await
+        .map_err(|source| McpCallError::ListTools {
+            server: target.server_name().clone(),
+            source: Box::new(source),
+        });
+    if let Err(error) = client.cancel().await {
+        tracing::debug!(server = %target.server_name(), error = %error, "MCP client did not close cleanly");
     }
+    Ok(listed?.tools.into_iter().map(ToolInfo::from_tool).collect())
 }

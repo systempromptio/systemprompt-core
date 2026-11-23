@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use systemprompt_extension::cli::{CommandHost, CommandOutput, Prompter, resolve_required};
+use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
@@ -19,7 +19,7 @@ use systemprompt_models::Deployment;
 
 use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
 pub use super::validate_output::{FailureDetail, failure_output, success_output};
-use super::{observer, services_config};
+use super::{observer, prompt_server_selection, services_config};
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -62,7 +62,12 @@ pub(super) async fn execute(
                 .collect()
         } else {
             let service = resolve_required(server_arg, "server", config, || {
-                prompt_server_selection(prompter, &services_config)
+                prompt_server_selection(
+                    prompter,
+                    &services_config,
+                    "Select MCP server to validate",
+                    ServiceName::new,
+                )
             })?;
 
             if !services_config.mcp_servers.contains_key(service.as_str()) {
@@ -218,19 +223,4 @@ pub async fn run_connection_validation(
         };
 
     success_output(service_name, validation_result)
-}
-
-pub fn prompt_server_selection(
-    prompter: &dyn Prompter,
-    config: &ServicesConfig,
-) -> Result<ServiceName> {
-    let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
-    servers.sort();
-
-    if servers.is_empty() {
-        return Err(anyhow!("No MCP servers configured"));
-    }
-
-    let selection = prompter.select("Select MCP server to validate", &servers)?;
-    Ok(ServiceName::new(servers[selection].clone()))
 }

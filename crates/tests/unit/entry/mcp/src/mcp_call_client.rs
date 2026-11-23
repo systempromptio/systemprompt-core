@@ -6,14 +6,12 @@
 
 use rmcp::model::ContentBlock;
 use systemprompt_extension::cli::CallerSession;
-use systemprompt_identifiers::{ContextId, McpToolName, SessionId, SessionToken, UserId};
-use systemprompt_mcp::McpServerConfig;
-use systemprompt_mcp_entry::cli::call_client::{
-    McpTarget, ToolCallParams, convert_content, execute_tool_call, list_tools,
+use systemprompt_identifiers::{
+    ContextId, McpServerId, McpToolName, SessionId, SessionToken, UserId,
 };
+use systemprompt_mcp_entry::cli::call_client::{ToolCallParams, convert_content, execute_tool_call};
+use systemprompt_mcp_entry::cli::probe::{McpCallError, McpTarget, list_tools};
 use systemprompt_models::auth::UserType;
-
-use crate::mcp_call_credential::server_config;
 
 const CALLER_CONTEXT: &str = "7c1d5e9a-3b2f-4c8d-9e6a-1f0b2c3d4e5f";
 
@@ -27,10 +25,10 @@ fn session() -> CallerSession {
     )
 }
 
-fn internal(name: &str, port: u16) -> McpServerConfig {
-    let mut config = server_config(name);
-    config.port = Some(port);
-    config
+const PROXY_PATH: &str = "/api/v1/mcp/strict/mcp";
+
+fn closed_api() -> String {
+    format!("http://127.0.0.1:{}", free_port())
 }
 
 fn block(json: serde_json::Value) -> ContentBlock {
@@ -91,7 +89,7 @@ fn convert_content_renders_embedded_resources_as_json() {
 #[tokio::test]
 async fn execute_tool_call_fails_fast_against_closed_port() {
     let err = execute_tool_call(ToolCallParams {
-        target: &McpTarget::resolve(&internal("svc", free_port()), Some(&session())).unwrap(),
+        target: &McpTarget::through_proxy(&closed_api(), McpServerId::new("svc"), &session()),
         tool_name: &McpToolName::new("echo"),
         arguments: Some(serde_json::json!({"x": 1})),
         timeout_secs: 5,
@@ -99,19 +97,22 @@ async fn execute_tool_call_fails_fast_against_closed_port() {
     .await
     .unwrap_err();
 
-    assert!(err.to_string().contains("Failed to connect to MCP server"));
+    assert!(err.to_string().contains("is not reachable"), "{err:#}");
 }
 
 #[tokio::test]
 async fn list_tools_fails_fast_against_closed_port() {
     let err = list_tools(
-        &McpTarget::resolve(&internal("svc", free_port()), Some(&session())).unwrap(),
+        &McpTarget::through_proxy(&closed_api(), McpServerId::new("svc"), &session()),
         5,
     )
     .await
     .unwrap_err();
 
-    assert!(err.to_string().contains("Failed to connect to MCP server"));
+    assert!(
+        matches!(err, McpCallError::ApiUnreachable { .. }),
+        "no API answering is a typed ApiUnreachable: {err:#}"
+    );
 }
 
 struct JsonRpcMethod(&'static str);
@@ -148,7 +149,7 @@ async fn mount_protocol(server: &wiremock::MockServer) {
     use wiremock::{Mock, ResponseTemplate};
 
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(PROXY_PATH))
         .and(ExactAuthorization("Bearer tok"))
         .and(body_json(serde_json::json!({
             "jsonrpc": "2.0",
@@ -181,7 +182,7 @@ async fn mount_protocol(server: &wiremock::MockServer) {
         .mount(server)
         .await;
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(PROXY_PATH))
         .and(ExactAuthorization("Bearer tok"))
         .and(header("mcp-session-id", "sess-cli-live"))
         .and(body_json(serde_json::json!({
@@ -193,7 +194,7 @@ async fn mount_protocol(server: &wiremock::MockServer) {
         .mount(server)
         .await;
     Mock::given(method("DELETE"))
-        .and(path("/mcp"))
+        .and(path(PROXY_PATH))
         .respond_with(ResponseTemplate::new(200))
         .mount(server)
         .await;
@@ -250,7 +251,7 @@ async fn list_tools_sends_non_null_object_params_and_preserves_names() {
     let server = MockServer::start().await;
     mount_protocol(&server).await;
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(PROXY_PATH))
         .and(ExactAuthorization("Bearer tok"))
         .and(header("mcp-session-id", "sess-cli-live"))
         .and(body_json(serde_json::json!({
@@ -278,11 +279,7 @@ async fn list_tools_sends_non_null_object_params_and_preserves_names() {
     let tools_result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         list_tools(
-            &McpTarget::resolve(
-                &internal("strict", server.address().port()),
-                Some(&session()),
-            )
-            .unwrap(),
+            &McpTarget::through_proxy(&server.uri(), McpServerId::new("strict"), &session()),
             5,
         ),
     )
@@ -322,7 +319,7 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let success = MockServer::start().await;
     mount_protocol(&success).await;
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(PROXY_PATH))
         .and(ExactAuthorization("Bearer tok"))
         .and(header("mcp-session-id", "sess-cli-live"))
         .and(body_partial_json(serde_json::json!({
@@ -347,11 +344,7 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            target: &McpTarget::resolve(
-                &internal("strict", success.address().port()),
-                Some(&session()),
-            )
-            .unwrap(),
+            target: &McpTarget::through_proxy(&success.uri(), McpServerId::new("strict"), &session()),
             tool_name: &McpToolName::new("echo"),
             arguments: Some(serde_json::json!({"message": "owned-value"})),
             timeout_secs: 5,
@@ -371,7 +364,7 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let rejected = MockServer::start().await;
     mount_protocol(&rejected).await;
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(PROXY_PATH))
         .and(ExactAuthorization("Bearer tok"))
         .and(header("mcp-session-id", "sess-cli-live"))
         .and(body_partial_json(serde_json::json!({
@@ -393,11 +386,7 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            target: &McpTarget::resolve(
-                &internal("strict", rejected.address().port()),
-                Some(&session()),
-            )
-            .unwrap(),
+            target: &McpTarget::through_proxy(&rejected.uri(), McpServerId::new("strict"), &session()),
             tool_name: &McpToolName::new("denied"),
             arguments: None,
             timeout_secs: 5,
@@ -423,7 +412,7 @@ async fn execute_tool_call_timeout_bounds_a_call_the_server_never_answers() {
     let server = MockServer::start().await;
     mount_protocol(&server).await;
     Mock::given(method("POST"))
-        .and(path("/mcp"))
+        .and(path(PROXY_PATH))
         .and(ExactAuthorization("Bearer tok"))
         .and(header("mcp-session-id", "sess-cli-live"))
         .and(body_partial_json(serde_json::json!({
@@ -444,11 +433,7 @@ async fn execute_tool_call_timeout_bounds_a_call_the_server_never_answers() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(20),
         execute_tool_call(ToolCallParams {
-            target: &McpTarget::resolve(
-                &internal("strict", server.address().port()),
-                Some(&session()),
-            )
-            .unwrap(),
+            target: &McpTarget::through_proxy(&server.uri(), McpServerId::new("strict"), &session()),
             tool_name: &McpToolName::new("hang"),
             arguments: None,
             timeout_secs: 1,

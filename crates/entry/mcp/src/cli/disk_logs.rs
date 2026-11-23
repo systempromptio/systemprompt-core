@@ -2,8 +2,9 @@
 //!
 //! Log files follow the `<prefix><name>.log` convention; lookup also accepts
 //! a bare `<name>.log` path and a substring match over the discovered set.
-//! The server name is accepted only as a single path segment, so a lookup
-//! never leaves the logs directory.
+//! The server name is accepted only as a single path segment, and every entry
+//! is resolved through [`entries_within`] / [`locate_within`], so neither a
+//! name nor a symbolic link leads a read out of the logs directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,19 +13,20 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
-use systemprompt_models::path_confine::single_segment;
+use systemprompt_models::path_confine::{entries_within, locate_within, single_segment};
 
 pub(super) fn list_log_files(logs_dir: &Path, prefix: &str) -> Result<Vec<String>> {
-    let mut files = std::fs::read_dir(logs_dir)
+    let mut files = entries_within(logs_dir, logs_dir)
         .context("Failed to read logs directory")?
-        .filter_map(Result::ok)
+        .into_iter()
+        .filter(|entry| !entry.is_dir)
         .filter_map(|entry| {
-            let path = entry.path();
-            path.file_name()
-                .and_then(|n| n.to_str())
+            entry
+                .name
+                .to_str()
                 .filter(|name| {
                     name.starts_with(prefix)
-                        && path
+                        && Path::new(name)
                             .extension()
                             .is_some_and(|ext| ext.eq_ignore_ascii_case("log"))
                 })
@@ -38,14 +40,10 @@ pub(super) fn list_log_files(logs_dir: &Path, prefix: &str) -> Result<Vec<String
 
 pub(super) fn find_log_file(logs_dir: &Path, prefix: &str, name: &str) -> Result<PathBuf> {
     let name = single_segment("MCP server name", name)?;
-    let exact_path = logs_dir.join(format!("{name}.log"));
-    if exact_path.exists() {
-        return Ok(exact_path);
-    }
-
-    let prefixed_path = logs_dir.join(format!("{prefix}{name}.log"));
-    if prefixed_path.exists() {
-        return Ok(prefixed_path);
+    for candidate in [format!("{name}.log"), format!("{prefix}{name}.log")] {
+        if let Some(found) = locate_within(logs_dir, &logs_dir.join(candidate))? {
+            return Ok(found);
+        }
     }
 
     let log_files = list_log_files(logs_dir, prefix)?;

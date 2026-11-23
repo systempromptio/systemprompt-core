@@ -319,6 +319,16 @@ fn normalize_admin_email() {
     });
 }
 
+pub fn point_external_url_at(fixture: &FullBootstrap, port: u16) {
+    let profile = std::fs::read_to_string(&fixture.profile_path).expect("read profile.yaml");
+    let pointed = profile.replace(
+        "  external_url: http://127.0.0.1\n",
+        &format!("  external_url: http://127.0.0.1:{port}\n"),
+    );
+    assert_ne!(profile, pointed, "the fixture profile names its external URL");
+    std::fs::write(&fixture.profile_path, pointed).expect("rewrite profile.yaml");
+}
+
 pub fn rewrite_services_config(fixture: &FullBootstrap, mcp_port: u16) {
     std::fs::write(
         fixture.services_dir.join("config/config.yaml"),

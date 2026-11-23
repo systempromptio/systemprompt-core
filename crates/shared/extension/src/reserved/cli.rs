@@ -127,7 +127,7 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
     cli(
         CoreId::McpHttp,
         &["plugins", "mcp"],
-        &[KernelGrant::CallerSession],
+        &[KernelGrant::ServicesTree, KernelGrant::CallerSession],
         PRESERVING,
     ),
 ];

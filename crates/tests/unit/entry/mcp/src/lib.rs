@@ -26,6 +26,8 @@ mod mcp_validate_outputs;
 #[cfg(test)]
 mod plugins_mcp_configured_db;
 #[cfg(test)]
+mod probe_flows;
+#[cfg(test)]
 mod registry_handler;
 #[cfg(test)]
 mod registry_listing;

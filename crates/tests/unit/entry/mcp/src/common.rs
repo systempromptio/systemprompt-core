@@ -40,14 +40,20 @@ pub fn json_cli() -> CliConfig {
 pub fn member(ctx: &CommandContext) -> MemberHost<'_> {
     MemberHost::new(
         ctx,
-        CommandDescriptor::FULL.with_grant(KernelGrant::CallerSession),
+        CommandDescriptor::FULL
+            .with_grant(KernelGrant::ServicesTree)
+            .with_grant(KernelGrant::CallerSession),
     )
 }
 
 pub fn mcp_kernel(app: &AppContext) -> Kernel {
     let handle: Arc<dyn DatabaseHandle> =
         Arc::<systemprompt_database::Database>::clone(app.db_pool());
-    let registry = app.mcp_registry().clone();
+    let registry = systemprompt_mcp::RegistryService::new(
+        app.system_admin().id().clone(),
+        app.services_state().view(),
+        Arc::clone(app.config_arc()),
+    );
     let observer = McpServiceObserver::new(
         (**app.service_repository()).clone(),
         Arc::clone(app.app_paths_arc()),
@@ -63,6 +69,24 @@ pub fn mcp_kernel(app: &AppContext) -> Kernel {
             .with(app.services_state().view())
             .with(Arc::clone(app.app_paths_arc())),
     )
+}
+
+pub async fn logs_root(ctx: &CommandContext) -> std::path::PathBuf {
+    let host = member(ctx);
+    let root = host
+        .resolved()
+        .await
+        .expect("resolved member state")
+        .get::<Arc<systemprompt_config::paths::AppPaths>>()
+        .expect("app paths")
+        .system()
+        .logs();
+    std::fs::create_dir_all(&root).expect("logs root");
+    root
+}
+
+pub async fn logs_dir_in_root(ctx: &CommandContext) -> tempfile::TempDir {
+    tempfile::tempdir_in(logs_root(ctx).await).expect("logs dir inside the logs root")
 }
 
 pub fn with_app(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) -> CommandContext {
