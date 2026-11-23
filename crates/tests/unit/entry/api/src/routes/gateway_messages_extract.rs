@@ -462,7 +462,7 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
 async fn a_body_read_past_the_limit_maps_to_413() {
     let oversized = vec![b'x'; 64];
     let error =
-        systemprompt_api::services::middleware::read_body_bounded(Body::from(oversized), 16)
+        systemprompt_extension::router::read_body_bounded(Body::from(oversized), 16)
             .await
             .expect_err("a body past the limit fails to read");
 
@@ -472,7 +472,7 @@ async fn a_body_read_past_the_limit_maps_to_413() {
 #[test]
 fn a_body_read_that_fails_for_any_other_reason_maps_to_400() {
     let error =
-        systemprompt_api::services::middleware::BodyReadError::Unreadable(axum::Error::new(
+        systemprompt_extension::router::BodyReadError::Unreadable(axum::Error::new(
             std::io::Error::new(std::io::ErrorKind::ConnectionReset, "client went away"),
         ));
 

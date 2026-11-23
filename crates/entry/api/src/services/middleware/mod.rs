@@ -31,9 +31,7 @@ pub mod trailing_slash;
 
 pub use analytics::{AnalyticsEventParams, AnalyticsMiddleware};
 pub use authz::authz_gate;
-pub use body::{
-    BodyBudget, BodyReadError, BodyReservation, read_body_bounded, read_request_bounded,
-};
+pub use body::{BodyBudget, BodyReservation};
 pub use bot_detector::{
     BotMarker, BotType, detect_bots_early, is_datacenter_ip, is_known_bot, is_outdated_browser,
     is_scanner_request,

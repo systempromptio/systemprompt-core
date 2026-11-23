@@ -40,7 +40,8 @@ use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 use super::bridge_error::BridgeError;
 use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::extract::headers::{extract_credential, optional_session_id};
-use crate::kernel::{ApiHttpError, JwtContextExtractor, read_body_bounded};
+use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use systemprompt_extension::router::read_body_bounded;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;

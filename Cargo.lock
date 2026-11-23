@@ -6983,6 +6983,7 @@ dependencies = [
  "clap",
  "futures",
  "http",
+ "http-body-util",
  "pg_query",
  "rmcp",
  "schemars 1.2.3",
