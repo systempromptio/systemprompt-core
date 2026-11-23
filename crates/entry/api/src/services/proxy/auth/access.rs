@@ -50,6 +50,23 @@ impl AccessValidator {
         Self::validate_with_requirement(headers, service_name, &requirement, ctx, req_context)
     }
 
+    pub(crate) fn verified_caller(
+        headers: &HeaderMap,
+        service_name: &ServiceName,
+        ctx: &AppContext,
+        req_context: Option<&RequestContext>,
+    ) -> Option<AuthenticatedUser> {
+        headers.get(AUTHORIZATION)?;
+        AuthValidator::validate_service_access(
+            ctx.token_authority().as_ref(),
+            ctx.config(),
+            headers,
+            service_name,
+            req_context,
+        )
+        .ok()
+    }
+
     pub fn validate_with_requirement(
         headers: &HeaderMap,
         service_name: &ServiceName,

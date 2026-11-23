@@ -37,13 +37,14 @@ systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-content-entry = { workspace = true, features = ["http"] }
 systemprompt-marketplace = { workspace = true }
 systemprompt-marketplace-entry = { workspace = true, features = ["http"] }
 systemprompt-mcp = { workspace = true }
+systemprompt-mcp-entry = { workspace = true, features = ["cli"] }
 systemprompt-users = { workspace = true }
 systemprompt-notifications = { workspace = true }
 systemprompt-notifications-entry = { workspace = true, features = ["http"] }
