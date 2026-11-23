@@ -5,6 +5,7 @@
 
 use axum::body::Body;
 use axum::http::Request;
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_api::routes::proxy::mcp;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, TraceId, UserId,
@@ -322,10 +323,7 @@ async fn a_streamed_body_past_the_cap_is_refused() -> anyhow::Result<()> {
 }
 
 async fn context_of(edge: &Edge, owner: &UserId) -> anyhow::Result<ContextId> {
-    Ok(edge
-        .ctx
-        .a2a_repositories()
-        .contexts
+    Ok(ContextRepository::new(&edge.pool)
         .create_context(owner, None, "proxy-edge", ContextKind::User)
         .await?)
 }
