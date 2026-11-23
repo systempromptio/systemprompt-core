@@ -8,6 +8,8 @@
 //! cheap upstream call to every endpoint proves it works), and remove it. The
 //! key is sealed at rest and never returned, logged or echoed in an error;
 //! every store and removal is recorded with the user and credential only.
+//! The caller is verified through the request authenticator; the credential
+//! view is the one conferred on `gateway-http`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,26 +27,109 @@ use systemprompt_ai::{
     personal_credentials,
 };
 use systemprompt_extension::router::GatewayPrincipal;
+use systemprompt_extension::router::{ApiHttpError, unreadable_body};
+use systemprompt_identifiers::JwtToken;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential};
+use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::profile::{
     ProviderCredentialStatus, SetProviderCredentialRequest,
 };
-use systemprompt_runtime::AppContext;
+use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_traits::BoxedSource;
 
-use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use super::state::GatewayHttpState;
+use systemprompt_gateway::surface::credential::extract_credential;
+
+/// The personal-credential routes' state: the gateway state and the
+/// caller-bound credential view conferred on `gateway-http`.
+#[derive(Clone)]
+pub struct ProviderCredentialsState {
+    pub gateway: GatewayHttpState,
+    pub credentials: Arc<PersonalProviderCredentials>,
+}
+
+impl std::fmt::Debug for ProviderCredentialsState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProviderCredentialsState")
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ProviderCredentialsError {
+    #[error("Missing Authorization or x-api-key credential")]
+    MissingCredential,
+    #[error("Bridge credential rejected")]
+    CredentialRejected(#[source] ContextExtractionError),
+    #[error("invalid request body: {0}")]
+    InvalidBody(#[source] JsonRejection),
+    #[error("credential '{0}' does not take a personal key")]
+    NotPersonalCredential(String),
+    #[error("{0} rejected the key; check it was copied whole and the subscription is active")]
+    PersonalKeyRejected(String),
+    #[error(
+        "{credential} could not verify the key (upstream answered {status}); try again shortly"
+    )]
+    PersonalKeyUnverified { credential: String, status: String },
+    #[error("{context}")]
+    Internal {
+        context: &'static str,
+        #[source]
+        source: BoxedSource,
+    },
+}
+
+impl ProviderCredentialsError {
+    fn internal(context: &'static str, source: impl Into<BoxedSource>) -> Self {
+        Self::Internal {
+            context,
+            source: source.into(),
+        }
+    }
+}
+
+impl From<ProviderCredentialsError> for ApiHttpError {
+    fn from(err: ProviderCredentialsError) -> Self {
+        let message = err.to_string();
+        let api = match err {
+            ProviderCredentialsError::MissingCredential => {
+                ApiError::unauthorized(message).with_error_key("missing_credential")
+            },
+            ProviderCredentialsError::CredentialRejected(source) => ApiError::unauthorized(message)
+                .with_error_key("invalid_credential")
+                .with_source(source),
+            ProviderCredentialsError::InvalidBody(source) => {
+                unreadable_body(source.status(), &message, source).with_error_key("invalid_body")
+            },
+            ProviderCredentialsError::NotPersonalCredential(_) => {
+                ApiError::not_found(message).with_error_key("not_personal_credential")
+            },
+            ProviderCredentialsError::PersonalKeyRejected(_) => {
+                ApiError::validation_error(message, Vec::new())
+                    .with_error_key("personal_key_rejected")
+            },
+            ProviderCredentialsError::PersonalKeyUnverified { .. } => {
+                ApiError::bad_request(message).with_error_key("personal_key_unverified")
+            },
+            ProviderCredentialsError::Internal { context, source } => {
+                ApiError::internal(context, source)
+            },
+        };
+        Self::from(api)
+    }
+}
 
 pub async fn list(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
+    state: ProviderCredentialsState,
     headers: HeaderMap,
 ) -> Result<Json<Vec<ProviderCredentialStatus>>, ApiHttpError> {
-    let caller = caller(&jwt_extractor, &headers).await?;
-    let stored = credentials(&ctx)?
+    let caller = caller(&state.gateway, &headers).await?;
+    let stored = state
+        .credentials
         .list(&caller)
         .await
-        .map_err(|e| BridgeError::internal("personal key listing failed", e))?;
-    let catalog = ctx.services_state().catalog();
+        .map_err(|e| ProviderCredentialsError::internal("personal key listing failed", e))?;
+    let catalog = state.gateway.host.services.catalog();
     let rows = personal_credentials(catalog)
         .into_iter()
         .map(|credential| {
@@ -58,17 +143,17 @@ pub async fn list(
 }
 
 pub async fn set(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
+    state: ProviderCredentialsState,
     headers: HeaderMap,
     Path(credential): Path<String>,
     body: Result<Json<SetProviderCredentialRequest>, JsonRejection>,
 ) -> Result<Json<ProviderCredentialStatus>, ApiHttpError> {
-    let caller = caller(&jwt_extractor, &headers).await?;
-    let Json(body) = body.map_err(BridgeError::InvalidBody)?;
-    let catalog = ctx.services_state().catalog();
+    let caller = caller(&state.gateway, &headers).await?;
+    let Json(body) = body.map_err(ProviderCredentialsError::InvalidBody)?;
+    let catalog = state.gateway.host.services.catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
-    let meta = credentials(&ctx)?
+    let meta = state
+        .credentials
         .store(
             &caller,
             catalog,
@@ -84,18 +169,18 @@ pub async fn set(
 }
 
 pub async fn delete(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
+    state: ProviderCredentialsState,
     headers: HeaderMap,
     Path(credential): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
-    let caller = caller(&jwt_extractor, &headers).await?;
-    let resolved =
-        personal_credential(ctx.services_state().catalog(), &credential).map_err(key_error)?;
-    let removed = credentials(&ctx)?
+    let caller = caller(&state.gateway, &headers).await?;
+    let resolved = personal_credential(state.gateway.host.services.catalog(), &credential)
+        .map_err(key_error)?;
+    let removed = state
+        .credentials
         .remove(&caller, &resolved.id)
         .await
-        .map_err(|e| BridgeError::internal("personal key could not be removed", e))?;
+        .map_err(|e| ProviderCredentialsError::internal("personal key could not be removed", e))?;
     if removed {
         tracing::info!(
             user_id = %caller.user_id(),
@@ -107,30 +192,32 @@ pub async fn delete(
 }
 
 async fn caller(
-    jwt_extractor: &JwtContextExtractor,
+    state: &GatewayHttpState,
     headers: &HeaderMap,
-) -> Result<GatewayPrincipal, BridgeError> {
-    let (_claims, user) = authenticate_bridge(jwt_extractor, headers).await?;
+) -> Result<GatewayPrincipal, ProviderCredentialsError> {
+    let credential =
+        extract_credential(headers).ok_or(ProviderCredentialsError::MissingCredential)?;
+    let (_claims, user) = state
+        .authenticator
+        .decode_for_gateway(&JwtToken::new(credential))
+        .await
+        .map_err(ProviderCredentialsError::CredentialRejected)?;
     Ok(GatewayPrincipal::__from_kernel(user.id))
 }
 
-fn credentials(ctx: &AppContext) -> Result<Arc<PersonalProviderCredentials>, BridgeError> {
-    ctx.kernel()
-        .state()
-        .get::<Arc<PersonalProviderCredentials>>()
-        .cloned()
-        .map_err(|e| BridgeError::internal("the personal credential view is unavailable", e))
-}
-
-fn key_error(error: PersonalKeyError) -> BridgeError {
+fn key_error(error: PersonalKeyError) -> ProviderCredentialsError {
     match error {
-        PersonalKeyError::NotPersonalCredential(id) => BridgeError::NotPersonalCredential(id),
-        PersonalKeyError::Rejected(credential) => BridgeError::PersonalKeyRejected(credential),
+        PersonalKeyError::NotPersonalCredential(id) => {
+            ProviderCredentialsError::NotPersonalCredential(id)
+        },
+        PersonalKeyError::Rejected(credential) => {
+            ProviderCredentialsError::PersonalKeyRejected(credential)
+        },
         PersonalKeyError::Unverified { credential, status } => {
-            BridgeError::PersonalKeyUnverified { credential, status }
+            ProviderCredentialsError::PersonalKeyUnverified { credential, status }
         },
         PersonalKeyError::Internal(source) => {
-            BridgeError::internal("personal key could not be stored", source)
+            ProviderCredentialsError::internal("personal key could not be stored", source)
         },
     }
 }
@@ -156,33 +243,25 @@ fn status_row(
     }
 }
 
-pub(super) fn routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
-    let ctx_list = ctx.clone();
-    let ctx_set = ctx.clone();
-    let ctx_delete = ctx.clone();
-    let jwt_list = Arc::clone(jwt_extractor);
-    let jwt_set = Arc::clone(jwt_extractor);
-    let jwt_delete = Arc::clone(jwt_extractor);
+pub(super) fn routes(state: &ProviderCredentialsState) -> Router {
+    let (list_state, set_state, delete_state) = (state.clone(), state.clone(), state.clone());
     Router::new()
         .route(
             "/me/provider-credentials",
             get(move |headers| {
-                let extractor = Arc::clone(&jwt_list);
-                let context = ctx_list.clone();
-                async move { list(extractor, context, headers).await }
+                let state = list_state.clone();
+                async move { list(state, headers).await }
             }),
         )
         .route(
             "/me/provider-credentials/{credential}",
             put(move |headers, path, body| {
-                let extractor = Arc::clone(&jwt_set);
-                let context = ctx_set.clone();
-                async move { set(extractor, context, headers, path, body).await }
+                let state = set_state.clone();
+                async move { set(state, headers, path, body).await }
             })
             .delete(move |headers, path| {
-                let extractor = Arc::clone(&jwt_delete);
-                let context = ctx_delete.clone();
-                async move { delete(extractor, context, headers, path).await }
+                let state = delete_state.clone();
+                async move { delete(state, headers, path).await }
             }),
         )
 }

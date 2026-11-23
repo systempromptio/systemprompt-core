@@ -20,6 +20,7 @@ pub mod count_tokens;
 pub mod messages;
 #[cfg(feature = "otel")]
 pub mod otel;
+pub mod provider_credentials;
 pub mod state;
 
 use std::sync::Arc;
@@ -49,7 +50,8 @@ impl GatewaySurface for GatewayHttpSurface {
         let own = resolved.get::<Arc<GatewayHttpRepositories>>()?;
         let db = resolved.get::<DbPool>()?;
         let repos = gateway_repositories(&resolved, &host, Arc::clone(&own.contexts), &db)?;
-        Ok(routes(&GatewayHttpState {
+        let credentials = resolved.get::<Arc<systemprompt_ai::PersonalProviderCredentials>>()?;
+        let state = GatewayHttpState {
             authenticator: resolved.get()?,
             api_keys: own.api_keys.clone(),
             session_mint: resolved.get::<DynGatewaySessionMint>()?,
@@ -57,7 +59,13 @@ impl GatewaySurface for GatewayHttpSurface {
             engines: resolved.get::<Arc<GatewayEngines>>()?,
             host,
             db,
-        }))
+        };
+        Ok(routes(&state).merge(provider_credentials::routes(
+            &provider_credentials::ProviderCredentialsState {
+                gateway: state.clone(),
+                credentials,
+            },
+        )))
     }
 }
 

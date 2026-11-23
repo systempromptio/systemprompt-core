@@ -42,6 +42,7 @@ http = [
     "dep:http",
     "dep:serde_json",
     "dep:tracing",
+    "dep:thiserror",
 ]
 otel = ["http", "dep:opentelemetry-proto", "dep:prost", "dep:serde", "dep:metrics"]
 
@@ -66,5 +67,6 @@ metrics = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
 opentelemetry-proto = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }

@@ -55,7 +55,6 @@ pub mod bridge_whoami;
 pub mod builtin;
 pub mod device_link;
 pub mod models;
-pub mod provider_credentials;
 pub mod registered;
 pub mod sessions;
 
@@ -148,7 +147,6 @@ pub(crate) fn gateway_mount_parts(
     let registered = registered::admitted_gateway_routes(admitted, kernel, &jwt_extractor)?;
     let traffic = traffic
         .merge(drive_routes(ctx, &jwt_extractor))
-        .merge(provider_credentials::routes(ctx, &jwt_extractor))
         .merge(bridge_release::routes(ctx, &jwt_extractor)?)
         .route("/models", get(models::list).with_state(ctx.clone()))
         .route("/", get(models::root));
