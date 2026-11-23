@@ -1,7 +1,7 @@
 //! The `gateway-http` handlers and the surface that builds them.
 //!
 //! [`GatewayHttpSurface`] implements
-//! [`GatewaySurface`](systemprompt_gateway::GatewaySurface): from the
+//! [`GatewaySurface`]: from the
 //! route-scoped state of `gateway-http` it builds the inference proxy
 //! (`/messages`, `/responses`, `/chat/completions`, each bound to an
 //! [`InboundAdapter`]), `/messages/count_tokens` and, with the `otel`

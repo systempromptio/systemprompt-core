@@ -2,11 +2,12 @@
 //!
 //! With the `http` feature the member provides its
 //! [`GatewaySurface`](systemprompt_gateway::GatewaySurface) (open: a builder
-//! that holds nothing) and, sealed, the [`GatewayHttpRepositories`] it builds
-//! here — the API-key check over the user repository, with the key lifetime
-//! the runtime config sets, and the context materializer over the context
-//! repository. The API mount resolves the surface's state scoped to this
-//! member, so the engines, at-rest material and session mint reach it only
+//! that holds nothing) and, sealed, the
+//! [`GatewayHttpRepositories`](crate::http::state::GatewayHttpRepositories) it
+//! builds here — the API-key check over the user repository, with the key
+//! lifetime the runtime config sets, and the context materializer over the
+//! context repository. The API mount resolves the surface's state scoped to
+//! this member, so the engines, at-rest material and session mint reach it only
 //! through their conferral rows.
 //!
 //! | profile disables | inference, token count, `/otel` |
