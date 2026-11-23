@@ -31,10 +31,14 @@ use crate::protection::RouteGroup;
 use crate::router::{Allowance, BaseRef, RouteShape};
 
 mod cli;
+mod conferrals;
 mod nesting;
 mod shapes;
 
 pub use cli::{RESERVED_CLI_PATHS, ReservedCliPath};
+pub use conferrals::{
+    ConferralRow, SEALED_CONFERRALS, SealedConferral, conferral_admits, conferral_named,
+};
 pub use nesting::{nested_rows_are_bounded, nested_under_another_owner};
 pub use shapes::{
     AGENT_REGISTRY_ROUTES, CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES,
@@ -200,11 +204,13 @@ pub enum CoreId {
     McpHttp,
     AgentHttp,
     BrainHttp,
+    GatewayHttp,
+    IdentityHttp,
     Kernel,
 }
 
 impl CoreId {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 15] = [
         Self::ContentHttp,
         Self::AnalyticsHttp,
         Self::NotificationsHttp,
@@ -217,6 +223,8 @@ impl CoreId {
         Self::McpHttp,
         Self::AgentHttp,
         Self::BrainHttp,
+        Self::GatewayHttp,
+        Self::IdentityHttp,
         Self::Kernel,
     ];
 
@@ -240,6 +248,8 @@ impl CoreId {
             Self::McpHttp => "mcp-http",
             Self::AgentHttp => "agent-http",
             Self::BrainHttp => "brain-http",
+            Self::GatewayHttp => "gateway-http",
+            Self::IdentityHttp => "identity-http",
             Self::Kernel => "kernel",
         }
     }

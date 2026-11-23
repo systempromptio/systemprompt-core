@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use systemprompt_extension::reserved::CoreId;
 
-const ALL: [CoreId; 13] = [
+const ALL: [CoreId; 15] = [
     CoreId::ContentHttp,
     CoreId::AnalyticsHttp,
     CoreId::NotificationsHttp,
@@ -19,6 +19,8 @@ const ALL: [CoreId; 13] = [
     CoreId::McpHttp,
     CoreId::AgentHttp,
     CoreId::BrainHttp,
+    CoreId::GatewayHttp,
+    CoreId::IdentityHttp,
     CoreId::Kernel,
 ];
 
@@ -36,7 +38,9 @@ const fn listed(id: CoreId) -> usize {
         CoreId::McpHttp => 9,
         CoreId::AgentHttp => 10,
         CoreId::BrainHttp => 11,
-        CoreId::Kernel => 12,
+        CoreId::GatewayHttp => 12,
+        CoreId::IdentityHttp => 13,
+        CoreId::Kernel => 14,
     }
 }
 

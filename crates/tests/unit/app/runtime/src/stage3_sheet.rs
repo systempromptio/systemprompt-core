@@ -68,9 +68,15 @@ async fn gateway_route_set_reads_its_own_sealed_engines() {
 }
 
 #[tokio::test]
+async fn gateway_http_reads_the_engines_under_its_conferral_row() {
+    let ctx = context().await;
+    assert!(route_reads::<Arc<GatewayEngines>>(&ctx, "gateway-http"));
+}
+
+#[tokio::test]
 async fn gateway_engines_are_refused_to_every_other_route_set_command_and_job() {
     let ctx = context().await;
-    for owner in ["gateway-http", "files-http", "agent-http", "mcp-http"] {
+    for owner in ["identity-http", "files-http", "agent-http", "mcp-http"] {
         assert!(!route_reads::<Arc<GatewayEngines>>(&ctx, owner), "{owner}");
     }
     assert!(!install_reads::<Arc<GatewayEngines>>(&ctx));

@@ -8,14 +8,17 @@ use std::any::{Any, TypeId, type_name};
 use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::{Dependencies, DuplicateDependency, Job};
+use systemprompt_provider_contracts::{Conferred, Dependencies, DuplicateDependency, Job};
 
 use super::error::ProvideError;
 use super::resolved::Resolved;
+use crate::reserved::ConferralRow;
 
 type ErasedValue = Arc<dyn Any + Send + Sync>;
 type ComputeFn = Box<dyn Fn(&Resolved<'_>) -> Result<ErasedValue, ProvideError> + Send + Sync>;
 type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedValue) -> Result<(), DuplicateDependency>;
+type ConferFn =
+    fn(&mut Dependencies, &ExtensionId, ErasedValue, Conferred) -> Result<(), DuplicateDependency>;
 
 /// When the kernel runs a provide fn.
 ///
@@ -35,6 +38,7 @@ pub enum ProvidePhase {
 pub struct ProvideEntry {
     phase: ProvidePhase,
     sealed: bool,
+    conferral: Option<(ConferralRow, ConferFn)>,
     type_id: TypeId,
     type_name: &'static str,
     compute: ComputeFn,
@@ -52,6 +56,21 @@ impl ProvideEntry {
         self.sealed
     }
 
+    #[must_use]
+    pub fn conferral(&self) -> Option<ConferralRow> {
+        self.conferral.map(|(row, _)| row)
+    }
+
+    pub(crate) fn conferred<T, F>(phase: ProvidePhase, row: ConferralRow, f: F) -> Self
+    where
+        T: Clone + Send + Sync + 'static,
+        F: Fn(&Resolved<'_>) -> Result<T, ProvideError> + Send + Sync + 'static,
+    {
+        let mut entry = Self::new::<T, F>(phase, true, f);
+        entry.conferral = Some((row, insert_conferred::<T>));
+        entry
+    }
+
     pub(crate) fn new<T, F>(phase: ProvidePhase, sealed: bool, f: F) -> Self
     where
         T: Clone + Send + Sync + 'static,
@@ -60,6 +79,7 @@ impl ProvideEntry {
         Self {
             phase,
             sealed,
+            conferral: None,
             type_id: TypeId::of::<T>(),
             type_name: type_name::<T>(),
             compute: Box::new(move |r| {
@@ -90,6 +110,7 @@ impl ProvideEntry {
         (self.compute)(r).map(|value| ProvidedValue {
             value,
             insert: self.insert,
+            conferral: self.conferral,
         })
     }
 }
@@ -106,6 +127,7 @@ impl std::fmt::Debug for ProvideEntry {
 pub struct ProvidedValue {
     value: ErasedValue,
     insert: InsertFn,
+    conferral: Option<(ConferralRow, ConferFn)>,
 }
 
 impl ProvidedValue {
@@ -114,7 +136,18 @@ impl ProvidedValue {
         state: &mut Dependencies,
         provider: &ExtensionId,
     ) -> Result<(), DuplicateDependency> {
-        (self.insert)(state, provider, self.value)
+        match self.conferral {
+            Some((row, confer)) => confer(
+                state,
+                provider,
+                self.value,
+                Conferred {
+                    holder: ExtensionId::new(row.entry().holder.id()),
+                    row: row.name(),
+                },
+            ),
+            None => (self.insert)(state, provider, self.value),
+        }
     }
 }
 
@@ -142,6 +175,17 @@ fn insert_sealed<T: Send + Sync + 'static>(
     value
         .downcast::<T>()
         .map_or(Ok(()), |typed| state.provide_sealed(provider, typed))
+}
+
+fn insert_conferred<T: Send + Sync + 'static>(
+    state: &mut Dependencies,
+    provider: &ExtensionId,
+    value: ErasedValue,
+    conferred: Conferred,
+) -> Result<(), DuplicateDependency> {
+    value.downcast::<T>().map_or(Ok(()), |typed| {
+        state.provide_conferred(provider, typed, conferred)
+    })
 }
 
 /// A declared dependency on another member of the same capability, by type.

@@ -85,6 +85,15 @@ pub struct Dependencies {
     entries: Arc<HashMap<TypeId, Entry>>,
     reserved: Arc<HashMap<TypeId, &'static str>>,
     sealed: Arc<HashSet<TypeId>>,
+    conferred: Arc<HashMap<TypeId, Conferred>>,
+}
+
+/// The one member a sealed member value is conferred on, and the reserved row
+/// that names the pair.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Conferred {
+    pub holder: ExtensionId,
+    pub row: &'static str,
 }
 
 impl Dependencies {
@@ -209,6 +218,22 @@ impl Dependencies {
         self.provide(provider, value)?;
         Arc::make_mut(&mut self.sealed).insert(TypeId::of::<T>());
         Ok(())
+    }
+
+    pub fn provide_conferred<T: Any + Send + Sync>(
+        &mut self,
+        provider: &ExtensionId,
+        value: Arc<T>,
+        conferred: Conferred,
+    ) -> Result<(), DuplicateDependency> {
+        self.provide_sealed(provider, value)?;
+        Arc::make_mut(&mut self.conferred).insert(TypeId::of::<T>(), conferred);
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn conferral_of<T: Any + Send + Sync>(&self) -> Option<&Conferred> {
+        self.conferred.get(&TypeId::of::<T>())
     }
 
     pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {

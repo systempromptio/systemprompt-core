@@ -29,6 +29,13 @@ pub enum KernelError {
         owner: ExtensionId,
         ty: &'static str,
     },
+    #[error(
+        "{owner} confers a sealed value under row {row}, which does not name it as a core provider"
+    )]
+    UnlistedConferral {
+        owner: ExtensionId,
+        row: &'static str,
+    },
     #[error("{owner} provides {ty}, which only the kernel inserts")]
     ReservedType {
         owner: ExtensionId,

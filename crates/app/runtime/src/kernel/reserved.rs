@@ -1,5 +1,6 @@
 //! The kernel's own resolution steps over the admitted members: the
-//! reservation of the types only the kernel inserts, and the gateway guard
+//! reservation of the types only the kernel inserts, the refusal of a
+//! conferred provide its reserved row does not name, and the gateway guard
 //! set it builds.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -9,7 +10,7 @@ use std::any::TypeId;
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    AdmittedOwnerReassignments, AudienceResolvers, BuiltState, GatewayGuards, Resolved,
+    AdmittedOwnerReassignments, AudienceResolvers, BuiltState, GatewayGuards, Resolved, StandingTag,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -47,6 +48,26 @@ pub(super) fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError>
                 owner: member.owner.clone(),
                 ty,
             });
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn refuse_unlisted_conferrals(built: &BuiltState) -> Result<(), KernelError> {
+    for member in built.members() {
+        for row in member
+            .sink
+            .provides()
+            .iter()
+            .filter_map(|entry| entry.conferral())
+        {
+            let listed = row.entry().provider == member.owner.as_str();
+            if !listed || member.standing != StandingTag::Core {
+                return Err(KernelError::UnlistedConferral {
+                    owner: member.owner.clone(),
+                    row: row.name(),
+                });
+            }
         }
     }
     Ok(())
