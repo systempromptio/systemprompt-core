@@ -7154,7 +7154,6 @@ version = "0.85.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
- "bytes",
  "chrono",
  "clap",
  "console",
@@ -7174,7 +7173,6 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "sqlx",
- "sse-stream",
  "systemprompt-api",
  "systemprompt-client",
  "systemprompt-cloud",
@@ -7793,6 +7791,7 @@ dependencies = [
  "chrono",
  "futures",
  "http",
+ "jsonwebtoken",
  "reqwest",
  "rmcp",
  "schemars 1.2.3",
@@ -8054,7 +8053,6 @@ dependencies = [
  "sqlx",
  "systemprompt-agent",
  "systemprompt-agent-runs",
- "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-client",
  "systemprompt-config",
@@ -8334,6 +8332,7 @@ dependencies = [
 name = "systemprompt-test-hack"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "aho-corasick",
  "arrayvec",
  "axum",
