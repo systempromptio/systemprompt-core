@@ -1,5 +1,6 @@
 mod config_injected;
 mod documents_config;
+mod external_sharing;
 mod persistence_and_types;
 mod profile_edge;
 mod rendered_html;

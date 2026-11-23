@@ -6,7 +6,9 @@
 //! whether a user with no access may request it
 //! (`accessRequests`, off by default), the live-session tuning
 //! (`collab`: snapshot cadence and the owner lease), and what the rendered
-//! view of an HTML document may do (`renderedHtml`, see `rendered_html`).
+//! view of an HTML document may do (`renderedHtml`, see `rendered_html`), and
+//! whether a document may be shared outside the instance
+//! (`externalSharing`, off by default, see `external_sharing`).
 //!
 //! Turning `accessRequests` on tells a signed-in caller that a document they
 //! cannot open exists (the refusal carries `can_request: true`); with it off
@@ -18,6 +20,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::document_limits::DocumentLimits;
+use super::external_sharing::ExternalSharingConfig;
 use super::rendered_html::RenderedHtmlConfig;
 use super::upload_limits::UploadLimits;
 
@@ -57,6 +60,8 @@ pub struct DocumentsConfig {
     pub collab: CollabConfig,
     #[serde(default)]
     pub rendered_html: RenderedHtmlConfig,
+    #[serde(default)]
+    pub external_sharing: ExternalSharingConfig,
 }
 
 /// When a live session snapshots.
@@ -152,6 +157,7 @@ impl Default for DocumentsConfig {
             access_requests: false,
             collab: CollabConfig::default(),
             rendered_html: RenderedHtmlConfig::default(),
+            external_sharing: ExternalSharingConfig::default(),
         }
     }
 }
