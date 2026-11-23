@@ -69,7 +69,10 @@ async fn the_provided_tool_provider_is_the_mcp_registry_not_the_no_tools_fallbac
         .await
         .expect_err("an undeclared server is refused");
     assert!(
-        !error.to_string().contains("NoopToolProvider"),
+        !matches!(
+            error,
+            systemprompt_provider_contracts::ToolProviderError::NoTools { .. }
+        ),
         "the inference path reads the MCP provider, not the no-tools fallback: {error}"
     );
 }

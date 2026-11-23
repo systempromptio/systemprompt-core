@@ -48,8 +48,10 @@ mod noop_provider_tests {
             .await;
 
         let error = result.unwrap_err();
-        assert!(error.to_string().contains("NoopToolProvider"));
-        assert!(error.to_string().contains("some_tool"));
+        assert!(
+            matches!(&error, systemprompt_traits::ToolProviderError::NoTools { tool } if tool == "some_tool"),
+            "{error:?}"
+        );
     }
 
     #[tokio::test]

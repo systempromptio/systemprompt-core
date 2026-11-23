@@ -721,7 +721,7 @@ async fn tools_only_response_synthesizes_and_audits_both_provider_calls() {
     let tool_diagnosis = serde_json::to_string(&response.tool_results[0].content)
         .expect("tool failure content serializes");
     assert!(
-        tool_diagnosis.contains("NoopToolProvider cannot execute tool: lookup"),
+        tool_diagnosis.contains("no tool provider is composed; tool 'lookup' cannot run"),
         "synthesis must consume the real tool failure: {tool_diagnosis}"
     );
     assert_eq!(calls.load(Ordering::SeqCst), 2);
@@ -823,7 +823,7 @@ async fn failed_tool_synthesis_returns_diagnostic_fallback_without_fabricated_au
     let raw_tool_error = serde_json::to_string(&response.tool_results[0].content)
         .expect("tool failure content serializes");
     assert!(
-        raw_tool_error.contains("NoopToolProvider cannot execute tool: lookup"),
+        raw_tool_error.contains("no tool provider is composed; tool 'lookup' cannot run"),
         "raw tool result must retain the execution failure: {raw_tool_error}"
     );
     assert_eq!(
