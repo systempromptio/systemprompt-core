@@ -292,6 +292,17 @@ async fn core_and_install_route_sets_are_refused_every_host_sealed_seed() {
         assert!(!route_reads::<Arc<Config>>(&ctx, owner), "{owner}");
         assert!(!route_reads::<Arc<dyn SecretStore>>(&ctx, owner), "{owner}");
     }
+    for owner in ["gateway-http", "identity-http", "files-http", "agent-http"] {
+        assert!(!route_reads::<Arc<Config>>(&ctx, owner), "{owner}");
+        assert!(!route_reads::<Arc<dyn SecretStore>>(&ctx, owner), "{owner}");
+        assert!(!route_reads::<CacheEpochs>(&ctx, owner), "{owner}");
+    }
+    for owner in ["gateway-http", "files-http", "agent-http", "content-http"] {
+        assert!(
+            !route_reads::<Arc<dyn TokenAuthority>>(&ctx, owner),
+            "{owner}"
+        );
+    }
     assert!(!install_reads::<Arc<Config>>(&ctx));
     assert!(!install_reads::<Arc<dyn SecretStore>>(&ctx));
 }

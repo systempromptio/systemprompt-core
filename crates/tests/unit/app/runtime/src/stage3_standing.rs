@@ -19,6 +19,7 @@ use systemprompt_identifiers::{ExtensionId, InstanceId};
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::{AppContext, Kernel, KernelError};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{
@@ -103,6 +104,18 @@ async fn a_forged_install_provide_asking_for_the_spawner_fails_typed() {
 async fn a_forged_install_provide_asking_for_the_signing_keys_fails_typed() {
     let ctx = context().await;
     assert_install_provide_refused::<SigningKeys>(&ctx).await;
+}
+
+#[tokio::test]
+async fn a_forged_install_provide_asking_for_the_token_authority_fails_typed() {
+    let ctx = context().await;
+    assert!(
+        ctx.kernel()
+            .state()
+            .conferral_of::<Arc<dyn TokenAuthority>>()
+            .is_some()
+    );
+    assert_install_provide_refused::<Arc<dyn TokenAuthority>>(&ctx).await;
 }
 
 #[tokio::test]
