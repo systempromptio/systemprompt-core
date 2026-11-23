@@ -82,7 +82,7 @@ pub(super) fn gateway_guards(
     for member in built.members() {
         for factory in member.sink.gateway_guards() {
             let guard = factory
-                .build(r)
+                .build(&r.scoped_to(&member.owner, member.standing))
                 .map_err(|source| KernelError::GatewayGuard {
                     owner: member.owner.clone(),
                     source,

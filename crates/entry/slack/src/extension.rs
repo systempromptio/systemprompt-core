@@ -2,8 +2,11 @@
 //!
 //! Behind the `http` feature it declares the inbound route set, provides the
 //! HTTP clients, and provides **sealed** the dispatch handle (`SlackDispatch`)
-//! over the sealed messaging dispatcher it requires: the handle dispatches
-//! only a request the member's signature verifier has verified.
+//! over the sealed messaging dispatcher it requires — the handle dispatches
+//! only a request the member's signature verifier has verified — and the
+//! secret reads (`SlackSecrets`, an app's signing secret and bot token) over
+//! the kernel's custom-secret reads. Its route state reads only these and
+//! open values, never a host seed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -55,6 +58,11 @@ impl Extension for SlackExtension {
                 .provide_sealed(
                     |r: &Resolved<'_>| -> Result<crate::http::SlackDispatch, ProvideError> {
                         Ok(crate::http::SlackDispatch::over(r.get()?))
+                    },
+                )
+                .provide_sealed(
+                    |r: &Resolved<'_>| -> Result<crate::http::SlackSecrets, ProvideError> {
+                        Ok(crate::http::SlackSecrets::over(r.get()?))
                     },
                 )
                 .routes(crate::http::routes());

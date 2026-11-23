@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use std::any::Any;
 
 use crate::dependencies::Dependencies;
-use crate::dependency_errors::MissingDependency;
+use crate::dependency_error::MissingDependency;
 use crate::error::ProviderResult;
 
 pub struct FrontmatterContext<'a> {

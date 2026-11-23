@@ -49,7 +49,7 @@ mod conferred;
 pub mod config_plane;
 mod content_data;
 mod dependencies;
-mod dependency_errors;
+mod dependency_error;
 mod doctor;
 pub mod documents;
 mod error;
@@ -81,7 +81,7 @@ pub use config_plane::{
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, DependencyProvider};
-pub use dependency_errors::{DuplicateDependency, MissingDependency};
+pub use dependency_error::{DuplicateDependency, MissingDependency};
 pub use doctor::{
     DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
     GitCredentialSource, SecretPresence,

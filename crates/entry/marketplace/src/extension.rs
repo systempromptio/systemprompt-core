@@ -7,7 +7,9 @@
 //! and the default body limit. Its shape equals the reference composition's
 //! conferral for `marketplace-http` at that base. The handlers read the
 //! managed repository and the catalogue cache the `managed_resources` member
-//! provides, which this member `requires`.
+//! provides, which this member `requires`, and the
+//! [`MarketplaceHttpSettings`](crate::http::MarketplaceHttpSettings) its own
+//! provide fn builds from the configuration and the system admin.
 //!
 //! With `cli` it contributes the `core marketplace`, `core plugins` and
 //! `core skills` groups under the kernel's `core` group, each requesting
@@ -61,14 +63,25 @@ mod routes {
     use std::sync::Arc;
 
     use systemprompt_extension::prelude::*;
+    use systemprompt_manifest::Config;
+    use systemprompt_manifest::services::SystemAdmin;
     use systemprompt_marketplace::MarketplaceCache;
     use systemprompt_marketplace::managed::ManagedRepository;
 
-    use crate::http::public_routes;
+    use crate::http::{MarketplaceHttpSettings, public_routes};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<ManagedRepository>>()
             .requires::<Arc<MarketplaceCache>>()
+            .provide(
+                |r: &Resolved<'_>| -> Result<MarketplaceHttpSettings, ProvideError> {
+                    let config = r.get::<Arc<Config>>()?;
+                    Ok(MarketplaceHttpSettings::of(
+                        &config,
+                        &r.get::<SystemAdmin>()?,
+                    ))
+                },
+            )
             .routes(public_routes());
     }
 }

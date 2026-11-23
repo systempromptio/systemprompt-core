@@ -55,7 +55,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 
 use crate::conferred::Conferred;
-use crate::dependency_errors::{DuplicateDependency, MissingDependency};
+use crate::dependency_error::{DuplicateDependency, MissingDependency};
 
 /// Who put an entry into a [`Dependencies`] map.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -45,7 +45,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::Actor;
 
 use crate::dependencies::Dependencies;
-use crate::dependency_errors::MissingDependency;
+use crate::dependency_error::MissingDependency;
 use crate::error::ProviderResult;
 
 #[derive(Debug, Clone)]

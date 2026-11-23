@@ -40,11 +40,20 @@
 //! admitted members' entries are present, so nothing a disabled member
 //! contributed runs.
 //!
+//! Every member's provide fns, slot entries and governance factories run
+//! with that member's admitted standing ([`Kernel::member_resolved`]): a
+//! member with install standing reads only the host-sealed seeds the closed
+//! `reserved::INSTALL_SEEDS` table lists and none of another member's sealed
+//! provides, so a forged install provide asking for the messaging
+//! dispatcher, the spawner or the signing keys fails the resolution with
+//! [`KernelError::Provide`] before any of its values exists.
+//!
 //! [`Kernel::runtime_state`] is the one base every context handed to member
 //! runtime code is built from — a job, a runner service and a config plane:
 //! the resolved state with every sealed seed and every sealed provide
 //! withheld. [`Kernel::route_scoped`] resolves a route set's state for its
-//! owner, which is refused a value another member provided sealed.
+//! owner, which is refused every host-sealed seed and a value another member
+//! provided sealed.
 //!
 //! [`Kernel::detached`] holds a seeded state without a database and without
 //! resolving any member: a CLI command whose descriptor needs no database
@@ -147,6 +156,15 @@ impl Kernel {
     }
 
     #[must_use]
+    pub fn member_resolved<'a>(
+        &'a self,
+        owner: &'a ExtensionId,
+        standing: StandingTag,
+    ) -> Resolved<'a> {
+        Resolved::__member_scoped(self, &self.state, owner, standing)
+    }
+
+    #[must_use]
     pub fn route_scoped<'a>(
         &'a self,
         owner: &'a ExtensionId,
@@ -175,7 +193,7 @@ impl Kernel {
                 .filter(|entry| entry.phase() == phase)
             {
                 let value = entry
-                    .compute(&Resolved::__new(&*self, &self.state))
+                    .compute(&self.member_resolved(&member.owner, member.standing))
                     .map_err(|source| KernelError::Provide {
                         owner: member.owner.clone(),
                         ty: entry.type_name(),

@@ -2,8 +2,11 @@
 //!
 //! Behind the `http` feature it declares the inbound route set, provides the
 //! HTTP clients, and provides **sealed** the dispatch handle (`TeamsDispatch`)
-//! over the sealed messaging dispatcher it requires: the handle dispatches
-//! only an activity the member's token verifier has verified.
+//! over the sealed messaging dispatcher it requires — the handle dispatches
+//! only an activity the member's token verifier has verified — and the secret
+//! reads (`TeamsSecrets`, an app's password) over the kernel's custom-secret
+//! reads. Its route state reads only these and open values, never a host
+//! seed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -55,6 +58,11 @@ impl Extension for TeamsExtension {
                 .provide_sealed(
                     |r: &Resolved<'_>| -> Result<crate::http::TeamsDispatch, ProvideError> {
                         Ok(crate::http::TeamsDispatch::over(r.get()?))
+                    },
+                )
+                .provide_sealed(
+                    |r: &Resolved<'_>| -> Result<crate::http::TeamsSecrets, ProvideError> {
+                        Ok(crate::http::TeamsSecrets::over(r.get()?))
                     },
                 )
                 .routes(crate::http::routes());

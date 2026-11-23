@@ -14,7 +14,7 @@
 use std::fmt;
 
 use super::recorder::SharedMcpAccessRecorder;
-use crate::{Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder};
+use crate::{Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories};
 
 const RECORDER_SLOT: &str = "mcp_access_recorders";
 
@@ -73,13 +73,13 @@ impl Slot for AccessRecorderSlot {
     ) -> Result<Self::Built, SlotError> {
         let mut recorders = Vec::new();
         for entry in entries {
-            for factory in &entry.builder.recorders {
-                recorders.push(
-                    factory
-                        .build(r)
-                        .map_err(|error| error.into_slot_error(RECORDER_SLOT, &entry.owner))?,
-                );
-            }
+            recorders.extend(build_factories(
+                RECORDER_SLOT,
+                &entry.owner,
+                entry.standing(),
+                &entry.builder.recorders,
+                r,
+            )?);
         }
         Ok(AccessRecorders(recorders))
     }

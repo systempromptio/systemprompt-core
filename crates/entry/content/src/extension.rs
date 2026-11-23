@@ -16,7 +16,9 @@
 //! base, so the conferral pins routes instead: the signed-in set holds only
 //! `POST /links/generate`, and the redirect set only `GET /r/{short_code}`.
 //! The handlers read the content repositories the `content` member provides,
-//! which this member `requires`.
+//! which this member `requires`, and the
+//! [`ContentHttpSettings`](crate::http::ContentHttpSettings) its own provide fn
+//! copies out of the application configuration.
 //!
 //! With `cli` it contributes the `core content` group, which the `popular`
 //! leaf of `analytics-http` attaches under, and the `web sitemap` group.
@@ -68,11 +70,18 @@ mod routes {
 
     use systemprompt_content::repository::ContentRepositories;
     use systemprompt_extension::prelude::*;
+    use systemprompt_manifest::Config;
 
-    use crate::http::{authenticated_routes, public_routes, redirect_routes};
+    use crate::http::{ContentHttpSettings, authenticated_routes, public_routes, redirect_routes};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<ContentRepositories>>()
+            .provide(
+                |r: &Resolved<'_>| -> Result<ContentHttpSettings, ProvideError> {
+                    let config = r.get::<Arc<Config>>()?;
+                    Ok(ContentHttpSettings::of(&config))
+                },
+            )
             .routes(public_routes())
             .routes(authenticated_routes())
             .routes(redirect_routes());

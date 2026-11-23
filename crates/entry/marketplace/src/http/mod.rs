@@ -16,9 +16,11 @@
 //!   resources.
 //!
 //! Every handler reads [`MarketplaceHttpState`]: the services view and the
-//! services root, the API's external URL, the catalogue cache and the managed
-//! repository the `managed_resources` member provides, and the system admin
-//! that owns the managed inventory.
+//! services root, the catalogue cache and the managed repository the
+//! `managed_resources` member provides, and the [`MarketplaceHttpSettings`]
+//! the `marketplace-http` member's own provide fn builds — the API's external
+//! URL and the id of the system admin that owns the managed inventory, plain
+//! values with no capability. The route state reads no host seed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -56,6 +58,24 @@ const LIMITS: RouteLimits = RouteLimits {
 };
 const PUBLIC: RouteSpec = RouteSpec::new(AuthzPolicy::public(), ContextKind::Public, LIMITS);
 
+/// The application settings the marketplace routes read, copied out of the
+/// configuration and the system admin by the member's provide fn.
+#[derive(Debug, Clone)]
+pub struct MarketplaceHttpSettings {
+    api_external_url: Arc<str>,
+    owner: UserId,
+}
+
+impl MarketplaceHttpSettings {
+    #[must_use]
+    pub fn of(config: &Config, admin: &SystemAdmin) -> Self {
+        Self {
+            api_external_url: Arc::from(config.api_external_url.as_str()),
+            owner: admin.id().clone(),
+        }
+    }
+}
+
 /// Router-scoped state of the marketplace routes.
 #[derive(Clone)]
 pub struct MarketplaceHttpState {
@@ -80,14 +100,14 @@ impl std::fmt::Debug for MarketplaceHttpState {
 impl FromState for MarketplaceHttpState {
     fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
         let paths = r.get::<Arc<AppPaths>>()?;
-        let config = r.get::<Arc<Config>>()?;
+        let settings = r.get::<MarketplaceHttpSettings>()?;
         Ok(Self {
             services: r.get()?,
             services_root: paths.system().services().to_path_buf(),
-            api_external_url: Arc::from(config.api_external_url.as_str()),
+            api_external_url: settings.api_external_url,
             cache: r.get()?,
             repository: r.get()?,
-            owner: r.get::<SystemAdmin>()?.id().clone(),
+            owner: settings.owner,
         })
     }
 }

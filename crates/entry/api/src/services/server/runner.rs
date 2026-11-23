@@ -191,8 +191,8 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         tracing::info!(service = "brain", "runner service started");
         started += 1;
     }
-    let resolved = ctx.kernel().resolved();
     for member in ctx.admitted().built().members() {
+        let resolved = ctx.kernel().member_resolved(&member.owner, member.standing);
         for factory in member.sink.runner_services() {
             let service = factory
                 .build(&resolved)

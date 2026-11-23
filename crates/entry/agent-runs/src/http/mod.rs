@@ -34,10 +34,12 @@ use systemprompt_extension::router::{
 };
 use systemprompt_manifest::Config;
 
-
-/// Route-set state: the run repository, the admitted run origins, the run
-/// layout root and the one event notifier, resolved once when the routes are
-/// mounted.
+/// Route-set state, resolved once when the routes are mounted.
+///
+/// It holds the run repository, the admitted run origins, the run layouts and
+/// the one event notifier. The layouts are the member's own provide, built
+/// from the configuration and the storage paths; the state reads no host
+/// seed.
 #[derive(Clone)]
 pub struct AgentRunsState {
     pub(crate) runs: AgentRunRepository,
@@ -65,17 +67,11 @@ impl AgentRunsState {
 impl FromState for AgentRunsState {
     fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
         let db = r.get::<DbPool>()?;
-        let paths = r.get::<Arc<AppPaths>>()?;
-        let config = r.get::<Arc<Config>>()?;
         Ok(Self {
             runs: r.get::<AgentRunRepository>()?,
             origins: r.get::<AdmittedRunOrigins>()?,
             notifier: RunEventNotifier::spawn(r.tasks(), db.write_pool().as_ref().clone()),
-            layouts: Arc::new(A2aRunnerConfig::new(
-                &config.api_internal_url,
-                &config.jwt_issuer,
-                paths.storage().data(),
-            )),
+            layouts: r.get::<Arc<A2aRunnerConfig>>()?,
         })
     }
 }
@@ -110,5 +106,17 @@ pub fn routes() -> RouteSet {
 }
 
 pub(crate) fn contribute(c: &mut Contributions<'_>) {
-    c.requires::<AgentRunRepository>().routes(routes());
+    c.requires::<AgentRunRepository>()
+        .provide(
+            |r: &Resolved<'_>| -> Result<Arc<A2aRunnerConfig>, ProvideError> {
+                let config = r.get::<Arc<Config>>()?;
+                let paths = r.get::<Arc<AppPaths>>()?;
+                Ok(Arc::new(A2aRunnerConfig::new(
+                    &config.api_internal_url,
+                    &config.jwt_issuer,
+                    paths.storage().data(),
+                )))
+            },
+        )
+        .routes(routes());
 }

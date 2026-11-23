@@ -44,10 +44,9 @@ pub use audience::{AudienceEntry, AudienceResolvers};
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidePhase, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
-pub use resolved::{
-    Factory, FromState, Handed, HandleId, KernelAccess, KernelHandle, ProvideFn, Resolved,
-    build_factories,
-};
+pub use factories::{Factory, build_factories};
+pub use handles::{Handed, HandleId, KernelHandle};
+pub use resolved::{FromState, KernelAccess, ProvideFn, Resolved};
 pub use sink::{
     AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, DoctorCheckRef,
     GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,

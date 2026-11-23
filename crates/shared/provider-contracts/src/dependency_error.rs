@@ -1,4 +1,6 @@
-//! The two errors a [`crate::Dependencies`] read or provide returns.
+//! Why a [`Dependencies`](crate::Dependencies) read or provide failed: an
+//! absent (or withheld) type ([`MissingDependency`]), or a second provider of
+//! one type ([`DuplicateDependency`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

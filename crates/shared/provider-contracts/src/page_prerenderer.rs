@@ -15,7 +15,7 @@ use serde_json::Value;
 use systemprompt_identifiers::LocaleCode;
 
 use crate::dependencies::Dependencies;
-use crate::dependency_errors::MissingDependency;
+use crate::dependency_error::MissingDependency;
 use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
 

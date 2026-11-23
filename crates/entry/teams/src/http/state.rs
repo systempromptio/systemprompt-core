@@ -1,6 +1,6 @@
 //! Router state for the Teams surface, resolved from the kernel state: the
-//! live services view, the platform secret lookup (built-in and
-//! custom names), the background-task owner, the member's dispatch handle
+//! live services view, the member's secret reads ([`TeamsSecrets`]), the
+//! background-task owner, the member's dispatch handle
 //! ([`TeamsDispatch`]), one
 //! outbound HTTP client with connect and request timeouts for
 //! operator-configured endpoints, the untrusted-guarded client replies to the
@@ -25,8 +25,8 @@ use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_teams::auth::ActivityTokenVerifier;
 use systemprompt_traits::{
-    BackgroundTasks, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
-    MessagingInbound, SecretStore,
+    BackgroundTasks, CustomSecrets, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
+    MessagingInbound,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -72,6 +72,35 @@ impl TeamsClients {
     }
 }
 
+/// The Teams member's secret reads.
+///
+/// An app's password by the custom-secret ref its config names, and nothing
+/// else. Built only by the member's own provide fn over the kernel's
+/// custom-secret reads and provided sealed, so only the member's route state
+/// reads it.
+#[derive(Clone)]
+pub struct TeamsSecrets {
+    secrets: CustomSecrets,
+}
+
+impl std::fmt::Debug for TeamsSecrets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TeamsSecrets").finish_non_exhaustive()
+    }
+}
+
+impl TeamsSecrets {
+    pub(crate) const fn over(secrets: CustomSecrets) -> Self {
+        Self { secrets }
+    }
+
+    pub(super) fn app_password(&self, app: &TeamsAppConfig) -> Option<String> {
+        self.secrets
+            .secret(app.app_password_ref.as_str())
+            .map(|secret| secret.expose().to_owned())
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct TeamsVerified {
     _verified: (),
@@ -113,7 +142,7 @@ impl TeamsDispatch {
 #[derive(Clone)]
 pub struct TeamsState {
     services: ServicesView,
-    secrets: Arc<dyn SecretStore>,
+    secrets: TeamsSecrets,
     background: BackgroundTasks,
     dispatch: TeamsDispatch,
     http: reqwest::Client,
@@ -147,8 +176,8 @@ impl TeamsState {
         &self.services
     }
 
-    pub(super) fn secrets(&self) -> &dyn SecretStore {
-        self.secrets.as_ref()
+    pub(super) const fn secrets(&self) -> &TeamsSecrets {
+        &self.secrets
     }
 
     pub(super) const fn background(&self) -> &BackgroundTasks {

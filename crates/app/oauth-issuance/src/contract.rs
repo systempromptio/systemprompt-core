@@ -136,10 +136,12 @@ impl Slot for SsoSlot {
         let mut built = SsoProviders::default();
         let mut resolver: Option<(ExtensionId, Arc<dyn RoleResolver>)> = None;
         for entry in entries {
+            let standing = entry.standing();
             let owner = entry.owner;
+            let scoped = r.scoped_to(&owner, standing);
             for factory in entry.builder.providers {
                 let Some(provider) = factory
-                    .build(r)
+                    .build(&scoped)
                     .map_err(|e| e.into_slot_error(SSO_PROVIDER_SLOT, &owner))?
                 else {
                     continue;
@@ -155,6 +157,7 @@ impl Slot for SsoSlot {
             built.sinks.extend(build_factories(
                 SSO_SINK_SLOT,
                 &owner,
+                standing,
                 &entry.builder.sinks,
                 r,
             )?);
@@ -168,7 +171,7 @@ impl Slot for SsoSlot {
                     continue;
                 }
                 let built_resolver = factory
-                    .build(r)
+                    .build(&scoped)
                     .map_err(|e| e.into_slot_error(SSO_ROLES_SLOT, &owner))?;
                 resolver = Some((owner.clone(), built_resolver));
             }

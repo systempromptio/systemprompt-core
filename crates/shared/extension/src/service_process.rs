@@ -81,6 +81,7 @@ impl Slot for ServiceProcessSlot {
             built.extend(build_factories(
                 SERVICE_PROCESS_SLOT,
                 &entry.owner,
+                entry.standing(),
                 &entry.builder.sets,
                 r,
             )?);

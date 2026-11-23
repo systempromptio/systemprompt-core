@@ -19,13 +19,21 @@ use systemprompt_extension::cli::{
     OutputFormat,
 };
 use systemprompt_loader::{BootContext, ServicesState};
-use systemprompt_marketplace_entry::http::public_routes;
-use systemprompt_runtime::AppContext;
+use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_marketplace_entry::http::{MarketplaceHttpSettings, public_routes};
+use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted};
+use systemprompt_traits::BackgroundTasks;
 
 pub fn marketplace_router(ctx: &AppContext) -> Router {
+    let state = ctx.kernel().state();
+    let admin = state
+        .get::<SystemAdmin>()
+        .expect("the system admin is a kernel seed");
+    let settings = MarketplaceHttpSettings::of(ctx.config(), admin);
+    let kernel = Kernel::detached(BackgroundTasks::new(), state.clone().with(settings));
     public_routes()
-        .materialize(&ctx.kernel().resolved())
+        .materialize(&kernel.resolved())
         .expect("the marketplace state resolves from the fixture kernel")
         .into_iter()
         .fold(Router::new(), Router::merge)

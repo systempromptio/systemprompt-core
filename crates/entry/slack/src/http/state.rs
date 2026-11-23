@@ -1,6 +1,6 @@
 //! Router state for the Slack surface, resolved from the kernel state: the
-//! live services view, the platform secret lookup (built-in and custom
-//! names), the background-task owner, the member's dispatch handle
+//! live services view, the member's secret reads ([`SlackSecrets`]), the
+//! background-task owner, the member's dispatch handle
 //! ([`SlackDispatch`]), and the
 //! member's HTTP clients ([`SlackClients`]) — the reply client for Slack's
 //! configured Web API and the untrusted-guarded client for the
@@ -9,16 +9,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use super::verify::SlackVerified;
 use systemprompt_client::{GuardedClient, GuardedClientConfig, guarded_client};
 use systemprompt_extension::{FromState, LateRead, Resolved};
-use systemprompt_manifest::services::ServicesView;
+use systemprompt_manifest::services::{ServicesView, SlackAppConfig};
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::{
-    BackgroundTasks, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
-    MessagingInbound, SecretStore,
+    BackgroundTasks, CustomSecrets, DispatchOutcome, MessagingDispatchError, MessagingDispatcher,
+    MessagingInbound,
 };
 
 /// The Slack member's outbound HTTP clients, built once by its provide fn.
@@ -45,6 +43,43 @@ impl SlackClients {
     #[must_use]
     pub const fn new(reply: reqwest::Client, payload_url: GuardedClient) -> Self {
         Self { reply, payload_url }
+    }
+}
+
+/// The Slack member's secret reads.
+///
+/// An app's signing secret and bot token by the custom-secret refs its config
+/// names, and nothing else. Built only by the member's own provide fn over the
+/// kernel's custom-secret reads and provided sealed, so only the member's
+/// route state reads it.
+#[derive(Clone)]
+pub struct SlackSecrets {
+    secrets: CustomSecrets,
+}
+
+impl std::fmt::Debug for SlackSecrets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SlackSecrets").finish_non_exhaustive()
+    }
+}
+
+impl SlackSecrets {
+    pub(crate) const fn over(secrets: CustomSecrets) -> Self {
+        Self { secrets }
+    }
+
+    pub(super) fn signing_secret(&self, app: &SlackAppConfig) -> Option<String> {
+        self.read(app.signing_secret_ref.as_str())
+    }
+
+    pub(super) fn bot_token(&self, app: &SlackAppConfig) -> Option<String> {
+        self.read(app.bot_token_ref.as_str())
+    }
+
+    fn read(&self, name: &str) -> Option<String> {
+        self.secrets
+            .secret(name)
+            .map(|secret| secret.expose().to_owned())
     }
 }
 
@@ -84,7 +119,7 @@ impl SlackDispatch {
 #[derive(Clone)]
 pub struct SlackState {
     services: ServicesView,
-    secrets: Arc<dyn SecretStore>,
+    secrets: SlackSecrets,
     background: BackgroundTasks,
     dispatch: SlackDispatch,
     reply_client: reqwest::Client,
@@ -116,8 +151,8 @@ impl SlackState {
         &self.services
     }
 
-    pub(super) fn secrets(&self) -> &dyn SecretStore {
-        self.secrets.as_ref()
+    pub(super) const fn secrets(&self) -> &SlackSecrets {
+        &self.secrets
     }
 
     pub(super) const fn background(&self) -> &BackgroundTasks {

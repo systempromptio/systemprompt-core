@@ -59,7 +59,7 @@ use async_trait::async_trait;
 use sha2::{Digest, Sha256};
 
 use crate::dependencies::Dependencies;
-use crate::dependency_errors::MissingDependency;
+use crate::dependency_error::MissingDependency;
 
 pub use diff::{DriftKind, DriftRow, diff_snapshots};
 pub use entities::{

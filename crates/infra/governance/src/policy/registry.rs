@@ -149,13 +149,12 @@ impl PolicyCatalog {
         for standing in [StandingTag::Core, StandingTag::Install] {
             for member in built.members().filter(|m| m.standing == standing) {
                 for factory in member.sink.policies() {
-                    let instance =
-                        factory
-                            .build(r)
-                            .map_err(|source| PolicyCatalogError::Factory {
-                                owner: member.owner.clone(),
-                                source,
-                            })?;
+                    let instance = factory
+                        .build(&r.scoped_to(&member.owner, member.standing))
+                        .map_err(|source| PolicyCatalogError::Factory {
+                            owner: member.owner.clone(),
+                            source,
+                        })?;
                     catalog = catalog.with_contributed(member.owner.clone(), instance)?;
                 }
             }

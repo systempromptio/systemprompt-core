@@ -103,8 +103,8 @@ pub use process_liveness::ProcessLiveness;
 pub use run_origin::RunOrigin;
 pub use runner_service::RunnerService;
 pub use secret::{
-    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretLookup, SecretStore, SecretStoreError,
-    SecretsStatus,
+    CustomSecrets, ExtensionSecret, PLATFORM_SECRET_KEYS, ReloadOutcome, SECRET_SEED_BYTES,
+    SecretLookup, SecretStore, SecretStoreError, SecretsStatus,
 };
 pub mod storage;
 pub mod stream_drain;

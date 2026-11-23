@@ -25,7 +25,9 @@ use std::collections::HashSet;
 use std::fmt;
 use std::sync::Arc;
 
-use systemprompt_extension::{Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder};
+use systemprompt_extension::{
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
+};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
 
@@ -126,7 +128,11 @@ impl fmt::Debug for AgentAccess {
     }
 }
 
-type ContributedPolicy = (ExtensionId, Box<dyn Factory<Arc<dyn AgentAccessPolicy>>>);
+type ContributedPolicy = (
+    ExtensionId,
+    StandingTag,
+    Box<dyn Factory<Arc<dyn AgentAccessPolicy>>>,
+);
 
 impl Slot for AgentAccessSlot {
     type Builder = AgentAccessSlotBuilder;
@@ -140,12 +146,13 @@ impl Slot for AgentAccessSlot {
         let contributed: Vec<ContributedPolicy> = entries
             .into_iter()
             .flat_map(|entry| {
+                let standing = entry.standing();
                 let owner = entry.owner;
                 entry
                     .builder
                     .policies
                     .into_iter()
-                    .map(move |factory| (owner.clone(), factory))
+                    .map(move |factory| (owner.clone(), standing, factory))
             })
             .collect();
         if contributed.len() > 1 {
@@ -155,8 +162,8 @@ impl Slot for AgentAccessSlot {
             });
         }
         let policy = match contributed.into_iter().next() {
-            Some((owner, factory)) => factory
-                .build(r)
+            Some((owner, standing, factory)) => factory
+                .build(&r.scoped_to(&owner, standing))
                 .map_err(|e| e.into_slot_error(AGENT_ACCESS_SLOT, &owner))?,
             None => Arc::new(DefaultAgentAccessPolicy),
         };
@@ -229,20 +236,20 @@ impl Slot for DocumentsSlot {
         let mut codecs = Vec::new();
         let mut template_providers = Vec::new();
         for entry in entries {
-            for factory in &entry.builder.codecs {
-                codecs.push(
-                    factory
-                        .build(r)
-                        .map_err(|e| e.into_slot_error(DOCUMENTS_SLOT, &entry.owner))?,
-                );
-            }
-            for factory in &entry.builder.template_providers {
-                template_providers.push(
-                    factory
-                        .build(r)
-                        .map_err(|e| e.into_slot_error(DOCUMENTS_SLOT, &entry.owner))?,
-                );
-            }
+            codecs.extend(build_factories(
+                DOCUMENTS_SLOT,
+                &entry.owner,
+                entry.standing(),
+                &entry.builder.codecs,
+                r,
+            )?);
+            template_providers.extend(build_factories(
+                DOCUMENTS_SLOT,
+                &entry.owner,
+                entry.standing(),
+                &entry.builder.template_providers,
+                r,
+            )?);
         }
         Ok(DocumentSeams {
             codecs: CodecRegistry::from_codecs(codecs),

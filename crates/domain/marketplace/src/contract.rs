@@ -23,7 +23,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_extension::{Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder};
+use systemprompt_extension::{
+    Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
+};
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectories;
 use systemprompt_identifiers::UserId;
@@ -122,20 +124,20 @@ impl Slot for MarketplaceSlot {
         let mut filters = Vec::new();
         let mut gates = Vec::new();
         for entry in entries {
-            for factory in &entry.builder.filters {
-                filters.push(
-                    factory
-                        .build(r)
-                        .map_err(|e| e.into_slot_error(SLOT, &entry.owner))?,
-                );
-            }
-            for factory in &entry.builder.gates {
-                gates.push(
-                    factory
-                        .build(r)
-                        .map_err(|e| e.into_slot_error(SLOT, &entry.owner))?,
-                );
-            }
+            filters.extend(build_factories(
+                SLOT,
+                &entry.owner,
+                entry.standing(),
+                &entry.builder.filters,
+                r,
+            )?);
+            gates.extend(build_factories(
+                SLOT,
+                &entry.owner,
+                entry.standing(),
+                &entry.builder.gates,
+                r,
+            )?);
         }
         let filter: Arc<dyn MarketplaceFilter> = match filters.len() {
             0 => Arc::new(AllowAllFilter),

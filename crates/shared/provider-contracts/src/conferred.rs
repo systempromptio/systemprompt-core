@@ -10,7 +10,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 
 use crate::dependencies::Dependencies;
-use crate::dependency_errors::DuplicateDependency;
+use crate::dependency_error::DuplicateDependency;
 
 /// The one member a sealed value is conferred on, and the reserved row that
 /// names the pair; the value is a member's sealed provide or a sealed host

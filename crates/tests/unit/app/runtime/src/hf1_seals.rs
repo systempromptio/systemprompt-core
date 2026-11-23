@@ -1,8 +1,7 @@
 //! The late-bound cells of the kernel state hold only their read halves; the
 //! messaging dispatcher, the agent dispatch, the session store and the
-//! tool-call intent claims are sealed; and a route set whose owner has install
-//! standing is refused every host-sealed seed while a core member's route set
-//! still reads them.
+//! tool-call intent claims are sealed; and a route set is refused every
+//! host-sealed seed whatever its owner's standing.
 
 use std::sync::Arc;
 
@@ -97,7 +96,7 @@ async fn a_member_cannot_provide_the_messaging_dispatcher_cell() {
 }
 
 #[tokio::test]
-async fn an_install_route_set_is_refused_every_host_sealed_seed() {
+async fn a_route_set_of_either_standing_is_refused_every_host_sealed_seed() {
     let ctx = context().await;
     let kernel = ctx.kernel();
     let install = ExtensionId::new("an-install-member");
@@ -113,9 +112,14 @@ async fn an_install_route_set_is_refused_every_host_sealed_seed() {
 
     let core = ExtensionId::new("content");
     let resolved = kernel.route_scoped(&core, StandingTag::Core, &[]);
-    assert!(resolved.get::<Arc<Spawner>>().is_ok());
-    assert!(resolved.get::<SigningKeys>().is_ok());
-    assert!(resolved.get::<AgentDispatchCell>().is_ok());
+    assert!(resolved.get::<Arc<Spawner>>().is_err());
+    assert!(resolved.get::<SigningKeys>().is_err());
+    assert!(resolved.get::<AgentDispatchCell>().is_err());
+    assert!(resolved.get::<Arc<dyn SecretStore>>().is_err());
+    assert!(
+        resolved.get::<InstanceId>().is_ok(),
+        "an open seed is served"
+    );
 }
 
 #[tokio::test]

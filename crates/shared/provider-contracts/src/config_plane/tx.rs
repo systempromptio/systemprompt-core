@@ -14,7 +14,7 @@
 use std::any::{Any, type_name};
 use std::fmt;
 
-use crate::dependency_errors::MissingDependency;
+use crate::dependency_error::MissingDependency;
 
 /// A borrowed, type-erased transaction for the duration of one plane call.
 pub struct PlaneTx<'a> {

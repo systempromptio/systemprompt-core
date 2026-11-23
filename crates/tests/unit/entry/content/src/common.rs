@@ -9,7 +9,7 @@ use axum::http::{Request, Response};
 use http_body_util::BodyExt;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_content::repository::ContentRepositories;
-use systemprompt_content_entry::http::ContentHttpState;
+use systemprompt_content_entry::http::{ContentHttpSettings, ContentHttpState};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::CliConfig;
 use systemprompt_extension::router::RouteSet;
@@ -31,19 +31,28 @@ pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
 }
 
 pub fn content_state(ctx: &AppContext) -> ContentHttpState {
-    ContentHttpState::new(Arc::clone(ctx.content_repositories()), ctx.config())
+    ContentHttpState::new(
+        Arc::clone(ctx.content_repositories()),
+        ContentHttpSettings::of(ctx.config()),
+    )
 }
 
 pub fn negotiating_state(ctx: &AppContext) -> ContentHttpState {
     let mut config = ctx.config().clone();
     config.content_negotiation.enabled = true;
     config.content_negotiation.markdown_suffix = ".md".to_owned();
-    ContentHttpState::new(Arc::clone(ctx.content_repositories()), &config)
+    ContentHttpState::new(
+        Arc::clone(ctx.content_repositories()),
+        ContentHttpSettings::of(&config),
+    )
 }
 
 pub fn pool_state(pool: &DbPool) -> ContentHttpState {
     let config = fixture_config(&ensure_test_bootstrap().database_url);
-    ContentHttpState::new(Arc::new(ContentRepositories::new(pool)), &config)
+    ContentHttpState::new(
+        Arc::new(ContentRepositories::new(pool)),
+        ContentHttpSettings::of(&config),
+    )
 }
 
 pub fn content_kernel(
@@ -57,6 +66,7 @@ pub fn content_kernel(
         BackgroundTasks::new(),
         Dependencies::default()
             .with(repositories)
+            .with(ContentHttpSettings::of(config))
             .with(Arc::new(config.clone())),
     )
 }
