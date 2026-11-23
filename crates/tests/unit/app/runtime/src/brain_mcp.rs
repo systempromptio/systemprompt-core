@@ -12,7 +12,7 @@ use systemprompt_extension::brain::{
 use systemprompt_identifiers::{BrainFactId, EventOutboxId, FactKindId};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BrainEvent, FactStatus, ScopeLevel};
-use systemprompt_runtime::brain::mcp::{
+use systemprompt_brain::mcp::{
     BrainMcpTools, BrainMcpUnavailable, BrainRefusalCode, DisputeInput, GuideInput, ProposeInput,
     RecallPreviewInput, SearchInput, WhyInput, brain_tool_error, guide_text, refusal_code,
     refusal_of, refusal_result,

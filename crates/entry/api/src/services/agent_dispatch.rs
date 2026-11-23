@@ -74,9 +74,11 @@ impl AgentDispatch for ApiAgentDispatch {
             path: "",
             kind: ProxyKind::Agent,
         };
+        let tokens = crate::services::kernel_seeds::connector_tokens(&self.ctx)
+            .map_err(|e| AgentDispatchError::Proxy(Box::new(e)))?;
         let response = ProxyService::new(
             Arc::clone(&self.sessions),
-            Arc::clone(self.ctx.connector_tokens()),
+            tokens,
             &self.ctx.services_state().view(),
             Arc::clone(self.ctx.config_arc()),
             Arc::clone(self.ctx.secrets()),

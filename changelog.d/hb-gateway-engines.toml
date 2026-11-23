@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Gateway"
+text = "The API server builds one gateway engines set per process and hands it to both the gateway routes and the brain consumer's model client, so breakers, load gauges and the upstream client are shared. The API no longer composes an AI service it never served."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`services::server::{admitted_gateway_engines, assemble_api_server}` are added; `setup_api_server` builds the engines set with the first. The gateway engines read the brain's `Arc<dyn MemoryRecall>` and outbox sink from the kernel state while the profile enables the brain."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`ApiKernelSeed::ai_service` and `Subsystems::ai_service` are removed, and `Arc<AiService>` is no longer seeded or reserved in the API kernel state."

@@ -1,13 +1,17 @@
 //! Full API router construction and the global middleware stack.
 //!
-//! [`setup_api_server`] composes the route tree and applies the global layers
+//! [`setup_api_server`] composes the route tree over the one gateway engines
+//! set the `gateway` member provides (sealed; [`admitted_gateway_engines`]
+//! reads it from the kernel state), and applies the global layers
 //! (panic fence, body limit, analytics, context, session, CORS, trailing-slash,
 //! trace and served-by headers, content negotiation, security headers) in the
 //! order they must run. Before any extension factory runs (the gateway guard
 //! factories build with the engines, the routers after them), it refuses an
 //! extension that takes a core row it does not own; that is the one owner
 //! check on the boot path, and every router and gateway engine below it is
-//! built downstream of it. Binding and serving live in [`super::startup`],
+//! built downstream of it. The server run loop reads the engines set once and
+//! hands the same set to the router ([`assemble_api_server`]) and to the
+//! brain consumer's model client. Binding and serving live in [`super::startup`],
 //! which binds the listener before this router exists and swaps it in once
 //! bootstrap completes.
 //!
@@ -44,6 +48,32 @@ pub fn setup_api_server(
     events: Option<&StartupEventSender>,
     readiness: &Arc<ReadinessState>,
 ) -> Result<Router> {
+    let engines = admitted_gateway_engines(ctx, &composed);
+    assemble_api_server(ctx, composed, events, readiness, engines.as_ref())
+}
+
+pub fn admitted_gateway_engines(
+    ctx: &AppContext,
+    composed: &super::routes::Composed<'_>,
+) -> Option<Arc<GatewayEngines>> {
+    let Some(engines) = crate::routes::gateway::gateway_engines(composed.kernel) else {
+        tracing::info!(
+            reason = "gateway_member_not_admitted",
+            "Gateway engines and routes not built"
+        );
+        return None;
+    };
+    register_artifact_scanner(ctx, &engines);
+    Some(engines)
+}
+
+pub fn assemble_api_server(
+    ctx: &AppContext,
+    composed: super::routes::Composed<'_>,
+    events: Option<&StartupEventSender>,
+    readiness: &Arc<ReadinessState>,
+    engines: Option<&Arc<GatewayEngines>>,
+) -> Result<Router> {
     let services_cache = systemprompt_loader::bundle::cache_root(ctx.profile());
     systemprompt_config::ensure_state_dirs_writable(
         &ctx.app_paths()
@@ -58,21 +88,7 @@ pub fn setup_api_server(
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    let engines = if crate::routes::gateway::gateway_admitted(composed.admitted) {
-        let engines = Arc::new(crate::routes::gateway::gateway_engines(
-            ctx,
-            composed.kernel,
-        )?);
-        register_artifact_scanner(ctx, &engines);
-        Some(engines)
-    } else {
-        tracing::info!(
-            reason = "gateway_member_not_admitted",
-            "Gateway engines and routes not built"
-        );
-        None
-    };
-    let router = configure_routes(ctx, composed, events, engines.as_ref())?
+    let router = configure_routes(ctx, composed, events, engines)?
         .layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)
 }
@@ -81,8 +97,16 @@ pub fn setup_api_server(
 // scanner registry; the composition root closes the loop here so every tool
 // result — from any vantage point — is scanned by the installation's policy.
 fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
+    let Ok(repositories) = crate::services::kernel_seeds::ai_repositories(ctx) else {
+        tracing::warn!(
+            reason = "ai_member_not_admitted",
+            "the gateway policies live in the ai member's tables; tool-result artifacts are not \
+             scanned by the installation's gateway policy"
+        );
+        return;
+    };
     let resolver = systemprompt_gateway::PolicyResolver::from_repository(
-        ctx.ai_repositories().gateway_policies.clone(),
+        repositories.gateway_policies.clone(),
         ctx.cache_epochs().clone(),
         ctx.profile().unapplied_plane_mode(),
     );

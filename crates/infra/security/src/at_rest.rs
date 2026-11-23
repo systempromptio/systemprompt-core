@@ -54,9 +54,13 @@ pub enum AtRestCipherError {
 }
 
 /// The deployment's at-rest AEAD, keyed once from `encryption_master_key`.
+///
+/// A host that does not hold the key (a child host the key was not granted
+/// to) holds a [`withheld`](Self::withheld) cipher: every seal and open
+/// answers [`AtRestCipherError::KeyUnavailable`].
 #[derive(Clone)]
 pub struct AtRestCipher {
-    key: std::sync::Arc<[u8; 32]>,
+    key: Option<std::sync::Arc<[u8; 32]>>,
 }
 
 impl std::fmt::Debug for AtRestCipher {
@@ -72,19 +76,30 @@ impl AtRestCipher {
             .ok_or(AtRestCipherError::KeyUnavailable)?;
         let key = systemprompt_config::decode_master_key(key)
             .map_err(|_e| AtRestCipherError::KeyInvalid)?;
-        Ok(Self {
-            key: std::sync::Arc::new(key),
-        })
+        Ok(Self::from_master_key(key))
     }
 
-    fn aead(&self) -> ChaCha20Poly1305 {
-        ChaCha20Poly1305::new(&(*self.key).into())
+    #[must_use]
+    pub fn from_master_key(key: [u8; 32]) -> Self {
+        Self {
+            key: Some(std::sync::Arc::new(key)),
+        }
+    }
+
+    #[must_use]
+    pub const fn withheld() -> Self {
+        Self { key: None }
+    }
+
+    fn aead(&self) -> Result<ChaCha20Poly1305, AtRestCipherError> {
+        let key = self.key.as_ref().ok_or(AtRestCipherError::KeyUnavailable)?;
+        Ok(ChaCha20Poly1305::new(&(**key).into()))
     }
 
     pub fn seal(&self, plaintext: &str) -> Result<String, AtRestCipherError> {
         let nonce: [u8; NONCE_BYTES] = rand::random();
         let sealed = self
-            .aead()
+            .aead()?
             .encrypt(&Nonce::from(nonce), plaintext.as_bytes())
             .map_err(|_e| AtRestCipherError::NotAuthentic)?;
         let mut out = Vec::with_capacity(NONCE_BYTES + sealed.len());
@@ -102,7 +117,7 @@ impl AtRestCipher {
             .try_into()
             .map_err(|_e| AtRestCipherError::Malformed)?;
         let plaintext = self
-            .aead()
+            .aead()?
             .decrypt(&Nonce::from(nonce), &bytes[NONCE_BYTES..])
             .map_err(|_e| AtRestCipherError::NotAuthentic)?;
         String::from_utf8(plaintext).map_err(|_e| AtRestCipherError::Malformed)

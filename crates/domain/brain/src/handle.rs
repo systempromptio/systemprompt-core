@@ -1,5 +1,13 @@
-//! [`BrainHandle`]: the composed brain, bound into the [`BrainHandleSlot`]
-//! this member provides when the kernel builds the [`BrainSlot`].
+//! [`BrainHandle`]: the composed brain, and [`BrainHandleSlot`], the value the
+//! kernel's build of the [`BrainSlot`] returns.
+//!
+//! The slot build creates the handle cell with `BrainHandleSlot::unbound`,
+//! keeps the bind half to itself and returns the read half, which the kernel
+//! inserts as `Arc<BrainHandleSlot>`. With the profile's brain enabled the
+//! build binds the handle before it returns; otherwise the cell stays unbound.
+//! No member can bind the cell: the bind half never leaves the build, the read
+//! half has no public constructor, and the kernel refuses a second provider of
+//! the type. The read half also carries the built [`BrainSeams`].
 //!
 //! It holds the repositories, the producer sink, the service, recall and the
 //! capture seams of the built [`BrainSeams`]. The capture consumer needs a
@@ -8,7 +16,6 @@
 //! runner service.
 //!
 //! [`BrainSlot`]: crate::BrainSlot
-//! [`BrainSeams`]: crate::BrainSeams
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,16 +30,65 @@ use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::{AlreadyBound, LateBound};
 
 use crate::BrainRepositories;
-use crate::consumer::{BrainConsumer, BrainConsumerSlot};
+use crate::consumer::BrainConsumer;
+use crate::contract::BrainSeams;
 use crate::pipeline::PipelineSeams;
 use crate::recall::BrainRecallService;
 use crate::replay::{ProposalReplay, ReplayService};
 use crate::service::BrainService;
 
-/// The late-bound [`BrainHandle`] the `brain` member provides; bound when
-/// the kernel builds the brain slot with the profile's brain enabled, and
-/// unbound otherwise.
-pub type BrainHandleSlot = LateBound<BrainHandle>;
+/// The brain slot's built value: the built seams and the read half of the
+/// [`BrainHandle`] cell, bound when the profile enables the brain.
+#[derive(Clone)]
+pub struct BrainHandleSlot {
+    cell: LateBound<BrainHandle>,
+    seams: Arc<BrainSeams>,
+}
+
+pub(crate) struct BrainHandleBinder(LateBound<BrainHandle>);
+
+impl BrainHandleSlot {
+    pub(crate) fn unbound(seams: BrainSeams) -> (Self, BrainHandleBinder) {
+        let cell = LateBound::default();
+        (
+            Self {
+                cell: cell.clone(),
+                seams: Arc::new(seams),
+            },
+            BrainHandleBinder(cell),
+        )
+    }
+
+    #[must_use]
+    pub fn get(&self) -> Option<&Arc<BrainHandle>> {
+        self.cell.get()
+    }
+
+    #[must_use]
+    pub fn is_bound(&self) -> bool {
+        self.cell.is_bound()
+    }
+
+    #[must_use]
+    pub const fn seams(&self) -> &Arc<BrainSeams> {
+        &self.seams
+    }
+}
+
+impl BrainHandleBinder {
+    pub(crate) fn bind(&self, handle: Arc<BrainHandle>) -> Result<(), AlreadyBound> {
+        self.0.bind(handle)
+    }
+}
+
+impl std::fmt::Debug for BrainHandleSlot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BrainHandleSlot")
+            .field("bound", &self.cell.is_bound())
+            .field("seams", &self.seams)
+            .finish()
+    }
+}
 
 /// The runtime's brain: repositories, producer sink, service, recall and,
 /// once the API server starts it, the capture consumer.
@@ -46,7 +102,7 @@ pub struct BrainHandle {
     outbox: Arc<OutboxConsumer>,
     listener_pool: PgPool,
     profile: Arc<BrainProfile>,
-    consumer: BrainConsumerSlot,
+    consumer: LateBound<BrainConsumer>,
     consolidation_model: LateBound<dyn BrainModelClient>,
 }
 
@@ -61,7 +117,6 @@ pub struct BrainHandleParts {
     pub outbox: Arc<OutboxConsumer>,
     pub listener_pool: PgPool,
     pub profile: Arc<BrainProfile>,
-    pub consumer: BrainConsumerSlot,
 }
 
 impl std::fmt::Debug for BrainHandle {
@@ -92,7 +147,7 @@ impl BrainHandle {
             outbox: parts.outbox,
             listener_pool: parts.listener_pool,
             profile: parts.profile,
-            consumer: parts.consumer,
+            consumer: LateBound::default(),
             consolidation_model: LateBound::default(),
         }
     }
@@ -147,7 +202,7 @@ impl BrainHandle {
         self.consolidation_model.get().cloned()
     }
 
-    pub fn start_consumer(
+    pub(crate) fn start_consumer(
         &self,
         model: Arc<dyn BrainModelClient>,
     ) -> Result<Arc<BrainConsumer>, AlreadyBound> {

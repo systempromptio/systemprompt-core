@@ -13,7 +13,7 @@
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock, ErrorCode};
 use serde_json::json;
-use systemprompt_brain::BrainError;
+use crate::BrainError;
 
 /// Why a brain tool refused a call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

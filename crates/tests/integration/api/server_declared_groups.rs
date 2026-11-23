@@ -25,7 +25,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::documents::links::LinkTarget;
 use systemprompt_runtime::documents::upload_links::UPLOAD_TOKEN_HEADER;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, seed_bridge_credential,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
     test_db_pool,
 };
 use tower::ServiceExt;
@@ -97,7 +97,6 @@ async fn the_document_groups_refuse_a_caller_without_a_session_at_the_user_gate(
         ("GET", ApiPaths::DOCUMENTS.to_owned()),
         ("GET", ApiPaths::DOCUMENT_FOLDERS.to_owned()),
         ("POST", ApiPaths::UPLOADS.to_owned()),
-        ("GET", format!("{}/facts", ApiPaths::BRAIN)),
     ] {
         assert_eq!(
             status(&app, method, &uri, None).await?,
@@ -105,22 +104,6 @@ async fn the_document_groups_refuse_a_caller_without_a_session_at_the_user_gate(
             "{method} {uri}"
         );
     }
-    Ok(())
-}
-
-#[tokio::test]
-async fn the_admin_brain_group_refuses_a_user_token_at_the_admin_gate() -> Result<()> {
-    let (pool, app) = all_role().await?;
-    let user = seed_bridge_credential(&pool, "declared-brain").await?;
-    let uri = format!("{}/simulate", ApiPaths::ADMIN_BRAIN);
-    assert_eq!(
-        status(&app, "POST", &uri, None).await?,
-        StatusCode::UNAUTHORIZED
-    );
-    assert_eq!(
-        status(&app, "POST", &uri, Some(&user.jwt)).await?,
-        StatusCode::FORBIDDEN
-    );
     Ok(())
 }
 

@@ -7,7 +7,6 @@
 use std::sync::{Arc, Mutex};
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::prelude::Dependencies;
 use systemprompt_extension::{
     GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard, Resolved,
 };
@@ -105,7 +104,7 @@ async fn fixture(schema: &str, policy: Option<serde_json::Value>) -> anyhow::Res
         })],
         ..ComposedParts::default()
     });
-    let kernel = offline_resolved_kernel(&admitted, Dependencies::new());
+    let kernel = offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
     let engines = GatewayEngines::new(
         Default::default(),
         &kernel.resolved(),

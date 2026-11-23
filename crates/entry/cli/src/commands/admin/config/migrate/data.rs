@@ -15,10 +15,10 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use systemprompt_ai::repository::{CatalogMigrationRepository, LegacyMapRow};
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::AccessControlRepository;
 use systemprompt_oauth::repository::BridgeHostPrefsRepository;
+use systemprompt_traits::{CatalogMigrationPort, LegacyCatalogEntry};
 
 use super::legacy_map::{LEGACY_MAP_FILE, LegacyMap};
 
@@ -44,15 +44,18 @@ pub fn read_map(services: &Path) -> Result<LegacyMap> {
     serde_yaml::from_str(&text).with_context(|| format!("Failed to parse {}", path.display()))
 }
 
-pub async fn apply_with(db: &DbPool, map: &LegacyMap) -> Result<DataReport> {
-    let repo = CatalogMigrationRepository::new(db);
+pub async fn apply_with(
+    db: &DbPool,
+    repo: &dyn CatalogMigrationPort,
+    map: &LegacyMap,
+) -> Result<DataReport> {
     let mut report = DataReport {
         legacy_entries: map.providers.len(),
         ..DataReport::default()
     };
     let routed: Vec<String> = map.providers.keys().cloned().collect();
     for (legacy, target) in &map.providers {
-        let row = LegacyMapRow {
+        let row = LegacyCatalogEntry {
             legacy_provider: legacy,
             provider: &target.provider,
             endpoint: &target.endpoint,

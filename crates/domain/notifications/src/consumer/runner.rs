@@ -1,11 +1,11 @@
 //! [`BoundConsumerRunner`]: the `notifications` member's runner service.
 //!
-//! The consumer is assembled by the composition root once the pipeline seams
-//! are built, and bound into the [`NotificationsConsumerSlot`] the member
-//! provides. The runner reads that slot when it starts and runs the bound
-//! consumer; a slot still unbound when runner services start is logged as an
-//! error and the runner ends, so a host that never assembled the consumer is
-//! visible rather than silently draining nothing.
+//! The consumer is assembled by the notifications slot build once the
+//! pipeline seams are built, and bound into the [`NotificationsConsumerSlot`]
+//! the build returns. The runner reads that cell when it starts and runs the
+//! bound consumer; a cell still unbound when runner services start is logged
+//! as an error and the runner ends, so a host that never assembled the
+//! consumer is visible rather than silently draining nothing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -96,6 +96,8 @@ mod mcp_dispatch;
 mod notifications_document_visibility;
 #[cfg(test)]
 mod wave_h_seams;
+#[cfg(test)]
+mod hb_seams;
 
 #[cfg(test)]
 mod brain_live;

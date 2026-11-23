@@ -13,14 +13,15 @@
 
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_test_fixtures::fixture_job_context_over;
 
 use chrono::Utc;
 use systemprompt_brain::consumer::{BacklogSnapshot, BrainConsumer};
 use systemprompt_brain::index::BRAIN_FACT_INDEX;
-use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_manifest::profile::BrainConsumerProfile;
 use systemprompt_models::brain::{BrainEvent, EnteredFact, EnteredStatus, FactScope, SubjectKey};
-use systemprompt_traits::{Dependencies, JobContext, RunnerService};
+use systemprompt_traits::{Dependencies, RunnerService};
 use tokio_util::sync::CancellationToken;
 
 use crate::events::{Landed, entered, price};
@@ -156,7 +157,7 @@ async fn run_consumer_until(h: &Harness, at_least: i64) -> BacklogSnapshot {
     let runner = {
         let consumer = Arc::clone(&consumer);
         let shutdown = shutdown.clone();
-        let ctx = JobContext::new(Actor::user(UserId::generate()), Dependencies::new());
+        let ctx = fixture_job_context_over(&h.pool, Dependencies::new());
         tokio::spawn(async move { consumer.run(ctx, shutdown).await })
     };
     let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
@@ -174,7 +175,7 @@ async fn run_consumer_for(h: &Harness, window: Duration) -> BacklogSnapshot {
     let runner = {
         let consumer = Arc::clone(&consumer);
         let shutdown = shutdown.clone();
-        let ctx = JobContext::new(Actor::user(UserId::generate()), Dependencies::new());
+        let ctx = fixture_job_context_over(&h.pool, Dependencies::new());
         tokio::spawn(async move { consumer.run(ctx, shutdown).await })
     };
     tokio::time::sleep(window).await;

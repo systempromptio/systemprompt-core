@@ -26,8 +26,8 @@
 //! [`NotificationPipeline::sweep`], which holds a transaction-scoped
 //! advisory lock, so one replica sweeps at a time.
 //!
-//! The composition root constructs it over the built pipeline seams and
-//! binds it into the [`NotificationsConsumerSlot`]; the member's
+//! The notifications slot build constructs it over the built pipeline seams
+//! and binds it into the [`NotificationsConsumerSlot`]; the member's
 //! [`BoundConsumerRunner`] runs it from there.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

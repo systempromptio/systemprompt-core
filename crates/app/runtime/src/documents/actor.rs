@@ -24,7 +24,7 @@ use std::future::Future;
 use systemprompt_files::documents::agents::{DocumentActor, act_as};
 use systemprompt_identifiers::{AgentName, ClientId};
 use systemprompt_models::auth::{self, RequestActor, TokenInteraction};
-use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
+use systemprompt_models::execution::context::RequestContext;
 
 pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Output {
     act_as(request_actor(ctx), work).await
@@ -32,25 +32,7 @@ pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Outp
 
 #[must_use]
 pub fn request_actor(ctx: &RequestContext) -> DocumentActor {
-    document_actor(caller_actor(ctx))
-}
-
-#[must_use]
-pub fn caller_actor(ctx: &RequestContext) -> RequestActor {
-    let interaction = ctx.settings.user_interaction_mode;
-    let person = (ctx.is_browser_session() || ctx.is_ui_session())
-        && ctx.caller_purpose().is_none()
-        && ctx.act_chain().is_empty()
-        && interaction != Some(UserInteractionMode::NonInteractive);
-    if person {
-        return RequestActor::Human;
-    }
-    let attended =
-        interaction == Some(UserInteractionMode::Interactive) && ctx.caller_purpose().is_none();
-    RequestActor::Agent {
-        name: signed_agent_name(ctx),
-        attended,
-    }
+    document_actor(auth::caller_actor(ctx))
 }
 
 #[must_use]

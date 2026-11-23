@@ -114,13 +114,17 @@ pub fn gateway_repositories(
         Some(sessions) => repos.with_session_store(sessions),
         None => repos,
     };
-    #[cfg(feature = "brain")]
     let repos = repos.with_brain_recall(profile.brain.recall.clone());
-    #[cfg(feature = "brain")]
-    let repos = match ctx.brain() {
-        Some(brain) => {
+    let brain_sink = ctx
+        .kernel()
+        .state()
+        .find::<systemprompt_extension::DynBrainSink>()
+        .filter(|_| profile.brain.enabled)
+        .cloned();
+    let repos = match brain_sink {
+        Some(sink) => {
             repos.with_brain_session(systemprompt_gateway::audit::session::SessionCapture::new(
-                Arc::clone(brain.sink()),
+                sink,
                 profile.brain.capture.clone(),
                 Arc::clone(ctx.db_pool()),
             ))
@@ -175,33 +179,8 @@ pub(crate) fn gateway_mount_parts(
     })
 }
 
-#[must_use]
-pub fn gateway_admitted(admitted: &Admitted) -> bool {
-    let id = systemprompt_extension::Extension::metadata(
-        &systemprompt_gateway::extension::GatewayExtension,
-    )
-    .id;
-    admitted
-        .built()
-        .members()
-        .any(|member| member.owner.as_str() == id)
-}
-
-pub fn gateway_engines(
-    ctx: &AppContext,
-    kernel: &Kernel,
-) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
-    let engines = GatewayEngines::new(
-        Arc::clone(ctx.connector_tokens()),
-        &kernel.resolved(),
-        Arc::clone(ctx.secrets()),
-    )?;
-    #[cfg(feature = "brain")]
-    let engines = match ctx.brain_recall() {
-        Some(recall) => engines.with_memory_recall(recall),
-        None => engines,
-    };
-    Ok(engines)
+pub fn gateway_engines(kernel: &Kernel) -> Option<Arc<GatewayEngines>> {
+    kernel.state().find::<Arc<GatewayEngines>>().cloned()
 }
 
 pub fn gateway_router(
@@ -209,7 +188,9 @@ pub fn gateway_router(
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> anyhow::Result<Router> {
-    let engines = Arc::new(gateway_engines(ctx, kernel)?);
+    let engines = gateway_engines(kernel).ok_or_else(|| {
+        anyhow::anyhow!("the gateway member is not admitted; no gateway engines are built")
+    })?;
     let parts = gateway_mount_parts(ctx, &engines, admitted, kernel)?;
     let routes = parts
         .registered

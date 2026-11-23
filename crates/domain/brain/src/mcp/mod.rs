@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
-use systemprompt_brain::service::{BrainCaller, BrainService};
+use crate::service::{BrainCaller, BrainService};
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
 use systemprompt_identifiers::McpServerId;

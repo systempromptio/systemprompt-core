@@ -19,6 +19,12 @@
 //! the read half of its cell (`DocumentsHandlesSlot`) is, and the host keeps
 //! the bind half outside the state and binds it once the store is built.
 //!
+//! The provider-key lookup (`Arc<dyn SecretLookup>`: the whole secrets
+//! document on the API, the granted set on a child host) and the connector
+//! token cache (`Arc<TokenCache>`, shared by the proxy, the gateway engines
+//! and the AI service) are sealed seeds on every host: they resolve and cache
+//! provider credentials.
+//!
 //! The runtime `Config`, the secret store, the system admin, the active
 //! services root, the profile's services bundle sources (`BundleSources`:
 //! the pinned sources, bundle cache and base tree, never another profile
@@ -32,13 +38,6 @@
 //! subscribes on every user's stream. Every other seed is open. A member whose
 //! runtime code needs a capability derived from a sealed seed builds a narrow
 //! handle in its provide fn or factory.
-//!
-//! The process's one `AiService` (present only when inference is configured)
-//! is composed from several domains, so the composition root seeds it; an
-//! route set or factory resolves them from the built state and
-//! an absent `AiService` is a typed `MissingDependency`, never a fallback
-//! service. An absent `AiService` is still reserved for the kernel, so no
-//! extension can `provide` its own.
 //!
 //! The messaging dispatcher slot (`LateBound<dyn MessagingDispatcher>`) is
 //! seeded unbound: the dispatcher needs the API's agent proxy, which exists
@@ -67,8 +66,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_ai::AiService;
-use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::GeoIpReader;
 use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::AppPaths;
@@ -87,10 +84,11 @@ use systemprompt_models::{ContentConfigRaw, LateBound};
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynJwtValidationProvider,
-    DynLeaseRepository, FileStorage, MessagingDispatcher, SecretStore,
+    DynLeaseRepository, FileStorage, MessagingDispatcher, SecretLookup, SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.
@@ -111,6 +109,8 @@ pub struct KernelSeed<'a> {
     pub services_root: ActiveServicesRoot,
     pub profile_path: ActiveProfilePath,
     pub secrets: Arc<dyn SecretStore>,
+    pub secret_lookup: Arc<dyn SecretLookup>,
+    pub connector_tokens: Arc<TokenCache>,
     pub file_storage: Arc<dyn FileStorage>,
     pub background_tasks: BackgroundTasks,
     pub coordination: KernelCoordination,
@@ -128,8 +128,6 @@ pub struct ApiKernelSeed<'a> {
     pub spawner: &'a Arc<Spawner>,
     pub child_secrets: DynChildSecretEnv,
     pub oauth: &'a Arc<OAuthRepositories>,
-    pub ai: &'a Arc<AiRepositories>,
-    pub ai_service: Option<&'a Arc<AiService>>,
     pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
@@ -168,7 +166,6 @@ impl std::fmt::Debug for ApiKernelSeed<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ApiKernelSeed")
             .field("base", &self.base)
-            .field("ai_service", &self.ai_service.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -200,6 +197,8 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with_sealed(seed.profile_path)
         .with_sealed(BundleSources::of(seed.profile))
         .with_sealed(seed.secrets)
+        .with_sealed(seed.secret_lookup)
+        .with_sealed(seed.connector_tokens)
         .with_sealed(seed.system_admin.clone())
         .with_sealed(Arc::new(seed.event_router.clone()))
         .with(seed.documents);
@@ -225,13 +224,8 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
         .with(seed.signing_keys.keyring().clone())
         .with(seed.signing_keys.verification_keys().clone())
         .with(Arc::clone(seed.oauth))
-        .with(Arc::clone(seed.ai))
         .with(LateBound::<dyn MessagingDispatcher>::default())
         .with_sealed(AgentDispatchCell::default());
-    match seed.ai_service {
-        Some(ai) => state.insert(Arc::clone(ai)),
-        None => state.reserve::<Arc<AiService>>(),
-    }
     match seed.geoip {
         Some(reader) => state.insert(Arc::clone(reader)),
         None => state.reserve::<GeoIpReader>(),

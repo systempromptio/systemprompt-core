@@ -1,0 +1,34 @@
+[root]
+section = "Changed"
+area = "Brain"
+text = "The brain routes (`/api/v1/brain`, `/api/v1/admin/brain`) are contributed by the new `brain-http` member in `systemprompt-brain-entry`; the API server no longer names them. Disabling `brain-http` unmounts both groups (404); disabling `brain` while `brain-http` stays enabled refuses the boot. A caller's current roles are read from the governance role directory; the user gate refuses an unknown or inactive account. The brain MCP tools live in `systemprompt-brain`."
+
+[[crate]]
+name = "systemprompt-brain-entry"
+section = "Added"
+text = "`extension::BrainHttpExtension` (`brain-http`) and, with `http`, `http::{user_routes, admin_routes, BrainHttpState, BrainHttpError}` and the request/response bodies."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::brain` is removed (moved to `systemprompt_brain_entry::http`; `BrainRoutes` is `BrainHttpState`, `router`/`admin_router` are the `user_routes`/`admin_routes` route sets). The `brain` feature no longer enables `systemprompt-runtime/brain` or `systemprompt-scheduler/brain`. The `ANY /api/v1/brain/{*fallback}` and `ANY /api/v1/admin/brain/{*fallback}` 404 fallbacks are gone: an unmatched path under either base answers the kernel's 404."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`brain` module (`brain::mcp`, `BRAIN_ACTOR`) and the `brain` feature are removed; `AppContext::{brain, brain_recall, brain_consolidation_model, brain_sink}` are removed (read `Arc<BrainHandleSlot>`, `Arc<dyn MemoryRecall>` and `DynBrainSink` from the kernel state). `documents::actor::caller_actor` moved to `systemprompt_models::auth::caller_actor`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "The `brain` feature is removed: the brain jobs read the brain handle from the kernel state."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "The `brain` feature is removed."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`auth::caller_actor`: the actor of an authenticated request."

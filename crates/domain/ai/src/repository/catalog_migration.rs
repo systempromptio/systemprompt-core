@@ -14,16 +14,7 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_traits::RepositoryError;
-
-/// One legacy entry and the catalog hop it became.
-#[derive(Debug, Clone, Copy)]
-pub struct LegacyMapRow<'a> {
-    pub legacy_provider: &'a str,
-    pub provider: &'a str,
-    pub endpoint: &'a str,
-    pub credential: &'a str,
-}
+use systemprompt_traits::{CatalogMigrationPort, LegacyCatalogEntry, RepositoryError};
 
 #[derive(Debug, Clone)]
 pub struct CatalogMigrationRepository {
@@ -36,8 +27,11 @@ impl CatalogMigrationRepository {
             write_pool: db.write_pool(),
         }
     }
+}
 
-    pub async fn upsert_legacy_map(&self, row: LegacyMapRow<'_>) -> Result<(), RepositoryError> {
+#[async_trait::async_trait]
+impl CatalogMigrationPort for CatalogMigrationRepository {
+    async fn upsert_legacy_map(&self, row: LegacyCatalogEntry<'_>) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"INSERT INTO ai_catalog_legacy_map (legacy_provider, provider, endpoint, credential)
                VALUES ($1, $2, $3, $4)
@@ -54,7 +48,7 @@ impl CatalogMigrationRepository {
         Ok(())
     }
 
-    pub async fn update_personal_keys(
+    async fn update_personal_keys(
         &self,
         legacy_provider: &str,
         credential: &str,
@@ -74,9 +68,9 @@ impl CatalogMigrationRepository {
         Ok(done.rows_affected())
     }
 
-    pub async fn update_audit_batch(
+    async fn update_audit_batch(
         &self,
-        row: LegacyMapRow<'_>,
+        row: LegacyCatalogEntry<'_>,
         batch: i64,
     ) -> Result<u64, RepositoryError> {
         let done = sqlx::query!(
@@ -97,9 +91,9 @@ impl CatalogMigrationRepository {
         Ok(done.rows_affected())
     }
 
-    pub async fn update_served_audit_batch(
+    async fn update_served_audit_batch(
         &self,
-        row: LegacyMapRow<'_>,
+        row: LegacyCatalogEntry<'_>,
         routed: &[String],
         batch: i64,
     ) -> Result<u64, RepositoryError> {

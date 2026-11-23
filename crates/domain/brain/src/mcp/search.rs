@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
-use systemprompt_brain::{BrainError, FactCursor, FactFilter};
+use crate::{BrainError, FactCursor, FactFilter};
 use systemprompt_extension::brain::{
     RecallConversation, RecallOutcome, RecallPrincipal, RecallRequest, ReuseHint,
 };

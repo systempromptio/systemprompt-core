@@ -111,10 +111,7 @@ fn composition(gateway_route: bool, probes: Vec<Probe>) -> Composition {
             Vec::new()
         },
     });
-    let kernel = offline_resolved_kernel(
-        &admitted,
-        systemprompt_extension::prelude::Dependencies::new(),
-    );
+    let kernel = offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
     Composition { admitted, kernel }
 }
 
@@ -234,10 +231,11 @@ async fn a_route_outside_the_admitted_gateway_routes_carries_no_principal() -> a
 
 #[tokio::test]
 async fn the_engines_run_the_admitted_guard_probe() -> anyhow::Result<()> {
-    let ctx = context().await?;
+    let _ctx = context().await?;
     let composed = composition(false, vec![guard_probe()]);
 
-    let engines = systemprompt_api::routes::gateway::gateway_engines(&ctx, &composed.kernel)?;
+    let engines = systemprompt_api::routes::gateway::gateway_engines(&composed.kernel)
+        .expect("the gateway member provides its engines");
 
     let owners: Vec<&str> = engines
         .guards
@@ -251,10 +249,11 @@ async fn the_engines_run_the_admitted_guard_probe() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn with_no_guard_probe_the_engines_run_no_guard() -> anyhow::Result<()> {
-    let ctx = context().await?;
+    let _ctx = context().await?;
     let composed = composition(false, Vec::new());
 
-    let engines = systemprompt_api::routes::gateway::gateway_engines(&ctx, &composed.kernel)?;
+    let engines = systemprompt_api::routes::gateway::gateway_engines(&composed.kernel)
+        .expect("the gateway member provides its engines");
 
     assert!(engines.guards.is_empty());
     Ok(())

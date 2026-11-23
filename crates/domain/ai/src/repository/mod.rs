@@ -39,10 +39,10 @@ pub use ai_requests::{
     AdmissionWrite, AiRequestRepository, InsertToolCallParams, PreparedDigest, RequestMessageRow,
 };
 pub use ai_safety_findings::{
-    AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,
+    AiSafetyFindingRepository, InsertSafetyFinding,
 };
 pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
-pub use catalog_migration::{CatalogMigrationRepository, LegacyMapRow};
+pub use catalog_migration::CatalogMigrationRepository;
 pub use thought_signatures::AiThoughtSignatureRepository;
 pub use user_provider_credentials::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 

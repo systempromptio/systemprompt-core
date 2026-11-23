@@ -7,7 +7,6 @@
 use std::sync::Arc;
 
 use systemprompt_agent::repository::A2ARepositories;
-use systemprompt_ai::repository::AiRepositories;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
 use systemprompt_mcp::repository::McpSessionRepository;
@@ -39,15 +38,6 @@ impl AppContext {
 
     pub const fn coordination_repositories(&self) -> &Arc<CoordinationRepositories> {
         &self.data.coordination
-    }
-
-    pub const fn ai_repositories(&self) -> &Arc<AiRepositories> {
-        &self.data.ai_repositories
-    }
-
-    #[must_use]
-    pub fn tool_call_intents(&self) -> systemprompt_traits::DynToolCallIntentClaims {
-        Arc::new(self.data.ai_repositories.requests.clone())
     }
 
     pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {

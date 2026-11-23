@@ -60,7 +60,7 @@ impl std::fmt::Debug for NotificationsState {
 
 impl FromState for NotificationsState {
     fn from_state(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
-        let slot = r.get::<NotificationsServiceSlot>()?;
+        let slot = r.get::<Arc<NotificationsServiceSlot>>()?;
         let service = slot
             .get()
             .ok_or_else(MissingDependency::of::<NotificationsService>)?;

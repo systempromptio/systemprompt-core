@@ -5,8 +5,8 @@
 //!
 //! The job does nothing, and says so once per process, unless all of these
 //! hold: `brain.consolidation.enabled` is `true`, at least one consolidator
-//! is contributed through the `BrainSlot`, the job context carries a brain
-//! model client and the brain sink. Core contributes no consolidator and makes
+//! is contributed through the `BrainSlot`, and the brain handle the slot
+//! build bound carries the model client the host started the consumer with. Core contributes no consolidator and makes
 //! no model call here; the consolidator decides whether to call the model it is
 //! handed, under the day's remaining token budget.
 //!
@@ -26,7 +26,7 @@ use systemprompt_provider_contracts::JobScope;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
 use super::consolidate_run::{ConsolidationRun, RunTotals};
-use crate::contract::BrainSeams;
+use crate::handle::BrainHandleSlot;
 use crate::pipeline::metrics;
 use crate::repository::{BrainRepositories, ExtractionRepository};
 
@@ -79,18 +79,18 @@ impl fmt::Debug for ConsolidationParts {
 
 impl ConsolidationParts {
     fn from_context(ctx: &JobContext) -> Self {
-        let consolidators = ctx
-            .get::<Arc<BrainSeams>>()
-            .map(|seams| seams.consolidators.clone())
-            .unwrap_or_default();
+        let Ok(brain) = ctx.get::<Arc<BrainHandleSlot>>() else {
+            return Self {
+                consolidators: Vec::new(),
+                model: None,
+                sink: None,
+            };
+        };
+        let handle = brain.get();
         Self {
-            consolidators,
-            model: ctx
-                .get::<Option<Arc<dyn BrainModelClient>>>()
-                .ok()
-                .cloned()
-                .flatten(),
-            sink: ctx.get::<DynBrainSink>().ok().cloned(),
+            consolidators: brain.seams().consolidators.clone(),
+            model: handle.and_then(|handle| handle.consolidation_model()),
+            sink: handle.map(|handle| Arc::clone(handle.sink())),
         }
     }
 

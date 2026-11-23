@@ -1,11 +1,12 @@
 //! The [`BrainHandle`] assembled over the built [`BrainSeams`].
 //!
-//! When the profile enables the brain, the slot build composes the brain
-//! repositories, the outbox sink, the [`BrainService`] and the
+//! The slot build creates the [`BrainHandleSlot`] cell over the built seams
+//! and keeps its bind half. When the profile enables the brain, it composes
+//! the brain repositories, the outbox sink, the [`BrainService`] and the
 //! [`BrainRecallService`] from the kernel's database pool and instance id,
 //! the producer notification sink and the built seams, and binds the handle
-//! into the [`BrainHandleSlot`] this member provides. With the brain
-//! disabled nothing is composed and the slot stays unbound. Recall and the
+//! before it returns the read half. With the brain disabled nothing is
+//! composed and the cell stays unbound. Recall and the
 //! service judge a fact's source by the built seams' source access; without
 //! one every sourced fact is hidden.
 //!
@@ -25,7 +26,6 @@ use systemprompt_extension::{Resolved, SlotError};
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::profile::BrainProfile;
 
-use crate::consumer::BrainConsumerSlot;
 use crate::contract::BrainSeams;
 use crate::handle::{BrainHandle, BrainHandleParts, BrainHandleSlot};
 use crate::outcomes::OutcomeService;
@@ -35,11 +35,13 @@ use crate::{BrainRepositories, OutboxBrainSink};
 
 const SLOT: &str = "brain";
 
-pub(crate) fn bind_handle(seams: &BrainSeams, r: &Resolved<'_>) -> Result<(), SlotError> {
+pub(crate) fn bind_handle(seams: BrainSeams, r: &Resolved<'_>) -> Result<BrainHandleSlot, SlotError> {
     let profile = r.get::<Arc<BrainProfile>>()?;
+    let (slot, binder) = BrainHandleSlot::unbound(seams);
     if !profile.enabled {
-        return Ok(());
+        return Ok(slot);
     }
+    let seams = slot.seams();
     let db = r.get::<DbPool>()?;
     let instance = r.get::<InstanceId>()?;
     let notifications = r.get::<DynNotificationSink>()?;
@@ -81,12 +83,12 @@ pub(crate) fn bind_handle(seams: &BrainSeams, r: &Resolved<'_>) -> Result<(), Sl
         outbox: Arc::new(OutboxConsumer::new(db.write_pool().as_ref().clone())),
         listener_pool: db.session_pool().as_ref().clone(),
         profile,
-        consumer: r.get::<BrainConsumerSlot>()?,
     });
-    r.get::<BrainHandleSlot>()?
+    binder
         .bind(Arc::new(handle))
         .map_err(|error| SlotError::Refused {
             slot: SLOT,
             source: Box::new(error),
-        })
+        })?;
+    Ok(slot)
 }

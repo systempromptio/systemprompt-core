@@ -19,7 +19,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod ai_service;
 pub(crate) mod assembly;
 pub(crate) mod authz;
 pub(crate) mod composition;
@@ -133,16 +132,9 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
         let seeded =
-            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
+            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id);
         let (system_admin, mcp_registry) =
             load_identity(&self.boot, &seeded.users, &services).await?;
-        let (ai_service, connector_tokens) = ai_service::build_ai_service(
-            &self.boot,
-            &database,
-            &seeded.ai,
-            &mcp_registry,
-            &services,
-        );
         let (router, bridge, listener_pool) =
             event_plane(self.event_router, &database, &config, &cache_epochs);
         drop(listener_pool);
@@ -164,6 +156,8 @@ impl AppContextBuilder {
                     path: self.boot.profile_path().to_path_buf(),
                 },
                 secrets,
+                secret_lookup: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
+                connector_tokens: Arc::default(),
                 file_storage: Arc::clone(&file_storage),
                 background_tasks: background_tasks.clone(),
                 coordination: KernelCoordination::over(&seeded.services, &seeded.coordination),
@@ -177,8 +171,6 @@ impl AppContextBuilder {
             spawner: &spawner,
             child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
             oauth: &seeded.oauth,
-            ai: &seeded.ai,
-            ai_service: ai_service.as_ref(),
             geoip: content.geoip_reader.as_ref(),
             content_config: content.content_config.as_ref(),
         });
@@ -225,15 +217,7 @@ impl AppContextBuilder {
         #[cfg(not(feature = "notifications"))]
         let notification_sink: systemprompt_extension::DynNotificationSink =
             Arc::new(crate::documents::NotificationsUnavailableSink);
-        #[cfg(feature = "brain")]
-        let brain_sink: systemprompt_extension::DynBrainSink = if profile.brain.enabled {
-            systemprompt_brain::OutboxBrainSink::over_write_pool(&database, &config.instance_id)
-        } else {
-            Arc::new(crate::documents::BrainUnavailableSink)
-        };
-        #[cfg(not(feature = "brain"))]
-        let brain_sink: systemprompt_extension::DynBrainSink =
-            Arc::new(crate::documents::BrainUnavailableSink);
+        let brain_sink = crate::documents::admitted_brain_sink(profile.brain.enabled, &r);
         let documents = documents::build_documents(
             &documents::DocumentsInputs {
                 services_root: &self.boot.require_services_root().path,
@@ -252,7 +236,6 @@ impl AppContextBuilder {
             &r,
         )?;
         let subsystems = Subsystems {
-            ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance.get(), r.get()?),
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
@@ -269,7 +252,6 @@ impl AppContextBuilder {
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks,
             spawner,
-            connector_tokens,
             documents,
         };
 
