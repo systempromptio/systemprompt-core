@@ -46,6 +46,7 @@ mod grant_removals;
 mod grant_row;
 mod grants;
 mod head;
+mod invites;
 mod listing;
 mod listing_scopes;
 mod listing_scopes_context;
@@ -96,6 +97,7 @@ pub use folders::DocumentFolderRepository;
 pub use grant_events::DocumentGrantEventRepository;
 pub use grants::DocumentGrantRepository;
 pub use head::HeadMove;
+pub use invites::DocumentInviteRepository;
 pub(crate) use listing::like_pattern;
 pub use listing_scopes_root::ROOT_LISTING_SQL;
 pub use listing_scopes_shared::SHARED_LISTING_SQL;
@@ -131,6 +133,7 @@ pub struct DocumentRepositories {
     pub comments: Arc<DocumentCommentRepository>,
     pub proposals: Arc<DocumentProposalRepository>,
     pub public_links: Arc<DocumentPublicLinkRepository>,
+    pub invites: Arc<DocumentInviteRepository>,
 }
 
 impl DocumentRepositories {
@@ -155,6 +158,7 @@ impl DocumentRepositories {
             comments: Arc::new(DocumentCommentRepository::new(db)),
             proposals: Arc::new(DocumentProposalRepository::new(db)),
             public_links: Arc::new(DocumentPublicLinkRepository::new(db)),
+            invites: Arc::new(DocumentInviteRepository::new(db)),
         }
     }
 }

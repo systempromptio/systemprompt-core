@@ -1,0 +1,126 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: DocumentInviteId\",\n                      document_id::text AS \"document_id!: DocumentId\",\n                      email AS \"email: Email\", access_level, invited_by AS \"invited_by: UserId\", created_at,\n                      expires_at, revoked_at,\n                      claimed_by_user_id AS \"claimed_by_user_id: UserId\", claimed_at\n               FROM document_invites\n               WHERE document_id = $1::text::uuid\n               ORDER BY created_at DESC, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentInviteId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "email: Email",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "access_level",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "access_level"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "invited_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "invited_by"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "revoked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "revoked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "claimed_by_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "claimed_by_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "claimed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_invites",
+            "name": "claimed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "0775af0dba4643c012997ab13069c51c9a84b35a174ebc104a080818538a80b9"
+}

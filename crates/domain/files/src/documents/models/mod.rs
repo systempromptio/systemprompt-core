@@ -28,7 +28,7 @@ pub use cursor::{DriveCursor, ListCursor, ListCursorError, ListingCursor};
 pub use document::{
     Document, DocumentSearchHit, ListScope, ListSort, ListedDocument, NewDocument, ScopedListing,
 };
-pub use external::{NewPublicLink, PublicLink, PublicLinkGate};
+pub use external::{DocumentInvite, NewInvite, NewPublicLink, PublicLink, PublicLinkGate};
 pub use folder::{DocumentFolder, NewFolder};
 pub use grant::{DocumentGrant, GrantTarget, NewGrant, SubjectPairs};
 pub use lock::{

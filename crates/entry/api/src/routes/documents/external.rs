@@ -20,7 +20,7 @@ use systemprompt_models::modules::ApiPaths;
 use super::caller::caller;
 use super::error::DocumentsResult;
 use super::items::document_id;
-use super::{DocumentsState, step_up_of};
+use super::{DocumentsState, invites, step_up_of};
 
 #[derive(Debug, Serialize)]
 pub(super) struct PublicLinksJson {
@@ -110,4 +110,13 @@ pub(super) fn with_public_links(
             "/{id}/public-links/{link_id}",
             stepped_up(delete(revoke_public_link)),
         )
+        .route(
+            "/{id}/invites",
+            get(invites::list_invites).merge(stepped_up(post(invites::create_invite))),
+        )
+        .route(
+            "/{id}/invites/{invite_id}",
+            stepped_up(delete(invites::revoke_invite)),
+        )
+        .route("/invites/claim", post(invites::claim_invite))
 }

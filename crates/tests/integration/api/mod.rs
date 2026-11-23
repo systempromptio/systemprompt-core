@@ -195,6 +195,8 @@ mod documents_comment_edit;
 #[cfg(test)]
 mod documents_drive_policy;
 #[cfg(test)]
+mod documents_invites;
+#[cfg(test)]
 mod documents_parity;
 #[cfg(test)]
 mod documents_pdf;

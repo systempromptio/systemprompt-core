@@ -1,4 +1,7 @@
-//! The anonymous open of a public link.
+//! The anonymous open of a public link or an invite's link: both are served
+//! at `/s/{token}`. An invite reads only, whatever its level, until it is
+//! claimed; a claimed invite's link closes and its person reads through the
+//! grant.
 //!
 //! An open that does not resolve to a live link of an allowed, untrashed
 //! document with the right password is refused with one undifferentiated
@@ -11,7 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use systemprompt_traits::{RepositoryError, StoredFileRead};
 
 use super::DocumentService;
@@ -65,13 +68,13 @@ impl DocumentService {
             return Err(PublicLinkRefusal::Unavailable);
         }
         let now = Utc::now();
-        let gate = self
-            .repos
-            .public_links
-            .gate(&token_hash(token))
-            .await?
-            .filter(|gate| gate.is_live(now))
-            .ok_or(PublicLinkRefusal::Unavailable)?;
+        let hash = token_hash(token);
+        let Some(gate) = self.repos.public_links.gate(&hash).await? else {
+            return self.open_invite(&hash, now).await;
+        };
+        if !gate.is_live(now) {
+            return Err(PublicLinkRefusal::Unavailable);
+        }
         let document = self
             .repos
             .documents
@@ -99,14 +102,42 @@ impl DocumentService {
                 return Err(PublicLinkRefusal::Unavailable);
             }
         }
-        let revision = self.resolve_revision(&document, None).await?;
-        let read = self
-            .blobs
-            .open(&revision.content_sha256, None)
-            .await
-            .map_err(DocumentsError::from)?;
-        let agent_content = self.agent_content(&document.id).await?;
+        let open = self.read_head(document).await?;
         self.repos.public_links.record_open(&gate.id).await?;
+        Ok(open)
+    }
+
+    async fn open_invite(
+        &self,
+        hash: &str,
+        now: DateTime<Utc>,
+    ) -> Result<PublicLinkOpen, PublicLinkRefusal> {
+        let invite = self
+            .repos
+            .invites
+            .by_token(hash)
+            .await?
+            .filter(|invite| invite.is_open(now))
+            .ok_or(PublicLinkRefusal::Unavailable)?;
+        let document = self
+            .repos
+            .documents
+            .find(&invite.document_id)
+            .await?
+            .ok_or(PublicLinkRefusal::Unavailable)?;
+        if !self
+            .external_allowed(ExternalChannel::Invite, &document)
+            .await?
+        {
+            return Err(PublicLinkRefusal::Unavailable);
+        }
+        Ok(self.read_head(document).await?)
+    }
+
+    async fn read_head(&self, document: Document) -> Result<PublicLinkOpen, DocumentsError> {
+        let revision = self.resolve_revision(&document, None).await?;
+        let read = self.blobs.open(&revision.content_sha256, None).await?;
+        let agent_content = self.agent_content(&document.id).await?;
         Ok(PublicLinkOpen {
             document,
             revision,

@@ -26,12 +26,12 @@ use super::documents::{Reply, app, create_markdown, id_of, json_request, request
 
 const PASSWORD: &str = "correct horse battery";
 
-struct Instance {
-    state: DocumentsState,
-    public: Router,
+pub(super) struct Instance {
+    pub(super) state: DocumentsState,
+    pub(super) public: Router,
 }
 
-async fn instance(pool: &DbPool, sharing: ExternalSharingConfig) -> Result<Instance> {
+pub(super) async fn instance(pool: &DbPool, sharing: ExternalSharingConfig) -> Result<Instance> {
     let bootstrap = ensure_test_bootstrap();
     let documents = DocumentsConfig {
         enabled: true,
@@ -74,7 +74,7 @@ async fn token_of(at: &Instance, user: &AuthedFixture, id: &str, body: &Value) -
     Ok(created.json()["token"].as_str().expect("token").to_owned())
 }
 
-async fn open(at: &Instance, token: &str) -> Result<Reply> {
+pub(super) async fn open(at: &Instance, token: &str) -> Result<Reply> {
     let req = request(Method::GET, &format!("/{token}"))
         .body(Body::empty())
         .expect("request");
@@ -92,14 +92,14 @@ async fn open_with(at: &Instance, token: &str, password: &str) -> Result<Reply> 
     send(at.public.clone(), req).await
 }
 
-fn hash_of(token: &str) -> String {
+pub(super) fn hash_of(token: &str) -> String {
     Sha256::digest(token.as_bytes())
         .iter()
         .map(|b| format!("{b:02x}"))
         .collect()
 }
 
-async fn markdown(at: &Instance, owner: &AuthedFixture) -> Result<String> {
+pub(super) async fn markdown(at: &Instance, owner: &AuthedFixture) -> Result<String> {
     Ok(id_of(&create_markdown(&at.state, owner).await?))
 }
 
