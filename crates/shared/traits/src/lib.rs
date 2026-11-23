@@ -207,6 +207,11 @@ pub mod session_store;
 pub mod sso;
 pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
+pub mod drive_tokens;
+pub use drive_tokens::{
+    DriveSyncAttendance, DriveSyncGrant, DriveSyncPrincipal, DriveTokenError, DriveTokens,
+    DynDriveTokens,
+};
 pub use gateway_session::{
     DynGatewaySessionMint, GatewaySessionMint, GatewaySessionMintError, MintedGatewaySession,
 };
