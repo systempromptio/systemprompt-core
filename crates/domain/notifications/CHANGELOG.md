@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The actor of an event stays a recipient when the event sets `actor_is_system`: an event the platform produced reaches the account it is attributed to. An event without the flag still drops its actor, except for the hand-off to their own agent.
+
 ## [0.84.0] - 2026-11-20
 
 ### Changed

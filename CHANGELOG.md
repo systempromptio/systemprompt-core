@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** **Models:** `notifications::NotificationEvent` gains `actor_is_system: bool`. Migrate a struct literal by setting `actor_is_system: false`; `NotificationEvent::new` already does, and an event serialised without the field decodes as `false`.
+
+### Added
+
+- **Notifications:** an event can say the platform produced it. `NotificationEvent::with_actor_is_system(true)` marks an event produced on the platform's own schedule (a scheduled job), whose `actor` is the account it is attributed to; that account is then kept among the recipients, where a person's own action never notifies them. Routing reads the flag only: it is not stored on the notification and no API or SDK field carries it.
+
 ## [0.85.0] - 2026-11-21
 
 ### Breaking

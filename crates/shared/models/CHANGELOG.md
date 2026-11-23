@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `notifications::NotificationEvent` gains `actor_is_system: bool` (`#[serde(default)]`, so events already in the outbox decode as `false`). Migrate a struct literal by setting `actor_is_system: false`; `NotificationEvent::new` already does.
+
+### Added
+
+- `NotificationEvent::with_actor_is_system(bool)`: marks an event the platform produced on its own schedule, whose `actor` is the account it is attributed to rather than a person who acted.
+
 ## [0.85.0] - 2026-11-21
 
 ### Breaking
