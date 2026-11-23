@@ -153,14 +153,19 @@ async fn a_sealed_provide_is_withheld_from_every_member_runtime_context() {
     );
 }
 
-// The sealed AI session provider creates and meters sessions; the session
-// store does that and more, so it may never be open beside it.
-const SUPERSET_OF_A_SEALED_CAPABILITY: &[&str] =
-    &["dyn systemprompt_traits::session_store::SessionStore"];
+// A capability that wraps or exceeds a sealed one: the session store does
+// everything the sealed AI session provider does and more, and the messaging
+// dispatcher mints with the signing keys and sends through the sealed agent
+// dispatch. Neither may be open.
+const SUPERSET_OF_A_SEALED_CAPABILITY: &[&str] = &[
+    "dyn systemprompt_traits::session_store::SessionStore",
+    "dyn systemprompt_traits::messaging::MessagingDispatcher",
+];
 
 const CELL_WRAPPERS: &[&str] = &[
     "alloc::sync::Arc<",
     "systemprompt_models::late_bound::LateRead<",
+    "systemprompt_models::late_bound::LateBound<",
 ];
 
 fn open_types_of(rendered: &str) -> &str {
