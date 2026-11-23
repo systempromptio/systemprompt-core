@@ -98,6 +98,8 @@ fn kernel_members() -> Vec<Member> {
 fn domain_members() -> Vec<Member> {
     vec![
         #[cfg(feature = "full")]
+        Member::core::<systemprompt_marketplace::ManagedResourcesExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "full")]
         Member::core::<systemprompt_agent::AgentExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "analytics")]
         Member::core::<systemprompt_analytics::AnalyticsExtension>(CoreTerms::REQUIRED),
@@ -109,8 +111,6 @@ fn domain_members() -> Vec<Member> {
         Member::core::<systemprompt_brain::BrainExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "notifications")]
         Member::core::<systemprompt_notifications::NotificationsExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "full")]
-        Member::core::<systemprompt_marketplace::ManagedResourcesExtension>(CoreTerms::REQUIRED),
         #[cfg(feature = "api")]
         Member::core::<systemprompt_gateway::extension::GatewayExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "agent-runs")]

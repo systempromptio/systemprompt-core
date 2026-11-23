@@ -38,15 +38,15 @@ use crate::{AgentAuth, AgentState};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum AgentServerUnavailable {
     #[error("no AI provider is admitted on this host (the `ai` member is disabled)")]
-    NoAiProvider,
+    AiProvider,
     #[error("this host holds no JWT verification keys")]
-    NoVerification,
+    Verification,
     #[error("no managed-skill authority is admitted on this host")]
-    NoManagedSkills,
+    ManagedSkills,
     #[error("no tool-execution ledger is admitted on this host (the `mcp` member is disabled)")]
-    NoToolExecutions,
+    ToolExecutions,
     #[error("no session-usage counters are admitted on this host")]
-    NoSessionUsage,
+    SessionUsage,
 }
 
 #[derive(Clone)]
@@ -139,32 +139,30 @@ impl HostedAgentServer {
             Arc::new(webhooks),
             inputs.services.clone(),
         );
-        Ok(match &inputs.launcher {
-            Some(launcher) => state.with_agent_run_launcher(Arc::clone(launcher)),
-            None => {
-                tracing::info!(
-                    agent = %agent,
-                    "no agent-run launcher; the agent processes every task itself"
-                );
-                state
-            },
-        })
+        if let Some(launcher) = &inputs.launcher {
+            return Ok(state.with_agent_run_launcher(Arc::clone(launcher)));
+        }
+        tracing::info!(
+            agent = %agent,
+            "no agent-run launcher; the agent processes every task itself"
+        );
+        Ok(state)
     }
 }
 
 fn missing(r: &Resolved<'_>) -> AgentServerUnavailable {
     if r.optional::<DynAiProvider>().is_none() {
-        AgentServerUnavailable::NoAiProvider
+        AgentServerUnavailable::AiProvider
     } else if r.optional::<DynJwtValidationProvider>().is_none()
         || r.optional::<VerificationKeyring>().is_none()
     {
-        AgentServerUnavailable::NoVerification
+        AgentServerUnavailable::Verification
     } else if r.optional::<DynManagedSkillResolver>().is_none() {
-        AgentServerUnavailable::NoManagedSkills
+        AgentServerUnavailable::ManagedSkills
     } else if r.optional::<DynToolExecutionLookup>().is_none() {
-        AgentServerUnavailable::NoToolExecutions
+        AgentServerUnavailable::ToolExecutions
     } else {
-        AgentServerUnavailable::NoSessionUsage
+        AgentServerUnavailable::SessionUsage
     }
 }
 

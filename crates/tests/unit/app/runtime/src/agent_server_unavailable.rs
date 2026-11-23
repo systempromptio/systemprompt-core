@@ -23,7 +23,7 @@ async fn a_host_without_an_ai_provider_builds_the_server_and_refuses_to_serve() 
     assert_eq!(named, &agent);
     assert_eq!(
         source.downcast_ref::<AgentServerUnavailable>(),
-        Some(&AgentServerUnavailable::NoAiProvider),
+        Some(&AgentServerUnavailable::AiProvider),
         "{err:?}"
     );
 }
