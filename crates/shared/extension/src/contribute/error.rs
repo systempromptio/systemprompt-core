@@ -28,6 +28,11 @@ pub enum ContributionError {
     DuplicateSchema(&'static str),
     #[error("config section invalid")]
     Config(#[from] ExtensionConfigError),
+    #[error("declared secret prefix invalid")]
+    SecretPattern {
+        #[source]
+        source: systemprompt_traits::SecretPatternError,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

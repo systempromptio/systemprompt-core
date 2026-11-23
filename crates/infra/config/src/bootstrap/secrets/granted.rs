@@ -79,9 +79,6 @@ impl GrantedSecrets {
             database_url: present("DATABASE_URL").ok_or(GrantedSecretsError::DatabaseUrlMissing)?,
             database_write_url: present("DATABASE_WRITE_URL"),
             database_session_url: present("DATABASE_SESSION_URL"),
-            github_token: secrets
-                .get(ProviderSecret::Github.as_str())
-                .map(|token| token.as_str().to_owned()),
         };
         Ok(Self {
             credentials,
@@ -140,6 +137,12 @@ impl SecretStore for GrantedSecrets {
     fn secret(&self, name: &str) -> Option<ExtensionSecret> {
         self.get(name)
             .map(|value| ExtensionSecret::new(value.to_owned()))
+    }
+
+    fn secret_exact(&self, name: &str) -> Option<ExtensionSecret> {
+        self.secrets
+            .get(name)
+            .map(|value| ExtensionSecret::new(value.as_str().to_owned()))
     }
 
     fn key_names(&self) -> Result<Vec<String>, SecretStoreError> {

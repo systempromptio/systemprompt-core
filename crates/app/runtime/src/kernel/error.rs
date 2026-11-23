@@ -8,8 +8,9 @@ use systemprompt_extension::prelude::RuleType;
 use systemprompt_extension::{DuplicateJobOwner, FactoryError, ProvideError, SlotError};
 use systemprompt_governance::authz::SubjectProviderError;
 use systemprompt_governance::policy::PolicyCatalogError;
-use systemprompt_identifiers::{ExtensionId, SecretName};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::DuplicateDependency;
+use systemprompt_traits::SecretPattern;
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
@@ -75,7 +76,14 @@ pub enum KernelError {
     )]
     ReservedSecret {
         owner: ExtensionId,
-        name: SecretName,
+        name: SecretPattern,
+    },
+    #[error(
+        "{owner} declares secret {pattern}, which no grant in the profile's extensions.secrets.{owner} covers"
+    )]
+    UngrantedSecret {
+        owner: ExtensionId,
+        pattern: SecretPattern,
     },
     #[error("gateway guard factory of {owner} failed")]
     GatewayGuard {

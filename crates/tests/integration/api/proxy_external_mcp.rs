@@ -122,7 +122,7 @@ async fn harness_with_database(
     provider_url_override: Option<&str>,
 ) -> anyhow::Result<Harness> {
     systemprompt_test_fixtures::install_named_secret(
-        systemprompt_mcp::services::client::external_auth::BROKER_SECRET_KEY,
+        systemprompt_traits::MCP_CREDENTIAL_BROKER_SECRET,
         BROKER_SECRET,
     );
     let server = MockServer::start().await;
@@ -959,7 +959,6 @@ async fn private_harness_with_provider(label: &str, provider_url: &str) -> anyho
     let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     harness_with_database(None, Some(database), Some(provider_url)).await
 }
-
 
 struct RawProviderTask(Option<tokio::task::JoinHandle<anyhow::Result<usize>>>);
 

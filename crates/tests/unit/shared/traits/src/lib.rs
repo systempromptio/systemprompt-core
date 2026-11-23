@@ -25,7 +25,6 @@ mod extension_error;
 #[cfg(test)]
 mod validation;
 
-
 #[cfg(test)]
 mod startup_events;
 
@@ -63,3 +62,6 @@ mod sso_policy;
 
 #[cfg(test)]
 mod sso_reason_codes;
+
+#[cfg(test)]
+mod secret_pattern;

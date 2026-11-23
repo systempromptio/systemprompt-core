@@ -59,6 +59,10 @@ struct MapSecrets(std::collections::BTreeMap<String, String>);
 
 #[async_trait::async_trait]
 impl systemprompt_traits::SecretStore for MapSecrets {
+    fn secret_exact(&self, name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
+        self.secret(name)
+    }
+
     fn secret(&self, name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
         self.0
             .get(name)

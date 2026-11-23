@@ -97,12 +97,17 @@ pub mod retention_purge;
 pub mod run_origin;
 pub mod runner_service;
 pub mod secret;
+pub mod secret_pattern;
 pub use process_liveness::ProcessLiveness;
 pub use run_origin::RunOrigin;
 pub use runner_service::RunnerService;
 pub use secret::{
     DeclaredSecrets, ExtensionSecret, PINNED_SECRET_KEYS, ReloadOutcome, SECRET_SEED_BYTES,
     SecretLookup, SecretReferences, SecretStore, SecretStoreError, SecretsStatus,
+};
+pub use secret_pattern::{
+    CORE_SECRET_NAMES, LICENCE_SIGNING_SECRET, MCP_CREDENTIAL_BROKER_SECRET, SecretPattern,
+    SecretPatternError, is_core_secret_name,
 };
 pub mod storage;
 pub mod stream_drain;

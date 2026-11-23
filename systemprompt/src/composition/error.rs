@@ -18,6 +18,8 @@ use systemprompt_extension::router::{Allowance, BasePath, BaseRef};
 pub enum CompositionError {
     #[error("unknown extension in profile extensions.disabled: {0}")]
     UnknownExtension(DisabledExtension),
+    #[error("unknown extension in profile extensions.secrets: {0}")]
+    UnknownSecretGrant(ExtensionId),
     #[error("extension id is invalid: {id}")]
     InvalidId {
         id: &'static str,

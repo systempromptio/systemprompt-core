@@ -71,7 +71,6 @@ pub struct Config {
     pub database_write_url: Option<String>,
     pub database_session_url: Option<String>,
     pub github_link: String,
-    pub github_token: Option<String>,
     pub system_path: String,
     pub services_path: String,
     pub bin_path: String,
@@ -116,8 +115,8 @@ pub struct Config {
 
 const REDACTED: &str = "<redacted>";
 
-// Why: `database_url` carries the password and `github_token` is a credential;
-// a `?config` in any log line must not print either.
+// Why: `database_url` carries the password; a `?config` in any log line must
+// not print it.
 impl std::fmt::Debug for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Config")
@@ -134,7 +133,6 @@ impl std::fmt::Debug for Config {
             .field("database_write_url", &REDACTED)
             .field("database_session_url", &REDACTED)
             .field("github_link", &self.github_link)
-            .field("github_token", &REDACTED)
             .field("system_path", &self.system_path)
             .field("services_path", &self.services_path)
             .field("bin_path", &self.bin_path)
@@ -217,7 +215,6 @@ impl ConfigProvider for Config {
             "web_metadata_path" => Some(self.web_metadata_path.clone()),
             "sitename" => Some(self.sitename.clone()),
             "github_link" => Some(self.github_link.clone()),
-            "github_token" => self.github_token.clone(),
             "api_server_url" => Some(self.api_server_url.clone()),
             "api_external_url" => Some(self.api_external_url.clone()),
             "jwt_issuer" => Some(self.jwt_issuer.clone()),

@@ -41,7 +41,7 @@ use systemprompt_identifiers::{ExtensionId, SecretName};
 use systemprompt_provider_contracts::governance::GovernancePolicy;
 use systemprompt_provider_contracts::{ConfigPlane, DoctorCheck, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService, SecretReferences};
+use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService, SecretPattern, SecretReferences};
 
 pub use audience::{AudienceEntry, AudienceResolvers};
 pub use config::{ConfigDecl, ExtensionConfig};
@@ -51,7 +51,7 @@ pub use factories::{Factory, FactoryKind, SecretReferenceFactory, build_factorie
 pub use handles::{Handed, HandleId, KernelHandle};
 pub use member::{MemberResolved, MemberScope};
 pub use resolved::{FromState, KernelAccess, ProvideFn, Resolved};
-pub use secrets::SecretDeclarations;
+pub use secrets::{MemberSecrets, SecretDeclarations};
 pub use sink::{
     AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, DoctorCheckRef,
     GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
@@ -244,7 +244,18 @@ impl<'a> Contributions<'a> {
     }
 
     pub fn secret(&mut self, name: SecretName) -> &mut Self {
-        self.sink.declared_secrets.push(name);
+        self.sink.declared_secrets.push(SecretPattern::Exact(name));
+        self
+    }
+
+    pub fn secret_prefix(&mut self, prefix: &str) -> &mut Self {
+        match SecretPattern::prefix(prefix) {
+            Ok(pattern) => self.sink.declared_secrets.push(pattern),
+            Err(source) => self
+                .sink
+                .errors
+                .push(ContributionError::SecretPattern { source }),
+        }
         self
     }
 

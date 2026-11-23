@@ -11,7 +11,7 @@ use systemprompt_extension::DuplicateJobOwner;
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::DisabledExtension;
+use systemprompt_manifest::{DisabledExtension, ExtensionsConfig};
 
 #[cfg(feature = "config")]
 use super::SecretsSourceDecl;
@@ -119,6 +119,19 @@ pub(super) fn disabled_members(
         }
     }
     Ok(disabled.iter().map(|entry| entry.id().clone()).collect())
+}
+
+pub(super) fn granted_members(
+    members: &[DeclaredMember],
+    extensions: &ExtensionsConfig,
+) -> Result<(), CompositionError> {
+    extensions
+        .secrets
+        .keys()
+        .find(|granted| !members.iter().any(|member| &member.id == *granted))
+        .map_or(Ok(()), |unknown| {
+            Err(CompositionError::UnknownSecretGrant(unknown.clone()))
+        })
 }
 
 #[cfg(feature = "cli")]

@@ -26,6 +26,7 @@ fn slack_admitted() -> Admitted {
         .expect("the slack member contributes");
     Admitted::__from_facade(AdmittedParts {
         members: vec![AdmittedMember {
+            secret_grants: Vec::new(),
             owner,
             metadata,
             standing: StandingTag::Core,

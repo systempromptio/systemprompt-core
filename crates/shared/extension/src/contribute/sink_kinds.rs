@@ -8,14 +8,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::SecretName;
+use systemprompt_traits::SecretPattern;
 
 use super::factories::{FactoryKind, SecretReferenceFactory};
 use super::sink::ContributionSink;
 
 impl ContributionSink {
     #[must_use]
-    pub fn declared_secrets(&self) -> &[SecretName] {
+    pub fn declared_secrets(&self) -> &[SecretPattern] {
         &self.declared_secrets
     }
 

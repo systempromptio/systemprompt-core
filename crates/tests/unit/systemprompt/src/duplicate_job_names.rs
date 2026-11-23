@@ -40,6 +40,7 @@ fn forged_member(id: &'static str, standing: StandingTag, job: &'static str) -> 
     let mut sink = ContributionSink::default();
     Contributions::__new(owner.clone(), &mut sink).job(NamedJob(job));
     AdmittedMember {
+        secret_grants: Vec::new(),
         owner,
         metadata: ExtensionMetadata {
             id,

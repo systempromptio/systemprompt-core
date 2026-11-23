@@ -65,7 +65,7 @@ pub use deploy::{
     default_operator_scopes,
 };
 pub use error::{ProfileError, ProfileResult};
-pub use extensions::{DisabledExtension, ExtensionsConfig};
+pub use extensions::{DisabledExtension, ExtensionsConfig, ProfileSecretReferences};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use field_kind::profile_field_kind;
 pub use governance::{
@@ -77,7 +77,7 @@ pub use inspection::{Evaluation, Inspection, NotEvaluated, ValidationReport, nee
 pub use judge::JudgeProfile;
 pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;
-pub use licence::{LICENCE_SIGNING_SECRET, LicenceConfig};
+pub use licence::LicenceConfig;
 pub use managed::ManagedProfile;
 pub use node_role::{NodeRole, NodeRoleParseError};
 pub use notifications::{ConsumerProfile, NotificationsProfile};

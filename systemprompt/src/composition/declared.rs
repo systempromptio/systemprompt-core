@@ -10,12 +10,12 @@ use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts, DeclaredCo
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_manifest::{DisabledExtension, ExtensionsConfig};
+use systemprompt_manifest::ExtensionsConfig;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
 
-use super::admit::disabled_members;
+use super::admit::{disabled_members, granted_members};
 use super::providers::check_providers;
 #[cfg(feature = "api")]
 use super::routes::{
@@ -67,15 +67,16 @@ impl Declared {
     }
 
     pub fn admit(self, extensions: &ExtensionsConfig) -> Result<Admitted, CompositionError> {
-        self.admit_without(&extensions.disabled)
+        self.admit_with(extensions)
     }
 
     pub fn admit_unprofiled(self) -> Result<Admitted, CompositionError> {
-        self.admit_without(&[])
+        self.admit_with(&ExtensionsConfig::default())
     }
 
-    fn admit_without(self, disabled: &[DisabledExtension]) -> Result<Admitted, CompositionError> {
-        let disabled = disabled_members(&self.members, disabled)?;
+    fn admit_with(self, extensions: &ExtensionsConfig) -> Result<Admitted, CompositionError> {
+        let disabled = disabled_members(&self.members, &extensions.disabled)?;
+        granted_members(&self.members, extensions)?;
         let (enabled, dropped): (Vec<DeclaredMember>, Vec<DeclaredMember>) = self
             .members
             .into_iter()
@@ -99,6 +100,7 @@ impl Declared {
                 }
             }
             members.push(AdmittedMember {
+                secret_grants: extensions.secret_grants(&member.id).to_vec(),
                 owner: member.id,
                 metadata: member.metadata,
                 standing: member.standing.tag(),

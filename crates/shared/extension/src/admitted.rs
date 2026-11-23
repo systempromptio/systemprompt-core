@@ -28,6 +28,7 @@ pub struct AdmittedMember {
     pub metadata: crate::metadata::ExtensionMetadata,
     pub standing: StandingTag,
     pub sink: ContributionSink,
+    pub secret_grants: Vec<systemprompt_traits::SecretPattern>,
 }
 
 /// Every admitted member's contributions, in composition order.

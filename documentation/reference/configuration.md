@@ -28,7 +28,7 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `cloud` | object | no | absent | Cloud tenant binding. See [`cloud`](#cloud). |
 | `secrets` | object | no | absent | Where secrets come from: a file, the environment, or Vault. See [`secrets`](#secrets). |
 | `services` | object | no | all-defaults | Where the services tree comes from. See [`services`](#services). |
-| `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
+| `extensions` | object | no | `{ disabled: [], secrets: {} }` | Extension enable/disable and per-member secret grants. See [`extensions`](#extensions). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
 | `observability` | object | no | `{ otlp: null }` | Where this instance exports its own telemetry. See [`observability`](#observability). |
 | `retention` | object | no | all-defaults | Retention windows the `database_cleanup` job enforces. See [`retention`](#retention). |
@@ -450,6 +450,14 @@ A request over any `limits.*` value or `maxUploadBytes` is refused with `too_lar
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `disabled` | list of string | no | `[]` | Member IDs to disable. A disabled member is not admitted: none of its routes, jobs, retention, slot contributions or provided state is built, mounted or run. An ID that names no composed member, an ID of a required core member, or a disabled member whose provided state an admitted member requires, refuses the boot. A refusal of an entry interpolated from `${VAR}` names "the value of `${VAR}`", never the resolved value, on boot, in the CLI and in target admission. |
+
+| `secrets` | map of member ID to list of string | no | `{}` | The custom secrets the operator grants each member. Each entry is an exact secret name (`acme_api_key`) or a prefix ending in one `*` (`acme_*`); an empty name, a bare `*` and any other `*` are refused when the profile parses, and an ID that names no composed member refuses the boot. A member reads a custom secret only when it declared the name (or a prefix covering it) and a grant here covers it; with no grant it reads none, and a member declaring a name no grant covers refuses the boot. Matching is byte-exact and case-sensitive: `acme_*` covers `acme_x`, never `acmex`, `ACME_x` or `acme_`. A name the platform itself references (its pinned keys, the licence signing and MCP credential broker secrets, and every secret field of the profile and the services config, such as a Slack signing secret, an MCP connector client secret, a storage bucket credential or a bundle source `auth_secret`) is refused even when granted, and a reload that starts referencing a granted name refuses it from then on. |
+
+```yaml
+extensions:
+  secrets:
+    acme-portal: [acme_api_key, "acme_webhook_*"]
+```
 
 See [`concepts/extensions.md`](../concepts/extensions.md) for the extension model.
 

@@ -106,7 +106,6 @@ pub struct CoreEnvVars {
     pub api_external_url: String,
     pub use_https: bool,
     pub github_link: String,
-    pub github_token: Option<String>,
     pub cors_allowed_origins: Vec<String>,
 }
 
@@ -170,7 +169,6 @@ pub fn build_env_config(
             api_external_url: config.api_external_url.clone(),
             use_https: config.use_https,
             github_link: config.github_link.clone(),
-            github_token: config.github_token.clone().map(|_| "[REDACTED]".to_owned()),
             cors_allowed_origins: config.cors_allowed_origins.clone(),
         },
         systemprompt: SystempromptEnvVars {
