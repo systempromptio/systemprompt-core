@@ -12528,6 +12528,7 @@ dependencies = [
 name = "systemprompt-test-hack"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "aho-corasick",
  "arrayvec",
  "axum",
