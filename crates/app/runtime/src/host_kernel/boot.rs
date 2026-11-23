@@ -126,6 +126,8 @@ impl HostKernel {
                 path: std::path::PathBuf::from(&profile_path),
             },
             secrets: store,
+            secret_lookup: Arc::<GrantedSecrets>::clone(&secrets),
+            connector_tokens: Arc::default(),
             file_storage: Arc::clone(&file_storage),
             background_tasks: background_tasks.clone(),
             coordination: crate::KernelCoordination {

@@ -502,6 +502,10 @@ pub fn fixture_kernel_seed(
             path: bootstrap.profile_path.clone(),
         },
         secrets: fixture_secret_store(),
+        secret_lookup: Arc::<systemprompt_config::SecretsService>::clone(
+            crate::bootstrap::ensure_test_bootstrap().boot.secrets(),
+        ),
+        connector_tokens: Arc::default(),
         file_storage: parts.file_storage,
         background_tasks: parts.background_tasks,
         coordination: systemprompt_runtime::KernelCoordination {

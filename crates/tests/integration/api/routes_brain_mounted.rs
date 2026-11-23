@@ -1,10 +1,10 @@
 //! The brain route groups on the real router, mounted from the `brain-http`
 //! extension's declarations:
 //!
-//! | group | anonymous | signed-in user | admin | `brain-http` disabled |
-//! |---|---|---|---|---|
-//! | `/api/v1/brain` | 401 | served (404 `brain_disabled` while the profile disables the brain) | served | 404 |
-//! | `/api/v1/admin/brain` | 401 | 403 | served | 404 |
+//! | group | anonymous | inactive account | signed-in user | admin | `brain-http` disabled |
+//! |---|---|---|---|---|---|
+//! | `/api/v1/brain` | 401 | 401 | served (404 `brain_disabled` while the profile disables the brain) | served | 404 |
+//! | `/api/v1/admin/brain` | 401 | 401 | 403 | served | 404 |
 //!
 //! A profile that disables `brain` while `brain-http` stays enabled is
 //! refused at boot.
@@ -110,6 +110,21 @@ async fn an_admin_reaches_the_simulator_handler() -> Result<()> {
     let (status, body) = call(&app, Method::POST, SIMULATE, Some(&admin.jwt)).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
     assert_eq!(body["error_key"], serde_json::json!("brain_disabled"), "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_inactive_account_is_refused_at_the_gate_on_both_groups() -> Result<()> {
+    let (pool, app) = node(&[]).await?;
+    let user = seed_admin_credential(&pool, "brain-suspended").await?;
+    sqlx::query("UPDATE users SET status = 'suspended' WHERE id = $1")
+        .bind(user.user_id.as_str())
+        .execute(pool.write_pool().as_ref())
+        .await?;
+    for (method, uri) in [(Method::GET, FACTS), (Method::POST, SIMULATE)] {
+        let (status, body) = call(&app, method, uri, Some(&user.jwt)).await?;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{uri}: {body}");
+    }
     Ok(())
 }
 

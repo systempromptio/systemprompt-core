@@ -132,7 +132,7 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
         let seeded =
-            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id)?;
+            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id);
         let (system_admin, mcp_registry) =
             load_identity(&self.boot, &seeded.users, &services).await?;
         let (router, bridge, listener_pool) =
@@ -157,6 +157,8 @@ impl AppContextBuilder {
                     path: self.boot.profile_path().to_path_buf(),
                 },
                 secrets,
+                secret_lookup: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
+                connector_tokens: Arc::default(),
                 file_storage: Arc::clone(&file_storage),
                 background_tasks: background_tasks.clone(),
                 coordination: KernelCoordination::over(&seeded.services, &seeded.coordination),
@@ -169,7 +171,6 @@ impl AppContextBuilder {
             signing_keys: &signing_keys,
             spawner: &spawner,
             oauth: &seeded.oauth,
-            ai: &seeded.ai,
             geoip: content.geoip_reader.as_ref(),
             content_config: content.content_config.as_ref(),
         });
@@ -251,7 +252,6 @@ impl AppContextBuilder {
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks,
             spawner,
-            connector_tokens: Arc::default(),
             documents,
         };
 

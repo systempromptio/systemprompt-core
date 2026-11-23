@@ -202,7 +202,7 @@ impl BrainHandle {
         self.consolidation_model.get().cloned()
     }
 
-    pub fn start_consumer(
+    pub(crate) fn start_consumer(
         &self,
         model: Arc<dyn BrainModelClient>,
     ) -> Result<Arc<BrainConsumer>, AlreadyBound> {

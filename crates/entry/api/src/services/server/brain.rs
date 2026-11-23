@@ -8,7 +8,8 @@
 //! client), the gateway configuration, catalog, repositories and the current
 //! governance engine, acting as the `brain` service account (ensured on
 //! first start, created by the system admin). The brain handle is the one the
-//! `brain` member's slot build returned. An enabled brain on a profile
+//! `brain` member's slot build returned, started through the sealed
+//! `DynBrainConsumerStart` the member provides. An enabled brain on a profile
 //! without a gateway (its config disabled, or the `gateway` member not
 //! admitted) fails the start rather than leaving the consumer unable to
 //! extract.
@@ -20,8 +21,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use systemprompt_brain::BrainHandleSlot;
-use systemprompt_extension::brain::BrainModelClient;
+use systemprompt_extension::brain::{BrainModelClient, DynBrainConsumerStart};
 use systemprompt_files::documents::BRAIN_ACTOR;
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_gateway::client::principal::{ServiceIdentity, ServicePrincipal};
@@ -36,17 +36,19 @@ pub(super) async fn brain_consumer(
     ctx: &AppContext,
     engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Option<Arc<dyn RunnerService>>> {
-    let Some(handle) = ctx
+    let Some(start) = ctx
         .kernel()
         .state()
-        .find::<Arc<BrainHandleSlot>>()
-        .and_then(|brain| brain.get().cloned())
+        .find::<DynBrainConsumerStart>()
+        .cloned()
     else {
         return Ok(None);
     };
+    if !ctx.profile().brain.enabled {
+        return Ok(None);
+    }
     let model = brain_model_client(ctx, engines).await?;
-    let consumer: Arc<dyn RunnerService> = handle.start_consumer(model)?;
-    Ok(Some(consumer))
+    Ok(start.start(model)?)
 }
 
 async fn brain_model_client(

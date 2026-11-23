@@ -2,7 +2,7 @@ id	type	crate	file
 agent	AgentExtension	systemprompt-agent	crates/domain/agent/src/extension.rs
 agent_runs	AgentRunsExtension	systemprompt-agent-runs	crates/app/agent-runs/src/extension.rs
 agent_runs_api	AgentRunsApiExtension	systemprompt-agent-runs-entry	crates/entry/agent-runs/src/http/extension.rs
-ai	AiExtension	systemprompt-ai	crates/domain/ai/src/extension.rs
+ai	AiExtension	systemprompt-ai	crates/domain/ai/src/extension/mod.rs
 analytics	AnalyticsExtension	systemprompt-analytics	crates/domain/analytics/src/extension.rs
 analytics-http	AnalyticsHttpExtension	systemprompt-analytics-entry	crates/entry/analytics/src/extension.rs
 authz	AuthzExtension	systemprompt-governance	crates/infra/governance/src/authz/extension.rs

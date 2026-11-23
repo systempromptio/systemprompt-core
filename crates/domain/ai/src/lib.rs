@@ -90,7 +90,7 @@ pub use services::providers::{GeminiImageProvider, ImageProvider, ImageProviderC
 pub use repository::{
     AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestPayloadRepository,
     AiRequestRepository, AiSafetyFindingRepository, GatewayPolicyRow, IncrementParams,
-    InsertSafetyFinding, QuotaBucketDelta, QuotaBucketState, SafetyFindingRollupRow,
+    InsertSafetyFinding, QuotaBucketDelta, QuotaBucketState,
     UpsertPayloadParams,
 };
 

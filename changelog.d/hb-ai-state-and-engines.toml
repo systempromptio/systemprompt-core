@@ -1,0 +1,44 @@
+[root]
+section = "Changed"
+area = "AI"
+text = "The AI service, the AI repositories (which hold the key that decrypts personal provider keys), the safety-findings reader and the catalog-migration port are sealed values the `ai` member provides; the gateway engines are a sealed value the `gateway` member provides; the connector token cache and the provider-key lookup are sealed kernel seeds. Kernel commands that read AI tables fail naming the `ai` member when it is disabled, and the CLI no longer depends on the AI crate. The API no longer depends on the brain crate: it starts the brain consumer through the sealed start the `brain` member provides."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Breaking"
+text = "`SafetyFindingRollupRow` is replaced by `systemprompt_traits::SafetyFindingRollup` and `repository::LegacyMapRow` by `systemprompt_traits::LegacyCatalogEntry`; `CatalogMigrationRepository`'s methods are the `CatalogMigrationPort` impl. New: `services::core::{InferenceNotConfigured, InferenceUnavailable}`. The member provides `Arc<AiRepositories>`, `DynSafetyFindingsReader`, `DynCatalogMigrationPort` and `DynAiProvider` sealed."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`ai_reports::{SafetyFindingsReader, DynSafetyFindingsReader, SafetyFindingRollup, CatalogMigrationPort, DynCatalogMigrationPort, LegacyCatalogEntry}`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`brain::{BrainConsumerStart, DynBrainConsumerStart}`."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`AtRestCipher::{from_master_key, withheld}`; a withheld cipher refuses every seal and open with `KeyUnavailable`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayEngines::new` and `GatewayEngines::secrets` take `Arc<dyn SecretLookup>`; the `brain` feature is removed (`client::brain` is always compiled); the member provides `Arc<GatewayEngines>` sealed."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelSeed::{secret_lookup, connector_tokens}` (sealed seeds); `ApiKernelSeed::ai`, `AppContext::{ai_repositories, tool_call_intents, connector_tokens}`, `DataPlane::ai_repositories` and `Subsystems::connector_tokens` are removed."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "The `brain` feature and the `systemprompt-brain` dependency are removed; `routes::gateway::gateway_engines` reads the provided engines (`Option<Arc<GatewayEngines>>`) and `gateway_admitted` is removed; `routes::proxy::{agents, mcp}::router` return `Result<Router, MissingDependency>`; `services::server::admitted_gateway_engines` returns `Option`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "The member provides `DynAiSessionProvider` sealed."

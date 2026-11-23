@@ -4,7 +4,10 @@
 //! append as a core default (`CoreSeam<dyn NotificationAudienceResolver,
 //! RoleAudience>`), its two maintenance jobs, the role directory governance's
 //! `RoleDirectorySlot` holds, the `role` subject-attribute provider, and the
-//! purge of its own user-keyed tables a user delete clears.
+//! purge of its own user-keyed tables a user delete clears. It also provides
+//! the AI session provider (`DynAiSessionProvider`) **sealed**: it creates
+//! and meters a session for any user it is handed, so only the `ai` member's
+//! provide reads it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -64,6 +67,13 @@ impl Extension for UsersExtension {
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
+            Ok(sessions)
+        })
+        .provide_sealed(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let sessions: systemprompt_traits::DynAiSessionProvider = Arc::new(
+                crate::UsersAiSessionProvider::from_repository(SessionRepository::new(&db)),
+            );
             Ok(sessions)
         })
         .provide(|r: &Resolved<'_>| {

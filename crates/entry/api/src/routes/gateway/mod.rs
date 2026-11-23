@@ -179,36 +179,8 @@ pub(crate) fn gateway_mount_parts(
     })
 }
 
-#[must_use]
-pub fn gateway_admitted(admitted: &Admitted) -> bool {
-    let id = systemprompt_extension::Extension::metadata(
-        &systemprompt_gateway::extension::GatewayExtension,
-    )
-    .id;
-    admitted
-        .built()
-        .members()
-        .any(|member| member.owner.as_str() == id)
-}
-
-pub fn gateway_engines(
-    ctx: &AppContext,
-    kernel: &Kernel,
-) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
-    let engines = GatewayEngines::new(
-        Arc::clone(ctx.connector_tokens()),
-        &kernel.resolved(),
-        Arc::clone(ctx.secrets()),
-    )?;
-    let recall = kernel
-        .state()
-        .find::<Arc<dyn systemprompt_extension::brain::MemoryRecall>>()
-        .filter(|_| ctx.profile().brain.enabled)
-        .cloned();
-    Ok(match recall {
-        Some(recall) => engines.with_memory_recall(recall),
-        None => engines,
-    })
+pub fn gateway_engines(kernel: &Kernel) -> Option<Arc<GatewayEngines>> {
+    kernel.state().find::<Arc<GatewayEngines>>().cloned()
 }
 
 pub fn gateway_router(
@@ -216,7 +188,9 @@ pub fn gateway_router(
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> anyhow::Result<Router> {
-    let engines = Arc::new(gateway_engines(ctx, kernel)?);
+    let engines = gateway_engines(kernel).ok_or_else(|| {
+        anyhow::anyhow!("the gateway member is not admitted; no gateway engines are built")
+    })?;
     let parts = gateway_mount_parts(ctx, &engines, admitted, kernel)?;
     let routes = parts
         .registered

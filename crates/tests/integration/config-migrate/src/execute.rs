@@ -135,3 +135,16 @@ async fn profiles_check_fails_while_pending_then_a_run_clears_it() {
         .await
         .expect("nothing pending");
 }
+
+#[tokio::test]
+async fn the_data_step_names_the_absent_ai_member() {
+    let tree = from_fixture("core-default");
+    run(&args(Some(&tree.services), None, false))
+        .await
+        .expect("migrates");
+    let mut data = args(Some(&tree.services), None, false);
+    data.data = true;
+    let error = run(&data).await.expect_err("no ai member in a detached kernel");
+    assert!(error.contains("the `ai` member provides"), "{error}");
+    assert!(error.contains("DynCatalogMigrationPort") || error.contains("CatalogMigrationPort"), "{error}");
+}

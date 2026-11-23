@@ -19,6 +19,12 @@
 //! the read half of its cell (`DocumentsHandlesSlot`) is, and the host keeps
 //! the bind half outside the state and binds it once the store is built.
 //!
+//! The provider-key lookup (`Arc<dyn SecretLookup>`: the whole secrets
+//! document on the API, the granted set on a child host) and the connector
+//! token cache (`Arc<TokenCache>`, shared by the proxy, the gateway engines
+//! and the AI service) are sealed seeds on every host: they resolve and cache
+//! provider credentials.
+//!
 //! The runtime `Config`, the secret store, the system admin, the active
 //! services root, the profile's services bundle sources (`BundleSources`:
 //! the pinned sources, bundle cache and base tree, never another profile
@@ -60,7 +66,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::GeoIpReader;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
@@ -78,10 +83,11 @@ use systemprompt_models::{ContentConfigRaw, LateBound};
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository, FileStorage,
-    MessagingDispatcher, SecretStore,
+    MessagingDispatcher, SecretLookup, SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.
@@ -102,6 +108,8 @@ pub struct KernelSeed<'a> {
     pub services_root: ActiveServicesRoot,
     pub profile_path: ActiveProfilePath,
     pub secrets: Arc<dyn SecretStore>,
+    pub secret_lookup: Arc<dyn SecretLookup>,
+    pub connector_tokens: Arc<TokenCache>,
     pub file_storage: Arc<dyn FileStorage>,
     pub background_tasks: BackgroundTasks,
     pub coordination: KernelCoordination,
@@ -118,7 +126,6 @@ pub struct ApiKernelSeed<'a> {
     pub signing_keys: &'a SigningKeys,
     pub spawner: &'a Arc<Spawner>,
     pub oauth: &'a Arc<OAuthRepositories>,
-    pub ai: &'a Arc<AiRepositories>,
     pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
@@ -181,6 +188,8 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with_sealed(seed.profile_path)
         .with_sealed(BundleSources::of(seed.profile))
         .with_sealed(seed.secrets)
+        .with_sealed(seed.secret_lookup)
+        .with_sealed(seed.connector_tokens)
         .with_sealed(seed.system_admin.clone())
         .with_sealed(Arc::new(seed.event_router.clone()))
         .with(seed.documents);
@@ -194,7 +203,6 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
         .with_sealed(seed.signing_keys.clone())
         .with_sealed(Arc::clone(seed.spawner))
         .with(Arc::clone(seed.oauth))
-        .with(Arc::clone(seed.ai))
         .with(LateBound::<dyn MessagingDispatcher>::default())
         .with_sealed(AgentDispatchCell::default());
     match seed.geoip {

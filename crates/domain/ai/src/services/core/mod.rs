@@ -10,7 +10,9 @@ mod image_persistence;
 pub mod image_service;
 mod request_logging;
 pub mod request_storage;
+mod unconfigured;
 
 pub use ai_service::{AiService, AiServiceProviders, Embedded, ProviderClients, WithheldEndpoint};
 pub use image_service::{ImageService, ImageServiceParts};
 pub use request_storage::RequestStorage;
+pub use unconfigured::{InferenceNotConfigured, InferenceUnavailable};

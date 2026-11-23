@@ -146,7 +146,7 @@ fn request(
 }
 
 async fn send(edge: &Edge, request: Request<Body>) -> anyhow::Result<(http::StatusCode, String)> {
-    let response = super::common::with_config(mcp::router(&edge.ctx), &edge.ctx)
+    let response = super::common::with_config(mcp::router(&edge.ctx).expect("the proxy reads the kernel's connector token cache"), &edge.ctx)
         .oneshot(request)
         .await?;
     body_to_string(response).await

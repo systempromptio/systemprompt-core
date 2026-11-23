@@ -38,7 +38,7 @@ fn no_member_provides_the_brain_handle_cell() {
     assert!(
         provided
             .iter()
-            .all(|name| !name.contains("BrainHandle") && !name.contains("BrainConsumer")),
+            .all(|name| !name.contains("BrainHandle") && !name.contains("LateBound")),
         "the brain member provides its handle cell: {provided:?}"
     );
 }

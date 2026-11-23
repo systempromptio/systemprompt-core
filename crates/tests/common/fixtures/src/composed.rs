@@ -111,8 +111,21 @@ pub fn offline_resolved_kernel(admitted: &Admitted, seed: Dependencies) -> Kerne
 pub fn gateway_resolved_kernel() -> Kernel {
     offline_resolved_kernel(
         &gateway_probe_admitted(ComposedParts::default()),
-        Dependencies::new(),
+        gateway_kernel_seed(),
     )
+}
+
+// The two sealed seeds the gateway member's engines provide reads on every
+// host: the connector token cache and the provider-key lookup over the test
+// bootstrap's secrets.
+pub fn gateway_kernel_seed() -> Dependencies {
+    let secrets: std::sync::Arc<dyn systemprompt_traits::SecretLookup> =
+        std::sync::Arc::<systemprompt_config::SecretsService>::clone(
+            crate::bootstrap::ensure_test_bootstrap().boot.secrets(),
+        );
+    Dependencies::new()
+        .with_sealed(std::sync::Arc::<systemprompt_security::credential::TokenCache>::default())
+        .with_sealed(secrets)
 }
 
 pub fn empty_resolved_kernel() -> Kernel {

@@ -57,7 +57,7 @@ pub async fn run_server(
         admitted: ctx.admitted(),
         kernel: ctx.kernel(),
     };
-    let engines = super::builder::admitted_gateway_engines(&ctx, &composed)?;
+    let engines = super::builder::admitted_gateway_engines(&ctx, &composed);
     let scheduler_handle = start_role_phases(
         &ctx,
         plan,
@@ -111,13 +111,6 @@ async fn start_role_phases(
     plan: LifecyclePlan,
     events: Option<&StartupEventSender>,
     scheduler_health: &SchedulerHealth,
-    #[cfg_attr(
-        not(feature = "brain"),
-        expect(
-            unused_variables,
-            reason = "only the brain consumer's model client reads the engines"
-        )
-    )]
     engines: Option<&Arc<systemprompt_gateway::GatewayEngines>>,
 ) -> Result<Option<SchedulerHandle>> {
     start_event_bridge(ctx);
@@ -145,10 +138,7 @@ async fn start_role_phases(
         None
     };
     if plan.runner_services {
-        #[cfg(feature = "brain")]
         let brain = super::brain::brain_consumer(ctx, engines).await?;
-        #[cfg(not(feature = "brain"))]
-        let brain = None;
         start_runner_services(ctx, brain)?;
     }
     Ok(scheduler_handle)

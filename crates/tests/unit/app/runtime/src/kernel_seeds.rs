@@ -8,7 +8,6 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use systemprompt_ai::repository::AiRepositories;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
@@ -148,11 +147,6 @@ async fn the_oauth_repositories_seed() {
     assert_seed::<Arc<OAuthRepositories>>().await;
 }
 
-#[tokio::test]
-async fn the_ai_repositories_seed() {
-    assert_seed::<Arc<AiRepositories>>().await;
-}
-
 #[test]
 fn the_admitted_purge_view() {
     assert_admitted_view::<AdmittedPurge>();
@@ -187,7 +181,6 @@ const API_ONLY_SEEDS: &[&str] = &[
     "systemprompt_security::keys::signing_keys::SigningKeys",
     "alloc::sync::Arc<systemprompt_loader::subprocess::spawn::Spawner>",
     "alloc::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>",
-    "alloc::sync::Arc<systemprompt_ai::repository::AiRepositories>",
     "systemprompt_models::late_bound::LateBound<dyn systemprompt_traits::messaging::MessagingDispatcher>",
     "systemprompt_models::late_bound::LateBound<dyn systemprompt_models::a2a::dispatch::AgentDispatch>",
     "alloc::sync::Arc<maxminddb::reader::Reader<alloc::vec::Vec<u8>>>",

@@ -319,7 +319,7 @@ systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
-systemprompt-api = { path = "../entry/api", features = ["brain", "collab"] }
+systemprompt-api = { path = "../entry/api", features = ["collab"] }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-slack-entry = { path = "../entry/slack" }
 systemprompt-teams-entry = { path = "../entry/teams" }

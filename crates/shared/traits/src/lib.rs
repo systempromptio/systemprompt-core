@@ -41,6 +41,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod ai_reports;
 pub mod agent_run_launcher;
 pub mod agent_server;
 pub mod service_process;
@@ -141,6 +142,10 @@ pub use coordination::{
 };
 
 pub use ownership::is_plain_identifier;
+pub use ai_reports::{
+    CatalogMigrationPort, DynCatalogMigrationPort, DynSafetyFindingsReader, LegacyCatalogEntry,
+    SafetyFindingRollup, SafetyFindingsReader,
+};
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,
 };

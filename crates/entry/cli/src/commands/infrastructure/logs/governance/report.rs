@@ -17,11 +17,11 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use systemprompt_database::pool_from_handle;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_ai::AiSafetyFindingRepository;
+use systemprompt_traits::DynSafetyFindingsReader;
 use systemprompt_governance::authz::list_governance_warnings;
 use systemprompt_identifiers::UserId;
 
@@ -110,8 +110,17 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let pool = pool_from_handle(host.db().await?)?.pool();
-    execute_with_pool_inner(args, &pool).await
+    let findings = host
+        .resolved()
+        .await?
+        .get::<DynSafetyFindingsReader>()
+        .context(AI_MEMBER_REQUIRED)?;
+    execute_with_pool_inner(args, &pool, findings.as_ref()).await
 }
+
+const AI_MEMBER_REQUIRED: &str =
+    "the governance report reads the safety findings the `ai` member provides; \
+     enable the `ai` extension in the profile";
 
 #[derive(Default)]
 struct GroupAccumulator {
@@ -122,7 +131,11 @@ struct GroupAccumulator {
     example_reason: String,
 }
 
-async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<GovernanceReportOutput> {
+async fn gather(
+    args: &ReportArgs,
+    pool: &Arc<sqlx::PgPool>,
+    findings: &dyn systemprompt_traits::SafetyFindingsReader,
+) -> Result<GovernanceReportOutput> {
     let since = parse_since(Some(&args.since))?;
 
     let rows = list_governance_warnings(pool.as_ref(), since, args.limit.max(1) * 20).await?;
@@ -165,8 +178,7 @@ async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<Governanc
     });
     warnings.truncate(usize::try_from(args.limit.max(0)).unwrap_or(usize::MAX));
 
-    let findings_repo = AiSafetyFindingRepository::from_pool(Arc::clone(pool));
-    let finding_rows = findings_repo.list_rollup(since, args.limit.max(1)).await?;
+    let finding_rows = findings.rollup(since, args.limit.max(1)).await?;
     let total_findings = finding_rows.iter().map(|r| r.count).sum();
     let total_blocked_findings = finding_rows.iter().map(|r| r.blocked_count).sum();
     let safety_findings: Vec<SafetyFindingGroupRow> = finding_rows
@@ -198,8 +210,9 @@ async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<Governanc
 async fn execute_with_pool_inner(
     args: ReportArgs,
     pool: &Arc<sqlx::PgPool>,
+    findings: &dyn systemprompt_traits::SafetyFindingsReader,
 ) -> Result<CommandOutput> {
-    let output = gather(&args, pool).await?;
+    let output = gather(&args, pool, findings).await?;
 
     if args.format == ReportFormat::Csv {
         return Ok(CommandOutput::text(format_csv(&output)));

@@ -79,7 +79,7 @@ pub use brain::{
     seed_brain_fact,
 };
 pub use composed::{
-    empty_resolved_kernel, gateway_probe_admitted, gateway_resolved_kernel,
+    empty_resolved_kernel, gateway_kernel_seed, gateway_probe_admitted, gateway_resolved_kernel,
     offline_resolved_kernel, probe_admitted, resolved_kernel, ComposedParts, Probe,
 };
 pub use credential::{

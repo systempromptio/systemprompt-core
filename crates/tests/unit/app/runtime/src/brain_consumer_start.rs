@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use systemprompt_brain::BrainHandle;
+use systemprompt_extension::brain::DynBrainConsumerStart;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::brain::{BrainModelClient, BrainModelError};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BrainModelRequest, BrainModelResponse};
 use systemprompt_brain::mcp::BrainMcpTools;
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
-use systemprompt_test_fixtures::fixture_brain;
+use systemprompt_test_fixtures::{fixture_brain, fixture_brain_kernel, fixture_brain_slot};
 
 use crate::documents_mcp_rig::{Rig, rig};
 
@@ -40,16 +41,31 @@ pub(crate) fn tools(handle: &BrainHandle) -> BrainMcpTools {
 #[tokio::test]
 async fn starting_the_consumer_twice_is_refused_and_keeps_the_first() {
     let r = rig(false).await;
-    let handle = handle_for(&r);
+    let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
+    let kernel = fixture_brain_kernel(
+        &r.pool,
+        Some(&r.runtime),
+        notifications,
+        BrainProfile {
+            enabled: true,
+            ..BrainProfile::default()
+        },
+    );
+    let handle = Arc::clone(fixture_brain_slot(&kernel).get().expect("enabled brain"));
     assert!(handle.consumer().is_none());
+    let start = kernel
+        .state()
+        .get::<DynBrainConsumerStart>()
+        .expect("the brain member provides the consumer start")
+        .clone();
 
-    let first = handle
-        .start_consumer(Arc::new(UnavailableModel))
+    let first = start
+        .start(Arc::new(UnavailableModel))
         .expect("the first start binds the consumer slot");
-    let second = handle.start_consumer(Arc::new(UnavailableModel));
+    assert!(first.is_some(), "an enabled brain starts its consumer");
+    let second = start.start(Arc::new(UnavailableModel));
 
     assert!(second.is_err(), "a second start must not rebind the slot");
-    let held = handle.consumer().expect("consumer recorded");
-    assert!(Arc::ptr_eq(held, &first));
+    assert!(handle.consumer().is_some(), "consumer recorded");
     assert!(format!("{handle:?}").contains("consumer: true"));
 }

@@ -23,7 +23,6 @@ workspace = true
 
 [features]
 default = []
-brain = []
 
 [dependencies]
 async-trait = { workspace = true }

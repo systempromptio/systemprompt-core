@@ -9,7 +9,9 @@
 //! [`BrainSeams`](crate::contract::BrainSeams); no member provides or binds
 //! the handle. The member declares no runner service, because the brain
 //! consumer needs a model client the API composes, so the API starts it from
-//! the handle. Its backlog is reported on `/health/detail`, never `/readyz`.
+//! the handle through the `DynBrainConsumerStart` it provides **sealed**
+//! (only kernel code starts the consumer). Its backlog is reported on
+//! `/health/detail`, never `/readyz`.
 //!
 //! It provides the brain's outbox sink (`DynBrainSink`, open), which the
 //! document store and the gateway's session capture read only while the
@@ -28,7 +30,11 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::brain::{DynBrainSink, MemoryRecall};
+use systemprompt_extension::brain::{
+    BrainConsumerStart, BrainModelClient, DynBrainConsumerStart, DynBrainSink, MemoryRecall,
+};
+use systemprompt_models::AlreadyBound;
+use systemprompt_traits::RunnerService;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
 use systemprompt_identifiers::InstanceId;
@@ -81,6 +87,11 @@ impl Extension for BrainExtension {
                     Ok(Arc::new(BoundMemoryRecall::new(brain)))
                 },
             )
+            .provide_sealed_after_governance(
+                |r: &Resolved<'_>| -> Result<DynBrainConsumerStart, ProvideError> {
+                    Ok(Arc::new(HandleConsumerStart(r.get::<Arc<BrainHandleSlot>>()?)))
+                },
+            )
             .diagnostic(
                 |r: &Resolved<'_>| -> Result<Arc<dyn DiagnosticProbe>, FactoryError> {
                     let brain = r.get::<Arc<BrainHandleSlot>>()?;
@@ -112,5 +123,20 @@ impl Extension for BrainExtension {
             });
         c.slot::<BrainSlot>();
         Ok(())
+    }
+}
+
+struct HandleConsumerStart(Arc<BrainHandleSlot>);
+
+impl BrainConsumerStart for HandleConsumerStart {
+    fn start(
+        &self,
+        model: Arc<dyn BrainModelClient>,
+    ) -> Result<Option<Arc<dyn RunnerService>>, AlreadyBound> {
+        let Some(handle) = self.0.get() else {
+            return Ok(None);
+        };
+        let consumer: Arc<dyn RunnerService> = handle.start_consumer(model)?;
+        Ok(Some(consumer))
     }
 }

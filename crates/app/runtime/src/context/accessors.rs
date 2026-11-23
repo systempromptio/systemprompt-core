@@ -1,7 +1,7 @@
 //! Accessors for the handles the composition root injects into the context:
 //! the route classifier, the identity of the binary being served, the files
-//! configuration, the event broadcaster set and the connector token
-//! cache, and the deployment token authority built over the signing keys.
+//! configuration and the event broadcaster set, and the deployment token
+//! authority built over the signing keys.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +15,6 @@ use systemprompt_loader::BootContext;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_security::DeploymentTokenAuthority;
-use systemprompt_security::credential::TokenCache;
 
 use super::AppContext;
 
@@ -50,10 +49,6 @@ impl AppContext {
 
     pub const fn event_broadcasters(&self) -> &Arc<EventBroadcasters> {
         self.subsystems.event_router.broadcasters()
-    }
-
-    pub const fn connector_tokens(&self) -> &Arc<TokenCache> {
-        &self.subsystems.connector_tokens
     }
 
     pub const fn documents(&self) -> &Arc<crate::documents::DocumentsRuntime> {
