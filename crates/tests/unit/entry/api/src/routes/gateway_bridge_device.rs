@@ -10,7 +10,7 @@ use axum::Json;
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge_device::enroll_self;
-use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_models::api::ErrorCode;
 use systemprompt_models::bridge::gateway::{SelfEnrollRequest, SelfEnrollResponse};
 use systemprompt_runtime::AppContext;
@@ -18,7 +18,6 @@ use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context,
     test_database_url, test_db_pool,
 };
-use systemprompt_traits::AppContext as _;
 
 struct Harness {
     ctx: Arc<AppContext>,
@@ -31,16 +30,9 @@ async fn harness() -> Harness {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&url).await;
-    let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    ));
+    let extractor = Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    );
     let authed = seed_bridge_credential(&pool, "device@bridge-device.invalid")
         .await
         .expect("bridge credential");

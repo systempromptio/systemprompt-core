@@ -4,15 +4,15 @@
 use std::collections::BTreeMap;
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_api::services::middleware::jwt::params::{
-    BuildContextParams, build_context, extract_common_headers,
-};
 use systemprompt_identifiers::{
     AccessTokenId, Actor, AgentName, ClientId, ContextId, JwtToken, SessionId, TaskId, TraceId,
     UserId,
 };
-use systemprompt_models::auth::{Permission, UserType};
-use systemprompt_security::{JwtUserContext, TokenExtractor};
+use systemprompt_models::auth::{JwtUserContext, Permission, UserType};
+use systemprompt_security::TokenExtractor;
+use systemprompt_security::request_auth::context::{
+    BuildContextParams, build_context, extract_common_headers,
+};
 
 fn jwt_context(user_id: &UserId, session_id: &SessionId) -> JwtUserContext {
     JwtUserContext {

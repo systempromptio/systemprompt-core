@@ -11,7 +11,13 @@
 //! subject-attribute provider, and the purge of its own user-keyed tables a
 //! user delete clears. It also provides the AI session provider
 //! (`DynAiSessionProvider`) **sealed**: it creates and meters a session for any
-//! user it is handed, so only the `ai` member's provide reads it.
+//! user it is handed, so only the `ai` member's provide reads it. The gateway
+//! session mint (`DynGatewaySessionMint`) is sealed and conferred on
+//! `gateway-http`. The request authenticator (`DynRequestAuthenticator`) is
+//! open: it verifies a request against the kernel's verification keyring, the
+//! issuer, the user and session rows and the kernel's token revocation check,
+//! and exposes no create, revoke or mint; a kernel that seeds no revocation
+//! check gets `UnavailableRevocations`, which refuses every token id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +30,11 @@ use systemprompt_extension::prelude::*;
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectorySlot;
 use systemprompt_manifest::Config;
+use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations};
+use systemprompt_security::keys::VerificationKeyring;
+use systemprompt_security::{
+    JwtRequestAuthenticator, JwtRequestAuthenticatorParts, UnavailableRevocations,
+};
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::core_seam::RoleAudience;
 use systemprompt_traits::{
@@ -99,6 +110,22 @@ impl Extension for UsersExtension {
                 chrono::Duration::seconds(config.jwt_access_token_expiration),
             ));
             Ok(mint)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let config = r.get::<Arc<Config>>()?;
+            let revocations = r
+                .optional::<DynTokenRevocations>()
+                .unwrap_or_else(|| Arc::new(UnavailableRevocations));
+            let authenticator: DynRequestAuthenticator =
+                Arc::new(JwtRequestAuthenticator::new(JwtRequestAuthenticatorParts {
+                    sessions: Arc::new(SessionRepository::new(&db)),
+                    users: Arc::new(crate::UserService::new(Arc::new(UserRepository::new(&db)))),
+                    revocations,
+                    issuer: config.jwt_issuer.clone(),
+                    keyring: r.get::<VerificationKeyring>()?,
+                }));
+            Ok(authenticator)
         })
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;

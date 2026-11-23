@@ -1,4 +1,5 @@
-//! JWT validation middleware with a short-TTL user cache.
+//! The user and session checks a verified token is bound to, with a
+//! short-TTL user cache.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,12 +9,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::auth::UserRole;
+use systemprompt_models::auth::{JwtUserContext, UserRole};
 use systemprompt_models::execution::context::ContextExtractionError;
-use systemprompt_security::JwtUserContext;
 use systemprompt_traits::{AuthUser, SessionProvider, UserProvider};
 
-use crate::services::middleware::session::{SessionAttestationError, attest_session};
+use super::attestation::{SessionAttestationError, attest_session};
 
 const USER_CACHE_TTL: Duration = Duration::from_secs(30);
 const USER_CACHE_CAPACITY: usize = 4096;

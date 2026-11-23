@@ -44,7 +44,7 @@ mod gate {
     use systemprompt_api::services::session_cookie::SessionCookie;
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::UserId;
-    use systemprompt_test_fixtures::{FIXTURE_JWT_ISSUER, fixture_config, mint_admin_jwt};
+    use systemprompt_test_fixtures::{fixture_config, mint_admin_jwt};
     use tower::ServiceExt;
 
     const CONFIG: SiteAuthConfig = SiteAuthConfig {
@@ -55,20 +55,19 @@ mod gate {
     };
 
     fn app(config: SiteAuthConfig) -> Router {
-        let keys = systemprompt_test_fixtures::test_signing_keys();
+        let authenticator = systemprompt_test_fixtures::fixture_claims_authenticator();
         Router::new()
             .fallback(get(|| async { "handler-reached" }))
             .layer(middleware::from_fn(move |req, next| {
                 let config = config.clone();
-                let keys = keys.clone();
+                let authenticator = authenticator.clone();
                 async move {
                     site_auth_gate(
                         req,
                         next,
                         config,
                         SiteAuthSession {
-                            issuer: FIXTURE_JWT_ISSUER,
-                            keys: &keys,
+                            authenticator: &authenticator,
                             cookie: SessionCookie::for_external_url("https://app.example.com"),
                         },
                     )

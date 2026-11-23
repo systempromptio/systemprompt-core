@@ -1,18 +1,12 @@
-//! JWT-backed request-context extractor.
+//! [`JwtContextExtractor`]: the authenticator's audiences for a mount, and
+//! the A2A body's context binding.
 //!
-//! [`JwtContextExtractor`] implements [`ContextExtractor`] by validating the
-//! bearer token (signature, session existence, user existence, and JTI
-//! revocation) and building a `RequestContext`. It resolves the context id from
-//! the `x-context-id` header on standard routes and from the JSON-RPC body on
-//! A2A routes, and exposes a gateway decode path for pre-authenticated tokens.
-//! `load_user` reads the user an API key names through the same record and
-//! short-TTL cache, so both credential kinds see the same roles.
-//!
-//! The extractor validates the first-party audiences. Only the one
+//! The extractor admits the first-party audiences. Only the one
 //! [`JwtContextExtractor::admitting_ui_sessions`] returns, which the documents,
 //! folders and uploads routes and OAuth `/revoke` mount, also admits the `ui`
-//! audience of a person's UI session; the gateway decode and `verified_claims`
-//! never do. A UI session sent as the cookie is refused: it is a bearer.
+//! audience of a person's UI session. On A2A routes the context id comes from
+//! the JSON-RPC body, and an `X-Context-ID` header without a bearer is
+//! refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,68 +15,38 @@ use async_trait::async_trait;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::HeaderMap;
-use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
-use systemprompt_identifiers::{ContextId, headers as sp_headers};
-use systemprompt_models::auth::JwtAudience;
+use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::{ContextId, ExtensionId, JwtToken, UserId, headers as sp_headers};
+use systemprompt_models::auth::{DynRequestAuthenticator, JwtAudience, JwtUserContext};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
-use systemprompt_security::jwt::ValidationPolicy;
-use systemprompt_security::keys::SigningKeys;
-use systemprompt_security::{
-    JwtUserContext, TokenExtractor, extract_user_context, extract_user_context_for,
-};
-use systemprompt_traits::{SessionProvider, UserProvider};
+use systemprompt_provider_contracts::Dependencies;
+use systemprompt_traits::AuthUser;
 
-use super::params::{
-    BuildContextParams, build_context, extract_common_headers, is_cookie_transport,
-};
-use super::revocation::JtiRevocationChecker;
-use super::validation::{UserCache, user_is_admin, validate_session_exists, validate_user_exists};
-
-#[derive(Debug, Clone, Copy, thiserror::Error)]
-#[error("a ui_session token is a bearer credential and is refused as the session cookie")]
-struct UiSessionCookieRefused;
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct JwtContextExtractor {
-    token_extractor: TokenExtractor,
-    session_provider: Arc<dyn SessionProvider>,
-    user_provider: Arc<dyn UserProvider>,
-    user_cache: Arc<UserCache>,
-    jti_revocation: JtiRevocationChecker,
-    issuer: String,
-    keys: SigningKeys,
+    authenticator: DynRequestAuthenticator,
     audiences: &'static [JwtAudience],
 }
 
-impl std::fmt::Debug for JwtContextExtractor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("JwtContextExtractor")
-            .field("token_extractor", &self.token_extractor)
-            .field("audiences", &self.audiences)
-            .finish_non_exhaustive()
-    }
-}
-
 impl JwtContextExtractor {
-    pub fn new(
-        session_provider: Arc<dyn SessionProvider>,
-        user_provider: Arc<dyn UserProvider>,
-        jti_revocation: JtiRevocationChecker,
-        issuer: String,
-        keys: SigningKeys,
-    ) -> Self {
+    #[must_use]
+    pub fn new(authenticator: DynRequestAuthenticator) -> Self {
         Self {
-            token_extractor: TokenExtractor::browser_only(),
-            session_provider,
-            user_provider,
-            user_cache: UserCache::new(),
-            jti_revocation,
-            issuer,
-            keys,
+            authenticator,
             audiences: JwtAudience::FIRST_PARTY,
         }
+    }
+
+    pub fn from_kernel(state: &Dependencies) -> Result<Self, LoaderError> {
+        state
+            .get::<DynRequestAuthenticator>()
+            .cloned()
+            .map(Self::new)
+            .map_err(|_missing| {
+                LoaderError::missing_provider::<DynRequestAuthenticator>(ExtensionId::new("users"))
+            })
     }
 
     #[must_use]
@@ -91,127 +55,47 @@ impl JwtContextExtractor {
         self
     }
 
-    fn extract_jwt_context(
-        &self,
-        headers: &HeaderMap,
-    ) -> Result<JwtUserContext, ContextExtractionError> {
-        let token = self
-            .token_extractor
-            .extract(headers)
-            .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
-        let policy = ValidationPolicy::issuer_scoped(&self.issuer, self.audiences);
-        extract_user_context_for(self.keys.keyring(), &token, &policy)
-            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))
-    }
-
-    async fn validate(
-        &self,
-        jwt_context: &JwtUserContext,
-        route_context: &str,
-    ) -> Result<systemprompt_traits::AuthUser, ContextExtractionError> {
-        if jwt_context.session_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingSessionId);
-        }
-        if jwt_context.user_id.as_str().is_empty() {
-            return Err(ContextExtractionError::MissingUserId);
-        }
-        let validated = validate_user_exists(
-            &self.user_provider,
-            &self.user_cache,
-            &jwt_context.user_id,
-            route_context,
-        )
-        .await?;
-        validate_session_exists(&self.session_provider, jwt_context, route_context).await?;
-        if let Some(jti) = &jwt_context.jti {
-            self.jti_revocation.ensure_not_revoked(jti).await?;
-        }
-        Ok(validated.user)
+    #[must_use]
+    pub const fn authenticator(&self) -> &DynRequestAuthenticator {
+        &self.authenticator
     }
 
     pub async fn extract_standard(
         &self,
         headers: &HeaderMap,
     ) -> Result<RequestContext, ContextExtractionError> {
-        let jwt_context = self.extract_jwt_context(headers)?;
-        let cookie_transport = is_cookie_transport(&self.token_extractor, headers);
-        if jwt_context.ui_session && cookie_transport {
-            return Err(ContextExtractionError::InvalidToken(Box::new(
-                UiSessionCookieRefused,
-            )));
-        }
-        let user = self.validate(&jwt_context, "").await?;
-
-        let context_id = headers
-            .get(sp_headers::CONTEXT_ID)
-            .and_then(|h| h.to_str().ok())
-            .filter(|s| !s.is_empty())
-            .and_then(|s| ContextId::try_new(s).ok())
-            .unwrap_or_else(|| ContextId::derived_from_session(&jwt_context.session_id));
-
-        let (trace_id, task_id, auth_token, agent_name) =
-            extract_common_headers(&self.token_extractor, headers);
-
-        let user_type = jwt_context.user_type.reconcile_with(user_is_admin(&user));
-        let session_id = jwt_context.session_id.clone();
-        let user_id = jwt_context.user_id.clone();
-
-        Ok(build_context(BuildContextParams {
-            jwt_context,
-            session_id,
-            user_id,
-            trace_id,
-            context_id,
-            agent_name,
-            task_id,
-            auth_token,
-            user_type,
-            cookie_transport,
-        }))
+        self.authenticator
+            .authenticate(headers, self.audiences)
+            .await
     }
 
     pub async fn load_user(
         &self,
-        user_id: &systemprompt_identifiers::UserId,
+        user_id: &UserId,
         route_context: &str,
-    ) -> Result<systemprompt_traits::AuthUser, ContextExtractionError> {
-        validate_user_exists(
-            &self.user_provider,
-            &self.user_cache,
-            user_id,
-            route_context,
-        )
-        .await
-        .map(|validated| validated.user)
+    ) -> Result<AuthUser, ContextExtractionError> {
+        self.authenticator.load_user(user_id, route_context).await
     }
 
     pub fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
-        extract_user_context(self.keys.keyring(), token, &self.issuer).ok()
+        self.authenticator.verified_claims(token)
     }
 
     pub async fn decode_for_audiences(
         &self,
-        jwt_token: &systemprompt_identifiers::JwtToken,
+        jwt_token: &JwtToken,
         audiences: &[JwtAudience],
-    ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
-        let policy = ValidationPolicy::issuer_scoped(&self.issuer, audiences);
-        let jwt_context =
-            extract_user_context_for(self.keys.keyring(), jwt_token.as_str(), &policy)
-                .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
-        let user = self.validate(&jwt_context, "drive sync").await?;
-        Ok((jwt_context, user))
+    ) -> Result<(JwtUserContext, AuthUser), ContextExtractionError> {
+        self.authenticator
+            .decode_for_audiences(jwt_token, audiences)
+            .await
     }
 
     pub async fn decode_for_gateway(
         &self,
-        jwt_token: &systemprompt_identifiers::JwtToken,
-    ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
-        let jwt_context =
-            extract_user_context(self.keys.keyring(), jwt_token.as_str(), &self.issuer)
-                .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
-
-        let user = self.validate(&jwt_context, "gateway").await?;
-        Ok((jwt_context, user))
+        jwt_token: &JwtToken,
+    ) -> Result<(JwtUserContext, AuthUser), ContextExtractionError> {
+        self.authenticator.decode_for_gateway(jwt_token).await
     }
 
     async fn extract_from_request_impl(
@@ -233,49 +117,27 @@ impl JwtContextExtractor {
             });
         }
 
-        let jwt_context = self.extract_jwt_context(&headers)?;
-        let user = self.validate(&jwt_context, " (A2A route)").await?;
+        let ctx = self
+            .authenticator
+            .authenticate(&headers, JwtAudience::FIRST_PARTY)
+            .await?;
 
         let (body_bytes, reconstructed_request) =
             PayloadSource::read_and_reconstruct(request, body_limit).await?;
 
-        let context_source = PayloadSource::extract_context_source(&body_bytes)?;
-        let (context_id, task_id_from_payload) = match context_source {
-            ContextIdSource::Direct(id) => (
-                ContextId::try_new(id).map_err(|_invalid_id| {
+        let ctx = match PayloadSource::extract_context_source(&body_bytes)? {
+            ContextIdSource::Direct(id) => {
+                ctx.with_context_id(ContextId::try_new(id).map_err(|_invalid_id| {
                     ContextExtractionError::InvalidHeaderValue {
                         header: "contextId".to_owned(),
                         reason: "not a valid context id".to_owned(),
                     }
-                })?,
-                None,
-            ),
-            ContextIdSource::FromTask { task_id } => {
-                (ContextId::derived_from_task(&task_id), Some(task_id))
+                })?)
             },
+            ContextIdSource::FromTask { task_id } => ctx
+                .with_context_id(ContextId::derived_from_task(&task_id))
+                .with_task_id(task_id),
         };
-
-        let (trace_id, task_id_from_header, auth_token, agent_name) =
-            extract_common_headers(&self.token_extractor, &headers);
-
-        let task_id = task_id_from_payload.or(task_id_from_header);
-        let user_type = jwt_context.user_type.reconcile_with(user_is_admin(&user));
-
-        let session_id = jwt_context.session_id.clone();
-        let user_id = jwt_context.user_id.clone();
-        let ctx = build_context(BuildContextParams {
-            jwt_context,
-            session_id,
-            user_id,
-            trace_id,
-            context_id,
-            agent_name,
-            task_id,
-            auth_token,
-            user_type,
-            cookie_transport: is_cookie_transport(&self.token_extractor, &headers),
-        });
-
         Ok((ctx, reconstructed_request))
     }
 }

@@ -19,6 +19,7 @@ workspace = true
 
 [dependencies]
 # Core runtime
+async-trait = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 

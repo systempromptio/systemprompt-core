@@ -4,16 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use systemprompt_extension::{SiteAuthConfig, SlotError};
 use systemprompt_models::ApiError;
+use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_oauth_issuance::IDENTITY_PLANE;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::keys::SigningKeys;
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::site_auth::{SiteAuthSession, site_auth_gate};
@@ -26,8 +24,7 @@ const CLIENTS_PATH: &str = "/clients";
 #[derive(Clone)]
 pub struct SiteAuthGuard {
     pub config: SiteAuthConfig,
-    pub issuer: Arc<str>,
-    pub keys: SigningKeys,
+    pub authenticator: DynRequestAuthenticator,
     pub cookie: SessionCookie,
 }
 
@@ -35,7 +32,6 @@ impl std::fmt::Debug for SiteAuthGuard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SiteAuthGuard")
             .field("config", &self.config)
-            .field("issuer", &self.issuer)
             .finish_non_exhaustive()
     }
 }
@@ -55,10 +51,21 @@ impl SiteAuthGuard {
                 count: extra + 1,
             });
         }
-        Ok(config.map(|config| Self {
+        let Some(config) = config else {
+            return Ok(None);
+        };
+        let authenticator = ctx
+            .kernel()
+            .state()
+            .get::<DynRequestAuthenticator>()
+            .cloned()
+            .map_err(|missing| SlotError::Refused {
+                slot: "site_auth",
+                source: Box::new(missing),
+            })?;
+        Ok(Some(Self {
             config,
-            issuer: Arc::from(ctx.config().jwt_issuer.as_str()),
-            keys: ctx.signing_keys().clone(),
+            authenticator,
             cookie: SessionCookie::from_config(ctx.config()),
         }))
     }
@@ -69,8 +76,7 @@ impl SiteAuthGuard {
             next,
             self.config,
             SiteAuthSession {
-                issuer: &self.issuer,
-                keys: &self.keys,
+                authenticator: &self.authenticator,
                 cookie: self.cookie,
             },
         )

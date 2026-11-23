@@ -5,10 +5,10 @@
 //! and defines nothing. It carries:
 //!
 //! - the server's own handler error: [`ApiHttpError`] and [`unreadable_body`];
-//! - request identity: [`JwtContextExtractor`] (composed by
-//!   `JwtContextExtractor::from_app_context`), the [`JwtUserContext`] it
-//!   yields, and session attestation ([`attest_session`],
-//!   [`SessionAttestationError`]);
+//! - request identity: [`JwtContextExtractor`] (the adapter over the kernel's
+//!   `DynRequestAuthenticator`, built by `JwtContextExtractor::from_kernel`),
+//!   the [`JwtUserContext`] it yields, and session attestation
+//!   ([`attest_session`], [`SessionAttestationError`]);
 //! - rate limiting: [`RateLimitState`], [`RouterExt`] and the in-handler
 //!   [`SubjectThrottle`];
 //! - the client address: [`resolve_client_ip`], the one resolver, and its

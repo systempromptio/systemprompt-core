@@ -101,9 +101,9 @@ pub use governance::{apply_governance, apply_governance_plane, record_plane_appl
 pub use host::{host_child_env, services_hosting};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{
-    browser_session_cookie, fixture_health_probe, fixture_mcp_spawn, fixture_verification_keys,
-    mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, session_cookie_with, test_oauth_signing,
-    test_signing_keys, test_token_authority,
+    browser_session_cookie, fixture_claims_authenticator, fixture_health_probe, fixture_mcp_spawn,
+    fixture_verification_keys, mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, session_cookie_with,
+    test_oauth_signing, test_signing_keys, test_token_authority,
 };
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use keystore::install_headless_keystore;

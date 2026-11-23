@@ -362,25 +362,11 @@ async fn enforce_authz_denies_under_deny_all_hook() {
 fn jwt_extractor(
     ctx: &systemprompt_runtime::AppContext,
 ) -> Result<systemprompt_api::services::middleware::JwtContextExtractor> {
-    use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
-    use systemprompt_traits::UserProvider;
-    let analytics: systemprompt_traits::DynSessionStore =
-        Arc::new(systemprompt_users::SessionRepository::new(ctx.db_pool()));
-    let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
-        Arc::clone(ctx.user_repository()),
-    ));
-    let jti = JtiRevocationChecker::from_repository(
-        ctx.oauth_repositories().oauth.clone(),
-        systemprompt_traits::CacheEpochs::new(),
-    );
-    let issuer = ctx.config().jwt_issuer.clone();
-    Ok(JwtContextExtractor::new(
-        analytics,
-        user_provider,
-        jti,
-        issuer,
-        systemprompt_test_fixtures::test_signing_keys(),
-    ))
+    Ok(
+        systemprompt_api::services::middleware::JwtContextExtractor::from_kernel(
+            ctx.kernel().state(),
+        )?,
+    )
 }
 
 #[tokio::test]

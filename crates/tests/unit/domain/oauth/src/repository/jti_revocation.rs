@@ -28,7 +28,7 @@ async fn seeded_user(pool: &DbPool) -> UserId {
 
 #[test]
 fn cache_miss_returns_none() {
-    let cache = JtiRevocationCache::new(CacheEpochs::new());
+    let cache = JtiRevocationCache::new(CacheEpochs::new().view());
     assert_eq!(cache.peek(&jti("never-seen")), None);
 }
 
@@ -36,7 +36,7 @@ fn cache_miss_returns_none() {
 fn cache_records_negative_then_positive() {
     let epochs = CacheEpochs::new();
     epochs.set_relay_live(true);
-    let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
+    let cache = JtiRevocationCache::with_capacity(16, epochs.view());
     cache.record(&jti("jti-a"), false, cache.epoch());
     assert_eq!(cache.peek(&jti("jti-a")), Some(false));
     cache.record(&jti("jti-a"), true, cache.epoch());
@@ -45,7 +45,7 @@ fn cache_records_negative_then_positive() {
 
 #[test]
 fn cache_revoked_is_sticky() {
-    let cache = JtiRevocationCache::new(CacheEpochs::new());
+    let cache = JtiRevocationCache::new(CacheEpochs::new().view());
     cache.record(&jti("jti-b"), true, cache.epoch());
     assert_eq!(cache.peek(&jti("jti-b")), Some(true));
     assert_eq!(cache.peek(&jti("jti-b")), Some(true));
@@ -54,7 +54,7 @@ fn cache_revoked_is_sticky() {
 #[test]
 fn cache_capacity_zero_clamps_to_one() {
     let epochs = CacheEpochs::new();
-    let cache = JtiRevocationCache::with_capacity(0, epochs.clone());
+    let cache = JtiRevocationCache::with_capacity(0, epochs.view());
     cache.record(&jti("only"), true, cache.epoch());
     assert_eq!(cache.peek(&jti("only")), Some(true));
 }
@@ -142,7 +142,7 @@ async fn cleanup_expired_jti_revocations_removes_past_rows() {
 fn cache_with_zero_capacity_is_clamped_and_usable() {
     let epochs = CacheEpochs::new();
     epochs.set_relay_live(true);
-    let cache = JtiRevocationCache::with_capacity(0, epochs.clone());
+    let cache = JtiRevocationCache::with_capacity(0, epochs.view());
     cache.record(&jti("jti-a"), true, cache.epoch());
     assert_eq!(cache.peek(&jti("jti-a")), Some(true));
 
@@ -178,7 +178,7 @@ async fn non_uuid_user_can_revoke_a_jti() {
 fn a_revocation_on_another_replica_drops_cached_not_revoked_answers() {
     let epochs = CacheEpochs::new();
     epochs.set_relay_live(true);
-    let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
+    let cache = JtiRevocationCache::with_capacity(16, epochs.view());
     let id = fresh_jti();
     cache.record(&id, false, cache.epoch());
     assert_eq!(cache.peek(&id), Some(false));
@@ -191,7 +191,7 @@ fn a_revocation_on_another_replica_drops_cached_not_revoked_answers() {
 fn a_cached_revocation_survives_an_invalidation() {
     let epochs = CacheEpochs::new();
     epochs.set_relay_live(true);
-    let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
+    let cache = JtiRevocationCache::with_capacity(16, epochs.view());
     let id = fresh_jti();
     cache.record(&id, true, cache.epoch());
     epochs.advance(CacheDomain::JtiRevocation);
@@ -202,7 +202,7 @@ fn a_cached_revocation_survives_an_invalidation() {
 fn a_revocation_notified_during_the_lookup_leaves_the_answer_stale() {
     let epochs = CacheEpochs::new();
     epochs.set_relay_live(true);
-    let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
+    let cache = JtiRevocationCache::with_capacity(16, epochs.view());
     let id = fresh_jti();
     let looked_up_at = cache.epoch();
     epochs.advance(CacheDomain::JtiRevocation);
@@ -213,7 +213,7 @@ fn a_revocation_notified_during_the_lookup_leaves_the_answer_stale() {
 #[test]
 fn a_not_revoked_answer_is_not_trusted_without_a_live_relay() {
     let epochs = CacheEpochs::new();
-    let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
+    let cache = JtiRevocationCache::with_capacity(16, epochs.view());
     let id = fresh_jti();
     cache.record(&id, false, cache.epoch());
     assert_eq!(cache.peek(&id), None);
@@ -228,7 +228,7 @@ fn a_not_revoked_answer_is_not_trusted_without_a_live_relay() {
 
 #[test]
 fn a_revocation_is_trusted_without_a_live_relay() {
-    let cache = JtiRevocationCache::with_capacity(16, CacheEpochs::new());
+    let cache = JtiRevocationCache::with_capacity(16, CacheEpochs::new().view());
     let id = fresh_jti();
     cache.record(&id, true, cache.epoch());
     assert_eq!(cache.peek(&id), Some(true));

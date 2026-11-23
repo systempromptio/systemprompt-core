@@ -12181,6 +12181,7 @@ dependencies = [
 name = "systemprompt-security"
 version = "0.85.0"
 dependencies = [
+ "async-trait",
  "axum",
  "base64 0.23.1",
  "chacha20poly1305",
@@ -12850,6 +12851,7 @@ dependencies = [
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tracing",

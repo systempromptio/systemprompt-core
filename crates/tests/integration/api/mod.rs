@@ -327,6 +327,10 @@ mod middleware_behavioral_detection;
 mod middleware_jwt_context;
 
 #[cfg(test)]
+#[path = "request_authenticator_paths.rs"]
+mod request_authenticator_paths;
+
+#[cfg(test)]
 #[path = "health_monitor.rs"]
 mod health_monitor;
 

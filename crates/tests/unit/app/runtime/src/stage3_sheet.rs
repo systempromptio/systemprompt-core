@@ -17,7 +17,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
-use systemprompt_models::auth::TokenAuthority;
+use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations, TokenAuthority};
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
@@ -196,6 +196,22 @@ async fn the_token_authority_is_one_sealed_kernel_seed_conferred_on_identity_htt
     assert!(!install_reads::<Arc<dyn TokenAuthority>>(&ctx));
     assert!(!member_command_reads::<Arc<dyn TokenAuthority>>(&ctx));
     assert!(!job_reads::<Arc<dyn TokenAuthority>>(&ctx));
+}
+
+#[tokio::test]
+async fn every_route_set_command_and_job_reads_the_open_request_authenticator() {
+    let ctx = context().await;
+    for owner in ["gateway-http", "identity-http", "files-http", "agent-http"] {
+        assert!(
+            route_reads::<DynRequestAuthenticator>(&ctx, owner),
+            "{owner}"
+        );
+    }
+    assert!(install_reads::<DynRequestAuthenticator>(&ctx));
+    assert!(member_command_reads::<DynRequestAuthenticator>(&ctx));
+    assert!(job_reads::<DynRequestAuthenticator>(&ctx));
+    assert!(route_reads::<DynTokenRevocations>(&ctx, "identity-http"));
+    assert!(!ctx.kernel().state().is_sealed::<DynRequestAuthenticator>());
 }
 
 #[tokio::test]

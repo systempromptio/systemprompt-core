@@ -1,11 +1,11 @@
 //! Server-side attestation of a claimed session id.
 //!
 //! A session id is only evidence if the server issued it. [`attest_session`] is
-//! the single predicate both credential paths use: the JWT middleware checks
-//! the `session_id` claim with it, and the gateway checks the `x-session-id`
-//! header presented alongside an API key with it. Keeping one implementation is
-//! the point — two copies would drift, and the audit spine would then mean
-//! different things depending on which credential wrote the row.
+//! the single predicate every credential path uses: the request authenticator
+//! checks the `session_id` claim with it and the session middleware checks a
+//! cookie's session with it. Keeping one implementation is the point — two
+//! copies would drift, and the audit spine would then mean different things
+//! depending on which credential wrote the row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

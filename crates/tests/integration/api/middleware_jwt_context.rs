@@ -5,43 +5,21 @@
 //! gateway decode), the `x-context-id`-without-auth forbidden-header guard, and
 //! the A2A body context-id sources (direct `contextId` and `tasks/*`).
 
-use std::sync::Arc;
 
 use anyhow::Result;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::HeaderMap;
-use systemprompt_api::services::middleware::{
-    ContextExtractor, JtiRevocationChecker, JwtContextExtractor,
-};
+use systemprompt_api::services::middleware::{ContextExtractor, JwtContextExtractor};
 use systemprompt_identifiers::JwtToken;
 use systemprompt_test_fixtures::seed_admin_credential;
-use systemprompt_traits::UserProvider;
-use systemprompt_users::UserService;
 
 use super::common::setup_ctx;
 
 async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtractor)> {
     let (db, ctx) = setup_ctx().await?;
-    let analytics: systemprompt_traits::DynSessionStore =
-        Arc::new(systemprompt_users::SessionRepository::new(ctx.db_pool()));
-    let user_provider: Arc<dyn UserProvider> =
-        Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
-    let jti = JtiRevocationChecker::from_repository(
-        ctx.oauth_repositories().oauth.clone(),
-        systemprompt_traits::CacheEpochs::new(),
-    );
-    let issuer = ctx.config().jwt_issuer.clone();
-    Ok((
-        db,
-        JwtContextExtractor::new(
-            analytics,
-            user_provider,
-            jti,
-            issuer,
-            systemprompt_test_fixtures::test_signing_keys(),
-        ),
-    ))
+    let extractor = JwtContextExtractor::from_kernel(ctx.kernel().state())?;
+    Ok((db, extractor))
 }
 
 fn bearer(headers: &mut HeaderMap, token: &str) {

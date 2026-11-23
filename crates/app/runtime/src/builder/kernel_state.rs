@@ -44,6 +44,10 @@
 //! conferral row; `AppContext::token_authority` hands out the same value. A
 //! child host holds verification keys only, so it seeds no token authority.
 //!
+//! The API seeds the token revocation check (`DynTokenRevocations`, the jti
+//! table behind its cache) open; the users member builds the request
+//! authenticator over it.
+//!
 //! The cache epochs are seeded twice: the advancing `CacheEpochs` handle
 //! sealed (the event relay and kernel code advance it), and its read half
 //! `CacheEpochView` open, which every cache that only reads an epoch takes.
@@ -100,10 +104,10 @@ use systemprompt_models::{ContentConfigRaw, late_pair};
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::auth::TokenAuthority;
+use systemprompt_models::auth::{DynTokenRevocations, TokenAuthority};
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
-use systemprompt_oauth::repository::OAuthRepositories;
+use systemprompt_oauth::repository::{JtiRevocationChecker, OAuthRepositories};
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
@@ -237,6 +241,10 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
     let jwt = jwt_validation(seed.base.config, seed.signing_keys);
     let (agent_dispatch_cell, agent_dispatch) = late_pair::<dyn AgentDispatch>();
     let (messaging_cell, messaging) = late_pair::<dyn MessagingDispatcher>();
+    let revocations: DynTokenRevocations = Arc::new(JtiRevocationChecker::from_repository(
+        seed.oauth.oauth.clone(),
+        seed.base.cache_epochs.view(),
+    ));
     let (base, base_binders) = base_kernel_state(seed.base);
     let mut state = base
         .with_sealed(seed.signing_keys.clone())
@@ -253,6 +261,7 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         .with(seed.signing_keys.keyring().clone())
         .with(seed.signing_keys.verification_keys().clone())
         .with(Arc::clone(seed.oauth))
+        .with(revocations)
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
     match seed.geoip {

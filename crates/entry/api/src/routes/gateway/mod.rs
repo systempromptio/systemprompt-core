@@ -158,7 +158,7 @@ pub(crate) fn gateway_mount_parts(
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> anyhow::Result<GatewayMountParts> {
-    let jwt_extractor = Arc::new(JwtContextExtractor::from_app_context(ctx)?);
+    let jwt_extractor = Arc::new(JwtContextExtractor::from_kernel(ctx.kernel().state())?);
     let gateway_repos = Arc::new(gateway_repositories(ctx)?);
 
     let traffic = Router::new()

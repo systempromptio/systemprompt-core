@@ -4,27 +4,19 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::header;
 use systemprompt_api::routes::gateway::auth::provision_oauth_client;
-use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context, test_db_pool,
 };
-use systemprompt_traits::AppContext as _;
 
 async fn harness() -> (Arc<JwtContextExtractor>, AppContext, AuthedFixture) {
     let boot = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&boot.database_url).await;
-    let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.session_provider().expect("session provider"),
-        ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(
-            ctx.oauth_repositories().oauth.clone(),
-            systemprompt_traits::CacheEpochs::new(),
-        ),
-        ctx.config().jwt_issuer.clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    ));
+    let extractor = Arc::new(
+        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
+    );
     let user = seed_bridge_credential(&pool, "provision-ok")
         .await
         .expect("seed credential");

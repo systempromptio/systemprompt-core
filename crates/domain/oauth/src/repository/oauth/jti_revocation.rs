@@ -1,20 +1,24 @@
-//! JWT JTI (token identifier) revocation. Logout writes a row; the JTI tower
-//! middleware consults this table (through [`JtiRevocationCache`]) on every
-//! authenticated request. The `exp` column carries the JWT's original expiry
-//! so cleanup can drop rows that are no longer load-bearing.
+//! JWT JTI (token identifier) revocation. Logout writes a row; the request
+//! authenticator consults this table through [`JtiRevocationChecker`] (the
+//! [`TokenRevocations`] the kernel seeds) and its [`JtiRevocationCache`] on
+//! every authenticated request. The `exp` column carries the JWT's original
+//! expiry so cleanup can drop rows that are no longer load-bearing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
 use crate::error::OauthResult;
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use lru::LruCache;
 use std::num::NonZeroUsize;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::{AccessTokenId, UserId};
-use systemprompt_traits::{CacheDomain, CacheEpochs};
+use systemprompt_models::auth::TokenRevocations;
+use systemprompt_models::execution::context::ContextExtractionError;
+use systemprompt_traits::{CacheDomain, CacheEpochView};
 
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
@@ -96,7 +100,7 @@ enum CacheEntry {
 /// goes to the database.
 pub struct JtiRevocationCache {
     cache: Mutex<LruCache<AccessTokenId, CacheEntry>>,
-    epochs: CacheEpochs,
+    epochs: CacheEpochView,
 }
 
 impl std::fmt::Debug for JtiRevocationCache {
@@ -107,12 +111,12 @@ impl std::fmt::Debug for JtiRevocationCache {
 
 impl JtiRevocationCache {
     #[must_use]
-    pub fn new(epochs: CacheEpochs) -> Self {
+    pub fn new(epochs: CacheEpochView) -> Self {
         Self::with_capacity(DEFAULT_CACHE_CAPACITY, epochs)
     }
 
     #[must_use]
-    pub fn with_capacity(capacity: usize, epochs: CacheEpochs) -> Self {
+    pub fn with_capacity(capacity: usize, epochs: CacheEpochView) -> Self {
         let cap = NonZeroUsize::new(capacity.max(1)).unwrap_or(NonZeroUsize::MIN);
         Self {
             cache: Mutex::new(LruCache::new(cap)),
@@ -158,6 +162,57 @@ impl JtiRevocationCache {
                 }
             };
             guard.put(jti.clone(), entry);
+        }
+    }
+}
+
+/// The revocation check the request authenticator runs last: the cache, then
+/// the table. Fails closed — a store error refuses the token rather than
+/// admitting an unverifiable one.
+#[derive(Clone)]
+pub struct JtiRevocationChecker {
+    repo: Arc<OAuthRepository>,
+    cache: Arc<JtiRevocationCache>,
+}
+
+impl std::fmt::Debug for JtiRevocationChecker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JtiRevocationChecker")
+            .finish_non_exhaustive()
+    }
+}
+
+impl JtiRevocationChecker {
+    #[must_use]
+    pub fn from_repository(repo: OAuthRepository, epochs: CacheEpochView) -> Self {
+        Self {
+            repo: Arc::new(repo),
+            cache: Arc::new(JtiRevocationCache::new(epochs)),
+        }
+    }
+}
+
+#[async_trait]
+impl TokenRevocations for JtiRevocationChecker {
+    async fn ensure_not_revoked(&self, jti: &AccessTokenId) -> Result<(), ContextExtractionError> {
+        match self.cache.peek(jti) {
+            Some(true) => return Err(ContextExtractionError::Revoked),
+            Some(false) => return Ok(()),
+            None => {},
+        }
+
+        let epoch = self.cache.epoch();
+        let revoked = self.repo.is_jti_revoked(jti).await.map_err(|e| {
+            ContextExtractionError::DatabaseError {
+                context: "JTI revocation lookup failed".to_owned(),
+                source: e.into(),
+            }
+        })?;
+        self.cache.record(jti, revoked, epoch);
+        if revoked {
+            Err(ContextExtractionError::Revoked)
+        } else {
+            Ok(())
         }
     }
 }

@@ -3,9 +3,10 @@
 //! JWT and cloud claim shapes, the [`AuthenticatedUser`] request
 //! identity, [`Permission`] parsing, base role definitions, and the
 //! OAuth/PKCE enums (`ResponseType`, `PkceMethod`), and the
-//! [`RequestActor`] a bearer credential acts as. `GrantType` lives
-//! in `systemprompt_oauth` since it carries RFC 8693 token-exchange.
-//! Public functions return [`AuthRequestError`].
+//! [`RequestActor`] a bearer credential acts as, and the shared
+//! [`RequestAuthenticator`] every request-context extractor delegates to.
+//! `GrantType` lives in `systemprompt_oauth` since it carries RFC 8693
+//! token-exchange. Public functions return [`AuthRequestError`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +17,7 @@ pub mod cloud_claims;
 pub mod enums;
 pub mod mcp_hop;
 pub mod permission;
+pub mod request_auth;
 pub mod roles;
 pub mod token_authority;
 pub mod types;
@@ -35,6 +37,10 @@ pub use mcp_hop::{
 pub use permission::{
     Permission, parse_permissions, parse_roles, permissions_to_string, roles_to_string,
     validate_required_scopes,
+};
+pub use request_auth::{
+    DynRequestAuthenticator, DynTokenRevocations, JwtUserContext, RequestAuthenticator,
+    TokenRevocations,
 };
 pub use roles::BaseRoles;
 pub use token_authority::{TokenAuthority, TokenError, TokenResult, UserJwtRequest};
