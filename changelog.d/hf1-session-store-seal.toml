@@ -1,5 +1,5 @@
 [root]
-section = "Security"
+section = "Fixed"
 area = "Security"
 text = "The session store, which creates a session for any user and revokes all of a user's sessions, is provided sealed by the users member. Analytics and the request-analytics middleware read the open `SessionTelemetry` view instead: bot, fingerprint, counter and geo operations with no create, revoke or end."
 

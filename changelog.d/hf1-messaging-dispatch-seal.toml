@@ -1,5 +1,5 @@
 [root]
-section = "Security"
+section = "Fixed"
 area = "Security"
 text = "The messaging dispatcher, which mints a token for the user it resolves and runs the agent as them, is a sealed seed. The Slack and Teams members wrap it in their own provide fns in a sealed handle (`SlackDispatch`, `TeamsDispatch`) that dispatches only with a proof their signature or token verifier returns, so no other member's command, job or route state can dispatch as a user."
 

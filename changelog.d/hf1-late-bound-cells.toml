@@ -1,5 +1,5 @@
 [root]
-section = "Security"
+section = "Fixed"
 area = "Security"
 text = "Every late-bound cell in the extension state holds only its read half (`LateRead`); the host keeps the bind half (`LateBinder`) outside the state and binds it once, and a bind that finds the cell bound, or binders already taken, fails the boot. No member can pre-bind the secret scanner (which left tool-result artifacts unredacted), the agent dispatch or the messaging dispatcher."
 
