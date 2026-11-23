@@ -28,7 +28,10 @@ pub(super) async fn execute(
     }
 
     let app = app_context(host).await?;
-    let service_mgmt = ServiceManagementService::new(app.service_repository().as_ref().clone());
+    let service_mgmt = ServiceManagementService::new(
+        app.service_repository().as_ref().clone(),
+        host.profile()?.server.shutdown,
+    );
     let api_port = get_api_port(host.profile()?);
 
     if !quiet {

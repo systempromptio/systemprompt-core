@@ -14,6 +14,13 @@
 //! carrying the API server marker; any other listener is reported as
 //! [`StopOutcome::NotOurs`] and left running.
 //!
+//! A stop signals the process and waits for it to exit against the
+//! profile's `server.shutdown` deadlines before escalating to SIGKILL: an
+//! API listener gets the server's whole shutdown budget
+//! ([`ShutdownConfig::total_budget`], the deadlines it bounds its own exit
+//! with), a child its `child_grace_secs`, and `--force` none. The outcome is
+//! typed: `Stopped(Termination::Exited)` or `Stopped(Termination::Killed)`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +29,7 @@ use std::time::Duration;
 use systemprompt_database::{Reaped, ServiceConfig, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, StopOutcome, SubprocessLiveness};
+use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_manifest::services::ServiceModule;
 use tracing::warn;
 
@@ -30,7 +38,6 @@ use super::orchestration::{
 };
 use crate::error::{SchedulerError, SchedulerResult};
 
-const STOP_GRACE: Duration = Duration::from_millis(100);
 const API_PORT_RELEASE: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,11 +84,15 @@ impl OrphanCleanupReport {
 #[derive(Clone, Debug)]
 pub struct ServiceManagementService {
     service_repo: ServiceRepository,
+    shutdown: ShutdownConfig,
 }
 
 impl ServiceManagementService {
-    pub const fn new(service_repo: ServiceRepository) -> Self {
-        Self { service_repo }
+    pub const fn new(service_repo: ServiceRepository, shutdown: ShutdownConfig) -> Self {
+        Self {
+            service_repo,
+            shutdown,
+        }
     }
 
     pub async fn get_services_by_type(
@@ -120,7 +131,8 @@ impl ServiceManagementService {
         service: &ServiceConfig,
         force: bool,
     ) -> SchedulerResult<StopOutcome> {
-        self.stop_recorded(service, stop_grace(force)).await
+        self.stop_recorded(service, child_grace(&self.shutdown, force))
+            .await
     }
 
     pub async fn cleanup_orphaned_service(
@@ -130,11 +142,17 @@ impl ServiceManagementService {
         if stored_pid(service).is_none() {
             return Ok(None);
         }
-        self.stop_recorded(service, STOP_GRACE).await.map(Some)
+        self.stop_recorded(service, self.shutdown.child_grace())
+            .await
+            .map(Some)
     }
 
-    pub async fn stop_api_by_port(port: u16, force: bool) -> SchedulerResult<Vec<ApiListenerStop>> {
-        let stops = stop_api_listeners(port, stop_grace(force)).await?;
+    pub async fn stop_api_by_port(
+        port: u16,
+        shutdown: &ShutdownConfig,
+        force: bool,
+    ) -> SchedulerResult<Vec<ApiListenerStop>> {
+        let stops = stop_api_listeners(port, api_grace(shutdown, force)).await?;
         await_api_port_release(port, &stops).await?;
         Ok(stops)
     }
@@ -146,7 +164,10 @@ impl ServiceManagementService {
         for service in &running_services {
             let Some(pid) = service.pid else { continue };
 
-            let disposition = match self.stop_recorded(service, STOP_GRACE).await? {
+            let disposition = match self
+                .stop_recorded(service, self.shutdown.child_grace())
+                .await?
+            {
                 StopOutcome::Stopped(_) => OrphanDisposition::Stopped,
                 StopOutcome::NotOurs => OrphanDisposition::NotOurs,
                 StopOutcome::NotRunning => OrphanDisposition::StaleEntry,
@@ -159,7 +180,7 @@ impl ServiceManagementService {
             });
         }
 
-        let api = stop_api_listeners(api_port, STOP_GRACE).await?;
+        let api = stop_api_listeners(api_port, api_grace(&self.shutdown, false)).await?;
         await_api_port_release(api_port, &api).await?;
 
         let stale_entries_removed = match self.reap_stale().await {
@@ -208,10 +229,21 @@ async fn await_api_port_release(port: u16, stops: &[ApiListenerStop]) -> Schedul
     wait_for_port_free(port, API_PORT_RELEASE).await
 }
 
-const fn stop_grace(force: bool) -> Duration {
-    if force { Duration::ZERO } else { STOP_GRACE }
+const fn child_grace(shutdown: &ShutdownConfig, force: bool) -> Duration {
+    if force {
+        Duration::ZERO
+    } else {
+        shutdown.child_grace()
+    }
 }
 
+const fn api_grace(shutdown: &ShutdownConfig, force: bool) -> Duration {
+    if force {
+        Duration::ZERO
+    } else {
+        shutdown.total_budget()
+    }
+}
 
 fn stored_pid(service: &ServiceConfig) -> Option<u32> {
     service.pid.and_then(|pid| u32::try_from(pid).ok())

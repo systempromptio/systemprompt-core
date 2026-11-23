@@ -11,6 +11,8 @@ use systemprompt_cli_integration_tests::full_bootstrap::{
 use systemprompt_loader::subprocess;
 use systemprompt_test_fixtures::{DisposableDb, bounded_output, seed_user_row_with_roles};
 
+const DETAIL_BOUND: Duration = Duration::from_secs(30);
+
 const TEST_ENCRYPTION_MASTER_KEY: &str =
     "1111111111111111111111111111111111111111111111111111111111111111";
 const TEST_ANTHROPIC_KEY: &str = "sk-ant-test-owned-agent-lifecycle";
@@ -308,6 +310,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
 
     let unauthenticated_status = client
         .get(format!("{base}/api/v1/health/detail"))
+        .timeout(DETAIL_BOUND)
         .send()
         .await
         .expect("unauthenticated detailed health request")
@@ -315,6 +318,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
     assert_eq!(unauthenticated_status, reqwest::StatusCode::UNAUTHORIZED);
     let detail = client
         .get(format!("{base}/api/v1/health/detail"))
+        .timeout(DETAIL_BOUND)
         .bearer_auth(&token)
         .send()
         .await

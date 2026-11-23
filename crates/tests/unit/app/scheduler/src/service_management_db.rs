@@ -16,10 +16,10 @@ mod service_management_db {
     #[tokio::test]
     async fn get_services_by_type_mcp_returns_vec() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         let rows = svc
             .get_services_by_type(ServiceModule::Mcp)
@@ -33,10 +33,10 @@ mod service_management_db {
     #[tokio::test]
     async fn get_services_by_type_agent_returns_vec() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         let rows = svc
             .get_services_by_type(ServiceModule::Agent)
@@ -49,10 +49,10 @@ mod service_management_db {
     #[tokio::test]
     async fn get_running_services_with_pid_returns_vec() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         let rows = svc
             .get_running_services_with_pid()
@@ -73,10 +73,10 @@ mod service_management_db {
     #[tokio::test]
     async fn reap_stale_returns_a_report() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         let reaped = svc
             .reap_stale()
@@ -92,10 +92,10 @@ mod service_management_db {
     #[tokio::test]
     async fn mark_service_stopped_noop_on_unknown_service() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         // An UPDATE that matches zero rows is still a successful query; the
         // service must not error when the name is not in the table.
@@ -107,10 +107,10 @@ mod service_management_db {
     #[tokio::test]
     async fn reap_stale_is_idempotent() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         let first = svc.reap_stale().await.expect("first reap_stale");
         let second = svc.reap_stale().await.expect("second reap_stale");

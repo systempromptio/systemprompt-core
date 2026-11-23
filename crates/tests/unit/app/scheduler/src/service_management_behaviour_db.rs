@@ -14,6 +14,7 @@ use systemprompt_database::{
 };
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome, Termination};
+use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_scheduler::{ApiListenerStop, OrphanDisposition, ServiceManagementService};
 use systemprompt_test_fixtures::{test_db_pool, unique_instance, unique_service_name};
 
@@ -71,10 +72,10 @@ mod service_management_behaviour_db {
     async fn stop_service_without_pid_marks_row_stopped() {
         let test_instance = unique_instance();
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("stop-no-pid");
@@ -105,10 +106,10 @@ mod service_management_behaviour_db {
     async fn stop_service_with_dead_pid_marks_row_stopped() {
         let test_instance = unique_instance();
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("stop-dead-pid");
@@ -138,10 +139,10 @@ mod service_management_behaviour_db {
     #[tokio::test]
     async fn cleanup_orphaned_service_without_pid_returns_false() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         let config = config_with_pid(
             &unique_instance(),
@@ -165,10 +166,10 @@ mod service_management_behaviour_db {
     async fn cleanup_orphaned_service_with_dead_pid_marks_stopped_and_returns_true() {
         let test_instance = unique_instance();
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("orphan-dead-pid");
@@ -208,10 +209,10 @@ mod service_management_behaviour_db {
         let database =
             systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_stale").await;
         let pool = database.test_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("orphans-stale");
@@ -268,9 +269,10 @@ mod service_management_behaviour_db {
         // Port 1 is privileged and effectively never bound by this test process,
         // so the static stop-by-port helper finds no listener and returns None
         // after confirming the port is free.
-        let listeners = ServiceManagementService::stop_api_by_port(1, false)
-            .await
-            .expect("stop_api_by_port on a free port must succeed");
+        let listeners =
+            ServiceManagementService::stop_api_by_port(1, &ShutdownConfig::default(), false)
+                .await
+                .expect("stop_api_by_port on a free port must succeed");
         assert!(
             listeners.is_empty(),
             "no process holds port 1, so stop_api_by_port must report no listener"
@@ -327,10 +329,10 @@ mod live_child_stop_paths {
     async fn stop_service_gracefully_terminates_a_marked_live_child() {
         let test_instance = unique_instance();
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("smb-live-graceful");
@@ -368,10 +370,10 @@ mod live_child_stop_paths {
     async fn stop_service_force_kills_a_marked_live_child() {
         let test_instance = unique_instance();
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("smb-live-force");
@@ -409,10 +411,10 @@ mod live_child_stop_paths {
     async fn stop_service_refuses_to_signal_a_live_pid_without_spawn_markers() {
         let test_instance = unique_instance();
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("smb-live-unmarked");
@@ -457,10 +459,10 @@ mod live_child_stop_paths {
     async fn cleanup_orphaned_service_terminates_a_marked_live_child() {
         let test_instance = unique_instance();
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("smb-live-orphan");
@@ -502,10 +504,10 @@ mod live_child_stop_paths {
         let database =
             systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_live").await;
         let pool = database.test_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &pool,
-            test_instance.clone(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_service_name("smb-live-sweep");
@@ -540,11 +542,27 @@ mod live_child_stop_paths {
     }
 
     fn spawn_port_holder(stamped_as_api: bool) -> (Child, u16) {
+        spawn_holder(stamped_as_api, "time.sleep(60)")
+    }
+
+    // Why: a listener that drains for a second after SIGTERM, as the API does,
+    // proves a stop waits for the configured deadline instead of a fixed
+    // fraction of a second.
+    fn spawn_draining_holder() -> (Child, u16) {
+        spawn_holder(
+            true,
+            "import signal\nsignal.signal(signal.SIGTERM, lambda *_: (time.sleep(1.5), sys.exit(0)))\ntime.sleep(60)",
+        )
+    }
+
+    fn spawn_holder(stamped_as_api: bool, tail: &str) -> (Child, u16) {
         let mut command = Command::new("python3");
         command
             .args([
                 "-c",
-                "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\ntime.sleep(60)",
+                &format!(
+                    "import socket,sys,time\ns=socket.socket()\ns.bind(('127.0.0.1',0))\nprint(s.getsockname()[1],flush=True)\ns.listen(1)\n{tail}"
+                ),
             ])
             .stdout(Stdio::piped());
         if stamped_as_api {
@@ -575,9 +593,10 @@ mod live_child_stop_paths {
         let (child, port) = spawn_port_holder(true);
         let pid = child.id();
 
-        let stopped = ServiceManagementService::stop_api_by_port(port, false)
-            .await
-            .expect("stop_api_by_port must free the port");
+        let stopped =
+            ServiceManagementService::stop_api_by_port(port, &ShutdownConfig::default(), false)
+                .await
+                .expect("stop_api_by_port must free the port");
         assert_eq!(
             stopped,
             vec![ApiListenerStop {
@@ -592,6 +611,28 @@ mod live_child_stop_paths {
     }
 
     #[tokio::test]
+    async fn a_stop_waits_for_a_draining_listener_to_exit_within_the_shutdown_budget() {
+        let (child, port) = spawn_draining_holder();
+        let pid = child.id();
+
+        let stopped =
+            ServiceManagementService::stop_api_by_port(port, &ShutdownConfig::default(), false)
+                .await
+                .expect("stop_api_by_port must free the port");
+        assert_eq!(
+            stopped,
+            vec![ApiListenerStop {
+                pid,
+                outcome: StopOutcome::Stopped(Termination::Exited),
+            }],
+            "a listener that drains within the shutdown budget exits; it is not killed"
+        );
+
+        drop(child);
+        assert_stopped(pid).await;
+    }
+
+    #[tokio::test]
     async fn stop_api_by_port_force_kills_the_listener() {
         let pool = test_db_pool().await;
         let _ = pool;
@@ -599,9 +640,10 @@ mod live_child_stop_paths {
         let (child, port) = spawn_port_holder(true);
         let pid = child.id();
 
-        let stopped = ServiceManagementService::stop_api_by_port(port, true)
-            .await
-            .expect("forced stop_api_by_port must free the port");
+        let stopped =
+            ServiceManagementService::stop_api_by_port(port, &ShutdownConfig::default(), true)
+                .await
+                .expect("forced stop_api_by_port must free the port");
         assert!(matches!(
             stopped.as_slice(),
             [ApiListenerStop { pid: stopped_pid, outcome: StopOutcome::Stopped(_) }]
@@ -617,9 +659,10 @@ mod live_child_stop_paths {
         let (mut child, port) = spawn_port_holder(false);
         let pid = child.id();
 
-        let stopped = ServiceManagementService::stop_api_by_port(port, true)
-            .await
-            .expect("an unverified listener is reported, not an error");
+        let stopped =
+            ServiceManagementService::stop_api_by_port(port, &ShutdownConfig::default(), true)
+                .await
+                .expect("an unverified listener is reported, not an error");
         assert_eq!(
             stopped,
             vec![ApiListenerStop {
@@ -641,10 +684,10 @@ mod dead_pool_degradation {
     #[tokio::test]
     async fn stop_service_still_succeeds_when_the_row_update_fails() {
         let closed = closed_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &closed,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&closed, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         svc.stop_service(
             &config_with_pid(
@@ -663,10 +706,10 @@ mod dead_pool_degradation {
     #[tokio::test]
     async fn cleanup_orphaned_service_reports_action_when_the_row_update_fails() {
         let closed = closed_db_pool().await;
-        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-            &closed,
-            unique_instance(),
-        ));
+        let svc = ServiceManagementService::new(
+            systemprompt_database::ServiceRepository::new(&closed, unique_instance()),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        );
 
         let outcome = svc
             .cleanup_orphaned_service(&config_with_pid(

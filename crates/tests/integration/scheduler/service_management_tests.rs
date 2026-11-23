@@ -27,10 +27,10 @@ async fn get_services_by_type_surfaces_seeded_service() {
     .await
     .expect("seed service");
 
-    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-        &pool,
-        test_instance.clone(),
-    ));
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
+    );
     let services = svc
         .get_services_by_type(ServiceModule::Mcp)
         .await
@@ -50,10 +50,10 @@ async fn get_services_by_type_surfaces_seeded_service() {
 #[tokio::test]
 async fn get_running_services_with_pid_returns_only_running() {
     let pool = test_db_pool().await;
-    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-        &pool,
-        unique_instance(),
-    ));
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
+    );
     let services = svc.get_running_services_with_pid().await.expect("query");
     assert!(
         services.iter().all(|s| s.status == ServiceStatus::Running),
@@ -64,10 +64,10 @@ async fn get_running_services_with_pid_returns_only_running() {
 #[tokio::test]
 async fn reap_stale_runs() {
     let pool = test_db_pool().await;
-    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-        &pool,
-        unique_instance(),
-    ));
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
+    );
     let reaped = svc.reap_stale().await.expect("reap");
     assert_eq!(reaped.total(), 0);
 }
@@ -75,10 +75,10 @@ async fn reap_stale_runs() {
 #[tokio::test]
 async fn mark_service_stopped_for_unknown_succeeds() {
     let pool = test_db_pool().await;
-    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
-        &pool,
-        unique_instance(),
-    ));
+    let svc = ServiceManagementService::new(
+        systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
+    );
     let result = svc
         .mark_service_stopped(&ServiceName::new("nonexistent-service-name-zzz"))
         .await;
