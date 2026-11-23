@@ -17,6 +17,9 @@
 mod a2a;
 
 #[cfg(test)]
+mod path_confine_logs;
+
+#[cfg(test)]
 mod enforcement_mode;
 
 #[cfg(test)]
@@ -85,7 +88,6 @@ mod validators;
 #[cfg(test)]
 mod profile;
 
-
 #[cfg(test)]
 mod profile_secrets_vault;
 
@@ -128,7 +130,6 @@ mod oci_reference;
 
 #[cfg(test)]
 mod services_bundle;
-
 
 #[cfg(test)]
 mod wire_codec;
@@ -177,7 +178,6 @@ mod marketplace_opencode_themes;
 mod plugin_skill_selection;
 #[cfg(test)]
 mod services_plugin_bindings;
-
 
 #[cfg(test)]
 mod gateway_hash;
@@ -263,6 +263,9 @@ mod bridge_manifest_version;
 mod bridge_version_window;
 
 #[cfg(test)]
+mod bridge_whoami;
+
+#[cfg(test)]
 mod mcp_deployment;
 
 #[cfg(test)]
@@ -306,7 +309,6 @@ mod content_models;
 
 #[cfg(test)]
 mod services_includable;
-
 
 #[cfg(test)]
 mod schema_gemini_invariants;
@@ -404,7 +406,6 @@ mod ai_request_response;
 
 #[cfg(test)]
 mod extension_manifest;
-
 
 #[cfg(test)]
 mod events_context_summary;

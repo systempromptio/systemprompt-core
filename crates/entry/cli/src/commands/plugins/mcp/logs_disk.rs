@@ -13,9 +13,11 @@ use super::types::McpLogsOutput;
 use crate::CliConfig;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
-use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_models::artifacts::ListItem;
+use systemprompt_models::path_confine::logs::{
+    display_names, find_log_file, list_log_files, read_log_lines,
+};
 
 pub(super) fn execute_disk_mode(
     args: &LogsArgs,
@@ -43,7 +45,7 @@ pub(super) fn execute_disk_mode(
         prompt_log_selection(prompter, logs_path)
     })?;
 
-    let log_file = find_log_file(logs_path, "mcp-", &service)?;
+    let log_file = find_log_file(logs_path, "mcp-", "MCP server name", &service)?;
     let logs = read_log_lines(&log_file, args.lines, |line| {
         args.level.is_none_or(|level| level.matches(line))
     })?;
@@ -83,7 +85,7 @@ pub(super) fn execute_follow_mode(
         prompt_log_selection(prompter, logs_path)
     })?;
 
-    let log_file = find_log_file(logs_path, "mcp-", &service)?;
+    let log_file = find_log_file(logs_path, "mcp-", "MCP server name", &service)?;
 
     let mut cmd = Command::new("tail");
     cmd.arg("-f").arg(&log_file);

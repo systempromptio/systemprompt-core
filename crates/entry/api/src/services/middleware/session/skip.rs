@@ -14,6 +14,13 @@ pub fn should_skip_session_tracking(path: &str) -> bool {
         return true;
     }
 
+    if path
+        .strip_prefix(ApiPaths::PUBLIC_DOCUMENT_LINKS)
+        .is_some_and(|rest| rest.starts_with('/'))
+    {
+        return true;
+    }
+
     if path.starts_with(ApiPaths::API_BASE) {
         return true;
     }

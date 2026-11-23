@@ -208,6 +208,7 @@ fn managed_server_tool_policy_resolves_named_then_wildcard() {
         headers: None,
         oauth: None,
         tool_policy: Some(policies),
+        toolsets: Vec::new(),
     };
     assert_eq!(server.policy_for_tool("drop_table"), Some(ToolPolicy::Deny));
     assert_eq!(server.policy_for_tool("select"), Some(ToolPolicy::Allow));

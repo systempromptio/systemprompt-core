@@ -111,6 +111,7 @@ fn sample_manifest() -> SignedManifest {
             headers: None,
             oauth: Some(true),
             tool_policy: None,
+            toolsets: Vec::new(),
         }],
         revocations: vec!["revoked_one".into()],
         enabled_hosts: vec![],

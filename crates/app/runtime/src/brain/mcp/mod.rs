@@ -60,6 +60,13 @@ const GOVERNING_TOOLS: [&str; 6] = [
     "brain_resolve",
 ];
 
+pub const INSTRUCTIONS: &str = "Shared memory. Confirmed facts reach you in a <team_memory> \
+block; you do not fetch memory to use it. brain_search lists the facts you may see and \
+brain_why explains one. brain_propose enters a fact as proposed for a person to confirm, in \
+your user's own scope unless you pass a wider one. brain_dispute {fact_id, reason} flags a fact \
+that is wrong or stale; propose the corrected fact after it. You never confirm, retract, pin \
+or erase a fact. Details: brain_guide.";
+
 /// Why [`BrainMcpTools::from_parts`] refused to build the tools.
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 pub enum BrainMcpUnavailable {

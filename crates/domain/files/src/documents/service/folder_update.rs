@@ -9,6 +9,7 @@ use systemprompt_identifiers::{DocumentFolderId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AgentEditPolicy, DocumentAction};
 
+use super::drive_hint::DriveHint;
 use super::folder_moves::PreparedMove;
 use super::support::validate_name;
 use super::{AgentCapTarget, DocumentService, FolderMove};
@@ -62,6 +63,7 @@ impl DocumentService {
                     .await?,
             ),
         };
+        let before = self.folder_holders_before(folder, &[]).await;
         let relocation = prepared
             .as_ref()
             .map(|prepared: &PreparedMove| FolderRelocation {
@@ -104,6 +106,7 @@ impl DocumentService {
             self.pin_agent_cap(&AgentCapTarget::Folder(folder.clone()), cap)
                 .await?;
         }
+        self.hint_drive_changed(DriveHint::folder(folder, &who.id).with(before));
         self.load_folder(folder).await
     }
 

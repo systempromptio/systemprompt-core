@@ -22,6 +22,8 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::UnknownNode { .. }
         | DocumentsError::FindNone { .. }
         | DocumentsError::Forbidden { .. }
+        | DocumentsError::ExternalSharingRefused { .. }
+        | DocumentsError::LinkPassword { .. }
         | DocumentsError::Trashed { .. }
         | DocumentsError::AnchorsAffected { .. }
         | DocumentsError::InvalidComment { .. }
@@ -115,6 +117,12 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
                 held: None,
                 policy: None,
                 owner: None,
+            },
+            RefusalCode::Forbidden,
+        ),
+        (
+            DocumentsError::ExternalSharingRefused {
+                channel: "public link",
             },
             RefusalCode::Forbidden,
         ),

@@ -35,7 +35,7 @@ fn test_files_extension_metadata_version() {
 fn test_files_extension_schemas_count() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 33);
+    assert_eq!(schemas.len(), 36);
 }
 
 #[test]
@@ -51,6 +51,9 @@ fn test_files_extension_schemas_names() {
     assert!(names.contains(&"document_upload_objects"));
     assert!(names.contains(&"document_media"));
     assert!(names.contains(&"document_blob_collections"));
+    assert!(names.contains(&"document_public_links"));
+    assert!(names.contains(&"document_link_attempts"));
+    assert!(names.contains(&"document_invites"));
 }
 
 #[test]

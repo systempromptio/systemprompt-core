@@ -8,10 +8,14 @@
 //! the person presented a credential), which is the token's `auth_time`. A
 //! refresh hands both forward unchanged, for every client.
 //!
+//! A refresh token that descends from a device link is rotated only while
+//! the device key the link issued still stands. Otherwise its whole family is
+//! revoked and the refresh is refused, before the token is consumed.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
+use systemprompt_identifiers::{ApiKeyId, AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenLineage};
 use systemprompt_oauth::services::validation::validate_client_credentials;
@@ -134,6 +138,14 @@ impl TokenIssuanceOrchestrator<'_> {
             self.config,
         )?;
 
+        if let Some(device_key) = repo
+            .refresh_token_device_key(&refresh_token, &client_id)
+            .await?
+        {
+            self.require_device_link(&device_key, &refresh_token)
+                .await?;
+        }
+
         let consumed = repo
             .consume_refresh_token(&refresh_token, &client_id)
             .await
@@ -177,6 +189,34 @@ impl TokenIssuanceOrchestrator<'_> {
         );
 
         Ok(token_response)
+    }
+
+    async fn require_device_link(
+        &self,
+        device_key: &ApiKeyId,
+        refresh_token: &RefreshTokenId,
+    ) -> IssuanceResult<()> {
+        let stands = self
+            .state
+            .user_provider()
+            .device_key_stands(device_key)
+            .await
+            .map_err(|error| IssuanceError::server("Device link lookup failed", error))?;
+        if stands {
+            return Ok(());
+        }
+        let revoked = self
+            .repo()
+            .revoke_refresh_token_family_of(refresh_token)
+            .await?;
+        tracing::info!(
+            device_key_id = %device_key,
+            revoked,
+            "Refresh refused: the device link the session was issued with no longer stands"
+        );
+        Err(IssuanceError::InvalidRefreshToken {
+            reason: "The device link this session was issued with was revoked".to_owned(),
+        })
     }
 }
 

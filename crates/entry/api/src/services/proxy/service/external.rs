@@ -39,13 +39,15 @@ async fn authorised_context(
         message: "external MCP proxy requires an authenticated request context".to_owned(),
     })?;
     let requirement = mcp_oauth_requirement(ctx, service_name).await?;
-    AccessValidator::validate_with_requirement(
+    let user = AccessValidator::validate_with_requirement(
         headers,
         service_name,
         &requirement,
         ctx,
         Some(&req_ctx),
     )?;
+    super::context_owner::ensure_owned(ctx, service_name, headers, user.as_ref(), Some(&req_ctx))
+        .await?;
     Ok(req_ctx)
 }
 

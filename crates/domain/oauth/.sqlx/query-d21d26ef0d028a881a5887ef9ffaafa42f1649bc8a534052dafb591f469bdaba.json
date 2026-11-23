@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT device_key_id FROM oauth_refresh_tokens WHERE token_id = $1 AND client_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device_key_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "oauth_refresh_tokens",
+            "name": "device_key_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "d21d26ef0d028a881a5887ef9ffaafa42f1649bc8a534052dafb591f469bdaba"
+}

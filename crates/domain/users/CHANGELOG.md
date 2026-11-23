@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Added
+
+- `UserRepository::is_device_key_active`: whether a device key is unrevoked and unexpired.
+
 ## [0.84.0] - 2026-11-20
 
 ### Fixed

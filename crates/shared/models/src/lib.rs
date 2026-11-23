@@ -95,6 +95,7 @@ pub mod net;
 pub mod notifications;
 pub mod oauth;
 pub mod origin;
+pub mod path_confine;
 pub mod plugin;
 pub mod providers;
 pub mod routing;

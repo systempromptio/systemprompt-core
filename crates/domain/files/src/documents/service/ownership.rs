@@ -23,6 +23,7 @@ use systemprompt_models::documents::{
 };
 
 use super::DocumentService;
+use super::drive_hint::DriveHint;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentGrant, GrantActor, OwnerTransfer};
 
@@ -97,6 +98,7 @@ impl DocumentService {
             to: to.clone(),
         };
         let transferred = self.load_document(document).await?;
+        self.hint_drive_changed(DriveHint::document(&transferred, &who.id));
         let mut recipients = self.recipients(&transferred).await;
         if !recipients.contains(&current.owner_user_id) {
             recipients.push(current.owner_user_id.clone());
@@ -130,6 +132,8 @@ impl DocumentService {
             self.clear_presence(grant, Some(&current.owner_user_id))
                 .await;
         }
+        self.hint_after_revoke(Some(DriveHint::document(&current, &who.id)), &grants)
+            .await;
         Ok(revoked)
     }
 

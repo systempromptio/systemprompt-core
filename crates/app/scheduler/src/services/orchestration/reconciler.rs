@@ -1,6 +1,9 @@
 //! Reconciler — given a list of [`ServiceConfig`] and a `start_service`
 //! callback, drives runtime state to match desired state.
 //!
+//! A service the reconciler stops is signalled and given the profile's
+//! `server.shutdown.child_grace_secs` to exit before it is killed.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -10,6 +13,7 @@ use std::time::Duration;
 use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::subprocess::{self, ChildKind};
+use systemprompt_manifest::profile::ShutdownConfig;
 
 use super::service_records::ServiceConfig;
 use super::state_types::{ServiceAction, ServiceType};
@@ -18,7 +22,6 @@ use super::supervision::{stop_owned_port_holders, wait_for_port_free};
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
 
-const STOP_GRACE: Duration = Duration::from_millis(100);
 const PORT_RELEASE: Duration = Duration::from_secs(1);
 
 const fn child_kind_of(service_type: ServiceType) -> Option<ChildKind> {
@@ -62,13 +65,15 @@ impl ReconciliationResult {
 pub struct ServiceReconciler {
     state_verifier: ServiceStateVerifier,
     services: ServiceRepository,
+    shutdown: ShutdownConfig,
 }
 
 impl ServiceReconciler {
-    pub fn new(db_pool: DbPool, services: ServiceRepository) -> Self {
+    pub fn new(db_pool: DbPool, services: ServiceRepository, shutdown: ShutdownConfig) -> Self {
         Self {
             state_verifier: ServiceStateVerifier::new(db_pool, services.instance_id().clone()),
             services,
+            shutdown,
         }
     }
 
@@ -198,10 +203,11 @@ impl ServiceReconciler {
         let Some(kind) = child_kind_of(state.service_type) else {
             return Ok(());
         };
+        let grace = self.shutdown.child_grace();
         if let Some(pid) = state.pid {
-            subprocess::stop_owned(pid, kind, &state.name, STOP_GRACE).await?;
+            subprocess::stop_owned(pid, kind, &state.name, grace).await?;
         }
-        stop_owned_port_holders(state.port, kind, &state.name, STOP_GRACE).await?;
+        stop_owned_port_holders(state.port, kind, &state.name, grace).await?;
         Ok(())
     }
 

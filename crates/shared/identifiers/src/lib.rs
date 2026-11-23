@@ -142,9 +142,9 @@ pub use content::{CategoryId, ContentId, FileId, SkillId, SkillName, SourceId, T
 pub use context::ContextId;
 pub use documents::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentEditSessionId,
-    DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId,
-    DocumentRevisionId, DocumentTemplateId, DocumentUploadId, DriveDeviceId, EditorId,
-    IssueReportId,
+    DocumentFolderId, DocumentId, DocumentInviteId, DocumentNodeId, DocumentOpId,
+    DocumentProposalId, DocumentRevisionId, DocumentTemplateId, DocumentUploadId, DriveDeviceId,
+    EditorId, IssueReportId, PublicLinkId,
 };
 pub use email::Email;
 pub use engagement::{AnalyticsEventId, EngagementEventId};

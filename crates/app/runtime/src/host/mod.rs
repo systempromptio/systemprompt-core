@@ -75,6 +75,8 @@ pub struct HostContext {
     documents: Arc<DocumentsRuntime>,
     #[cfg(feature = "notifications")]
     notifications: Arc<NotificationsService>,
+    #[cfg(feature = "brain")]
+    brain: Option<Arc<crate::brain::BrainHandle>>,
     background_tasks: BackgroundTasks,
     log_sink: systemprompt_logging::LogSink,
     extension: extension_context::ExtensionHandles,
@@ -190,6 +192,12 @@ impl HostContext {
     #[must_use]
     pub const fn notifications(&self) -> &Arc<NotificationsService> {
         &self.notifications
+    }
+
+    #[cfg(feature = "brain")]
+    #[must_use]
+    pub fn brain(&self) -> Option<&crate::brain::BrainHandle> {
+        self.brain.as_deref()
     }
 
     #[must_use]

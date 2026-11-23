@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use systemprompt_identifiers::{ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{ApiKeyId, ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
 
 use super::{ConsumedRefreshToken, RefreshTokenHolder, RefreshTokenLineage, RefreshTokenParams};
 use crate::error::{OauthError, OauthResult};
@@ -24,8 +24,10 @@ impl OAuthRepository {
                 sqlx::query!(
                     "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, \
                      expires_at, created_at, family_id, resource, authenticated_at, \
-                     session_started_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                     session_started_at, device_key_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                             (SELECT device_key_id FROM oauth_refresh_tokens
+                              WHERE family_id = $7 AND device_key_id IS NOT NULL LIMIT 1))",
                     token_id_hash,
                     client_id,
                     user_id,
@@ -45,8 +47,8 @@ impl OAuthRepository {
                 let inserted = sqlx::query!(
                     "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, \
                      expires_at, created_at, family_id, resource, authenticated_at, \
-                     session_started_at)
-                     SELECT $1, $2, $3, $4, $5, $6, $1, $7, $9, $10
+                     session_started_at, device_key_id)
+                     SELECT $1, $2, $3, $4, $5, $6, $1, $7, $9, $10, device_key_id
                      FROM oauth_auth_codes
                      WHERE code = $8 AND refresh_token_id = $1
                      FOR UPDATE",
@@ -87,6 +89,37 @@ impl OAuthRepository {
         .fetch_optional(self.write_pool_ref())
         .await?;
         Ok(resource.flatten())
+    }
+
+    pub async fn refresh_token_device_key(
+        &self,
+        token_id: &RefreshTokenId,
+        client_id: &ClientId,
+    ) -> OauthResult<Option<ApiKeyId>> {
+        let token_id_hash = self.hash_at_rest(token_id.as_str())?;
+        let device_key = sqlx::query_scalar!(
+            "SELECT device_key_id FROM oauth_refresh_tokens WHERE token_id = $1 AND client_id = $2",
+            token_id_hash,
+            client_id.as_str()
+        )
+        .fetch_optional(self.write_pool_ref())
+        .await?;
+        Ok(device_key.flatten().map(ApiKeyId::new))
+    }
+
+    pub async fn revoke_refresh_token_family_of(
+        &self,
+        token_id: &RefreshTokenId,
+    ) -> OauthResult<u64> {
+        let token_id_hash = self.hash_at_rest(token_id.as_str())?;
+        let result = sqlx::query!(
+            "DELETE FROM oauth_refresh_tokens
+             WHERE family_id = (SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1)",
+            token_id_hash
+        )
+        .execute(self.write_pool_ref())
+        .await?;
+        Ok(result.rows_affected())
     }
 
     pub async fn consume_refresh_token(

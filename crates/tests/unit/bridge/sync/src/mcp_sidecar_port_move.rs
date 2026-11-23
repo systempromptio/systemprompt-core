@@ -73,6 +73,7 @@ fn manifest() -> SignedManifest {
             headers: None,
             oauth: None,
             tool_policy: None,
+            toolsets: Vec::new(),
         }],
         revocations: vec![],
         enabled_hosts: vec![HostKind::Hermes],

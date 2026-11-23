@@ -1,9 +1,10 @@
 //! Mounts `/api/v1/documents`, `/api/v1/document-folders` and
 //! `/api/v1/uploads` with their router-scoped state, the content rate limit
-//! and the user authz gate, and, separately, `/api/v1/internal/links`
-//! (authenticated by the MCP hop token it is presented, not a session; served
-//! wherever managed MCP servers run, a worker included), or nothing when
-//! `files.documents.enabled` is off.
+//! and the user authz gate, the anonymous public-link open `/s/{token}`
+//! (no session, no authz: the link token is the credential), and, separately,
+//! `/api/v1/internal/links` (authenticated by the MCP hop token it is
+//! presented, not a session; served wherever managed MCP servers run, a worker
+//! included), or nothing when `files.documents.enabled` is off.
 //!
 //! These three and the OAuth `/revoke` route are the only routers mounted
 //! behind the context middleware that admits a person's UI session (the `ui`
@@ -20,7 +21,7 @@ use systemprompt_models::modules::ApiPaths;
 use super::RouteMountError;
 use super::protocol::MountCtx;
 use crate::routes::documents::{
-    DocumentsState, folders_router, router as documents_router, with_download_tokens,
+    DocumentsState, folders_router, public_link, router as documents_router, with_download_tokens,
 };
 use crate::routes::internal::links_router;
 use crate::routes::uploads::{router as uploads_router, with_upload_tokens};
@@ -56,6 +57,14 @@ pub(super) fn mount_documents(
                 state.clone(),
             )
             .with_rate_limit(mount.limits, per_second, "documents")?,
+        )
+        .nest(
+            ApiPaths::PUBLIC_DOCUMENT_LINKS,
+            public_link::router(Arc::clone(&state.service)).with_rate_limit(
+                mount.limits,
+                per_second,
+                "documents",
+            )?,
         )
         .nest(
             ApiPaths::DOCUMENT_FOLDERS,

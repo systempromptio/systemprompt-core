@@ -63,6 +63,12 @@ pub fn load_managed_mcp_servers(
             headers: None,
             oauth: Some(deployment.oauth.required),
             tool_policy: Some(tool_policies(deployment, tool_policy)),
+            toolsets: deployment
+                .toolsets
+                .iter()
+                .filter(|toolset| toolset.enabled)
+                .map(|toolset| toolset.id.clone())
+                .collect(),
         });
     }
     Ok(out)

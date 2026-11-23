@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT EXISTS(\n                SELECT 1 FROM user_api_keys\n                WHERE id = $1 AND kind = 'device' AND revoked_at IS NULL\n                  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)\n            ) AS \"active!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "active!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c1d75a0a60152700c9c6da4dd7b12dd9c500daa3b01b92d66247808196820184"
+}

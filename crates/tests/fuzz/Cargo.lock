@@ -966,9 +966,9 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "form_urlencoded"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+checksum = "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e"
 dependencies = [
  "percent-encoding",
 ]
@@ -3533,7 +3533,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3570,7 +3570,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3603,7 +3603,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "chrono",
  "futures",
@@ -3621,7 +3621,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3651,7 +3651,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3677,7 +3677,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3713,7 +3713,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-gateway"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3757,7 +3757,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-governance"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3788,7 +3788,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -3801,7 +3801,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3832,7 +3832,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3856,7 +3856,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-manifest"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3883,7 +3883,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3923,7 +3923,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3954,7 +3954,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3971,7 +3971,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -4005,7 +4005,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -4029,7 +4029,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4055,7 +4055,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-wire"
-version = "0.85.0"
+version = "0.86.0"
 dependencies = [
  "bytes",
  "futures-util",
@@ -4490,9 +4490,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "url"
-version = "2.5.8"
+version = "2.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+checksum = "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a"
 dependencies = [
  "form_urlencoded",
  "idna",

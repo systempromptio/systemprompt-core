@@ -23,11 +23,17 @@ pub struct DirectRecipient {
 }
 
 /// One thing that happened, before routing decides who hears about it.
+///
+/// `actor_is_system` marks an event the platform produced on its own
+/// schedule: `actor` is then the account the event is attributed to, not a
+/// person who acted.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct NotificationEvent {
     pub kind: NotificationKind,
     pub actor: UserId,
     pub actor_is_agent: bool,
+    #[serde(default)]
+    pub actor_is_system: bool,
     pub via_agent: Option<AgentName>,
     pub subjects: Vec<SubjectRef>,
     pub stream: Option<NotificationStreamId>,
@@ -47,6 +53,7 @@ impl NotificationEvent {
             kind,
             actor,
             actor_is_agent: false,
+            actor_is_system: false,
             via_agent: None,
             subjects: Vec::new(),
             stream: None,
@@ -62,6 +69,12 @@ impl NotificationEvent {
     #[must_use]
     pub const fn with_actor_is_agent(mut self, actor_is_agent: bool) -> Self {
         self.actor_is_agent = actor_is_agent;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_actor_is_system(mut self, actor_is_system: bool) -> Self {
+        self.actor_is_system = actor_is_system;
         self
     }
 

@@ -46,6 +46,7 @@ mod grant_removals;
 mod grant_row;
 mod grants;
 mod head;
+mod invites;
 mod listing;
 mod listing_scopes;
 mod listing_scopes_context;
@@ -60,6 +61,7 @@ mod path_changes;
 mod presence;
 mod proposal_settle;
 mod proposals;
+mod public_links;
 mod purge;
 mod revision_landing;
 mod revisions;
@@ -95,6 +97,7 @@ pub use folders::DocumentFolderRepository;
 pub use grant_events::DocumentGrantEventRepository;
 pub use grants::DocumentGrantRepository;
 pub use head::HeadMove;
+pub use invites::DocumentInviteRepository;
 pub(crate) use listing::like_pattern;
 pub use listing_scopes_root::ROOT_LISTING_SQL;
 pub use listing_scopes_shared::SHARED_LISTING_SQL;
@@ -104,6 +107,7 @@ pub use node_ids::DocumentNodeIdRepository;
 pub use path_changes::{DocumentPathChange, PathMove, SubjectAccess};
 pub use presence::DocumentPresenceRepository;
 pub use proposals::DocumentProposalRepository;
+pub use public_links::DocumentPublicLinkRepository;
 pub use revisions::DocumentRevisionRepository;
 pub use text_index::{DocumentTextIndexRepository, SearchPage};
 pub use write_acks::DocumentWriteAckRepository;
@@ -128,6 +132,8 @@ pub struct DocumentRepositories {
     pub write_acks: Arc<DocumentWriteAckRepository>,
     pub comments: Arc<DocumentCommentRepository>,
     pub proposals: Arc<DocumentProposalRepository>,
+    pub public_links: Arc<DocumentPublicLinkRepository>,
+    pub invites: Arc<DocumentInviteRepository>,
 }
 
 impl DocumentRepositories {
@@ -151,6 +157,8 @@ impl DocumentRepositories {
             write_acks: Arc::new(DocumentWriteAckRepository::new(db)),
             comments: Arc::new(DocumentCommentRepository::new(db)),
             proposals: Arc::new(DocumentProposalRepository::new(db)),
+            public_links: Arc::new(DocumentPublicLinkRepository::new(db)),
+            invites: Arc::new(DocumentInviteRepository::new(db)),
         }
     }
 }

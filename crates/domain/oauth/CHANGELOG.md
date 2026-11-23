@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Added
+
+- A device link can carry a person's UI session: `issue_device_link_code` takes a `person_ui` client's PKCE request (`DeviceLinkUiRequest`) and the browser sign-in time, refusing an undeclared client, an unregistered redirect, a non-S256 challenge and an undeclared scope. New: `OAuthRepository::{create_device_link_code, consume_device_link_code, mint_device_authorization_code, refresh_token_device_key, revoke_refresh_token_family_of}` and `repository::{DeviceLinkUiGrant, StoredUiGrant, ConsumedDeviceLink}`. Migration `028_device_link_ui_session` records the UI grant on the exchange code and the device key on refresh tokens.
+
 ## [0.85.0] - 2026-11-21
 
 ### Breaking

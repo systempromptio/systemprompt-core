@@ -15,6 +15,7 @@ use chrono::Utc;
 use pkce::verify_pkce;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
+mod device;
 mod params;
 mod pkce;
 

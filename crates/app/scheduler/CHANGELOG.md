@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.86.0] - 2026-11-23
+
+### Breaking
+
+- `ServiceManagementService::new` takes the profile's `ShutdownConfig` after the repository, `ServiceManagementService::stop_api_by_port` takes `&ShutdownConfig` before `force`, and `ServiceReconciler::new` takes `ShutdownConfig` after the repository. Migrate by passing `profile.server.shutdown` (`ShutdownConfig::default()` keeps the default deadlines).
+
+### Fixed
+
+- Stopping a service waits for the process to exit against the `server.shutdown` deadlines before escalating to SIGKILL, instead of a fixed 100 ms; `--force` waits for none.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

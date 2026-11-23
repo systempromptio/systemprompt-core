@@ -68,7 +68,7 @@ fn seed_logs(dir: &Path) {
 
 #[tokio::test]
 async fn mcp_logs_disk_lists_files_when_no_server_given() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = crate::boot_ctx::logs_dir_in_root();
     seed_logs(dir.path());
     mcp::execute(
         parse_mcp(&["logs", "--disk", "--logs-dir", dir.path().to_str().unwrap()]),
@@ -80,7 +80,7 @@ async fn mcp_logs_disk_lists_files_when_no_server_given() {
 
 #[tokio::test]
 async fn mcp_logs_disk_reads_named_server_with_level_filter() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = crate::boot_ctx::logs_dir_in_root();
     seed_logs(dir.path());
     let dir_arg = dir.path().to_str().unwrap();
     let ctx = ctx(false, &[]);
@@ -125,7 +125,7 @@ async fn mcp_logs_disk_reads_named_server_with_level_filter() {
 
 #[tokio::test]
 async fn mcp_logs_disk_prompts_for_selection_when_interactive() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = crate::boot_ctx::logs_dir_in_root();
     seed_logs(dir.path());
     mcp::execute(
         parse_mcp(&["logs", "--disk", "--logs-dir", dir.path().to_str().unwrap()]),
@@ -143,7 +143,10 @@ async fn mcp_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{missing:#}").contains("does not exist"));
+    assert!(
+        format!("{missing:#}").contains("must name a directory inside"),
+        "{missing:#}"
+    );
 
     let follow_missing = mcp::execute(
         parse_mcp(&["logs", "--follow", "--logs-dir", "/no/such/dir/cov"]),
@@ -151,9 +154,12 @@ async fn mcp_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{follow_missing:#}").contains("does not exist"));
+    assert!(
+        format!("{follow_missing:#}").contains("must name a directory inside"),
+        "{follow_missing:#}"
+    );
 
-    let empty = tempfile::tempdir().unwrap();
+    let empty = crate::boot_ctx::logs_dir_in_root();
     let no_files = mcp::execute(
         parse_mcp(&[
             "logs",
@@ -184,7 +190,7 @@ async fn mcp_logs_disk_error_branches() {
 
 #[tokio::test]
 async fn agent_logs_disk_lists_files_when_no_agent_given() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = crate::boot_ctx::logs_dir_in_root();
     seed_logs(dir.path());
     agents::execute(
         parse_agents(&["logs", "--disk", "--logs-dir", dir.path().to_str().unwrap()]),
@@ -196,7 +202,7 @@ async fn agent_logs_disk_lists_files_when_no_agent_given() {
 
 #[tokio::test]
 async fn agent_logs_disk_reads_named_and_prompted_agent() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = crate::boot_ctx::logs_dir_in_root();
     seed_logs(dir.path());
     let dir_arg = dir.path().to_str().unwrap();
 
@@ -222,7 +228,10 @@ async fn agent_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{missing:#}").contains("does not exist"));
+    assert!(
+        format!("{missing:#}").contains("must name a directory inside"),
+        "{missing:#}"
+    );
 
     let follow_missing = agents::execute(
         parse_agents(&["logs", "--follow", "--logs-dir", "/no/such/dir/cov"]),
@@ -230,9 +239,12 @@ async fn agent_logs_disk_error_branches() {
     )
     .await
     .unwrap_err();
-    assert!(format!("{follow_missing:#}").contains("does not exist"));
+    assert!(
+        format!("{follow_missing:#}").contains("must name a directory inside"),
+        "{follow_missing:#}"
+    );
 
-    let empty = tempfile::tempdir().unwrap();
+    let empty = crate::boot_ctx::logs_dir_in_root();
     let no_files = agents::execute(
         parse_agents(&[
             "logs",

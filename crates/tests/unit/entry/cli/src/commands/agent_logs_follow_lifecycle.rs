@@ -36,7 +36,8 @@ fn context() -> CommandContext {
 #[ignore = "re-executed by follow_uses_the_resolved_agent_log_and_surfaces_tail_failure"]
 async fn agent_logs_follow_helper() {
     let fixture = tempfile::tempdir().expect("agent log fixture");
-    let logs = fixture.path().join("logs");
+    let logs_dir = crate::boot_ctx::logs_dir_in_root();
+    let logs = logs_dir.path().to_path_buf();
     let bin = fixture.path().join("bin");
     std::fs::create_dir_all(&logs).unwrap();
     std::fs::create_dir_all(&bin).unwrap();
@@ -79,7 +80,10 @@ async fn agent_logs_follow_helper() {
     println!("END_FOLLOW");
 
     let invoked = std::fs::read_to_string(&capture).expect("tail invocation capture");
-    assert_eq!(invoked, format!("-f\n{}\n", log.display()));
+    assert_eq!(
+        invoked,
+        format!("-f\n{}\n", log.canonicalize().unwrap().display())
+    );
 
     unsafe { std::env::set_var("TAIL_EXIT", "9") };
     let error = agents::execute(
