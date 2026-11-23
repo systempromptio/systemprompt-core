@@ -15,3 +15,5 @@ pub mod cli;
 pub mod extension;
 #[cfg(feature = "http")]
 pub mod http;
+#[cfg(feature = "http")]
+pub mod repository;

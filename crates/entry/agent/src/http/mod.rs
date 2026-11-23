@@ -36,13 +36,10 @@ pub mod tasks;
 use std::sync::Arc;
 
 use axum::http::Method;
-use systemprompt_agent::repository::content::ArtifactRepository;
-use systemprompt_agent::repository::context::ContextNotificationRepository;
-use systemprompt_agent::repository::execution::ExecutionStepRepository;
-use systemprompt_agent::repository::task::TaskRepository;
-use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::services::registry::AgentCardSite;
 use systemprompt_database::{DbPool, ServiceRepository};
+
+pub use crate::repository::ConversationRepositories;
 use systemprompt_extension::router::{
     ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
 };
@@ -93,36 +90,6 @@ pub(crate) fn clamp_page_limit(requested: Option<u32>) -> u16 {
 
 pub(crate) fn parse_context_id(raw: &str) -> Result<ContextId, AgentHttpError> {
     ContextId::try_new(raw).map_err(|e| AgentHttpError::from(ApiError::from(e)))
-}
-
-/// The conversation repositories the agent routes read and write.
-#[derive(Clone)]
-pub struct ConversationRepositories {
-    pub contexts: ContextRepository,
-    pub context_notifications: ContextNotificationRepository,
-    pub tasks: TaskRepository,
-    pub artifacts: ArtifactRepository,
-    pub execution_steps: ExecutionStepRepository,
-}
-
-impl std::fmt::Debug for ConversationRepositories {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ConversationRepositories")
-            .finish_non_exhaustive()
-    }
-}
-
-impl ConversationRepositories {
-    #[must_use]
-    pub fn new(db: &DbPool, sessions: DynSessionUsageCounters) -> Self {
-        Self {
-            contexts: ContextRepository::new(db),
-            context_notifications: ContextNotificationRepository::new(db),
-            tasks: TaskRepository::new(db, sessions),
-            artifacts: ArtifactRepository::new(db),
-            execution_steps: ExecutionStepRepository::new(db),
-        }
-    }
 }
 
 /// Router-scoped state of the contexts, tasks and artifacts routes.
@@ -204,7 +171,7 @@ impl FromState for AgentRegistryState {
         let db = r.get::<DbPool>()?;
         Ok(Self::new(
             r.get::<ServicesView>()?,
-            Arc::new(ServiceRepository::new(&db, r.get::<InstanceId>()?)),
+            crate::repository::service_table(&db, r.get::<InstanceId>()?),
             r.get::<Arc<AgentCardSite>>()?,
         ))
     }

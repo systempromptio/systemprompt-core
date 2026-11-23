@@ -31,8 +31,6 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `admin agents registry` | Get running agents from gateway | `Table` | Yes |
 | `admin agents message <agent>` | Send A2A message to agent | `Card` | Yes |
 | `admin agents task <agent>` | Get task details and response | `Card` | Yes |
-| `admin agents tools <agent>` | List MCP tools available to an agent | `Table` | Yes |
-| `admin agents run <agent>` | Run an agent server directly (bypasses orchestration) | `Text` | No |
 
 ---
 
@@ -244,7 +242,7 @@ sp admin agents edit <agent_name> --set card.description="New description"
 
 ### agents delete
 
-Delete an agent configuration.
+Delete an agent configuration. An agent the service table records as running is refused with an error naming `systemprompt infra services stop agent <name>`; the command never stops a process.
 
 ```bash
 sp admin agents delete <agent_name> --yes
@@ -424,7 +422,6 @@ sp admin agents message primary -m "Continue task" --context-id <ctx-id> --task-
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--url` | `http://localhost:8080` | Gateway URL |
 | `--context-id` | Auto-generated UUID | Context ID for conversation |
 | `--task-id` | None | Task ID to continue existing task |
 | `--stream` | false | Use streaming mode |
@@ -486,49 +483,6 @@ The command sends a JSON-RPC 2.0 request to the agent endpoint:
 
 ---
 
-### agents tools
-
-List the MCP tools available to an agent by connecting to each of its configured MCP servers.
-
-```bash
-sp admin agents tools <agent_name>
-sp admin agents tools primary --detailed
-sp admin agents tools primary --timeout 60
-```
-
-**Required Arguments:**
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `<name>` | Yes | Agent name (required in non-interactive mode) |
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--detailed` | false | Show full input/output schemas |
-| `--timeout` | 30 | Timeout in seconds per server |
-
-**Artifact Type:** `Table`
-
----
-
-### agents run
-
-Run an agent server directly as a subprocess, bypassing orchestration. Used internally by the service supervisor; run it by hand to debug a single agent in isolation.
-
-```bash
-sp admin agents run --agent-name primary --port 8001
-```
-
-**Required Flags:**
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--agent-name` | Yes | Agent name to run |
-| `--port` | Yes | Port to listen on |
-
-**Artifact Type:** `Text`
-
----
-
 ### agents task
 
 Get task details including conversation history and agent response.
@@ -550,7 +504,6 @@ sp admin agents task admin --task-id "$TASK_ID" --history-length 10 --token "$TO
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--history-length` | All | Number of history messages to retrieve |
-| `--url` | `http://localhost:8080` | Gateway URL |
 | `--timeout` | 30 | Timeout in seconds |
 
 **A2A Spec Compliance:** Per A2A v1.0.0, `GetTask` uses `TaskQueryParams` which only requires `id` (task UUID). The context is resolved from task storage by the server.
@@ -671,7 +624,7 @@ TOKEN=$(sp admin session login --email admin@example.com --token-only)
 sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 ```
 
-The session token is a JWT with a 24-hour default expiration. `message` and `tools` reuse the active session; `task` takes an explicit `--token`.
+The session token is a JWT with a 24-hour default expiration. `message` reuses the active session and `task` defaults to it (`--token` overrides); both present it only to the profile's own API URL.
 
 ---
 
@@ -690,8 +643,6 @@ The session token is a JWT with a 24-hour default expiration. `message` and `too
 | `registry` | `RegistryOutput` | `Table` | columns |
 | `message` | `MessageOutput` | `Card` | title |
 | `task` | `TaskGetOutput` | `Card` | title |
-| `tools` | `AgentToolsOutput` | `Table` | columns |
-| `run` | (subprocess) | `Text` | - |
 
 ---
 

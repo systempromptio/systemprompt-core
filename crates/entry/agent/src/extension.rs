@@ -133,8 +133,6 @@ mod commands {
             );
     }
 
-    /// Whether the deployment's secrets hold a non-empty value under a name;
-    /// the only view of the secret store `admin agents validate` holds.
     struct StoredSecretPresence(Arc<dyn SecretStore>);
 
     impl SecretPresence for StoredSecretPresence {

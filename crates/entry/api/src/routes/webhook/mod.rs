@@ -66,12 +66,7 @@ impl WebhookState {
         let db = ctx.db_pool();
         let sessions = ctx.kernel().state().get::<DynSessionUsageCounters>()?;
         Ok(Self {
-            repositories: Arc::new(WebhookRepositories {
-                contexts: ContextRepository::new(db),
-                tasks: TaskRepository::new(db, Arc::clone(sessions)),
-                artifacts: ArtifactRepository::new(db),
-                execution_steps: ExecutionStepRepository::new(db),
-            }),
+            repositories: Arc::new(crate::repository::webhook(db, Arc::clone(sessions))),
             events: Arc::new(ctx.event_router().clone()),
         })
     }

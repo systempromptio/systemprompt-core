@@ -37,9 +37,7 @@ pub struct StreamState {
 }
 
 pub fn stream_router(ctx: &AppContext) -> Router {
-    let context_provider = ContextProviderService::new(systemprompt_agent::repository::ContextRepository::new(
-        ctx.db_pool(),
-    ));
+    let context_provider = crate::repository::context_provider(ctx.db_pool());
     let state = StreamState {
         context_provider: Arc::new(context_provider),
         broadcasters: Arc::clone(ctx.event_broadcasters()),

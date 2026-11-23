@@ -83,16 +83,14 @@ pub(super) async fn build_orchestrator(
         Arc::new(A2ARepositories::new(
             ctx.db_pool(),
             A2aDependencies {
-                session_usage: Arc::new(systemprompt_users::SessionRepository::new(ctx.db_pool())),
+                session_usage: crate::repository::session_usage(ctx.db_pool()),
                 instance_id: ctx.config().instance_id.clone(),
                 managed_skills: Arc::clone(
                     ctx.kernel()
                         .state()
                         .get::<systemprompt_traits::DynManagedSkillResolver>()?,
                 ),
-                tool_executions: Arc::new(
-                    systemprompt_mcp::repository::ToolUsageRepository::new(ctx.db_pool()),
-                ),
+                tool_executions: crate::repository::tool_usage(ctx.db_pool()),
             },
         )),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
