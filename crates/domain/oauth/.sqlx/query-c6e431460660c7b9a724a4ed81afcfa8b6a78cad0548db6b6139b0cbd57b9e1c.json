@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE oauth_auth_codes SET device_key_id = $2 WHERE code = $1 AND used_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c6e431460660c7b9a724a4ed81afcfa8b6a78cad0548db6b6139b0cbd57b9e1c"
+}

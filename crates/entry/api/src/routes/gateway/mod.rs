@@ -46,6 +46,7 @@ pub mod bridge_resolved;
 pub mod bridge_stream;
 pub mod bridge_whoami;
 pub mod count_tokens;
+pub mod device_link;
 pub mod messages;
 pub mod models;
 #[cfg(feature = "otel")]

@@ -58,9 +58,15 @@ pub struct SelfEnrollResponse {
 
 /// Reply to `POST /v1/auth/bridge/session-pat`: the durable PAT minted from a
 /// one-time session exchange code.
+///
+/// `ui_code` is present when the device link was approved for a `person_ui`
+/// client: an authorization code that client redeems at the token endpoint
+/// with its PKCE verifier.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DevicePatResponse {
     pub pat: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_code: Option<String>,
 }
 
 /// One platform's newest published build, as advertised by

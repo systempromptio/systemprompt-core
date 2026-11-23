@@ -67,6 +67,7 @@ pub struct WellKnownResponse {
     pub authorization_grant_profiles_supported: Vec<String>,
     pub ui_session_supported: bool,
     pub ui_session: UiSessionDiscovery,
+    pub device_link_ui_session_supported: bool,
 }
 
 pub async fn handle_well_known(
@@ -132,6 +133,7 @@ pub async fn handle_well_known(
         authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
         ui_session_supported: true,
         ui_session: UiSessionDiscovery::from_config(&ctx.config().ui_session),
+        device_link_ui_session_supported: true,
     };
 
     (StatusCode::OK, Json(response)).into_response()

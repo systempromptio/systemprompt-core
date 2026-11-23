@@ -482,6 +482,8 @@ mod routes_oauth_clients;
 mod routes_oauth_introspect_revoke;
 
 #[cfg(test)]
+mod routes_oauth_device_link;
+#[cfg(test)]
 mod routes_oauth_person_ui;
 #[cfg(test)]
 mod routes_oauth_revoke_refresh;

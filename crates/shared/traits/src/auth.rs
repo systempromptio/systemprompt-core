@@ -10,13 +10,17 @@
 //! code), and `ensure_interactive` refuses it on every interactive sign-in
 //! path.
 //!
+//! `device_key_stands` says whether a device key a UI session was issued with
+//! is still live. The provided answer is `false`, so a provider that cannot
+//! tell refuses the session.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ApiKeyId, UserId};
 
 use crate::BoxedSource;
 
@@ -256,6 +260,10 @@ pub trait UserProvider: Send + Sync {
     ) -> AuthResult<FederatedResolution>;
 
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64>;
+
+    async fn device_key_stands(&self, _key: &ApiKeyId) -> AuthResult<bool> {
+        Ok(false)
+    }
 }
 
 pub trait RoleProvider: Send + Sync {

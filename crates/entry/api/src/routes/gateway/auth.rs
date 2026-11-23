@@ -2,9 +2,9 @@
 //!
 //! The JWT/session paths funnel through `systemprompt_oauth`'s
 //! `issue_bridge_access`. The durable PAT path consumes the same exchange code,
-//! then mints a first-class API key via the users `ApiKeyService` — the two
-//! domains are composed here, at the entry layer, rather than wiring an
-//! `oauth → users` edge into either domain crate.
+//! then mints a first-class API key via the users `ApiKeyService` (see
+//! `device_link`) — the two domains are composed at the entry layer, rather
+//! than wiring an `oauth → users` edge into either domain crate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,15 +18,13 @@ use std::sync::Arc;
 use systemprompt_identifiers::{JwtToken, headers};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
-use systemprompt_models::bridge::gateway::DevicePatResponse;
 use systemprompt_oauth::services::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeRequest, BridgeOAuthClient,
-    exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
-    provision_bridge_oauth_client, refuse_service_account,
+    exchange_bridge_session_code, issue_bridge_access, provision_bridge_oauth_client,
 };
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AnalyticsProvider, AppContext as _, UserProvider};
-use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
+use systemprompt_users::ApiKeyService;
 
 use super::bridge_error::BridgeError;
 use crate::error::ApiHttpError;
@@ -68,13 +66,6 @@ pub async fn capabilities() -> Json<Capabilities> {
 #[derive(Debug, Deserialize)]
 pub struct SessionExchangeBody {
     pub code: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SessionPatBody {
-    pub code: String,
-    #[serde(default)]
-    pub device_name: Option<String>,
 }
 
 pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>, ApiHttpError> {
@@ -166,68 +157,6 @@ pub async fn session(
     Ok(Json(result.into()))
 }
 
-pub async fn session_pat(
-    ctx: AppContext,
-    Json(body): Json<SessionPatBody>,
-) -> Result<Json<DevicePatResponse>, ApiHttpError> {
-    let code = body.code.trim();
-    if code.is_empty() {
-        return Err(ApiHttpError::bad_request("missing exchange code"));
-    }
-
-    let device_name = body
-        .device_name
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or("bridge device-link");
-
-    let pat = mint_device_pat(&ctx, code, device_name).await?;
-    Ok(Json(DevicePatResponse { pat }))
-}
-
-async fn mint_device_pat(
-    ctx: &AppContext,
-    code: &str,
-    device_name: &str,
-) -> Result<String, ApiHttpError> {
-    let repo = &ctx.oauth_repositories().oauth;
-    let user_id = repo
-        .consume_bridge_exchange_code(&hash_exchange_code(code))
-        .await?
-        .ok_or_else(|| {
-            ApiHttpError::unauthorized("exchange code invalid, expired, or already consumed")
-        })?;
-    let users = require_user_provider(ctx)?;
-    let user = users
-        .find_by_id(&user_id)
-        .await
-        .map_err(|error| {
-            tracing::warn!(%error, "user lookup for the session PAT failed");
-            ApiHttpError::internal("user lookup failed", error)
-        })?
-        .ok_or_else(|| ApiHttpError::unauthorized("exchange code user no longer exists"))?;
-    refuse_service_account(user.is_service_account, &user_id)?;
-
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
-    );
-    let issued = service
-        .issue(IssueApiKeyParams {
-            user_id: &user_id,
-            name: device_name,
-            expires_at: None,
-            limits: &systemprompt_users::ApiKeyLimits::default(),
-            scopes: &[],
-            purpose: None,
-            kind: systemprompt_users::ApiKeyKind::Device,
-        })
-        .await?;
-
-    Ok(issued.secret)
-}
-
 pub async fn provision_oauth_client(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
@@ -275,7 +204,9 @@ fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, Api
     })
 }
 
-fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
+pub(super) fn require_user_provider(
+    ctx: &AppContext,
+) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
     ctx.user_provider().ok_or_else(|| {
         ApiHttpError::internal("User provider unavailable", "provider is not registered")
     })

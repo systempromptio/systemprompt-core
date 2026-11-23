@@ -20,7 +20,7 @@ use systemprompt_models::ApiPaths;
 
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
-    bridge_profile_usage, bridge_stream, bridge_whoami, count_tokens, messages,
+    bridge_profile_usage, bridge_stream, bridge_whoami, count_tokens, device_link, messages,
 };
 
 #[cfg(feature = "otel")]
@@ -146,7 +146,7 @@ pub(super) fn bridge_auth_routes(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_SESSION_PAT),
             post(move |body| {
                 let context = ctx_session_pat.clone();
-                async move { auth::session_pat(context, body).await }
+                async move { device_link::session_pat(context, body).await }
             }),
         )
         .route(

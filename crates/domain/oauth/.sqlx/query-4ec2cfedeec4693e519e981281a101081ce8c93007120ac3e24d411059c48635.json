@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM oauth_refresh_tokens\n             WHERE family_id = (SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ec2cfedeec4693e519e981281a101081ce8c93007120ac3e24d411059c48635"
+}

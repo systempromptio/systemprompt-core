@@ -157,6 +157,55 @@ async fn expired_key_fails_verification() {
 }
 
 #[tokio::test]
+async fn only_a_live_device_key_stands() {
+    let ctx = setup("stands").await;
+    let limits = systemprompt_users::ApiKeyLimits::default();
+    let issue = |name: &'static str, kind| {
+        ctx.service.issue(IssueApiKeyParams {
+            user_id: &ctx.user_id,
+            name,
+            expires_at: None,
+            limits: &limits,
+            scopes: &[],
+            purpose: None,
+            kind,
+        })
+    };
+    let device = issue("linked device", systemprompt_users::ApiKeyKind::Device)
+        .await
+        .expect("issue device key");
+    let personal = issue("personal", systemprompt_users::ApiKeyKind::User)
+        .await
+        .expect("issue user key");
+
+    assert!(
+        ctx.repo
+            .is_device_key_active(&device.record.id)
+            .await
+            .expect("device key")
+    );
+    assert!(
+        !ctx.repo
+            .is_device_key_active(&personal.record.id)
+            .await
+            .expect("user key"),
+        "a key a person minted is not a device link"
+    );
+    assert!(
+        ctx.service
+            .revoke(&device.record.id, &ctx.user_id)
+            .await
+            .expect("revoke")
+    );
+    assert!(
+        !ctx.repo
+            .is_device_key_active(&device.record.id)
+            .await
+            .expect("revoked device key")
+    );
+}
+
+#[tokio::test]
 async fn revoke_disables_key_and_is_idempotent() {
     let ctx = setup("revoke").await;
     let minted = ctx

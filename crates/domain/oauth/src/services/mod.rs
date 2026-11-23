@@ -24,8 +24,9 @@ pub use authenticated_user::{
 };
 pub use bridge::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeCode, BridgeExchangeRequest,
-    BridgeOAuthClient, exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
-    issue_bridge_exchange_code, provision_bridge_oauth_client,
+    BridgeOAuthClient, DeviceLinkUiRequest, exchange_bridge_session_code, hash_exchange_code,
+    issue_bridge_access, issue_bridge_exchange_code, issue_device_link_code,
+    provision_bridge_oauth_client,
 };
 pub use ema::{EnterprisePrincipal, LinkedSubject, link_enterprise_principal};
 pub use http::is_browser_request;
