@@ -38,6 +38,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-files-entry = { workspace = true, features = ["http", "collab"] }
 systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-agent = { workspace = true }
 systemprompt-agent-entry = { workspace = true, features = ["http"] }

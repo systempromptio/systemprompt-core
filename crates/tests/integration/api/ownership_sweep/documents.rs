@@ -3,7 +3,7 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use axum::{Extension, Router};
 use serde_json::json;
-use systemprompt_api::routes::documents::{DocumentsState, folders_router};
+use systemprompt_files_entry::http::documents::{DocumentsState, folders_router};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use uuid::Uuid;
 

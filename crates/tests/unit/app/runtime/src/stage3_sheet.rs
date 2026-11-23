@@ -8,6 +8,7 @@ use std::sync::Arc;
 use systemprompt_ai::PersonalProviderCredentials;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_database::DbPool;
+use systemprompt_documents::tokens::DocumentLinkTokens;
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_extension::{DynBrainSink, Resolved, StandingTag};
 use systemprompt_files::FilesConfig;
@@ -233,6 +234,20 @@ async fn documents_route_set_reads_the_files_config_handles_and_storage() {
         assert!(route_reads::<DocumentsHandlesSlot>(&ctx, owner), "{owner}");
         assert!(route_reads::<Arc<dyn FileStorage>>(&ctx, owner), "{owner}");
     }
+}
+
+#[tokio::test]
+async fn files_http_alone_reads_the_document_link_token_view() {
+    let ctx = context().await;
+    assert!(route_reads::<Arc<DocumentLinkTokens>>(&ctx, "files-http"));
+    for owner in ["files", "gateway-http", "identity-http", "agent-http"] {
+        assert!(
+            !route_reads::<Arc<DocumentLinkTokens>>(&ctx, owner),
+            "{owner}"
+        );
+    }
+    assert!(!install_reads::<Arc<DocumentLinkTokens>>(&ctx));
+    assert!(!route_reads::<Arc<dyn TokenAuthority>>(&ctx, "files-http"));
 }
 
 #[tokio::test]

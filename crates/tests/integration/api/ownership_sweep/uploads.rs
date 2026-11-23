@@ -2,8 +2,8 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::{Extension, Router};
-use systemprompt_api::routes::documents::DocumentsState;
-use systemprompt_api::routes::uploads::router;
+use systemprompt_files_entry::http::documents::DocumentsState;
+use systemprompt_files_entry::http::uploads::router;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 
 use super::engine::{Fixture, get, sweep};
@@ -56,7 +56,7 @@ impl Fixture for Uploads {
 #[tokio::test]
 async fn a_second_user_is_refused_every_owned_upload_route() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "sweep-upload-owner").await?;
     let stranger = seed_bridge_credential(&pool, "sweep-upload-stranger").await?;
     let id = open(&state, &owner).await?;

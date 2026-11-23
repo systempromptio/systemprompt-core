@@ -9,8 +9,8 @@ use axum::{Extension, Router};
 use serde_json::{Value, json};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
-use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_database::DbPool;
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_identifiers::{ContextId, headers};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
@@ -50,7 +50,7 @@ fn json_request(method: Method, uri: &str, body: &Value) -> Request<Body> {
 
 async fn fixture() -> Result<(DbPool, DocumentsState)> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     Ok((pool, state))
 }
 

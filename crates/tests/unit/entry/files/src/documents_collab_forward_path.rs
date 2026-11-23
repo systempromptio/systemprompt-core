@@ -6,7 +6,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::routing::post;
-use systemprompt_api::routes::documents::collab_updates::forward_path_and_query;
+use systemprompt_files_entry::http::documents::collab_updates::forward_path_and_query;
 use tower::ServiceExt;
 
 async fn echo(request: Request) -> String {

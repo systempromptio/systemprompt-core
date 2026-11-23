@@ -8,12 +8,13 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, document_service, router};
+use systemprompt_api::routes::documents::document_service;
 use systemprompt_documents::mcp::{
     DocumentsMcpConfig, DocumentsMcpTools, ReadHandler, refusal_result,
 };
 use systemprompt_documents::views::{NodeRange, ReadInput, ReadView};
 use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_identifiers::{
     DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId, McpServerId, UserId,
 };
@@ -165,7 +166,7 @@ fn first_node(read: &Value) -> String {
 #[tokio::test]
 async fn every_read_view_answers_alike_over_rest_and_mcp() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-read-parity").await?;
     let (document, base) = create(&state, &owner).await?;
     let (_, outline) = send(

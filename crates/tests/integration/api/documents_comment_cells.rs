@@ -3,7 +3,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, router};
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -84,7 +84,7 @@ async fn comment(
 #[tokio::test]
 async fn a_cell_range_comment_round_trips_over_rest() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-cells").await?;
     let id = created(&state, &owner, "blank-xlsx", "figures.xlsx").await?;
     let sheet = first_node(&state, &owner, &id).await?;
@@ -127,7 +127,7 @@ async fn a_cell_range_comment_round_trips_over_rest() -> Result<()> {
 #[tokio::test]
 async fn a_cell_range_on_markdown_is_a_bad_request() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-cells-md").await?;
     let id = created(&state, &owner, "blank-markdown", "notes.md").await?;
     let node = first_node(&state, &owner, &id).await?;

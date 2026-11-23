@@ -8935,6 +8935,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-files-entry",
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",
@@ -10405,6 +10406,7 @@ name = "systemprompt-documents"
 version = "0.85.0"
 dependencies = [
  "async-trait",
+ "axum",
  "base64 0.23.1",
  "chrono",
  "http",
@@ -10430,7 +10432,9 @@ dependencies = [
  "systemprompt-traits",
  "systemprompt-users",
  "thiserror 2.0.21",
+ "tokio",
  "tracing",
+ "urlencoding",
 ]
 
 [[package]]
@@ -10658,19 +10662,33 @@ name = "systemprompt-files-entry"
 version = "0.85.0"
 dependencies = [
  "anyhow",
+ "async-stream",
+ "axum",
  "base64 0.23.1",
  "chrono",
  "clap",
+ "futures-util",
  "schemars 1.2.3",
  "serde",
+ "serde_json",
  "sha2 0.11.1",
  "systemprompt-database",
+ "systemprompt-documents",
+ "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.21",
  "tokio",
+ "tower",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -10678,6 +10696,7 @@ name = "systemprompt-files-entry-tests"
 version = "0.0.11"
 dependencies = [
  "anyhow",
+ "axum",
  "clap",
  "serde_json",
  "sha2 0.11.1",
@@ -10696,6 +10715,7 @@ dependencies = [
  "systemprompt-traits",
  "tempfile",
  "tokio",
+ "tower",
  "uuid",
 ]
 
@@ -12610,6 +12630,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-files-entry",
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",
@@ -12750,6 +12771,7 @@ dependencies = [
  "systemprompt-documents",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-files-entry",
  "systemprompt-identifiers",
  "systemprompt-issues",
  "systemprompt-logging",

@@ -11,8 +11,8 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use loro::{Container, ExportMode, LoroDoc, ValueOrContainer};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_database::DbPool;
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_governance::authz::{AllowAllHook, SharedAuthzHook, SubjectProviderSet};
 use systemprompt_runtime::AppContext;
 use systemprompt_storage::LocalFileStorage;
@@ -27,7 +27,7 @@ use super::common::{browser_page, request_context, setup_ctx};
 
 async fn fixture() -> Result<(DbPool, Arc<AppContext>, DocumentsState)> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     Ok((pool, ctx, state))
 }
 

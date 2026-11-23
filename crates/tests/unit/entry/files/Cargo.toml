@@ -15,7 +15,7 @@ systemprompt-cli = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-files = { workspace = true }
-systemprompt-files-entry = { workspace = true, features = ["cli", "http"] }
+systemprompt-files-entry = { workspace = true, features = ["cli", "http", "collab"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
@@ -25,6 +25,8 @@ systemprompt-traits = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
+axum = { workspace = true }
+tower = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 serde_json = { workspace = true }

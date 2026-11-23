@@ -110,6 +110,8 @@ mod wave_h_seams;
 #[cfg(test)]
 mod brain_live;
 #[cfg(test)]
+mod document_token_views;
+#[cfg(test)]
 mod documents_mcp_attribution;
 #[cfg(test)]
 mod documents_mcp_browse;
@@ -185,8 +187,6 @@ mod startup_validation;
 mod storage_backends;
 #[cfg(test)]
 mod trace;
-#[cfg(test)]
-mod document_token_views;
 mod upload_grants;
 #[cfg(test)]
 mod validate_database_path;

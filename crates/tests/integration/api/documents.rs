@@ -14,13 +14,13 @@ use axum::{Extension, Router};
 use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
     StaticContentState, serve_static_content,
 };
 use systemprompt_database::DbPool;
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_models::RouteClassifier;
 use systemprompt_models::documents::content_hash;
 use systemprompt_runtime::AppContext;
@@ -78,7 +78,7 @@ pub(super) fn json_request(method: Method, uri: &str, body: &Value) -> Request<B
 
 pub(super) async fn fixture() -> Result<(DbPool, Arc<AppContext>, DocumentsState)> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     Ok((pool, ctx, state))
 }
 
@@ -724,8 +724,8 @@ fn foreign_authority(ctx: &AppContext) -> Result<systemprompt_security::Deployme
 
 #[tokio::test]
 async fn a_signed_download_link_reads_only_its_document_revision() -> Result<()> {
-    use systemprompt_api::routes::documents::with_download_tokens;
     use systemprompt_documents::download::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
+    use systemprompt_files_entry::http::documents::with_download_tokens;
     use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 
     let (pool, ctx, state) = fixture().await?;
@@ -823,7 +823,7 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
         &Arc::new(ReadinessState::new()),
     )
     .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-mounted").await?;
     let created = create_markdown(&state, &owner).await?;
     let (id, revision) = (id_of(&created), head_of(&created));
@@ -884,7 +884,7 @@ async fn the_mounted_preview_frames_same_origin_and_keeps_its_sandbox_policy() -
         &Arc::new(ReadinessState::new()),
     )
     .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-preview").await?;
     let id = id_of(&create_markdown(&state, &owner).await?);
     let mut req = request(Method::GET, &format!("/api/v1/documents/{id}/preview"))
@@ -921,7 +921,7 @@ async fn the_mounted_preview_frames_same_origin_and_keeps_its_sandbox_policy() -
 
 #[tokio::test]
 async fn patch_moves_into_a_folder_and_an_explicit_null_moves_to_the_root() -> Result<()> {
-    use systemprompt_api::routes::documents::folders_router;
+    use systemprompt_files_entry::http::documents::folders_router;
 
     let (pool, _ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-move").await?;

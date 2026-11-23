@@ -2,7 +2,7 @@
 //! routes.
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_api::routes::documents::actor_scope::same_origin;
+use systemprompt_files_entry::http::documents::actor_scope::same_origin;
 
 fn headers(pairs: &[(&'static str, &'static str)]) -> HeaderMap {
     let mut map = HeaderMap::new();

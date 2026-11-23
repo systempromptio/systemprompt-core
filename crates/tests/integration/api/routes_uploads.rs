@@ -7,8 +7,8 @@ use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use systemprompt_api::routes::documents::DocumentsState;
-use systemprompt_api::routes::uploads::router;
+use systemprompt_files_entry::http::documents::DocumentsState;
+use systemprompt_files_entry::http::uploads::router;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -69,7 +69,7 @@ pub(super) async fn open(state: &DocumentsState, user: &AuthedFixture) -> Result
 #[tokio::test]
 async fn an_upload_runs_from_open_to_content() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let user = seed_bridge_credential(&pool, "uploads-flow").await?;
     let id = open(&state, &user).await?;
 
@@ -168,7 +168,7 @@ async fn an_upload_runs_from_open_to_content() -> Result<()> {
 #[tokio::test]
 async fn aborts_strangers_and_bad_ids_are_refused() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let user = seed_bridge_credential(&pool, "uploads-abort").await?;
     let stranger = seed_bridge_credential(&pool, "uploads-stranger").await?;
     let id = open(&state, &user).await?;

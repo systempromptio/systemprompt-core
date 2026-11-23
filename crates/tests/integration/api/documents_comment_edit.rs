@@ -3,7 +3,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, router};
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -49,7 +49,7 @@ struct Doc {
 
 async fn commented(tag: &str) -> Result<Doc> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, tag).await?;
     let body = json!({
         "template_id": "blank-markdown",

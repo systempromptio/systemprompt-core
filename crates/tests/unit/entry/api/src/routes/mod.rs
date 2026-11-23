@@ -10,8 +10,6 @@ mod admin_cli_disconnect;
 mod admin_services;
 mod admin_services_refresh;
 mod bridge_profile_models;
-mod documents_actor_scope;
-mod documents_collab_forward_path;
 mod gateway_access_log_polling;
 mod gateway_auth_provision_client;
 mod gateway_auth_provision_success;
