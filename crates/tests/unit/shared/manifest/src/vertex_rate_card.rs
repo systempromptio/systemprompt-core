@@ -194,6 +194,29 @@ fn support_follows_the_documented_retirement_with_a_notice_window() {
 }
 
 #[test]
+fn gemini_4_is_priced_on_the_gemini_wire_at_the_documented_rate() {
+    let card = card();
+    for (id, upstream, input, output) in [
+        ("vertex-gemini-4-argon", "google/gemini-4-argon", 4.0, 20.0),
+        (
+            "vertex-gemini-4-hydrogen",
+            "google/gemini-4-hydrogen",
+            1.5,
+            7.5,
+        ),
+    ] {
+        let entry = card.lookup(upstream).expect("priced");
+        assert_eq!(entry.id.as_str(), id);
+        assert_eq!(entry.wire, WireProtocol::Gemini);
+        assert!(entry.is_supported(day("2026-11-23")), "{id} is served");
+        assert!((entry.pricing.input_per_million - input).abs() < f64::EPSILON);
+        assert!((entry.pricing.output_per_million - output).abs() < f64::EPSILON);
+    }
+    let hydrogen = card.lookup_id("vertex-gemini-4-hydrogen").expect("priced");
+    assert_eq!(hydrogen.price_until, Some(day("2027-01-11")));
+}
+
+#[test]
 fn deprecated_maas_models_are_unsupported_inside_their_notice_window() {
     let card = card();
     for id in [

@@ -9,6 +9,7 @@
 ### Added
 
 - **Notifications:** an event can say the platform produced it. `NotificationEvent::with_actor_is_system(true)` marks an event produced on the platform's own schedule (a scheduled job), whose `actor` is the account it is attributed to; that account is then kept among the recipients, where a person's own action never notifies them. Routing reads the flag only: it is not stored on the notification and no API or SDK field carries it.
+- **Gateway:** the Vertex rate card prices Gemini 4 Argon (`vertex-gemini-4-argon`) and Gemini 4 Hydrogen (`vertex-gemini-4-hydrogen`) on the gemini wire. Vertex discovery publishes each one in a project whose publisher listing carries it; an instance that declares neither sees them appear at the next boot or discovery run. Hydrogen carries `price_until` 2027-01-11, the day before its cache writes become billable per token.
 
 ## [0.85.0] - 2026-11-21
 
