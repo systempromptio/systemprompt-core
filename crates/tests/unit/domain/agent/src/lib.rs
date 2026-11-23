@@ -50,9 +50,7 @@ pub(crate) fn spawn_environment()
 pub(crate) fn session_usage(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_traits::DynSessionUsageCounters {
-    systemprompt_test_fixtures::fixture_analytics_repositories(db)
-        .expect("session repository")
-        .session_store
+    systemprompt_test_fixtures::fixture_session_usage(db)
 }
 
 #[cfg(test)]

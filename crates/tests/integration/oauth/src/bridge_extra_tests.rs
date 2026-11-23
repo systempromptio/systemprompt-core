@@ -104,7 +104,7 @@ async fn exchange_code_issued_and_consumed_once() {
     let result = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
@@ -124,7 +124,7 @@ async fn exchange_code_issued_and_consumed_once() {
     let replay = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
@@ -152,7 +152,7 @@ async fn exchange_unknown_code_returns_none() {
     let result = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),

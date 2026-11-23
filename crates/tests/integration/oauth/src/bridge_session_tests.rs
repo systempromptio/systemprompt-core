@@ -111,7 +111,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     let result = issue_bridge_access(
         &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&config, &exchange_request_headers(), None, &user_id),
     )
@@ -130,8 +130,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
             .expect("minted token carries a session id"),
     );
 
-    let session = analytics
-        .session_store()
+    let session = systemprompt_test_fixtures::fixture_session_store(&db)
         .find_active_by_id(&session_id)
         .await
         .expect("session lookup ok")
@@ -159,7 +158,7 @@ async fn bridge_session_captures_request_analytics() {
     let result = issue_bridge_access(
         &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&config, &exchange_request_headers(), caller_ip, &user_id),
     )
@@ -207,7 +206,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
     let result = issue_bridge_access(
         &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeAccessRequest::bridge(
             &config,
@@ -228,8 +227,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
         "minted JWT must carry the session id the bridge supplied via x-session-id"
     );
 
-    let session = analytics
-        .session_store()
+    let session = systemprompt_test_fixtures::fixture_session_store(&db)
         .find_active_by_id(&supplied)
         .await
         .expect("session lookup ok")
@@ -259,7 +257,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     issue_bridge_access(
         &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&config, &headers, None, &user_id),
     )
@@ -268,7 +266,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     issue_bridge_access(
         &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&config, &headers, None, &user_id),
     )
@@ -299,7 +297,7 @@ async fn a_purposed_exchange_gets_no_device_token() {
     let result = issue_bridge_access(
         &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
-        &**analytics.session_store(),
+        &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&config, &exchange_request_headers(), None, &user_id)
             .with_purpose(Some("farm:run-1".to_owned())),

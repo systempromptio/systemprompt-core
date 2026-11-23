@@ -50,7 +50,7 @@ impl SlackClients {
 
 /// The Slack member's handle on the sealed messaging dispatcher: built only
 /// by the member's own provide fn, provided sealed, and driven only with the
-/// [`SlackVerified`] proof the signature verifier returns.
+/// `SlackVerified` proof the signature verifier returns.
 #[derive(Clone)]
 pub struct SlackDispatch {
     dispatcher: LateRead<dyn MessagingDispatcher>,

@@ -79,7 +79,7 @@ pub(crate) struct TeamsVerified {
 
 /// The Teams member's handle on the sealed messaging dispatcher: built only
 /// by the member's own provide fn, provided sealed, and driven only with the
-/// [`TeamsVerified`] proof the token verifier returns.
+/// `TeamsVerified` proof the token verifier returns.
 #[derive(Clone)]
 pub struct TeamsDispatch {
     dispatcher: LateRead<dyn MessagingDispatcher>,

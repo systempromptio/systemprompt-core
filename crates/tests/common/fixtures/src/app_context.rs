@@ -48,6 +48,14 @@ pub fn fixture_analytics_repositories(
     )
 }
 
+pub fn fixture_session_usage(db: &DbPool) -> systemprompt_traits::DynSessionUsageCounters {
+    Arc::new(systemprompt_users::SessionRepository::new(db))
+}
+
+pub fn fixture_session_store(db: &DbPool) -> systemprompt_traits::DynSessionStore {
+    Arc::new(systemprompt_users::SessionRepository::new(db))
+}
+
 pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintRepository> {
     Ok(FingerprintRepository::new(
         db,

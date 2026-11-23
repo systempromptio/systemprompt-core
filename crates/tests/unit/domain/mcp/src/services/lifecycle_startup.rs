@@ -3,6 +3,7 @@
 //! detection, and the external-server spawn guard.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::LifecycleService;
@@ -20,7 +21,8 @@ const fn attempt(number: u32, started: std::time::Instant) -> StartupAttempt {
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 use systemprompt_traits::startup_channel;
-use wiremock::MockServer;
+use wiremock::matchers::{body_partial_json, method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::harness::{
     default_tools_json, external_mcp_config, internal_mcp_config, mount_mcp_endpoint,

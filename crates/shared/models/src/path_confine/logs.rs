@@ -7,8 +7,8 @@
 //! convention; lookup also accepts a bare `<name>.log` path and a substring
 //! match over the discovered set. The name is accepted only as a single path
 //! segment, and every entry is resolved through
-//! [`entries_within`](super::entries_within) /
-//! [`locate_within`](super::locate_within), so neither a name nor a symbolic
+//! [`entries_within`] /
+//! [`locate_within`], so neither a name nor a symbolic
 //! link leads a read out of the logs directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
