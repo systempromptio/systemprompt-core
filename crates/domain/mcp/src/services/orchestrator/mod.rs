@@ -31,6 +31,7 @@ pub use reconciliation::ReconcileParams;
 pub use subscribers::{DatabaseSyncSubscriber, LifecycleSubscriber, MonitoringSubscriber};
 
 use super::database::DatabaseService;
+use super::health_probe::{HealthHop, HealthProbe};
 use super::lifecycle::LifecycleService;
 use super::monitoring::MonitoringService;
 use super::monitoring::status::McpServiceStatus;
@@ -42,14 +43,17 @@ use crate::McpServerConfig;
 use systemprompt_config::DynChildSecretEnv;
 use systemprompt_security::keys::TokenVerificationKeys;
 
-/// What the orchestrator spawns servers with: the spawner, the grant-scoped
-/// secret environment and the public verification key set handed to every
-/// child.
+/// What the orchestrator spawns and checks servers with.
+///
+/// The spawner, the grant-scoped secret environment, the public verification
+/// key set handed to every child, and the health hop its health checks
+/// present (kernel only).
 #[derive(Debug, Clone)]
 pub struct McpSpawn {
     pub spawner: Arc<Spawner>,
     pub secrets: DynChildSecretEnv,
     pub verification_keys: TokenVerificationKeys,
+    pub health: HealthHop,
 }
 
 #[derive(Debug)]
@@ -84,12 +88,12 @@ impl McpOrchestrator {
             spawn.secrets,
             spawn.verification_keys,
         );
-        let monitoring = MonitoringService::new();
+        let monitoring = MonitoringService::new(HealthProbe::Handshake(spawn.health));
         let lifecycle = LifecycleService::new(
             process,
             network,
             database.clone(),
-            monitoring,
+            monitoring.clone(),
             Arc::clone(&app_paths),
         );
 
@@ -136,7 +140,11 @@ impl McpOrchestrator {
     }
 
     fn observer(&self) -> McpServiceObserver {
-        McpServiceObserver::over(self.database.clone(), self.registry.clone())
+        McpServiceObserver::over(
+            self.database.clone(),
+            self.registry.clone(),
+            self.monitoring.probe().clone(),
+        )
     }
 
     pub async fn show_status(&self) -> McpDomainResult<()> {
@@ -185,7 +193,13 @@ impl McpOrchestrator {
     }
 
     pub async fn validate_service(&self, service_name: &ServiceName) -> McpDomainResult<()> {
-        service_validation::validate_service(service_name, &self.database, &self.registry).await
+        service_validation::validate_service(
+            service_name,
+            &self.database,
+            &self.registry,
+            self.monitoring.probe(),
+        )
+        .await
     }
 
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {

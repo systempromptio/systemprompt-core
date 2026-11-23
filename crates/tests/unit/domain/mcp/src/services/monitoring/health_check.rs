@@ -177,7 +177,9 @@ fn unhealthy_constructor() {
 async fn perform_health_check_internal_unreachable_returns_unhealthy() {
     let port = unused_port();
     let config = make_config("internal-unreach", McpServerType::Internal, port, "");
-    let result = perform_health_check(&config).await.unwrap();
+    let result = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .unwrap();
     assert!(matches!(
         result.status,
         HealthStatus::Unhealthy | HealthStatus::Unknown
@@ -187,7 +189,9 @@ async fn perform_health_check_internal_unreachable_returns_unhealthy() {
 #[tokio::test]
 async fn perform_health_check_external_invalid_url_returns_unhealthy() {
     let config = make_config("external-bad", McpServerType::External, 0, "not-a-url");
-    let result = perform_health_check(&config).await.unwrap();
+    let result = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .unwrap();
     assert!(!matches!(result.status, HealthStatus::Healthy));
 }
 
@@ -195,6 +199,8 @@ async fn perform_health_check_external_invalid_url_returns_unhealthy() {
 async fn check_service_health_returns_status_for_unreachable() {
     let port = unused_port();
     let config = make_config("svc-h", McpServerType::Internal, port, "");
-    let status = check_service_health(&config).await.unwrap();
+    let status = check_service_health(&config, &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .unwrap();
     assert!(!matches!(status, HealthStatus::Healthy));
 }

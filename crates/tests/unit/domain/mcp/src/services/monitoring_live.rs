@@ -69,7 +69,9 @@ async fn health_check_of_an_accessor_backed_external_server_skips_the_probe() {
         scheme: "Bearer".to_owned(),
     });
 
-    let result = perform_health_check(&config).await.expect("probe runs");
+    let result = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .expect("probe runs");
 
     assert_eq!(result.status, HealthStatus::Healthy);
     assert_eq!(result.details.validation_type, "external_accessor_backed");
@@ -88,7 +90,9 @@ async fn health_check_of_an_external_server_probes_its_remote_endpoint() {
     let mock = mcp_server_with(default_tools_json()).await;
     let config = external_config("mon_ext_up", &format!("{}/mcp", mock.uri()));
 
-    let result = perform_health_check(&config).await.expect("probe runs");
+    let result = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .expect("probe runs");
 
     assert_eq!(result.status, HealthStatus::Healthy);
     assert_eq!(result.details.tools_available, Some(2));
@@ -106,7 +110,9 @@ async fn health_check_of_an_external_server_probes_its_remote_endpoint() {
 async fn health_check_of_an_unreachable_external_server_is_unhealthy() {
     let config = external_config("mon_ext_down", "http://127.0.0.1:9/mcp");
 
-    let result = perform_health_check(&config).await.expect("probe runs");
+    let result = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .expect("probe runs");
 
     assert_eq!(result.status, HealthStatus::Unhealthy);
     assert!(
@@ -120,7 +126,9 @@ async fn health_check_of_a_server_reporting_no_tools_is_unknown() {
     let mock = mcp_server_with(serde_json::json!([])).await;
     let config = external_config("mon_ext_empty", &format!("{}/mcp", mock.uri()));
 
-    let result = perform_health_check(&config).await.expect("probe runs");
+    let result = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .expect("probe runs");
 
     assert_eq!(
         result.status,
@@ -135,7 +143,7 @@ async fn check_health_returns_only_the_verdict() {
     let mock = mcp_server_with(default_tools_json()).await;
     let config = external_config("mon_verdict", &format!("{}/mcp", mock.uri()));
 
-    let status = MonitoringService::new()
+    let status = MonitoringService::new(systemprompt_test_fixtures::fixture_health_probe())
         .check_health(&config)
         .await
         .expect("check runs");
@@ -154,7 +162,7 @@ async fn status_for_all_maps_each_health_verdict_onto_a_service_state() {
         external_config("mon_all_down", "http://127.0.0.1:9/mcp"),
     ];
 
-    let statuses = MonitoringService::new()
+    let statuses = MonitoringService::new(systemprompt_test_fixtures::fixture_health_probe())
         .get_status_for_all(&servers)
         .await
         .expect("status roll-up runs");

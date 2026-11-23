@@ -127,7 +127,7 @@ async fn perform_health_check_external_server_is_healthy() {
     let server = start_echo_mcp_server("echo").await;
     let config = external_config("live-external", &server.url);
 
-    let health = perform_health_check(&config)
+    let health = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
         .await
         .expect("health check must not error");
 
@@ -148,7 +148,7 @@ async fn check_service_health_internal_server_path() {
     let server = start_echo_mcp_server("echo").await;
     let config = internal_config("live-internal", &server.host, server.port);
 
-    let status = check_service_health(&config)
+    let status = check_service_health(&config, &systemprompt_test_fixtures::fixture_health_probe())
         .await
         .expect("health check must not error");
 
@@ -163,7 +163,7 @@ async fn perform_health_check_unreachable_external_is_unhealthy() {
     ensure_test_bootstrap();
     let config = external_config("dead-external", "http://127.0.0.1:1/mcp");
 
-    let health = perform_health_check(&config)
+    let health = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
         .await
         .expect("health check wraps errors");
 

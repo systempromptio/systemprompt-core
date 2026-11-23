@@ -36,6 +36,10 @@ fn orchestrator(
                 spawner: std::sync::Arc::clone(ctx.spawner()),
                 secrets: ctx.secrets().clone(),
                 verification_keys: ctx.signing_keys().verification_keys().clone(),
+                health: systemprompt_mcp::services::health_probe::HealthHop::new(
+                    ctx.signing_keys().clone(),
+                    &ctx.config().jwt_issuer,
+                ),
             },
         )
         .expect("orchestrator"),

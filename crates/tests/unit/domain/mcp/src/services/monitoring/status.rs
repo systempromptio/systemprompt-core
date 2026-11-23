@@ -8,7 +8,9 @@ use systemprompt_models::mcp::McpServerType;
 #[tokio::test]
 async fn test_get_all_service_status_empty() {
     use systemprompt_mcp::services::monitoring::status::get_all_service_status;
-    let statuses = get_all_service_status(&[]).await.unwrap();
+    let statuses = get_all_service_status(&[], &systemprompt_test_fixtures::fixture_health_probe())
+        .await
+        .unwrap();
     assert!(statuses.is_empty());
 }
 
@@ -54,7 +56,12 @@ async fn test_get_all_service_status_unreachable() {
         external_auth: None,
         headers: Default::default(),
     };
-    let statuses = get_all_service_status(&[config]).await.unwrap();
+    let statuses = get_all_service_status(
+        &[config],
+        &systemprompt_test_fixtures::fixture_health_probe(),
+    )
+    .await
+    .unwrap();
     assert_eq!(statuses.len(), 1);
     assert_eq!(statuses[0].name, "unreach");
     assert_eq!(statuses[0].observed_state(), ServiceStatus::Stopped);

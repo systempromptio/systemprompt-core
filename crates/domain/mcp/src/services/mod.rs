@@ -7,6 +7,7 @@ pub mod artifact_ingest;
 pub mod client;
 pub mod database;
 pub mod deployment;
+pub mod health_probe;
 pub mod intent_claim;
 pub mod lifecycle;
 pub mod monitoring;

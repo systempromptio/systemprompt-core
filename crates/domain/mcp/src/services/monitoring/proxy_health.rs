@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+use crate::services::health_probe::HealthProbe;
 use std::time::Duration;
 use systemprompt_database::ServiceRepository;
 use systemprompt_identifiers::ServiceName;
@@ -13,11 +14,15 @@ use tokio::net::TcpStream;
 #[derive(Debug)]
 pub struct ProxyHealthCheck {
     service_repo: ServiceRepository,
+    probe: HealthProbe,
 }
 
 impl ProxyHealthCheck {
-    pub const fn new(service_repo: ServiceRepository) -> Self {
-        Self { service_repo }
+    pub const fn new(service_repo: ServiceRepository, probe: HealthProbe) -> Self {
+        Self {
+            service_repo,
+            probe,
+        }
     }
 
     pub async fn can_route_traffic(
@@ -40,7 +45,7 @@ impl ProxyHealthCheck {
             return Ok(false);
         }
 
-        if !Self::can_connect_mcp(port).await {
+        if !self.can_connect_mcp(service_name, port).await {
             self.service_repo
                 .update_service_status(service_name, ServiceStatus::Error)
                 .await?;
@@ -57,12 +62,12 @@ impl ProxyHealthCheck {
             .is_ok_and(|connected| connected.is_ok())
     }
 
-    async fn can_connect_mcp(port: u16) -> bool {
+    async fn can_connect_mcp(&self, service_name: &ServiceName, port: u16) -> bool {
         use crate::services::client::validate_hosted_service;
 
         tokio::time::timeout(
             Duration::from_millis(500),
-            validate_hosted_service(&ServiceName::new("proxy_check"), "127.0.0.1", port),
+            validate_hosted_service(service_name, "127.0.0.1", port, &self.probe),
         )
         .await
         .is_ok_and(|result| result.success)

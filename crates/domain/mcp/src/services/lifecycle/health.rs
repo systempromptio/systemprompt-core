@@ -19,7 +19,7 @@ pub async fn check_server_health(
         return Ok(false);
     }
 
-    let health_result = perform_health_check(config).await?;
+    let health_result = perform_health_check(config, lifecycle.monitoring().probe()).await?;
     let is_healthy = matches!(
         health_result.status,
         HealthStatus::Healthy | HealthStatus::Degraded

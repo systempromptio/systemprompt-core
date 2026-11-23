@@ -1,8 +1,9 @@
 //! [`McpProcessSet`]: the MCP member's supervised process set.
 //!
 //! Built by the member's slot factory from sealed seeds (spawner, child
-//! secret environment, system admin) and open values (verification keys,
-//! services view), it builds an [`McpOrchestrator`] per operation. On a host
+//! secret environment, system admin, and the signing keys its health checks
+//! mint the health hop with) and open values (verification keys, services
+//! view), it builds an [`McpOrchestrator`] per operation. On a host
 //! that seeds no spawner (a child host) every operation refuses with
 //! `ServiceProcessError::Unavailable`.
 //!
@@ -21,13 +22,14 @@ use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_security::keys::TokenVerificationKeys;
+use systemprompt_security::keys::{SigningKeys, TokenVerificationKeys};
 use systemprompt_traits::{
     RestartMode, ServiceDetail, ServiceHealth, ServiceProcessError, ServiceProcessKind,
     ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
 };
 
 use super::McpOrchestrator;
+use super::health_probe::HealthHop;
 use super::monitoring::health::HealthStatus;
 use super::orchestrator::McpSpawn;
 use super::registry::RegistryService;
@@ -74,13 +76,15 @@ impl McpProcessSet {
         r: &Resolved<'_>,
         services: ServiceRepository,
     ) -> Result<Self, FactoryError> {
-        let (Some(spawner), Some(secrets), Some(verification_keys)) = (
+        let (Some(spawner), Some(secrets), Some(verification_keys), Some(signing)) = (
             r.optional::<Arc<Spawner>>(),
             r.optional::<DynChildSecretEnv>(),
             r.optional::<TokenVerificationKeys>(),
+            r.optional::<SigningKeys>(),
         ) else {
             return Ok(Self { inputs: None });
         };
+        let config = r.get::<Arc<Config>>()?;
         Ok(Self {
             inputs: Some(Inputs {
                 services,
@@ -88,12 +92,13 @@ impl McpProcessSet {
                 registry: RegistryService::new(
                     r.get::<SystemAdmin>()?.id().clone(),
                     r.get::<ServicesView>()?,
-                    r.get::<Arc<Config>>()?,
+                    Arc::clone(&config),
                 ),
                 spawn: McpSpawn {
                     spawner,
                     secrets,
                     verification_keys,
+                    health: HealthHop::new(signing, &config.jwt_issuer),
                 },
             }),
         })

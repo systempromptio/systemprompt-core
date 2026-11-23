@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "MCP"
+text = "Kernel health checks of hosted MCP servers perform the MCP handshake again, presenting a hop token minted for the server by a fixed health principal (no user, no roles); a hung or non-MCP listener is unhealthy. Member-held observers check port reachability only."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpSpawn` gains `health: HealthHop`; `MonitoringService::new`, `ProxyHealthCheck::new`, `validate_hosted_service`, `perform_health_check`, `check_service_health`, `get_all_service_status`, `wait_for_startup` and `check_health_status` take a `HealthProbe`. New module `services::health_probe` (`HealthHop`, `HealthProbe`, `HEALTH_PRINCIPAL`)."

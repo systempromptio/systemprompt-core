@@ -10,6 +10,7 @@ use tracing::{info, warn};
 use crate::services::client::{
     rewrite_url_for_internal_use, validate_connection_by_url, validate_hosted_service,
 };
+use crate::services::health_probe::HealthProbe;
 use crate::services::registry::RegistryService;
 
 pub(super) async fn check_server_connection(
@@ -23,7 +24,13 @@ pub(super) async fn check_server_connection(
     };
     let service_name = ServiceName::of_mcp_server(server_name);
     let result = if let Some(port) = server_config.port {
-        Ok(validate_hosted_service(&service_name, &server_config.host, port).await)
+        Ok(validate_hosted_service(
+            &service_name,
+            &server_config.host,
+            port,
+            &HealthProbe::Listening,
+        )
+        .await)
     } else {
         let url = server_config.endpoint(api_server_url);
         let url = rewrite_url_for_internal_use(&url, config);
@@ -65,7 +72,12 @@ pub(super) async fn check_server_health(
     let host = parsed_url.host_str().unwrap_or("127.0.0.1");
     let actual_port = server_port.unwrap_or_else(|| parsed_url.port().unwrap_or(80));
 
-    validate_hosted_service(&ServiceName::of_mcp_server(server_name), host, actual_port)
-        .await
-        .success
+    validate_hosted_service(
+        &ServiceName::of_mcp_server(server_name),
+        host,
+        actual_port,
+        &HealthProbe::Listening,
+    )
+    .await
+    .success
 }

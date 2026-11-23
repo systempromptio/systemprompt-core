@@ -11,6 +11,7 @@
 use super::LifecycleService;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use crate::services::health_probe::HealthProbe;
 use crate::services::monitoring::health::{HealthStatus, perform_health_check};
 use crate::services::network::NetworkService;
 use crate::services::network::port::MAX_PORT_CLEANUP_ATTEMPTS;
@@ -47,7 +48,7 @@ pub async fn start_server(
         .process()
         .spawn_server(lifecycle.app_paths(), config)?;
 
-    wait_for_startup(config, pid, events).await?;
+    wait_for_startup(config, lifecycle.monitoring().probe(), pid, events).await?;
 
     lifecycle.database().register_service(config, pid).await?;
 
@@ -58,6 +59,7 @@ pub async fn start_server(
 
 pub async fn wait_for_startup(
     config: &McpServerConfig,
+    probe: &HealthProbe,
     expected_pid: u32,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<Option<i32>> {
@@ -86,9 +88,12 @@ pub async fn wait_for_startup(
             continue;
         }
 
-        if let Some(result) =
-            check_health_status(config, attempt, max_attempts, start_time, events).await?
-        {
+        let progress = StartupAttempt {
+            number: attempt,
+            of: max_attempts,
+            started: start_time,
+        };
+        if let Some(result) = check_health_status(config, probe, progress, events).await? {
             return Ok(Some(result));
         }
     }
@@ -113,14 +118,27 @@ pub fn calculate_delay(attempt: u32, base_delay: Duration) -> Duration {
     }
 }
 
+/// One health check of a starting server: its number, the attempt budget
+/// and when the wait began.
+#[derive(Debug, Clone, Copy)]
+pub struct StartupAttempt {
+    pub number: u32,
+    pub of: u32,
+    pub started: std::time::Instant,
+}
+
 pub async fn check_health_status(
     config: &McpServerConfig,
-    attempt: u32,
-    max_attempts: u32,
-    start_time: std::time::Instant,
+    probe: &HealthProbe,
+    progress: StartupAttempt,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<Option<i32>> {
-    let health_result = match perform_health_check(config).await {
+    let StartupAttempt {
+        number: attempt,
+        of: max_attempts,
+        started: start_time,
+    } = progress;
+    let health_result = match perform_health_check(config, probe).await {
         Ok(r) => r,
         Err(e) => {
             if attempt >= max_attempts - 5 {
