@@ -12587,7 +12587,6 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-logging",
- "systemprompt-mcp-host",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
