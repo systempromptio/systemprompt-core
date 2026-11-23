@@ -58,7 +58,6 @@ jobs:
     # across every Linux Rust job in CI and Quality; see ci.yml.
     env:
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,10 +71,18 @@ jobs:
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: cargo clippy --workspace --all-targets --all-features --keep-going --locked -- -D warnings
       - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
-      - run: sccache --show-stats
+      - run: sccache --show-stats || true
 
   lint-tests:
     name: Test workspace all-targets clippy + rustdoc
@@ -86,7 +93,6 @@ jobs:
       DATABASE_URL: postgres://test:test@localhost:5432/test
       CARGO_BUILD_JOBS: "2"
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     services:
       postgres:
@@ -110,6 +116,14 @@ jobs:
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - name: Migrate disposable database
         env:
           SQLX_OFFLINE: "true"
@@ -123,7 +137,7 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
         run: cargo doc --manifest-path crates/tests/Cargo.toml --workspace --no-deps --locked
-      - run: sccache --show-stats
+      - run: sccache --show-stats || true
         if: ${{ !cancelled() }}
 
   bridge-native:
@@ -178,7 +192,6 @@ jobs:
     env:
       RUSTDOCFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -190,9 +203,17 @@ jobs:
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - run: cargo doc --workspace --no-deps --all-features --locked
       - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps --locked
-      - run: sccache --show-stats
+      - run: sccache --show-stats || true
 
   # The source gates run as four parallel jobs (the single sequential job was
   # ~9m on the critical path). Each gate step carries `!cancelled()`: without
@@ -260,7 +281,6 @@ jobs:
     timeout-minutes: 30
     env:
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -270,6 +290,14 @@ jobs:
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-discarded-results
         if: ${{ !cancelled() }}
@@ -306,7 +334,6 @@ jobs:
     timeout-minutes: 40
     env:
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -322,6 +349,14 @@ jobs:
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-bridge-lints-sync
         if: ${{ !cancelled() }}
@@ -370,7 +405,6 @@ jobs:
     timeout-minutes: 30
     env:
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       # fetch-depth: 0 because check-crate-changelogs diffs each crate against
@@ -386,6 +420,14 @@ jobs:
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
@@ -445,7 +487,6 @@ jobs:
       # stable, so a lint that differs between compilers cannot fail here.
       RUSTFLAGS: "--cap-lints=warn"
       SCCACHE_GHA_ENABLED: "true"
-      SCCACHE_IGNORE_SERVER_IO_ERROR: "1"
       RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -457,6 +498,14 @@ jobs:
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@d86e0fa8f147d6539442c26a61ebba8becc19489 # 1.96.0
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - name: Assert the toolchain under test really is the MSRV
         run: |
           want="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
