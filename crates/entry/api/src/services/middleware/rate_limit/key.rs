@@ -17,7 +17,7 @@ use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 
-use crate::services::middleware::client_addr::{forwarded_headers_ignored, resolve_client_ip};
+use systemprompt_security::http::{forwarded_headers_ignored, resolve_client_ip};
 
 const UNTRUSTED_PROXY_WARN_INTERVAL_SECS: u64 = 300;
 

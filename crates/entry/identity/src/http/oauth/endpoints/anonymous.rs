@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_manifest::Config;
 
-use crate::kernel::{ClientIp, SameSite, SessionCookie};
+use systemprompt_security::http::{ClientIp, SameSite, SessionCookie};
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
@@ -19,7 +19,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::{OAuthHttpError, internal};
 use systemprompt_traits::{ExtractSignals, SessionAnalytics};
 
 #[derive(Debug, Serialize)]

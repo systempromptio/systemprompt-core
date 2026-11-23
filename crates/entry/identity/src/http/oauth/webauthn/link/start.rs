@@ -12,7 +12,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct StartLinkQuery {

@@ -2,13 +2,17 @@
 //!
 //! `McpRegistryProvider` is dispatched as a trait object
 //! (`dyn McpRegistryProvider`), so it uses `#[async_trait]`; native `async fn`
-//! in traits is not yet `dyn`-compatible. `AgentRegistryProvider` reads an
+//! in traits is not yet `dyn`-compatible. Its provided `oauth_scopes` reads
+//! the scopes a server requires OAuth for (none when OAuth is off or lists no
+//! scope); `oauth_scopes_for_resource` does so for an RFC 8707 resource URL
+//! naming `/api/v1/mcp/{server}/mcp`. `AgentRegistryProvider` reads an
 //! in-memory registry and is synchronous.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
+use systemprompt_identifiers::McpServerId;
 
 use crate::BoxedSource;
 
@@ -98,5 +102,25 @@ pub trait McpRegistryProvider: Send + Sync {
             Err(RegistryError::NotFound(_)) => Ok(false),
             Err(e) => Err(e),
         }
+    }
+
+    async fn oauth_scopes(&self, server: &McpServerId) -> Option<Vec<String>> {
+        match self.get_server(server.as_str()).await {
+            Ok(info) if info.oauth.required && !info.oauth.scopes.is_empty() => {
+                Some(info.oauth.scopes)
+            },
+            _ => None,
+        }
+    }
+
+    async fn oauth_scopes_for_resource(&self, resource_uri: &str) -> Option<Vec<String>> {
+        let uri = http::Uri::try_from(resource_uri).ok()?;
+        uri.scheme()?;
+        let parts: Vec<&str> = uri.path().split('/').collect();
+        if parts.len() < 6 || parts[1] != "api" || parts[3] != "mcp" || parts[5] != "mcp" {
+            return None;
+        }
+        let server = McpServerId::try_new(parts[4]).ok()?;
+        self.oauth_scopes(&server).await
     }
 }

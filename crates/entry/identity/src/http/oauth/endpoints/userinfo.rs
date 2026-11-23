@@ -13,7 +13,7 @@ use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::http::oauth::OAuthHttpError;
 
 #[derive(Debug, Serialize)]
 pub struct UserinfoResponse {
@@ -62,7 +62,7 @@ fn get_userinfo(
     state: &OAuthState,
     config: &Config,
     token: &str,
-) -> anyhow::Result<UserinfoResponse> {
+) -> systemprompt_oauth::OauthResult<UserinfoResponse> {
     let claims = validate_jwt_token(
         state.token_authority().as_ref(),
         token,

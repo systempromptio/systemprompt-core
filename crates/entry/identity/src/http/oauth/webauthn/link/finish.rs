@@ -13,7 +13,7 @@ use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;
 
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct FinishLinkRequest {
@@ -34,7 +34,7 @@ pub async fn finish_link(
     State(state): State<OAuthState>,
     body: Result<Json<FinishLinkRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, OAuthHttpError> {
-    let request = crate::routes::oauth::webauthn::json_body(body)?;
+    let request = crate::http::oauth::webauthn::json_body(body)?;
     tracing::Span::current().record(
         "challenge_id",
         tracing::field::display(&request.challenge_id),

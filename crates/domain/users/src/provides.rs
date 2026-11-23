@@ -1,5 +1,6 @@
 //! The users member's composed provides: the sealed gateway session mint
-//! conferred on `gateway-http`, and the open request authenticator.
+//! conferred on `gateway-http`, the sealed sign-in session view conferred on
+//! `identity-http`, and the open request authenticator.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +15,7 @@ use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_security::{
     JwtRequestAuthenticator, JwtRequestAuthenticatorParts, UnavailableRevocations,
 };
-use systemprompt_traits::DynGatewaySessionMint;
+use systemprompt_traits::{DynGatewaySessionMint, DynSignInSessions};
 
 use crate::repository::{SessionRepository, UserRepository};
 use crate::{ApiKeyLifetime, UserService, UsersGatewaySessionMint};
@@ -30,6 +31,11 @@ pub(crate) fn gateway_session_mint(
         ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
         chrono::Duration::seconds(config.jwt_access_token_expiration),
     )))
+}
+
+pub(crate) fn sign_in_sessions(r: &Resolved<'_>) -> Result<DynSignInSessions, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(SessionRepository::new(&db)))
 }
 
 pub(crate) fn request_authenticator(

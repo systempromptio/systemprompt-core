@@ -66,7 +66,7 @@ pub(super) async fn resolve_resource_scopes(
     registry: &dyn systemprompt_traits::McpRegistryProvider,
     resource: &str,
 ) -> Option<String> {
-    crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(registry, resource)
+    registry.oauth_scopes_for_resource(resource)
         .await
         .map(|scopes| scopes.join(" "))
 }

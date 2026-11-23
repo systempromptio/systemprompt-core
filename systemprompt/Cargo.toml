@@ -49,7 +49,6 @@ api = [
     "dep:systemprompt-mcp-host",
     "dep:systemprompt-oauth-issuance",
     "dep:systemprompt-gateway-entry",
-    "dep:systemprompt-identity-entry",
     "dep:axum",
     "systemprompt-extension?/router",
     "systemprompt-slack-entry?/http",
@@ -64,8 +63,14 @@ api = [
     "systemprompt-agent-entry?/http",
     "systemprompt-brain-entry?/http",
     "systemprompt-gateway-entry/http",
-    "systemprompt-identity-entry/http",
+    "systemprompt-identity-entry?/http",
 ]
+
+# The identity capability: the OAuth 2.0 / OIDC, SSO, self-service session and
+# API-key routes from `systemprompt-identity-entry` (served when `api` is also
+# enabled). Its own unit, not the kernel's: without it the server serves no
+# sign-in route and no OAuth discovery document. `full` implies it.
+identity = ["dep:systemprompt-identity-entry"]
 
 # Cloud infrastructure (API client, credentials, OAuth)
 cloud = ["dep:systemprompt-cloud", "dep:systemprompt-cloud-entry"]
@@ -187,6 +192,7 @@ full = [
     "notifications",
     "brain",
     "issues",
+    "identity",
     # Infrastructure crates for extension authors
     "loader",
     "events",
@@ -307,4 +313,4 @@ name = "cli"
 required-features = ["full"]
 
 [package.metadata.cargo-machete]
-ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry", "systemprompt-identity-entry"]
+ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry"]

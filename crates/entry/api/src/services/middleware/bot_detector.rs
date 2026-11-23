@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_analytics::matches_bot_pattern;
 
-use super::client_addr::resolve_client_ip;
+use systemprompt_security::http::resolve_client_ip;
 
 const DATACENTER_IP_PREFIXES: &[&str] = &[
     "47.79.", "47.82.", "47.88.", "47.89.", "47.90.", "47.91.", "47.92.", "47.93.", "47.94.",

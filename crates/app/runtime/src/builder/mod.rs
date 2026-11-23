@@ -46,6 +46,7 @@ use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::services::root::ActiveProfilePath;
+use systemprompt_models::auth::OAuthAtRestPepper;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
 use systemprompt_users::UserService;
 
@@ -180,7 +181,7 @@ impl AppContextBuilder {
             token_authority: &token_authority,
             spawner: &spawner,
             child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
-            oauth: &seeded.oauth,
+            oauth_pepper: OAuthAtRestPepper::new(&self.boot.secrets().get().oauth_at_rest_pepper),
             geoip: content.geoip_reader.as_ref(),
             content_config: content.content_config.as_ref(),
         });

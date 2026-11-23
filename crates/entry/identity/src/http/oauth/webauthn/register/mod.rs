@@ -15,7 +15,7 @@ pub use start::start_register;
 use axum::http::StatusCode;
 use systemprompt_manifest::Config;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::http::oauth::OAuthHttpError;
 
 fn ensure_registration_enabled(config: &Config) -> Result<(), OAuthHttpError> {
     if config.allow_registration {

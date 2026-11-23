@@ -26,7 +26,7 @@ use systemprompt_files::documents::service::{PublicLinkOpen, PublicLinkRefusal};
 use systemprompt_models::documents::DocumentFormat;
 
 use crate::routes::user_content::harden;
-use crate::services::middleware::client_addr::ClientIp;
+use systemprompt_security::http::ClientIp;
 
 const DOWNLOAD_CSP: HeaderValue = HeaderValue::from_static("sandbox; default-src 'none'");
 const PAGE_CSP: HeaderValue = HeaderValue::from_static(

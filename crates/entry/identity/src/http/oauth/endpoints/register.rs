@@ -34,8 +34,8 @@ use systemprompt_oauth::services::validation::{
 };
 use systemprompt_oauth::services::{generate_registration_token, hash_registration_token};
 
-use crate::routes::oauth::extractors::OAuthRepo;
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::extractors::OAuthRepo;
+use crate::http::oauth::{OAuthHttpError, internal};
 
 struct ValidatedRegistration {
     client_name: String,

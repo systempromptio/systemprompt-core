@@ -4,7 +4,7 @@
 //! anonymous session onto the new identity, and issues a short-lived
 //! verified-authentication token for the [`webauthn_complete`] bridge.
 //!
-//! [`webauthn_complete`]: crate::routes::oauth::endpoints::webauthn_complete
+//! [`webauthn_complete`]: crate::http::oauth::endpoints::webauthn_complete
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,7 +22,7 @@ use systemprompt_oauth::services::webauthn::FinishRegistrationParams;
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::http::oauth::OAuthHttpError;
 
 #[derive(Debug, Deserialize)]
 pub struct FinishRegisterRequest {
@@ -50,7 +50,7 @@ impl FinishRegisterRequest {
         {
             return Err("Username can only contain letters, numbers, underscores, and hyphens");
         }
-        if !crate::services::validation::is_valid_email(&self.email) {
+        if systemprompt_identifiers::Email::try_new(self.email.trim()).is_err() {
             return Err("Email must be a valid email address");
         }
         Ok(())
@@ -71,7 +71,7 @@ pub async fn finish_register(
     body: Result<Json<FinishRegisterRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, OAuthHttpError> {
     super::ensure_registration_enabled(&config)?;
-    let request = crate::routes::oauth::webauthn::json_body(body)?;
+    let request = crate::http::oauth::webauthn::json_body(body)?;
     tracing::Span::current().record(
         "challenge_id",
         tracing::field::display(&request.challenge_id),

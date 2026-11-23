@@ -16,50 +16,12 @@ use crate::kernel::ProxyService;
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::routing::{any, get};
-use systemprompt_identifiers::McpServerId;
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::McpRegistryProvider;
 
 #[derive(Clone, Debug)]
 pub struct McpState {
     pub ctx: AppContext,
-}
-
-pub(in crate::routes) async fn get_mcp_server_scopes(
-    registry: &dyn McpRegistryProvider,
-    server: &McpServerId,
-) -> Option<Vec<String>> {
-    match registry.get_server(server.as_str()).await {
-        Ok(server_info) if server_info.oauth.required => {
-            let scopes: Vec<String> = server_info
-                .oauth
-                .scopes
-                .iter()
-                .map(ToString::to_string)
-                .collect();
-            if scopes.is_empty() {
-                None
-            } else {
-                Some(scopes)
-            }
-        },
-        _ => None,
-    }
-}
-
-pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
-    registry: &dyn McpRegistryProvider,
-    resource_uri: &str,
-) -> Option<Vec<String>> {
-    let url = reqwest::Url::parse(resource_uri).ok()?;
-    let path = url.path();
-    let parts: Vec<&str> = path.split('/').collect();
-    if parts.len() < 6 || parts[1] != "api" || parts[3] != "mcp" || parts[5] != "mcp" {
-        return None;
-    }
-    let server = McpServerId::try_new(parts[4]).ok()?;
-    get_mcp_server_scopes(registry, &server).await
 }
 
 pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {

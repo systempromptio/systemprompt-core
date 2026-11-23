@@ -15,8 +15,8 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::validate_client_credentials;
 
-use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
+use crate::http::oauth::OAuthHttpError;
+use crate::http::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 pub struct IntrospectRequest {

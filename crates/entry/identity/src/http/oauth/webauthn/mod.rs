@@ -14,7 +14,7 @@ pub mod register;
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::http::oauth::OAuthHttpError;
 
 pub(crate) fn json_body<T>(body: Result<Json<T>, JsonRejection>) -> Result<T, OAuthHttpError> {
     body.map(|Json(value)| value)

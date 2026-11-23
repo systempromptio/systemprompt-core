@@ -7205,7 +7205,37 @@ dependencies = [
 name = "systemprompt-identity-entry"
 version = "0.86.0"
 dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "bcrypt",
+ "chrono",
+ "hex",
+ "http",
+ "rand 0.10.3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "systemprompt-config",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
+ "systemprompt-provider-contracts",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.21",
+ "tracing",
+ "url",
+ "urlencoding",
+ "uuid",
+ "validator",
+ "webauthn-rs",
 ]
 
 [[package]]
@@ -7565,6 +7595,7 @@ name = "systemprompt-oauth-issuance"
 version = "0.86.0"
 dependencies = [
  "async-trait",
+ "axum",
  "base64 0.23.1",
  "chrono",
  "http",
@@ -7707,6 +7738,7 @@ dependencies = [
  "ed25519-dalek 3.0.0",
  "hex",
  "hmac 0.13.0",
+ "ipnet",
  "jsonwebtoken",
  "lru",
  "rand 0.10.3",

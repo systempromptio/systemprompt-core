@@ -32,7 +32,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_traits::DynIpBanStore;
 use tracing::warn;
 
-use super::client_addr::resolve_client_ip;
+use systemprompt_security::http::resolve_client_ip;
 use crate::error::ApiHttpError;
 
 fn is_probe_path(path: &str) -> bool {

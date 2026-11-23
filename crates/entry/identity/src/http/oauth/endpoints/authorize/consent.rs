@@ -34,7 +34,7 @@ use super::issue::{issue_code_redirect, session_grant};
 use super::response_builder::redirect_display_host;
 use super::session::{SignedInRequest, browser_sign_in};
 use super::validation::{SelfOrigins, ValidatedAuthorizeRequest};
-use crate::routes::oauth::OAuthHttpError;
+use crate::http::oauth::OAuthHttpError;
 
 pub fn require_same_origin(
     headers: &HeaderMap,

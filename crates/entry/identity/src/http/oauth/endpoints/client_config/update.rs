@@ -10,8 +10,8 @@ use std::sync::Arc;
 use systemprompt_manifest::Config;
 
 use super::validation::authenticate_client_configuration;
-use crate::routes::oauth::extractors::OAuthRepo;
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::extractors::OAuthRepo;
+use crate::http::oauth::{OAuthHttpError, internal};
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
 };

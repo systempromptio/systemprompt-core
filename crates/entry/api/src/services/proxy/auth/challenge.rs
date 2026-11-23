@@ -18,7 +18,7 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::services::proxy::backend::ProxyError;
-use crate::services::request_base_url::resolve as resolve_request_base_url;
+use systemprompt_security::http::resolve_request_base_url;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;

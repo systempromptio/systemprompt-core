@@ -10,36 +10,29 @@ use axum::response::IntoResponse;
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_manifest::profile::UiSessionConfig;
+use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
-use systemprompt_runtime::AppContext;
+use systemprompt_security::http::RequestBaseUrl;
 use systemprompt_traits::McpRegistryProvider;
 
-use crate::kernel::RequestBaseUrl;
-use crate::routes::proxy::mcp::get_mcp_server_scopes;
-
-/// The lifetimes, in seconds, of a person's UI session, as the profile's
-/// `security.ui_session` block sets them.
-///
-/// A `person_ui` client reads this capability from either discovery document
-/// instead of probing `/authorize`; neither document names a client.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct UiSessionDiscovery {
-    pub access_token_lifetime: i64,
-    pub session_lifetime: i64,
-    pub step_up_max_age: i64,
+/// What the discovery documents read beyond the request: whether dynamic
+/// client registration is open, the UI-session lifetimes, and the MCP
+/// registry a per-server protected-resource document reads its scopes from.
+#[derive(Clone)]
+pub struct DiscoveryState {
+    pub allow_dynamic_client_registration: bool,
+    pub ui_session: UiSessionDiscovery,
+    pub mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
 }
 
-impl UiSessionDiscovery {
-    #[must_use]
-    pub const fn from_config(config: &UiSessionConfig) -> Self {
-        Self {
-            access_token_lifetime: config.access_ttl_secs,
-            session_lifetime: config.absolute_secs,
-            step_up_max_age: config.step_up_max_age_secs,
-        }
+impl std::fmt::Debug for DiscoveryState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiscoveryState")
+            .field("allow_dynamic_client_registration", &self.allow_dynamic_client_registration)
+            .field("mcp_registry", &self.mcp_registry.is_some())
+            .finish_non_exhaustive()
     }
 }
 
@@ -73,12 +66,11 @@ pub struct WellKnownResponse {
 }
 
 pub async fn handle_well_known(
-    State(ctx): State<AppContext>,
+    State(state): State<DiscoveryState>,
     base: RequestBaseUrl,
 ) -> impl IntoResponse {
     let config = OAuthServerConfig::from_api_server_url(base.as_str());
-    let registration_endpoint = ctx
-        .config()
+    let registration_endpoint = state
         .allow_dynamic_client_registration
         .then(|| format!("{}/api/v1/core/oauth/register", config.issuer));
 
@@ -134,7 +126,7 @@ pub async fn handle_well_known(
         ],
         authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
         ui_session_supported: true,
-        ui_session: UiSessionDiscovery::from_config(&ctx.config().ui_session),
+        ui_session: state.ui_session,
         device_link_ui_session_supported: true,
     };
 
@@ -157,7 +149,7 @@ pub async fn handle_oauth_protected_resource(base: RequestBaseUrl) -> impl IntoR
 }
 
 pub async fn handle_oauth_protected_resource_with_path(
-    State(ctx): State<AppContext>,
+    State(state): State<DiscoveryState>,
     base: RequestBaseUrl,
     axum::extract::Path(path): axum::extract::Path<String>,
 ) -> impl IntoResponse {
@@ -180,14 +172,8 @@ pub async fn handle_oauth_protected_resource_with_path(
 
     let base_url = base.as_str().to_owned();
 
-    let registry = ctx
-        .kernel()
-        .state()
-        .get::<Arc<dyn McpRegistryProvider>>()
-        .ok()
-        .cloned();
-    let scopes = match (McpServerId::try_new(service_name.as_str()), registry) {
-        (Ok(server), Some(registry)) => get_mcp_server_scopes(registry.as_ref(), &server).await,
+    let scopes = match (McpServerId::try_new(service_name.as_str()), state.mcp_registry.as_ref()) {
+        (Ok(server), Some(registry)) => registry.oauth_scopes(&server).await,
         _ => None,
     }
     .unwrap_or_else(|| vec!["user".to_owned()]);

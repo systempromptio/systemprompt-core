@@ -14,7 +14,7 @@ use systemprompt_traits::sso::{SsoReturn, SsoReturnBinding};
 
 use super::SsoRouteState;
 use super::respond::{binder_from_headers, into_response};
-use crate::kernel::ClientIp;
+use systemprompt_security::http::ClientIp;
 
 pub(super) async fn handle_callback_query(
     Path(id): Path<String>,

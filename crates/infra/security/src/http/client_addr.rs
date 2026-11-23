@@ -101,18 +101,6 @@ pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: 
     !is_trusted(peer_ip, trusted) && headers.contains_key("x-forwarded-for")
 }
 
-#[must_use]
-pub(crate) fn client_ip_from_request(
-    request: &axum::extract::Request,
-    config: &Config,
-) -> Option<IpAddr> {
-    resolve_client_ip(
-        request.headers(),
-        request.extensions().get::<ConnectInfo<SocketAddr>>(),
-        &config.trusted_proxies,
-    )
-}
-
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 #[error("the router carries no Config extension to resolve trusted proxies from")]
 pub struct ClientIpConfigMissing;

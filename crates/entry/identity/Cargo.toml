@@ -23,9 +23,69 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []
-http = ["systemprompt-extension/router"]
+http = [
+    "systemprompt-extension/router",
+    "dep:systemprompt-config",
+    "dep:systemprompt-database",
+    "dep:systemprompt-governance",
+    "dep:systemprompt-identifiers",
+    "dep:systemprompt-manifest",
+    "dep:systemprompt-models",
+    "dep:systemprompt-oauth",
+    "dep:systemprompt-oauth-issuance",
+    "dep:systemprompt-provider-contracts",
+    "dep:systemprompt-security",
+    "dep:systemprompt-traits",
+    "dep:systemprompt-users",
+    "dep:axum",
+    "dep:bcrypt",
+    "dep:base64",
+    "dep:chrono",
+    "dep:hex",
+    "dep:http",
+    "dep:rand",
+    "dep:reqwest",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:sha2",
+    "dep:thiserror",
+    "dep:tracing",
+    "dep:url",
+    "dep:validator",
+    "dep:urlencoding",
+    "dep:uuid",
+    "dep:webauthn-rs",
+]
 
 [dependencies]
 systemprompt-extension = { workspace = true }
-[package.metadata.cargo-machete]
-ignored = ["systemprompt-extension"]
+systemprompt-config = { workspace = true, optional = true }
+systemprompt-database = { workspace = true, optional = true }
+systemprompt-governance = { workspace = true, optional = true }
+systemprompt-identifiers = { workspace = true, optional = true }
+systemprompt-manifest = { workspace = true, optional = true }
+systemprompt-models = { workspace = true, optional = true }
+systemprompt-oauth = { workspace = true, optional = true }
+systemprompt-oauth-issuance = { workspace = true, optional = true }
+systemprompt-provider-contracts = { workspace = true, optional = true }
+systemprompt-security = { workspace = true, optional = true }
+systemprompt-traits = { workspace = true, optional = true }
+systemprompt-users = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+bcrypt = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+validator = { workspace = true, optional = true }
+urlencoding = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+webauthn-rs = { workspace = true, optional = true }

@@ -10,8 +10,8 @@ use systemprompt_oauth_issuance::sso::{
     CookieSpec, FinishOutcome, StartOutcome, binder_from_cookie_header,
 };
 
-use crate::kernel::SessionCookie;
-use crate::routes::oauth::cookie::session_cookie_redirect;
+use systemprompt_security::http::SessionCookie;
+use crate::http::oauth::cookie::session_cookie_redirect;
 
 pub fn into_response(cookie: SessionCookie, outcome: FinishOutcome) -> Response {
     match outcome {

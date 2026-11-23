@@ -157,6 +157,12 @@ pub trait AnalyticsProvider: Send + Sync {
     ) -> SessionAnalytics;
 }
 
+/// The sign-in session view: create a session for a sign-in, find or attest
+/// one by id or fingerprint, revoke one or all of a user's, and mark one
+/// converted. It has no telemetry, listing or reassignment surface; the users
+/// member provides it sealed and confers it on `identity-http`
+/// ([`DynSignInSessions`]). Held as `Arc<dyn SessionProvider>`, hence
+/// `#[async_trait]`.
 #[async_trait]
 pub trait SessionProvider: Send + Sync {
     async fn create_session(&self, input: CreateSessionInput<'_>) -> AnalyticsResult<()>;
@@ -181,14 +187,10 @@ pub trait SessionProvider: Send + Sync {
 
     async fn revoke_all_sessions_for_user(&self, user_id: &UserId) -> AnalyticsResult<u64>;
 
-    async fn migrate_user_sessions(
-        &self,
-        from_user_id: &UserId,
-        to_user_id: &UserId,
-    ) -> AnalyticsResult<u64>;
-
     async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()>;
 }
+
+pub type DynSignInSessions = Arc<dyn SessionProvider>;
 
 /// Session-scoped usage counters bumped by domain workflows.
 ///

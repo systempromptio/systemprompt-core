@@ -15,7 +15,7 @@
 use axum::http::HeaderValue;
 use axum::http::header::InvalidHeaderValue;
 use systemprompt_manifest::Config;
-use systemprompt_security::CookieExtractor;
+use crate::CookieExtractor;
 
 /// The `SameSite` policy a session cookie is issued under.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

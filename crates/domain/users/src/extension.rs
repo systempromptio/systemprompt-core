@@ -13,7 +13,10 @@
 //! (`DynAiSessionProvider`) **sealed**: it creates and meters a session for any
 //! user it is handed, so only the `ai` member's provide reads it. The gateway
 //! session mint (`DynGatewaySessionMint`) is sealed and conferred on
-//! `gateway-http`. The request authenticator (`DynRequestAuthenticator`) is
+//! `gateway-http`. The sign-in session view (`DynSignInSessions`: create a
+//! session for a sign-in, find or attest one, revoke one or all of a user's,
+//! mark one converted) is sealed and conferred on `identity-http`. The request
+//! authenticator (`DynRequestAuthenticator`) is
 //! open: it verifies a request against the kernel's verification keyring, the
 //! issuer, the user and session rows and the kernel's token revocation check,
 //! and exposes no create, revoke or mint; a kernel that seeds no revocation
@@ -96,6 +99,10 @@ impl Extension for UsersExtension {
         .provide_conferred(
             ConferralRow::GatewaySessionMint,
             crate::provides::gateway_session_mint,
+        )
+        .provide_conferred(
+            ConferralRow::IdentitySignInSessions,
+            crate::provides::sign_in_sessions,
         )
         .provide(crate::provides::request_authenticator)
         .provide(|r: &Resolved<'_>| {

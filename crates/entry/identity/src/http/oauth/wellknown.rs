@@ -7,9 +7,10 @@ use axum::Router;
 use axum::http::StatusCode;
 use axum::routing::get;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_runtime::AppContext;
 
-pub fn wellknown_routes(ctx: &AppContext) -> Router {
+use super::discovery::DiscoveryState;
+
+pub fn wellknown_routes(state: DiscoveryState) -> Router {
     Router::new()
         .route(
             ApiPaths::WELLKNOWN_OAUTH_SERVER,
@@ -42,5 +43,5 @@ pub fn wellknown_routes(ctx: &AppContext) -> Router {
             get(super::discovery::handle_oauth_protected_resource_with_path)
                 .options(|| async { StatusCode::OK }),
         )
-        .with_state(ctx.clone())
+        .with_state(state)
 }

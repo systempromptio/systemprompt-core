@@ -13,7 +13,7 @@ use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct StartRegisterQuery {
@@ -37,7 +37,7 @@ impl StartRegisterQuery {
         {
             return Err("Username can only contain letters, numbers, underscores, and hyphens");
         }
-        if !crate::services::validation::is_valid_email(&self.email) {
+        if systemprompt_identifiers::Email::try_new(self.email.trim()).is_err() {
             return Err("Email must be a valid email address");
         }
         Ok(())

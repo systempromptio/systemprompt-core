@@ -44,8 +44,12 @@
 //!
 //! The API also seeds the one `Arc<dyn TokenAuthority>` built over its signing
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
-//! conferral row; `AppContext::token_authority` hands out the same value. A
-//! child host holds verification keys only, so it seeds no token authority.
+//! conferral row; `AppContext::token_authority` hands out the same value. The
+//! signing keys are recorded under the `identity-signing-keys` row: both are
+//! conferred on `identity-http`, the issuer. The OAuth at-rest pepper
+//! (`OAuthAtRestPepper`) is sealed; the `oauth` member's provide builds its
+//! repositories over it. A child host holds verification keys only, so it
+//! seeds no token authority.
 //!
 //! Every host seeds its verification keyring (`VerificationKeyring`, public
 //! keys only: the API's from its signing keys, a child host's from the
@@ -114,10 +118,10 @@ use systemprompt_models::{ContentConfigRaw, late_pair};
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::auth::{DynTokenRevocations, TokenAuthority};
+use systemprompt_models::auth::{DynTokenRevocations, OAuthAtRestPepper, TokenAuthority};
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
-use systemprompt_oauth::repository::{JtiRevocationChecker, OAuthRepositories};
+use systemprompt_oauth::repository::JtiRevocationChecker;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
@@ -165,7 +169,7 @@ pub struct ApiKernelSeed<'a> {
     pub token_authority: &'a Arc<dyn TokenAuthority>,
     pub spawner: &'a Arc<Spawner>,
     pub child_secrets: DynChildSecretEnv,
-    pub oauth: &'a Arc<OAuthRepositories>,
+    pub oauth_pepper: OAuthAtRestPepper,
     pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
@@ -253,7 +257,13 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
     let (messaging_cell, messaging) = late_pair::<dyn MessagingDispatcher>();
     let (base, base_binders) = base_kernel_state(seed.base);
     let mut state = base
-        .with_sealed(seed.signing_keys.clone())
+        .with_sealed_conferred(
+            seed.signing_keys.clone(),
+            Conferred {
+                holder: ExtensionId::new(ConferralRow::IdentitySigningKeys.entry().holder.id()),
+                row: ConferralRow::IdentitySigningKeys.name(),
+            },
+        )
         .with_sealed_conferred(
             Arc::clone(seed.token_authority),
             Conferred {
@@ -264,7 +274,7 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
         .with(seed.signing_keys.verification_keys().clone())
-        .with(Arc::clone(seed.oauth))
+        .with_sealed(seed.oauth_pepper)
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
     match seed.geoip {

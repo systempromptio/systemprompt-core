@@ -210,7 +210,7 @@ pub use startup_events::{
 pub mod session_behaviour;
 pub mod session_store;
 pub mod sso;
-pub use analytics::SessionProvider;
+pub use analytics::{DynSignInSessions, SessionProvider};
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
 pub use gateway_session::{
     DynGatewaySessionMint, GatewaySessionMint, GatewaySessionMintError, MintedGatewaySession,

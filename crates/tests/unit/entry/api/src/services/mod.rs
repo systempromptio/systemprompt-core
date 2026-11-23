@@ -19,6 +19,5 @@ mod server_ops_metrics;
 mod server_reconciliation_verify;
 mod server_runner_supervisor;
 mod server_shutdown;
-mod validation;
 
 mod coverage_agent_reconciliation;

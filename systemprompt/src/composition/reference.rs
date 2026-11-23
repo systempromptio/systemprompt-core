@@ -158,6 +158,10 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_agent_entry::extension::AgentHttpExtension>(
             CoreTerms::conferred(CoreId::AgentHttp),
         ),
+        #[cfg(all(feature = "identity", feature = "full"))]
+        Member::core::<systemprompt_identity_entry::extension::IdentityHttpExtension>(
+            CoreTerms::conferred(CoreId::IdentityHttp),
+        ),
         #[cfg(feature = "brain")]
         Member::core::<systemprompt_brain_entry::extension::BrainHttpExtension>(
             CoreTerms::conferred(CoreId::BrainHttp),

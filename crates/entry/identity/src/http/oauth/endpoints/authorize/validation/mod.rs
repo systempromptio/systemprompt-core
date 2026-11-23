@@ -21,7 +21,7 @@ use systemprompt_oauth::models::clients::OAuthClient;
 use systemprompt_oauth::repository::OAuthRepository;
 use url::Origin;
 
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Clone)]
 pub struct ValidatedAuthorizeRequest {

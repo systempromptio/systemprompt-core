@@ -12,8 +12,8 @@ use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_oauth::repository::{MintAuthCodeParams, OAuthRepository};
 
 use super::session::SignedInRequest;
-use crate::routes::oauth::OAuthHttpError;
-use crate::services::request_base_url::RequestBaseUrl;
+use crate::http::oauth::OAuthHttpError;
+use systemprompt_security::http::RequestBaseUrl;
 
 /// The grant an authorization code is minted for. `authenticated_at` is when
 /// the person presented a credential, never the time of the mint.

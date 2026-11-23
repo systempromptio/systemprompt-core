@@ -1,4 +1,5 @@
-//! Admin API-key issuance and listing endpoints.
+//! Admin API-key issuance and listing endpoints, mounted by the API at
+//! `/api/v1/admin/api-keys` behind the admin gate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,15 +16,21 @@ use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::attribution::ScopeBinding;
-use systemprompt_runtime::AppContext;
+use systemprompt_extension::router::ApiHttpError;
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 
-use crate::kernel::ApiHttpError;
+#[derive(Clone)]
+pub(crate) struct ApiKeysState {
+    pub(crate) keys: Arc<ApiKeyService>,
+    pub(crate) subjects: Arc<SubjectProviderSet>,
+}
 
-pub(super) fn router() -> Router<AppContext> {
+pub(crate) fn router(state: ApiKeysState) -> Router {
     Router::new()
         .route("/", post(issue_key).get(list_keys))
         .route("/{key_id}", delete(revoke_key))
+        .with_state(state)
 }
 
 #[derive(Debug, Deserialize)]
@@ -83,7 +90,7 @@ impl From<UserApiKey> for ApiKeyView {
 }
 
 async fn issue_key(
-    State(ctx): State<AppContext>,
+    State(state): State<ApiKeysState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<IssueApiKeyRequest>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
@@ -92,16 +99,15 @@ async fn issue_key(
         _ => req_ctx.user_id().clone(),
     };
     if !body.scopes.is_empty() {
-        ctx.subject_providers()
+        state
+            .subjects
             .verify_scope_bindings(&target_user, &body.scopes)
-            .await?;
+            .await
+            .map_err(ApiError::from)?;
     }
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
-    );
 
-    let issued = service
+    let issued = state
+        .keys
         .issue(IssueApiKeyParams {
             user_id: &target_user,
             name: &body.name,
@@ -111,7 +117,8 @@ async fn issue_key(
             purpose: None,
             kind: systemprompt_users::ApiKeyKind::User,
         })
-        .await?;
+        .await
+        .map_err(ApiError::from)?;
 
     Ok((
         StatusCode::CREATED,
@@ -129,31 +136,29 @@ async fn issue_key(
 }
 
 async fn list_keys(
-    State(ctx): State<AppContext>,
+    State(state): State<ApiKeysState>,
     Extension(req_ctx): Extension<RequestContext>,
 ) -> Result<Json<Vec<ApiKeyView>>, ApiHttpError> {
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
-    );
-
-    let keys = service.list_for_user(req_ctx.user_id()).await?;
+    let keys = state
+        .keys
+        .list_for_user(req_ctx.user_id())
+        .await
+        .map_err(ApiError::from)?;
 
     Ok(Json(keys.into_iter().map(ApiKeyView::from).collect()))
 }
 
 async fn revoke_key(
-    State(ctx): State<AppContext>,
+    State(state): State<ApiKeysState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(key_id): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
-    );
-
     let id = ApiKeyId::try_new(key_id).map_err(ApiError::from)?;
-    let revoked = service.revoke(&id, req_ctx.user_id()).await?;
+    let revoked = state
+        .keys
+        .revoke(&id, req_ctx.user_id())
+        .await
+        .map_err(ApiError::from)?;
 
     if revoked {
         Ok(StatusCode::NO_CONTENT)

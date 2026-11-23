@@ -17,9 +17,9 @@ use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
 use tracing::instrument;
 
-use crate::kernel::SessionCookie;
-use crate::routes::oauth::extractors::OAuthRepo;
-use crate::routes::oauth::{OAuthHttpError, internal};
+use systemprompt_security::http::SessionCookie;
+use crate::http::oauth::extractors::OAuthRepo;
+use crate::http::oauth::{OAuthHttpError, internal};
 use std::sync::Arc;
 use systemprompt_manifest::Config;
 

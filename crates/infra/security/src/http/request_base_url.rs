@@ -17,11 +17,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::ApiHttpError;
+use axum::Json;
 use axum::extract::FromRequestParts;
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use http::header;
-use http::request::Parts;
+use axum::http::header;
+use axum::http::request::Parts;
 use std::sync::Arc;
 use systemprompt_manifest::Config;
 use systemprompt_models::api::ApiError;
@@ -145,7 +146,12 @@ pub enum RequestBaseUrlError {
 
 impl IntoResponse for RequestBaseUrlError {
     fn into_response(self) -> Response {
-        ApiHttpError::from(ApiError::internal("Request base URL unavailable", self)).into_response()
+        tracing::error!(error = %self, "request base URL unavailable");
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiError::internal("Request base URL unavailable", self)),
+        )
+            .into_response()
     }
 }
 

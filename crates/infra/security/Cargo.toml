@@ -40,6 +40,7 @@ chacha20poly1305 = { workspace = true }
 rand = { workspace = true }
 lru = { workspace = true }
 url = { workspace = true }
+ipnet = { workspace = true }
 
 # Signed-manifest crypto (bridge)
 ed25519-dalek = { workspace = true }

@@ -8,8 +8,8 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 
 use super::validation::authenticate_client_configuration;
-use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
+use crate::http::oauth::OAuthHttpError;
+use crate::http::oauth::extractors::OAuthRepo;
 
 pub async fn delete_client_configuration(
     OAuthRepo(repository): OAuthRepo,

@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod actor;
+pub mod at_rest_pepper;
 pub mod claims;
 pub mod cloud_claims;
 pub mod enums;
@@ -22,6 +23,7 @@ pub mod roles;
 pub mod token_authority;
 pub mod types;
 
+pub use at_rest_pepper::OAuthAtRestPepper;
 pub use actor::{RequestActor, UNNAMED_AGENT, agent_name, bearer_actor, caller_actor};
 pub use claims::{
     ActClaim, CustomClaims, JwtClaims, MAX_ACT_CHAIN_DEPTH, RegisteredClaims, TokenInteraction,

@@ -26,8 +26,8 @@ use super::validation::{
     validate_authorize_request, validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
-use crate::kernel::RequestBaseUrl;
-use crate::routes::oauth::{OAuthHttpError, internal};
+use systemprompt_security::http::RequestBaseUrl;
+use crate::http::oauth::{OAuthHttpError, internal};
 use axum::extract::{Extension, Form, OriginalUri, Query, State};
 use axum::http::{HeaderMap, Uri};
 use axum::response::{Html, IntoResponse, Redirect, Response};

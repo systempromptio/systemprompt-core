@@ -15,7 +15,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::site_auth::{SiteAuthSession, site_auth_gate};
-use crate::services::session_cookie::SessionCookie;
+use systemprompt_security::http::SessionCookie;
 
 const CLIENTS_PATH: &str = "/clients";
 

@@ -12,7 +12,7 @@ use systemprompt_oauth_issuance::IssuanceError;
 use systemprompt_traits::auth::AuthProviderError;
 
 use super::OAuthHttpError;
-use crate::routes::oauth::internal;
+use crate::http::oauth::internal;
 
 impl From<GlobalConfigError> for OAuthHttpError {
     fn from(err: GlobalConfigError) -> Self {
@@ -79,18 +79,6 @@ impl From<AuthProviderError> for OAuthHttpError {
 impl From<SecretsBootstrapError> for OAuthHttpError {
     fn from(err: SecretsBootstrapError) -> Self {
         Self::server_error("Secrets unavailable").with_source(err)
-    }
-}
-
-impl From<sqlx::Error> for OAuthHttpError {
-    fn from(err: sqlx::Error) -> Self {
-        Self::server_error("Database operation failed").with_source(err)
-    }
-}
-
-impl From<anyhow::Error> for OAuthHttpError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::server_error("Authorization operation failed").with_source(err)
     }
 }
 

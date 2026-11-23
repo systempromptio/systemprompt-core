@@ -31,6 +31,18 @@ pub enum ScopeBindingError {
     Lookup(#[from] SubjectAttributeError),
 }
 
+impl From<ScopeBindingError> for systemprompt_models::api::ApiError {
+    fn from(err: ScopeBindingError) -> Self {
+        match err {
+            ScopeBindingError::UnknownDimension(_) => Self::bad_request(err.to_string()),
+            ScopeBindingError::NotAMember { .. } => Self::forbidden(err.to_string()),
+            ScopeBindingError::Lookup(source) => {
+                Self::internal("Authorization lookup failed", source)
+            },
+        }
+    }
+}
+
 impl SubjectProviderSet {
     pub async fn verify_scope_bindings(
         &self,

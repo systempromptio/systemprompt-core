@@ -35,8 +35,8 @@ use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
 use tracing::instrument;
 
-use crate::routes::oauth::extractors::OAuthRepo;
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::extractors::OAuthRepo;
+use crate::http::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct RevokeRequest {

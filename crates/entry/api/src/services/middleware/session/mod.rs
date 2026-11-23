@@ -38,7 +38,7 @@ pub use skip::should_skip_session_tracking;
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::jwt::SessionClaims;
-use crate::services::session_cookie::{SameSite, SessionCookie};
+use systemprompt_security::http::{SameSite, SessionCookie};
 use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
 use axum::middleware::Next;
@@ -132,13 +132,13 @@ impl SessionMiddleware {
     }
 
     pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiHttpError> {
-        let caller_ip = super::client_addr::resolve_client_ip(
+        let caller_ip = systemprompt_security::http::resolve_client_ip(
             request.headers(),
             request.extensions().get::<ConnectInfo<SocketAddr>>(),
             &self.trusted_proxies,
         );
         if let Some(peer) = request.extensions().get::<ConnectInfo<SocketAddr>>()
-            && super::client_addr::forwarded_headers_ignored(
+            && systemprompt_security::http::forwarded_headers_ignored(
                 request.headers(),
                 peer.0.ip(),
                 &self.trusted_proxies,

@@ -15,7 +15,7 @@ use systemprompt_oauth::models::OAuthClient;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{REGISTRATION_TOKEN_PREFIX, verify_registration_token};
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::http::oauth::OAuthHttpError;
 
 pub fn validate_registration_token(headers: &HeaderMap) -> Result<String, OAuthHttpError> {
     let auth_header = headers

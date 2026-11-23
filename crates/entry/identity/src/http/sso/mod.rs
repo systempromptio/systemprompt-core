@@ -1,4 +1,4 @@
-//! Generic browser-redirect SSO routes, mounted at [`SSO_BASE`].
+//! Generic browser-redirect SSO routes, mounted at `ApiPaths::SSO_BASE`.
 //!
 //! Every registered provider is reachable as `/{id}/start`, `/{id}/callback`
 //! (query or form-POST return) and `/{id}/metadata`; the protocol itself is
@@ -22,16 +22,15 @@ use axum::Router;
 use axum::routing::get;
 use systemprompt_oauth::OAuthState;
 
-use crate::kernel::SessionCookie;
+use systemprompt_database::DbPool;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::contract::SsoProviders;
 use systemprompt_oauth_issuance::sso::SsoDriver;
-use systemprompt_runtime::AppContext;
+use systemprompt_security::http::SessionCookie;
 use systemprompt_traits::AnalyticsProvider;
 
 pub use respond::{binder_from_headers, into_response, start_response};
-
-pub const SSO_BASE: &str = "/api/v1/core/sso";
 
 #[derive(Clone)]
 pub struct SsoRouteState {
@@ -49,24 +48,24 @@ impl std::fmt::Debug for SsoRouteState {
 }
 
 impl SsoRouteState {
-    pub fn build(ctx: &AppContext, oauth: &OAuthState, sso: &SsoProviders) -> Self {
+    pub fn build(config: &Arc<Config>, db: &DbPool, oauth: &OAuthState, sso: &SsoProviders) -> Self {
         let session_service = SessionCreationService::new(
             Arc::clone(oauth.session_provider()),
             Arc::clone(oauth.user_provider()),
             Arc::clone(oauth.token_authority()),
-            Arc::clone(ctx.config_arc()),
+            Arc::clone(config),
         );
         let driver = SsoDriver::new(
             sso,
-            ctx.db_pool(),
-            Arc::clone(ctx.config_arc()),
+            db,
+            Arc::clone(config),
             oauth.oauth_repository().clone(),
             Arc::new(session_service),
         );
         Self {
             driver,
             analytics: Arc::clone(oauth.analytics_provider()),
-            cookie: SessionCookie::from_config(ctx.config()),
+            cookie: SessionCookie::from_config(config),
         }
     }
 }

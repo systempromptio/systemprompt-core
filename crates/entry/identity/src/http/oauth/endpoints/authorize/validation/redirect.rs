@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::AuthorizeQuery;
-use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::http::oauth::{OAuthHttpError, internal};
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
 
