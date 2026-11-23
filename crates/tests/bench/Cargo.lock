@@ -6762,14 +6762,18 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-content-entry",
  "systemprompt-database",
+ "systemprompt-documents",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-files-entry",
  "systemprompt-gateway",
+ "systemprompt-gateway-entry",
  "systemprompt-generator",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-identity-entry",
+ "systemprompt-issues",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
@@ -7408,6 +7412,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-documents"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
 name = "systemprompt-events"
 version = "0.85.0"
 dependencies = [
@@ -7461,6 +7472,7 @@ dependencies = [
  "ammonia",
  "async-trait",
  "base64 0.23.1",
+ "bcrypt",
  "bytes",
  "chrono",
  "diffy",
@@ -7476,6 +7488,7 @@ dependencies = [
  "png",
  "pulldown-cmark",
  "quick-xml 0.42.0",
+ "rand 0.10.3",
  "reqwest",
  "schemars 1.2.3",
  "scraper",
@@ -7571,6 +7584,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-gateway-entry"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
 name = "systemprompt-generator"
 version = "0.85.0"
 dependencies = [
@@ -7642,6 +7662,20 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.21",
  "uuid",
+]
+
+[[package]]
+name = "systemprompt-identity-entry"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
+]
+
+[[package]]
+name = "systemprompt-issues"
+version = "0.85.0"
+dependencies = [
+ "systemprompt-extension",
 ]
 
 [[package]]
@@ -8121,6 +8155,7 @@ dependencies = [
 name = "systemprompt-security"
 version = "0.85.0"
 dependencies = [
+ "async-trait",
  "axum",
  "base64 0.23.1",
  "chacha20poly1305",
@@ -8543,8 +8578,10 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tracing",
