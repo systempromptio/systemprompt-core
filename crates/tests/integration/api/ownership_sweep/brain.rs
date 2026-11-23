@@ -83,8 +83,12 @@ async fn a_second_user_is_refused_every_route_on_a_personal_fact() -> Result<()>
             ..BrainProfile::default()
         },
     );
-    let owner_user = seed_bridge_credential(&pool, "sweep-brain-owner").await?.user_id;
-    let stranger = seed_bridge_credential(&pool, "sweep-brain-stranger").await?.user_id;
+    let owner_user = seed_bridge_credential(&pool, "sweep-brain-owner")
+        .await?
+        .user_id;
+    let stranger = seed_bridge_credential(&pool, "sweep-brain-stranger")
+        .await?
+        .user_id;
     let service = format!("svc-{}", Uuid::new_v4().simple());
     let fact = seed_brain_fact(
         &pool,

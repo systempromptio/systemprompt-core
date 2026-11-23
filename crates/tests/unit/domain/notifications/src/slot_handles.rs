@@ -12,11 +12,17 @@ fn no_member_provides_the_notification_service_or_consumer_cell() {
             &mut sink,
         ))
         .expect("the notifications member contributes");
-    let provided: Vec<&str> = sink.provides().iter().map(|entry| entry.type_name()).collect();
+    let provided: Vec<&str> = sink
+        .provides()
+        .iter()
+        .map(|entry| entry.type_name())
+        .collect();
     assert!(
-        provided.iter().all(|name| !name.contains("NotificationsService")
-            && !name.contains("NotificationsConsumer")
-            && !name.contains("LateBound")),
+        provided
+            .iter()
+            .all(|name| !name.contains("NotificationsService")
+                && !name.contains("NotificationsConsumer")
+                && !name.contains("LateBound")),
         "the notifications member provides a handle cell: {provided:?}"
     );
 }

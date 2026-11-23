@@ -4,11 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
-use systemprompt_traits::SafetyFindingRollup;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, AiSafetyFindingId};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, SafetyFindingRollup};
 
 #[must_use]
 #[derive(Debug, Clone)]

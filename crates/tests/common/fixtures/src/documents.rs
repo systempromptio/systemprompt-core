@@ -23,8 +23,7 @@ use systemprompt_runtime::documents::{
     DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
 };
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::core_seam;
-use systemprompt_traits::{BackgroundTasks, CoreSeam, FileStorage};
+use systemprompt_traits::{core_seam, BackgroundTasks, CoreSeam, FileStorage};
 use systemprompt_users::{UserRepository, UserRoleAudienceResolver};
 
 pub fn fixture_notification_sink(pool: &DbPool) -> DynNotificationSink {
@@ -54,7 +53,9 @@ pub fn fixture_notifications(
     let mut seed = crate::app_context::fixture_kernel_seed(
         pool,
         crate::app_context::FixtureSeedParts {
-            file_storage: Arc::new(systemprompt_storage::LocalFileStorage::new(std::env::temp_dir())),
+            file_storage: Arc::new(systemprompt_storage::LocalFileStorage::new(
+                std::env::temp_dir(),
+            )),
             background_tasks: BackgroundTasks::new(),
             event_router: event_router.clone(),
             documents: documents_slot,
@@ -62,12 +63,13 @@ pub fn fixture_notifications(
     );
     seed.insert(Arc::new(NotificationsProfile::default()));
     seed.insert(crate::unique_instance());
-    seed.insert(CoreSeam::<dyn ResourceVisibility, core_seam::DocumentVisibility>::new(
-        document_visibility,
-    ));
-    seed.insert(CoreSeam::<dyn ResourceVisibility, core_seam::IssueVisibility>::new(
-        issue_visibility,
-    ));
+    seed.insert(CoreSeam::<
+        dyn ResourceVisibility,
+        core_seam::DocumentVisibility,
+    >::new(document_visibility));
+    seed.insert(
+        CoreSeam::<dyn ResourceVisibility, core_seam::IssueVisibility>::new(issue_visibility),
+    );
     let admitted = crate::app_context::fixture_admitted_of(vec![
         Box::new(systemprompt_users::UsersExtension),
         Box::new(systemprompt_notifications::NotificationsExtension),

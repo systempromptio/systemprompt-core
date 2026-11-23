@@ -307,7 +307,10 @@ pub(super) fn engines_with_scanners(
         })],
         ..ComposedParts::default()
     });
-    let kernel = systemprompt_test_fixtures::offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
+    let kernel = systemprompt_test_fixtures::offline_resolved_kernel(
+        &admitted,
+        systemprompt_test_fixtures::gateway_kernel_seed(),
+    );
     Arc::new(
         systemprompt_gateway::GatewayEngines::new(
             Default::default(),
@@ -1518,7 +1521,10 @@ fn coverage_guard_kernel() -> systemprompt_runtime::Kernel {
         })],
         ..ComposedParts::default()
     });
-    systemprompt_test_fixtures::offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed())
+    systemprompt_test_fixtures::offline_resolved_kernel(
+        &admitted,
+        systemprompt_test_fixtures::gateway_kernel_seed(),
+    )
 }
 
 async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyhow::Result<()> {

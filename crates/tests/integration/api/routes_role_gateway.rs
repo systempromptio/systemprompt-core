@@ -27,7 +27,8 @@ async fn router_for(role: NodeRole) -> anyhow::Result<Router> {
     config.role = role;
     let ctx = fixture_app_context_with_config(config).await?;
     let admitted = gateway_probe_admitted(ComposedParts::default());
-    let kernel = offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
+    let kernel =
+        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
     setup_api_server(
         &ctx,
         Composed {
@@ -102,7 +103,8 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
     config.role = NodeRole::Api;
     let ctx = fixture_app_context_with_config(config).await?;
     let admitted = gateway_probe_admitted(ComposedParts::default());
-    let kernel = offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
+    let kernel =
+        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
 
     let gateway = configure_routes_for_role(
         &ctx,

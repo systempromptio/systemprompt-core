@@ -7,7 +7,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::Method;
-use systemprompt_extension::router::{ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec};
+use systemprompt_extension::router::{
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+};
 use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
 
 use super::{BrainHttpState, admin, facts, lifecycle, proposals};
@@ -28,18 +30,58 @@ pub fn user_routes() -> RouteSet {
         .route(Method::GET, "/facts/{id}/timeline", facts::timeline, USER)
         .route(Method::GET, "/facts/{id}/why", facts::why, USER)
         .route(Method::GET, "/subjects/{kind}/{id}", facts::subject, USER)
-        .route(Method::POST, "/facts/{id}/confirm", lifecycle::confirm, USER)
-        .route(Method::POST, "/facts/{id}/dispute", lifecycle::dispute, USER)
-        .route(Method::POST, "/facts/{id}/retract", lifecycle::retract, USER)
+        .route(
+            Method::POST,
+            "/facts/{id}/confirm",
+            lifecycle::confirm,
+            USER,
+        )
+        .route(
+            Method::POST,
+            "/facts/{id}/dispute",
+            lifecycle::dispute,
+            USER,
+        )
+        .route(
+            Method::POST,
+            "/facts/{id}/retract",
+            lifecycle::retract,
+            USER,
+        )
         .route(Method::POST, "/facts/{id}/erase", lifecycle::erase, USER)
         .route(Method::POST, "/facts/{id}/pin", lifecycle::pin, USER)
         .route(Method::POST, "/facts/{id}/unpin", lifecycle::unpin, USER)
-        .route(Method::PATCH, "/facts/{id}/fields", lifecycle::edit_fields, USER)
-        .route(Method::POST, "/disputes/{id}/resolve", lifecycle::resolve, USER)
+        .route(
+            Method::PATCH,
+            "/facts/{id}/fields",
+            lifecycle::edit_fields,
+            USER,
+        )
+        .route(
+            Method::POST,
+            "/disputes/{id}/resolve",
+            lifecycle::resolve,
+            USER,
+        )
         .route(Method::GET, "/proposals", proposals::list, USER)
-        .route(Method::POST, "/proposals/{id}/approve", proposals::approve, USER)
-        .route(Method::POST, "/proposals/{id}/reject", proposals::reject, USER)
-        .route(Method::POST, "/proposals/{id}/replay", proposals::replay, USER)
+        .route(
+            Method::POST,
+            "/proposals/{id}/approve",
+            proposals::approve,
+            USER,
+        )
+        .route(
+            Method::POST,
+            "/proposals/{id}/reject",
+            proposals::reject,
+            USER,
+        )
+        .route(
+            Method::POST,
+            "/proposals/{id}/replay",
+            proposals::replay,
+            USER,
+        )
         .build()
 }
 

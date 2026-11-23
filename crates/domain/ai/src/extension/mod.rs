@@ -8,15 +8,15 @@
 //! job, runner, plane or route state does):
 //! - `Arc<AiRepositories>`: it holds the at-rest cipher that decrypts users'
 //!   personal provider keys, keyed from the sealed secret store;
-//! - `DynSafetyFindingsReader` and `DynCatalogMigrationPort`, the two ports
-//!   the `logs governance report` and `admin config migrate --data` kernel
-//!   commands read;
+//! - `DynSafetyFindingsReader` and `DynCatalogMigrationPort`, the two ports the
+//!   `logs governance report` and `admin config migrate --data` kernel commands
+//!   read;
 //! - after governance, the process's one `DynAiProvider`: the [`AiService`]
 //!   over the catalog, the sealed connector token cache and provider-key
 //!   lookup, the sealed AI session provider the `users` member provides (read
-//!   optionally: without it every call refuses), a sealed
-//!   `Arc<dyn ToolProvider>` when one is provided (read optionally: without
-//!   it the service lists and runs no tools) and the agent member's context
+//!   optionally: without it every call refuses), a sealed `Arc<dyn
+//!   ToolProvider>` when one is provided (read optionally: without it the
+//!   service lists and runs no tools) and the agent member's context
 //!   materializer (optional). When the catalog serves no default model it is
 //!   [`InferenceNotConfigured`], which answers every call with a typed
 //!   configuration error.
@@ -34,7 +34,9 @@ use systemprompt_extension::prelude::*;
 use systemprompt_models::attribution::DynRequestAttributionLookup;
 use systemprompt_traits::{DynCatalogMigrationPort, DynSafetyFindingsReader};
 
-use crate::repository::{AiRequestRepository, AiSafetyFindingRepository, CatalogMigrationRepository};
+use crate::repository::{
+    AiRequestRepository, AiSafetyFindingRepository, CatalogMigrationRepository,
+};
 
 mod provides;
 
@@ -187,7 +189,9 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
         SchemaDefinition::sql_only(include_str!(
             "../../schema/ai_gateway_policies_cache_notify.sql"
         )),
-        SchemaDefinition::sql_only(include_str!("../../schema/ai_gateway_policies_provenance.sql")),
+        SchemaDefinition::sql_only(include_str!(
+            "../../schema/ai_gateway_policies_provenance.sql"
+        )),
         SchemaDefinition::new(
             "ai_gateway_thought_signatures",
             include_str!("../../schema/ai_gateway_thought_signatures.sql"),

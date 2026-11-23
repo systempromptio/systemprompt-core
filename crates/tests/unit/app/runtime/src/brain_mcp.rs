@@ -2,6 +2,11 @@ use std::sync::Arc;
 
 use rmcp::ErrorData as McpError;
 use serde_json::json;
+use systemprompt_brain::mcp::{
+    BrainMcpTools, BrainMcpUnavailable, BrainRefusalCode, DisputeInput, GuideInput, ProposeInput,
+    RecallPreviewInput, SearchInput, WhyInput, brain_tool_error, guide_text, refusal_code,
+    refusal_of, refusal_result,
+};
 use systemprompt_brain::service::BrainService;
 use systemprompt_brain::{BrainError, BrainRepositories};
 use systemprompt_database::Database;
@@ -12,11 +17,6 @@ use systemprompt_extension::brain::{
 use systemprompt_identifiers::{BrainFactId, EventOutboxId, FactKindId};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BrainEvent, FactStatus, ScopeLevel};
-use systemprompt_brain::mcp::{
-    BrainMcpTools, BrainMcpUnavailable, BrainRefusalCode, DisputeInput, GuideInput, ProposeInput,
-    RecallPreviewInput, SearchInput, WhyInput, brain_tool_error, guide_text, refusal_code,
-    refusal_of, refusal_result,
-};
 
 struct NoSink;
 

@@ -38,7 +38,10 @@ fn assert_sealed<T: Clone + Send + Sync + 'static>(ctx: &AppContext) {
     assert!(state.find::<T>().is_some(), "kernel code reads {name}");
     let kernel = command_kernel(ctx);
     let member = Resolved::__member_command(&kernel, kernel.state());
-    assert!(member.optional::<T>().is_none(), "a member command cannot read {name}");
+    assert!(
+        member.optional::<T>().is_none(),
+        "a member command cannot read {name}"
+    );
     assert!(
         kernel.runtime_state().find::<T>().is_none(),
         "no job, runner or plane context reads {name}"

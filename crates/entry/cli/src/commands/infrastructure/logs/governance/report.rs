@@ -21,9 +21,9 @@ use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_traits::DynSafetyFindingsReader;
 use systemprompt_governance::authz::list_governance_warnings;
 use systemprompt_identifiers::UserId;
+use systemprompt_traits::DynSafetyFindingsReader;
 
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::shared::truncate_with_ellipsis;
@@ -118,8 +118,7 @@ pub(in crate::commands::infrastructure::logs) async fn execute(
     execute_with_pool_inner(args, &pool, findings.as_ref()).await
 }
 
-const AI_MEMBER_REQUIRED: &str =
-    "the governance report reads the safety findings the `ai` member provides; \
+const AI_MEMBER_REQUIRED: &str = "the governance report reads the safety findings the `ai` member provides; \
      enable the `ai` extension in the profile";
 
 #[derive(Default)]

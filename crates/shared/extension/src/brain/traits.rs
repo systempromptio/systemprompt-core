@@ -9,15 +9,15 @@ use std::sync::Arc;
 
 #[cfg(feature = "sqlx")]
 use systemprompt_identifiers::EventOutboxId;
-use systemprompt_models::AlreadyBound;
-use systemprompt_traits::RunnerService;
 use systemprompt_identifiers::FactKindId;
+use systemprompt_models::AlreadyBound;
 #[cfg(feature = "sqlx")]
 use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::brain::{
     BrainEnvelope, BrainFact, BrainModelRequest, BrainModelResponse, ExtractionInput,
     ExtractionOutput, FactCandidate, FactSource, ImportanceConfig, KindDecl, RecallCtx, SourceText,
 };
+use systemprompt_traits::RunnerService;
 
 #[cfg(feature = "sqlx")]
 use super::errors::BrainSinkError;

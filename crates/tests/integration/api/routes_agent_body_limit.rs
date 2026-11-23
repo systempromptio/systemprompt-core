@@ -108,7 +108,8 @@ fn extractor(ctx: &AppContext) -> JwtContextExtractor {
 }
 
 fn agent_route(ctx: &AppContext) -> Router {
-    agents::router(ctx).expect("the proxy reads the kernel's connector token cache")
+    agents::router(ctx)
+        .expect("the proxy reads the kernel's connector token cache")
         .layer(DefaultBodyLimit::max(AGENT_REQUEST_BODY_LIMIT_BYTES))
         .with_auth(
             A2AContextMiddleware::new(

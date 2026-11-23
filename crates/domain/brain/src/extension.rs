@@ -33,21 +33,21 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{
     BrainConsumerStart, BrainModelClient, DynBrainConsumerStart, DynBrainSink, MemoryRecall,
 };
-use systemprompt_models::AlreadyBound;
-use systemprompt_traits::RunnerService;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::{DiagnosticProbe, DynNotificationSink};
 use systemprompt_identifiers::InstanceId;
+use systemprompt_models::AlreadyBound;
+use systemprompt_traits::RunnerService;
 
 use crate::OutboxBrainSink;
 use crate::consumer::BacklogDiagnostic;
 use crate::contract::BrainSlot;
 use crate::handle::BrainHandleSlot;
-use crate::recall::BoundMemoryRecall;
 use crate::jobs::{
     BrainAnalysisJob, BrainConsolidateJob, BrainRetentionJob, BrainReviewJob, BrainUsageJob,
 };
 use crate::plane::BrainPlane;
+use crate::recall::BoundMemoryRecall;
 use crate::schema::{BRAIN_SCHEMAS, BRAIN_VIEWS};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -89,7 +89,9 @@ impl Extension for BrainExtension {
             )
             .provide_sealed_after_governance(
                 |r: &Resolved<'_>| -> Result<DynBrainConsumerStart, ProvideError> {
-                    Ok(Arc::new(HandleConsumerStart(r.get::<Arc<BrainHandleSlot>>()?)))
+                    Ok(Arc::new(HandleConsumerStart(
+                        r.get::<Arc<BrainHandleSlot>>()?,
+                    )))
                 },
             )
             .diagnostic(

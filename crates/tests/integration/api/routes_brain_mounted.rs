@@ -97,7 +97,11 @@ async fn a_signed_in_user_reaches_the_brain_handler_and_is_refused_the_simulator
     let user = seed_bridge_credential(&pool, "brain-mounted").await?;
     let (status, body) = call(&app, Method::GET, FACTS, Some(&user.jwt)).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    assert_eq!(body["error_key"], serde_json::json!("brain_disabled"), "{body}");
+    assert_eq!(
+        body["error_key"],
+        serde_json::json!("brain_disabled"),
+        "{body}"
+    );
     let (status, _) = call(&app, Method::POST, SIMULATE, Some(&user.jwt)).await?;
     assert_eq!(status, StatusCode::FORBIDDEN);
     Ok(())
@@ -109,7 +113,11 @@ async fn an_admin_reaches_the_simulator_handler() -> Result<()> {
     let admin = seed_admin_credential(&pool, "brain-mounted-admin").await?;
     let (status, body) = call(&app, Method::POST, SIMULATE, Some(&admin.jwt)).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    assert_eq!(body["error_key"], serde_json::json!("brain_disabled"), "{body}");
+    assert_eq!(
+        body["error_key"],
+        serde_json::json!("brain_disabled"),
+        "{body}"
+    );
     Ok(())
 }
 
@@ -136,7 +144,11 @@ async fn disabling_brain_http_unmounts_both_groups() -> Result<()> {
     assert_eq!(status, StatusCode::NOT_FOUND);
     let (status, body) = call(&app, Method::GET, FACTS, Some(&user.jwt)).await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_ne!(body["error_key"], serde_json::json!("brain_disabled"), "{body}");
+    assert_ne!(
+        body["error_key"],
+        serde_json::json!("brain_disabled"),
+        "{body}"
+    );
     let (status, _) = call(&app, Method::POST, SIMULATE, None).await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
     Ok(())

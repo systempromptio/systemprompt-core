@@ -70,7 +70,9 @@ fn ctx_with(pool: &DbPool, ai: bool) -> CommandContext {
 }
 
 async fn run(pool: &DbPool, args: &[&str]) -> anyhow::Result<()> {
-    logs::execute(parse(args), &ctx_with(pool, true)).await.map(drop)
+    logs::execute(parse(args), &ctx_with(pool, true))
+        .await
+        .map(drop)
 }
 
 #[tokio::test]

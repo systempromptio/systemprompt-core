@@ -104,7 +104,8 @@ async fn fixture(schema: &str, policy: Option<serde_json::Value>) -> anyhow::Res
         })],
         ..ComposedParts::default()
     });
-    let kernel = offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
+    let kernel =
+        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
     let engines = GatewayEngines::new(
         Default::default(),
         &kernel.resolved(),

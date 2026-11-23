@@ -6,15 +6,16 @@ use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_extension::brain::{SourceAccess, SourceContent};
 use systemprompt_extension::{DynNotificationSink, Extension};
-use systemprompt_files::documents::{DocumentSourceAccess, DocumentSourceContent, DocumentsHandlesSlot};
+use systemprompt_files::documents::{
+    DocumentSourceAccess, DocumentSourceContent, DocumentsHandlesSlot,
+};
 use systemprompt_identifiers::{BrainFactId, FactKindId, TopicId, UserId};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{FactCandidate, FactScope, FactSource, FactStatus, SubjectKey};
 use systemprompt_runtime::documents::DocumentsRuntime;
 use systemprompt_runtime::Kernel;
 use systemprompt_storage::LocalFileStorage;
-use systemprompt_traits::core_seam;
-use systemprompt_traits::{BackgroundTasks, CoreSeam, FileStorage};
+use systemprompt_traits::{core_seam, BackgroundTasks, CoreSeam, FileStorage};
 use systemprompt_users::UsersExtension;
 
 // The brain over the kernel seeds a host composes: the users member (its role
@@ -41,8 +42,7 @@ pub fn fixture_brain_kernel_with(
     profile: BrainProfile,
     members: Vec<Box<dyn Extension>>,
 ) -> Kernel {
-    let file_storage: Arc<dyn FileStorage> =
-        Arc::new(LocalFileStorage::new(std::env::temp_dir()));
+    let file_storage: Arc<dyn FileStorage> = Arc::new(LocalFileStorage::new(std::env::temp_dir()));
     let (documents_slot, _binder) = DocumentsHandlesSlot::unbound();
     let mut seed = crate::app_context::fixture_kernel_seed(
         pool,
@@ -65,7 +65,10 @@ pub fn fixture_brain_kernel_with(
             Arc::clone(documents.access()),
             Arc::clone(documents.repositories()),
         ));
-        seed.insert(CoreSeam::<dyn SourceContent, core_seam::DocumentSourceContent>::new(content));
+        seed.insert(CoreSeam::<
+            dyn SourceContent,
+            core_seam::DocumentSourceContent,
+        >::new(content));
         seed.insert(CoreSeam::<dyn SourceAccess, core_seam::DocumentSourceAccess>::new(access));
     }
     let mut admitted: Vec<Box<dyn Extension>> =

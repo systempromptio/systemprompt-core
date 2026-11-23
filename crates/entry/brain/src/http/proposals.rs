@@ -58,7 +58,5 @@ pub(super) async fn replay(
         since: body.since,
         until: body.until,
     };
-    Ok(Json(
-        service.replay_proposal(&caller, &id, window).await?,
-    ))
+    Ok(Json(service.replay_proposal(&caller, &id, window).await?))
 }

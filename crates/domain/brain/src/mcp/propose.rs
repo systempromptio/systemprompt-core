@@ -5,8 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use rmcp::ErrorData as McpError;
 use crate::BrainError;
+use rmcp::ErrorData as McpError;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::brain::{EnteredFact, EnteredStatus, FactScope, FactStatus, SubjectKey};

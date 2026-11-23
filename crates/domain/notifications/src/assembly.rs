@@ -9,9 +9,10 @@
 //! brain recall; without it the build is refused. A default whose
 //! owner is not admitted is absent, never replaced. The
 //! [`NotificationsService`] and [`NotificationsConsumer`] are then built
-//! from those seams and bound into the cells of the [`NotificationsServiceSlot`]
-//! the build creates and returns, so every reader sees the one pipeline the
-//! kernel resolved and nothing outside the build can bind either cell.
+//! from those seams and bound into the cells of the
+//! [`NotificationsServiceSlot`] the build creates and returns, so every reader
+//! sees the one pipeline the kernel resolved and nothing outside the build can
+//! bind either cell.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

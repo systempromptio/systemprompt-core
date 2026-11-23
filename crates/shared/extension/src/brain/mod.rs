@@ -50,8 +50,8 @@ pub use retrieval::{
 pub use source_access::{SourceAccess, SourceVerdict};
 pub use systemprompt_models::brain::WithheldReason;
 pub use traits::{
-    BrainConsumerStart, BrainModelClient, DynBrainConsumerStart, EventFilter, FactExtractor, FactValidator, FilterVerdict, ImportanceModel,
-    SourceContent, ValidationVerdict,
+    BrainConsumerStart, BrainModelClient, DynBrainConsumerStart, EventFilter, FactExtractor,
+    FactValidator, FilterVerdict, ImportanceModel, SourceContent, ValidationVerdict,
 };
 #[cfg(feature = "sqlx")]
 pub use traits::{BrainSink, DynBrainSink};

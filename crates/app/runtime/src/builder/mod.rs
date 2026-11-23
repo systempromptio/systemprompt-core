@@ -156,7 +156,9 @@ impl AppContextBuilder {
                     path: self.boot.profile_path().to_path_buf(),
                 },
                 secrets,
-                secret_lookup: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
+                secret_lookup: Arc::<systemprompt_config::SecretsService>::clone(
+                    self.boot.secrets(),
+                ),
                 connector_tokens: Arc::default(),
                 file_storage: Arc::clone(&file_storage),
                 background_tasks: background_tasks.clone(),

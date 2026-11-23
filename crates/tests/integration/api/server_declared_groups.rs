@@ -25,8 +25,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::documents::links::LinkTarget;
 use systemprompt_runtime::documents::upload_links::UPLOAD_TOKEN_HEADER;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
-    test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
 use tower::ServiceExt;
 

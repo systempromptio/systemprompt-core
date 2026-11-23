@@ -244,14 +244,13 @@ async fn apply_data(
     host: &dyn KernelHost,
 ) -> Result<()> {
     let map = data::read_map(services)?;
-    let port = crate::commands::admin::state::get::<systemprompt_traits::DynCatalogMigrationPort>(
-        host,
-    )
-    .await
-    .context(
-        "the catalog data migration writes through the port the `ai` member provides; \
+    let port =
+        crate::commands::admin::state::get::<systemprompt_traits::DynCatalogMigrationPort>(host)
+            .await
+            .context(
+                "the catalog data migration writes through the port the `ai` member provides; \
          enable the `ai` extension in the profile",
-    )?;
+            )?;
     let report = data::apply_with(
         &systemprompt_database::pool_from_handle(host.db().await?)?,
         port.as_ref(),

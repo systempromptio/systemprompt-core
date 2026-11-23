@@ -51,9 +51,7 @@ pub(super) async fn retract(
     Json(body): Json<RetractBody>,
 ) -> Revision {
     let (service, caller) = state.open(&req_ctx).await?;
-    Ok(Json(
-        service.retract(&caller, &id, &body.reason).await?,
-    ))
+    Ok(Json(service.retract(&caller, &id, &body.reason).await?))
 }
 
 pub(super) async fn edit_fields(
@@ -63,9 +61,7 @@ pub(super) async fn edit_fields(
     Json(body): Json<FieldsBody>,
 ) -> Revision {
     let (service, caller) = state.open(&req_ctx).await?;
-    Ok(Json(
-        service.edit_fields(&caller, &id, body.fields).await?,
-    ))
+    Ok(Json(service.edit_fields(&caller, &id, body.fields).await?))
 }
 
 pub(super) async fn erase(

@@ -111,7 +111,8 @@ fn composition(gateway_route: bool, probes: Vec<Probe>) -> Composition {
             Vec::new()
         },
     });
-    let kernel = offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
+    let kernel =
+        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
     Composition { admitted, kernel }
 }
 

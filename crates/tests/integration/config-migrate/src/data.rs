@@ -152,7 +152,9 @@ async fn data_migration_moves_keys_backfills_audit_and_is_idempotent() {
     .unwrap();
     assert_eq!(tags.0, vec!["claude".to_owned(), "openai".to_owned()]);
 
-    let again = apply_with(&pool, &CatalogMigrationRepository::new(&pool), &map()).await.expect("second run");
+    let again = apply_with(&pool, &CatalogMigrationRepository::new(&pool), &map())
+        .await
+        .expect("second run");
     assert_eq!(again.personal_keys_moved, 0);
     assert_eq!(again.audit_rows_backfilled, 0);
     assert_eq!(again.host_filters_rewritten, 0);
@@ -200,7 +202,9 @@ async fn data_migration_moves_access_rules_from_legacy_routes_onto_model_entitie
         .route_models
         .insert("absent".to_owned(), "other-*".to_owned());
 
-    let report = apply_with(&pool, &CatalogMigrationRepository::new(&pool), &routed).await.expect("data migration");
+    let report = apply_with(&pool, &CatalogMigrationRepository::new(&pool), &routed)
+        .await
+        .expect("data migration");
 
     assert_eq!(
         report.route_rules_moved_to_models, 2,
@@ -231,7 +235,9 @@ async fn data_migration_moves_access_rules_from_legacy_routes_onto_model_entitie
     .unwrap();
     assert_eq!(legacy.0, 0);
 
-    let again = apply_with(&pool, &CatalogMigrationRepository::new(&pool), &routed).await.expect("second run");
+    let again = apply_with(&pool, &CatalogMigrationRepository::new(&pool), &routed)
+        .await
+        .expect("second run");
     assert_eq!(again.route_rules_moved_to_models, 0);
     db.drop_now().await;
 }

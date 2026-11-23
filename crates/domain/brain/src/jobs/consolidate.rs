@@ -6,9 +6,10 @@
 //! The job does nothing, and says so once per process, unless all of these
 //! hold: `brain.consolidation.enabled` is `true`, at least one consolidator
 //! is contributed through the `BrainSlot`, and the brain handle the slot
-//! build bound carries the model client the host started the consumer with. Core contributes no consolidator and makes
-//! no model call here; the consolidator decides whether to call the model it is
-//! handed, under the day's remaining token budget.
+//! build bound carries the model client the host started the consumer with.
+//! Core contributes no consolidator and makes no model call here; the
+//! consolidator decides whether to call the model it is handed, under the day's
+//! remaining token budget.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

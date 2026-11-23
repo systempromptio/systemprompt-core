@@ -18,9 +18,8 @@ use async_trait::async_trait;
 use futures::Stream;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::ai::{
-    AiProvider, AiRequest, AiResponse, CallToolResult, GenerateResponseParams,
-    GoogleSearchParams, McpTool, PlanningResult, SearchGroundedResponse, StreamChunk, ToolCall,
-    ToolModelOverrides,
+    AiProvider, AiRequest, AiResponse, CallToolResult, GenerateResponseParams, GoogleSearchParams,
+    McpTool, PlanningResult, SearchGroundedResponse, StreamChunk, ToolCall, ToolModelOverrides,
 };
 use systemprompt_models::errors::{AiInferenceError, AiInferenceResult};
 use systemprompt_models::execution::context::RequestContext;

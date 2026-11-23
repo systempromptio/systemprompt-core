@@ -77,6 +77,8 @@ mod documents_subject_directory;
 #[cfg(test)]
 mod documents_views_touched;
 #[cfg(test)]
+mod hb_seams;
+#[cfg(test)]
 mod host_context;
 #[cfg(test)]
 mod kernel_resolve_once;
@@ -96,8 +98,6 @@ mod mcp_dispatch;
 mod notifications_document_visibility;
 #[cfg(test)]
 mod wave_h_seams;
-#[cfg(test)]
-mod hb_seams;
 
 #[cfg(test)]
 mod brain_live;

@@ -1,12 +1,12 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_brain_entry::http::BrainHttpError;
 use systemprompt_brain::BrainError;
+use systemprompt_brain_entry::http::BrainHttpError;
 use systemprompt_extension::brain::RecallError;
+use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::BrainProposalId;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::brain::{StatementError, SubjectKeyError, UnknownFactStatus};
-use systemprompt_governance::authz::AuthzError;
 use systemprompt_traits::RepositoryError;
 
 fn key_of(error: BrainHttpError) -> (Option<String>, String) {

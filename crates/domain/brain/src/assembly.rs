@@ -35,7 +35,10 @@ use crate::{BrainRepositories, OutboxBrainSink};
 
 const SLOT: &str = "brain";
 
-pub(crate) fn bind_handle(seams: BrainSeams, r: &Resolved<'_>) -> Result<BrainHandleSlot, SlotError> {
+pub(crate) fn bind_handle(
+    seams: BrainSeams,
+    r: &Resolved<'_>,
+) -> Result<BrainHandleSlot, SlotError> {
     let profile = r.get::<Arc<BrainProfile>>()?;
     let (slot, binder) = BrainHandleSlot::unbound(seams);
     if !profile.enabled {

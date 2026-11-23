@@ -124,7 +124,9 @@ pub fn gateway_kernel_seed() -> Dependencies {
             crate::bootstrap::ensure_test_bootstrap().boot.secrets(),
         );
     Dependencies::new()
-        .with_sealed(std::sync::Arc::<systemprompt_security::credential::TokenCache>::default())
+        .with_sealed(std::sync::Arc::<
+            systemprompt_security::credential::TokenCache,
+        >::default())
         .with_sealed(secrets)
 }
 

@@ -6,23 +6,27 @@ use axum::response::IntoResponse;
 use axum::{Extension, Router};
 use systemprompt_brain::BrainError;
 use systemprompt_brain_entry::http::{
-    BrainHttpError, FieldsBody, ResolveBody, SearchParams, SimulateBody, admin_routes,
-    user_routes,
+    BrainHttpError, FieldsBody, ResolveBody, SearchParams, SimulateBody, admin_routes, user_routes,
 };
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::router::RouteSet;
-use systemprompt_identifiers::{AgentName, BrainFactId, ContextId, FactKindId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, BrainFactId, ContextId, FactKindId, SessionId, TraceId, UserId,
+};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
-use systemprompt_test_fixtures::{lazy_pg_pool, ensure_test_bootstrap, fixture_brain_kernel};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_brain_kernel, lazy_pg_pool};
 use systemprompt_traits::RepositoryError;
 use tower::ServiceExt;
 
 const FACT: &str = "m_0190f5c2-7c1e-7a3b-9f2a-3c4d5e6f7a8b";
 
 fn offline_pool() -> systemprompt_database::DbPool {
-    Arc::new(systemprompt_database::Database::from_pools(lazy_pg_pool(), None))
+    Arc::new(systemprompt_database::Database::from_pools(
+        lazy_pg_pool(),
+        None,
+    ))
 }
 
 fn disabled(set: &RouteSet) -> Router {
@@ -69,7 +73,11 @@ async fn an_unbound_brain_answers_brain_disabled() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(body["error_key"], serde_json::json!("brain_disabled"), "{body}");
+    assert_eq!(
+        body["error_key"],
+        serde_json::json!("brain_disabled"),
+        "{body}"
+    );
 }
 
 #[tokio::test]

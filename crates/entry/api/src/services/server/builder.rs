@@ -11,9 +11,9 @@
 //! check on the boot path, and every router and gateway engine below it is
 //! built downstream of it. The server run loop reads the engines set once and
 //! hands the same set to the router ([`assemble_api_server`]) and to the
-//! brain consumer's model client. Binding and serving live in [`super::startup`],
-//! which binds the listener before this router exists and swaps it in once
-//! bootstrap completes.
+//! brain consumer's model client. Binding and serving live in
+//! [`super::startup`], which binds the listener before this router exists and
+//! swaps it in once bootstrap completes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

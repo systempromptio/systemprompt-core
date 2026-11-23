@@ -18,10 +18,7 @@ use systemprompt::database::{Database, DbPool};
 use systemprompt::events::{EventBroadcasters, EventRouter};
 use systemprompt::models::brain::BrainEnvelope;
 use systemprompt::notifications::service::EscalationDelivery;
-use systemprompt::notifications::{
-    NotificationSeams, NotificationsSlot,
-    OutboxNotificationSink,
-};
+use systemprompt::notifications::{NotificationSeams, NotificationsSlot, OutboxNotificationSink};
 use systemprompt::reference;
 use systemprompt::users::SessionRepository;
 use systemprompt_extension::brain::{
@@ -735,7 +732,10 @@ fn a_disabled_audience_member_leaves_both_readers_withholding() {
         .expect("the brain slot is built");
     assert!(audience_names(&notifications.seams().audiences).is_empty());
     assert!(audience_names(&brain.seams().audiences).is_empty());
-    assert_eq!(handler_of(&brain.seams().audiences, &group("platform")), None);
+    assert_eq!(
+        handler_of(&brain.seams().audiences, &group("platform")),
+        None
+    );
     assert_eq!(
         handler_of(&notifications.seams().audiences, &group("platform")),
         None

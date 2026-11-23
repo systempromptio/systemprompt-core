@@ -22,9 +22,9 @@ use serde::Serialize;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventRouter, RelayOutcome};
 use systemprompt_extension::LateBound;
-use systemprompt_models::AlreadyBound;
 use systemprompt_extension::notifications::{DynNotificationSink, PublishPolicy};
 use systemprompt_identifiers::UserId;
+use systemprompt_models::AlreadyBound;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::notifications::{SimulateRequest, SimulateResponse};
 

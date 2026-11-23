@@ -20,9 +20,9 @@ mod tools;
 
 use std::sync::Arc;
 
+use crate::service::{BrainCaller, BrainService};
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
-use crate::service::{BrainCaller, BrainService};
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
 use systemprompt_identifiers::McpServerId;

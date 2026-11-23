@@ -5,12 +5,15 @@ use systemprompt_extension::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::{
-    lazy_pg_pool, ensure_test_bootstrap, fixture_admitted_of, fixture_brain_kernel,
-    fixture_brain_slot,
+    ensure_test_bootstrap, fixture_admitted_of, fixture_brain_kernel, fixture_brain_slot,
+    lazy_pg_pool,
 };
 
 fn offline_pool() -> systemprompt_database::DbPool {
-    Arc::new(systemprompt_database::Database::from_pools(lazy_pg_pool(), None))
+    Arc::new(systemprompt_database::Database::from_pools(
+        lazy_pg_pool(),
+        None,
+    ))
 }
 
 fn kernel(enabled: bool) -> systemprompt_runtime::Kernel {
