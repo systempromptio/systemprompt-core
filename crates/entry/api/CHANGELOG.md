@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `services::proxy::ProxyError` gains `ContextNotOwned { service }` and `ContextLookupFailed { service, source }`. Migrate an exhaustive `match` by adding the two arms.
 - `routes::oauth::discovery::WellKnownResponse` gains `device_link_ui_session_supported: bool`, and `routes::gateway::auth::{session_pat, SessionPatBody}` move to `routes::gateway::device_link`. Migrate a struct literal by setting the field and an import by its new path.
 
 ### Added

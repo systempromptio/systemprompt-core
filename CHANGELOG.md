@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** **Models:** `bridge::gateway::DevicePatResponse` gains `ui_code: Option<String>`. Migrate a struct literal by setting `ui_code: None`; a reply serialised without the field decodes as `None`.
+- **Breaking:** **API:** `services::proxy::ProxyError` gains `ContextNotOwned { service }` and `ContextLookupFailed { service, source }`. Migrate an exhaustive `match` by adding the two arms.
 - **Breaking:** **API:** `routes::oauth::discovery::WellKnownResponse` gains `device_link_ui_session_supported: bool`, and `routes::gateway::auth::{session_pat, SessionPatBody}` move to `routes::gateway::device_link`. Migrate a struct literal by setting the field and an import by its new path.
 - **Breaking:** **Models:** `notifications::NotificationEvent` gains `actor_is_system: bool`. Migrate a struct literal by setting `actor_is_system: false`; `NotificationEvent::new` already does, and an event serialised without the field decodes as `false`.
 - **Breaking:** **Scheduler:** `ServiceManagementService::new` takes the profile's `ShutdownConfig` after the repository, `ServiceManagementService::stop_api_by_port` takes `&ShutdownConfig` before `force`, and `ServiceReconciler::new` takes `ShutdownConfig` after the repository. Migrate by passing `profile.server.shutdown` (`ShutdownConfig::default()` keeps the default deadlines).
