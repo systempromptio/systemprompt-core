@@ -1,0 +1,24 @@
+[root]
+section = "Added"
+area = "Security"
+text = "Every kernel seeds the cache epochs twice: the advancing `CacheEpochs` handle sealed, and its read half `CacheEpochView` (current epoch, subscribe, relay liveness; no advance) open. The API kernel seeds the one `Arc<dyn TokenAuthority>` over its signing keys and issuer, sealed and recorded under the `identity-token-authority` conferral row, whose holder is `identity-http`; `AppContext::token_authority` returns that same value instead of building one per call."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`CacheEpochView` and `CacheEpochs::view`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::with_sealed_conferred`, which seeds a sealed host value recorded under a conferral row."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`ConferralRow::IdentityTokenAuthority`, a kernel-provided row held by `identity-http`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelSeed` gains `cache_epochs`; `ApiKernelSeed` gains `token_authority`; `Subsystems` gains `token_authority`."

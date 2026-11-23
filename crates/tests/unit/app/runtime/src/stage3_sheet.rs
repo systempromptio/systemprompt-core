@@ -8,6 +8,7 @@ use std::sync::Arc;
 use systemprompt_ai::PersonalProviderCredentials;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_database::DbPool;
+use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_extension::{DynBrainSink, Resolved, StandingTag};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
@@ -16,13 +17,13 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
-    AppContext as AppContextTrait, BackgroundTasks, DynAiSessionProvider, DynContextDirectory,
-    DynGatewaySessionMint, DynSessionContextIssuer, DynSessionStore, DynSessionTelemetry,
-    DynSessionUsageCounters,
-    FileStorage, SecretStore,
+    AppContext as AppContextTrait, BackgroundTasks, CacheEpochView, CacheEpochs,
+    DynAiSessionProvider, DynContextDirectory, DynGatewaySessionMint, DynSessionContextIssuer,
+    DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters, FileStorage, SecretStore,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -105,10 +106,19 @@ async fn gateway_route_set_is_refused_the_users_and_ai_sealed_provides() {
     assert!(!route_reads::<Arc<AiRepositories>>(&ctx, "gateway"));
 }
 
-fn conferred_on_gateway_http_alone<T: Clone + Send + Sync + 'static>(ctx: &AppContext, provider: &str) {
+fn conferred_on_gateway_http_alone<T: Clone + Send + Sync + 'static>(
+    ctx: &AppContext,
+    provider: &str,
+) {
     assert!(route_reads::<T>(ctx, "gateway-http"));
     assert!(route_reads::<T>(ctx, provider));
-    for owner in ["gateway", "identity-http", "files-http", "agent-http", "mcp-http"] {
+    for owner in [
+        "gateway",
+        "identity-http",
+        "files-http",
+        "agent-http",
+        "mcp-http",
+    ] {
         if owner != provider {
             assert!(!route_reads::<T>(ctx, owner), "{owner}");
         }
@@ -137,6 +147,55 @@ async fn gateway_http_builds_its_rejection_records_from_open_values_only() {
     assert!(route_reads::<DbPool>(&ctx, "gateway-http"));
     assert!(route_reads::<DynSessionUsageCounters>(&ctx, "gateway-http"));
     assert!(!route_reads::<Arc<AiRepositories>>(&ctx, "gateway-http"));
+}
+
+#[tokio::test]
+async fn every_context_reads_the_open_cache_epoch_view_and_no_member_context_advances_epochs() {
+    let ctx = context().await;
+    for owner in ["gateway-http", "identity-http", "files-http", "gateway"] {
+        assert!(route_reads::<CacheEpochView>(&ctx, owner), "{owner}");
+    }
+    assert!(install_reads::<CacheEpochView>(&ctx));
+    assert!(member_command_reads::<CacheEpochView>(&ctx));
+    assert!(job_reads::<CacheEpochView>(&ctx));
+    assert!(!install_reads::<CacheEpochs>(&ctx));
+    assert!(!member_command_reads::<CacheEpochs>(&ctx));
+    assert!(!job_reads::<CacheEpochs>(&ctx));
+}
+
+#[tokio::test]
+async fn the_seeded_epoch_view_reads_the_epochs_the_kernel_advances() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    let epochs = state.get::<CacheEpochs>().expect("sealed epochs seeded");
+    let view = state.get::<CacheEpochView>().expect("open view seeded");
+    let domain = systemprompt_traits::CacheDomain::GatewayPolicy;
+    let before = view.current(domain);
+    epochs.advance(domain);
+    assert_eq!(view.current(domain), before + 1);
+}
+
+#[tokio::test]
+async fn the_token_authority_is_one_sealed_kernel_seed_conferred_on_identity_http() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    let seeded = state
+        .get::<Arc<dyn TokenAuthority>>()
+        .expect("the API seeds the token authority");
+    assert!(Arc::ptr_eq(seeded, &ctx.token_authority()));
+    assert!(state.is_sealed::<Arc<dyn TokenAuthority>>());
+    let conferred = state
+        .conferral_of::<Arc<dyn TokenAuthority>>()
+        .expect("recorded under its row");
+    assert_eq!(conferred.row, ConferralRow::IdentityTokenAuthority.name());
+    assert_eq!(conferred.holder.as_str(), "identity-http");
+    assert!(route_reads::<Arc<dyn TokenAuthority>>(
+        &ctx,
+        "identity-http"
+    ));
+    assert!(!install_reads::<Arc<dyn TokenAuthority>>(&ctx));
+    assert!(!member_command_reads::<Arc<dyn TokenAuthority>>(&ctx));
+    assert!(!job_reads::<Arc<dyn TokenAuthority>>(&ctx));
 }
 
 #[tokio::test]

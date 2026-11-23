@@ -143,6 +143,11 @@ impl AppContextBuilder {
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
         let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let spawner = new_spawner()?;
+        let token_authority: Arc<dyn systemprompt_models::auth::TokenAuthority> =
+            Arc::new(systemprompt_security::DeploymentTokenAuthority::new(
+                signing_keys.clone(),
+                config.jwt_issuer.clone(),
+            ));
         let (seed, binders) = kernel_state(ApiKernelSeed {
             base: KernelSeed {
                 database: &database,
@@ -150,6 +155,7 @@ impl AppContextBuilder {
                 files_config: &files_config,
                 profile,
                 config: &config,
+                cache_epochs: &cache_epochs,
                 services: services.view(),
                 services_root,
                 profile_path: ActiveProfilePath {
@@ -170,6 +176,7 @@ impl AppContextBuilder {
                 escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
             },
             signing_keys: &signing_keys,
+            token_authority: &token_authority,
             spawner: &spawner,
             child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
             oauth: &seeded.oauth,
@@ -242,6 +249,7 @@ impl AppContextBuilder {
             system_admin,
             authz_hook,
             signing_keys,
+            token_authority,
             governance,
             services,
             cache_epochs,

@@ -73,6 +73,7 @@ impl std::fmt::Debug for Subsystems {
             .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
             .field("signing_keys", &self.signing_keys)
+            .field("token_authority", &self.token_authority)
             .field("governance", &self.governance)
             .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)

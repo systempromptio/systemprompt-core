@@ -12847,6 +12847,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",

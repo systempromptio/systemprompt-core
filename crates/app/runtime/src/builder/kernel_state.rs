@@ -39,6 +39,15 @@
 //! runtime code needs a capability derived from a sealed seed builds a narrow
 //! handle in its provide fn or factory.
 //!
+//! The API also seeds the one `Arc<dyn TokenAuthority>` built over its signing
+//! keys and issuer, sealed and recorded under the `identity-token-authority`
+//! conferral row; `AppContext::token_authority` hands out the same value. A
+//! child host holds verification keys only, so it seeds no token authority.
+//!
+//! The cache epochs are seeded twice: the advancing `CacheEpochs` handle
+//! sealed (the event relay and kernel code advance it), and its read half
+//! `CacheEpochView` open, which every cache that only reads an epoch takes.
+//!
 //! Every late-bound cell is split ([`late_pair`]): the state holds only the
 //! read half, and the write half is returned beside the state
 //! ([`KernelBinders`], [`ApiKernelBinders`]) for the one kernel function
@@ -89,14 +98,17 @@ use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::{ContentConfigRaw, late_pair};
 
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
+use systemprompt_extension::reserved::ConferralRow;
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_models::auth::TokenAuthority;
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
-use systemprompt_provider_contracts::Dependencies;
+use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
-    BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry, DynJwtValidationProvider,
+    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry, DynJwtValidationProvider,
     DynLeaseRepository, FileStorage, MessagingDispatcher, SecretLookup, SecretStore,
 };
 
@@ -114,6 +126,7 @@ pub struct KernelSeed<'a> {
     pub files_config: &'a Arc<FilesConfig>,
     pub profile: &'a Profile,
     pub config: &'a Arc<Config>,
+    pub cache_epochs: &'a CacheEpochs,
     pub services: systemprompt_manifest::services::ServicesView,
     pub services_root: ActiveServicesRoot,
     pub profile_path: ActiveProfilePath,
@@ -134,6 +147,7 @@ pub struct KernelSeed<'a> {
 pub struct ApiKernelSeed<'a> {
     pub base: KernelSeed<'a>,
     pub signing_keys: &'a SigningKeys,
+    pub token_authority: &'a Arc<dyn TokenAuthority>,
     pub spawner: &'a Arc<Spawner>,
     pub child_secrets: DynChildSecretEnv,
     pub oauth: &'a Arc<OAuthRepositories>,
@@ -195,6 +209,8 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with(seed.coordination.leases)
         .with(seed.coordination.locks)
         .with_sealed(Arc::clone(seed.config))
+        .with_sealed(seed.cache_epochs.clone())
+        .with(seed.cache_epochs.view())
         .with(seed.services)
         .with_sealed(seed.services_root)
         .with_sealed(seed.profile_path)
@@ -224,6 +240,13 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
     let (base, base_binders) = base_kernel_state(seed.base);
     let mut state = base
         .with_sealed(seed.signing_keys.clone())
+        .with_sealed_conferred(
+            Arc::clone(seed.token_authority),
+            Conferred {
+                holder: ExtensionId::new(ConferralRow::IdentityTokenAuthority.entry().holder.id()),
+                row: ConferralRow::IdentityTokenAuthority.name(),
+            },
+        )
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
         .with(jwt)

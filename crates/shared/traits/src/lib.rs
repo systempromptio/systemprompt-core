@@ -59,7 +59,7 @@ pub mod background_tasks;
 pub mod backoff;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod cache_epoch;
-pub use cache_epoch::{CacheDomain, CacheEpochs};
+pub use cache_epoch::{CacheDomain, CacheEpochView, CacheEpochs};
 pub mod provider_tokens;
 pub use provider_tokens::ProviderTokenCache;
 pub mod config_watch;

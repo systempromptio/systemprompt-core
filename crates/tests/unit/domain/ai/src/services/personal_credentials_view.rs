@@ -28,9 +28,14 @@ async fn the_view_never_reads_or_removes_another_users_credential() {
     }
     let repo = UserProviderCredentialRepository::new(&pool, cipher.clone());
     let credential = CredentialId::new("opencode-go");
-    repo.set_key(&owner, &credential, &cipher.seal("sk-owner").expect("seal"), None)
-        .await
-        .expect("stored");
+    repo.set_key(
+        &owner,
+        &credential,
+        &cipher.seal("sk-owner").expect("seal"),
+        None,
+    )
+    .await
+    .expect("stored");
 
     let view = PersonalProviderCredentials::new(repo.clone(), Arc::new(TokenCache::default()));
     let as_owner = GatewayPrincipal::__from_kernel(owner.clone());
@@ -40,7 +45,10 @@ async fn the_view_never_reads_or_removes_another_users_credential() {
     assert!(!view.remove(&as_other, &credential).await.expect("remove"));
     assert_eq!(view.list(&as_owner).await.expect("list").len(), 1);
     assert_eq!(
-        repo.find_key(&owner, &credential).await.expect("read").as_deref(),
+        repo.find_key(&owner, &credential)
+            .await
+            .expect("read")
+            .as_deref(),
         Some("sk-owner"),
         "the other principal's remove left the owner's key in place"
     );

@@ -1,12 +1,14 @@
 //! The closed table of sealed conferrals.
 //!
 //! A conferral lets the route state of exactly one named core member read a
-//! value another core member provided sealed. Each row names the providing
-//! member's id and the holding [`CoreId`]; nothing else carries a sealed
-//! member value across a member boundary at runtime. A provider declares its
-//! row with `Contributions::provide_conferred`; the kernel refuses the provide
-//! unless the provider has core standing and is the row's provider, and every
-//! read through a route set's resolution re-checks the row against the
+//! value another core member provided sealed, or a sealed host seed (the
+//! provider is then [`CoreId::Kernel`]). Each row names the provider's id and
+//! the holding [`CoreId`]; nothing else carries a sealed member value across
+//! a member boundary at runtime. A host seed's row is recorded by the host
+//! that seeds it (`Dependencies::with_sealed_conferred`). A provider declares
+//! its row with `Contributions::provide_conferred`; the kernel refuses the
+//! provide unless the provider has core standing and is the row's provider, and
+//! every read through a route set's resolution re-checks the row against the
 //! reading owner and its standing ([`conferral_admits`]), so a forged row, a
 //! forged provider or an install holder reads nothing.
 //!
@@ -21,6 +23,7 @@ pub enum ConferralRow {
     GatewayEngines,
     GatewaySessionMint,
     GatewayProviderCredentials,
+    IdentityTokenAuthority,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -35,6 +38,7 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::GatewayEngines.entry(),
     ConferralRow::GatewaySessionMint.entry(),
     ConferralRow::GatewayProviderCredentials.entry(),
+    ConferralRow::IdentityTokenAuthority.entry(),
 ];
 
 impl ConferralRow {
@@ -44,6 +48,7 @@ impl ConferralRow {
             Self::GatewayEngines => "gateway-engines",
             Self::GatewaySessionMint => "gateway-session-mint",
             Self::GatewayProviderCredentials => "gateway-provider-credentials",
+            Self::IdentityTokenAuthority => "identity-token-authority",
         }
     }
 
@@ -53,6 +58,7 @@ impl ConferralRow {
             Self::GatewayEngines => ("gateway", CoreId::GatewayHttp),
             Self::GatewaySessionMint => ("users", CoreId::GatewayHttp),
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
+            Self::IdentityTokenAuthority => (CoreId::Kernel.id(), CoreId::IdentityHttp),
         };
         SealedConferral {
             row: self,

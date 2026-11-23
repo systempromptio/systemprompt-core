@@ -88,8 +88,9 @@ pub struct Dependencies {
     conferred: Arc<HashMap<TypeId, Conferred>>,
 }
 
-/// The one member a sealed member value is conferred on, and the reserved row
-/// that names the pair.
+/// The one member a sealed value is conferred on, and the reserved row that
+/// names the pair; the value is a member's sealed provide or a sealed host
+/// seed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Conferred {
     pub holder: ExtensionId,
@@ -111,6 +112,17 @@ impl Dependencies {
     #[must_use]
     pub fn with_sealed<T: Any + Send + Sync>(mut self, value: T) -> Self {
         self.insert_sealed(value);
+        self
+    }
+
+    #[must_use]
+    pub fn with_sealed_conferred<T: Any + Send + Sync>(
+        mut self,
+        value: T,
+        conferred: Conferred,
+    ) -> Self {
+        self.insert_sealed(value);
+        Arc::make_mut(&mut self.conferred).insert(TypeId::of::<T>(), conferred);
         self
     }
 

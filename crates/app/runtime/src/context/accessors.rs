@@ -14,7 +14,6 @@ use systemprompt_files::FilesConfig;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::auth::TokenAuthority;
-use systemprompt_security::DeploymentTokenAuthority;
 
 use super::AppContext;
 
@@ -57,9 +56,6 @@ impl AppContext {
 
     #[must_use]
     pub fn token_authority(&self) -> Arc<dyn TokenAuthority> {
-        Arc::new(DeploymentTokenAuthority::new(
-            self.subsystems.signing_keys.clone(),
-            self.cfg.config.jwt_issuer.clone(),
-        ))
+        Arc::clone(&self.subsystems.token_authority)
     }
 }

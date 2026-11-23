@@ -116,6 +116,7 @@ impl HostKernel {
             files_config: &files_config,
             profile,
             config: &config,
+            cache_epochs: &cache_epochs,
             services: services.view(),
             services_root: services_root.clone(),
             profile_path: systemprompt_manifest::services::root::ActiveProfilePath {

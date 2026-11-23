@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use systemprompt::reference;
-use systemprompt_extension::reserved::{ConferralRow, SEALED_CONFERRALS};
+use systemprompt_extension::reserved::{ConferralRow, CoreId, SEALED_CONFERRALS};
 use systemprompt_extension::{ProvideError, Resolved, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
@@ -102,9 +102,14 @@ fn an_install_providing_under_a_conferral_row_is_refused_before_any_provide_runs
 }
 
 #[test]
-fn every_conferral_row_names_a_core_provider_of_the_reference_composition_and_another_holder() {
+fn every_conferral_row_names_the_kernel_or_a_core_provider_of_the_reference_composition_and_another_holder()
+ {
     let admitted = build(reference()).expect("the reference composition admits");
     for entry in SEALED_CONFERRALS {
+        assert_ne!(entry.provider, entry.holder.id(), "{}", entry.row.name());
+        if entry.provider == CoreId::Kernel.id() {
+            continue;
+        }
         assert_eq!(
             admitted
                 .built()
@@ -113,6 +118,5 @@ fn every_conferral_row_names_a_core_provider_of_the_reference_composition_and_an
             "{}",
             entry.row.name()
         );
-        assert_ne!(entry.provider, entry.holder.id(), "{}", entry.row.name());
     }
 }
