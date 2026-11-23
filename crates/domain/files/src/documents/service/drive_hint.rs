@@ -127,16 +127,15 @@ impl DriveHintGate {
             windows.retain(|_, window| window.until > now || window.trailing.is_some());
         }
         let admission = match windows.get_mut(&hint.key) {
-            Some(window) if now < window.until => match window.trailing.take() {
-                Some(earlier) => {
+            Some(window) if now < window.until => {
+                if let Some(earlier) = window.trailing.take() {
                     hint.also.extend(earlier.also);
                     window.trailing = Some(hint);
                     Admission::Coalesced
-                },
-                None => {
+                } else {
                     window.trailing = Some(hint);
                     Admission::Trailing(window.until)
-                },
+                }
             },
             _ => {
                 windows.insert(
