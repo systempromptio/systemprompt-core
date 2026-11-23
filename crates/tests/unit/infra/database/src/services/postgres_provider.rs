@@ -2,7 +2,6 @@
 //! surface and `PostgresTransaction`. Each test uses a uniquely-named temp
 //! table.
 
-
 use super::db_helper::test_pool;
 use systemprompt_database::{DatabaseProvider, PostgresProvider};
 use systemprompt_test_fixtures::test_database_url;

@@ -119,7 +119,6 @@ mod image_provider_capabilities_tests {
         );
     }
 
-
     #[test]
     fn capabilities_with_high_cost() {
         let caps = ImageProviderCapabilities {

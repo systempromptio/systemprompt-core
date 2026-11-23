@@ -67,7 +67,6 @@ mod promote_result_tests {
         assert!(matches!(result, PromoteResult::UserNotFound));
     }
 
-
     #[test]
     fn promoted_with_multiple_roles() {
         let user = create_test_user(vec![
@@ -145,7 +144,6 @@ mod demote_result_tests {
 
         assert!(matches!(result, DemoteResult::UserNotFound));
     }
-
 
     #[test]
     fn demoted_removes_admin_role() {

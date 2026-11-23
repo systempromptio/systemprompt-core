@@ -85,7 +85,6 @@ fn redact_scalar_value_is_noop() {
     assert_eq!(value.as_str(), Some("x"));
 }
 
-
 #[test]
 fn feedback_config_errors_redact_parser_input_paths_and_custom_io_messages() {
     use systemprompt_bridge::config::ConfigReadError;

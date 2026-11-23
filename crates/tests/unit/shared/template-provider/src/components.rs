@@ -43,7 +43,6 @@ mod rendered_component {
         assert_eq!(rc.html, "<aside>content</aside>");
     }
 
-
     #[test]
     fn accepts_string_args() {
         let name = String::from("my_var");

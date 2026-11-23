@@ -29,7 +29,6 @@ fn test_extension_metadata_debug() {
     assert!(debug_str.contains("2.0.0"));
 }
 
-
 #[test]
 fn test_extension_metadata_serialize() {
     let metadata = ExtensionMetadata {
@@ -83,7 +82,6 @@ fn test_schema_definition_empty_required_columns() {
 
     assert!(schema.required_columns.is_empty());
 }
-
 
 #[test]
 fn test_multiple_schema_definitions() {

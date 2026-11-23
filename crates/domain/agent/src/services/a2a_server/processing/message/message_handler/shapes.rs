@@ -28,7 +28,6 @@ impl std::fmt::Debug for HandleMessageParams<'_> {
     }
 }
 
-
 pub fn resolve_task_id(message: &Message) -> TaskId {
     message.task_id.clone().map_or_else(
         || {

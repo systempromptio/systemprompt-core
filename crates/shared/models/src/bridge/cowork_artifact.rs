@@ -8,7 +8,6 @@ use systemprompt_identifiers::{LibraryArtifactId, PluginId};
 
 use crate::bridge::manifest::ArtifactEntry;
 
-
 #[derive(Debug, Serialize)]
 pub struct CoworkLibraryArtifactRecord<'a> {
     pub id: &'a str,

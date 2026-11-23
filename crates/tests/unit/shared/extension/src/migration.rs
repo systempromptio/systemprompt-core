@@ -41,7 +41,6 @@ fn migration_checksum_is_hex_string() {
     assert!(!checksum.is_empty());
 }
 
-
 #[test]
 fn migration_debug_format() {
     let migration = Migration::new(3, "debug_test", "DROP TABLE IF EXISTS tmp");

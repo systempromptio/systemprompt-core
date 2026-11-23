@@ -80,7 +80,6 @@ fn test_tool_execution_without_context() {
     assert!(exec.ai_tool_call_id.is_none());
 }
 
-
 #[test]
 fn test_tool_execution_debug() {
     let exec = create_test_execution();

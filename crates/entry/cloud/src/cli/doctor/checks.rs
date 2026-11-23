@@ -247,7 +247,6 @@ fn host_port(raw: &str) -> Option<(String, u16)> {
     Some((host, port))
 }
 
-
 impl CheckResult {
     pub(super) fn pass(name: &'static str, detail: impl Into<String>) -> Self {
         Self {

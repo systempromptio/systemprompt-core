@@ -74,7 +74,6 @@ pub struct PluginConfig {
     pub dependencies: Vec<PluginDependency>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PluginScript {

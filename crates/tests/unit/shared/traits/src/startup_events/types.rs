@@ -30,7 +30,6 @@ mod phase_tests {
         assert!(!Phase::Scheduler.is_blocking());
     }
 
-
     #[test]
     fn phase_is_hashable() {
         use std::collections::HashSet;

@@ -1,6 +1,5 @@
 //! Tests for GenerateLinkParams and GenerateContentLinkParams
 
-
 #[test]
 fn test_generate_link_params_full() {
     use chrono::Utc;
@@ -33,7 +32,6 @@ fn test_generate_link_params_full() {
     params.utm_params.expect("expected Some value");
     params.expires_at.expect("expected Some value");
 }
-
 
 #[test]
 fn test_generate_content_link_params_full() {

@@ -26,7 +26,6 @@ fn generated_feed_clone_is_independent() {
     assert_eq!(cloned.filename, "cloned.xml");
 }
 
-
 #[test]
 fn rss_channel_clone_is_independent() {
     let item = RssItem {

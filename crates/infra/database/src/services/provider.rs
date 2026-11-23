@@ -43,7 +43,6 @@ pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<JsonRow>>;
 
-
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>>;
 
     async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo>;

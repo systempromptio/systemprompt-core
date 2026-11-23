@@ -11,7 +11,6 @@
 mod error;
 mod handlers;
 
-
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

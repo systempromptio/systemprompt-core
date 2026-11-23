@@ -14,7 +14,6 @@ use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
 
-
 fn cfg() -> CliConfig {
     CliConfig::new()
         .with_interactive(false)

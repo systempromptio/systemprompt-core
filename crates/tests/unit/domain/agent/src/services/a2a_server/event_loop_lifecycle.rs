@@ -4,7 +4,6 @@
 // RUN_ERROR webhook that carries no internal cause). Webhook traffic is
 // captured by the recording broadcaster injected through `WebhookContext`.
 
-
 use axum::response::sse::Event;
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;

@@ -257,7 +257,6 @@ mod startup_event_tests {
         }
     }
 
-
     #[test]
     fn modules_loaded_variant() {
         let modules = vec![ModuleInfo {

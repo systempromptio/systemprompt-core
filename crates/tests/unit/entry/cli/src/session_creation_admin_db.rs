@@ -20,7 +20,6 @@ use systemprompt_test_fixtures::{
 };
 use uuid::Uuid;
 
-
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
 }

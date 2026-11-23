@@ -47,7 +47,6 @@ pub use report::{ExportReport, SignalReport, pacing_elapsed};
 pub use spans::{GOVERNANCE_SPAN, REQUEST_SPAN, TOOL_SPAN, TraceBatch, to_spans};
 pub use transport::{BATCHES_TOTAL, RETRY_DELAYS, is_retryable};
 
-
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::repository::otlp::{
     BATCH_ROWS, OtlpAuditTailRepository, OtlpExportState, OtlpExportStateRepository, SETTLE,

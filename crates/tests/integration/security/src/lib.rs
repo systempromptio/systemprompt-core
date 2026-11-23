@@ -30,7 +30,6 @@ mod dos_guard_tests;
 #[cfg(test)]
 mod authz_extension_path_tests;
 
-
 #[cfg(test)]
 mod slack_teams_ingestion_tests;
 

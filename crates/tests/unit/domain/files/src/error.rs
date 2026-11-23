@@ -37,7 +37,6 @@ fn files_error_config_variant_display() {
     assert!(s.contains("not init"));
 }
 
-
 #[test]
 fn from_sqlx_error_wraps_repository_variant() {
     let err = FilesError::from(sqlx::Error::RowNotFound);

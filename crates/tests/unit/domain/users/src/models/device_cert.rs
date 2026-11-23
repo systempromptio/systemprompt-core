@@ -51,7 +51,6 @@ mod device_cert_struct_tests {
         assert!(s.contains("My Device"));
     }
 
-
     #[test]
     fn serde_round_trip() {
         let cert = make_cert(false);

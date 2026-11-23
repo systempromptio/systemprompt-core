@@ -100,7 +100,6 @@ fn error_debug_is_non_empty() {
     assert!(dbg.contains("EmptyDatabaseUrl"), "got: {dbg}");
 }
 
-
 #[test]
 fn all_plain_variants_format_without_panic() {
     let variants: Vec<(RuntimeError, &str)> = vec![

@@ -525,7 +525,6 @@ async fn fetch_plugin_file_traversal_path_maps_to_unsafe_path() {
     }
 }
 
-
 #[tokio::test]
 async fn set_host_model_filter_posts_the_host_and_protocol_list() {
     let server = MockServer::start().await;

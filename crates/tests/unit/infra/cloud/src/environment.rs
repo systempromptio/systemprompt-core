@@ -36,7 +36,6 @@ fn test_environment_api_urls_are_different() {
     assert_ne!(prod_url, sandbox_url);
 }
 
-
 #[test]
 fn test_oauth_provider_github_as_str() {
     let github = OAuthProvider::Github;
@@ -67,7 +66,6 @@ fn test_oauth_provider_variants_are_distinct() {
     let google = OAuthProvider::Google;
     assert_ne!(github, google);
 }
-
 
 #[test]
 fn test_oauth_provider_as_str_is_lowercase() {

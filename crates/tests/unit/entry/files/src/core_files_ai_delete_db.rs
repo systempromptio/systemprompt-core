@@ -18,7 +18,6 @@ use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::{FileStorage, StoredFileId};
 use uuid::Uuid;
 
-
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
 }

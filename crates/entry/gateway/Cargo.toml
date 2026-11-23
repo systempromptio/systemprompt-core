@@ -33,7 +33,6 @@ http = [
     "dep:systemprompt-identifiers",
     "dep:systemprompt-logging",
     "dep:systemprompt-manifest",
-    "dep:systemprompt-mcp",
     "dep:systemprompt-models",
     "dep:systemprompt-traits",
     "dep:systemprompt-users",
@@ -56,7 +55,6 @@ systemprompt-governance = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
-systemprompt-mcp = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }

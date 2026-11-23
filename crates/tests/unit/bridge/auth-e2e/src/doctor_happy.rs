@@ -271,7 +271,6 @@ fn hook_token_mint_rejection_is_reported_as_failure() {
     });
 }
 
-
 #[test]
 fn a_revoked_pat_is_reported_as_a_whoami_401() {
     let home = TempDir::new().unwrap();

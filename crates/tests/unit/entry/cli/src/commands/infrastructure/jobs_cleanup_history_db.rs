@@ -12,7 +12,6 @@ use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-
 fn artifact_json(out: &CommandOutput) -> Value {
     serde_json::to_value(out.artifact()).unwrap()
 }

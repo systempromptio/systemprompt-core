@@ -112,7 +112,6 @@
 use systemprompt_extension::Migration;
 use systemprompt_identifiers::ExtensionId;
 
-
 mod claims;
 mod drops;
 mod judge;

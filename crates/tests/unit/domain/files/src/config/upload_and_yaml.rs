@@ -16,7 +16,6 @@ fn test_file_upload_config_default() {
     assert!(!config.allowed_types.video);
 }
 
-
 #[test]
 fn test_file_upload_config_serialize() {
     let config = FileUploadConfig::default();
@@ -55,7 +54,6 @@ fn test_files_config_yaml_default() {
     assert_eq!(config.url_prefix, "/files");
     assert!(config.upload.enabled);
 }
-
 
 #[test]
 fn test_files_config_yaml_serialize() {

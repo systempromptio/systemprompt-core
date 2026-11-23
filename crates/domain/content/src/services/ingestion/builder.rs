@@ -29,7 +29,6 @@ pub(super) fn create_content_from_metadata(
         .single()
         .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_owned()))?;
 
-
     Ok(Content {
         id,
         slug,

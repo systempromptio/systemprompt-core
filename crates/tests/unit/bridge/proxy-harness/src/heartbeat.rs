@@ -51,7 +51,6 @@ fn empty_cache() -> Arc<TokenCache> {
     })))
 }
 
-
 // Why: the token cache binds every minted JWT to the credential identity on
 // disk, so a heartbeat with no credentials configured never mints. Each test
 // runs in a sandboxed config dir with a PAT supplied through the environment,

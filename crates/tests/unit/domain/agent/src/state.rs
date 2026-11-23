@@ -41,7 +41,6 @@ async fn agent_state_db_pool_accessor() {
     let _ = state.db_pool();
 }
 
-
 #[tokio::test]
 async fn agent_state_clone() {
     let state = make_state().await;

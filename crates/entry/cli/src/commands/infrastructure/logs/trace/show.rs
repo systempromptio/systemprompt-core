@@ -57,7 +57,6 @@ pub struct TraceSections {
     pub all: bool,
 }
 
-
 struct FormattedDisplayContext<'a> {
     events: &'a [TraceEvent],
     task_id: Option<&'a TaskId>,

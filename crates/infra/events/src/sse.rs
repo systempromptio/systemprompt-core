@@ -25,7 +25,6 @@ pub trait ToSse {
     }
 }
 
-
 fn serialize_to_frame<T: Serialize>(value: &T) -> Result<SseFrame, serde_json::Error> {
     Ok(SseFrame {
         event: None,

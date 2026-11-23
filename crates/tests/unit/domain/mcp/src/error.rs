@@ -87,7 +87,6 @@ fn test_mcp_error_server_not_found_debug() {
     assert!(debug.contains("debug-server"));
 }
 
-
 #[test]
 fn test_mcp_error_from_serde_json() {
     let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();

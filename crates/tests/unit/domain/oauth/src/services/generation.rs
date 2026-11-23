@@ -240,7 +240,6 @@ fn test_jwt_config_serializes_expiry_in_seconds() {
     assert_eq!(back.expires_in, chrono::Duration::seconds(900));
 }
 
-
 #[test]
 fn test_jwt_config_serialize() {
     let config = JwtConfig::default();

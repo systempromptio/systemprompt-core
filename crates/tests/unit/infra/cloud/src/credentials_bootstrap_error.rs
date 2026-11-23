@@ -77,7 +77,6 @@ fn is_file_not_found_false_for_other_variants() {
     );
 }
 
-
 #[test]
 fn debug_format_file_not_found() {
     let err = CredentialsBootstrapError::FileNotFound {

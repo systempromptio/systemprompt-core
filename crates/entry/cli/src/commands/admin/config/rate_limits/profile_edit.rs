@@ -62,7 +62,6 @@ pub(super) fn set_endpoint_rate(
     Ok(())
 }
 
-
 pub(super) fn collect_endpoint_changes(
     current: &RateLimitsConfig,
     defaults: &RateLimitsConfig,

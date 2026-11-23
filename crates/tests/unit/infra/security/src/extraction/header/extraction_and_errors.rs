@@ -211,7 +211,6 @@ fn test_header_extractor_special_characters() {
     assert_eq!(agent_name.as_str(), "agent_with-special.chars");
 }
 
-
 #[test]
 fn test_header_injection_error_display() {
     let error = HeaderInjectionError;
@@ -221,13 +220,11 @@ fn test_header_injection_error_display() {
     );
 }
 
-
 #[test]
 fn test_header_injection_error_is_std_error() {
     let error: Box<dyn std::error::Error> = Box::new(HeaderInjectionError);
     assert!(error.to_string().contains("invalid characters"));
 }
-
 
 mod gateway_and_provider_request_ids {
     use super::*;

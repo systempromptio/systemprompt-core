@@ -10,7 +10,6 @@ use systemprompt_models::{
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 
-
 fn test_agui_event() -> AgUiEvent {
     AgUiEventBuilder::run_started(
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
@@ -71,7 +70,6 @@ fn test_agui_event_to_sse_succeeds() {
     );
 }
 
-
 #[test]
 fn test_a2a_event_to_sse_succeeds() {
     let event = test_a2a_event();
@@ -87,7 +85,6 @@ fn test_a2a_event_to_sse_succeeds() {
     );
 }
 
-
 #[test]
 fn test_system_event_to_sse_succeeds() {
     let event = test_system_event();
@@ -98,7 +95,6 @@ fn test_system_event_to_sse_succeeds() {
         "frame missing heartbeat marker: {debug_str}"
     );
 }
-
 
 #[test]
 fn test_context_event_agui_to_sse_succeeds() {
@@ -139,7 +135,6 @@ fn test_analytics_event_to_sse_succeeds() {
     );
 }
 
-
 #[test]
 fn test_cli_output_event_to_sse_succeeds() {
     let event = test_cli_output_event();
@@ -154,7 +149,6 @@ fn test_cli_output_event_to_sse_succeeds() {
         "frame missing stdout data: {debug_str}"
     );
 }
-
 
 #[test]
 fn test_cli_output_event_error_to_sse() {
@@ -248,7 +242,6 @@ fn test_multiple_agui_events_serialize_independently() {
     assert!(debug1.contains(TEST_CONTEXT_ID_A) || debug1.contains("task-1"));
     assert!(debug2.contains(TEST_CONTEXT_ID_B) || debug2.contains("task-2"));
 }
-
 
 #[test]
 fn test_analytics_event_heartbeat() {

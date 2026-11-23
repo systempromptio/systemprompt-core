@@ -55,7 +55,6 @@ fn test_trace_event_minimal() {
     assert!(event.metadata.is_none());
 }
 
-
 #[test]
 fn test_trace_event_serialize() {
     let event = TraceEvent {

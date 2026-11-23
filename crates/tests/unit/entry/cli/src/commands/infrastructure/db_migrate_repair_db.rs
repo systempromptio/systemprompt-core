@@ -23,7 +23,6 @@ fn parse(args: &[&str]) -> DbCommands {
         .cmd
 }
 
-
 fn ctx(pool: &DbPool, format: OutputFormat) -> CommandContext {
     ctx_on(pool, &test_database_url(), format)
 }

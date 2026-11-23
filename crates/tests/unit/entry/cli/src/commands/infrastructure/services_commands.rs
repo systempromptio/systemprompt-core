@@ -31,7 +31,6 @@ fn parse(args: &[&str]) -> ServicesCommands {
         .cmd
 }
 
-
 fn ctx(pool: &DbPool) -> CommandContext {
     crate::boot_ctx::with_database(
         CliConfig::new()

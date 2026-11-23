@@ -106,7 +106,6 @@ mod user_tests {
         assert!(!user.has_role(UserRole::User));
     }
 
-
     #[test]
     fn user_with_multiple_roles() {
         let mut user = create_test_user();

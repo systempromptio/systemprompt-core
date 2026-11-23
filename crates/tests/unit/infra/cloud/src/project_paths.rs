@@ -228,7 +228,6 @@ fn project_context_exists_and_profile_exists() {
     assert!(!ctx.profile_exists("nonexistent_xyz"));
 }
 
-
 #[test]
 fn unified_context_default_runs() {
     let _ = UnifiedContext::default();
@@ -295,7 +294,6 @@ fn unified_context_has_credentials_false_when_missing() {
     let _ = ctx.has_tenants();
     let _ = ctx.has_session();
 }
-
 
 #[test]
 fn discovered_project_discover_from_root() {

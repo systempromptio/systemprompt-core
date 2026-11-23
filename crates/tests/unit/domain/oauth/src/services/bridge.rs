@@ -95,7 +95,6 @@ fn bridge_auth_result_clone_preserves_fields() {
     assert_eq!(cloned.headers, original.headers);
 }
 
-
 #[test]
 fn bridge_exchange_code_serialises_iso_timestamp() {
     let issued = BridgeExchangeCode {
@@ -125,7 +124,6 @@ fn bridge_oauth_client_serialises_secret() {
     assert!(json.contains("hook:govern"));
     assert!(json.contains("https://example.test/oauth/token"));
 }
-
 
 // The property the CLI-side suite cannot prove: what lands in the database is
 // the hash, not the code. A device-link code and its sha256 are both 64 hex

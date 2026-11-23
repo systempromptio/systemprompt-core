@@ -30,7 +30,6 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-
 fn table_ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
         CliConfig::new().with_interactive(false),

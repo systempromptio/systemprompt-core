@@ -428,7 +428,6 @@ async fn users_device_interface_retains_shared_lock_until_caller_commit() {
     assert_eq!(devices, 0);
 }
 
-
 #[tokio::test]
 async fn same_native_session_can_bind_independent_resources() {
     let first = fixture().await;
@@ -474,7 +473,6 @@ async fn same_native_session_can_bind_independent_resources() {
             .id
     );
 }
-
 
 #[tokio::test]
 async fn historical_multiple_receipts_ack_identical_binding_retries() {

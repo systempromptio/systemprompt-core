@@ -60,7 +60,6 @@ mod cleanup_anonymous_users_job_tests {
         assert_eq!(fields[2], "*"); // hours (every hour)
     }
 
-
     #[test]
     fn job_name_is_static_str() {
         let job = CleanupAnonymousUsersJob;

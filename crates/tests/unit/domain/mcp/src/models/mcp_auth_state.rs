@@ -83,7 +83,6 @@ fn test_mcp_auth_state_has_permission_anonymous_denied() {
     assert!(!state.has_permission(Permission::Admin));
 }
 
-
 #[test]
 fn test_mcp_auth_state_serialize_authenticated() {
     let user = create_test_user();

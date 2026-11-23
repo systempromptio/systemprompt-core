@@ -38,7 +38,6 @@ fn test_task_filter_params_deserialize_all_fields() {
     assert_eq!(params.limit, Some(10));
 }
 
-
 #[test]
 fn test_artifact_query_params_deserialize_empty() {
     let json = serde_json::json!({});
@@ -63,7 +62,6 @@ fn test_artifact_query_params_limit_zero() {
     let params: ArtifactQueryParams = serde_json::from_value(json).unwrap();
     assert_eq!(params.limit, Some(0));
 }
-
 
 #[test]
 fn test_artifact_query_params_copy_trait() {

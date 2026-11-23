@@ -25,7 +25,6 @@ mod extension_error;
 #[cfg(test)]
 mod validation;
 
-
 #[cfg(test)]
 mod startup_events;
 

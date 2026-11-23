@@ -77,7 +77,6 @@ fn test_tool_execution_request_without_optionals() {
     assert!(request.ai_tool_call_id.is_none());
 }
 
-
 #[test]
 fn test_tool_execution_request_debug() {
     let request = create_test_request();
@@ -183,7 +182,6 @@ fn test_tool_execution_result_pending() {
 
     assert_eq!(result.status, "pending");
 }
-
 
 #[test]
 fn test_tool_execution_result_with_large_output() {

@@ -222,7 +222,6 @@ pub(crate) async fn run_with(
     }
 }
 
-
 pub(crate) async fn run_in(layout: &RunLayout, host: &dyn HeadlessHost) -> RunReport {
     layout.create().await.unwrap();
     let sink = CollectSink::default();

@@ -155,7 +155,6 @@ pub(super) async fn find_active_by_id(
     .map_err(Into::into)
 }
 
-
 pub(super) async fn count_inactive(pool: &PgPool, inactive_hours: i32) -> Result<i64> {
     let cutoff = Utc::now() - Duration::hours(i64::from(inactive_hours));
     let count = sqlx::query_scalar!(

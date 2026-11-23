@@ -18,7 +18,6 @@ use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
-
 // Why: the bridge prunes on every relay tick, so one bounded batch per tick
 // keeps the statement short and leaves the remainder for the next tick.
 const PRUNE_BATCH_ROWS: i64 = 5000;

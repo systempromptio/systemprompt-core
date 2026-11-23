@@ -25,20 +25,17 @@ pub struct RateLimitsOutput {
     pub burst_multiplier: u64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct EndpointRateLimit {
     pub endpoint: String,
     pub per_second: u64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct BaseRateRow {
     pub endpoint: String,
     pub rate_per_second: u64,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SetRateLimitOutput {

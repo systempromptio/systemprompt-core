@@ -26,7 +26,6 @@ fn parse(args: &[&str]) -> LogsCommands {
         .cmd
 }
 
-
 async fn app_ctx() -> CommandContext {
     let url = test_database_url();
     crate::boot_ctx::with_app_boot(

@@ -45,7 +45,6 @@ impl ConversationRepositories {
     }
 }
 
-
 #[must_use]
 pub fn service_table(db: &DbPool, instance: InstanceId) -> Arc<ServiceRepository> {
     Arc::new(ServiceRepository::new(db, instance))

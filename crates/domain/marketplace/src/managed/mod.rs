@@ -62,7 +62,6 @@ pub use tree::{CapturedSkills, capture_skills};
 pub(crate) use systemprompt_models::managed::validate_path as validate_inventory_path;
 pub(crate) use tree::capture_inventory_files;
 
-
 mod organization_resolver;
 pub use organization_resolver::{OrganizationSkillResolver, OwnedSkill, OwnerSkillView};
 

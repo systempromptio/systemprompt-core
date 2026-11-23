@@ -2,7 +2,6 @@
 //! mocks both the RFC8693 token-exchange endpoint and the tenant-specific
 //! API endpoint.
 
-
 use serde_json::json;
 use systemprompt_cloud::CloudApiClient;
 use systemprompt_identifiers::TenantId;

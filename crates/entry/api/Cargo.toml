@@ -71,7 +71,6 @@ metrics-exporter-prometheus = { workspace = true }
 # systemprompt.io crates
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-wire = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }

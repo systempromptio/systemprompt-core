@@ -12,7 +12,6 @@ use systemprompt_extension::cli::{CliConfig, OutputFormat};
 
 use crate::common::{agents_host, logs_dir_in_root, parse_agents, with_boot};
 
-
 fn ctx(interactive: bool, answers: &[&str]) -> CommandContext {
     let config = if interactive {
         CliConfig::new()

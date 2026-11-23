@@ -16,7 +16,6 @@ use systemprompt_manifest::Profile;
 
 use systemprompt_identifiers::ProfileName;
 
-
 use systemprompt_manifest::profile::TrustedIssuer;
 
 use super::CreateArgs;

@@ -23,7 +23,6 @@ fn test_output_format_yaml_variant() {
     assert_eq!(format, OutputFormat::Yaml);
 }
 
-
 #[test]
 fn test_verbosity_level_quiet_variant() {
     let level = VerbosityLevel::Quiet;
@@ -62,7 +61,6 @@ fn test_verbosity_level_ordering_transitive() {
     assert!(VerbosityLevel::Quiet < VerbosityLevel::Verbose);
 }
 
-
 #[test]
 fn test_color_mode_auto_variant() {
     let mode = ColorMode::Auto;
@@ -80,7 +78,6 @@ fn test_color_mode_never_variant() {
     let mode = ColorMode::Never;
     assert_eq!(mode, ColorMode::Never);
 }
-
 
 #[test]
 fn test_cli_config_default_output_format() {

@@ -34,7 +34,6 @@ fn step_id_from_string() {
     assert_eq!(id.as_str(), "custom-id");
 }
 
-
 #[test]
 fn step_id_equality() {
     let id1 = StepId::from("same".to_string());

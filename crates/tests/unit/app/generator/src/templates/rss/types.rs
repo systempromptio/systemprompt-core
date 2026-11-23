@@ -35,7 +35,6 @@ fn test_rss_item_without_author() {
     assert!(item.author.is_none());
 }
 
-
 #[test]
 fn test_rss_item_debug() {
     let item = RssItem {

@@ -45,7 +45,6 @@ fn test_column_info_nullable() {
     assert!(column.nullable);
 }
 
-
 #[test]
 fn test_column_info_serialization() {
     let column = ColumnInfo {
@@ -130,7 +129,6 @@ fn test_table_info_negative_row_count() {
     assert_eq!(table.row_count, -1);
 }
 
-
 #[test]
 fn test_table_info_serialization() {
     let table = TableInfo {
@@ -201,7 +199,6 @@ fn test_database_info_zero_size() {
     assert_eq!(db_info.size, 0);
 }
 
-
 #[test]
 fn test_database_info_serialization() {
     let db_info = DatabaseInfo {
@@ -270,7 +267,6 @@ fn test_index_info_empty_columns() {
 
     assert!(index.columns.is_empty());
 }
-
 
 #[test]
 fn test_index_info_serialization() {

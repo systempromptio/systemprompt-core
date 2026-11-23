@@ -15,7 +15,6 @@ pub struct AiSafetyFindingRepository {
     write_pool: Arc<PgPool>,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct InsertSafetyFinding<'a> {
     pub ai_request_id: &'a AiRequestId,

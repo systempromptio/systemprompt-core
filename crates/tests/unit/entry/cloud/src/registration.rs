@@ -143,7 +143,6 @@ fn every_cloud_descriptor_is_a_cloud_operator_and_bypasses_routing() {
     }
 }
 
-
 #[test]
 fn bootstrap_requirements_match_each_subcommand() {
     for args in [&["cloud", "deploy"][..], &["cloud", "doctor"]] {

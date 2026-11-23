@@ -52,7 +52,6 @@ mod create_analytics_event_input_tests {
         input.data.expect("data should be set");
     }
 
-
     #[test]
     fn input_deserializes_with_custom_data() {
         let json = r#"{

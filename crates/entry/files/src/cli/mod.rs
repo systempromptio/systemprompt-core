@@ -153,7 +153,6 @@ impl CliCommandGroup for FilesCommands {
     const NAME: &'static str = "files";
     const ABOUT: &'static str = "File management and uploads";
 
-
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         execute(self, host)
             .await

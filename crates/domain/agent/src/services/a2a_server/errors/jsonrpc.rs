@@ -36,7 +36,6 @@ pub struct UnidentifiedErrorResponse {
     pub id: Option<NumberOrString>,
 }
 
-
 #[derive(Debug)]
 pub struct JsonRpcErrorBuilder {
     code: i32,

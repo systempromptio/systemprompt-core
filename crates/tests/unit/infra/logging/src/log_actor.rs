@@ -34,7 +34,6 @@ fn log_actor_debug_includes_fields() {
     assert!(debug.contains("actor-trace"));
 }
 
-
 #[test]
 fn log_actor_platform_attributes_to_the_given_owner() {
     let owner = fixture_system_admin("platform-actor-test");

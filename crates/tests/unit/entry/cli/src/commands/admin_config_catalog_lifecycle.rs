@@ -328,7 +328,6 @@ fn marked_json(stdout: &str, name: &str) -> serde_json::Value {
     serde_json::from_str(text).unwrap_or_else(|error| panic!("{name}: {error}: {text}"))
 }
 
-
 #[test]
 fn catalog_file_lifecycle_is_durable_and_structured() {
     let output = std::process::Command::new(std::env::current_exe().expect("unit-test binary"))
