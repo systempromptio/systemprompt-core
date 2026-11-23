@@ -12,7 +12,7 @@ use systemprompt_database::Database;
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition::install;
 use uuid::Uuid;
@@ -63,38 +63,6 @@ impl Extension for CanaryExtension {
     }
 }
 
-struct Cleanup {
-    pool: PgPool,
-    tables: Vec<&'static str>,
-    extension_ids: Vec<&'static str>,
-}
-
-impl Drop for Cleanup {
-    fn drop(&mut self) {
-        let pool = self.pool.clone();
-        let tables = self.tables.clone();
-        let extension_ids = self.extension_ids.clone();
-        tokio::task::block_in_place(|| {
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(async move {
-                for t in &tables {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP TABLE IF EXISTS {t} CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for ext_id in &extension_ids {
-                    let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-                        .bind(*ext_id)
-                        .execute(&pool)
-                        .await;
-                }
-            });
-        });
-    }
-}
-
 async fn applied_versions(pool: &PgPool, ext_id: &str) -> Vec<i32> {
     sqlx::query("SELECT version FROM extension_migrations WHERE extension_id = $1 ORDER BY version")
         .bind(ext_id)
@@ -121,33 +89,15 @@ async fn column_exists(pool: &PgPool, table: &str, column: &str) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fresh_database_stamps_migrations_without_executing_them() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("fresh_install_stamp").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("stamp_fresh_{suffix}"));
     let ext_id: &'static str = leak_str(format!("stamp-fresh-{suffix}"));
-
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("pre-clean");
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await
-        .expect("pre-clean bookkeeping");
-
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        extension_ids: vec![ext_id],
-    };
 
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, payload JSONB);"
@@ -176,14 +126,17 @@ async fn fresh_database_stamps_migrations_without_executing_them() {
         column_exists(&pool, table, "payload").await,
         "declarative schema must have materialised the target state"
     );
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn established_database_without_tracking_rows_executes_migrations() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("fresh_install_stamp").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
@@ -191,28 +144,11 @@ async fn established_database_without_tracking_rows_executes_migrations() {
     let ext_id: &'static str = leak_str(format!("stamp-legacy-{suffix}"));
 
     sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("pre-clean");
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await
-        .expect("pre-clean bookkeeping");
-    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY)"
     )))
     .execute(&pool)
     .await
     .expect("create legacy table with no tracking rows");
-
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table],
-        extension_ids: vec![ext_id],
-    };
 
     let schema_sql: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, payload JSONB);"
@@ -247,4 +183,7 @@ async fn established_database_without_tracking_rows_executes_migrations() {
         column_exists(&pool, table, "migrated_marker").await,
         "the marker column proves the migration executed rather than being stamped"
     );
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }

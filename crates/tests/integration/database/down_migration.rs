@@ -12,7 +12,7 @@ use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
     SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition::member;
 use uuid::Uuid;
@@ -122,10 +122,10 @@ async fn applied_versions(pool: &PgPool, ext_id: &str) -> Vec<i32> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn apply_revert_reapply_round_trip() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("down_migration").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
@@ -135,18 +135,6 @@ async fn apply_revert_reapply_round_trip() {
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT);"
     ));
     let down_sql: &'static str = leak_str(format!("DROP TABLE {table};"));
-
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("pre-clean");
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await
-        .expect("pre-clean bookkeeping");
 
     let ext = member(ReversibleExtension {
         id: ext_id,
@@ -181,44 +169,24 @@ async fn apply_revert_reapply_round_trip() {
     assert_eq!(reapplied.migrations_run, 1);
     assert!(table_exists(&pool, table).await);
     assert_eq!(applied_versions(&pool, ext_id).await, vec![1]);
-
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("cleanup table");
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await
-        .expect("cleanup bookkeeping");
+    drop(ext);
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn revert_rejects_irreversible_migration() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("down_migration").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("noundo_demo_{suffix}"));
     let ext_id: &'static str = leak_str(format!("noundo-ext-{suffix}"));
     let up_sql: &'static str = leak_str(format!("CREATE TABLE {table} (id TEXT PRIMARY KEY);"));
-
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("pre-clean");
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await
-        .expect("pre-clean bookkeeping");
 
     let ext = member(IrreversibleExtension { id: ext_id, up_sql });
 
@@ -245,16 +213,8 @@ async fn revert_rejects_irreversible_migration() {
         vec![1],
         "rejection must leave bookkeeping untouched"
     );
-
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(&pool)
-    .await
-    .expect("cleanup table");
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await
-        .expect("cleanup bookkeeping");
+    drop(ext);
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }

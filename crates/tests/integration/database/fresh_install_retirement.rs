@@ -13,7 +13,7 @@ use systemprompt_database::{Database, is_retirement};
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition::install;
 use uuid::Uuid;
@@ -71,38 +71,6 @@ impl Extension for RetiringExtension {
     }
 }
 
-struct Cleanup {
-    pool: PgPool,
-    tables: Vec<&'static str>,
-    extension_ids: Vec<&'static str>,
-}
-
-impl Drop for Cleanup {
-    fn drop(&mut self) {
-        let pool = self.pool.clone();
-        let tables = self.tables.clone();
-        let extension_ids = self.extension_ids.clone();
-        tokio::task::block_in_place(|| {
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(async move {
-                for t in &tables {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP TABLE IF EXISTS {t} CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for ext_id in &extension_ids {
-                    let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-                        .bind(*ext_id)
-                        .execute(&pool)
-                        .await;
-                }
-            });
-        });
-    }
-}
-
 async fn table_exists(pool: &PgPool, table: &str) -> bool {
     sqlx::query(
         "SELECT 1 AS one FROM information_schema.tables WHERE table_schema = 'public' AND \
@@ -154,10 +122,10 @@ fn retirement_is_only_idempotent_drops_and_ledger_deletes() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fresh_extension_executes_its_retirement_migration() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("fresh_install_retirement").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
@@ -165,20 +133,6 @@ async fn fresh_extension_executes_its_retirement_migration() {
     let orphan: &'static str = leak_str(format!("retire_orphan_{suffix}"));
     let ext_id: &'static str = leak_str(format!("retire-{suffix}"));
     let gone_ext: &'static str = leak_str(format!("gone-{suffix}"));
-
-    for t in [table, orphan] {
-        sqlx::query(sqlx::AssertSqlSafe(format!(
-            "DROP TABLE IF EXISTS {t} CASCADE"
-        )))
-        .execute(&pool)
-        .await
-        .expect("pre-clean");
-    }
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![table, orphan],
-        extension_ids: vec![ext_id, gone_ext],
-    };
 
     // What a deleted extension leaves behind: its table and its ledger row.
     sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -230,4 +184,7 @@ async fn fresh_extension_executes_its_retirement_migration() {
         "the retirement must have removed the deleted extension's ledger rows"
     );
     assert!(table_exists(&pool, table).await);
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }

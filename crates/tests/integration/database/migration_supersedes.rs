@@ -10,7 +10,7 @@ use systemprompt_database::Database;
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition;
 use uuid::Uuid;
@@ -76,10 +76,11 @@ async fn install(db: &Arc<Database>, ext: CanaryExtension) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_superseding_migration_moves_the_applied_row_without_executing() {
+    let database = DisposableDb::with_schema("migration_supersedes").await;
     let db = Arc::new(
-        Database::new_postgres(&test_database_url())
+        Database::new_postgres(database.url())
             .await
-            .expect("connect to test postgres"),
+            .expect("connect to the disposable database"),
     );
     let pool: PgPool = db.pool().as_ref().clone();
     let suffix = Uuid::new_v4().simple().to_string()[..12].to_string();
@@ -131,11 +132,7 @@ async fn a_superseding_migration_moves_the_applied_row_without_executing() {
         "the tracking row must move to the superseding checksum"
     );
 
-    let _ = sqlx::query(sqlx::AssertSqlSafe(format!("DROP TABLE IF EXISTS {table}")))
-        .execute(&pool)
-        .await;
-    let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&pool)
-        .await;
+    pool.close().await;
+    drop(db);
+    database.drop_now().await;
 }

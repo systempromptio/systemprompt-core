@@ -9,6 +9,14 @@
 //! SQLSTATE is not retried, whatever its message says. Only a chain that
 //! carries no SQLSTATE at all falls back to the server's message text.
 //!
+//! A read-only catalog scan has one further transient failure: an object the
+//! scan listed is dropped by another session before the scan opens it, and
+//! Postgres reports `XX000` with "could not open relation with OID" or
+//! "cache lookup failed for"; or the scan's `ACCESS SHARE` locks meet a
+//! `DROP … CASCADE` taking `ACCESS EXCLUSIVE` in the other order and one
+//! side is the `40P01` victim. Either way the scan is re-read rather than
+//! failing.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -57,6 +65,19 @@ fn sqlstate_in_chain(error: &(dyn Error + 'static)) -> Option<String> {
         source = current.source();
     }
     None
+}
+
+const CONCURRENT_DROP_MESSAGES: [&str; 2] = ["could not open relation with OID", "cache lookup failed for"];
+
+#[must_use]
+pub(crate) fn is_retryable_catalog_read(error: &sqlx::Error) -> bool {
+    error.as_database_error().is_some_and(|db| match db.code().as_deref() {
+        Some("XX000") => CONCURRENT_DROP_MESSAGES
+            .iter()
+            .any(|needle| db.message().starts_with(needle)),
+        Some(code) => is_retryable_sqlstate(code),
+        None => false,
+    })
 }
 
 fn message_in_chain(error: &(dyn Error + 'static)) -> bool {

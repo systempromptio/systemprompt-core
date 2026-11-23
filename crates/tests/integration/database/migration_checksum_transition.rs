@@ -91,6 +91,7 @@ async fn exact_historical_hash_converts_without_reexecution_or_timestamp_change(
         (0, 1)
     );
     assert_eq!(stored(&f, 7).await, migration.checksum());
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -135,6 +136,7 @@ async fn edited_sql_rejects_entire_extension_before_any_checksum_transition() {
         .expect("restoring exact original SQL permits bookkeeping transition");
     assert_eq!(stored(&f, 7).await, original.checksum());
     assert_eq!(stored(&f, 8).await, second.checksum());
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -182,6 +184,7 @@ async fn historical_hash_does_not_authorize_reused_or_tombstoned_slots() {
         1
     );
     assert_eq!(stored(&f, 7).await, historical(f.create_sql));
+    f.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -245,4 +248,5 @@ async fn concurrent_history_replacement_rolls_back_earlier_conversions() {
         "first rewrite rolled back with second mismatch"
     );
     assert_eq!(stored(&f, 8).await, "concurrent-edit");
+    f.finish().await;
 }

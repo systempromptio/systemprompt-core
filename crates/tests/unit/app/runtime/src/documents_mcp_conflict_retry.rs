@@ -8,8 +8,15 @@
 //! held, so it takes `ROW EXCLUSIVE` on `document_revisions` and then waits
 //! on `documents`; the install's second request closes the cycle. The
 //! database's deadlock counter shows the cycle formed and was broken.
+//!
+//! Postgres checks a waiter for a deadlock once, `deadlock_timeout` after it
+//! starts waiting, and aborts the waiter whose check finds the cycle. The edit
+//! starts waiting first, so it is the victim only when the install's second
+//! request lands before the edit's check; the disposable database's
+//! `deadlock_timeout` is raised so that holds however long the test is
+//! descheduled between the two.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::EditOp;
@@ -38,6 +45,17 @@ async fn waits_on_documents(pool: &sqlx::PgPool) -> bool {
 #[tokio::test]
 async fn an_edit_aborted_by_a_deadlock_with_a_schema_install_lands_on_its_retry() {
     let database = DisposableDb::with_schema("documents_deadlock_retry").await;
+    let admin = sqlx::PgPool::connect(database.url())
+        .await
+        .expect("connect to the disposable database");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "ALTER DATABASE \"{}\" SET deadlock_timeout = '5s'",
+        database.name()
+    )))
+    .execute(&admin)
+    .await
+    .expect("raise deadlock_timeout for new sessions");
+    admin.close().await;
     let db = database.test_pool().await;
     let raw = db.write_pool().as_ref().clone();
     let h = harness_on(&db);
@@ -81,10 +99,8 @@ async fn an_edit_aborted_by_a_deadlock_with_a_schema_install_lands_on_its_retry(
                 .map(|(out, _)| out.revision_id)
         })
     };
-    for _ in 0..200 {
-        if waits_on_documents(&raw).await {
-            break;
-        }
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !waits_on_documents(&raw).await && Instant::now() < deadline {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     assert!(

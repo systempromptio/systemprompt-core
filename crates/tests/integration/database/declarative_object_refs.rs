@@ -13,7 +13,7 @@ use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
     SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition::install;
 use uuid::Uuid;
@@ -66,62 +66,32 @@ impl Extension for CanaryExtension {
     }
 }
 
-struct Cleanup {
-    pool: PgPool,
-    tables: Vec<&'static str>,
-    functions: Vec<&'static str>,
-    extension_ids: Vec<&'static str>,
-}
-
-impl Drop for Cleanup {
-    fn drop(&mut self) {
-        let pool = self.pool.clone();
-        let tables = self.tables.clone();
-        let functions = self.functions.clone();
-        let extension_ids = self.extension_ids.clone();
-        tokio::task::block_in_place(|| {
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(async move {
-                for t in &tables {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP TABLE IF EXISTS {t} CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for f in &functions {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP FUNCTION IF EXISTS {f}() CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for ext_id in &extension_ids {
-                    let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-                        .bind(*ext_id)
-                        .execute(&pool)
-                        .await;
-                }
-            });
-        });
-    }
-}
-
 struct Fixture {
+    database: DisposableDb,
     pool: PgPool,
     db: Arc<Database>,
     suffix: String,
 }
 
 async fn connect() -> Fixture {
-    let db = Database::new_postgres(&test_database_url())
+    let database = DisposableDb::with_schema("declarative_object_refs").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
     Fixture {
+        database,
         pool,
         db: Arc::new(db),
         suffix: fresh_suffix(),
+    }
+}
+
+impl Fixture {
+    async fn finish(self) {
+        self.pool.close().await;
+        drop(self.db);
+        self.database.drop_now().await;
     }
 }
 
@@ -178,13 +148,6 @@ async fn run_cross_extension_function_case(function_owner_first: bool) {
     .await
     .expect("create established table with no tracking rows");
 
-    let _cleanup = Cleanup {
-        pool: fx.pool.clone(),
-        tables: vec![a_table, b_table],
-        functions: vec![function],
-        extension_ids: vec![a_id, b_id],
-    };
-
     let owner = CanaryExtension {
         id: a_id,
         schema_sql: leak_str(format!(
@@ -222,6 +185,7 @@ async fn run_cross_extension_function_case(function_owner_first: bool) {
         "the migration's trigger must exist"
     );
     assert_eq!(applied_versions(&fx.pool, b_id).await, vec![1]);
+    fx.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -253,13 +217,6 @@ async fn migration_toggling_a_declarative_trigger_by_name_is_refused_before_any_
     let trigger: &'static str = leak_str(format!("refs_refused_trg_{s}"));
     let ext_id: &'static str = leak_str(format!("refs-refused-{s}"));
 
-    let _cleanup = Cleanup {
-        pool: fx.pool.clone(),
-        tables: vec![table],
-        functions: vec![function],
-        extension_ids: vec![ext_id],
-    };
-
     let ext = CanaryExtension {
         id: ext_id,
         schema_sql: leak_str(trigger_schema(table, function, trigger)),
@@ -290,6 +247,7 @@ async fn migration_toggling_a_declarative_trigger_by_name_is_refused_before_any_
         !table_exists(&fx.pool, table).await,
         "refusal must happen before the structural phase writes anything"
     );
+    fx.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -307,13 +265,6 @@ async fn a_do_block_guarding_the_same_trigger_is_accepted() {
     .execute(&fx.pool)
     .await
     .expect("create established table that never had the trigger");
-
-    let _cleanup = Cleanup {
-        pool: fx.pool.clone(),
-        tables: vec![table],
-        functions: vec![function],
-        extension_ids: vec![ext_id],
-    };
 
     let ext = CanaryExtension {
         id: ext_id,
@@ -333,6 +284,7 @@ async fn a_do_block_guarding_the_same_trigger_is_accepted() {
         trigger_exists(&fx.pool, trigger).await,
         "the dependent phase must still create the trigger afterwards"
     );
+    fx.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -356,13 +308,6 @@ async fn a_function_whose_signature_a_migration_reshapes_is_left_to_that_migrati
     .await
     .expect("create the old shape of the function");
 
-    let _cleanup = Cleanup {
-        pool: fx.pool.clone(),
-        tables: vec![table],
-        functions: vec![function],
-        extension_ids: vec![ext_id],
-    };
-
     let ext = CanaryExtension {
         id: ext_id,
         schema_sql: leak_str(format!(
@@ -384,6 +329,7 @@ async fn a_function_whose_signature_a_migration_reshapes_is_left_to_that_migrati
     .await
     .expect("function present after install");
     assert_eq!(return_type, "text");
+    fx.finish().await;
 }
 
 // Why: a table an extension created in one migration and dropped in a later
@@ -403,13 +349,6 @@ async fn a_migration_may_alter_a_table_an_earlier_migration_of_its_own_created()
     .execute(&fx.pool)
     .await
     .expect("create established table");
-
-    let _cleanup = Cleanup {
-        pool: fx.pool.clone(),
-        tables: vec![table, transient],
-        functions: vec![],
-        extension_ids: vec![ext_id],
-    };
 
     struct ChainExtension {
         id: &'static str,
@@ -484,4 +423,5 @@ async fn a_migration_may_alter_a_table_an_earlier_migration_of_its_own_created()
     .expect("an ALTER on a table an earlier migration created is the extension's own");
     assert_eq!(applied_versions(&fx.pool, ext_id).await, vec![1, 2, 3]);
     assert!(!table_exists(&fx.pool, transient).await);
+    fx.finish().await;
 }

@@ -7,17 +7,49 @@
 //! constraint outside the system schemas and outside Postgres extensions, so
 //! any definition changed or dropped since the last complete install sends the
 //! next install down the full path. It reads `pg_catalog` only and takes no
-//! locks a `SELECT` would not.
+//! locks a `SELECT` would not. Another session may drop an object between the
+//! scan listing it and the `pg_get_*def` call opening it, or deadlock with the
+//! scan's `ACCESS SHARE` locks; the read is taken again, a bounded number of
+//! times.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::time::Duration;
+
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
+use super::super::lock_conflict::is_retryable_catalog_read;
 use crate::services::DatabaseProvider;
 
+const DIGEST_ATTEMPTS: u32 = 10;
+
 pub async fn catalog_digest(db: &dyn DatabaseProvider) -> Result<String, LoaderError> {
+    let mut attempt = 1;
+    loop {
+        match read_digest(db).await {
+            Err(error) if attempt < DIGEST_ATTEMPTS && is_retryable_catalog_read(&error) => {
+                tracing::debug!(
+                    attempt,
+                    error = %error,
+                    "Schema catalog digest raced concurrent DDL; reading again",
+                );
+                tokio::time::sleep(Duration::from_millis(u64::from(attempt) * 20)).await;
+                attempt += 1;
+            },
+            result => {
+                return result.map_err(|e| LoaderError::SchemaInstallationStepFailed {
+                    extension: ExtensionId::new("database"),
+                    context: "Failed to digest the live schema catalog".to_owned(),
+                    source: Box::new(e),
+                });
+            },
+        }
+    }
+}
+
+async fn read_digest(db: &dyn DatabaseProvider) -> Result<String, sqlx::Error> {
     sqlx::query_scalar!(
         r#"WITH ns AS (
     SELECT oid FROM pg_namespace
@@ -69,9 +101,4 @@ FROM defs"#
     )
     .fetch_one(db.get_postgres_pool().as_ref())
     .await
-    .map_err(|e| LoaderError::SchemaInstallationStepFailed {
-        extension: ExtensionId::new("database"),
-        context: "Failed to digest the live schema catalog".to_owned(),
-        source: Box::new(e),
-    })
 }

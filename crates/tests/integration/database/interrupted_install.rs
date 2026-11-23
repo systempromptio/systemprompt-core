@@ -14,7 +14,7 @@ use systemprompt_database::Database;
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::composition::install;
 use uuid::Uuid;
@@ -61,38 +61,6 @@ impl Extension for StampExt {
     }
 }
 
-struct Cleanup {
-    pool: PgPool,
-    tables: Vec<&'static str>,
-    extension_ids: Vec<&'static str>,
-}
-
-impl Drop for Cleanup {
-    fn drop(&mut self) {
-        let pool = self.pool.clone();
-        let tables = self.tables.clone();
-        let extension_ids = self.extension_ids.clone();
-        tokio::task::block_in_place(|| {
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(async move {
-                for t in &tables {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP TABLE IF EXISTS {t} CASCADE"
-                    )))
-                    .execute(&pool)
-                    .await;
-                }
-                for ext_id in &extension_ids {
-                    let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-                        .bind(*ext_id)
-                        .execute(&pool)
-                        .await;
-                }
-            });
-        });
-    }
-}
-
 async fn applied_versions(pool: &PgPool, ext_id: &str) -> Vec<i32> {
     sqlx::query("SELECT version FROM extension_migrations WHERE extension_id = $1 ORDER BY version")
         .bind(ext_id)
@@ -118,10 +86,10 @@ async fn table_exists(pool: &PgPool, table: &str) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_failed_install_never_leaves_a_stamped_extension_unstamped() {
-    let url = test_database_url();
-    let db = Database::new_postgres(&url)
+    let database = DisposableDb::with_schema("interrupted_install").await;
+    let db = Database::new_postgres(database.url())
         .await
-        .expect("connect to test postgres");
+        .expect("connect to the disposable database");
     let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = Uuid::new_v4().simple().to_string()[..12].to_string();
@@ -129,12 +97,6 @@ async fn a_failed_install_never_leaves_a_stamped_extension_unstamped() {
     let bad_table: &'static str = leak_str(format!("interrupted_zzz_{suffix}"));
     let good_id: &'static str = leak_str(format!("interrupted-aaa-{suffix}"));
     let bad_id: &'static str = leak_str(format!("interrupted-zzz-{suffix}"));
-
-    let _cleanup = Cleanup {
-        pool: pool.clone(),
-        tables: vec![good_table, bad_table],
-        extension_ids: vec![good_id, bad_id],
-    };
 
     let good_schema: &'static str = leak_str(format!(
         "CREATE TABLE IF NOT EXISTS {good_table} (id TEXT PRIMARY KEY, payload JSONB);"
@@ -210,4 +172,7 @@ async fn a_failed_install_never_leaves_a_stamped_extension_unstamped() {
         vec![1],
         "the retry must neither duplicate nor drop the baseline row"
     );
+    pool.close().await;
+    drop(db_arc);
+    database.drop_now().await;
 }
