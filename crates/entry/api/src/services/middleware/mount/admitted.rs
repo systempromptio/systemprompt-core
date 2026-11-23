@@ -16,7 +16,7 @@
 
 use axum::Router;
 use systemprompt_extension::router::{BasePath, BodyLimit, RouteSpec};
-use systemprompt_extension::{Admitted, RouteGroup, RouteProtection};
+use systemprompt_extension::{Admitted, RouteGroup, RouteProtection, StandingTag};
 use systemprompt_runtime::Kernel;
 
 use super::recheck::{path_base, recheck};
@@ -56,9 +56,9 @@ pub fn mount_admitted(
             );
             continue;
         }
-        let routers = set
-            .set
-            .materialize(&kernel.route_scoped(&set.owner, &set.handles))?;
+        let routers =
+            set.set
+                .materialize(&kernel.route_scoped(&set.owner, set.standing, &set.handles))?;
         let mut group = Router::new();
         for (def, router) in set.set.defs().iter().zip(routers) {
             group = group.merge(protect(
@@ -94,10 +94,16 @@ pub fn gateway_routes(
     recheck(admitted)?;
     let mut mounted = Vec::new();
     for route in admitted.gateway_routes() {
-        let routers = route
-            .decl
-            .router
-            .materialize(&kernel.route_scoped(&route.owner, &[]))?;
+        let routers = route.decl.router.materialize(
+            &kernel.route_scoped(
+                &route.owner,
+                admitted
+                    .built()
+                    .standing_of(&route.owner)
+                    .unwrap_or(StandingTag::Install),
+                &[],
+            ),
+        )?;
         for (def, router) in route.decl.router.defs().iter().zip(routers) {
             mounted.push(MountedGatewayRoute {
                 router,

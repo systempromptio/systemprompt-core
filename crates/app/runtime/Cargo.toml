@@ -47,7 +47,6 @@ systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-loader = { workspace = true }
-systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-notifications = { workspace = true, optional = true }

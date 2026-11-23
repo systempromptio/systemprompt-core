@@ -1,9 +1,9 @@
 //! Session signals analytics composes across owners.
 //!
 //! Plain session reads and writes belong to the users domain and are reached
-//! through [`systemprompt_traits::SessionStore`] directly. What lives here is
-//! only what analytics adds on top: behavioural-detector inputs drawn from the
-//! analytics event store and the content catalogue (passed per call: the
+//! through [`systemprompt_traits::SessionTelemetry`] directly. What lives here
+//! is only what analytics adds on top: behavioural-detector inputs drawn from
+//! the analytics event store and the content catalogue (passed per call: the
 //! content member resolves after analytics), engagement counts over the
 //! sessions a fingerprint owns, and geolocation backfill for sessions that
 //! arrived without it.
@@ -20,7 +20,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
-use systemprompt_traits::{ContentCatalogStats, DynAnalyticsEventStore, DynSessionStore};
+use systemprompt_traits::{ContentCatalogStats, DynAnalyticsEventStore, DynSessionTelemetry};
 
 use crate::{AnalyticsError, Result};
 
@@ -29,7 +29,7 @@ const NO_JS_WINDOW_HOURS: i64 = 25;
 #[derive(Clone)]
 pub struct SessionSignalsRepository {
     write_pool: Arc<PgPool>,
-    owner: DynSessionStore,
+    owner: DynSessionTelemetry,
     events: DynAnalyticsEventStore,
 }
 
@@ -41,7 +41,7 @@ impl std::fmt::Debug for SessionSignalsRepository {
 }
 
 impl SessionSignalsRepository {
-    pub fn new(db: &DbPool, owner: DynSessionStore, events: DynAnalyticsEventStore) -> Self {
+    pub fn new(db: &DbPool, owner: DynSessionTelemetry, events: DynAnalyticsEventStore) -> Self {
         Self {
             write_pool: db.write_pool(),
             owner,

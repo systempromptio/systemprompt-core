@@ -6,6 +6,13 @@
 //! is `None`, which every wrapper turns into its own typed not-ready error,
 //! never an empty default; a second bind is refused with [`AlreadyBound`].
 //!
+//! [`late_pair`] splits the cell for a value that enters a shared type map:
+//! the read half ([`LateRead`], `Clone`, no bind) is what readers hold and
+//! what a host seeds; the write half ([`LateBinder`], not `Clone`) stays with
+//! the one kernel function that binds it, so no reader can bind first. A
+//! [`LateRead`] built without a pair (`LateRead::default`) has no binder at
+//! all, and one built [`LateRead::bound`] is bound from the start.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -56,6 +63,70 @@ impl<T: ?Sized> fmt::Debug for LateBound<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LateBound")
             .field("bound", &self.is_bound())
+            .finish()
+    }
+}
+
+/// The read half of a late-bound value: readers hold it, nobody binds it.
+pub struct LateRead<T: ?Sized>(Arc<OnceLock<Arc<T>>>);
+
+/// The write half of a late-bound value: held by the one kernel function
+/// that binds it; not `Clone`.
+pub struct LateBinder<T: ?Sized>(Arc<OnceLock<Arc<T>>>);
+
+#[must_use]
+pub fn late_pair<T: ?Sized>() -> (LateRead<T>, LateBinder<T>) {
+    let cell = Arc::new(OnceLock::new());
+    (LateRead(Arc::clone(&cell)), LateBinder(cell))
+}
+
+impl<T: ?Sized> LateRead<T> {
+    #[must_use]
+    pub fn bound(value: Arc<T>) -> Self {
+        Self(Arc::new(OnceLock::from(value)))
+    }
+
+    #[must_use]
+    pub fn get(&self) -> Option<&Arc<T>> {
+        self.0.get()
+    }
+
+    #[must_use]
+    pub fn is_bound(&self) -> bool {
+        self.0.get().is_some()
+    }
+}
+
+impl<T: ?Sized> Clone for LateRead<T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl<T: ?Sized> Default for LateRead<T> {
+    fn default() -> Self {
+        Self(Arc::new(OnceLock::new()))
+    }
+}
+
+impl<T: ?Sized> fmt::Debug for LateRead<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LateRead")
+            .field("bound", &self.is_bound())
+            .finish()
+    }
+}
+
+impl<T: ?Sized> LateBinder<T> {
+    pub fn bind(self, value: Arc<T>) -> Result<(), AlreadyBound> {
+        self.0.set(value).map_err(|_bound| AlreadyBound)
+    }
+}
+
+impl<T: ?Sized> fmt::Debug for LateBinder<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LateBinder")
+            .field("bound", &self.0.get().is_some())
             .finish()
     }
 }

@@ -26,7 +26,7 @@ mod reply;
 mod state;
 mod verify;
 
-pub use state::{SlackClients, SlackState};
+pub use state::{SlackClients, SlackDispatch, SlackState};
 
 use std::collections::HashMap;
 
@@ -87,9 +87,9 @@ async fn handle_events(
             let Some(app) = resolve_app(&state.services().config(), &team_id) else {
                 return StatusCode::OK.into_response();
             };
-            if !verify_app(state.secrets(), &app, &headers, &body) {
+            let Some(verified) = verify_app(state.secrets(), &app, &headers, &body) else {
                 return StatusCode::UNAUTHORIZED.into_response();
-            }
+            };
             if event.bot_id.is_some() || !matches!(event.kind.as_str(), "message" | "app_mention") {
                 return StatusCode::OK.into_response();
             }
@@ -114,7 +114,7 @@ async fn handle_events(
                 sender: SenderIdentity::Unlinked,
                 link: app.authz.link,
             };
-            spawn_reply(&state, inbound, reply, &app);
+            spawn_reply(&state, verified, inbound, reply, &app);
             StatusCode::OK.into_response()
         },
     }
@@ -132,9 +132,9 @@ async fn handle_commands(
     let Some(app) = resolve_app(&state.services().config(), &cmd.team_id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(state.secrets(), &app, &headers, &body) {
+    let Some(verified) = verify_app(state.secrets(), &app, &headers, &body) else {
         return StatusCode::UNAUTHORIZED.into_response();
-    }
+    };
     let normalized = cmd.normalize();
     let Some(agent) = app.agent_for(&normalized.routing_key).cloned() else {
         return StatusCode::OK.into_response();
@@ -157,7 +157,7 @@ async fn handle_commands(
         sender: SenderIdentity::Unlinked,
         link: app.authz.link,
     };
-    spawn_reply(&state, inbound, reply, &app);
+    spawn_reply(&state, verified, inbound, reply, &app);
     StatusCode::OK.into_response()
 }
 
@@ -177,9 +177,9 @@ async fn handle_interactivity(
     let Some(app) = resolve_app(&state.services().config(), &payload.team.id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(state.secrets(), &app, &headers, &body) {
+    let Some(verified) = verify_app(state.secrets(), &app, &headers, &body) else {
         return StatusCode::UNAUTHORIZED.into_response();
-    }
+    };
     let channel_id = payload
         .channel
         .clone()
@@ -216,7 +216,7 @@ async fn handle_interactivity(
         sender: SenderIdentity::Unlinked,
         link: app.authz.link,
     };
-    spawn_reply(&state, inbound, reply, &app);
+    spawn_reply(&state, verified, inbound, reply, &app);
     StatusCode::OK.into_response()
 }
 

@@ -5,14 +5,16 @@
 //! way, and a route set's resolver serves it only to its provider. A seal
 //! covers the capability, not one type name: no open value of the runtime
 //! state is a member-sealed value's implementor, wraps one, or shares its
-//! allocation.
+//! allocation, and no open type names a host- or member-sealed capability, a
+//! capability a sealed value is a subset of (the session store over the AI
+//! session provider), or the `AppContext`.
 
 use std::any::{TypeId, type_name};
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
 use systemprompt_events::EventRouter;
-use systemprompt_extension::Resolved;
+use systemprompt_extension::{Resolved, StandingTag};
 use systemprompt_identifiers::{ExtensionId, InstanceId};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
@@ -136,7 +138,7 @@ async fn a_sealed_provide_is_withheld_from_every_member_runtime_context() {
     let other = ExtensionId::new("content");
     assert!(
         kernel
-            .route_scoped(&other, &[])
+            .route_scoped(&other, StandingTag::Core, &[])
             .get::<DynInventoryPublisher>()
             .is_err(),
         "another member's route state is refused it"
@@ -144,11 +146,57 @@ async fn a_sealed_provide_is_withheld_from_every_member_runtime_context() {
     let provider = ExtensionId::new("managed_resources");
     assert!(
         kernel
-            .route_scoped(&provider, &[])
+            .route_scoped(&provider, StandingTag::Core, &[])
             .get::<DynInventoryPublisher>()
             .is_ok(),
         "its provider's own route state reads it"
     );
+}
+
+// A capability that wraps or exceeds a sealed one: the session store does
+// everything the sealed AI session provider does and more, and the messaging
+// dispatcher mints with the signing keys and sends through the sealed agent
+// dispatch. Neither may be open.
+const SUPERSET_OF_A_SEALED_CAPABILITY: &[&str] = &[
+    "dyn systemprompt_traits::session_store::SessionStore",
+    "dyn systemprompt_traits::messaging::MessagingDispatcher",
+];
+
+const CELL_WRAPPERS: &[&str] = &[
+    "alloc::sync::Arc<",
+    "systemprompt_models::late_bound::LateRead<",
+    "systemprompt_models::late_bound::LateBound<",
+];
+
+fn open_types_of(rendered: &str) -> &str {
+    let start = rendered
+        .find("types: [")
+        .map_or(0, |at| at + "types: [".len());
+    let end = rendered[start..]
+        .find("], reserved")
+        .map_or(rendered.len(), |at| start + at);
+    &rendered[start..end]
+}
+
+fn names_capability(open_types: &str, marker: &str) -> bool {
+    open_types.match_indices(marker).any(|(at, _)| {
+        open_types[at + marker.len()..]
+            .chars()
+            .next()
+            .is_none_or(|next| !next.is_alphanumeric() && next != '_')
+    })
+}
+
+fn capability_of(sealed: &'static str) -> &'static str {
+    let mut name = sealed;
+    while let Some(inner) = CELL_WRAPPERS
+        .iter()
+        .find_map(|wrapper| name.strip_prefix(wrapper))
+        .and_then(|inner| inner.strip_suffix('>'))
+    {
+        name = inner;
+    }
+    name
 }
 
 fn carrier<T: 'static>() -> [(TypeId, &'static str); 2] {
@@ -223,6 +271,14 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             type_name::<systemprompt_extension::brain::DynBrainConsumerStart>(),
             carrier::<systemprompt_brain::consumer::BrainConsumer>(),
         ),
+        (
+            type_name::<systemprompt_traits::DynSessionStore>(),
+            carrier::<systemprompt_users::SessionRepository>(),
+        ),
+        (
+            type_name::<systemprompt_traits::DynToolCallIntentClaims>(),
+            carrier::<systemprompt_ai::repository::AiRequestRepository>(),
+        ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();
     let member_sealed: BTreeSet<&str> = state
@@ -248,6 +304,20 @@ async fn no_open_value_carries_a_member_sealed_capability() {
                 "an open runtime value wraps {name} while {sealed} is sealed"
             );
         }
+    }
+
+    let markers: Vec<&str> = state
+        .sealed_types()
+        .map(|(_, name)| capability_of(name))
+        .chain(SUPERSET_OF_A_SEALED_CAPABILITY.iter().copied())
+        .chain(std::iter::once(type_name::<AppContext>()))
+        .collect();
+    let open_types = open_types_of(&open_names);
+    for marker in &markers {
+        assert!(
+            !names_capability(open_types, marker),
+            "an open runtime value carries the sealed capability {marker}: {open_types}"
+        );
     }
 
     let sealed = state

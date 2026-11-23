@@ -31,7 +31,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
 use systemprompt_traits::{
     BackgroundTasks, DetectionSubject, DynContentCatalogStats, DynSessionBehaviourScorer,
-    DynSessionStore,
+    DynSessionTelemetry,
 };
 
 pub use events::AnalyticsEventParams;
@@ -50,7 +50,7 @@ struct TrackingParams<'a> {
 
 #[derive(Clone)]
 pub struct AnalyticsMiddleware {
-    sessions: Option<DynSessionStore>,
+    sessions: Option<DynSessionTelemetry>,
     scoring: Option<(DynSessionBehaviourScorer, DynContentCatalogStats)>,
     analytics_repo: Option<Arc<AnalyticsRepository>>,
     route_classifier: Arc<RouteClassifier>,
@@ -72,7 +72,7 @@ impl std::fmt::Debug for AnalyticsMiddleware {
 impl AnalyticsMiddleware {
     pub fn new(app_context: &AppContext) -> Self {
         let state = app_context.kernel().state();
-        let sessions = state.find::<DynSessionStore>().cloned();
+        let sessions = state.find::<DynSessionTelemetry>().cloned();
         let scoring = state
             .find::<DynSessionBehaviourScorer>()
             .cloned()
@@ -224,7 +224,7 @@ impl AnalyticsMiddleware {
 
 fn spawn_session_tracking_task(
     background: &BackgroundTasks,
-    sessions: DynSessionStore,
+    sessions: DynSessionTelemetry,
     session_id: SessionId,
 ) {
     // Why: one UPDATE per request — the increment also stamps
@@ -238,7 +238,7 @@ fn spawn_session_tracking_task(
 
 fn spawn_velocity_scanner_check(
     background: &BackgroundTasks,
-    sessions: DynSessionStore,
+    sessions: DynSessionTelemetry,
     session_id: SessionId,
 ) {
     background.spawn("analytics_velocity_check", async move {
@@ -270,7 +270,7 @@ fn spawn_velocity_scanner_check(
 
 fn spawn_mark_scanner_task(
     background: &BackgroundTasks,
-    sessions: DynSessionStore,
+    sessions: DynSessionTelemetry,
     session_id: SessionId,
 ) {
     background.spawn("analytics_mark_scanner", async move {

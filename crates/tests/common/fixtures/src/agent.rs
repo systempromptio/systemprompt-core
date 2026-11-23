@@ -97,9 +97,7 @@ pub fn tool_execution_ledger(ledger: ToolExecutionLedger) -> DynToolExecutionLoo
 
 pub fn a2a_dependencies(pool: &DbPool) -> A2aDependencies {
     A2aDependencies {
-        session_usage: crate::fixture_analytics_repositories(pool)
-            .expect("analytics repositories")
-            .session_store,
+        session_usage: Arc::new(systemprompt_users::SessionRepository::new(pool)),
         instance_id: crate::unique_instance(),
         managed_skills: not_managed_skills(),
         tool_executions: tool_execution_ledger(ToolExecutionLedger::Exists),

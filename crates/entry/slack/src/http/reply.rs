@@ -14,7 +14,7 @@ use systemprompt_traits::{
 };
 
 use super::SlackState;
-use super::verify::bot_token;
+use super::verify::{SlackVerified, bot_token};
 
 #[derive(Debug, Clone)]
 pub(super) enum ReplyTarget {
@@ -25,6 +25,7 @@ pub(super) enum ReplyTarget {
 // Why: Slack requires acknowledgment within three seconds.
 pub(super) fn spawn_reply(
     state: &SlackState,
+    verified: SlackVerified,
     inbound: MessagingInbound,
     reply: ReplyTarget,
     app: &SlackAppConfig,
@@ -42,7 +43,7 @@ pub(super) fn spawn_reply(
         {
             inbound.sender = workspace_sender(&http, &token, user_id).await;
         }
-        let (text, ephemeral) = match Box::pin(state.dispatch(inbound)).await {
+        let (text, ephemeral) = match Box::pin(state.dispatch(verified, inbound)).await {
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
             Err(err) => {

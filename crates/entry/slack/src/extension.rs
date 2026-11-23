@@ -1,6 +1,9 @@
-//! The Slack member: the `slack` config section, and behind the `http`
-//! feature the inbound route set, the HTTP clients it provides and the
-//! messaging dispatcher it requires.
+//! The Slack member: the `slack` config section and its inbound surface.
+//!
+//! Behind the `http` feature it declares the inbound route set, provides the
+//! HTTP clients, and provides **sealed** the dispatch handle (`SlackDispatch`)
+//! over the sealed messaging dispatcher it requires: the handle dispatches
+//! only a request the member's signature verifier has verified.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -44,11 +47,16 @@ impl Extension for SlackExtension {
         c.config::<SlackAppsConfig>();
         #[cfg(feature = "http")]
         {
-            c.requires::<LateBound<dyn systemprompt_traits::MessagingDispatcher>>()
+            c.requires::<LateRead<dyn systemprompt_traits::MessagingDispatcher>>()
                 .provide(|_: &Resolved<'_>| {
                     crate::http::SlackClients::build()
                         .map_err(|e| ProvideError::Failed(Box::new(e)))
                 })
+                .provide_sealed(
+                    |r: &Resolved<'_>| -> Result<crate::http::SlackDispatch, ProvideError> {
+                        Ok(crate::http::SlackDispatch::over(r.get()?))
+                    },
+                )
                 .routes(crate::http::routes());
         }
         Ok(())

@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The tool-call intent claims are the ai member's sealed provide rather than a kernel seed; the mcp member's tool executions and the API's MCP proxy read them optionally, and without the ai member no intent claim is attempted. `systemprompt-runtime` no longer depends on `systemprompt-ai`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpToolExecutor::new` and `McpToolExecutions::new` take `Option<DynToolCallIntentClaims>`."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Removed"
+text = "`McpHost::tool_call_intents`."

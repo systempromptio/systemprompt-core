@@ -2,7 +2,8 @@
 //! agent proxy, for member code that must not hold the proxy.
 //!
 //! The proxy reads the secret store and the runtime configuration, so member
-//! code never builds one. The API kernel binds an implementation into the
+//! code never builds one. The API kernel binds an implementation, through the
+//! [`AgentDispatchBinder`] it keeps outside the extension state, into the
 //! kernel-seeded, **sealed** [`AgentDispatchCell`]; only kernel code and the
 //! provide fns and slot builds of core members read it (a sealed seed is
 //! withheld from every member command, job and route state). A value a member
@@ -16,7 +17,7 @@ use async_trait::async_trait;
 use systemprompt_identifiers::AgentName;
 
 use crate::RequestContext;
-use crate::late_bound::LateBound;
+use crate::late_bound::{LateBinder, LateRead};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentDispatchError {
@@ -44,5 +45,10 @@ pub trait AgentDispatch: Send + Sync {
     ) -> Result<Vec<u8>, AgentDispatchError>;
 }
 
-/// The kernel-seeded, sealed cell the API binds its agent dispatch into.
-pub type AgentDispatchCell = LateBound<dyn AgentDispatch>;
+/// The read half of the kernel-seeded, sealed cell the API binds its agent
+/// dispatch into.
+pub type AgentDispatchCell = LateRead<dyn AgentDispatch>;
+
+/// The write half of [`AgentDispatchCell`], held by the host outside the
+/// extension state.
+pub type AgentDispatchBinder = LateBinder<dyn AgentDispatch>;

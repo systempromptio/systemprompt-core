@@ -20,9 +20,8 @@ use super::session_support::{
 async fn count_sessions_by_fingerprint_counts_within_window() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repositories =
-        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let s1 = unique_session_id();
@@ -53,7 +52,8 @@ async fn endpoint_sequence_and_timestamps_ordered() {
     let pool = test_db_pool().await;
     let repositories =
         systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
     let signals = &repositories.session_signals;
 
     let sid = unique_session_id();
@@ -113,7 +113,8 @@ async fn has_analytics_events_false_without_events() {
     let pool = test_db_pool().await;
     let repositories =
         systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
     let signals = &repositories.session_signals;
 
     let sid = unique_session_id();
@@ -133,9 +134,8 @@ async fn has_analytics_events_false_without_events() {
 async fn session_for_behavioral_analysis_round_trip() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repositories =
-        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
 
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());
@@ -168,9 +168,8 @@ async fn session_for_behavioral_analysis_round_trip() {
 async fn count_unique_ips_by_fingerprint() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repositories =
-        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
 
     let fp = format!("fp-{}", Uuid::new_v4());
     for ip in ["1.1.1.1", "2.2.2.2", "1.1.1.1"] {
@@ -203,7 +202,8 @@ async fn count_engagement_events_by_fingerprint() {
     let pool = test_db_pool().await;
     let repositories =
         systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
     let signals = &repositories.session_signals;
 
     let fp = format!("fp-{}", Uuid::new_v4());
@@ -225,9 +225,8 @@ async fn count_engagement_events_by_fingerprint() {
 async fn session_starts_by_fingerprint_ordered() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repositories =
-        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let s1 = unique_session_id();
@@ -250,9 +249,8 @@ async fn session_starts_by_fingerprint_ordered() {
 async fn session_velocity_returns_count_and_duration() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repositories =
-        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
 
     let sid = unique_session_id();
     seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -275,9 +273,8 @@ async fn session_velocity_returns_count_and_duration() {
 async fn update_behavioral_detection_and_mark_bot() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repositories =
-        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
 
     let sid = unique_session_id();
     seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -305,9 +302,8 @@ async fn update_behavioral_detection_and_mark_bot() {
 async fn check_and_mark_behavioral_bot_threshold() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repositories =
-        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
 
     let sid = unique_session_id();
     seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;

@@ -46,11 +46,11 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_logging::AnalyticsRepository;
-use systemprompt_traits::DynSessionStore;
+use systemprompt_traits::DynSessionTelemetry;
 
 #[derive(Clone)]
 pub struct AnalyticsRepositories {
-    pub session_store: DynSessionStore,
+    pub session_store: DynSessionTelemetry,
     pub session_signals: SessionSignalsRepository,
     pub costs: CostAnalyticsRepository,
     pub engagement: EngagementRepository,
@@ -73,7 +73,7 @@ impl std::fmt::Debug for AnalyticsRepositories {
 impl AnalyticsRepositories {
     pub fn new(
         db: &DbPool,
-        sessions: DynSessionStore,
+        sessions: DynSessionTelemetry,
         event_log: Arc<AnalyticsRepository>,
     ) -> Self {
         let event_sink: systemprompt_traits::DynAnalyticsEventStore =

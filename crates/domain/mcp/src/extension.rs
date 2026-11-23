@@ -177,9 +177,16 @@ impl Extension for McpExtension {
         c.provide_after_governance(
             |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
                 let db = r.get::<DbPool>()?;
+                let intents = r.optional::<DynToolCallIntentClaims>();
+                if intents.is_none() {
+                    tracing::info!(
+                        "no tool-call intent claims are provided (the ai member is not admitted); \
+                         tool executions record no intent attribution"
+                    );
+                }
                 Ok(Arc::new(McpToolExecutions::new(
                     Arc::new(ToolUsageRepository::new(&db)),
-                    r.get::<DynToolCallIntentClaims>()?,
+                    intents,
                     r.get::<Arc<ArtifactIngest>>()?,
                     r.get::<Arc<UiRendererRegistry>>()?,
                 )))

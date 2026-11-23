@@ -71,15 +71,15 @@ pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
         &ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),
         Arc::clone(ctx.secrets()),
-    )
-    .with_tool_usage_repo(
-        repo,
-        Arc::clone(
-            ctx.kernel()
-                .state()
-                .get::<systemprompt_traits::DynToolCallIntentClaims>()?,
-        ),
     );
+    let engine = match ctx
+        .kernel()
+        .state()
+        .find::<systemprompt_traits::DynToolCallIntentClaims>()
+    {
+        Some(intents) => engine.with_tool_usage_repo(repo, Arc::clone(intents)),
+        None => engine,
+    };
     let engine = match ctx
         .kernel()
         .state()

@@ -1,13 +1,17 @@
-//! The users member: its schemas and migrations, the IP-ban store and the
-//! session store (`DynSessionStore`) the API's session, sign-in and JWT paths
-//! read, the user-role audience resolver the notifications and brain slots
-//! append as a core default (`CoreSeam<dyn NotificationAudienceResolver,
-//! RoleAudience>`), its two maintenance jobs, the role directory governance's
-//! `RoleDirectorySlot` holds, the `role` subject-attribute provider, and the
-//! purge of its own user-keyed tables a user delete clears. It also provides
-//! the AI session provider (`DynAiSessionProvider`) **sealed**: it creates
-//! and meters a session for any user it is handed, so only the `ai` member's
-//! provide reads it.
+//! The users member: its schemas and migrations, the IP-ban store, the
+//! session store (`DynSessionStore`) **sealed** (it creates a session for any
+//! user and revokes all of a user's sessions, so only kernel code and provide
+//! fns read it: the API's session, sign-in and JWT paths), the open session
+//! telemetry view (`DynSessionTelemetry`: the bot, fingerprint, counter and
+//! geo operations the analytics member and the request-analytics middleware
+//! use, with no create, revoke or end), the user-role audience resolver the
+//! notifications and brain slots append as a core default (`CoreSeam<dyn
+//! NotificationAudienceResolver, RoleAudience>`), its two maintenance jobs, the
+//! role directory governance's `RoleDirectorySlot` holds, the `role`
+//! subject-attribute provider, and the purge of its own user-keyed tables a
+//! user delete clears. It also provides the AI session provider
+//! (`DynAiSessionProvider`) **sealed**: it creates and meters a session for any
+//! user it is handed, so only the `ai` member's provide reads it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +25,9 @@ use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectorySlot;
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::core_seam::RoleAudience;
-use systemprompt_traits::{CoreSeam, DynIpBanStore, DynSessionStore, DynSessionUsageCounters};
+use systemprompt_traits::{
+    CoreSeam, DynIpBanStore, DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters,
+};
 
 use crate::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
 use crate::repository::{
@@ -64,10 +70,15 @@ impl Extension for UsersExtension {
             let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
             Ok(bans)
         })
-        .provide(|r: &Resolved<'_>| {
+        .provide_sealed(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
             Ok(sessions)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let telemetry: DynSessionTelemetry = Arc::new(SessionRepository::new(&db));
+            Ok(telemetry)
         })
         .provide_sealed(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;

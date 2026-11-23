@@ -13,7 +13,7 @@ use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::SessionId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_traits::SessionStore;
+use systemprompt_traits::SessionTelemetry;
 
 use crate::http::EngagementState;
 
@@ -36,7 +36,7 @@ pub struct BatchResponse {
 }
 
 async fn mark_converted_if_applicable(
-    sessions: &dyn SessionStore,
+    sessions: &dyn SessionTelemetry,
     session_id: &SessionId,
     event_type: &str,
 ) {

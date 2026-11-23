@@ -126,7 +126,11 @@ fn a_second_analytics_http_set_requesting_the_broadcaster_cannot_resolve_it() {
     let engagement = set_at(&sets, engagement_base);
     assert!(
         broadcaster_set(engagement_base)
-            .materialize(&kernel.route_scoped(&engagement.owner, &engagement.handles))
+            .materialize(&kernel.route_scoped(
+                &engagement.owner,
+                engagement.standing,
+                &engagement.handles
+            ))
             .is_err(),
         "the engagement base confers no handle"
     );
@@ -134,7 +138,11 @@ fn a_second_analytics_http_set_requesting_the_broadcaster_cannot_resolve_it() {
     let analytics = set_at(&sets, analytics_base);
     assert!(
         broadcaster_set(analytics_base)
-            .materialize(&kernel.route_scoped(&analytics.owner, &analytics.handles))
+            .materialize(&kernel.route_scoped(
+                &analytics.owner,
+                analytics.standing,
+                &analytics.handles
+            ))
             .is_ok(),
         "negative control: the analytics base hands the broadcaster"
     );

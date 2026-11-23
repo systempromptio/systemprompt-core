@@ -17,8 +17,7 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, agent_reply_response_json,
-    ensure_messaging_bootstrap, eventually, seed_agent_backend, settle_background,
-    test_app_context, test_db_pool,
+    ensure_messaging_bootstrap, eventually, seed_agent_backend, settle_background, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -32,7 +31,7 @@ use super::common::body_to_string;
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&b.database_url).await;
+    let ctx = super::common::messaging_context(&b.database_url).await;
     Ok((pool, ctx))
 }
 
@@ -113,7 +112,7 @@ async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
 #[tokio::test]
 async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let ctx = test_app_context(&b.database_url).await;
+    let ctx = super::common::messaging_context(&b.database_url).await;
     let baseline = ctx.background_tasks().in_flight();
 
     let agent = MockServer::start().await;
@@ -153,7 +152,7 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
 #[tokio::test]
 async fn signed_slash_command_with_a_loopback_response_url_sends_nothing() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    let ctx = test_app_context(&b.database_url).await;
+    let ctx = super::common::messaging_context(&b.database_url).await;
     let baseline = ctx.background_tasks().in_flight();
 
     let agent = MockServer::start().await;
@@ -237,13 +236,14 @@ async fn coverage_command_reply(
 ) -> anyhow::Result<serde_json::Value> {
     let b = ensure_messaging_bootstrap();
     let ctx = if denied {
-        systemprompt_test_fixtures::fixture_app_context_with_hook(
+        systemprompt_test_fixtures::fixture_app_context_with_hook_over(
             &b.database_url,
             Arc::new(systemprompt_governance::authz::DenyAllHook::null()),
+            super::common::messaging_members(),
         )
         .await?
     } else {
-        test_app_context(&b.database_url).await
+        super::common::messaging_context(&b.database_url).await
     };
     let baseline = ctx.background_tasks().in_flight();
     let agent = MockServer::start().await;

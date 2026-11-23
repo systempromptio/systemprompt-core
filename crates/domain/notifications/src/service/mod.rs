@@ -21,8 +21,8 @@ use std::sync::Arc;
 use serde::Serialize;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventRouter, RelayOutcome};
-use systemprompt_extension::LateBound;
 use systemprompt_extension::notifications::{DynNotificationSink, PublishPolicy};
+use systemprompt_extension::{LateBinder, LateRead, late_pair};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::AlreadyBound;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
@@ -49,24 +49,24 @@ use crate::repository::NotificationRepositories;
 /// member can provide or bind it.
 #[derive(Clone)]
 pub struct NotificationsServiceSlot {
-    service: LateBound<NotificationsService>,
+    service: LateRead<NotificationsService>,
     consumer: NotificationsConsumerSlot,
     seams: Arc<NotificationSeams>,
 }
 
 pub(crate) struct NotificationsBinder {
-    service: LateBound<NotificationsService>,
-    consumer: NotificationsConsumerSlot,
+    service: LateBinder<NotificationsService>,
+    consumer: LateBinder<NotificationsConsumer>,
 }
 
 impl NotificationsServiceSlot {
     pub(crate) fn unbound(seams: NotificationSeams) -> (Self, NotificationsBinder) {
-        let service = LateBound::default();
-        let consumer = NotificationsConsumerSlot::default();
+        let (service_read, service) = late_pair();
+        let (consumer_read, consumer) = late_pair();
         (
             Self {
-                service: service.clone(),
-                consumer: consumer.clone(),
+                service: service_read,
+                consumer: consumer_read,
                 seams: Arc::new(seams),
             },
             NotificationsBinder { service, consumer },
@@ -91,7 +91,7 @@ impl NotificationsServiceSlot {
 
 impl NotificationsBinder {
     pub(crate) fn bind(
-        &self,
+        self,
         service: Arc<NotificationsService>,
         consumer: Arc<NotificationsConsumer>,
     ) -> Result<(), AlreadyBound> {

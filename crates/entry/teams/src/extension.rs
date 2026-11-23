@@ -1,6 +1,9 @@
-//! The Teams member: the `teams` config section, and behind the `http`
-//! feature the inbound route set, the HTTP clients it provides and the
-//! messaging dispatcher it requires.
+//! The Teams member: the `teams` config section and its inbound surface.
+//!
+//! Behind the `http` feature it declares the inbound route set, provides the
+//! HTTP clients, and provides **sealed** the dispatch handle (`TeamsDispatch`)
+//! over the sealed messaging dispatcher it requires: the handle dispatches
+//! only an activity the member's token verifier has verified.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -44,11 +47,16 @@ impl Extension for TeamsExtension {
         c.config::<TeamsAppsConfig>();
         #[cfg(feature = "http")]
         {
-            c.requires::<LateBound<dyn systemprompt_traits::MessagingDispatcher>>()
+            c.requires::<LateRead<dyn systemprompt_traits::MessagingDispatcher>>()
                 .provide(|_: &Resolved<'_>| {
                     crate::http::TeamsClients::build()
                         .map_err(|e| ProvideError::Failed(Box::new(e)))
                 })
+                .provide_sealed(
+                    |r: &Resolved<'_>| -> Result<crate::http::TeamsDispatch, ProvideError> {
+                        Ok(crate::http::TeamsDispatch::over(r.get()?))
+                    },
+                )
                 .routes(crate::http::routes());
         }
         Ok(())

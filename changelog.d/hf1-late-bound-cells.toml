@@ -1,0 +1,24 @@
+[root]
+section = "Security"
+area = "Security"
+text = "Every late-bound cell in the extension state holds only its read half (`LateRead`); the host keeps the bind half (`LateBinder`) outside the state and binds it once, and a bind that finds the cell bound, or binders already taken, fails the boot. No member can pre-bind the secret scanner (which left tool-result artifacts unredacted), the agent dispatch or the messaging dispatcher."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`late_pair`, `LateRead` and `LateBinder`: a late-bound cell split into a clonable read half and a single-use bind half."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`AgentDispatchCell` is `LateRead<dyn AgentDispatch>` and has no `bind`; `AgentDispatchBinder` is its bind half."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`SecretScannerCell` is `LateRead<SecretScanner>` and has no `bind`; `SecretScannerBinder` is its bind half."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`base_kernel_state` returns `(Dependencies, KernelBinders)` and `kernel_state` returns `(Dependencies, ApiKernelBinders)`; `Subsystems` gains `late_binders` and `AppContext::take_late_binders` hands them out once. `HostParts::tool_call_intents` is removed."

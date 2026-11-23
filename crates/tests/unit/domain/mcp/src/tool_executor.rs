@@ -27,7 +27,7 @@ async fn tool_executor_construction_and_clone() {
     ));
     let exec = McpToolExecutor::new(
         tool_repo,
-        intents(&db),
+        Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
         McpServerId::new("srv-x"),

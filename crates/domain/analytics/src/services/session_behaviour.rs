@@ -13,7 +13,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::SessionId;
 use systemprompt_traits::{
     AnalyticsResult, ContentCatalogStats, DetectionSubject, DynSessionBehaviourScorer,
-    DynSessionStore, SessionBehaviourScorer, SessionStore,
+    DynSessionTelemetry, SessionBehaviourScorer, SessionTelemetry,
 };
 
 use super::behavioral_detector::{BehavioralAnalysisInput, BehavioralBotDetector};
@@ -23,7 +23,7 @@ const BEHAVIORAL_FINGERPRINT_WINDOW_DAYS: i64 = 45;
 
 #[derive(Clone)]
 pub struct SessionBehaviourService {
-    sessions: DynSessionStore,
+    sessions: DynSessionTelemetry,
     signals: SessionSignalsRepository,
 }
 
@@ -35,7 +35,7 @@ impl std::fmt::Debug for SessionBehaviourService {
 }
 
 impl SessionBehaviourService {
-    pub const fn new(sessions: DynSessionStore, signals: SessionSignalsRepository) -> Self {
+    pub const fn new(sessions: DynSessionTelemetry, signals: SessionSignalsRepository) -> Self {
         Self { sessions, signals }
     }
 
@@ -70,7 +70,7 @@ impl SessionBehaviourScorer for SessionBehaviourService {
 }
 
 pub async fn collect_analysis_input(
-    sessions: &dyn SessionStore,
+    sessions: &dyn SessionTelemetry,
     signals: &SessionSignalsRepository,
     content: &dyn ContentCatalogStats,
     subject: DetectionSubject,
@@ -142,7 +142,7 @@ struct FingerprintStats {
 }
 
 async fn fingerprint_stats(
-    sessions: &dyn SessionStore,
+    sessions: &dyn SessionTelemetry,
     signals: &SessionSignalsRepository,
     fingerprint: Option<&str>,
 ) -> FingerprintStats {
@@ -204,7 +204,7 @@ struct SessionTimeline {
 }
 
 async fn session_timeline(
-    sessions: &dyn SessionStore,
+    sessions: &dyn SessionTelemetry,
     session_id: &SessionId,
     request_count: i64,
 ) -> SessionTimeline {

@@ -17,7 +17,7 @@ use systemprompt_test_fixtures::{
     fixture_config, fixture_core_members,
 };
 use systemprompt_traits::core_seam::RoleAudience;
-use systemprompt_traits::{CoreSeam, DynSessionStore};
+use systemprompt_traits::{CoreSeam, DynSessionStore, DynSessionTelemetry};
 use systemprompt_users::{
     SessionRepository, UserRepository, UserRoleAudienceResolver, UsersRoleDirectory,
 };
@@ -28,6 +28,11 @@ fn users_without_bans() -> Probe {
             let db = r.get::<DbPool>()?;
             let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
             Ok(sessions)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let telemetry: DynSessionTelemetry = Arc::new(SessionRepository::new(&db));
+            Ok(telemetry)
         })
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
@@ -71,7 +76,7 @@ async fn without_the_users_session_store_the_composition_is_refused_naming_the_s
         .await
         .expect_err("no session store is provided");
     let chain = format!("{err:#}");
-    assert!(chain.contains("SessionStore"), "{chain}");
+    assert!(chain.contains("SessionTelemetry"), "{chain}");
     Ok(())
 }
 

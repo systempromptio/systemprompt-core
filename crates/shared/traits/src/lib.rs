@@ -213,4 +213,4 @@ pub mod sso;
 pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
 pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
-pub use session_store::{DynSessionStore, SessionStore};
+pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};

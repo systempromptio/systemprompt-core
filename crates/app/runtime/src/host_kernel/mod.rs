@@ -42,7 +42,7 @@ use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::VerificationKeyring;
-use systemprompt_traits::{BackgroundTasks, BoxedSource, DynToolCallIntentClaims, FileStorage};
+use systemprompt_traits::{BackgroundTasks, BoxedSource, FileStorage};
 use systemprompt_users::UserRepository;
 
 use crate::documents::DocumentsRuntime;
@@ -101,7 +101,6 @@ pub struct HostParts {
     pub authz_hook: SharedAuthzHook,
     pub subject_providers: SubjectProviderSet,
     pub subjects: SubjectSourceHandle,
-    pub tool_call_intents: DynToolCallIntentClaims,
     pub user_repository: Arc<UserRepository>,
     pub documents: Arc<DocumentsRuntime>,
     pub background_tasks: BackgroundTasks,

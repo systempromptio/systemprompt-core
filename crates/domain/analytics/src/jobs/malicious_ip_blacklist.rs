@@ -12,7 +12,7 @@ use std::sync::Arc;
 use systemprompt_traits::session_store::{IpSessionCount, IpSessionQuery};
 use systemprompt_traits::{
     DynIpBanStore, IpBanRequest, IpBanStore, Job, JobContext, JobResult, ProviderError,
-    ProviderResult, SessionStore,
+    ProviderResult, SessionTelemetry,
 };
 use tracing::{info, warn};
 
@@ -126,7 +126,7 @@ impl Job for MaliciousIpBlacklistJob {
 }
 
 async fn find_high_volume_candidates(
-    sessions: &dyn SessionStore,
+    sessions: &dyn SessionTelemetry,
 ) -> Result<Vec<MaliciousIpCandidate>> {
     let records = sessions
         .ip_session_counts(IpSessionQuery::HumanAtLeast(HIGH_REQUEST_THRESHOLD))
@@ -134,7 +134,9 @@ async fn find_high_volume_candidates(
     Ok(records_to_candidates(records, BanReason::HighRequestVolume))
 }
 
-async fn find_scanner_candidates(sessions: &dyn SessionStore) -> Result<Vec<MaliciousIpCandidate>> {
+async fn find_scanner_candidates(
+    sessions: &dyn SessionTelemetry,
+) -> Result<Vec<MaliciousIpCandidate>> {
     let records = sessions
         .ip_session_counts(IpSessionQuery::ScannerAtLeast(SCANNER_BAN_THRESHOLD))
         .await?;
@@ -142,7 +144,7 @@ async fn find_scanner_candidates(sessions: &dyn SessionStore) -> Result<Vec<Mali
 }
 
 async fn find_datacenter_candidates(
-    sessions: &dyn SessionStore,
+    sessions: &dyn SessionTelemetry,
 ) -> Result<Vec<MaliciousIpCandidate>> {
     let records = sessions.ip_session_counts(IpSessionQuery::All).await?;
     Ok(records
@@ -161,7 +163,7 @@ async fn find_datacenter_candidates(
 }
 
 async fn find_high_risk_country_candidates(
-    sessions: &dyn SessionStore,
+    sessions: &dyn SessionTelemetry,
 ) -> Result<Vec<MaliciousIpCandidate>> {
     let records = sessions
         .ip_session_counts(IpSessionQuery::CountryAtLeast(HIGH_RISK_COUNTRY_THRESHOLD))

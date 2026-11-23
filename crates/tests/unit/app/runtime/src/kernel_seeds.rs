@@ -185,8 +185,8 @@ const API_ONLY_SEEDS: &[&str] = &[
     "systemprompt_security::keys::verification::TokenVerificationKeys",
     "systemprompt_security::keys::verification::VerificationKeyring",
     "alloc::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>",
-    "systemprompt_models::late_bound::LateBound<dyn systemprompt_traits::messaging::MessagingDispatcher>",
-    "systemprompt_models::late_bound::LateBound<dyn systemprompt_models::a2a::dispatch::AgentDispatch>",
+    "systemprompt_models::late_bound::LateRead<dyn systemprompt_traits::messaging::MessagingDispatcher>",
+    "systemprompt_models::late_bound::LateRead<dyn systemprompt_models::a2a::dispatch::AgentDispatch>",
     "alloc::sync::Arc<maxminddb::reader::Reader<alloc::vec::Vec<u8>>>",
     "alloc::sync::Arc<systemprompt_models::content_config::ContentConfigRaw>",
 ];

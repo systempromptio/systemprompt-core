@@ -19,7 +19,9 @@
 
 mod state;
 
-pub use state::{TeamsClients, TeamsState};
+pub use state::{TeamsClients, TeamsDispatch, TeamsState};
+
+use state::TeamsVerified;
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -80,18 +82,9 @@ async fn handle_messages(
     let Some(token) = bearer(&headers) else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
-    if state
-        .verifier(&app)
-        .verify(
-            token,
-            &normalized.service_url,
-            chrono::Utc::now().timestamp(),
-        )
-        .await
-        .is_err()
-    {
+    let Some(verified) = state.verify(&app, token, &normalized.service_url).await else {
         return StatusCode::UNAUTHORIZED.into_response();
-    }
+    };
 
     let Some(agent) = app.agent_for(&normalized.routing_key).cloned() else {
         return StatusCode::OK.into_response();
@@ -124,7 +117,7 @@ async fn handle_messages(
         app_password,
         token_url: app.endpoints.token_url,
     };
-    spawn_reply(state, inbound, reply);
+    spawn_reply(state, verified, inbound, reply);
     StatusCode::OK.into_response()
 }
 
@@ -136,10 +129,15 @@ struct TeamsReply {
     token_url: String,
 }
 
-fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) {
+fn spawn_reply(
+    state: TeamsState,
+    verified: TeamsVerified,
+    inbound: MessagingInbound,
+    reply: TeamsReply,
+) {
     let background = state.background().clone();
     background.spawn("teams_reply", async move {
-        let text = match Box::pin(state.dispatch(inbound)).await {
+        let text = match Box::pin(state.dispatch(verified, inbound)).await {
             Ok(DispatchOutcome::Replied(reply)) => non_empty(reply),
             Ok(DispatchOutcome::Denied(reason)) => format!("⛔ {reason}"),
             Err(err) => {

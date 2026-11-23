@@ -5,12 +5,15 @@
 //! the deterministic conversation context, per-user A2A token minting, the
 //! blocking `SendMessage` through the agent proxy, and reply extraction. The
 //! platform surfaces (the Slack and Teams entry crates) never name this
-//! module; they read the dispatcher from the extension state, where the
-//! kernel seeds an unbound `LateBound<dyn MessagingDispatcher>` slot and
-//! [`bind_dispatcher`] binds it, after the agent dispatch it sends through,
-//! while the server builds its routes. A slot
-//! that is never bound refuses every dispatch with
-//! [`MessagingDispatchError::Unavailable`].
+//! module. The kernel seeds the read half of the dispatcher cell
+//! (`LateRead<dyn MessagingDispatcher>`) **sealed**, and [`bind_dispatcher`]
+//! binds it, after the agent dispatch it sends through, while the server
+//! builds its routes, through the binders the context kept outside the
+//! extension state; binders already taken, or a cell already bound, fail the
+//! boot. The Slack and Teams members read the sealed read half only in their
+//! own provide fns, where they wrap it in a handle that dispatches only a
+//! request their platform verifier has verified. A cell that is never bound
+//! refuses every dispatch with [`MessagingDispatchError::Unavailable`].
 //!
 //! The pipeline is synchronous and spawned: the platform route acks within
 //! its timeout, then a spawned task runs this blocking dispatch and posts the
@@ -27,11 +30,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::json;
-use systemprompt_extension::{AlreadyBound, LateBound};
+use systemprompt_extension::AlreadyBound;
 use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 use systemprompt_identifiers::{Actor, SessionId, TraceId};
 use systemprompt_oauth::OauthError;
-use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{
     DispatchOutcome, MessagingConversation, MessagingDispatchError, MessagingDispatcher,
@@ -153,18 +155,24 @@ impl MessagingDispatcher for A2aMessagingDispatcher {
     }
 }
 
-pub fn bind_dispatcher(ctx: &AppContext) -> Result<(), MissingDependency> {
-    crate::services::agent_dispatch::bind_agent_dispatch(ctx)?;
-    let state = ctx.kernel().state();
-    let slot = state.get::<LateBound<dyn MessagingDispatcher>>()?;
-    if !slot.is_bound() {
-        match slot.bind(Arc::new(A2aMessagingDispatcher::new(ctx.clone()))) {
-            Ok(()) => {},
-            Err(AlreadyBound) => {
-                tracing::debug!("messaging dispatcher bound concurrently");
-            },
-        }
-    }
+/// Binding the agent dispatch and the messaging dispatcher failed; the
+/// server refuses to boot.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+pub enum DispatcherBindError {
+    #[error("the late binders were already taken from this context")]
+    BindersTaken,
+    #[error("a dispatch cell was already bound")]
+    AlreadyBound(#[from] AlreadyBound),
+}
+
+pub fn bind_dispatcher(ctx: &AppContext) -> Result<(), DispatcherBindError> {
+    let binders = ctx
+        .take_late_binders()
+        .ok_or(DispatcherBindError::BindersTaken)?;
+    crate::services::agent_dispatch::bind_agent_dispatch(ctx, binders.agent_dispatch)?;
+    binders
+        .messaging
+        .bind(Arc::new(A2aMessagingDispatcher::new(ctx.clone())))?;
     Ok(())
 }
 

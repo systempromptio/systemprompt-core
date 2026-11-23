@@ -14,7 +14,8 @@ async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
     let pool = test_db_pool().await;
     let repositories =
         systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
-    let store = &*repositories.session_store;
+    let sessions = systemprompt_users::SessionRepository::new(&pool);
+    let store: &dyn systemprompt_traits::SessionStore = &sessions;
     let signals = &repositories.session_signals;
 
     let sid = unique_session_id();

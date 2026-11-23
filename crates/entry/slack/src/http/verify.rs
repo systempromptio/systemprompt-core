@@ -1,5 +1,8 @@
 //! Request authentication for the Slack inbound surface: app resolution from
-//! config and HMAC signature verification over the raw request body.
+//! config and HMAC signature verification over the raw request body. A
+//! verified request yields a `SlackVerified` proof, which nothing outside
+//! this module can build and which is the one thing the member's dispatch
+//! handle accepts beside the inbound message.
 //!
 //! The signing secret and bot token resolve on demand by their named refs
 //! from the extension's custom-secret store; config validation refuses a ref
@@ -39,16 +42,19 @@ pub(super) fn bot_token(secrets: &dyn SecretStore, app: &SlackAppConfig) -> Opti
         .map(|secret| secret.expose().to_owned())
 }
 
+#[derive(Debug)]
+pub(crate) struct SlackVerified {
+    _verified: (),
+}
+
 pub(super) fn verify_app(
     secrets: &dyn SecretStore,
     app: &SlackAppConfig,
     headers: &HeaderMap,
     body: &[u8],
-) -> bool {
-    let Some(secret) = signing_secret(secrets, app) else {
-        return false;
-    };
-    verify_signature(headers, body, secret.as_bytes())
+) -> Option<SlackVerified> {
+    let secret = signing_secret(secrets, app)?;
+    verify_signature(headers, body, secret.as_bytes()).then_some(SlackVerified { _verified: () })
 }
 
 pub(super) fn verify_any_app(

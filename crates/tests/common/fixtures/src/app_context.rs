@@ -339,13 +339,21 @@ pub async fn fixture_app_context_with_hook(
     database_url: &str,
     authz_hook: SharedAuthzHook,
 ) -> Result<Arc<AppContext>> {
+    fixture_app_context_with_hook_over(database_url, authz_hook, fixture_admitted()).await
+}
+
+pub async fn fixture_app_context_with_hook_over(
+    database_url: &str,
+    authz_hook: SharedAuthzHook,
+    admitted: Arc<Admitted>,
+) -> Result<Arc<AppContext>> {
     let bootstrap = ensure_test_bootstrap();
     build(
         context_builder_on_profile(
             bootstrap,
             extension_mode_profile(bootstrap)?,
             fixture_config(database_url),
-            fixture_admitted(),
+            admitted,
         )?
         .with_shared_authz_hook(authz_hook),
         database_url,
@@ -490,36 +498,38 @@ pub fn fixture_kernel_seed(
     parts: FixtureSeedParts,
 ) -> systemprompt_extension::prelude::Dependencies {
     let bootstrap = ensure_test_bootstrap();
-    systemprompt_runtime::base_kernel_state(systemprompt_runtime::KernelSeed {
-        database: pool,
-        app_paths: &Arc::new(bootstrap.app_paths.clone()),
-        files_config: &Arc::new(bootstrap.files_config()),
-        profile: bootstrap.boot.profile(),
-        config: bootstrap.boot_config(),
-        services: fixture_services_view(),
-        services_root: crate::bootstrap::test_boot_active_services_root(),
-        profile_path: systemprompt_manifest::services::root::ActiveProfilePath {
-            path: bootstrap.profile_path.clone(),
-        },
-        secrets: fixture_secret_store(),
-        secret_lookup: Arc::<systemprompt_config::SecretsService>::clone(
-            crate::bootstrap::ensure_test_bootstrap().boot.secrets(),
-        ),
-        connector_tokens: Arc::default(),
-        file_storage: parts.file_storage,
-        background_tasks: parts.background_tasks,
-        coordination: systemprompt_runtime::KernelCoordination {
-            instances: Arc::new(systemprompt_traits::UnavailableCoordination),
-            leases: Arc::new(systemprompt_traits::UnavailableCoordination),
-            locks: Arc::new(systemprompt_traits::UnavailableCoordination),
-        },
-        system_admin: &crate::user::fixture_system_admin(
-            crate::credential::FIXTURE_SYSTEM_ADMIN_USERNAME,
-        ),
-        event_router: &parts.event_router,
-        documents: parts.documents,
-        escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
-    })
+    let (seed, _binders) =
+        systemprompt_runtime::base_kernel_state(systemprompt_runtime::KernelSeed {
+            database: pool,
+            app_paths: &Arc::new(bootstrap.app_paths.clone()),
+            files_config: &Arc::new(bootstrap.files_config()),
+            profile: bootstrap.boot.profile(),
+            config: bootstrap.boot_config(),
+            services: fixture_services_view(),
+            services_root: crate::bootstrap::test_boot_active_services_root(),
+            profile_path: systemprompt_manifest::services::root::ActiveProfilePath {
+                path: bootstrap.profile_path.clone(),
+            },
+            secrets: fixture_secret_store(),
+            secret_lookup: Arc::<systemprompt_config::SecretsService>::clone(
+                crate::bootstrap::ensure_test_bootstrap().boot.secrets(),
+            ),
+            connector_tokens: Arc::default(),
+            file_storage: parts.file_storage,
+            background_tasks: parts.background_tasks,
+            coordination: systemprompt_runtime::KernelCoordination {
+                instances: Arc::new(systemprompt_traits::UnavailableCoordination),
+                leases: Arc::new(systemprompt_traits::UnavailableCoordination),
+                locks: Arc::new(systemprompt_traits::UnavailableCoordination),
+            },
+            system_admin: &crate::user::fixture_system_admin(
+                crate::credential::FIXTURE_SYSTEM_ADMIN_USERNAME,
+            ),
+            event_router: &parts.event_router,
+            documents: parts.documents,
+            escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
+        });
+    seed
 }
 
 pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {

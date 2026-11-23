@@ -176,7 +176,7 @@ pub use retention::{
 };
 pub use seed::Seed;
 pub use state::{StateHandle, StateRequirement};
-pub use systemprompt_models::{AlreadyBound, LateBound};
+pub use systemprompt_models::{AlreadyBound, LateBinder, LateBound, LateRead, late_pair};
 pub use systemprompt_provider_contracts::MissingDependency;
 pub use traits::Extension;
 
@@ -203,7 +203,7 @@ pub mod prelude {
         ReassignAction, RouteProtection, SchemaDefinition, SiteAuthConfig, UserPurgeTable,
         extension_migrations,
     };
-    pub use systemprompt_models::LateBound;
+    pub use systemprompt_models::{LateBound, LateRead};
 
     pub use systemprompt_provider_contracts::governance::RuleType;
     pub use systemprompt_provider_contracts::{

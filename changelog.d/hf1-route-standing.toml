@@ -1,0 +1,14 @@
+[root]
+section = "Security"
+area = "Security"
+text = "A route set whose owner has install standing is refused every host-sealed seed (the spawner, the child secret environment, the signing keys, the agent and messaging dispatch, the secret store, the provider-key lookup and token cache, the runtime config, the services root and the event router); a core member's route set still reads them."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`Resolved::__route_scoped` takes the owner's `StandingTag`; `BuiltState::standing_of` returns a member's admitted standing."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`Kernel::route_scoped` takes the owner's `StandingTag`."

@@ -1,11 +1,15 @@
 //! [`AiExtension`]: contributes the AI tables and migrations, the values it
 //! provides, and the AI jobs, retention purges and rollup drains.
 //!
-//! Open: the request attribution lookup and the tool-call intent claims, both
-//! database-only and keyed by the caller's own request or session.
+//! Open: the request attribution lookup, database-only and keyed by the
+//! caller's own request.
 //!
 //! Sealed (kernel code and core provide fns read them; no member command,
 //! job, runner, plane or route state does):
+//! - `DynToolCallIntentClaims`: claim and release take any call id and
+//!   execution, so only the mcp member's tool-executions provide and the API's
+//!   MCP proxy read it (both optionally: without the ai member no claim is
+//!   attempted);
 //! - `Arc<AiRepositories>`: it holds the at-rest cipher that decrypts users'
 //!   personal provider keys, keyed from the sealed secret store;
 //! - `DynSafetyFindingsReader` and `DynCatalogMigrationPort`, the two ports the
@@ -32,7 +36,9 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
 use systemprompt_models::attribution::DynRequestAttributionLookup;
-use systemprompt_traits::{DynCatalogMigrationPort, DynSafetyFindingsReader};
+use systemprompt_traits::{
+    DynCatalogMigrationPort, DynSafetyFindingsReader, DynToolCallIntentClaims,
+};
 
 use crate::repository::{
     AiRequestRepository, AiSafetyFindingRepository, CatalogMigrationRepository,
@@ -58,6 +64,12 @@ impl Extension for AiExtension {
         c.migrations(extension_migrations!())
             .provide(
                 |r: &Resolved<'_>| -> Result<DynRequestAttributionLookup, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    Ok(Arc::new(AiRequestRepository::new(&db)))
+                },
+            )
+            .provide_sealed(
+                |r: &Resolved<'_>| -> Result<DynToolCallIntentClaims, ProvideError> {
                     let db = r.get::<DbPool>()?;
                     Ok(Arc::new(AiRequestRepository::new(&db)))
                 },

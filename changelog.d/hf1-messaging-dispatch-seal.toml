@@ -1,0 +1,19 @@
+[root]
+section = "Security"
+area = "Security"
+text = "The messaging dispatcher, which mints a token for the user it resolves and runs the agent as them, is a sealed seed. The Slack and Teams members wrap it in their own provide fns in a sealed handle (`SlackDispatch`, `TeamsDispatch`) that dispatches only with a proof their signature or token verifier returns, so no other member's command, job or route state can dispatch as a user."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`bind_dispatcher` returns `DispatcherBindError` (`BindersTaken`, `AlreadyBound`) and `bind_agent_dispatch` takes the `AgentDispatchBinder`."
+
+[[crate]]
+name = "systemprompt-slack-entry"
+section = "Added"
+text = "`SlackDispatch`, the member's sealed handle on the messaging dispatcher."
+
+[[crate]]
+name = "systemprompt-teams-entry"
+section = "Added"
+text = "`TeamsDispatch`, the member's sealed handle on the messaging dispatcher."

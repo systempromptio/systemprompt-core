@@ -1,6 +1,7 @@
 //! Router state for the Slack surface, resolved from the kernel state: the
 //! live services view, the platform secret lookup (built-in and custom
-//! names), the background-task owner, the messaging dispatcher slot, and the
+//! names), the background-task owner, the member's dispatch handle
+//! ([`SlackDispatch`]), and the
 //! member's HTTP clients ([`SlackClients`]) — the reply client for Slack's
 //! configured Web API and the untrusted-guarded client for the
 //! payload-supplied `response_url`.
@@ -10,8 +11,9 @@
 
 use std::sync::Arc;
 
+use super::verify::SlackVerified;
 use systemprompt_client::{GuardedClient, GuardedClientConfig, guarded_client};
-use systemprompt_extension::{FromState, LateBound, Resolved};
+use systemprompt_extension::{FromState, LateRead, Resolved};
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::{
@@ -46,12 +48,45 @@ impl SlackClients {
     }
 }
 
+/// The Slack member's handle on the sealed messaging dispatcher: built only
+/// by the member's own provide fn, provided sealed, and driven only with the
+/// [`SlackVerified`] proof the signature verifier returns.
+#[derive(Clone)]
+pub struct SlackDispatch {
+    dispatcher: LateRead<dyn MessagingDispatcher>,
+}
+
+impl std::fmt::Debug for SlackDispatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SlackDispatch")
+            .field("bound", &self.dispatcher.is_bound())
+            .finish()
+    }
+}
+
+impl SlackDispatch {
+    pub(crate) const fn over(dispatcher: LateRead<dyn MessagingDispatcher>) -> Self {
+        Self { dispatcher }
+    }
+
+    async fn dispatch(
+        &self,
+        _verified: SlackVerified,
+        inbound: MessagingInbound,
+    ) -> Result<DispatchOutcome, MessagingDispatchError> {
+        let Some(dispatcher) = self.dispatcher.get() else {
+            return Err(MessagingDispatchError::Unavailable);
+        };
+        dispatcher.dispatch(inbound).await
+    }
+}
+
 #[derive(Clone)]
 pub struct SlackState {
     services: ServicesView,
     secrets: Arc<dyn SecretStore>,
     background: BackgroundTasks,
-    dispatcher: LateBound<dyn MessagingDispatcher>,
+    dispatch: SlackDispatch,
     reply_client: reqwest::Client,
     payload_url_client: GuardedClient,
 }
@@ -69,7 +104,7 @@ impl FromState for SlackState {
             services: r.get()?,
             secrets: r.get()?,
             background: r.tasks().clone(),
-            dispatcher: r.get()?,
+            dispatch: r.get()?,
             reply_client: clients.reply,
             payload_url_client: clients.payload_url,
         })
@@ -99,11 +134,9 @@ impl SlackState {
 
     pub(super) async fn dispatch(
         &self,
+        verified: SlackVerified,
         inbound: MessagingInbound,
     ) -> Result<DispatchOutcome, MessagingDispatchError> {
-        let Some(dispatcher) = self.dispatcher.get() else {
-            return Err(MessagingDispatchError::Unavailable);
-        };
-        dispatcher.dispatch(inbound).await
+        self.dispatch.dispatch(verified, inbound).await
     }
 }

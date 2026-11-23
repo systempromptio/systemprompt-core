@@ -15,7 +15,9 @@
 //! sealed seed is the member's own and stays readable; a value a member
 //! provided sealed is withheld from that resolver too, and from the state of a
 //! route set another member owns ([`Resolved::__route_scoped`] names the
-//! set's owner).
+//! set's owner and its admitted standing). A host-sealed seed is withheld from
+//! the state of a route set whose owner has install standing; a core member's
+//! route set still reads it.
 //!
 //! A kernel handle is not reachable through a public method. It is read only
 //! through [`Handed<K>`]'s [`FromState`] impl, which consults the resolution's
@@ -36,6 +38,7 @@ use systemprompt_provider_contracts::{Dependencies, DependencyProvider, MissingD
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
 use super::error::{FactoryError, ProvideError, SlotError};
+use super::standing::StandingTag;
 
 /// What the kernel exposes to a resolution; implemented once, in the runtime.
 #[doc(hidden)]
@@ -50,7 +53,13 @@ pub struct Resolved<'a> {
     state: &'a Dependencies,
     conferred: &'a [HandleId],
     withhold_sealed: bool,
-    viewer: Option<&'a ExtensionId>,
+    viewer: Option<RouteViewer<'a>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RouteViewer<'a> {
+    owner: &'a ExtensionId,
+    standing: StandingTag,
 }
 
 impl<'a> Resolved<'a> {
@@ -81,6 +90,7 @@ impl<'a> Resolved<'a> {
         access: &'a dyn KernelAccess,
         state: &'a Dependencies,
         owner: &'a ExtensionId,
+        standing: StandingTag,
         conferred: &'a [HandleId],
     ) -> Self {
         Self {
@@ -88,7 +98,7 @@ impl<'a> Resolved<'a> {
             state,
             conferred,
             withhold_sealed: false,
-            viewer: Some(owner),
+            viewer: Some(RouteViewer { owner, standing }),
         }
     }
 }
@@ -109,9 +119,12 @@ impl Resolved<'_> {
         if self.withhold_sealed {
             return true;
         }
-        match (self.viewer, self.state.provider_of::<T>()) {
-            (Some(viewer), Some(DependencyProvider::Extension(provider))) => provider != viewer,
-            _ => false,
+        let Some(viewer) = self.viewer else {
+            return false;
+        };
+        match self.state.provider_of::<T>() {
+            Some(DependencyProvider::Extension(provider)) => provider != viewer.owner,
+            _ => viewer.standing == StandingTag::Install,
         }
     }
 

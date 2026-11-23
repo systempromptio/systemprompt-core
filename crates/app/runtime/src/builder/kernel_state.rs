@@ -39,13 +39,19 @@
 //! runtime code needs a capability derived from a sealed seed builds a narrow
 //! handle in its provide fn or factory.
 //!
-//! The messaging dispatcher slot (`LateBound<dyn MessagingDispatcher>`) is
-//! seeded unbound: the dispatcher needs the API's agent proxy, which exists
-//! only after this state is built, so the API binds it while it builds its
-//! routes and the chat-platform surfaces read the slot at dispatch time. The
-//! agent dispatch cell (`AgentDispatchCell`) is seeded unbound and **sealed**
-//! the same way: the API binds its agent proxy into it, and only kernel code
-//! and core provide fns and slot builds read it.
+//! Every late-bound cell is split ([`late_pair`]): the state holds only the
+//! read half, and the write half is returned beside the state
+//! ([`KernelBinders`], [`ApiKernelBinders`]) for the one kernel function
+//! that binds it, so no member can bind a cell first. The secret scanner's
+//! read half (`SecretScannerCell`) is open: reading the configured scanner
+//! confers nothing. The messaging dispatcher (`LateRead<dyn
+//! MessagingDispatcher>`) and the agent dispatch (`AgentDispatchCell`) are
+//! seeded unbound and **sealed**: both need the API's agent proxy, which
+//! exists only after this state is built, so the API binds them while it
+//! builds its routes. The dispatcher mints a token for the user it resolves
+//! and sends as them, so only kernel code and provide fns read it; the Slack
+//! and Teams members wrap it, in their own provide fns, in a handle that
+//! dispatches only a request their verifier has verified.
 //!
 //! The API also seeds the read-side handles a capability's routes are built
 //! from: the loaded content configuration (`Arc<ContentConfigRaw>`, whose
@@ -73,13 +79,16 @@ use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
+use systemprompt_governance::policy::secrets::SecretScanner;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_models::a2a::dispatch::AgentDispatchCell;
-use systemprompt_models::{ContentConfigRaw, LateBound};
+use systemprompt_models::a2a::dispatch::AgentDispatch;
+use systemprompt_models::{ContentConfigRaw, late_pair};
+
+use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
@@ -170,16 +179,10 @@ impl std::fmt::Debug for ApiKernelSeed<'_> {
     }
 }
 
-fn tool_call_intents(database: &DbPool) -> systemprompt_traits::DynToolCallIntentClaims {
-    Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
-        database,
-    ))
-}
-
-pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
+pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) {
+    let (scanner, secret_scanner) = late_pair::<SecretScanner>();
     let state = Dependencies::new()
-        .with(systemprompt_governance::policy::secrets::SecretScannerCell::default())
-        .with(tool_call_intents(seed.database))
+        .with(scanner)
         .with(Arc::clone(seed.database))
         .with(Arc::clone(seed.app_paths))
         .with(Arc::clone(seed.files_config))
@@ -204,7 +207,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> Dependencies {
         .with(seed.documents);
     #[cfg(feature = "notifications")]
     let state = state.with(seed.escalation);
-    state
+    (state, KernelBinders { secret_scanner })
 }
 
 fn jwt_validation(config: &Config, keys: &SigningKeys) -> DynJwtValidationProvider {
@@ -214,9 +217,12 @@ fn jwt_validation(config: &Config, keys: &SigningKeys) -> DynJwtValidationProvid
     ))
 }
 
-pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
+pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders) {
     let jwt = jwt_validation(seed.base.config, seed.signing_keys);
-    let mut state = base_kernel_state(seed.base)
+    let (agent_dispatch_cell, agent_dispatch) = late_pair::<dyn AgentDispatch>();
+    let (messaging_cell, messaging) = late_pair::<dyn MessagingDispatcher>();
+    let (base, base_binders) = base_kernel_state(seed.base);
+    let mut state = base
         .with_sealed(seed.signing_keys.clone())
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
@@ -224,8 +230,8 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
         .with(seed.signing_keys.keyring().clone())
         .with(seed.signing_keys.verification_keys().clone())
         .with(Arc::clone(seed.oauth))
-        .with(LateBound::<dyn MessagingDispatcher>::default())
-        .with_sealed(AgentDispatchCell::default());
+        .with_sealed(messaging_cell)
+        .with_sealed(agent_dispatch_cell);
     match seed.geoip {
         Some(reader) => state.insert(Arc::clone(reader)),
         None => state.reserve::<GeoIpReader>(),
@@ -234,5 +240,14 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> Dependencies {
         Some(config) => state.insert(Arc::clone(config)),
         None => state.reserve::<Arc<ContentConfigRaw>>(),
     }
-    state
+    (
+        state,
+        ApiKernelBinders {
+            base: base_binders,
+            late: ApiLateBinders {
+                agent_dispatch,
+                messaging,
+            },
+        },
+    )
 }

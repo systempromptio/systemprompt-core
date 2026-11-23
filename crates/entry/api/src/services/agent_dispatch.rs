@@ -1,7 +1,8 @@
 //! The API's [`AgentDispatch`]: one A2A request through the agent proxy.
 //!
-//! [`bind_agent_dispatch`] binds it into the kernel-seeded, sealed
-//! [`AgentDispatchCell`] when the routes are built, beside the messaging
+//! [`bind_agent_dispatch`] binds it, through the binder the context kept
+//! outside the extension state, into the kernel-seeded, sealed
+//! `AgentDispatchCell` when the routes are built, beside the messaging
 //! dispatcher. The proxy it builds reads the secret store and configuration;
 //! the cell is withheld from every member command, job and route state.
 //!
@@ -18,9 +19,8 @@ use systemprompt_agent::models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
-use systemprompt_models::a2a::dispatch::{AgentDispatch, AgentDispatchCell, AgentDispatchError};
+use systemprompt_models::a2a::dispatch::{AgentDispatch, AgentDispatchBinder, AgentDispatchError};
 use systemprompt_models::late_bound::AlreadyBound;
-use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 
 use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
@@ -93,16 +93,9 @@ impl AgentDispatch for ApiAgentDispatch {
     }
 }
 
-pub fn bind_agent_dispatch(ctx: &AppContext) -> Result<(), MissingDependency> {
-    let state = ctx.kernel().state();
-    let cell = state.get::<AgentDispatchCell>()?;
-    if !cell.is_bound() {
-        match cell.bind(Arc::new(ApiAgentDispatch::new(ctx.clone()))) {
-            Ok(()) => {},
-            Err(AlreadyBound) => {
-                tracing::debug!("agent dispatch bound concurrently");
-            },
-        }
-    }
-    Ok(())
+pub fn bind_agent_dispatch(
+    ctx: &AppContext,
+    binder: AgentDispatchBinder,
+) -> Result<(), AlreadyBound> {
+    binder.bind(Arc::new(ApiAgentDispatch::new(ctx.clone())))
 }

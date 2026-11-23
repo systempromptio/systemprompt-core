@@ -20,12 +20,44 @@ pub fn messaging_admitted() -> std::sync::Arc<systemprompt_extension::Admitted> 
     )
 }
 
+pub fn messaging_members() -> std::sync::Arc<systemprompt_extension::Admitted> {
+    let mut members = systemprompt_test_fixtures::fixture_core_members();
+    members.push(Box::new(systemprompt_slack_entry::SlackExtension));
+    members.push(Box::new(systemprompt_teams_entry::TeamsExtension));
+    systemprompt_test_fixtures::fixture_admitted_of(members)
+}
+
+pub async fn messaging_context(
+    database_url: &str,
+) -> std::sync::Arc<systemprompt_runtime::AppContext> {
+    systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        systemprompt_test_fixtures::fixture_config(database_url),
+        messaging_members(),
+    )
+    .await
+    .unwrap_or_else(|e| panic!("the fixture context with Slack and Teams builds: {e:#}"))
+}
+
+pub async fn messaging_context_on(
+    bootstrap: &systemprompt_test_fixtures::TestBootstrap,
+) -> std::sync::Arc<systemprompt_runtime::AppContext> {
+    systemprompt_test_fixtures::test_app_context_on_with(bootstrap, messaging_members()).await
+}
+
+pub fn bind_dispatcher_once(ctx: &systemprompt_runtime::AppContext) {
+    match systemprompt_api::services::messaging::bind_dispatcher(ctx) {
+        Ok(()) | Err(systemprompt_api::services::messaging::DispatcherBindError::BindersTaken) => {
+        },
+        Err(error) => panic!("the dispatcher cells bind: {error}"),
+    }
+}
+
 pub fn mount_set<C: Clone + Send + Sync + 'static>(
     ctx: &systemprompt_runtime::AppContext,
     set: &systemprompt_extension::router::RouteSet,
     clients: C,
 ) -> axum::Router {
-    systemprompt_api::services::messaging::bind_dispatcher(ctx).expect("dispatcher slot seeded");
+    bind_dispatcher_once(ctx);
     let seed = ctx
         .kernel()
         .state()

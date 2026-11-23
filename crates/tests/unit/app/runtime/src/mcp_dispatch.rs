@@ -20,7 +20,7 @@ pub(crate) async fn executor(server: &str) -> McpToolExecutor {
     let db = systemprompt_test_fixtures::test_db_pool().await;
     McpToolExecutor::new(
         Arc::new(ToolUsageRepository::new(&db)),
-        Arc::new(AiRequestRepository::new(&db)),
+        Some(Arc::new(AiRequestRepository::new(&db))),
         Arc::new(ArtifactIngest::from_db(
             &db,
             systemprompt_governance::policy::secrets::SecretScannerCell::default(),

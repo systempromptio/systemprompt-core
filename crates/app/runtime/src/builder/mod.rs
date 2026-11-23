@@ -28,6 +28,7 @@ mod debug_impl;
 pub(crate) mod documents;
 pub(crate) mod events;
 pub(crate) mod governance;
+pub(crate) mod kernel_binders;
 pub(crate) mod kernel_state;
 mod options;
 use composition::{
@@ -142,7 +143,7 @@ impl AppContextBuilder {
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
         let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let spawner = new_spawner()?;
-        let seed = kernel_state(ApiKernelSeed {
+        let (seed, binders) = kernel_state(ApiKernelSeed {
             base: KernelSeed {
                 database: &database,
                 app_paths: &app_paths,
@@ -202,7 +203,7 @@ impl AppContextBuilder {
         let governance = ConfigWatch::new(
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
-        bind_secret_scanner(&governance.get(), &r.get()?);
+        bind_secret_scanner(&governance.get(), binders.base.secret_scanner)?;
         let user_service = Arc::new(
             UserService::new(Arc::clone(&seeded.users))
                 .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
@@ -253,6 +254,7 @@ impl AppContextBuilder {
             background_tasks,
             spawner,
             documents,
+            late_binders: kernel_binders::PendingBinders::holding(binders.late),
         };
 
         AppContext::from_parts(

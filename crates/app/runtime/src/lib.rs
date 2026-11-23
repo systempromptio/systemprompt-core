@@ -38,6 +38,9 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
+pub use builder::kernel_binders::{
+    ApiKernelBinders, ApiLateBinders, KernelBinders, PendingBinders,
+};
 pub use builder::kernel_state::{
     ApiKernelSeed, KernelCoordination, KernelSeed, base_kernel_state, kernel_state,
 };

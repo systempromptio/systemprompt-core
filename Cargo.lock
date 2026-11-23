@@ -7593,7 +7593,6 @@ dependencies = [
  "sqlx",
  "systemprompt-agent",
  "systemprompt-agent-runs",
- "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-client",
  "systemprompt-config",
