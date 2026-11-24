@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Text and JSON carrying a NUL are stored with U+FFFD in its place. PostgreSQL refuses a NUL in `text` and `jsonb`, so a prompt, response, tool call, tool catalog, safety excerpt or error message that carried one failed the write that recorded it, the settlement of a completed request included.
+
 ## [0.84.0] - 2026-11-20
 
 ### Fixed

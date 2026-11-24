@@ -5,6 +5,7 @@
 ### Fixed
 
 - **OAuth:** Allow and Deny on the `/oauth/authorize` consent page are accepted from a browser. The page declared the `no-referrer` policy, under which a browser posts its form with `Origin: null`, and the endpoint answered `403` (since 0.85.0). The consent page and the passkey page now declare `same-origin`, whatever the profile's `referrer_policy`. The endpoint's `Origin` check is unchanged.
+- **AI:** text and JSON carrying a NUL are stored with U+FFFD in its place. PostgreSQL refuses a NUL in `text` and `jsonb`, so a prompt, response, tool call, tool catalog, safety excerpt or error message that carried one failed the write that recorded it, the settlement of a completed request included.
 
 ## [0.86.1] - 2026-11-23
 

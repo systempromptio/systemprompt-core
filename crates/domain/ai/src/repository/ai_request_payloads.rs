@@ -20,6 +20,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
+use systemprompt_models::text::{json_without_nul, without_nul};
 use systemprompt_traits::RepositoryError;
 
 #[must_use]
@@ -151,6 +152,8 @@ pub(crate) async fn upsert_request_with<'e, E>(
 where
     E: sqlx::PgExecutor<'e>,
 {
+    let body = params.body.map(json_without_nul);
+    let excerpt = params.excerpt.map(without_nul);
     sqlx::query!(
         r#"
             INSERT INTO ai_request_payloads (
@@ -168,8 +171,8 @@ where
                 updated_at = CURRENT_TIMESTAMP
             "#,
         ai_request_id.as_str(),
-        params.body,
-        params.excerpt,
+        body.as_deref(),
+        excerpt.as_deref(),
         params.truncated,
         params.bytes,
         params.sha256
@@ -188,6 +191,7 @@ pub(crate) async fn upsert_offered_tools_with<'e, E>(
 where
     E: sqlx::PgExecutor<'e>,
 {
+    let offered_tools = json_without_nul(offered_tools);
     sqlx::query!(
         r#"
             WITH catalog AS (
@@ -209,7 +213,7 @@ where
                 updated_at = CURRENT_TIMESTAMP
             "#,
         ai_request_id.as_str(),
-        offered_tools
+        offered_tools.as_ref()
     )
     .execute(executor)
     .await?;
@@ -226,6 +230,7 @@ pub(crate) async fn upsert_prepared_with<'e, E>(
 where
     E: sqlx::PgExecutor<'e>,
 {
+    let tools = tools.map(json_without_nul);
     sqlx::query!(
         r#"
             WITH catalog AS (
@@ -247,7 +252,7 @@ where
             "#,
         ai_request_id.as_str(),
         sha256,
-        tools
+        tools.as_deref()
     )
     .execute(executor)
     .await?;

@@ -7,6 +7,7 @@ use crate::models::rows::AiRequestToolCallRow;
 use crate::models::{AiRequestMessage, AiRequestToolCall, ArgsCheck};
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpToolName};
+use systemprompt_models::text::without_nul;
 use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
@@ -55,6 +56,7 @@ impl AiRequestRepository {
     ) -> Result<AiRequestMessage, RepositoryError> {
         let id = Uuid::new_v4().to_string();
         let request_id_str = request_id.as_str();
+        let content = without_nul(content);
 
         sqlx::query_as!(
             AiRequestMessage,
@@ -66,7 +68,7 @@ impl AiRequestRepository {
             id,
             request_id_str,
             role,
-            content,
+            content.as_ref(),
             sequence_number
         )
         .fetch_one(self.write_pool())
@@ -109,6 +111,11 @@ impl AiRequestRepository {
     ) -> Result<AiRequestToolCall, RepositoryError> {
         let id = Uuid::new_v4().to_string();
         let request_id_str = params.request_id.as_str();
+        let tool_input = without_nul(params.tool_input);
+        let error_path = params
+            .args
+            .and_then(|args| args.error_path.as_deref())
+            .map(without_nul);
 
         sqlx::query_as!(
             AiRequestToolCallRow,
@@ -121,10 +128,10 @@ impl AiRequestRepository {
             request_id_str,
             params.ai_tool_call_id.as_str(),
             params.tool_name.as_str(),
-            params.tool_input,
+            tool_input.as_ref(),
             params.sequence_number,
             params.args.map(|args| args.validity.as_str()),
-            params.args.and_then(|args| args.error_path.as_deref())
+            error_path.as_deref()
         )
         .fetch_one(self.write_pool())
         .await
@@ -194,7 +201,7 @@ where
     for message in messages {
         ids.push(Uuid::new_v4().to_string());
         roles.push(message.role.to_owned());
-        contents.push(message.content.to_owned());
+        contents.push(without_nul(message.content).into_owned());
         sequences.push(message.sequence_number);
     }
     let result = sqlx::query!(

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `text::without_nul` and `text::json_without_nul` replace each NUL with U+FFFD, borrowing a value that has none.
+
 ## [0.86.0] - 2026-11-23
 
 ### Breaking

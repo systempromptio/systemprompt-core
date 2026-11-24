@@ -26,6 +26,7 @@ mod queries;
 mod repository;
 mod settlement;
 mod settlement_outcome;
+mod settlement_turn;
 mod trace;
 
 pub use admission::{AdmissionWrite, PreparedDigest};

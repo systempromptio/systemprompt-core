@@ -7,10 +7,12 @@
 
 use sqlx::{Postgres, Transaction};
 use systemprompt_identifiers::{AiRequestId, UserId};
+use systemprompt_models::text::{json_without_nul, without_nul};
 use systemprompt_traits::{RepositoryError, RequestStatus};
 
 use super::AiRequestRepository;
 use super::settlement_outcome::{SettleCompletion, SettlementOutcome};
+use super::settlement_turn::{insert_turn, turn_recorded};
 
 impl AiRequestRepository {
     pub async fn mark_accounting_failed(
@@ -28,9 +30,10 @@ impl AiRequestRepository {
                 ),
             ));
         }
+        let error = without_nul(error);
         let affected = sqlx::query!(
             "UPDATE ai_requests SET status=$4, accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
-            request_id.as_str(), owner.as_str(), error, RequestStatus::Failed.as_str()
+            request_id.as_str(), owner.as_str(), error.as_ref(), RequestStatus::Failed.as_str()
         ).execute(self.write_pool()).await?.rows_affected();
         if affected != 1 {
             return Err(settlement_conflict(
@@ -69,6 +72,7 @@ impl AiRequestRepository {
             SettlementOutcome::Failed(failure) => {
                 let usage = failure.usage.unwrap_or_default();
                 let billed = failure.usage.is_some();
+                let error = without_nul(failure.error);
                 sqlx::query!(
                     r#"
                     UPDATE ai_requests
@@ -87,7 +91,7 @@ impl AiRequestRepository {
                     WHERE id = $1 AND status <> $14 AND accounting_failed_at IS NULL
                     "#,
                     request_id.as_str(),
-                    failure.error,
+                    error.as_ref(),
                     billed,
                     i32::try_from(usage.input_tokens).unwrap_or(i32::MAX),
                     i32::try_from(usage.output_tokens).unwrap_or(i32::MAX),
@@ -135,6 +139,7 @@ async fn settle_completion(
     }
     upsert_response_payload(tx, request_id, completion).await?;
     let usage = completion.usage;
+    let finish_reason = completion.finish_reason.map(without_nul);
     sqlx::query!(
         r#"
         UPDATE ai_requests
@@ -158,7 +163,7 @@ async fn settle_completion(
         completion.latency_ms,
         completion.upstream_latency_ms,
         usage.cache_read_tokens > 0,
-        completion.finish_reason,
+        finish_reason.as_deref(),
         RequestStatus::Completed.as_str(),
         RequestStatus::Failed.as_str(),
         completion.usage_source.as_str()
@@ -174,6 +179,8 @@ async fn upsert_response_payload(
     completion: &SettleCompletion<'_>,
 ) -> Result<(), RepositoryError> {
     let payload = &completion.payload;
+    let body = payload.body.map(json_without_nul);
+    let excerpt = payload.excerpt.map(without_nul);
     sqlx::query!(
         r#"
         INSERT INTO ai_request_payloads (
@@ -191,8 +198,8 @@ async fn upsert_response_payload(
             updated_at = CURRENT_TIMESTAMP
         "#,
         request_id.as_str(),
-        payload.body,
-        payload.excerpt,
+        body.as_deref(),
+        excerpt.as_deref(),
         payload.truncated,
         payload.bytes,
         payload.sha256
@@ -202,80 +209,7 @@ async fn upsert_response_payload(
     Ok(())
 }
 
-async fn turn_recorded(
-    tx: &mut Transaction<'_, Postgres>,
-    request_id: &AiRequestId,
-    completion: &SettleCompletion<'_>,
-) -> Result<bool, RepositoryError> {
-    let recorded = sqlx::query_scalar!(
-        r#"
-        SELECT (
-            EXISTS (SELECT 1 FROM ai_request_tool_calls WHERE request_id = $1)
-            OR EXISTS (
-                SELECT 1 FROM ai_request_messages
-                WHERE request_id = $1 AND role = 'assistant' AND sequence_number = $2
-            )
-        ) AS "recorded!"
-        "#,
-        request_id.as_str(),
-        completion.next_message_sequence,
-    )
-    .fetch_one(&mut **tx)
-    .await?;
-    Ok(recorded)
-}
-
-async fn insert_turn(
-    tx: &mut Transaction<'_, Postgres>,
-    request_id: &AiRequestId,
-    completion: &SettleCompletion<'_>,
-) -> Result<(), RepositoryError> {
-    for (index, tool) in completion.tool_calls.iter().enumerate() {
-        sqlx::query!(
-            r#"
-            INSERT INTO ai_request_tool_calls (
-                request_id, ai_tool_call_id, tool_name, tool_input, sequence_number,
-                args_validity, args_error_path
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            "#,
-            request_id.as_str(),
-            tool.id.as_str(),
-            tool.name,
-            tool.input,
-            tokens(u32::try_from(index + 1).unwrap_or(u32::MAX))?,
-            tool.args.as_ref().map(|args| args.validity.as_str()),
-            tool.args
-                .as_ref()
-                .and_then(|args| args.error_path.as_deref())
-        )
-        .execute(&mut **tx)
-        .await?;
-    }
-    match (completion.assistant_text, completion.next_message_sequence) {
-        (Some(text), Some(sequence)) => {
-            sqlx::query!(
-                r#"
-                INSERT INTO ai_request_messages (request_id, role, content, sequence_number)
-                VALUES ($1, 'assistant', $2, $3)
-                "#,
-                request_id.as_str(),
-                text,
-                sequence
-            )
-            .execute(&mut **tx)
-            .await?;
-        },
-        (Some(_), None) => tracing::warn!(
-            request_id = %request_id,
-            "assistant text not recorded: the receipt predates the carried message count"
-        ),
-        (None, _) => {},
-    }
-    Ok(())
-}
-
-fn tokens(value: u32) -> Result<i32, RepositoryError> {
+pub(super) fn tokens(value: u32) -> Result<i32, RepositoryError> {
     i32::try_from(value).map_err(|error| {
         RepositoryError::decode(
             format!("token count {value} exceeds the i32 column range"),
