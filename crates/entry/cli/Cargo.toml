@@ -32,7 +32,7 @@ clap = { workspace = true }
 thiserror = { workspace = true }
 
 # systemprompt.io crates
-systemprompt-runtime = { workspace = true, features = ["geolocation"] }
+systemprompt-runtime = { workspace = true }
 systemprompt-mcp-host = { workspace = true }
 systemprompt-api = { workspace = true }
 systemprompt-logging = { workspace = true }

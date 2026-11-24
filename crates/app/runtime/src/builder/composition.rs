@@ -11,13 +11,11 @@ use systemprompt_loader::BootContext;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
-    fingerprint_repo: Option<Arc<systemprompt_analytics::FingerprintRepository>>,
     user_service: Arc<UserService>,
     repositories: RepositoryBundles,
 ) -> DataPlane {
     DataPlane {
         database,
-        fingerprint_repo,
         user_service: Some(user_service),
         oauth_repositories: repositories.oauth,
         user_repository: repositories.users,

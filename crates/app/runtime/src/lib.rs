@@ -7,16 +7,9 @@
 //!
 //! Public APIs return [`RuntimeResult<T>`]. [`RuntimeError`] composes
 //! upstream typed errors (`ConfigError`, `RepositoryError`,
-//! `FilesError`, `UserError`, `LoaderError`, `AnalyticsError`,
+//! `FilesError`, `UserError`, `LoaderError`,
 //! `ProfileBootstrapError`, `PathError`) via `#[from]`; every variant
 //! built from another error keeps it as its source.
-//!
-//! # Feature flags
-//!
-//! | Feature       | Effect                                                          |
-//! |---------------|------------------------------------------------------------------|
-//! | (default)     | Core context, builder, validation                               |
-//! | `geolocation` | Enables `MaxMind` `GeoIP2` loading via `maxminddb` and pulls in `systemprompt-analytics/geolocation` |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

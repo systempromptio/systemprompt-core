@@ -22,7 +22,7 @@ A member implements `Extension`: `metadata()` and one `contribute(&mut Contribut
 | `authz`, `protection` | `AuthzPolicy`, `HandlerVerifier` and the protection a mounted route group carries. |
 | `brain`, `notifications` | The seam traits the brain and notification slots collect. |
 | `build` | Build-script helper (`emit_migrations`) that generates the migration list from `schema/migrations/*.sql`, read with the `extension_migrations!` macro. |
-| `capabilities` | The `Has*` capability traits (`HasAnalytics`, `HasFingerprint`, `HasRouteClassifier`, `HasUserService`). |
+| `capabilities` | The `Has*` capability traits (`HasRouteClassifier`, `HasUserService`). |
 | `cli` | `KernelGrant`; with the `cli` feature, `CliCommandGroup`, `CliCommandLeaf`, `CommandDecl`, `CommandHost`, `CommandOutput` and `CommandError`. |
 | `contribute` | `Contributions`, `Resolved` and `FromState`, deferred `ProvideFn`s and `Factory`s, `Slot`s and kernel handles. |
 | `cost` | `CostDirective`, `CostDirectiveError`, `TriggerPolicy`. |

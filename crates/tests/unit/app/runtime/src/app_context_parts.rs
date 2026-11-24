@@ -11,7 +11,6 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted, fixtur
 fn builder_default_flags_are_false() {
     let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted());
     let dbg = format!("{builder:?}");
-    assert!(dbg.contains("show_startup_warnings: false"), "got: {dbg}");
     assert!(dbg.contains("install_schemas: false"), "got: {dbg}");
     assert!(
         dbg.contains(&format!(
@@ -21,22 +20,6 @@ fn builder_default_flags_are_false() {
         "got: {dbg}"
     );
     assert!(dbg.contains("authz_hook: false"), "got: {dbg}");
-}
-
-#[test]
-fn builder_with_startup_warnings_true_reflects_in_debug() {
-    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
-        .with_startup_warnings(true);
-    let dbg = format!("{builder:?}");
-    assert!(dbg.contains("show_startup_warnings: true"), "got: {dbg}");
-}
-
-#[test]
-fn builder_with_startup_warnings_false_reflects_in_debug() {
-    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
-        .with_startup_warnings(false);
-    let dbg = format!("{builder:?}");
-    assert!(dbg.contains("show_startup_warnings: false"), "got: {dbg}");
 }
 
 #[test]
@@ -93,13 +76,11 @@ fn builder_full_chain_all_flags_set() {
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 
     let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
-        .with_startup_warnings(true)
         .with_migrations(true)
         .with_migration_config(MigrationConfig::default())
         .with_authz_hook(AllowAllHook::new(Arc::new(NullAuditSink)));
 
     let dbg = format!("{builder:?}");
-    assert!(dbg.contains("show_startup_warnings: true"), "got: {dbg}");
     assert!(dbg.contains("install_schemas: true"), "got: {dbg}");
     assert!(
         dbg.contains(&format!(

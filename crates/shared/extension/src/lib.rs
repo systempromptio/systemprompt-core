@@ -186,7 +186,7 @@ pub use systemprompt_provider_contracts::DoctorProbeSource;
 pub use systemprompt_provider_contracts::MissingDependency;
 pub use traits::Extension;
 
-pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
+pub use capabilities::{HasRouteClassifier, HasUserService};
 
 pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};

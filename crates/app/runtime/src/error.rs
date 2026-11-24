@@ -15,7 +15,6 @@
 
 use std::path::PathBuf;
 
-use systemprompt_analytics::AnalyticsError;
 use systemprompt_config::paths::PathError;
 use systemprompt_config::{
     ConfigError as ProfileConfigError, ProfileBootstrapError, SecretsBootstrapError,
@@ -29,7 +28,7 @@ use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_security::keys::SigningKeysError;
-use systemprompt_traits::{BoxedSource, FileStorageError, RepositoryError};
+use systemprompt_traits::{FileStorageError, RepositoryError};
 use systemprompt_users::UserError;
 use thiserror::Error;
 
@@ -60,9 +59,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Repository(#[from] RepositoryError),
-
-    #[error(transparent)]
-    Analytics(#[from] AnalyticsError),
 
     #[error(transparent)]
     Oauth(#[from] OauthError),
@@ -171,16 +167,6 @@ pub enum RuntimeError {
          the role before starting the platform."
     )]
     SystemAdminMissingRole { username: String },
-
-    #[error(
-        "Configured GeoIP database at '{path}' could not be loaded: {source}. Fix or remove \
-         paths.geoip_database from the profile."
-    )]
-    GeoIpUnreadable {
-        path: String,
-        #[source]
-        source: BoxedSource,
-    },
 
     #[error(
         "database schema is behind this binary (migrations skipped at boot): {} extension(s) not \

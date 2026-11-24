@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 use tracing::info;
 
-use crate::GeoIpReader;
+use crate::GeoIpDatabase;
 use crate::repository::AnalyticsRepositories;
 
 const DEFAULT_BATCH_SIZE: i64 = 1000;
@@ -39,7 +39,7 @@ impl Job for BackfillSessionGeoJob {
         let start_time = std::time::Instant::now();
 
         let repositories = Arc::clone(ctx.get::<Arc<AnalyticsRepositories>>()?);
-        let geoip = ctx.find::<GeoIpReader>();
+        let geoip = ctx.find::<Arc<GeoIpDatabase>>().and_then(|db| db.reader());
 
         let batch_size = ctx
             .get_parameter_parsed::<i64>("batch_size")?

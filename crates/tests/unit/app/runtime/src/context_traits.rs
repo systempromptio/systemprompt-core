@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
+use systemprompt_extension::{HasRouteClassifier, HasUserService};
 use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
@@ -40,7 +40,10 @@ async fn the_provider_view_shares_the_concrete_config_and_database() {
     );
     assert_eq!(
         view.fingerprint_provider().is_some(),
-        HasFingerprint::fingerprint(ctx.as_ref()).is_some()
+        ctx.kernel()
+            .state()
+            .find::<Arc<dyn systemprompt_traits::FingerprintProvider>>()
+            .is_some()
     );
 }
 
@@ -81,12 +84,13 @@ async fn the_sealed_secret_store_resolves_loaded_secrets_and_refuses_unknown_one
 async fn the_capability_traits_expose_the_shared_services() {
     let (ctx, _url) = context().await;
 
-    let analytics = HasAnalytics::analytics(ctx.as_ref());
+    let analytics = ctx
+        .kernel()
+        .state()
+        .get::<Arc<dyn systemprompt_traits::AnalyticsProvider>>()
+        .expect("the analytics member provides its open provider view");
     let provider = AppContextTrait::analytics_provider(ctx.as_ref());
-    assert!(std::ptr::addr_eq(
-        Arc::as_ptr(analytics),
-        Arc::as_ptr(&provider)
-    ));
+    assert!(Arc::ptr_eq(analytics, &provider));
     let classifier = HasRouteClassifier::route_classifier(ctx.as_ref());
     assert!(matches!(
         classifier.classify("/assets/app.js", "GET"),

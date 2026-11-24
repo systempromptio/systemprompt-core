@@ -1,10 +1,11 @@
-//! Loader arms of `AppContext::load_geoip_database` /
+//! Loader arms of `GeoIpDatabase::open` /
 //! `AppContext::load_content_config` not reachable from the existing tests:
 //! a valid MaxMind database (Some arm) and a content-config path that exists
 //! but cannot be read (it is a directory).
 
 use std::path::PathBuf;
 
+use systemprompt_analytics::GeoIpDatabase;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
@@ -100,9 +101,8 @@ fn valid_mmdb_path() -> String {
 
 #[test]
 fn load_geoip_database_returns_reader_for_valid_mmdb() {
-    let cfg = fixture_config(Some(valid_mmdb_path()));
-    let reader = AppContext::load_geoip_database(&cfg, false).expect("valid mmdb loads");
-    assert!(reader.is_some(), "a valid .mmdb must produce a reader");
+    let db = GeoIpDatabase::open(Some(&valid_mmdb_path())).expect("valid mmdb loads");
+    assert!(db.reader().is_some(), "a valid .mmdb must produce a reader");
 }
 
 #[test]
@@ -110,10 +110,9 @@ fn load_geoip_database_errors_for_invalid_mmdb() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let bogus = tmp.path().join("not-a-database.mmdb");
     std::fs::write(&bogus, b"this is not a maxmind database").expect("write bogus mmdb");
-    let cfg = fixture_config(Some(bogus.display().to_string()));
-    let reader = AppContext::load_geoip_database(&cfg, true);
+    let db = GeoIpDatabase::open(Some(&bogus.display().to_string()));
     assert!(
-        reader.is_err(),
+        db.is_err(),
         "a configured but invalid .mmdb must fail startup"
     );
 }

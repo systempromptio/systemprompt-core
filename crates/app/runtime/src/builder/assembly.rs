@@ -7,9 +7,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::Database;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::auth::UserRole;
@@ -19,33 +17,19 @@ use systemprompt_users::UserService;
 use crate::context::AppContext;
 use crate::error::{RuntimeError, RuntimeResult};
 
-pub(super) struct ContentAndGeoIp {
-    pub(super) geoip_reader: Option<GeoIpReader>,
+pub(super) struct ContentRoutingParts {
     pub(super) content_config: Option<Arc<ContentConfigRaw>>,
     pub(super) route_classifier: Arc<systemprompt_models::RouteClassifier>,
-    pub(super) fingerprint_repo: Option<Arc<FingerprintRepository>>,
 }
 
-pub(super) fn assemble_content_and_geoip(
-    config: &Config,
-    app_paths: &AppPaths,
-    database: &Arc<Database>,
-    show_startup_warnings: bool,
-) -> RuntimeResult<ContentAndGeoIp> {
-    let geoip_reader = AppContext::load_geoip_database(config, show_startup_warnings)?;
+pub(super) fn assemble_content(config: &Config, app_paths: &AppPaths) -> ContentRoutingParts {
     let content_config = AppContext::load_content_config(config, app_paths);
     let content_routing = content_routing_from(content_config.as_ref());
     let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(content_routing));
-    let sessions: systemprompt_traits::DynSessionTelemetry =
-        Arc::new(systemprompt_users::SessionRepository::new(database));
-    let fingerprint_repo = Some(Arc::new(FingerprintRepository::new(database, sessions)));
-
-    Ok(ContentAndGeoIp {
-        geoip_reader,
+    ContentRoutingParts {
         content_config,
         route_classifier,
-        fingerprint_repo,
-    })
+    }
 }
 
 pub(crate) async fn load_system_admin(

@@ -7,7 +7,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::GeoIpReader;
 use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
@@ -70,7 +69,6 @@ pub struct ApiKernelSeed<'a> {
     pub spawner: &'a Arc<Spawner>,
     pub child_secrets: DynChildSecretEnv,
     pub oauth: &'a Arc<OAuthRepositories>,
-    pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
 

@@ -3,22 +3,10 @@
 //!
 //! The host application implements each capability independently on its
 //! context type, so an extension that only needs the route classifier is not
-//! coupled to analytics or user services.
+//! coupled to user services.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-pub trait HasAnalytics: Send + Sync {
-    type Analytics: Send + Sync;
-
-    fn analytics(&self) -> &Self::Analytics;
-}
-
-pub trait HasFingerprint: Send + Sync {
-    type Fingerprint: Send + Sync;
-
-    fn fingerprint(&self) -> Option<&Self::Fingerprint>;
-}
 
 pub trait HasUserService: Send + Sync {
     type UserService: Send + Sync;

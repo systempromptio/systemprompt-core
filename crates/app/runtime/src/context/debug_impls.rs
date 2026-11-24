@@ -12,9 +12,7 @@ impl std::fmt::Debug for AppContext {
             .field("database", &"DbPool")
             .field("kernel", &self.kernel)
             .field("admitted_members", &self.admitted.built().members().count())
-            .field("geoip_reader", &self.subsystems.geoip_reader.is_some())
             .field("route_classifier", &"RouteClassifier")
-            .field("fingerprint_repo", &self.data.fingerprint_repo.is_some())
             .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
             .field("event_bridge", &self.subsystems.event_bridge.status())
@@ -30,7 +28,6 @@ impl std::fmt::Debug for DataPlane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DataPlane")
             .field("database", &"DbPool")
-            .field("fingerprint_repo", &self.fingerprint_repo.is_some())
             .field("user_service", &self.user_service.is_some())
             .field("oauth_repositories", &"OAuthRepositories")
             .field("user_repository", &"UserRepository")
@@ -80,7 +77,6 @@ impl std::fmt::Debug for Subsystems {
             )
             .field("event_bridge", &self.event_bridge.status())
             .field("event_router", &self.event_router)
-            .field("geoip_reader", &self.geoip_reader.is_some())
             .field("file_storage", &"FileStorage")
             .field("shutdown", &"ShutdownRequest")
             .field(

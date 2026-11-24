@@ -86,13 +86,12 @@
 //! and Teams members wrap it, in their own provide fns, in a handle that
 //! dispatches only a request their verifier has verified.
 //!
-//! The API also seeds the read-side handles a capability's routes are built
-//! from: the loaded content configuration (`Arc<ContentConfigRaw>`, whose
-//! `ContentRouting` resolves a page URL to a slug) and the configured
-//! `GeoIP` database (`GeoIpReader`). Both are optional: when either is not
-//! configured its type is reserved, so a reader's `find` is `None` (`get` is
-//! a typed `MissingDependency`) and no extension can `provide` a substitute.
-//! The analytics repositories are not seeded: the analytics member provides
+//! The API also seeds the loaded content configuration
+//! (`Arc<ContentConfigRaw>`, whose `ContentRouting` resolves a page URL to a
+//! slug). It is optional: when it is not configured its type is reserved, so a
+//! reader's `find` is `None` (`get` is a typed `MissingDependency`) and no
+//! extension can `provide` a substitute. The analytics repositories and the
+//! `GeoIP` database are not seeded: the analytics member opens and provides
 //! them.
 //!
 //! No event broadcaster is seeded: a broadcaster's holder can subscribe to,
@@ -105,7 +104,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::GeoIpReader;
 use systemprompt_governance::authz::AuthzDecisionHook;
 use systemprompt_governance::policy::secrets::SecretScanner;
 use systemprompt_loader::bundle::BundleSources;
@@ -205,10 +203,6 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         )
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
-    match seed.geoip {
-        Some(reader) => state.insert(Arc::clone(reader)),
-        None => state.reserve::<GeoIpReader>(),
-    }
     match seed.content_config {
         Some(config) => state.insert(Arc::clone(config)),
         None => state.reserve::<Arc<ContentConfigRaw>>(),

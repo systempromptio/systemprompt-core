@@ -8,8 +8,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
-use systemprompt_extension::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
+use systemprompt_extension::{HasRouteClassifier, HasUserService};
 use systemprompt_models::RouteClassifier;
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
@@ -43,35 +42,20 @@ impl AppContextTrait for AppContext {
     }
 
     fn analytics_provider(&self) -> Arc<dyn AnalyticsProvider> {
-        Arc::<AnalyticsService>::clone(&self.analytics)
+        Arc::clone(&self.analytics)
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
-        let concrete = Arc::clone(self.data.fingerprint_repo.as_ref()?);
-        let provider: Arc<dyn FingerprintProvider> = concrete;
-        Some(provider)
+        self.kernel
+            .state()
+            .find::<Arc<dyn FingerprintProvider>>()
+            .cloned()
     }
 
     fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
         let concrete = Arc::clone(self.data.user_service.as_ref()?);
         let provider: Arc<dyn UserProvider> = concrete;
         Some(provider)
-    }
-}
-
-impl HasAnalytics for AppContext {
-    type Analytics = Arc<AnalyticsService>;
-
-    fn analytics(&self) -> &Self::Analytics {
-        &self.analytics
-    }
-}
-
-impl HasFingerprint for AppContext {
-    type Fingerprint = Arc<FingerprintRepository>;
-
-    fn fingerprint(&self) -> Option<&Self::Fingerprint> {
-        self.data.fingerprint_repo.as_ref()
     }
 }
 

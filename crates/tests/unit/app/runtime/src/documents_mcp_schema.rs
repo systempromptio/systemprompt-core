@@ -69,8 +69,8 @@ async fn read_only_annotations_follow_the_plan() {
 
 #[tokio::test]
 async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
-    use systemprompt_mcp_host::HostContext;
     use systemprompt_documents::mcp::DocumentsMcpError;
+    use systemprompt_mcp_host::HostContext;
     use systemprompt_mcp_host::toolsets::documents_tools;
     use systemprompt_test_fixtures::{host_child_env, init_services_bootstrap};
 

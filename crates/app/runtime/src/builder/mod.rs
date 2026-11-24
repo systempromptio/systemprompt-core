@@ -74,7 +74,6 @@ use kernel_state::{ApiKernelSeed, KernelCoordination, KernelSeed, kernel_state};
 pub struct AppContextBuilder {
     boot: BootContext,
     admitted: Arc<Admitted>,
-    show_startup_warnings: bool,
     core: CoreOverrides,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
@@ -90,7 +89,6 @@ impl AppContextBuilder {
         Self {
             boot,
             admitted,
-            show_startup_warnings: false,
             core: CoreOverrides::default(),
             schema: SchemaPolicy::default(),
             migration_config: MigrationConfig::default(),
@@ -130,12 +128,7 @@ impl AppContextBuilder {
         )
         .await?;
 
-        let content = assembly::assemble_content_and_geoip(
-            &config,
-            &app_paths,
-            &database,
-            self.show_startup_warnings,
-        )?;
+        let content = assembly::assemble_content(&config, &app_paths);
         let seeded =
             seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id);
         let system_admin = load_identity(&self.boot, &seeded.users).await?;
@@ -185,7 +178,6 @@ impl AppContextBuilder {
             spawner: &spawner,
             child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
             oauth: &seeded.oauth,
-            geoip: content.geoip_reader.as_ref(),
             content_config: content.content_config.as_ref(),
         });
         let handle: Arc<dyn DatabaseHandle> =
@@ -251,7 +243,6 @@ impl AppContextBuilder {
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(bridge),
             event_router: router,
-            geoip_reader: content.geoip_reader,
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks,
@@ -261,12 +252,7 @@ impl AppContextBuilder {
 
         AppContext::from_parts(
             ContextPlanes {
-                data: build_data_plane(
-                    database,
-                    content.fingerprint_repo,
-                    user_service,
-                    repositories,
-                ),
+                data: build_data_plane(database, user_service, repositories),
                 cfg: ConfigPlane {
                     boot: self.boot,
                     config,

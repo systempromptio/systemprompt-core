@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
@@ -36,12 +35,11 @@ pub struct ContextPlanes {
 
 /// Database pool and the data-access services layered on it.
 ///
-/// `fingerprint_repo` and `user_service` are `None` when the corresponding
-/// resource failed to initialise; callers must degrade gracefully.
+/// `user_service` is `None` when it failed to initialise; callers must
+/// degrade gracefully.
 #[derive(Clone)]
 pub struct DataPlane {
     pub database: DbPool,
-    pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
     pub oauth_repositories: Arc<OAuthRepositories>,
     pub user_repository: Arc<UserRepository>,
@@ -78,7 +76,6 @@ pub struct Subsystems {
     pub schema_install: Arc<crate::SchemaState>,
     pub event_bridge: Arc<EventBridgeHandle>,
     pub event_router: EventRouter,
-    pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,

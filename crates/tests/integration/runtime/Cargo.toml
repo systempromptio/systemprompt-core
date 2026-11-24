@@ -13,7 +13,8 @@ workspace = true
 [dependencies]
 reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-runtime = { workspace = true, features = ["geolocation"] }
+systemprompt-analytics = { workspace = true, features = ["geolocation"] }
+systemprompt-runtime = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-logging = { workspace = true }
