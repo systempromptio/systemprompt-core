@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "An install member reads only the secrets it declares. `CustomSecrets` is removed: an install declares each custom secret it reads with `Contributions::secret(SecretName)` and reads it through `Resolved::secrets()` (a `DeclaredSecrets`) in its provide fns, factories and slot builds; a route set's or a command's resolution reads none. Admission refuses, with `KernelError::ReservedSecret`, a declared name that any core member, the profile or the platform references: every Slack and Teams app ref, every agent and MCP server custom-secret grant, the catalog credentials' platform secrets, the gateway bridge-release token secret, the OIDC `client_secret_key`, every identity client's `secret_key`, the Git-source credential namespace (`GIT_SOURCE__…`), the pinned platform keys (`PINNED_SECRET_KEYS`, which now also back the refusal) and `licence_signing_secret`, compared without regard to ASCII case. The references are consulted again on every read, so a name a services reload starts to reference is refused from then on. What an install changes: add one `c.secret(SecretName::new(\"<name>\"))` per custom secret it reads, replace `r.get::<CustomSecrets>()?.secret(name)` with `r.secrets()?.secret(name)`, and rename any secret whose name a core member references. The Slack and Teams members build their secret reads over the sealed store in their own provide fns."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Contributions::secret`, `Contributions::secret_references`, `Resolved::secrets`, `SecretDeclarations` and `ContributionSink::{declared_secrets, secret_references}`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`reserved::INSTALL_SEEDS` lists `Config` and `SystemAdmin` only; `InstallSeed::CustomSecrets` is removed."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`CustomSecrets` and `PLATFORM_SECRET_KEYS` are removed; `DeclaredSecrets`, `SecretReferences` and `PINNED_SECRET_KEYS` (moved from `systemprompt-config`) are added."
+
+[[crate]]
+name = "systemprompt-config"
+section = "Breaking"
+text = "`PINNED_SECRET_KEYS` moves to `systemprompt_traits`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Added"
+text = "`KernelError::ReservedSecret`; the kernel records each member's declared secret names at admission and inserts them sealed as `SecretDeclarations`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Added"
+text = "`ServicesConfig::secret_references` and `ServicesConfig::references_secret`."
