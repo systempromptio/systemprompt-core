@@ -88,7 +88,7 @@ fn test_tool_execution_debug() {
     assert!(debug_str.contains("ToolExecution"));
     assert!(debug_str.contains("test-tool"));
     assert!(debug_str.contains("test-server"));
-    assert!(debug_str.contains("success"));
+    assert!(debug_str.contains("Success"));
 }
 
 #[test]
