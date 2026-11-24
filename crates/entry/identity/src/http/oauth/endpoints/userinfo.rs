@@ -1,0 +1,79 @@
+//! OIDC userinfo endpoint.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::Json;
+use axum::extract::{Extension, State};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use serde::Serialize;
+use std::sync::Arc;
+use systemprompt_manifest::Config;
+use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::services::validate_jwt_token;
+
+use crate::http::oauth::OAuthHttpError;
+
+#[derive(Debug, Serialize)]
+pub struct UserinfoResponse {
+    pub sub: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub roles: Option<Vec<String>>,
+}
+
+pub async fn handle_userinfo(
+    State(state): State<OAuthState>,
+    Extension(config): Extension<Arc<Config>>,
+    headers: HeaderMap,
+) -> Result<Response, OAuthHttpError> {
+    let token = extract_bearer_token(&headers).ok_or_else(|| {
+        OAuthHttpError::invalid_request("Missing or invalid Authorization header")
+    })?;
+
+    let userinfo = get_userinfo(&state, &config, &token).map_err(|_e| {
+        OAuthHttpError::invalid_token(
+            "The access token provided is expired, revoked, malformed, or invalid",
+        )
+    })?;
+    Ok((StatusCode::OK, Json(userinfo)).into_response())
+}
+
+fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
+    let auth_header = headers.get("authorization")?;
+    let auth_str = auth_header
+        .to_str()
+        .map_err(|e| {
+            tracing::debug!(error = %e, "Invalid UTF-8 in Authorization header");
+            e
+        })
+        .ok()?;
+
+    auth_str.strip_prefix("Bearer ").map(str::to_owned)
+}
+
+fn get_userinfo(
+    state: &OAuthState,
+    config: &Config,
+    token: &str,
+) -> systemprompt_oauth::OauthResult<UserinfoResponse> {
+    let claims = validate_jwt_token(
+        state.token_authority().as_ref(),
+        token,
+        &config.jwt_audiences,
+    )?;
+
+    Ok(UserinfoResponse {
+        sub: claims.registered.sub.clone(),
+        username: Some(claims.custom.username.clone()),
+        email: Some(claims.custom.email.clone()),
+        user_type: Some(claims.custom.user_type.to_string()),
+        roles: Some(claims.roles().to_vec()),
+    })
+}

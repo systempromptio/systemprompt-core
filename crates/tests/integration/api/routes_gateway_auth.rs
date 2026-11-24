@@ -14,10 +14,10 @@ use axum::response::IntoResponse;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::{auth, bridge_manifest, device_link};
 use systemprompt_api::services::middleware::JwtContextExtractor;
-use systemprompt_api::services::middleware::client_addr::ClientIp;
 use systemprompt_documents::actor::bearer_actor;
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_models::auth::TokenInteraction;
+use systemprompt_security::http::ClientIp;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;

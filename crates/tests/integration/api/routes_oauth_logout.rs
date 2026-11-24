@@ -8,10 +8,10 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::routes::oauth::authenticated_router;
 use systemprompt_identifiers::{
     AccessTokenId, Actor, AgentName, ContextId, SessionId, TraceId, UserId,
 };
+use systemprompt_identity_entry::http::oauth::authenticated_router;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};

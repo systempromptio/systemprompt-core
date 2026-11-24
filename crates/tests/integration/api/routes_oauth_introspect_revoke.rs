@@ -15,8 +15,8 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use axum::middleware::{self, Next};
-use systemprompt_api::routes::oauth::{authenticated_router, revocation_router};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identity_entry::http::oauth::{authenticated_router, revocation_router};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{

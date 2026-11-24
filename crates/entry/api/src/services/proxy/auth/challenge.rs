@@ -18,7 +18,6 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::services::proxy::backend::ProxyError;
-use crate::services::request_base_url::resolve as resolve_request_base_url;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
@@ -26,6 +25,7 @@ use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::http::resolve_request_base_url;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct AuthValidator;

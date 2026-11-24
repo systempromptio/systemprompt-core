@@ -143,7 +143,7 @@ PATTERN=$(raw_pattern "$ALT")
 
 # Every production layer, the facade and the bridge. Carve-outs, each with its
 # reason:
-#   crates/entry/api/src/routes/oauth/**      RFC 6749 / 7591 wire field names
+#   crates/entry/identity/src/http/oauth/**  RFC 6749 / 7591 wire field names
 #                                              (`client_id`, `user_id` claims)
 #                                              deserialised verbatim
 #   crates/domain/mcp/.../session_store.rs    MCP session records keyed by the
@@ -169,7 +169,7 @@ scan() {
         -g '!crates/tests/**' \
         -g '!**/target/**' \
         -g '!**/.sqlx/**' \
-        -g '!crates/entry/api/src/routes/oauth/**' \
+        -g '!crates/entry/identity/src/http/oauth/**' \
         -g '!crates/app/mcp-host/src/serving/middleware/session_handler/session_store.rs' \
         -g '!crates/shared/wire/src/**' \
         -g '!crates/domain/*/src/models/rows.rs' \

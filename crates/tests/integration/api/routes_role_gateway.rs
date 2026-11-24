@@ -26,14 +26,11 @@ async fn router_for(role: NodeRole) -> anyhow::Result<Router> {
     config.trusted_proxies = Vec::new();
     config.role = role;
     let ctx = fixture_app_context_with_config(config).await?;
-    let admitted = gateway_probe_admitted(ComposedParts::default());
-    let kernel =
-        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
     setup_api_server(
         &ctx,
         Composed {
-            admitted: &admitted,
-            kernel: &kernel,
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
         },
         None,
         &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),

@@ -4,7 +4,7 @@
 
 use axum::Router;
 use axum::routing::get;
-use systemprompt_api::routes::oauth;
+use systemprompt_identity_entry::http::oauth;
 use systemprompt_manifest::profile::UiSessionConfig;
 use tower::ServiceExt;
 
@@ -29,7 +29,13 @@ fn discovery_router_over(ctx: &systemprompt_runtime::AppContext) -> Router {
             "/.well-known/oauth-protected-resource/{*path}",
             get(oauth::discovery::handle_oauth_protected_resource_with_path),
         )
-        .with_state((*ctx).clone())
+        .with_state(oauth::discovery::DiscoveryState::from_config(
+            ctx.config(),
+            ctx.kernel()
+                .state()
+                .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                .cloned(),
+        ))
         .layer(axum::Extension(ctx.config_arc().clone()))
 }
 

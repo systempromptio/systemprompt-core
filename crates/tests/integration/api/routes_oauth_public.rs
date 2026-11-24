@@ -5,7 +5,7 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::StatusCode;
-use systemprompt_api::routes::oauth::{authenticated_router, public_router};
+use systemprompt_identity_entry::http::oauth::{authenticated_router, public_router};
 use systemprompt_oauth::OAuthState;
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -38,7 +38,7 @@ async fn authenticated_app() -> anyhow::Result<Router> {
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(authenticated_router()
-        .merge(systemprompt_api::routes::oauth::revocation_router())
+        .merge(systemprompt_identity_entry::http::oauth::revocation_router())
         .with_state(state)
         .layer(axum::Extension(ctx.config_arc().clone())))
 }
@@ -204,7 +204,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+    let app = systemprompt_identity_entry::http::oauth::public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(state)
@@ -272,7 +272,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+    let app = systemprompt_identity_entry::http::oauth::public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(state)
@@ -362,7 +362,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(
-        systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+        systemprompt_identity_entry::http::oauth::public_router(std::sync::Arc::new(
             systemprompt_oauth_issuance::JwksCache::new(),
         ))
         .with_state(state)

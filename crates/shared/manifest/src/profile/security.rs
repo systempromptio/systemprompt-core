@@ -175,6 +175,29 @@ impl UiSessionConfig {
     }
 }
 
+/// The lifetimes, in seconds, of a person's UI session, as the profile's
+/// `security.ui_session` block sets them.
+///
+/// A `person_ui` client reads this capability from either discovery document
+/// instead of probing `/authorize`; neither document names a client.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct UiSessionDiscovery {
+    pub access_token_lifetime: i64,
+    pub session_lifetime: i64,
+    pub step_up_max_age: i64,
+}
+
+impl UiSessionDiscovery {
+    #[must_use]
+    pub const fn from_config(config: &UiSessionConfig) -> Self {
+        Self {
+            access_token_lifetime: config.access_ttl_secs,
+            session_lifetime: config.absolute_secs,
+            step_up_max_age: config.step_up_max_age_secs,
+        }
+    }
+}
+
 /// Issuance policy for personal access tokens (`security.api_keys`).
 ///
 /// With `max_lifetime_days` set, every issuance path bounds the key: an

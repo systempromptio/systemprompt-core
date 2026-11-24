@@ -1,0 +1,34 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The OAuth 2.0 / OIDC, SSO, `/api/v1/core/users` session-revocation and `/api/v1/admin/api-keys` routes are served by the `identity-http` member (`systemprompt-identity-entry`), built as an `IdentitySurface` the API mount layers with unchanged policies, context kinds, rate scopes and layer order. Their state reads the token authority and the signing keys (host seeds conferred on `identity-http` under `identity-token-authority` and `identity-signing-keys`) and the users member's sign-in session view (`DynSignInSessions`, conferred under `identity-sign-in-sessions`). A profile that disables `identity-http` serves none of these routes and no OAuth discovery document."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::{oauth, sso, users}`, `routes::admin`'s API-key router, `routes::{oauth_public_router, oauth_authenticated_router, oauth_revocation_router}`, `services::{session_cookie, request_base_url, validation}` and `services::middleware::client_addr::{ClientIp, resolve_client_ip, forwarded_headers_ignored}` are removed. Migrate to `systemprompt_identity_entry::http::{oauth, sso, users, admin_keys}` and `systemprompt_security::http`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`SessionProvider::migrate_user_sessions` is removed (no production caller; `SessionRepository::migrate_user_sessions` remains). `McpRegistryProvider` gains the provided `oauth_scopes` and `oauth_scopes_for_resource`; `DynSignInSessions` is added."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`http::{ClientIp, ClientIpConfigMissing, resolve_client_ip, forwarded_headers_ignored, RequestBaseUrl, RequestBaseUrlError, resolve_request_base_url, SameSite, SessionCookie}`."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Added"
+text = "`surface::{IdentitySurface, DynIdentitySurface, IdentityRouteState, IdentityHostHandles, IdentityRoutes, IdentitySurfaceError}`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`ConferralRow::{IdentitySigningKeys, IdentitySignInSessions}`."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "New feature `identity` (in `full`) carries `systemprompt-identity-entry`; `api` no longer does. `sso::{SsoRouteState, binder_from_headers, into_response, router, start_response}` need `identity`; `sso::SSO_BASE` is `ApiPaths::SSO_BASE`."

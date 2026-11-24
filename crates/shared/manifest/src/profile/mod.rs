@@ -98,7 +98,7 @@ pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::{
     ApiKeyPolicyConfig, AuthorizeConfig, DEFAULT_ID_JAG_TTL_SECS, DEFAULT_SIGNING_KEY_PATH,
     GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer, UiSessionConfig,
-    default_resource_audiences,
+    UiSessionDiscovery, default_resource_audiences,
 };
 pub use server::{
     ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,

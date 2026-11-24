@@ -140,18 +140,17 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
             let authenticator = authenticator.clone();
             async move {
                 site_auth_gate(
-                req,
-                next,
-                config,
-                systemprompt_api::services::middleware::SiteAuthSession {
-                    authenticator: &authenticator,
-                    cookie:
-                        systemprompt_api::services::session_cookie::SessionCookie::for_external_url(
+                    req,
+                    next,
+                    config,
+                    systemprompt_api::services::middleware::SiteAuthSession {
+                        authenticator: &authenticator,
+                        cookie: systemprompt_security::http::SessionCookie::for_external_url(
                             "https://app.example.com",
                         ),
-                },
-            )
-            .await
+                    },
+                )
+                .await
             }
         }));
     let resp = app

@@ -31,6 +31,12 @@ mod governance_plane_unapplied;
 #[cfg(test)]
 mod hook_token_typed_ids;
 #[cfg(test)]
+mod http_client_addr;
+#[cfg(test)]
+mod http_client_ip_extractor;
+#[cfg(test)]
+mod http_request_base_url;
+#[cfg(test)]
 mod jwks_fetch;
 #[cfg(test)]
 mod jwks_shapes;

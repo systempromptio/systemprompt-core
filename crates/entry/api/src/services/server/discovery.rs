@@ -20,7 +20,7 @@ use super::discovery_documents::DocumentsDiscovery;
 use super::health::handle_health;
 use super::health_detail::{diagnostics_layer, handle_health_detail};
 use super::probes::{handle_livez, handle_readyz, readiness_layer};
-use crate::routes::oauth::discovery::UiSessionDiscovery;
+use systemprompt_manifest::profile::UiSessionDiscovery;
 
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,

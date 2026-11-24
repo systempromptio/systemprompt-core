@@ -4,15 +4,19 @@
 //! contributed providers, and the HTTP projections a deployment uses to serve
 //! the flow from its own paths.
 //!
-//! A composed member contributes a provider; the API server serves it under
-//! `{SSO_BASE}/{id}/start`, `/callback` and `/metadata` (see [`SSO_BASE`]).
+//! A composed member contributes a provider; the `identity-http` member serves
+//! it under `{SSO_BASE}/{id}/start`, `/callback` and `/metadata` (see
+//! [`SSO_BASE`]); the HTTP projections need the `identity` feature.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use systemprompt_api::routes::sso::{
-    SSO_BASE, SsoRouteState, binder_from_headers, into_response, router, start_response,
+#[cfg(feature = "identity")]
+pub use systemprompt_identity_entry::http::sso::{
+    SsoRouteState, binder_from_headers, into_response, router, start_response,
 };
+pub const SSO_BASE: &str = systemprompt_models::modules::ApiPaths::SSO_BASE;
+
 pub use systemprompt_oauth_issuance::sso::{
     BINDER_COOKIE_NAME, BrowserSessionSubject, CookieSpec, DirectoryOnlyRoleResolver,
     FinishOutcome, MintedSession, ResolvedUser, RoleResolver, SSO_STATE_TTL_SECS, SsoCallback,

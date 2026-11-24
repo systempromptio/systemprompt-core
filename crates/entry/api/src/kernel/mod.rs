@@ -31,11 +31,11 @@
 
 pub use crate::error::{ApiHttpError, unreadable_body};
 pub use crate::routes::stream::create_sse_stream;
-pub use crate::services::middleware::client_addr::{ClientIp, resolve_client_ip};
 pub use crate::services::middleware::{
     JwtContextExtractor, JwtUserContext, RateLimitState, RouterExt, SessionAttestationError,
     SubjectThrottle, attest_session,
 };
 pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};
-pub use crate::services::request_base_url::{RequestBaseUrl, resolve as resolve_request_base_url};
-pub use crate::services::session_cookie::{SameSite, SessionCookie};
+pub use systemprompt_security::http::{
+    ClientIp, RequestBaseUrl, SameSite, SessionCookie, resolve_client_ip, resolve_request_base_url,
+};

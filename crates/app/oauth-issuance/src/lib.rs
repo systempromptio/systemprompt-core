@@ -4,8 +4,8 @@
 //! refresh tokens from `systemprompt-oauth`, resolve owners and delegates
 //! through the user provider, bind an analytics session, and sign with the
 //! `systemprompt-security` key authority under the profile's JWT settings.
-//! This crate composes those into one workflow and leaves the HTTP surface to
-//! the API crate:
+//! This crate composes those into one workflow; the HTTP handlers are the
+//! `identity-http` member's, built through the [`surface`] contract:
 //!
 //! - [`TokenIssuanceOrchestrator`] dispatches a [`TokenRequest`] by
 //!   `grant_type` — authorization-code, refresh-token rotation,
@@ -22,6 +22,8 @@
 //!   accounts and static OAuth clients declared under `services/identity/`.
 //! - [`sso`] runs browser-redirect single sign-on over the providers, audit
 //!   sinks and role resolvers members contribute to [`contract::SsoSlot`].
+//! - [`surface`] is the identity HTTP surface contract the API mount builds the
+//!   OAuth, SSO, session and API-key routes through.
 //!
 //! Every failure is an [`IssuanceError`], partitioned by RFC 6749 error code.
 //!
@@ -40,6 +42,7 @@ pub mod request;
 pub mod resource;
 mod session;
 pub mod sso;
+pub mod surface;
 pub mod token_exchange;
 pub mod user_tokens;
 pub mod validation;

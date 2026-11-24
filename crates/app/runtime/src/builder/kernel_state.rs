@@ -46,8 +46,10 @@
 //!
 //! The API also seeds the one `Arc<dyn TokenAuthority>` built over its signing
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
-//! conferral row; `AppContext::token_authority` hands out the same value. A
-//! child host holds verification keys only, so it seeds no token authority.
+//! conferral row; `AppContext::token_authority` hands out the same value. The
+//! signing keys are recorded under the `identity-signing-keys` row: both are
+//! conferred on `identity-http`, the issuer. A child host holds verification
+//! keys only, so it seeds no token authority.
 //!
 //! Every host seeds its verification keyring (`VerificationKeyring`, public
 //! keys only: the API's from its signing keys, a child host's from the
@@ -168,7 +170,13 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
     let (messaging_cell, messaging) = late_pair::<dyn MessagingDispatcher>();
     let (base, base_binders) = base_kernel_state(seed.base);
     let mut state = base
-        .with_sealed(seed.signing_keys.clone())
+        .with_sealed_conferred(
+            seed.signing_keys.clone(),
+            Conferred {
+                holder: ExtensionId::new(ConferralRow::IdentitySigningKeys.entry().holder.id()),
+                row: ConferralRow::IdentitySigningKeys.name(),
+            },
+        )
         .with_sealed_conferred(
             Arc::clone(seed.token_authority),
             Conferred {

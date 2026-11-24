@@ -1,5 +1,7 @@
 //! The content-and-misc route group the server mounts itself: the services
-//! tree sync route and the account routes (users, admin). The content routes
+//! tree sync route and the admin routes (CLI gateway, services bundle). The
+//! caller's session revocation and API-key management are the
+//! `identity-http` member's. The content routes
 //! and the short-link redirect are declared by the `content-http` extension;
 //! the analytics and engagement routes by the `analytics-http` extension; the
 //! marketplace routes by the `marketplace-http` extension.
@@ -36,21 +38,9 @@ fn mount_platform(router: Router, mount: &MountCtx<'_>) -> Result<Router, MountE
     )
 }
 
-fn mount_accounts(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
+fn mount_accounts(router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
     let ctx = mount.ctx;
     let group = RouteGroup::ContentAndMisc;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::users::router(ctx),
-            ApiPaths::CORE_USERS,
-            AuthzPolicy::user(),
-            ContextKind::User,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("oauth_auth", RateBudget::OauthAuth)),
-    )?;
 
     mount.mount(
         router,

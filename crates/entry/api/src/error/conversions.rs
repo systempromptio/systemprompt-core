@@ -57,11 +57,7 @@ impl From<SubjectAttributeError> for ApiHttpError {
 
 impl From<ScopeBindingError> for ApiHttpError {
     fn from(err: ScopeBindingError) -> Self {
-        match err {
-            ScopeBindingError::UnknownDimension(_) => Self::bad_request(err.to_string()),
-            ScopeBindingError::NotAMember { .. } => Self::forbidden(err.to_string()),
-            ScopeBindingError::Lookup(source) => Self::from(source),
-        }
+        Self(Box::new(ApiError::from(err)))
     }
 }
 
@@ -111,27 +107,7 @@ impl From<MarketplaceError> for ApiHttpError {
 
 impl From<UserError> for ApiHttpError {
     fn from(err: UserError) -> Self {
-        let api = match err {
-            UserError::Repository(inner) => ApiError::from(inner),
-            e @ UserError::NotFound(_) => ApiError::not_found(e.to_string()),
-            e @ UserError::FederatedRefused(_) => ApiError::forbidden(e.to_string()),
-            e @ (UserError::EmailAlreadyExists(_)
-            | UserError::AccountKindMismatch(_)
-            | UserError::LegalHold(_)
-            | UserError::NotArchived(_)
-            | UserError::RestoreRefused { .. }) => ApiError::conflict(e.to_string()),
-            e @ (UserError::Validation(_)
-            | UserError::InvalidStatus(_)
-            | UserError::InvalidRole(_)
-            | UserError::InvalidRoles(_)
-            | UserError::ApiKeyLifetimeExceeded { .. }) => ApiError::bad_request(e.to_string()),
-            e @ (UserError::MergeUnavailable
-            | UserError::PurgeIdentifier { .. }
-            | UserError::OwnerReassignment { .. }) => {
-                ApiError::internal("User operation failed", e)
-            },
-        };
-        Self(Box::new(api))
+        Self(Box::new(ApiError::from(err)))
     }
 }
 

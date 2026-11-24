@@ -360,10 +360,6 @@ mod analytics_provider {
             Err(AnalyticsProviderError::Internal(_))
         ));
         assert!(matches!(
-            SessionProvider::migrate_user_sessions(&service, &user, &user).await,
-            Err(AnalyticsProviderError::Internal(_))
-        ));
-        assert!(matches!(
             service.mark_session_converted(&sid).await,
             Err(AnalyticsProviderError::Internal(_))
         ));

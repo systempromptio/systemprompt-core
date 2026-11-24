@@ -82,16 +82,6 @@ impl SessionProvider for SessionRepository {
             .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
-    async fn migrate_user_sessions(
-        &self,
-        from_user_id: &UserId,
-        to_user_id: &UserId,
-    ) -> AnalyticsResult<u64> {
-        self.migrate_user_sessions(from_user_id, to_user_id)
-            .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
-    }
-
     async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         self.mark_converted(session_id)
             .await

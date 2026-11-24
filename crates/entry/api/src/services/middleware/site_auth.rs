@@ -11,7 +11,7 @@ use systemprompt_extension::SiteAuthConfig;
 use systemprompt_models::auth::{DynRequestAuthenticator, JwtAudience, Permission};
 use systemprompt_security::TokenExtractor;
 
-use crate::services::session_cookie::SessionCookie;
+use systemprompt_security::http::SessionCookie;
 
 const SITE_AUDIENCES: &[JwtAudience] = &[JwtAudience::Web];
 

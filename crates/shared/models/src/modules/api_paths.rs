@@ -43,6 +43,7 @@ impl ApiPaths {
     pub const OAUTH_AUTHORIZE: &'static str = "/api/v1/core/oauth/authorize";
     pub const OAUTH_TOKEN: &'static str = "/api/v1/core/oauth/token";
     pub const OAUTH_CLIENTS: &'static str = "/api/v1/core/oauth/clients";
+    pub const SSO_BASE: &'static str = "/api/v1/core/sso";
 
     pub const CORE_USERS: &'static str = "/api/v1/core/users";
 
@@ -132,6 +133,7 @@ impl ApiPaths {
     pub const ADMIN_NOTIFICATIONS: &'static str = "/api/v1/admin/notifications";
     pub const BRAIN: &'static str = "/api/v1/brain";
     pub const ADMIN_BRAIN: &'static str = "/api/v1/admin/brain";
+    pub const ADMIN_API_KEYS: &'static str = "/api/v1/admin/api-keys";
     pub const BRIDGE_AUTH_PAT: &'static str = "/v1/auth/bridge/pat";
     pub const BRIDGE_AUTH_SESSION: &'static str = "/v1/auth/bridge/session";
     pub const BRIDGE_AUTH_SESSION_PAT: &'static str = "/v1/auth/bridge/session-pat";

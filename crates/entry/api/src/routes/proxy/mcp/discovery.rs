@@ -17,7 +17,7 @@ use systemprompt_oauth::services::validation::id_jag::{ID_JAG_GRANT_PROFILE, ID_
 use systemprompt_oauth::{GrantType, PkceMethod, ResponseType, TokenAuthMethod};
 use systemprompt_traits::McpRegistryProvider;
 
-use super::{McpState, get_mcp_server_scopes};
+use super::McpState;
 use crate::kernel::ApiHttpError;
 
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
@@ -56,7 +56,7 @@ pub(super) async fn handle_mcp_protected_resource(
         },
     };
     let scopes = match &registry {
-        Some(registry) => get_mcp_server_scopes(registry.as_ref(), &server).await,
+        Some(registry) => registry.oauth_scopes(&server).await,
         None => None,
     }
     .unwrap_or_else(|| vec!["user".to_owned()]);

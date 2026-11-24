@@ -3970,6 +3970,7 @@ dependencies = [
  "ed25519-dalek 3.0.0",
  "hex",
  "hmac 0.13.0",
+ "ipnet",
  "jsonwebtoken",
  "lru",
  "rand 0.10.3",
