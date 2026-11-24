@@ -1,3 +1,8 @@
+//! MCP route mounting: the MCP proxy group and its registry reservation.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use axum::Router;
 use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteProtection};
 use systemprompt_models::modules::ApiPaths;
