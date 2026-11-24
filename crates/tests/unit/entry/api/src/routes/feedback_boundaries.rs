@@ -36,7 +36,7 @@ async fn routers() -> (Router, String) {
         Arc::new(NoCatalog),
     );
     let consumer = routes(state)
-        .protect(|routes| Ok::<_, Infallible>(routes))
+        .protect(Ok::<_, Infallible>)
         .unwrap_or_else(|never| match never {});
     (consumer, origin)
 }

@@ -13,7 +13,7 @@ pub mod admin;
 pub mod documents;
 pub mod gateway;
 pub mod internal;
-pub(crate) mod managed_state;
+pub mod managed_state;
 pub mod proxy;
 pub mod stream;
 pub mod webhook;

@@ -10,52 +10,27 @@
 //! and the normaliser wraps the protected router outermost so a refusal from
 //! any inner layer is normalised too.
 //!
-//! [`BridgeConsumerCatalog`] is the host read the surface takes: the
+//! The host read the surface takes is
+//! [`consumer_catalog`](crate::routes::managed_state::consumer_catalog): the
 //! marketplace candidate a consumer's bridge manifest resolves to, assembled
 //! by the bridge manifest path that still lives in this crate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::Router;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteProtection,
 };
-use systemprompt_identifiers::{ExtensionId, UserId};
-use systemprompt_marketplace::MarketplaceCandidate;
-use systemprompt_marketplace::surface::{ConsumerCatalog, DynManagedSurface, ManagedRouteState};
-use systemprompt_runtime::AppContext;
-use systemprompt_traits::BoxedSource;
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_marketplace::surface::{DynManagedSurface, ManagedRouteState};
 
 use super::RouteMountError;
 use super::protocol::MountCtx;
 use crate::services::middleware::place;
 
 const CONSUMER_BASE: &str = "/api/v1";
-
-struct BridgeConsumerCatalog {
-    ctx: AppContext,
-}
-
-#[async_trait::async_trait]
-impl ConsumerCatalog for BridgeConsumerCatalog {
-    async fn candidate(&self, consumer: &UserId) -> Result<MarketplaceCandidate, BoxedSource> {
-        let services = self.ctx.services_config();
-        let (candidate, _) = crate::routes::gateway::bridge_manifest::assemble_candidate(
-            &self.ctx,
-            self.ctx.profile(),
-            consumer,
-            (*services).clone(),
-            crate::routes::gateway::bridge_resolved::Freshness::Memo,
-        )
-        .await
-        .map_err(|error| -> BoxedSource { Box::new(error) })?;
-        Ok(candidate)
-    }
-}
 
 pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, RouteMountError> {
     let owner = ExtensionId::new(CoreId::MarketplaceHttp.id());
@@ -69,9 +44,7 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Rout
     let built = surface
         .build(ManagedRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
-            catalog: Arc::new(BridgeConsumerCatalog {
-                ctx: mount.ctx.clone(),
-            }),
+            catalog: crate::routes::managed_state::consumer_catalog(mount.ctx),
         })
         .map_err(|source| RouteMountError::initialization("managed_consumer", source))?;
     let protected = built.protect(|consumer| {
