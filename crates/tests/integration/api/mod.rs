@@ -56,6 +56,8 @@ mod server_declared_groups;
 #[path = "gateway_overhead_metrics.rs"]
 mod gateway_overhead_metrics;
 
+#[path = "load_shed_outermost.rs"]
+mod load_shed_outermost;
 #[cfg(test)]
 #[path = "server_load_shed.rs"]
 mod server_load_shed;

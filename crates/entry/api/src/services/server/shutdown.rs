@@ -153,12 +153,14 @@ pub async fn join_within_drain_grace(
     tokio::select! {
         result = &mut serve => return result,
         never = exit_on_second_signal(restart) => match never {},
-        () = tokio::time::sleep(timings.pre_stop_delay() + timings.drain_grace()) => {},
+        () = tokio::time::sleep(timings.pre_stop_delay() + timings.stream_drain_deadline()) => {},
     }
 
     tracing::warn!(
         pre_stop_delay_secs = timings.pre_stop_delay_secs,
         drain_grace_secs = timings.drain_grace_secs,
+        longest_stream_secs = timings.longest_stream_secs,
+        stream_drain_secs = timings.stream_drain_deadline().as_secs(),
         "Connection drain exceeded grace window; ending open streams before terminating children"
     );
     streams.end_streams();

@@ -33,10 +33,9 @@ use systemprompt_traits::{StartupEventExt, StartupEventSender};
 use super::readiness::ReadinessState;
 use super::routes::configure_routes;
 use crate::services::middleware::{
-    AnalyticsMiddleware, CorsMiddleware, DEFAULT_BODY_LIMIT_BYTES, LoadShed,
-    PublicContextMiddleware, RateLimitState, SessionMiddleware, inject_security_headers,
-    inject_served_by, inject_trace_header, panic_fence, remove_trailing_slash,
-    with_pre_auth_ip_limit,
+    AnalyticsMiddleware, CorsMiddleware, DEFAULT_BODY_LIMIT_BYTES, PublicContextMiddleware,
+    RateLimitState, SessionMiddleware, inject_security_headers, inject_served_by,
+    inject_trace_header, panic_fence, remove_trailing_slash, with_pre_auth_ip_limit,
 };
 
 pub use super::discovery::{
@@ -97,14 +96,6 @@ pub fn assemble_api_server(
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let mut router = router.layer(panic_fence());
 
-    if let Some(max) = ctx.config().max_in_flight {
-        let shed = Arc::new(LoadShed::new(max));
-        router = router.layer(axum::middleware::from_fn_with_state(
-            shed,
-            crate::services::middleware::load_shed::shed,
-        ));
-    }
-
     router = router.layer(DefaultBodyLimit::max(DEFAULT_BODY_LIMIT_BYTES));
 
     let analytics_middleware = AnalyticsMiddleware::new(ctx);
@@ -163,5 +154,9 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }));
     }
 
-    Ok(router.layer(axum::Extension(Arc::clone(ctx.config_arc()))))
+    let router = router.layer(axum::Extension(Arc::clone(ctx.config_arc())));
+    Ok(crate::services::middleware::load_shed::outermost(
+        router,
+        ctx.config().max_in_flight,
+    ))
 }

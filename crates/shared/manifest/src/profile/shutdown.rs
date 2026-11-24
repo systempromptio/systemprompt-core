@@ -7,9 +7,12 @@
 //!    listener keeps accepting for `pre_stop_delay_secs` so an orchestrator's
 //!    endpoint controller stops routing to the node first.
 //! 2. The listener stops accepting and in-flight requests — long SSE streams
-//!    included — get the full `drain_grace_secs` to finish. Streams still open
-//!    then end themselves with a terminal error frame, flushed within a fixed
-//!    [`STREAM_FLUSH_GRACE_SECS`].
+//!    included — get [`ShutdownConfig::stream_drain_deadline`] to finish: the
+//!    larger of `drain_grace_secs` and `longest_stream_secs` (the longest
+//!    response stream the node permits, default 600 s for an LLM stream),
+//!    capped at [`MAX_DRAIN_GRACE_SECS`]; the drain ends as soon as the last
+//!    request does. Streams still open then end themselves with a terminal
+//!    error frame, flushed within a fixed [`STREAM_FLUSH_GRACE_SECS`].
 //! 3. Child processes get `child_grace_secs` after their signal and owned
 //!    background work (the final gateway journal settlement included)
 //!    `background_grace_secs`, in parallel.
@@ -30,9 +33,10 @@ pub const MAX_PRE_STOP_DELAY_SECS: u64 = 600;
 pub const MAX_DRAIN_GRACE_SECS: u64 = 86_400;
 pub const STREAM_FLUSH_GRACE_SECS: u64 = 2;
 
-/// Shutdown deadlines in seconds. The defaults are the historical fixed
-/// windows: no pre-stop delay, a 10 s drain, 5 s for children and background
-/// work, and a 10 s forced-exit backstop.
+/// Shutdown deadlines in seconds. The defaults: no pre-stop delay, a 10 s
+/// drain extended to the 600 s longest permitted stream while a stream is
+/// open, 5 s for children and background work, and a 10 s forced-exit
+/// backstop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[expect(
@@ -44,6 +48,8 @@ pub struct ShutdownConfig {
     pub pre_stop_delay_secs: u64,
     #[serde(default = "default_drain_grace_secs")]
     pub drain_grace_secs: u64,
+    #[serde(default = "default_longest_stream_secs")]
+    pub longest_stream_secs: u64,
     #[serde(default = "default_child_grace_secs")]
     pub child_grace_secs: u64,
     #[serde(default = "default_background_grace_secs")]
@@ -57,6 +63,7 @@ impl Default for ShutdownConfig {
         Self {
             pre_stop_delay_secs: 0,
             drain_grace_secs: default_drain_grace_secs(),
+            longest_stream_secs: default_longest_stream_secs(),
             child_grace_secs: default_child_grace_secs(),
             background_grace_secs: default_background_grace_secs(),
             forced_exit_grace_secs: default_forced_exit_grace_secs(),
@@ -73,6 +80,24 @@ impl ShutdownConfig {
     #[must_use]
     pub const fn drain_grace(&self) -> Duration {
         Duration::from_secs(self.drain_grace_secs)
+    }
+
+    #[must_use]
+    pub const fn stream_drain_deadline(&self) -> Duration {
+        Duration::from_secs(self.stream_drain_secs())
+    }
+
+    const fn stream_drain_secs(&self) -> u64 {
+        let longest = if self.longest_stream_secs > self.drain_grace_secs {
+            self.longest_stream_secs
+        } else {
+            self.drain_grace_secs
+        };
+        if longest > MAX_DRAIN_GRACE_SECS {
+            MAX_DRAIN_GRACE_SECS
+        } else {
+            longest
+        }
     }
 
     #[must_use]
@@ -99,7 +124,7 @@ impl ShutdownConfig {
     pub const fn total_budget(&self) -> Duration {
         Duration::from_secs(
             self.pre_stop_delay_secs
-                .saturating_add(self.drain_grace_secs)
+                .saturating_add(self.stream_drain_secs())
                 .saturating_add(STREAM_FLUSH_GRACE_SECS)
                 .saturating_add(self.forced_exit_grace_secs),
         )
@@ -120,6 +145,12 @@ impl ShutdownConfig {
                 "server.shutdown.drain_grace_secs must be between 1 and {MAX_DRAIN_GRACE_SECS} \
                  (got {})",
                 self.drain_grace_secs
+            ));
+        }
+        if self.longest_stream_secs > MAX_DRAIN_GRACE_SECS {
+            errors.push(format!(
+                "server.shutdown.longest_stream_secs must be at most {MAX_DRAIN_GRACE_SECS} (got {})",
+                self.longest_stream_secs
             ));
         }
         if self.child_grace_secs == 0 {
@@ -143,6 +174,10 @@ impl ShutdownConfig {
 
 const fn default_drain_grace_secs() -> u64 {
     10
+}
+
+const fn default_longest_stream_secs() -> u64 {
+    600
 }
 
 const fn default_child_grace_secs() -> u64 {

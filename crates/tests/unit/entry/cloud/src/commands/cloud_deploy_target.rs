@@ -53,6 +53,7 @@ fn profile(cloud: Option<CloudConfig>) -> Profile {
             role: Default::default(),
             advertise_url: None,
             max_in_flight: None,
+            analytics_queue: Default::default(),
             shutdown: Default::default(),
             trusted_proxies: Vec::new(),
         },

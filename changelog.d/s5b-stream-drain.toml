@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Shutdown"
+text = "The connection drain lasts until the longest permitted stream can finish: `server.shutdown.longest_stream_secs` (default 600) extends the drain to `max(drain_grace_secs, longest_stream_secs)`, capped at 86 400 s, before open streams are ended with their terminal frame; `total_budget` includes it. The drain still ends as soon as the last request does. Migrate by raising the orchestrator's termination grace to the logged total budget, or lowering `longest_stream_secs`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`ShutdownConfig` gains `longest_stream_secs` and `stream_drain_deadline()`; a struct literal must name the field."

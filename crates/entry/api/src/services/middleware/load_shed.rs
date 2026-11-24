@@ -1,6 +1,9 @@
 //! Overload shedding: a process-wide in-flight request ceiling.
 //!
-//! With `server.max_in_flight` set, every request takes a permit for its whole
+//! [`outermost`] is the last layer the server applies, so admission is
+//! decided before CORS, sessions, authentication, rate limits and body
+//! parsing. With `server.max_in_flight` set (the default is
+//! `DEFAULT_MAX_IN_FLIGHT`), every request takes a permit for its whole
 //! lifetime; when none is free the request is refused at once with `503`,
 //! `Retry-After: 1` and the `ApiError` envelope (`error_key: "overloaded"`),
 //! instead of queueing until the balancer's timeout. Health probes and
@@ -71,6 +74,16 @@ impl LoadShed {
 
     fn publish_saturation(&self) {
         metrics::gauge!(HTTP_IN_FLIGHT_SATURATION).set(self.saturation());
+    }
+}
+
+pub fn outermost(router: axum::Router, max_in_flight: Option<NonZeroU32>) -> axum::Router {
+    match max_in_flight {
+        Some(max) => router.layer(axum::middleware::from_fn_with_state(
+            Arc::new(LoadShed::new(max)),
+            shed,
+        )),
+        None => router,
     }
 }
 
