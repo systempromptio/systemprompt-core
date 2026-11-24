@@ -14,8 +14,9 @@
 //! gateway credential, its own rate-limit scope and budget with the bearer
 //! window) and merges it inside the gateway access log.
 //!
-//! Only routes admitted here carry a [`GatewayPrincipal`]; nothing else in
-//! the server constructs one.
+//! Only routes admitted here, and the gateway surface's principal-bound
+//! routes the gateway mount places behind [`verified`], carry a
+//! [`GatewayPrincipal`]; nothing else in the server constructs one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -54,7 +55,7 @@ pub(crate) fn admitted_gateway_routes(
         .collect())
 }
 
-fn verified(router: Router, jwt: &Arc<JwtContextExtractor>) -> Router {
+pub(super) fn verified(router: Router, jwt: &Arc<JwtContextExtractor>) -> Router {
     let jwt = Arc::clone(jwt);
     router.layer(axum::middleware::from_fn(
         move |mut request: Request, next: Next| {

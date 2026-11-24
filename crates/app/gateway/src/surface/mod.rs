@@ -41,7 +41,22 @@ use systemprompt_traits::{AnalyticsProvider, ConfigWatch};
 
 /// Builds the gateway's handler routes from the `gateway-http` route state.
 pub trait GatewaySurface: Send + Sync + std::fmt::Debug {
-    fn build(&self, state: GatewayRouteState<'_>) -> Result<Router, GatewaySurfaceError>;
+    fn build(
+        &self,
+        state: GatewayRouteState<'_>,
+    ) -> Result<GatewaySurfaceRoutes, GatewaySurfaceError>;
+}
+
+/// The routes a [`GatewaySurface`] builds.
+///
+/// `traffic` verifies its own callers; the API mount places `principal_bound`
+/// behind the kernel's gateway verifier, which attaches the caller's
+/// [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal)
+/// before a handler runs.
+#[derive(Debug, Default)]
+pub struct GatewaySurfaceRoutes {
+    pub traffic: Router,
+    pub principal_bound: Router,
 }
 
 pub type DynGatewaySurface = Arc<dyn GatewaySurface>;

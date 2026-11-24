@@ -8,8 +8,9 @@
 //! cheap upstream call to every endpoint proves it works), and remove it. The
 //! key is sealed at rest and never returned, logged or echoed in an error;
 //! every store and removal is recorded with the user and credential only.
-//! The caller is verified through the request authenticator; the credential
-//! view is the one conferred on `gateway-http`.
+//! The API mount places these routes behind the kernel's gateway verifier,
+//! which attaches the caller's [`GatewayPrincipal`]; the credential view is
+//! the one conferred on `gateway-http`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,26 +19,23 @@ use std::sync::Arc;
 
 use axum::extract::Path;
 use axum::extract::rejection::JsonRejection;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::StatusCode;
 use axum::routing::{get, put};
-use axum::{Json, Router};
+use axum::{Extension, Json, Router};
 use systemprompt_ai::repository::UserProviderCredentialMeta;
 use systemprompt_ai::{
     PersonalKeyEntry, PersonalKeyError, PersonalProviderCredentials, personal_credential,
     personal_credentials,
 };
 use systemprompt_extension::router::{ApiHttpError, GatewayPrincipal, unreadable_body};
-use systemprompt_identifiers::JwtToken;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::profile::{
     ProviderCredentialStatus, SetProviderCredentialRequest,
 };
-use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_traits::BoxedSource;
 
 use super::state::GatewayHttpState;
-use systemprompt_gateway::surface::credential::extract_credential;
 
 /// The personal-credential routes' state: the gateway state and the
 /// caller-bound credential view conferred on `gateway-http`.
@@ -56,10 +54,6 @@ impl std::fmt::Debug for ProviderCredentialsState {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderCredentialsError {
-    #[error("Missing Authorization or x-api-key credential")]
-    MissingCredential,
-    #[error("Bridge credential rejected")]
-    CredentialRejected(#[source] ContextExtractionError),
     #[error("invalid request body: {0}")]
     InvalidBody(#[source] JsonRejection),
     #[error("credential '{0}' does not take a personal key")]
@@ -91,12 +85,6 @@ impl From<ProviderCredentialsError> for ApiHttpError {
     fn from(err: ProviderCredentialsError) -> Self {
         let message = err.to_string();
         let api = match err {
-            ProviderCredentialsError::MissingCredential => {
-                ApiError::unauthorized(message).with_error_key("missing_credential")
-            },
-            ProviderCredentialsError::CredentialRejected(source) => ApiError::unauthorized(message)
-                .with_error_key("invalid_credential")
-                .with_source(source),
             ProviderCredentialsError::InvalidBody(source) => {
                 unreadable_body(source.status(), &message, source).with_error_key("invalid_body")
             },
@@ -120,9 +108,8 @@ impl From<ProviderCredentialsError> for ApiHttpError {
 
 pub async fn list(
     state: ProviderCredentialsState,
-    headers: HeaderMap,
+    Extension(caller): Extension<GatewayPrincipal>,
 ) -> Result<Json<Vec<ProviderCredentialStatus>>, ApiHttpError> {
-    let caller = caller(&state.gateway, &headers).await?;
     let stored = state
         .credentials
         .list(&caller)
@@ -143,11 +130,10 @@ pub async fn list(
 
 pub async fn set(
     state: ProviderCredentialsState,
-    headers: HeaderMap,
+    Extension(caller): Extension<GatewayPrincipal>,
     Path(credential): Path<String>,
     body: Result<Json<SetProviderCredentialRequest>, JsonRejection>,
 ) -> Result<Json<ProviderCredentialStatus>, ApiHttpError> {
-    let caller = caller(&state.gateway, &headers).await?;
     let Json(body) = body.map_err(ProviderCredentialsError::InvalidBody)?;
     let catalog = state.gateway.host.services.catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
@@ -169,10 +155,9 @@ pub async fn set(
 
 pub async fn delete(
     state: ProviderCredentialsState,
-    headers: HeaderMap,
+    Extension(caller): Extension<GatewayPrincipal>,
     Path(credential): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
-    let caller = caller(&state.gateway, &headers).await?;
     let resolved = personal_credential(state.gateway.host.services.catalog(), &credential)
         .map_err(key_error)?;
     let removed = state
@@ -188,20 +173,6 @@ pub async fn delete(
         );
     }
     Ok(StatusCode::NO_CONTENT)
-}
-
-async fn caller(
-    state: &GatewayHttpState,
-    headers: &HeaderMap,
-) -> Result<GatewayPrincipal, ProviderCredentialsError> {
-    let credential =
-        extract_credential(headers).ok_or(ProviderCredentialsError::MissingCredential)?;
-    let (_claims, user) = state
-        .authenticator
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map_err(ProviderCredentialsError::CredentialRejected)?;
-    Ok(GatewayPrincipal::__from_kernel(user.id))
 }
 
 fn key_error(error: PersonalKeyError) -> ProviderCredentialsError {
@@ -247,20 +218,20 @@ pub(super) fn routes(state: &ProviderCredentialsState) -> Router {
     Router::new()
         .route(
             "/me/provider-credentials",
-            get(move |headers| {
+            get(move |caller| {
                 let state = list_state.clone();
-                async move { list(state, headers).await }
+                async move { list(state, caller).await }
             }),
         )
         .route(
             "/me/provider-credentials/{credential}",
-            put(move |headers, path, body| {
+            put(move |caller, path, body| {
                 let state = set_state.clone();
-                async move { set(state, headers, path, body).await }
+                async move { set(state, caller, path, body).await }
             })
-            .delete(move |headers, path| {
+            .delete(move |caller, path| {
                 let state = delete_state.clone();
-                async move { delete(state, headers, path).await }
+                async move { delete(state, caller, path).await }
             }),
         )
 }

@@ -8,9 +8,10 @@
 //! feature, the credential-gated `/otel` ingest, and — while the `ai` member
 //! provides the personal credential view conferred on `gateway-http` — the
 //! caller's `/me/provider-credentials` routes (absent, so a confined 404,
-//! when it does not). The API mount wraps what it
-//! returns in the gateway layering; nothing here limits, confines or logs
-//! access.
+//! when it does not), which it returns principal-bound: the API mount places
+//! them behind the kernel's gateway verifier and wraps everything in the
+//! gateway layering; nothing here verifies a principal, limits, confines or
+//! logs access.
 //!
 //! The gateway repositories are built per mount from the route-scoped state
 //! ([`gateway_repositories`]), with the at-rest material conferred on
@@ -37,7 +38,7 @@ use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use systemprompt_gateway::surface::repositories::gateway_repositories;
 use systemprompt_gateway::{
-    GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError,
+    GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
 };
 use systemprompt_traits::DynGatewaySessionMint;
 
@@ -48,7 +49,10 @@ use self::state::{GatewayHttpRepositories, GatewayHttpState};
 pub struct GatewayHttpSurface;
 
 impl GatewaySurface for GatewayHttpSurface {
-    fn build(&self, state: GatewayRouteState<'_>) -> Result<Router, GatewaySurfaceError> {
+    fn build(
+        &self,
+        state: GatewayRouteState<'_>,
+    ) -> Result<GatewaySurfaceRoutes, GatewaySurfaceError> {
         let GatewayRouteState { resolved, host } = state;
         let own = resolved.get::<Arc<GatewayHttpRepositories>>()?;
         let db = resolved.get::<DbPool>()?;
@@ -63,15 +67,16 @@ impl GatewaySurface for GatewayHttpSurface {
             host,
             db,
         };
-        let router = routes(&state);
-        Ok(match credentials {
-            Some(credentials) => router.merge(provider_credentials::routes(
-                &provider_credentials::ProviderCredentialsState {
-                    gateway: state,
-                    credentials,
-                },
-            )),
-            None => router,
+        let traffic = routes(&state);
+        let principal_bound = credentials.map_or_else(Router::new, |credentials| {
+            provider_credentials::routes(&provider_credentials::ProviderCredentialsState {
+                gateway: state,
+                credentials,
+            })
+        });
+        Ok(GatewaySurfaceRoutes {
+            traffic,
+            principal_bound,
         })
     }
 }

@@ -81,5 +81,5 @@ pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};
 pub use surface::{
     DynGatewaySurface, GatewayHostHandles, GatewayLogIdentity, GatewayRouteState, GatewaySurface,
-    GatewaySurfaceError,
+    GatewaySurfaceError, GatewaySurfaceRoutes,
 };

@@ -82,6 +82,7 @@ fn surface_routes(
     ctx: &AppContext,
     admitted: &Admitted,
     kernel: &Kernel,
+    jwt: &Arc<JwtContextExtractor>,
 ) -> Result<Router, GatewaySurfaceError> {
     let owner = ExtensionId::new(CoreId::GatewayHttp.id());
     let (Some(standing), Some(surface)) = (
@@ -90,10 +91,12 @@ fn surface_routes(
     ) else {
         return Ok(Router::new());
     };
-    surface.build(GatewayRouteState {
+    let routes = surface.build(GatewayRouteState {
         resolved: kernel.route_scoped(&owner, standing, &[]),
         host: host_handles(ctx),
-    })
+    })?;
+    let principal_bound = registered::verified(routes.principal_bound, jwt);
+    Ok(routes.traffic.merge(principal_bound))
 }
 
 pub fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
@@ -148,7 +151,7 @@ pub(crate) fn gateway_mount_parts(
     let jwt_extractor = Arc::new(JwtContextExtractor::from_kernel(ctx.kernel().state())?);
 
     let traffic = Router::new()
-        .merge(surface_routes(ctx, admitted, kernel)?)
+        .merge(surface_routes(ctx, admitted, kernel, &jwt_extractor)?)
         .merge(bridge_profile_routes(ctx, &jwt_extractor))
         .merge(bridge_session_routes(ctx, &jwt_extractor));
     let registered = registered::admitted_gateway_routes(admitted, kernel, &jwt_extractor)?;
