@@ -39,7 +39,7 @@ use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
-use systemprompt_identifiers::{GatewayConversationId, UserId};
+use systemprompt_identifiers::{GatewayConversationId, ToolUseId, UserId};
 use systemprompt_wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
 pub const TTL: Duration = Duration::from_hours(1);
@@ -51,7 +51,7 @@ struct Entry {
     expires_at: Instant,
 }
 
-type Key = (UserId, GatewayConversationId, String);
+type Key = (UserId, GatewayConversationId, ToolUseId);
 
 pub struct ThoughtSignatureCache {
     entries: Mutex<HashMap<Key, Entry>>,
@@ -106,15 +106,11 @@ impl ThoughtSignatureCache {
         &self,
         user_id: &UserId,
         conversation: &GatewayConversationId,
-        tool_use_id: &str,
+        tool_use_id: &ToolUseId,
         signature: &str,
     ) {
         self.store_local(
-            (
-                user_id.clone(),
-                conversation.clone(),
-                tool_use_id.to_owned(),
-            ),
+            (user_id.clone(), conversation.clone(), tool_use_id.clone()),
             signature,
         );
         if let Err(e) = self
@@ -141,13 +137,9 @@ impl ThoughtSignatureCache {
         &self,
         user_id: &UserId,
         conversation: &GatewayConversationId,
-        tool_use_id: &str,
+        tool_use_id: &ToolUseId,
     ) -> Option<String> {
-        let key = (
-            user_id.clone(),
-            conversation.clone(),
-            tool_use_id.to_owned(),
-        );
+        let key = (user_id.clone(), conversation.clone(), tool_use_id.clone());
         if let Some(signature) = self.lookup_local(&key) {
             return Some(signature);
         }
@@ -186,7 +178,13 @@ impl ThoughtSignatureCache {
                 ..
             } = content
             {
-                self.store(user_id, conversation, id, signature).await;
+                self.store(
+                    user_id,
+                    conversation,
+                    &ToolUseId::new(id.as_str()),
+                    signature,
+                )
+                .await;
             }
         }
     }
@@ -206,11 +204,12 @@ impl ThoughtSignatureCache {
             let CanonicalContent::ToolUse { id, signature, .. } = content else {
                 continue;
             };
-            let key = (user_id.clone(), conversation.clone(), id.clone());
+            let tool_use_id = ToolUseId::new(id.as_str());
+            let key = (user_id.clone(), conversation.clone(), tool_use_id.clone());
             let local = self.lookup_local(&key);
             match signature {
                 Some(sig) if local.as_deref() != Some(sig.as_str()) => {
-                    self.store(user_id, conversation, id, sig).await;
+                    self.store(user_id, conversation, &tool_use_id, sig).await;
                 },
                 None if local.is_none() => missing.push(id.clone()),
                 Some(_) | None => {},
@@ -229,7 +228,11 @@ impl ThoughtSignatureCache {
             if signature.is_some() {
                 continue;
             }
-            let key = (user_id.clone(), conversation.clone(), id.clone());
+            let key = (
+                user_id.clone(),
+                conversation.clone(),
+                ToolUseId::new(id.as_str()),
+            );
             if let Some(cached) = self.lookup_local(&key) {
                 *signature = Some(cached);
                 metrics::counter!(HYDRATION_TOTAL, "outcome" => "hit").increment(1);
@@ -258,7 +261,11 @@ impl ThoughtSignatureCache {
         {
             Ok(found) => {
                 for (tool_use_id, signature) in found {
-                    let key = (user_id.clone(), conversation.clone(), tool_use_id);
+                    let key = (
+                        user_id.clone(),
+                        conversation.clone(),
+                        ToolUseId::new(tool_use_id),
+                    );
                     self.store_local(key, &signature);
                 }
             },

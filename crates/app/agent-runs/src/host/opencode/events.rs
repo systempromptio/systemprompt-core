@@ -14,7 +14,7 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_identifiers::HostSessionId;
+use systemprompt_identifiers::{HostSessionId, ToolUseId};
 
 use crate::event::{RunEventPayload, RunnerLevel};
 use crate::host::HostEvent;
@@ -160,12 +160,12 @@ fn tool(state: &mut DecodeState, part: ToolPart) -> Vec<RunEventPayload> {
     };
     vec![
         RunEventPayload::ToolUse {
-            tool_use_id: id.clone(),
+            tool_use_id: ToolUseId::new(id.clone()),
             name: part.tool,
             input: part.state.input,
         },
         RunEventPayload::ToolResult {
-            tool_use_id: id,
+            tool_use_id: ToolUseId::new(id),
             content,
             is_error,
         },

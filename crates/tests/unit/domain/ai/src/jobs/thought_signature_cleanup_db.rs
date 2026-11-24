@@ -7,7 +7,7 @@ use systemprompt_ai::jobs::ThoughtSignatureCleanupJob;
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, GatewayConversationId, UserId};
+use systemprompt_identifiers::{Actor, GatewayConversationId, ToolUseId, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 use uuid::Uuid;
@@ -53,7 +53,7 @@ async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "expired",
+        tool_use_id: &ToolUseId::new("expired"),
         signature: "sig-expired",
         ttl: Duration::from_secs(3600),
     })
@@ -62,7 +62,7 @@ async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "live",
+        tool_use_id: &ToolUseId::new("live"),
         signature: "sig-live",
         ttl: Duration::from_secs(3600),
     })
@@ -101,10 +101,15 @@ async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
          read filter"
     );
     assert_eq!(
-        repo.find(&user_id, &conv, "live", Duration::from_secs(3600))
-            .await
-            .expect("find live")
-            .as_deref(),
+        repo.find(
+            &user_id,
+            &conv,
+            &ToolUseId::new("live"),
+            Duration::from_secs(3600)
+        )
+        .await
+        .expect("find live")
+        .as_deref(),
         Some("sig-live"),
         "an unexpired signature must survive the sweep"
     );

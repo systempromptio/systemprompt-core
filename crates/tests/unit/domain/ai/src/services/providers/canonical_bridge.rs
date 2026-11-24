@@ -15,7 +15,7 @@ use systemprompt_ai::services::providers::canonical_bridge::{
     text_content, to_ai_response, to_code_execution, to_search_grounded, tool_calls,
     tools_to_canonical,
 };
-use systemprompt_identifiers::{AiRequestId, McpServerId};
+use systemprompt_identifiers::{AiRequestId, McpServerId, ToolUseId};
 use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
     CanonicalUsageUpdate, CodeExecutionOutput, GroundedSource, Grounding, ImageSource,
@@ -499,7 +499,11 @@ fn thinking_and_tool_results_lead_a_replayed_turn_that_also_has_text() {
     let user = AiMessage {
         role: MessageRole::User,
         content: "and summarise it".to_owned(),
-        parts: vec![AiContentPart::tool_result("call-1", "3 hits", false)],
+        parts: vec![AiContentPart::tool_result(
+            ToolUseId::new("call-1"),
+            "3 hits",
+            false,
+        )],
     };
     let messages = [msg(MessageRole::User, "find it"), assistant, user];
     let request = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-sonnet-5", 512)
@@ -543,7 +547,11 @@ fn tool_and_thinking_parts_become_canonical_blocks() {
     let user = AiMessage {
         role: MessageRole::User,
         content: String::new(),
-        parts: vec![AiContentPart::tool_result("call-1", "3 hits", false)],
+        parts: vec![AiContentPart::tool_result(
+            ToolUseId::new("call-1"),
+            "3 hits",
+            false,
+        )],
     };
     let messages = [msg(MessageRole::User, "find it"), assistant, user];
     let request = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-sonnet-5", 512)
@@ -600,7 +608,11 @@ fn tool_turn() -> [AiMessage; 3] {
         AiMessage {
             role: MessageRole::User,
             content: String::new(),
-            parts: vec![AiContentPart::tool_result("call-1", "3 hits", false)],
+            parts: vec![AiContentPart::tool_result(
+                ToolUseId::new("call-1"),
+                "3 hits",
+                false,
+            )],
         },
     ]
 }

@@ -44,7 +44,7 @@ pub struct GovernanceDecisionRecord<'a> {
     pub task_id: Option<&'a TaskId>,
     pub trace_id: Option<&'a TraceId>,
     pub client_id: Option<&'a ClientId>,
-    pub tool_use_id: Option<&'a str>,
+    pub tool_use_id: Option<&'a ToolUseId>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,7 +118,7 @@ where
         record.task_id.map(TaskId::as_str),
         record.trace_id.map(TraceId::as_str),
         record.client_id.map(ClientId::as_str),
-        record.tool_use_id,
+        record.tool_use_id.map(ToolUseId::as_str),
     )
     .execute(executor)
     .await;
@@ -152,7 +152,7 @@ fn governance_span(record: &GovernanceDecisionRecord<'_>) -> GovernanceSpanRecor
         policy: record.policy.to_owned(),
         reason: record.reason.to_owned(),
         tool_name: record.tool_name.to_owned(),
-        tool_use_id: record.tool_use_id.map(ToolUseId::new),
+        tool_use_id: record.tool_use_id.cloned(),
         plugin_id: record.plugin_id.cloned(),
         actor: record.actor.clone(),
         decided_at: chrono::Utc::now(),

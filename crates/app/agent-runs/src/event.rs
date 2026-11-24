@@ -10,7 +10,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::HostSessionId;
+use systemprompt_identifiers::{HostSessionId, ToolUseId};
 
 use crate::macros::text_enum;
 
@@ -63,13 +63,13 @@ pub enum RunEventPayload {
         text: String,
     },
     ToolUse {
-        tool_use_id: String,
+        tool_use_id: ToolUseId,
         name: String,
         // JSON: the tool's own input schema, relayed verbatim.
         input: serde_json::Value,
     },
     ToolResult {
-        tool_use_id: String,
+        tool_use_id: ToolUseId,
         content: String,
         is_error: bool,
     },
@@ -118,7 +118,7 @@ impl RunEventPayload {
     }
 
     #[must_use]
-    pub fn tool_use_id(&self) -> Option<&str> {
+    pub fn tool_use_id(&self) -> Option<&ToolUseId> {
         match self {
             Self::ToolUse { tool_use_id, .. } | Self::ToolResult { tool_use_id, .. } => {
                 Some(tool_use_id)
@@ -134,7 +134,7 @@ pub struct RunEvent {
     pub seq: i64,
     pub kind: RunEventKind,
     pub tool_name: Option<String>,
-    pub tool_use_id: Option<String>,
+    pub tool_use_id: Option<ToolUseId>,
     pub payload: RunEventPayload,
     pub created_at: DateTime<Utc>,
 }

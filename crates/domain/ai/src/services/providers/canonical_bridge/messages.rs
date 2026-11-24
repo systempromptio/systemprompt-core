@@ -86,7 +86,7 @@ fn part_content(part: &AiContentPart) -> Option<CanonicalContent> {
             content: result,
             is_error,
         } => Some(CanonicalContent::ToolResult {
-            tool_use_id: tool_use_id.clone(),
+            tool_use_id: tool_use_id.as_str().to_owned(),
             content: vec![CanonicalContent::text(result.clone())],
             is_error: *is_error,
             structured_content: None,

@@ -5,7 +5,7 @@ use std::time::Duration;
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{GatewayConversationId, UserId};
+use systemprompt_identifiers::{GatewayConversationId, ToolUseId, UserId};
 
 use super::bootstrapped_pool;
 
@@ -48,7 +48,7 @@ async fn upsert_then_find_returns_the_signature() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "call_1",
+        tool_use_id: &ToolUseId::new("call_1"),
         signature: "sig-a",
         ttl: TTL,
     })
@@ -56,7 +56,7 @@ async fn upsert_then_find_returns_the_signature() {
     .unwrap();
 
     assert_eq!(
-        repo.find(&user_id, &conv, "call_1", TTL)
+        repo.find(&user_id, &conv, &ToolUseId::new("call_1"), TTL)
             .await
             .unwrap()
             .as_deref(),
@@ -80,7 +80,7 @@ async fn upsert_overwrites_an_existing_signature() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "call_1",
+        tool_use_id: &ToolUseId::new("call_1"),
         signature: "sig-a",
         ttl: TTL,
     })
@@ -89,7 +89,7 @@ async fn upsert_overwrites_an_existing_signature() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "call_1",
+        tool_use_id: &ToolUseId::new("call_1"),
         signature: "sig-b",
         ttl: TTL,
     })
@@ -97,7 +97,7 @@ async fn upsert_overwrites_an_existing_signature() {
     .unwrap();
 
     assert_eq!(
-        repo.find(&user_id, &conv, "call_1", TTL)
+        repo.find(&user_id, &conv, &ToolUseId::new("call_1"), TTL)
             .await
             .unwrap()
             .as_deref(),
@@ -122,7 +122,7 @@ async fn find_is_scoped_to_the_conversation() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "call_1",
+        tool_use_id: &ToolUseId::new("call_1"),
         signature: "sig-a",
         ttl: TTL,
     })
@@ -130,7 +130,7 @@ async fn find_is_scoped_to_the_conversation() {
     .unwrap();
 
     assert!(
-        repo.find(&user_id, &other, "call_1", TTL)
+        repo.find(&user_id, &other, &ToolUseId::new("call_1"), TTL)
             .await
             .unwrap()
             .is_none()
@@ -153,7 +153,7 @@ async fn expired_signature_is_not_found() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "call_1",
+        tool_use_id: &ToolUseId::new("call_1"),
         signature: "sig-a",
         ttl: TTL,
     })
@@ -162,7 +162,7 @@ async fn expired_signature_is_not_found() {
     expire(&pool, &conv, "call_1").await;
 
     assert!(
-        repo.find(&user_id, &conv, "call_1", TTL)
+        repo.find(&user_id, &conv, &ToolUseId::new("call_1"), TTL)
             .await
             .unwrap()
             .is_none()
@@ -185,14 +185,14 @@ async fn find_extends_the_expiry() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "call_1",
+        tool_use_id: &ToolUseId::new("call_1"),
         signature: "sig-a",
         ttl: Duration::from_secs(1),
     })
     .await
     .unwrap();
     assert!(
-        repo.find(&user_id, &conv, "call_1", TTL)
+        repo.find(&user_id, &conv, &ToolUseId::new("call_1"), TTL)
             .await
             .unwrap()
             .is_some()
@@ -230,7 +230,7 @@ async fn cleanup_expired_removes_only_expired_rows() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "live",
+        tool_use_id: &ToolUseId::new("live"),
         signature: "sig-a",
         ttl: TTL,
     })
@@ -239,7 +239,7 @@ async fn cleanup_expired_removes_only_expired_rows() {
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,
         conversation: &conv,
-        tool_use_id: "stale",
+        tool_use_id: &ToolUseId::new("stale"),
         signature: "sig-b",
         ttl: TTL,
     })
@@ -253,13 +253,13 @@ async fn cleanup_expired_removes_only_expired_rows() {
         "expected at least the stale row, got {removed}"
     );
     assert!(
-        repo.find(&user_id, &conv, "live", TTL)
+        repo.find(&user_id, &conv, &ToolUseId::new("live"), TTL)
             .await
             .unwrap()
             .is_some()
     );
     assert!(
-        repo.find(&user_id, &conv, "stale", TTL)
+        repo.find(&user_id, &conv, &ToolUseId::new("stale"), TTL)
             .await
             .unwrap()
             .is_none()

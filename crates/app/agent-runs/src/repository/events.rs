@@ -11,7 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::AgentRunId;
+use systemprompt_identifiers::{AgentRunId, ToolUseId};
 
 use super::{AgentRunRepository, Fenced, Lease};
 use crate::error::AgentRunsResult;
@@ -31,7 +31,11 @@ impl AgentRunRepository {
             .collect();
         let tool_use_ids: Vec<String> = events
             .iter()
-            .map(|e| e.tool_use_id.clone().unwrap_or_default())
+            .map(|e| {
+                e.tool_use_id
+                    .as_ref()
+                    .map_or_else(String::new, |id| id.as_str().to_owned())
+            })
             .collect();
         let payloads = events
             .iter()
@@ -115,7 +119,7 @@ impl AgentRunRepository {
                     seq: row.seq,
                     kind: row.kind.parse::<RunEventKind>()?,
                     tool_name: row.tool_name,
-                    tool_use_id: row.tool_use_id,
+                    tool_use_id: row.tool_use_id.map(ToolUseId::new),
                     payload: serde_json::from_value::<RunEventPayload>(row.payload)?,
                     created_at: row.created_at,
                 })

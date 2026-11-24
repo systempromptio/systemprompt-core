@@ -15,7 +15,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use systemprompt_identifiers::{
     Actor, AgentId, CallId, ClientId, ContextId, McpToolName, PluginId, PolicyId, SessionId,
-    TraceId, UserId,
+    ToolUseId, TraceId, UserId,
 };
 use systemprompt_models::errors::RepositoryError;
 
@@ -62,7 +62,7 @@ pub struct AuditTarget {
     pub tool_name: McpToolName,
     pub plugin_id: Option<PluginId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_use_id: Option<String>,
+    pub tool_use_id: Option<ToolUseId>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -211,7 +211,7 @@ where
         task_id: None,
         trace_id: audit.trace_id.as_ref(),
         client_id: audit.principal.client_id.as_ref(),
-        tool_use_id: audit.target.tool_use_id.as_deref(),
+        tool_use_id: audit.target.tool_use_id.as_ref(),
     };
 
     insert_governance_decision(executor, &record).await

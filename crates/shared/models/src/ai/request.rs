@@ -16,6 +16,7 @@ use super::sampling::{ProviderConfig, ReasoningParams, SamplingParams};
 use super::tools::McpTool;
 use crate::execution::context::RequestContext;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ToolUseId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -44,7 +45,7 @@ pub enum AiContentPart {
         signature: Option<String>,
     },
     ToolResult {
-        tool_use_id: String,
+        tool_use_id: ToolUseId,
         content: String,
         #[serde(default)]
         is_error: bool,
@@ -100,13 +101,9 @@ impl AiContentPart {
         }
     }
 
-    pub fn tool_result(
-        tool_use_id: impl Into<String>,
-        content: impl Into<String>,
-        is_error: bool,
-    ) -> Self {
+    pub fn tool_result(tool_use_id: ToolUseId, content: impl Into<String>, is_error: bool) -> Self {
         Self::ToolResult {
-            tool_use_id: tool_use_id.into(),
+            tool_use_id,
             content: content.into(),
             is_error,
         }

@@ -1,3 +1,4 @@
+use systemprompt_identifiers::ToolUseId;
 use systemprompt_models::ai::AiContentPart;
 
 #[test]
@@ -87,7 +88,10 @@ fn tool_result_deserialises_without_is_error() {
         "content": "3 hits",
     }))
     .unwrap();
-    assert_eq!(p, AiContentPart::tool_result("call-1", "3 hits", false));
+    assert_eq!(
+        p,
+        AiContentPart::tool_result(ToolUseId::new("call-1"), "3 hits", false)
+    );
 }
 
 #[test]

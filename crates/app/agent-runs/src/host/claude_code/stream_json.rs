@@ -11,7 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::HostSessionId;
+use systemprompt_identifiers::{HostSessionId, ToolUseId};
 
 use super::blocks::{Block, Line, Message, MessageContent, ResultLine, SystemLine};
 use crate::event::{HookDecision, RunEventPayload, RunnerLevel};
@@ -130,7 +130,7 @@ fn block_payloads(message: Message) -> Vec<RunEventPayload> {
                 })
             },
             Block::ToolUse { id, name, input } => Some(RunEventPayload::ToolUse {
-                tool_use_id: id,
+                tool_use_id: ToolUseId::new(id),
                 name,
                 input,
             }),

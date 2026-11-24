@@ -90,7 +90,7 @@ impl<'a> BufferedSink<'a> {
             seq: self.next_seq,
             kind: payload.kind(),
             tool_name,
-            tool_use_id: payload.tool_use_id().map(str::to_owned),
+            tool_use_id: payload.tool_use_id().cloned(),
             payload: payload.clone(),
             created_at: Utc::now(),
         });

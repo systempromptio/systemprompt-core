@@ -13,13 +13,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{GatewayConversationId, UserId};
+use systemprompt_identifiers::{GatewayConversationId, ToolUseId, UserId};
 use systemprompt_traits::RepositoryError;
 
 pub struct ThoughtSignatureWrite<'a> {
     pub user_id: &'a UserId,
     pub conversation: &'a GatewayConversationId,
-    pub tool_use_id: &'a str,
+    pub tool_use_id: &'a ToolUseId,
     pub signature: &'a str,
     pub ttl: Duration,
 }
@@ -57,7 +57,7 @@ impl AiThoughtSignatureRepository {
                 expires_at = EXCLUDED.expires_at
             "#,
             write.conversation.as_str(),
-            write.tool_use_id,
+            write.tool_use_id.as_str(),
             write.signature,
             write.ttl.as_secs_f64(),
             write.user_id.as_str(),
@@ -71,7 +71,7 @@ impl AiThoughtSignatureRepository {
         &self,
         user_id: &UserId,
         conversation: &GatewayConversationId,
-        tool_use_id: &str,
+        tool_use_id: &ToolUseId,
         ttl: Duration,
     ) -> Result<Option<String>, RepositoryError> {
         let row = sqlx::query_scalar!(
@@ -85,7 +85,7 @@ impl AiThoughtSignatureRepository {
             RETURNING signature
             "#,
             conversation.as_str(),
-            tool_use_id,
+            tool_use_id.as_str(),
             ttl.as_secs_f64(),
             user_id.as_str(),
         )

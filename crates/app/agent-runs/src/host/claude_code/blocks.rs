@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
+use systemprompt_identifiers::ToolUseId;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -130,7 +131,7 @@ pub enum Block {
         input: serde_json::Value,
     },
     ToolResult {
-        tool_use_id: String,
+        tool_use_id: ToolUseId,
         #[serde(default)]
         content: ToolResultContent,
         #[serde(default)]

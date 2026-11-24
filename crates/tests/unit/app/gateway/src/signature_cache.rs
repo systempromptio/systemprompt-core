@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{GatewayConversationId, ModelId, UserId};
+use systemprompt_identifiers::{GatewayConversationId, ModelId, ToolUseId, UserId};
 
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
@@ -183,7 +183,9 @@ async fn hydrate_injects_cached_signature_when_none() {
     let h = Harness::open().await;
     let cache = h.cache();
     let conv = conv();
-    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
+    cache
+        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
+        .await;
     let mut request = request_with(vec![tool_use("call_1", None)]);
     cache
         .hydrate_request(&h.user_id, &conv, &mut request, GEMINI)
@@ -207,19 +209,24 @@ async fn inbound_signature_wins_and_rewarms() {
     let h = Harness::open().await;
     let cache = h.cache();
     let conv = conv();
-    cache.store(&h.user_id, &conv, "call_1", "cached").await;
+    cache
+        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "cached")
+        .await;
     let mut request = request_with(vec![tool_use("call_1", Some("client"))]);
     cache
         .hydrate_request(&h.user_id, &conv, &mut request, GEMINI)
         .await;
     assert_eq!(signature_of(&request).as_deref(), Some("client"));
     assert_eq!(
-        cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
+        cache
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_1"))
+            .await
+            .as_deref(),
         Some("client")
     );
     assert_eq!(
         h.cache()
-            .lookup(&h.user_id, &conv, "call_1")
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_1"))
             .await
             .as_deref(),
         Some("client"),
@@ -233,10 +240,12 @@ async fn a_signature_stored_by_one_instance_is_found_by_another() {
     let conv = conv();
     let replica_a = h.cache();
     let replica_b = h.cache();
-    replica_a.store(&h.user_id, &conv, "call_1", "sig-a").await;
+    replica_a
+        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
+        .await;
     assert_eq!(
         replica_b
-            .lookup(&h.user_id, &conv, "call_1")
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_1"))
             .await
             .as_deref(),
         Some("sig-a")
@@ -253,9 +262,16 @@ async fn a_signature_stored_by_one_instance_is_found_by_another() {
 async fn db_expiry_drops_entry_for_a_fresh_instance() {
     let h = Harness::open().await;
     let conv = conv();
-    h.cache().store(&h.user_id, &conv, "call_1", "sig-a").await;
+    h.cache()
+        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
+        .await;
     h.expire_in_db(&conv, "call_1").await;
-    assert_eq!(h.cache().lookup(&h.user_id, &conv, "call_1").await, None);
+    assert_eq!(
+        h.cache()
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_1"))
+            .await,
+        None
+    );
 }
 
 #[tokio::test]
@@ -263,9 +279,16 @@ async fn local_ttl_expiry_falls_through_to_the_database() {
     let h = Harness::open().await;
     let conv = conv();
     let cache = h.cache_with_ttl(Duration::from_millis(1));
-    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
+    cache
+        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
+        .await;
     tokio::time::sleep(Duration::from_millis(5)).await;
-    assert_eq!(cache.lookup(&h.user_id, &conv, "call_1").await, None);
+    assert_eq!(
+        cache
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_1"))
+            .await,
+        None
+    );
 }
 
 #[tokio::test]
@@ -274,13 +297,16 @@ async fn lookup_refreshes_ttl() {
     let conv = conv();
     let ttl = Duration::from_secs(3600);
     h.cache_with_ttl(ttl)
-        .store(&h.user_id, &conv, "call_1", "sig-a")
+        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
         .await;
     h.set_expiry_in_db(&conv, "call_1", "1 minute").await;
 
     let replica = h.cache_with_ttl(ttl);
     assert_eq!(
-        replica.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
+        replica
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_1"))
+            .await
+            .as_deref(),
         Some("sig-a")
     );
     assert!(
@@ -304,12 +330,17 @@ async fn store_from_response_caches_only_signed_tool_use() {
         .await;
     assert_eq!(
         cache
-            .lookup(&h.user_id, &conv, "call_signed")
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_signed"))
             .await
             .as_deref(),
         Some("sig-a")
     );
-    assert_eq!(cache.lookup(&h.user_id, &conv, "call_unsigned").await, None);
+    assert_eq!(
+        cache
+            .lookup(&h.user_id, &conv, &ToolUseId::new("call_unsigned"))
+            .await,
+        None
+    );
 }
 
 #[tokio::test]
@@ -336,9 +367,16 @@ async fn signatures_are_scoped_to_their_conversation() {
     let h = Harness::open().await;
     let cache = h.cache();
     let scoped = conv();
-    cache.store(&h.user_id, &scoped, "call_1", "sig-a").await;
+    cache
+        .store(&h.user_id, &scoped, &ToolUseId::new("call_1"), "sig-a")
+        .await;
     let other = conv();
-    assert_eq!(cache.lookup(&h.user_id, &other, "call_1").await, None);
+    assert_eq!(
+        cache
+            .lookup(&h.user_id, &other, &ToolUseId::new("call_1"))
+            .await,
+        None
+    );
     let mut request = request_with(vec![tool_use("call_1", None)]);
     cache
         .hydrate_request(&h.user_id, &other, &mut request, GEMINI)
@@ -350,7 +388,9 @@ async fn signatures_are_scoped_to_their_conversation() {
 async fn hydration_is_skipped_when_signatures_are_not_required() {
     let h = Harness::open().await;
     let conv = conv();
-    h.cache().store(&h.user_id, &conv, "call_1", "sig-a").await;
+    h.cache()
+        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
+        .await;
     let mut request = request_with(vec![tool_use("call_1", None)]);
     h.cache()
         .hydrate_request(&h.user_id, &conv, &mut request, false)
@@ -365,7 +405,12 @@ async fn persisted_signatures_for_many_tool_uses_hydrate_in_one_pass() {
     let writer = h.cache();
     for i in 0..20 {
         writer
-            .store(&h.user_id, &conv, &format!("call_{i}"), &format!("sig-{i}"))
+            .store(
+                &h.user_id,
+                &conv,
+                &ToolUseId::new(format!("call_{i}")),
+                &format!("sig-{i}"),
+            )
             .await;
     }
     let replica = h.cache();
@@ -397,8 +442,12 @@ async fn find_many_returns_only_live_signatures_of_the_scope() {
     let h = Harness::open().await;
     let conv = conv();
     let cache = h.cache();
-    cache.store(&h.user_id, &conv, "live", "sig-live").await;
-    cache.store(&h.user_id, &conv, "stale", "sig-stale").await;
+    cache
+        .store(&h.user_id, &conv, &ToolUseId::new("live"), "sig-live")
+        .await;
+    cache
+        .store(&h.user_id, &conv, &ToolUseId::new("stale"), "sig-stale")
+        .await;
     h.expire_in_db(&conv, "stale").await;
     let found = h
         .repository
@@ -486,7 +535,9 @@ fn gemini_hydration_records_hit_and_miss() {
             block_on_db(async |h: Harness| {
                 let cache = h.cache();
                 let conv = conv();
-                cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
+                cache
+                    .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
+                    .await;
                 let mut request = request_with(vec![tool_use("call_1", None)]);
                 cache
                     .hydrate_request(&h.user_id, &conv, &mut request, GEMINI)
@@ -522,7 +573,9 @@ fn hydration_that_is_not_required_records_nothing() {
                 block_on_db(async |h: Harness| {
                     let cache = h.cache();
                     let conv = conv();
-                    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
+                    cache
+                        .store(&h.user_id, &conv, &ToolUseId::new("call_1"), "sig-a")
+                        .await;
                     let mut request =
                         request_with(vec![tool_use("call_1", None), tool_use("call_2", None)]);
                     cache

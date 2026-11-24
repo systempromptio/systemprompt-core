@@ -12,7 +12,7 @@ use systemprompt_agent_runs::repository::{Fenced, Lease, NewAgentRun};
 use systemprompt_agent_runs::{
     AgentRunRepository, PermissionMode, RunEvent, RunEventPayload, RunRequest,
 };
-use systemprompt_identifiers::{AgentRunId, HostSessionId, UserId};
+use systemprompt_identifiers::{AgentRunId, HostSessionId, ToolUseId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
 pub(crate) struct Fixture {
@@ -213,7 +213,7 @@ fn event(seq: i64, payload: RunEventPayload) -> RunEvent {
         seq,
         kind: payload.kind(),
         tool_name: None,
-        tool_use_id: payload.tool_use_id().map(str::to_owned),
+        tool_use_id: payload.tool_use_id().cloned(),
         payload,
         created_at: Utc::now(),
     }
@@ -256,7 +256,10 @@ async fn events_batches_are_numbered_in_order_after_the_stored_events() {
     let after = f.repo.list_events_after(&id, 1, 10).await.expect("list");
     let seqs: Vec<i64> = after.iter().map(|e| e.seq).collect();
     assert_eq!(seqs, vec![2, 3, 4, 5]);
-    assert_eq!(after[2].tool_use_id.as_deref(), Some("tu-1"));
+    assert_eq!(
+        after[2].tool_use_id.as_ref().map(ToolUseId::as_str),
+        Some("tu-1")
+    );
     assert_eq!(after[2].tool_name, None);
     assert_eq!(
         after[0].payload,
