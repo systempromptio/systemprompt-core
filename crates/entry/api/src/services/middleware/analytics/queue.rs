@@ -128,7 +128,7 @@ fn wake(inner: &Arc<Inner>) {
     {
         let inner = Arc::clone(inner);
         let background = inner.background.clone();
-        background.spawn("analytics_writer", write_until_empty(inner));
+        background.spawn("request_analytics_writer", write_until_empty(inner));
     }
 }
 
