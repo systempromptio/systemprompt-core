@@ -14,13 +14,24 @@ use super::InFlight;
 use crate::protocol::outbound::OutboundOutcome;
 use crate::protocol::outbound::relay::{Relayed, RelayedBody};
 
-pub(super) struct DeploymentSlot {
-    pub(super) _permit: Option<OwnedSemaphorePermit>,
-    pub(super) _in_flight: InFlight,
+/// A send's bulkhead permit and in-flight gauge entry, released together.
+#[derive(Debug)]
+pub struct DeploymentSlot {
+    _permit: Option<OwnedSemaphorePermit>,
+    _in_flight: InFlight,
 }
 
 impl DeploymentSlot {
-    pub(super) fn hold(self, outcome: OutboundOutcome) -> OutboundOutcome {
+    #[must_use]
+    pub const fn new(permit: Option<OwnedSemaphorePermit>, in_flight: InFlight) -> Self {
+        Self {
+            _permit: permit,
+            _in_flight: in_flight,
+        }
+    }
+
+    #[must_use]
+    pub fn hold(self, outcome: OutboundOutcome) -> OutboundOutcome {
         match outcome {
             OutboundOutcome::Streaming(stream) => OutboundOutcome::Streaming(carry(stream, self)),
             OutboundOutcome::RawStreaming {

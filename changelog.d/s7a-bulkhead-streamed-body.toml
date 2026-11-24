@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Gateway"
+text = "A streamed gateway answer holds its deployment's bulkhead permit and in-flight slot until the client's body is dropped, so `max_concurrent` bounds open streams, not only the time to the upstream's headers."

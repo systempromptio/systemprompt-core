@@ -119,10 +119,10 @@ impl<'r> Chain<'_, 'r> {
             self.record_hop(&name);
         }
         let upstream = rebound.as_ref().unwrap_or(self.send.primary);
-        let slot = DeploymentSlot {
-            _permit: Some(permit),
-            _in_flight: super::enter_deployment(&self.send.engines.load, upstream),
-        };
+        let slot = DeploymentSlot::new(
+            Some(permit),
+            super::enter_deployment(&self.send.engines.load, upstream),
+        );
         let outcome = with_policy(
             current_policy(),
             scanned.send_attempt(upstream, self.send.forward_headers, self.send.audit),

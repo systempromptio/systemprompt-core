@@ -24,13 +24,13 @@ use systemprompt_manifest::Config;
 use systemprompt_models::RouteClassifier;
 use systemprompt_traits::AnalyticsProvider;
 
-mod context_loaders;
+pub(crate) mod context_loaders;
 mod debug_impls;
 mod host;
 mod planes;
 mod shutdown;
 
-pub(crate) use context_loaders::load_content_config;
+pub use context_loaders::load_content_config;
 pub(crate) use host::reserve_context_seeds;
 pub use host::{config_plane_set, reload_governance};
 pub use planes::{ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems};

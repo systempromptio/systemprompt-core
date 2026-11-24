@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "`SsoHookContext` carries `EdgeConfigView` instead of the runtime `Config`, and the session middleware holds its cookie policy; `SessionCookie::from_config` is removed (use `SessionCookie::for_external_url`)."
