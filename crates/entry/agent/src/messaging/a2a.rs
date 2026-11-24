@@ -46,8 +46,6 @@ pub(super) fn authenticated_user(user: &User) -> AuthenticatedUser {
     }
 }
 
-/// Mints the one-hour A2A and MCP bearer a dispatched message runs under, for
-/// the user the dispatcher resolved, and nothing else.
 pub(super) struct A2aTokenIssuer {
     pub(super) issuer: String,
     pub(super) keys: SigningKeys,

@@ -37,20 +37,21 @@ pub mod events;
 pub mod registry;
 pub mod responses;
 pub mod stream;
+mod surface;
 pub mod tasks;
 pub mod webhook;
+
+pub use surface::AgentHttpSurface;
 
 use std::sync::Arc;
 
 use axum::http::Method;
-use systemprompt_agent::services::ContextProviderService;
 use systemprompt_agent::services::registry::AgentCardSite;
 use systemprompt_database::{DbPool, ServiceRepository};
 
 pub use crate::repository::ConversationRepositories;
 use systemprompt_extension::router::{
-    AgentRouteState, AgentSurface, AgentSurfaceError, AgentSurfaceRoutes, ApiBase, BasePath,
-    BodyLimit, RouteLimits, RouteSet, RouteSpec,
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, FromState, MissingDependency, RateBudget, RateLimit, Resolved,
@@ -62,10 +63,8 @@ use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::DynSessionUsageCounters;
 
-use agent_cards::AgentCardsState;
 pub use error::AgentHttpError;
 pub use events::ContextEventPublisher;
-use stream::{StreamFeeds, StreamState};
 
 const DEFAULT_PAGE_LIMIT: u16 = 100;
 const MAX_PAGE_LIMIT: u16 = 500;
@@ -185,37 +184,6 @@ impl FromState for AgentRegistryState {
             crate::repository::service_table(&db, r.get::<InstanceId>()?),
             r.get::<Arc<AgentCardSite>>()?,
         ))
-    }
-}
-
-/// The `agent-http` member's [`AgentSurface`].
-///
-/// The webhook broadcasts run over [`AgentHttpState`], the streams over the
-/// member's [`StreamFeeds`] and a context provider on the same repositories,
-/// and the well-known agent cards over the services view and the open
-/// [`AgentCardSite`].
-#[derive(Debug, Clone, Copy, Default)]
-pub struct AgentHttpSurface;
-
-impl AgentSurface for AgentHttpSurface {
-    fn build(&self, state: AgentRouteState<'_>) -> Result<AgentSurfaceRoutes, AgentSurfaceError> {
-        let r = &state.resolved;
-        let http = AgentHttpState::from_state(r)?;
-        let stream = StreamState {
-            contexts: Arc::new(ContextProviderService::new(
-                http.repositories.contexts.clone(),
-            )),
-            feeds: r.get::<Arc<StreamFeeds>>()?,
-        };
-        let cards = AgentCardsState {
-            services: r.get::<ServicesView>()?,
-            site: r.get::<Arc<AgentCardSite>>()?,
-        };
-        Ok(AgentSurfaceRoutes {
-            webhook: webhook::router(http),
-            stream: stream::router(stream),
-            agent_cards: agent_cards::router(cards),
-        })
     }
 }
 

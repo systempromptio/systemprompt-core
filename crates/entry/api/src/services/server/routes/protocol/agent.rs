@@ -32,8 +32,6 @@ use crate::services::middleware::MountError;
 
 pub const WEBHOOK_RATE: RateLimit = RateLimit::new("webhook", RateBudget::PerSecond(200));
 
-/// The routers the `agent-http` surface built, each absent when the member
-/// is not admitted.
 #[derive(Debug, Default)]
 pub(in crate::services::server::routes) struct AgentMounts {
     pub(in crate::services::server::routes) webhook: Option<Router>,
