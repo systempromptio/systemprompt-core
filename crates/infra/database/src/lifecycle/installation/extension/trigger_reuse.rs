@@ -140,12 +140,11 @@ fn trigger_statement(statement: &str) -> Option<(String, String, TriggerStatemen
                     quote(&relation.relname)
                 )
             };
-            let kind = if create.isconstraint {
-                TriggerStatementKind::Other
-            } else {
-                TriggerStatementKind::Create
-            };
-            Some((qualified, create.trigname.clone(), kind))
+            Some((
+                qualified,
+                create.trigname.clone(),
+                TriggerStatementKind::Create,
+            ))
         },
         NodeEnum::DropStmt(drop) if drop.remove_type == ObjectType::ObjectTrigger as i32 => {
             let [object] = drop.objects.as_slice() else {
