@@ -13,12 +13,15 @@
 //! session, and every other authenticated OAuth route refuses one. The
 //! passkey-link page is public under the `oauth_public` scope; the caller's
 //! session revocation (`/api/v1/core/users`) is a user route under the
-//! `oauth_auth` scope, and API-key management (`/api/v1/admin/api-keys`) an
-//! admin route under the `admin` scope. The OAuth discovery documents are
-//! merged into the well-known router.
+//! `oauth_auth` scope. API-key management is nested at `/api-keys` inside the
+//! server's admin router (`/api/v1/admin`), so it shares that router's admin
+//! gate and its one per-caller `admin` throttle. The OAuth discovery documents
+//! are merged into the well-known router.
 //!
 //! Every route the surface builds is absent (404) when `identity-http` is not
-//! admitted.
+//! admitted. When it is admitted, boot is refused with a typed
+//! [`IdentityMountError`] if the member provides no identity surface or the
+//! SSO slot was never built.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,7 +31,8 @@ use std::sync::Arc;
 use axum::Router;
 use systemprompt_extension::reserved::{CoreId, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
+    AuthzPolicy, ContextKind, MissingDependency, ProtectionLayer, RateBudget, RateLimit, RouteGroup,
+    RouteProtection,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
@@ -45,19 +49,33 @@ use crate::services::middleware::place;
 const OAUTH_PUBLIC: RateLimit = RateLimit::new("oauth_public", RateBudget::OauthPublic);
 const OAUTH_AUTH: RateLimit = RateLimit::new("oauth_auth", RateBudget::OauthAuth);
 
+/// Why an admitted `identity-http` member's routes cannot be built.
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum IdentityMountError {
+    #[error("identity-http is admitted but provides no identity surface")]
+    MissingSurface,
+    #[error("identity-http is admitted but the SSO slot was never built")]
+    MissingSsoSlot(#[source] MissingDependency),
+}
+
 pub(super) fn identity_routes(
     mount: &MountCtx<'_>,
 ) -> Result<Option<IdentityRoutes>, RouteMountError> {
     let owner = ExtensionId::new(CoreId::IdentityHttp.id());
     let kernel = mount.composed.kernel;
-    let (Some(standing), Some(surface)) = (
-        mount.composed.admitted.built().standing_of(&owner),
-        kernel.state().find::<DynIdentitySurface>(),
-    ) else {
+    let Some(standing) = mount.composed.admitted.built().standing_of(&owner) else {
         return Ok(None);
     };
+    let refused = |source: IdentityMountError| RouteMountError::initialization("identity", source);
+    let surface = kernel
+        .state()
+        .find::<DynIdentitySurface>()
+        .ok_or_else(|| refused(IdentityMountError::MissingSurface))?;
+    let sso: Arc<SsoProviders> = kernel
+        .resolved()
+        .get()
+        .map_err(|source| refused(IdentityMountError::MissingSsoSlot(source)))?;
     let ctx = mount.ctx;
-    let sso: Arc<SsoProviders> = kernel.resolved().optional().unwrap_or_default();
     surface
         .build(IdentityRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
@@ -134,33 +152,20 @@ pub(super) fn mount_passkey_link_page(
     )?)
 }
 
-pub(super) fn mount_accounts(
-    mut router: Router,
+pub(super) fn mount_sessions(
+    router: Router,
     mount: &MountCtx<'_>,
     sessions: Router,
-    api_keys: Router,
 ) -> Result<Router, RouteMountError> {
-    let group = RouteGroup::ContentAndMisc;
-    router = mount.mount(
+    Ok(mount.mount(
         router,
         declare(
             sessions,
             ApiPaths::CORE_USERS,
             AuthzPolicy::user(),
             ContextKind::User,
-            group,
+            RouteGroup::ContentAndMisc,
         )
         .with_rate_limit(OAUTH_AUTH),
-    )?;
-    Ok(mount.mount(
-        router,
-        declare(
-            api_keys,
-            ApiPaths::ADMIN_API_KEYS,
-            AuthzPolicy::admin(),
-            ContextKind::User,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("admin", RateBudget::PerSecond(10))),
     )?)
 }

@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "`/api/v1/admin/api-keys` is nested inside the `/api/v1/admin` router again, so one admin gate and one per-caller `admin` throttle cover every admin route. With `identity-http` admitted, boot is refused when the member provides no identity surface or when the SSO slot was never built (the `identity` member not admitted), instead of serving 404 or an empty SSO provider set."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`ApiPaths::admin_relative`."
