@@ -9,12 +9,8 @@ use crate::context::Plugins;
 use systemprompt_database::DbPool;
 use systemprompt_loader::BootContext;
 
-pub(super) fn build_data_plane(
-    database: Arc<systemprompt_database::Database>,
-    repositories: RepositoryBundles,
-) -> DataPlane {
+pub(super) fn build_data_plane(repositories: RepositoryBundles) -> DataPlane {
     DataPlane {
-        database,
         service_repository: repositories.services,
         coordination: repositories.coordination,
     }
@@ -78,7 +74,6 @@ pub(super) fn build_repositories(seeded: &SeededRepositories) -> RepositoryBundl
 pub(super) fn new_plugins(inputs: &PluginInputs) -> Plugins {
     Plugins {
         subject_providers: inputs.subject_providers.clone(),
-        subjects: inputs.subjects.clone(),
     }
 }
 

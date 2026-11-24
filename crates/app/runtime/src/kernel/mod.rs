@@ -212,6 +212,10 @@ impl Kernel {
         &self.state
     }
 
+    pub(crate) fn state_mut(&mut self) -> &mut Dependencies {
+        &mut self.state
+    }
+
     #[must_use]
     pub fn runtime_state(&self) -> Dependencies {
         self.state.clone().withholding_sealed()

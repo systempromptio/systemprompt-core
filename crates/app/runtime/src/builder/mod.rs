@@ -136,7 +136,7 @@ impl AppContextBuilder {
                 signing_keys.clone(),
                 config.jwt_issuer.clone(),
             ));
-        let (seed, binders) = kernel_state(ApiKernelSeed {
+        let (mut seed, binders) = kernel_state(ApiKernelSeed {
             base: KernelSeed {
                 database: &database,
                 app_paths: &app_paths,
@@ -172,6 +172,7 @@ impl AppContextBuilder {
             ),
             content_config: content.content_config.as_ref(),
         });
+        crate::context::reserve_context_seeds(&mut seed);
         let handle: Arc<dyn DatabaseHandle> =
             Arc::<systemprompt_database::Database>::clone(&database);
         let subscriptions: Arc<dyn systemprompt_traits::events::AnalyticsSubscription> =
@@ -219,37 +220,27 @@ impl AppContextBuilder {
         let plugins = new_plugins(&market);
         let subsystems = Subsystems {
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
-            system_admin,
             authz_hook,
-            signing_keys,
-            token_authority,
             governance,
             services,
-            cache_epochs,
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(bridge),
-            event_router: router,
-            file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
-            background_tasks,
-            spawner,
             late_binders: kernel_binders::PendingBinders::holding(binders.late),
         };
 
         AppContext::from_parts(
             ContextPlanes {
-                data: build_data_plane(database, repositories),
+                data: build_data_plane(repositories),
                 cfg: ConfigPlane {
                     boot: self.boot,
-                    config,
-                    app_paths,
                     route_classifier: content.route_classifier,
                     build: self.build,
                 },
                 plugins,
                 subsystems,
             },
-            Arc::new(kernel),
+            kernel,
             self.admitted,
         )
     }

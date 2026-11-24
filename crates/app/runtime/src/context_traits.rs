@@ -19,20 +19,20 @@ use crate::AppContext;
 
 impl AppContextTrait for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let concrete = Arc::clone(&self.cfg.config);
+        let concrete = Arc::clone(&self.config);
         let provider: Arc<dyn ConfigProvider> = concrete;
         provider
     }
 
     fn database_handle(&self) -> Arc<dyn DatabaseHandle> {
-        let concrete = Arc::clone(&self.data.database);
+        let concrete = Arc::clone(&self.database);
         let handle: Arc<dyn DatabaseHandle> = concrete;
         handle
     }
 
     fn session_provider(&self) -> Option<Arc<dyn systemprompt_traits::SessionProvider>> {
         let sessions = self
-            .kernel
+            .kernel()
             .state()
             .find::<systemprompt_traits::DynSessionStore>()?;
         let store: systemprompt_traits::DynSessionStore = Arc::clone(sessions);
@@ -45,14 +45,14 @@ impl AppContextTrait for AppContext {
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
-        self.kernel
+        self.kernel()
             .state()
             .find::<Arc<dyn FingerprintProvider>>()
             .cloned()
     }
 
     fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
-        self.kernel
+        self.kernel()
             .state()
             .find::<systemprompt_traits::DynUserProvider>()
             .cloned()
@@ -63,6 +63,6 @@ impl HasRouteClassifier for AppContext {
     type RouteClassifier = Arc<RouteClassifier>;
 
     fn route_classifier(&self) -> &Self::RouteClassifier {
-        &self.cfg.route_classifier
+        &self.route_classifier
     }
 }

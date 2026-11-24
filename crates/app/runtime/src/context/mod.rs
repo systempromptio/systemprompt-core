@@ -1,36 +1,38 @@
-//! [`AppContext`] — the application-wide runtime container.
+//! [`AppContext`] — the handle a host holds on the resolved kernel.
 //!
-//! Holds shared handles (config, database pool, route classifier, etc.)
-//! cloned cheaply via [`Arc`], the admitted composition and the [`Kernel`]
-//! resolved over it. Constructed via [`crate::AppContextBuilder`] or
-//! [`AppContext::new`]; both end in [`AppContext::from_parts`], which takes
-//! the resolved kernel, so the context's extension state is the kernel's
-//! state and no context exists without it.
+//! An [`AppContext`] is the admitted composition and the [`Kernel`] resolved
+//! over it, and nothing else. Every host value — the runtime `Config`, the
+//! database pool, the boot context, the platform repositories, the
+//! governance and services watches, the event bridge, the shutdown request —
+//! is a typed seed in the kernel state, read with
+//! `ctx.kernel().state().get::<T>()` by the host code that needs it. The
+//! kernel seeds most of them before it resolves ([`crate::kernel_state`]);
+//! [`AppContext::from_parts`] seals the rest ([`ContextPlanes`]) into the
+//! state after the members resolved, every one sealed and every one's type
+//! reserved before resolution, so no member provides, reads or is handed one.
+//! A kernel that lacks a host seed refuses the context with the typed
+//! [`RuntimeError::Missing`](crate::RuntimeError::Missing) naming it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_config::paths::AppPaths;
-use systemprompt_database::DbPool;
-use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::Admitted;
-use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
-use systemprompt_models::ContentConfigRaw;
-use systemprompt_security::keys::SigningKeys;
-use systemprompt_traits::{AnalyticsProvider, FileStorage};
+use systemprompt_models::RouteClassifier;
+use systemprompt_traits::AnalyticsProvider;
 
-mod accessors;
 mod context_loaders;
 mod debug_impls;
+mod host;
 mod planes;
-mod repositories;
-mod services;
 mod shutdown;
 
+pub(crate) use context_loaders::load_content_config;
+pub(crate) use host::reserve_context_seeds;
+pub use host::{config_plane_set, reload_governance};
 pub use planes::{ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems};
 pub use shutdown::ShutdownRequest;
 
@@ -38,24 +40,20 @@ use crate::builder::AppContextBuilder;
 use crate::error::RuntimeResult;
 use crate::kernel::Kernel;
 
-/// Application-wide runtime container shared across the HTTP server, the
-/// scheduler, and CLI commands.
+/// The admitted composition and the kernel resolved over it, shared across
+/// the HTTP server, the scheduler and CLI commands.
 ///
-/// Handles are grouped into four cohesive planes ([`DataPlane`],
-/// [`ConfigPlane`], [`Plugins`], [`Subsystems`]); each field is an [`Arc`] (or
-/// an `Arc`-internal handle such as [`DbPool`]), so `clone` is a
-/// reference-count bump rather than a deep copy. Construct it via
-/// [`AppContext::builder`] or [`AppContext::new`]; [`AppContext::from_parts`]
-/// bypasses the bootstrap for tests and embedders that assemble the planes
-/// and resolve the kernel themselves.
+/// `clone` is two reference-count bumps. Construct it via
+/// [`AppContext::builder`] or [`AppContext::new`];
+/// [`AppContext::from_parts`] takes a resolved kernel and the
+/// [`ContextPlanes`] for tests and embedders that assemble them themselves.
 #[derive(Clone)]
 pub struct AppContext {
-    pub(crate) data: DataPlane,
-    pub(crate) cfg: ConfigPlane,
-    pub(crate) plugins: Plugins,
-    pub(crate) subsystems: Subsystems,
-    pub(crate) kernel: Arc<Kernel>,
-    pub(crate) admitted: Arc<Admitted>,
+    kernel: Arc<Kernel>,
+    admitted: Arc<Admitted>,
+    pub(crate) config: Arc<Config>,
+    pub(crate) database: systemprompt_database::DbPool,
+    pub(crate) route_classifier: Arc<RouteClassifier>,
     pub(crate) analytics: Arc<dyn AnalyticsProvider>,
 }
 
@@ -71,30 +69,24 @@ impl AppContext {
 
     pub fn from_parts(
         planes: ContextPlanes,
-        kernel: Arc<Kernel>,
+        mut kernel: Kernel,
         admitted: Arc<Admitted>,
     ) -> RuntimeResult<Self> {
-        let ContextPlanes {
-            data,
-            cfg,
-            plugins,
-            subsystems,
-        } = planes;
+        host::require_kernel_seeds(kernel.state())?;
+        let route_classifier = Arc::clone(&planes.cfg.route_classifier);
+        host::seal_context_seeds(&mut kernel, planes);
+        let state = kernel.state();
+        let config = Arc::clone(state.get::<Arc<Config>>()?);
+        let database = Arc::clone(state.get::<systemprompt_database::DbPool>()?);
         let analytics = kernel.resolved().get::<Arc<dyn AnalyticsProvider>>()?;
         Ok(Self {
-            data,
-            cfg,
-            plugins,
-            subsystems,
-            kernel,
+            kernel: Arc::new(kernel),
             admitted,
+            config,
+            database,
+            route_classifier,
             analytics,
         })
-    }
-
-    #[must_use]
-    pub fn take_late_binders(&self) -> Option<crate::ApiLateBinders> {
-        self.subsystems.late_binders.take()
     }
 
     #[must_use]
@@ -105,74 +97,5 @@ impl AppContext {
     #[must_use]
     pub const fn admitted(&self) -> &Arc<Admitted> {
         &self.admitted
-    }
-
-    pub fn load_content_config(
-        config: &Config,
-        app_paths: &AppPaths,
-    ) -> Option<Arc<ContentConfigRaw>> {
-        context_loaders::load_content_config(config, app_paths)
-    }
-
-    pub fn config(&self) -> &Config {
-        &self.cfg.config
-    }
-
-    pub const fn db_pool(&self) -> &DbPool {
-        &self.data.database
-    }
-
-    pub fn server_address(&self) -> String {
-        format!("{}:{}", self.cfg.config.host, self.cfg.config.port)
-    }
-
-    pub const fn file_storage(&self) -> &Arc<dyn FileStorage> {
-        &self.subsystems.file_storage
-    }
-
-    #[must_use]
-    pub fn session_store(&self) -> Option<systemprompt_traits::DynSessionStore> {
-        self.kernel
-            .state()
-            .find::<systemprompt_traits::DynSessionStore>()
-            .cloned()
-    }
-
-    pub fn app_paths(&self) -> &AppPaths {
-        &self.cfg.app_paths
-    }
-
-    pub const fn app_paths_arc(&self) -> &Arc<AppPaths> {
-        &self.cfg.app_paths
-    }
-
-    pub const fn event_bridge(&self) -> &Arc<EventBridgeHandle> {
-        &self.subsystems.event_bridge
-    }
-
-    pub const fn event_router(&self) -> &EventRouter {
-        &self.subsystems.event_router
-    }
-
-    pub const fn subject_handle(&self) -> &systemprompt_models::authz::SubjectSourceHandle {
-        &self.plugins.subjects
-    }
-
-    pub const fn subject_providers(&self) -> &systemprompt_governance::authz::SubjectProviderSet {
-        &self.plugins.subject_providers
-    }
-
-    pub const fn authz_hook(&self) -> &SharedAuthzHook {
-        &self.subsystems.authz_hook
-    }
-
-    #[must_use]
-    pub const fn signing_keys(&self) -> &SigningKeys {
-        &self.subsystems.signing_keys
-    }
-
-    #[must_use]
-    pub fn schema_state(&self) -> &crate::SchemaState {
-        &self.subsystems.schema_install
     }
 }

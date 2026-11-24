@@ -15,7 +15,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Config;
 use systemprompt_models::ContentConfigRaw;
 
-pub(super) fn load_content_config(
+pub(crate) fn load_content_config(
     config: &Config,
     app_paths: &AppPaths,
 ) -> Option<Arc<ContentConfigRaw>> {

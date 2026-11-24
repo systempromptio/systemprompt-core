@@ -46,7 +46,7 @@
 //!
 //! The API also seeds the one `Arc<dyn TokenAuthority>` built over its signing
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
-//! conferral row; `AppContext::token_authority` hands out the same value. The
+//! conferral row; host code reads the same value from the kernel state. The
 //! signing keys are recorded under the `identity-signing-keys` row: both are
 //! conferred on `identity-http`, the issuer. The API seeds the OAuth
 //! at-rest pepper (`AtRestPepper`) sealed; the oauth member builds its
