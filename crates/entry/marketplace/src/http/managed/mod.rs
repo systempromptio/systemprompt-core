@@ -11,7 +11,7 @@
 //! The route state ([`ManagedConsumerState`]) holds the managed repository
 //! and the services view the `managed_resources` member and the kernel
 //! provide, the API's external URL the origin guard compares against, and the
-//! host's [`ConsumerCatalog`] read.
+//! host's `ConsumerCatalog` read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 const CALL_PATHS: [&str; 3] = [
     "crates/app/oauth-issuance/src/sso/resolve.rs",
     "crates/domain/oauth/src/services/ema.rs",
-    "crates/entry/api/src/services/messaging/identity.rs",
+    "crates/entry/agent/src/messaging/identity.rs",
 ];
 
 const OWNER: &str = "crates/domain/users/src/";
