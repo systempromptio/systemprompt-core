@@ -1,11 +1,10 @@
 //! OTLP/HTTP delivery: protobuf POST with bounded retry and the
 //! `otlp_export_batches_total{signal,status}` counter.
 //!
-//! A batch gets [`RETRY_DELAYS`] retries in-run, each after the listed
-//! pause jittered over its upper half, so replicas sharing a collector do
-//! not retry in step. One that fails every attempt keeps its watermark and is
-//! retried at the next tick, so the in-run budget only needs to ride out a
-//! blip, not an outage.
+//! A batch gets [`RETRY_DELAYS`] retries, each after the listed pause
+//! jittered over its upper half, so replicas sharing a collector do not retry
+//! in step. One that fails every attempt is dropped and counted: the exporter
+//! is live, so the budget rides out a blip, not an outage.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -75,7 +74,7 @@ pub(super) fn build_client() -> reqwest::Client {
     }
 }
 
-pub(super) fn build_headers(config: &OtlpExportConfig) -> Result<HeaderMap, TransportError> {
+fn build_headers(config: &OtlpExportConfig) -> Result<HeaderMap, TransportError> {
     let mut headers = HeaderMap::with_capacity(config.headers.len() + 1);
     headers.insert(
         CONTENT_TYPE,

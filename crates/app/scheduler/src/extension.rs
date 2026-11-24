@@ -1,10 +1,9 @@
 //! The scheduler member: schemas, migrations and the kernel's built-in jobs.
 //!
-//! It owns the `scheduled_jobs`, config-plane, OTLP export and licence
-//! check-in schemas and migrations, and the built-in jobs (config reconcile,
-//! licence check-in, the drainers of kernel-owned
-//! projections, database cleanup, Vertex discovery and,
-//! with `otel`, the OTLP export).
+//! It owns the `scheduled_jobs`, config-plane and licence check-in schemas
+//! and migrations, and the built-in jobs (config reconcile, licence check-in,
+//! the drainers of kernel-owned projections, database cleanup and Vertex
+//! discovery).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,8 +45,6 @@ impl Extension for SchedulerExtension {
             .job(DatabaseCleanupJob)
             .job(VertexDiscoveryJob);
         crate::jobs::database_cleanup::kernel_purges::contribute(c);
-        #[cfg(feature = "otel")]
-        c.job(crate::jobs::OtlpExportJob);
         Ok(())
     }
 }
@@ -95,16 +92,6 @@ fn schemas() -> Vec<SchemaDefinition> {
             "entity".into(),
             "file_hash".into(),
             "db_hash".into(),
-        ]),
-        SchemaDefinition::new(
-            "otlp_export_state",
-            include_str!("../schema/otlp_export_state.sql"),
-        )
-        .with_required_columns(vec![
-            "signal".into(),
-            "watermark".into(),
-            "watermark_id".into(),
-            "batches_total".into(),
         ]),
         SchemaDefinition::new(
             "licence_checkin_state",

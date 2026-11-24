@@ -1,11 +1,8 @@
-//! Manifest assembly and sealing service.
+//! Manifest assembly service.
 //!
 //! [`ManifestService`] assembles a scoped, filtered [`MarketplaceCandidate`]
-//! from the on-disk catalogue and seals a built [`SignedManifest`] into a
-//! [`SignedManifestEnvelope`]: the manifest's JCS-canonical serialization
-//! carried verbatim as the envelope payload, signed byte-for-byte. The bridge
-//! verifies over those exact bytes before parsing, so there is no second
-//! canonical view to keep in sync with the manifest struct.
+//! from the on-disk catalogue. Sealing the built manifest is the gateway's
+//! manifest signer.
 //!
 //! The manifest is the union of every enabled marketplace: an entry any one of
 //! them includes is assembled, and the per-user filter decides who sees it.
@@ -26,13 +23,9 @@ use std::path::Path;
 
 use systemprompt_identifiers::{LibraryArtifactId, SkillId, UserId};
 use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
-use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{
-    ManifestClaudeCode, ManifestMarketplace, ManifestOpenCode, SignedManifest,
-    SignedManifestEnvelope, ThemeRef,
+    ManifestClaudeCode, ManifestMarketplace, ManifestOpenCode, ThemeRef,
 };
-use systemprompt_security::keys::SigningKeys;
-use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
 use crate::catalog::{
@@ -160,18 +153,6 @@ impl ManifestService {
         diagnostics.extend(std::mem::take(&mut filtered.diagnostics));
         filtered.diagnostics = diagnostics;
         Ok(filtered)
-    }
-
-    pub fn seal(
-        keys: &SigningKeys,
-        manifest: &SignedManifest,
-    ) -> Result<SignedManifestEnvelope, MarketplaceError> {
-        let payload = manifest_signing::canonicalize(manifest)?;
-        let signature = keys.sign_manifest_bytes(payload.as_bytes());
-        Ok(SignedManifestEnvelope {
-            payload,
-            signature: ManifestSignature::new(signature),
-        })
     }
 }
 

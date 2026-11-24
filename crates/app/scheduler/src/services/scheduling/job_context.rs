@@ -50,8 +50,6 @@ impl KernelJobHandles {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct JobDeployment {
     pub(crate) licence_checkin: bool,
-    #[cfg(feature = "otel")]
-    pub(crate) otlp_export: bool,
 }
 
 pub(crate) struct JobRun<'a> {
@@ -89,8 +87,6 @@ pub(crate) fn deployment_dependencies(boot: &BootContext) -> Dependencies {
     let profile = boot.loaded_profile();
     Dependencies::new().with(JobDeployment {
         licence_checkin: profile.licence.enabled(),
-        #[cfg(feature = "otel")]
-        otlp_export: profile.observability.otlp().is_some(),
     })
 }
 

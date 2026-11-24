@@ -12,6 +12,7 @@
 //! |-----------|---------------------------------------------------------------------------|
 //! | (default) | Database layer, repositories                                              |
 //! | `cli`     | CLI display helpers (`CliService`, tables, banners) — pulls in `console`, `indicatif` |
+//! | `otel`    | [`otlp`]: live OTLP export of the pipeline's logs and spans                |
 //!
 //! ## Top-level entry points
 //!
@@ -43,6 +44,8 @@
 pub mod extension;
 pub mod layer;
 pub mod models;
+#[cfg(feature = "otel")]
+pub mod otlp;
 pub mod repository;
 pub mod runtime;
 pub mod sanitize;

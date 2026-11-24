@@ -59,7 +59,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-marketplace = { workspace = true }
+systemprompt-marketplace = { workspace = true, features = ["http"] }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-security = { workspace = true }

@@ -130,9 +130,9 @@ teams = ["dep:systemprompt-teams", "dep:systemprompt-teams-entry", "systemprompt
 # run launcher wired into hosted agents. `full` implies it.
 agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"]
 
-# OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
-# job that ships the audit trail to a collector. `full` implies it.
-otel = ["systemprompt-scheduler?/otel", "systemprompt-gateway-entry?/otel"]
+# OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the live OTLP
+# export of the tracing pipeline to a collector. `full` implies it.
+otel = ["systemprompt-logging?/otel", "systemprompt-api?/otel", "systemprompt-gateway-entry?/otel"]
 
 # The device-credential consumer surface the bridge reports installation
 # evidence through. `full` implies it.

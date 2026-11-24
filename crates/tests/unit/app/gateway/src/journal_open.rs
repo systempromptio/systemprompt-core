@@ -25,6 +25,31 @@ fn a_valid_key_creates_the_journal_directory_inside_the_state_dir() {
 }
 
 #[test]
+fn an_open_journal_owns_one_locked_segment_set() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let _journal = GatewayJournal::open(dir.path(), KEY).expect("valid key");
+    let names: Vec<String> = std::fs::read_dir(dir.path().join("gateway-journal"))
+        .expect("journal dir")
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    let owner = names
+        .iter()
+        .find_map(|name| name.strip_suffix(".owner"))
+        .expect("an owner lock file");
+    assert!(
+        names.contains(&format!("{owner}-0000000001.seg")),
+        "{names:?}"
+    );
+    let lock = std::fs::File::open(dir.path().join(format!("gateway-journal/{owner}.owner")))
+        .expect("owner lock");
+    assert!(
+        lock.try_lock().is_err(),
+        "the owner lock is held while open"
+    );
+}
+
+#[test]
 fn an_unwritable_state_dir_is_a_named_boot_failure() {
     let file = tempfile::NamedTempFile::new().expect("tempfile");
     let error = GatewayJournal::open(file.path(), KEY).expect_err("a file is not a state dir");

@@ -12,6 +12,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "otel")]
+mod otlp_span;
 mod proxy;
 mod visitor;
 mod writer;
@@ -58,6 +60,8 @@ impl InstanceLabel {
 pub(crate) struct LayerShared {
     pub(crate) instance: InstanceLabel,
     dropped: Arc<AtomicU64>,
+    #[cfg(feature = "otel")]
+    pub(crate) otlp: Arc<std::sync::OnceLock<crate::otlp::OtlpFeed>>,
 }
 
 impl LayerShared {
@@ -103,6 +107,10 @@ impl DatabaseLayer {
     pub fn enqueue(&self, mut entry: LogEntry) {
         if entry.instance_id.is_none() {
             entry.instance_id = self.shared.instance.get().cloned();
+        }
+        #[cfg(feature = "otel")]
+        if let Some(feed) = self.shared.otlp.get() {
+            feed.log(&entry);
         }
         let is_error = entry.level == LogLevel::Error;
         if self

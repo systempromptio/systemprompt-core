@@ -5,9 +5,9 @@
 //! consumed by [`crate::services::SchedulerService`] and by the API lifecycle
 //! bootstrap path.
 //!
-//! [`otlp`] backs the OTLP exporter and [`LicenceCheckinRepository`] the
-//! licence check-in. Retention deletes are not here: `database_cleanup`
-//! dispatches to the purges the owning crates register.
+//! [`LicenceCheckinRepository`] backs the licence check-in. Retention deletes
+//! are not here: `database_cleanup` dispatches to the purges the owning crates
+//! register.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +18,6 @@ mod job_lock;
 mod job_lock_keys;
 mod jobs;
 mod licence;
-pub mod otlp;
 
 pub use config_apply::{BaseRecord, ConflictRecord, ConflictRow, LastApply};
 pub(crate) use config_reconcile::RECONCILE_LOCK;

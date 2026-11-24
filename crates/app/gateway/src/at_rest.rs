@@ -14,12 +14,16 @@
 //! opening the journal answers [`GatewayAtRestError::KeyNotHeld`], so the
 //! gateway surface fails to build there exactly as it did when it read the
 //! secret store itself. The journal directory is created only when the
-//! journal is opened, never at kernel resolve.
+//! journal is opened, never at kernel resolve. It is opened once and every
+//! reader (the surface, the boot-time recovery) shares that one journal: a
+//! process owns one segment set, and recovery settles only what it owns or
+//! adopts from a process that has exited.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_traits::SECRET_SEED_BYTES;
@@ -35,6 +39,8 @@ pub enum GatewayAtRestError {
     NoStateDir,
     #[error("the gateway journal could not be opened")]
     Journal(#[source] GatewayAuditError),
+    #[error("the gateway journal handle is poisoned")]
+    Poisoned,
 }
 
 /// The accounting journal and the at-rest cipher, keyed once from the
@@ -43,6 +49,7 @@ pub enum GatewayAtRestError {
 pub struct GatewayAtRest {
     state_dir: Option<PathBuf>,
     key: Option<[u8; SECRET_SEED_BYTES]>,
+    journal: Arc<Mutex<Option<GatewayJournal>>>,
 }
 
 impl std::fmt::Debug for GatewayAtRest {
@@ -50,14 +57,18 @@ impl std::fmt::Debug for GatewayAtRest {
         f.debug_struct("GatewayAtRest")
             .field("state_dir", &self.state_dir)
             .field("key_held", &self.key.is_some())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
 impl GatewayAtRest {
     #[must_use]
-    pub const fn new(state_dir: Option<PathBuf>, key: Option<[u8; SECRET_SEED_BYTES]>) -> Self {
-        Self { state_dir, key }
+    pub fn new(state_dir: Option<PathBuf>, key: Option<[u8; SECRET_SEED_BYTES]>) -> Self {
+        Self {
+            state_dir,
+            key,
+            journal: Arc::new(Mutex::new(None)),
+        }
     }
 
     pub fn journal(&self) -> Result<GatewayJournal, GatewayAtRestError> {
@@ -66,7 +77,17 @@ impl GatewayAtRest {
             .state_dir
             .as_ref()
             .ok_or(GatewayAtRestError::NoStateDir)?;
-        GatewayJournal::open(state_dir, key).map_err(GatewayAtRestError::Journal)
+        let mut opened = self
+            .journal
+            .lock()
+            .map_err(|_poisoned| GatewayAtRestError::Poisoned)?;
+        if let Some(journal) = opened.as_ref() {
+            return Ok(journal.clone());
+        }
+        let journal = GatewayJournal::open(state_dir, key).map_err(GatewayAtRestError::Journal)?;
+        *opened = Some(journal.clone());
+        drop(opened);
+        Ok(journal)
     }
 
     #[must_use]

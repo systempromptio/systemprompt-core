@@ -36,7 +36,6 @@ mcp_session_cleanup	mcp	systemprompt-mcp	crates/domain/mcp/src/jobs/mcp_session_
 no_js_cleanup	analytics	systemprompt-analytics	crates/domain/analytics/src/jobs/no_js_cleanup.rs:57
 notification_retention	notifications	systemprompt-notifications	crates/domain/notifications/src/jobs.rs:136
 oauth_cleanup	oauth	systemprompt-oauth	crates/domain/oauth/src/jobs/oauth_cleanup.rs:62
-otlp_export	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/otlp_export/mod.rs:106
 outbox_backlog_rollup	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/outbox_backlog_rollup.rs:59
 page_prerender	generator	systemprompt-generator	crates/app/generator/src/jobs/page_prerender.rs:80
 session_bot_type_rollup	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/session_bot_type_rollup.rs:48

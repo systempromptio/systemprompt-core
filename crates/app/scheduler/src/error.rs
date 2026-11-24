@@ -18,9 +18,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::JobName;
-use systemprompt_manifest::profile::OtlpSignal;
 use systemprompt_provider_contracts::{MissingDependency, ProviderError};
-use systemprompt_traits::{BoxedSource, RepositoryError};
+use systemprompt_traits::RepositoryError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -101,16 +100,6 @@ pub enum SchedulerError {
 
     #[error("Logging error: {0}")]
     Logging(#[from] systemprompt_logging::models::LoggingError),
-
-    #[error("Unknown OTLP export signal '{signal}'")]
-    UnknownOtlpSignal { signal: String },
-
-    #[error("OTLP {signal} export failed: {source}")]
-    OtlpExport {
-        signal: OtlpSignal,
-        #[source]
-        source: BoxedSource,
-    },
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),

@@ -112,10 +112,23 @@ where
         id: &tracing::span::Id,
         ctx: Context<'_, S>,
     ) {
+        #[cfg(feature = "otel")]
+        let exporting = self.inner.shared.otlp.get().is_some();
+        #[cfg(feature = "otel")]
+        if exporting {
+            super::otlp_span::open(id, &ctx);
+        }
         if let Some(db) = self.inner.db.get() {
             db.on_new_span(attrs, id, ctx);
         } else {
             record_span_fields(attrs, id, &ctx);
+        }
+    }
+
+    #[cfg(feature = "otel")]
+    fn on_close(&self, id: tracing::span::Id, ctx: Context<'_, S>) {
+        if let Some(feed) = self.inner.shared.otlp.get() {
+            super::otlp_span::close(feed, &id, &ctx);
         }
     }
 
