@@ -884,9 +884,12 @@ fn consumer_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
             std::sync::Arc::clone(systemprompt_test_fixtures::fixture_managed_repository(ctx)),
             ctx.services_state().view(),
             std::sync::Arc::from(ctx.config().api_external_url.as_str()),
-            super::bridge_support::surface_routes(ctx)
-                .consumer_catalog
-                .expect("gateway-http builds the consumer catalog"),
+            std::sync::Arc::clone(
+                super::bridge_support::surface_routes(ctx)
+                    .managed_consumer
+                    .expect("gateway-http builds the consumer catalog")
+                    .catalog(),
+            ),
         ),
     )
 }

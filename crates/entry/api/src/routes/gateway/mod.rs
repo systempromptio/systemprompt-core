@@ -53,13 +53,13 @@ use std::sync::Arc;
 use systemprompt_documents::extension::DOCUMENTS_EXTENSION;
 use systemprompt_extension::Admitted;
 use systemprompt_extension::reserved::CoreId;
+use systemprompt_gateway::surface::ManagedConsumer;
 use systemprompt_gateway::{
     DynGatewaySurface, GatewayEngines, GatewayHostHandles, GatewayRouteState, GatewaySurfaceError,
     GatewaySurfaceRoutes,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::LoggingRuntime;
-use systemprompt_marketplace::surface::DynConsumerCatalog;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_provider_contracts::DependencyProvider;
 use systemprompt_runtime::{AppContext, Kernel};
@@ -176,7 +176,7 @@ pub(crate) fn gateway_mount_parts(
         traffic: confined(traffic),
         bridge_auth: confined(bridge_auth),
         public_sessions: routes.public_sessions,
-        consumer_catalog: routes.consumer_catalog,
+        managed_consumer: routes.managed_consumer,
         registered,
     })
 }
@@ -209,7 +209,7 @@ pub(crate) struct GatewayMountParts {
     pub(crate) traffic: Router,
     pub(crate) bridge_auth: Router,
     pub(crate) public_sessions: Router,
-    pub(crate) consumer_catalog: Option<DynConsumerCatalog>,
+    pub(crate) managed_consumer: Option<ManagedConsumer>,
     pub(crate) registered: Vec<registered::RegisteredGatewayRoutes>,
 }
 

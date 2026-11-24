@@ -45,6 +45,7 @@ use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_gateway::surface::ManagedConsumer;
 use systemprompt_gateway::surface::repositories::gateway_repositories;
 use systemprompt_gateway::{
     GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
@@ -116,7 +117,9 @@ impl GatewaySurface for GatewayHttpSurface {
         Ok(GatewaySurfaceRoutes {
             traffic,
             principal_bound: credential_routes,
-            consumer_catalog: bridge.as_ref().map(bridge::consumer_catalog),
+            managed_consumer: bridge
+                .as_ref()
+                .map(|bridge| ManagedConsumer::new(bridge::consumer_catalog(bridge))),
             public_sessions: sessions::public_router(sessions::SessionsState {
                 mint: session_mint,
                 analytics,
