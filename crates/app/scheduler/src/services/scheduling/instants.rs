@@ -2,7 +2,8 @@
 //!
 //! A tick is keyed by the cron instant it fires for, computed from the
 //! replica's clock as the latest instant of the schedule at or before
-//! [`SchedulerClock::now`]: a replica whose clock runs ahead or behind fires
+//! [`SchedulerClock::now`] taken to the whole second, since cron instants
+//! are whole seconds: a replica whose clock runs ahead or behind fires
 //! when its own clock reaches the instant and computes the same instant, so
 //! every replica claims the same run row for it. The clock is a constructor
 //! collaborator of the scheduler ([`super::SchedulerService::with_clock`]);
@@ -13,7 +14,7 @@
 
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SubsecRound, Utc};
 use croner::Cron;
 use croner::parser::{CronParser, Seconds};
 
@@ -57,7 +58,7 @@ impl CronInstants {
 
     pub fn at_or_before(&self, now: DateTime<Utc>) -> SchedulerResult<DateTime<Utc>> {
         self.cron
-            .find_previous_occurrence(&now, true)
+            .find_previous_occurrence(&now.trunc_subsecs(0), true)
             .map_err(|source| SchedulerError::InvalidCron {
                 schedule: self.cron.pattern.to_string(),
                 source,
