@@ -193,6 +193,11 @@ pub(super) fn mount_content_and_misc(
             crate::routes::content::authenticated_router(ctx)
                 .with_rate_limit(limits, rate_config.content_per_second, "content")?
                 .with_auth(user_middleware.clone(), AuthzPolicy::user()),
+        )
+        .merge(
+            crate::routes::content::admin_router(ctx)
+                .with_rate_limit(limits, rate_config.content_per_second, "content")?
+                .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
         );
     router = router.nest(ApiPaths::CONTENT_BASE, content);
 

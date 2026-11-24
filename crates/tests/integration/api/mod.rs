@@ -602,6 +602,10 @@ mod routes_admin_keys_seeded;
 mod routes_content_links_and_query;
 
 #[cfg(test)]
+#[path = "routes_content_link_analytics_admin.rs"]
+mod routes_content_link_analytics_admin;
+
+#[cfg(test)]
 #[path = "routes_mcp_registry_populated.rs"]
 mod routes_mcp_registry_populated;
 

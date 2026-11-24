@@ -1,8 +1,9 @@
 //! Content HTTP surface.
 //!
 //! Splits content delivery into a public router (read/query, Markdown
-//! negotiation, link analytics), an authenticated router (link generation), and
-//! the bare short-code redirect router.
+//! negotiation), an authenticated router (link generation), an admin router
+//! (link analytics, which expose per-click session, IP and user-agent data),
+//! and the bare short-code redirect router.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +35,20 @@ pub fn public_router(ctx: &AppContext) -> Router {
     let mut router = Router::new()
         .route("/query", post(query_handler))
         .route("/{source_id}", get(list_content_by_source_handler))
-        .route("/{source_id}/{slug}", get(get_content_handler))
+        .route("/{source_id}/{slug}", get(get_content_handler));
+
+    if ctx.config().content_negotiation.enabled {
+        router = router.route(
+            &format!("/{{source_id}}/{{slug}}/{}", suffix),
+            get(get_content_markdown_handler),
+        );
+    }
+
+    router.with_state(ctx.clone())
+}
+
+pub fn admin_router(ctx: &AppContext) -> Router {
+    Router::new()
         .route("/links", get(list_links_handler))
         .route(
             "/links/{link_id}/performance",
@@ -45,16 +59,8 @@ pub fn public_router(ctx: &AppContext) -> Router {
             "/links/campaigns/{campaign_id}/performance",
             get(get_campaign_performance_handler),
         )
-        .route("/links/journey", get(get_content_journey_handler));
-
-    if ctx.config().content_negotiation.enabled {
-        router = router.route(
-            &format!("/{{source_id}}/{{slug}}/{}", suffix),
-            get(get_content_markdown_handler),
-        );
-    }
-
-    router.with_state(ctx.clone())
+        .route("/links/journey", get(get_content_journey_handler))
+        .with_state(ctx.clone())
 }
 
 pub fn authenticated_router(ctx: &AppContext) -> Router {

@@ -4,12 +4,18 @@ use axum::Extension;
 use systemprompt_api::routes::content;
 use tower::ServiceExt;
 
+use systemprompt_models::auth::UserType;
+
 use super::common::{empty_get, json_post, request_context, setup_ctx};
+
+fn admin_context() -> systemprompt_models::RequestContext {
+    request_context("admin_links").with_user_type(UserType::Admin)
+}
 
 #[tokio::test]
 async fn list_links_returns_payload() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = content::public_router(&ctx).layer(Extension(request_context("user_links")));
+    let app = content::admin_router(&ctx).layer(Extension(admin_context()));
     let resp = app.oneshot(empty_get("/links")).await?;
     assert!(resp.status().as_u16() >= 200, "{}", resp.status());
     Ok(())
@@ -18,7 +24,7 @@ async fn list_links_returns_payload() -> anyhow::Result<()> {
 #[tokio::test]
 async fn get_link_performance_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = content::public_router(&ctx).layer(Extension(request_context("user_links")));
+    let app = content::admin_router(&ctx).layer(Extension(admin_context()));
     let resp = app
         .oneshot(empty_get("/links/some_link_id/performance"))
         .await?;
@@ -29,7 +35,7 @@ async fn get_link_performance_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn get_link_clicks_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = content::public_router(&ctx).layer(Extension(request_context("user_links")));
+    let app = content::admin_router(&ctx).layer(Extension(admin_context()));
     let resp = app.oneshot(empty_get("/links/some_link_id/clicks")).await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())
@@ -38,7 +44,7 @@ async fn get_link_clicks_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn get_campaign_performance_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = content::public_router(&ctx).layer(Extension(request_context("user_links")));
+    let app = content::admin_router(&ctx).layer(Extension(admin_context()));
     let resp = app
         .oneshot(empty_get("/links/campaigns/camp_xyz/performance"))
         .await?;
@@ -49,7 +55,7 @@ async fn get_campaign_performance_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn get_journey_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = content::public_router(&ctx).layer(Extension(request_context("user_links")));
+    let app = content::admin_router(&ctx).layer(Extension(admin_context()));
     let resp = app.oneshot(empty_get("/links/journey")).await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())

@@ -12,8 +12,7 @@ const BRIDGE_SELF: &str = "bridge self-service route acting only on the authenti
 const CALLER: &str = "acts only on the authenticated caller's own identity or sessions; the path carries no resource id";
 const WEBHOOK: &str =
     "inbound platform webhook authenticated by the platform's signature, not by a user";
-const CONTENT: &str =
-    "published content and link redirects/analytics, readable by design and not owned by a user";
+const CONTENT: &str = "published content, link generation and link redirects, readable by design and not owned by a user";
 const PUBLIC_LINK: &str = "anonymous open of a public link or invite link; the unguessable token is the credential, no session is read and no resource is addressed by id";
 const INVITE_CLAIM: &str = "invite claim by the caller's own verified email; the token names the invite, and any mismatch answers the same not_found as an unknown token";
 const MCP_HOP: &str = "session-less MCP-server call authenticated by the proxy hop token; the subject comes from the token and its ownership of the target is re-checked before signing (internal_links tests)";
@@ -55,11 +54,11 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("routes/brain/mod.rs::router", "POST", r#""/proposals/{id}/reject""#, GOVERN),
     free("routes/brain/mod.rs::router", "POST", r#""/proposals/{id}/replay""#, GOVERN),
     free("routes/content/mod.rs::authenticated_router", "POST", r#""/links/generate""#, CONTENT),
-    free("routes/content/mod.rs::public_router", "GET", r#""/links""#, CONTENT),
-    free("routes/content/mod.rs::public_router", "GET", r#""/links/campaigns/{campaign_id}/performance""#, CONTENT),
-    free("routes/content/mod.rs::public_router", "GET", r#""/links/journey""#, CONTENT),
-    free("routes/content/mod.rs::public_router", "GET", r#""/links/{link_id}/clicks""#, CONTENT),
-    free("routes/content/mod.rs::public_router", "GET", r#""/links/{link_id}/performance""#, CONTENT),
+    free("routes/content/mod.rs::admin_router", "GET", r#""/links""#, ADMIN),
+    free("routes/content/mod.rs::admin_router", "GET", r#""/links/campaigns/{campaign_id}/performance""#, ADMIN),
+    free("routes/content/mod.rs::admin_router", "GET", r#""/links/journey""#, ADMIN),
+    free("routes/content/mod.rs::admin_router", "GET", r#""/links/{link_id}/clicks""#, ADMIN),
+    free("routes/content/mod.rs::admin_router", "GET", r#""/links/{link_id}/performance""#, ADMIN),
     free("routes/content/mod.rs::public_router", "GET", r#""/{source_id}""#, CONTENT),
     free("routes/content/mod.rs::public_router", "GET", r#""/{source_id}/{slug}""#, CONTENT),
     free("routes/content/mod.rs::public_router", "GET", r#"&format!("/{{source_id}}/{{slug}}/{}",suffix)"#, CONTENT),

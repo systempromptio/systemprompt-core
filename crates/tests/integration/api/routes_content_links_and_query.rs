@@ -15,6 +15,7 @@ use anyhow::Result;
 use axum::{Extension, Router};
 use systemprompt_api::routes::content;
 use systemprompt_database::DbPool;
+use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tower::ServiceExt;
@@ -24,6 +25,12 @@ use super::common::{body_to_string, empty_get, json_post, request_context, setup
 
 fn public(ctx: &AppContext) -> Router {
     content::public_router(ctx).layer(Extension(request_context("content_user")))
+}
+
+fn analytics(ctx: &AppContext) -> Router {
+    content::admin_router(ctx).layer(Extension(
+        request_context("content_admin").with_user_type(UserType::Admin),
+    ))
 }
 
 fn authenticated(ctx: &AppContext) -> Router {
@@ -185,7 +192,7 @@ async fn a_generated_link_has_performance_and_an_unknown_link_does_not() -> Resu
         .to_owned();
 
     let (found, found_body) = body_to_string(
-        public(&ctx)
+        analytics(&ctx)
             .oneshot(empty_get(&format!("/links/{link_id}/performance")))
             .await?,
     )
@@ -193,7 +200,7 @@ async fn a_generated_link_has_performance_and_an_unknown_link_does_not() -> Resu
     assert_eq!(found.as_u16(), 200, "{found_body}");
 
     let (missing, missing_body) = body_to_string(
-        public(&ctx)
+        analytics(&ctx)
             .oneshot(empty_get(&format!(
                 "/links/link-{}/performance",
                 Uuid::new_v4().simple()
@@ -214,7 +221,7 @@ async fn an_unknown_campaign_has_no_performance() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
 
     let (status, body) = body_to_string(
-        public(&ctx)
+        analytics(&ctx)
             .oneshot(empty_get(&format!(
                 "/links/campaigns/camp-{}/performance",
                 Uuid::new_v4().simple()
@@ -286,7 +293,7 @@ async fn assert_link_reads_live(
     source: &str,
 ) -> Result<()> {
     let (status, performance) = response_json(
-        public(ctx),
+        analytics(ctx),
         empty_get(&format!("/links/{link}/performance")),
     )
     .await?;
@@ -295,7 +302,7 @@ async fn assert_link_reads_live(
     assert_eq!(performance["click_count"], 1);
 
     let (status, performance) = response_json(
-        public(ctx),
+        analytics(ctx),
         empty_get(&format!("/links/campaigns/{campaign}/performance")),
     )
     .await?;
@@ -305,7 +312,7 @@ async fn assert_link_reads_live(
     assert_eq!(performance["link_count"], 1);
 
     let (status, clicks) = response_json(
-        public(ctx),
+        analytics(ctx),
         empty_get(&format!("/links/{link}/clicks?limit=10&offset=0")),
     )
     .await?;
@@ -319,7 +326,7 @@ async fn assert_link_reads_live(
         format!("/links?campaign_id={campaign}"),
         format!("/links?source_content_id={source}"),
     ] {
-        let (status, links) = response_json(public(ctx), empty_get(&uri)).await?;
+        let (status, links) = response_json(analytics(ctx), empty_get(&uri)).await?;
         assert_eq!(status.as_u16(), 200, "{uri}: {links}");
         let links = links.as_array().expect("links response array");
         assert_eq!(links.len(), 1, "{uri}: {links:?}");
@@ -328,8 +335,11 @@ async fn assert_link_reads_live(
         assert_eq!(links[0]["source_content_id"], source);
     }
 
-    let (status, journey) =
-        response_json(public(ctx), empty_get("/links/journey?limit=10&offset=0")).await?;
+    let (status, journey) = response_json(
+        analytics(ctx),
+        empty_get("/links/journey?limit=10&offset=0"),
+    )
+    .await?;
     assert_eq!(status.as_u16(), 200, "{journey}");
     let journey = journey.as_array().expect("journey response array");
     assert_eq!(journey.len(), 1);
@@ -353,7 +363,7 @@ async fn assert_link_reads_outage(
         format!("/links?source_content_id={source}"),
         "/links/journey?limit=10&offset=0".to_owned(),
     ] {
-        let (status, body) = response_json(public(ctx), empty_get(&uri)).await?;
+        let (status, body) = response_json(analytics(ctx), empty_get(&uri)).await?;
         assert_eq!(status.as_u16(), 500, "{uri}: {body}");
         assert!(
             body["message"]
