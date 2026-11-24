@@ -1,7 +1,7 @@
 //! The MCP backends behind the API's proxy engine.
 //!
 //! [`McpProxyBackends`] is the
-//! [`ProxyBackendResolver`](systemprompt_extension::router::ProxyBackendResolver)
+//! [`systemprompt_extension::router::ProxyBackendResolver`]
 //! the `mcp-http` member provides, sealed (it mints provider bearers with
 //! the connector-token cache and the secret lookup), for the kernel's proxy
 //! engine alone. It answers which servers are external and the port this
