@@ -11,8 +11,8 @@ use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{EnvOverrides, ScriptedPrompter};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_identifiers::ServiceName;
-use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_models::subprocess::{AGENT_NAME_ENV, SPAWN_NONCE_ENV, SUBPROCESS_MARKER_ENV};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
 };
@@ -80,6 +80,7 @@ async fn cleanup_owned_helper() {
     // Why: macOS withholds the environment of hardened system binaries such as
     // `/bin/sleep`, so the marked child is an ordinary interpreter, used only
     // once it reports that it is the live image.
+    let nonce = SpawnNonce::generate();
     let mut child = Command::new("python3")
         .args([
             "-c",
@@ -87,6 +88,7 @@ async fn cleanup_owned_helper() {
         ])
         .env(SUBPROCESS_MARKER_ENV, "1")
         .env(AGENT_NAME_ENV, SERVICE)
+        .env(SPAWN_NONCE_ENV, nonce.as_str())
         .stdout(std::process::Stdio::piped())
         .spawn()
         .expect("owned marked child");
@@ -112,7 +114,7 @@ async fn cleanup_owned_helper() {
     })
     .await
     .expect("service row");
-    repo.update_service_pid(&service, i32::try_from(pid).expect("PID range"))
+    repo.update_service_pid(&service, i32::try_from(pid).expect("PID range"), &nonce)
         .await
         .expect("service PID");
     let base = CliConfig::new().with_output_format(OutputFormat::Json);

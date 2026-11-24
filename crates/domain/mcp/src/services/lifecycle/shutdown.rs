@@ -9,7 +9,7 @@ use crate::error::McpDomainResult;
 use crate::services::database::stored_pid;
 use crate::services::process::ProcessService;
 use crate::services::spawn_target::SpawnTarget;
-use systemprompt_loader::subprocess::StopOutcome;
+use systemprompt_loader::subprocess::{SpawnStamp, StopOutcome};
 use systemprompt_manifest::services::ServiceStatus;
 
 pub async fn stop_server(
@@ -18,7 +18,7 @@ pub async fn stop_server(
 ) -> McpDomainResult<()> {
     tracing::info!(service = %config.name, "Stopping MCP service");
 
-    let Some(pid) = find_running_process(lifecycle, config).await? else {
+    let Some((pid, stamp)) = find_running_process(lifecycle, config).await? else {
         tracing::debug!(service = %config.name, "Service is already stopped");
         cleanup_stale_state(lifecycle, config).await?;
         return Ok(());
@@ -29,7 +29,7 @@ pub async fn stop_server(
         .update_service_status(&config.service_name(), ServiceStatus::Stopping)
         .await?;
 
-    perform_graceful_shutdown(lifecycle, config, pid).await?;
+    perform_graceful_shutdown(lifecycle, config, pid, &stamp).await?;
 
     finalize_shutdown(lifecycle, config).await?;
 
@@ -40,22 +40,26 @@ pub async fn stop_server(
 async fn find_running_process(
     lifecycle: &LifecycleService,
     config: &McpServerConfig,
-) -> McpDomainResult<Option<u32>> {
-    if let Some(db_service) = lifecycle
+) -> McpDomainResult<Option<(u32, SpawnStamp)>> {
+    let recorded = lifecycle
         .database()
         .get_service_by_name(&config.service_name())
-        .await?
-        && let Some(db_pid) = stored_pid(db_service.pid)
+        .await?;
+    let stamp = recorded
+        .as_ref()
+        .map_or(SpawnStamp::Unrecorded, |info| info.stamp.clone());
+    if let Some(db_pid) = recorded.as_ref().and_then(|info| stored_pid(info.pid))
         && ProcessService::is_running(db_pid).await
     {
-        return Ok(Some(db_pid));
+        return Ok(Some((db_pid, stamp)));
     }
 
     Ok(
-        ProcessService::owned_port_holders(config.spawn_port()?, &config.service_name())
+        ProcessService::owned_port_holders(config.spawn_port()?, &config.service_name(), &stamp)
             .await?
             .into_iter()
-            .next(),
+            .next()
+            .map(|pid| (pid, stamp)),
     )
 }
 
@@ -63,10 +67,12 @@ async fn perform_graceful_shutdown(
     lifecycle: &LifecycleService,
     config: &McpServerConfig,
     pid: u32,
+    stamp: &SpawnStamp,
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, pid = pid, "Performing graceful shutdown");
 
-    match ProcessService::stop(pid, &config.service_name()).await? {
+    let grace = lifecycle.process().child_grace();
+    match ProcessService::stop(pid, &config.service_name(), stamp, grace).await? {
         StopOutcome::NotRunning | StopOutcome::Stopped(_) => {},
         StopOutcome::NotOurs => {
             tracing::warn!(

@@ -2,8 +2,8 @@
 //! process layer reports it as not ours and never signals it.
 
 use std::time::{Duration, Instant};
-use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::StopOutcome;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{SpawnStamp, StopOutcome};
 use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::{sigkill, spawn_with_orphan_child};
@@ -32,7 +32,13 @@ async fn unmarked_grandchild_outlives_parent_and_is_never_signalled() {
         "grandchild {grandchild_pid} must still be alive (reparented to PID 1)"
     );
 
-    let outcome = ProcessService::stop(grandchild_pid, &ServiceName::new("orphan-probe")).await;
+    let outcome = ProcessService::stop(
+        grandchild_pid,
+        &ServiceName::new("orphan-probe"),
+        &SpawnStamp::Boot(SpawnNonce::generate()),
+        Duration::from_secs(5),
+    )
+    .await;
     let survived = ProcessService::is_running(grandchild_pid).await;
     sigkill(grandchild_pid);
 
@@ -49,7 +55,13 @@ async fn unmarked_grandchild_outlives_parent_and_is_never_signalled() {
 
 #[tokio::test]
 async fn stopping_an_unallocated_pid_reports_not_running() {
-    let outcome = ProcessService::stop(4_194_304, &ServiceName::new("orphan-probe")).await;
+    let outcome = ProcessService::stop(
+        4_194_304,
+        &ServiceName::new("orphan-probe"),
+        &SpawnStamp::Boot(SpawnNonce::generate()),
+        Duration::from_secs(5),
+    )
+    .await;
 
     assert!(
         matches!(outcome, Ok(StopOutcome::NotRunning)),

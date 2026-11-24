@@ -44,7 +44,7 @@ impl AgentStatusView {
             .filter_map(|(name, status)| {
                 let config = registry.get_agent(name.as_str()).ok()?;
                 let (pid, port, health, failure) = match status {
-                    AgentStatus::Running { pid, port } => {
+                    AgentStatus::Running { pid, port, .. } => {
                         (Some(pid), Some(port), ServiceHealth::Healthy, None)
                     },
                     AgentStatus::Failed { reason, .. } => {

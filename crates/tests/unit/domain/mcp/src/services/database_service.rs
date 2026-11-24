@@ -3,7 +3,8 @@
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::SpawnStamp;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::database::DatabaseService;
@@ -156,15 +157,16 @@ async fn accessors() {
 }
 
 #[tokio::test]
-async fn register_existing_process_creates_running_row_with_pid() {
+async fn register_service_records_the_pid_with_its_boot_nonce() {
     let (svc, _db) = make_db_service().await;
     let name = format!("adopt-{}", uuid::Uuid::new_v4().simple());
     let config = crate::harness::internal_mcp_config(&name, 65410);
+    let nonce = SpawnNonce::generate();
 
     let registered = svc
-        .register_existing_process(&config, std::process::id())
+        .register_service(&config, std::process::id(), &nonce)
         .await
-        .expect("adoption registers");
+        .expect("registers");
     assert_eq!(registered.as_str(), name);
 
     let row = svc
@@ -172,8 +174,18 @@ async fn register_existing_process_creates_running_row_with_pid() {
         .await
         .unwrap()
         .expect("row created");
+    let stamp = svc.recorded_stamp(&registered).await.unwrap();
     svc.unregister_service(&registered).await.unwrap();
 
-    assert_eq!(row.status, ServiceStatus::Running);
     assert_eq!(row.pid, Some(i32::try_from(std::process::id()).unwrap()));
+    assert_eq!(stamp, SpawnStamp::Boot(nonce));
+}
+
+#[tokio::test]
+async fn child_grace_is_the_profiles_shutdown_child_grace() {
+    let (svc, _db) = make_db_service().await;
+    assert_eq!(
+        svc.child_grace(),
+        crate::harness::config().shutdown.child_grace()
+    );
 }

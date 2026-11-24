@@ -7,7 +7,7 @@
 // deterministically.
 
 use std::sync::Arc;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, SpawnNonce};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -69,7 +69,7 @@ async fn get_status_reflects_registered_dead_pid() {
 
     let name = unique_agent_name("orchx");
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, 9400)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9400)
         .await
         .expect("register");
 
@@ -91,7 +91,7 @@ async fn list_agents_includes_registered() {
 
     let name = unique_agent_name("orchlist");
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, 9401)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9401)
         .await
         .expect("register");
 
@@ -120,7 +120,7 @@ async fn delete_agent_removes_service_row() {
 
     let name = unique_agent_name("orchdel");
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, 9403)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9403)
         .await
         .expect("register");
 
@@ -145,7 +145,7 @@ async fn disable_agent_for_dead_pid_removes_row() {
 
     let name = unique_agent_name("orchdis");
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, 9404)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9404)
         .await
         .expect("register");
 
@@ -163,10 +163,10 @@ async fn update_running_then_stopped_transitions() {
     let orchestrator = make_orchestrator(&pool, &instance).await;
 
     let name = unique_agent_name("orchupd");
-    orchestrator
-        .update_agent_running(&name, DEAD_PID, 9405)
+    db_service(&pool, &instance)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9405)
         .await
-        .expect("update running");
+        .expect("register running");
     orchestrator
         .update_agent_stopped(&name)
         .await

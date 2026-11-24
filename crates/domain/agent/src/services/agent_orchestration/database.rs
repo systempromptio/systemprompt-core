@@ -4,8 +4,11 @@
 //! [`AgentDatabaseService`] wraps the agent-service repository and the
 //! config-driven [`AgentRegistry`], translating stored rows into
 //! [`AgentStatus`] while verifying that recorded PIDs still correspond to
-//! running processes. It is the single source of truth the lifecycle, monitor,
-//! and reconciler services query and mutate.
+//! running processes: a row is running only while its pid carries the agent's
+//! spawn marker and the boot nonce recorded with it (where the platform can
+//! read a process's environment; elsewhere, while the pid is alive). It is the
+//! single source of truth the lifecycle, monitor, and reconciler services query
+//! and mutate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,9 +17,23 @@ use crate::error::AgentError;
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
 use crate::services::registry::AgentRegistry;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, SpawnNonce};
+use systemprompt_loader::subprocess::SpawnStamp;
 use systemprompt_manifest::services::{AgentConfig, ServiceStatus, ServicesView};
 use systemprompt_traits::RepositoryError;
+
+async fn recorded_child_alive(pid: u32, agent_name: &AgentName, stamp: &SpawnStamp) -> bool {
+    use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind};
+    if !systemprompt_models::subprocess::identity_verification_supported() {
+        return subprocess::is_running(pid).await;
+    }
+    let claim = ChildClaim::spawned(
+        ChildKind::Agent,
+        &systemprompt_identifiers::ServiceName::of_agent(agent_name),
+        stamp.clone(),
+    );
+    subprocess::owns(pid, &claim).await
+}
 
 #[derive(Debug)]
 pub struct AgentDatabaseService {
@@ -48,10 +65,11 @@ impl AgentDatabaseService {
         &self,
         name: &AgentName,
         pid: u32,
+        spawn_nonce: &SpawnNonce,
         port: u16,
     ) -> OrchestrationResult<()> {
         self.repository
-            .register_agent(name, pid, port)
+            .register_agent(name, pid, spawn_nonce, port)
             .await
             .map_err(OrchestrationError::from)
     }
@@ -73,9 +91,10 @@ impl AgentDatabaseService {
                     self.mark_failed(agent_name).await?;
                     return Ok(failed_status("Running row has no recorded process id"));
                 };
+                let stamp = SpawnStamp::recorded(Some(pid), row.spawn_nonce.as_ref());
                 let (pid, port) = stored_process(pid, row.port)?;
-                if systemprompt_loader::subprocess::is_running(pid).await {
-                    Ok(AgentStatus::Running { pid, port })
+                if recorded_child_alive(pid, agent_name, &stamp).await {
+                    Ok(AgentStatus::Running { pid, port, stamp })
                 } else {
                     self.mark_failed(agent_name).await?;
                     Ok(failed_status("Process died unexpectedly"))
@@ -86,6 +105,17 @@ impl AgentDatabaseService {
             ServiceStatus::Stopped => Ok(failed_status("Agent is stopped")),
             ServiceStatus::Error => Ok(failed_status("Agent process failed")),
         }
+    }
+
+    pub async fn recorded_stamp(&self, agent_name: &AgentName) -> OrchestrationResult<SpawnStamp> {
+        let row = self
+            .repository
+            .find_agent_status(agent_name)
+            .await
+            .map_err(OrchestrationError::from)?;
+        Ok(row.map_or(SpawnStamp::Unrecorded, |row| {
+            SpawnStamp::recorded(row.pid, row.spawn_nonce.as_ref())
+        }))
     }
 
     pub async fn mark_failed(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
@@ -146,18 +176,6 @@ impl AgentDatabaseService {
             .map_err(OrchestrationError::from)
     }
 
-    pub async fn update_agent_running(
-        &self,
-        agent_name: &AgentName,
-        pid: u32,
-        port: u16,
-    ) -> OrchestrationResult<()> {
-        self.repository
-            .register_agent(agent_name, pid, port)
-            .await
-            .map_err(OrchestrationError::from)
-    }
-
     pub async fn update_agent_stopped(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.repository
             .mark_stopped(agent_name)
@@ -169,10 +187,11 @@ impl AgentDatabaseService {
         &self,
         agent_name: &AgentName,
         pid: u32,
+        spawn_nonce: &SpawnNonce,
         port: u16,
     ) -> OrchestrationResult<()> {
         self.repository
-            .register_agent_starting(agent_name, pid, port)
+            .register_agent_starting(agent_name, pid, spawn_nonce, port)
             .await
             .map_err(OrchestrationError::from)
     }

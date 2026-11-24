@@ -3,10 +3,39 @@ use std::net::TcpListener;
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 use systemprompt_loader::subprocess::{
-    self, ChildKind, StopOutcome, Termination, parse_lsof_pids, parse_netstat_listeners,
+    self, ChildClaim, SpawnStamp, StopOutcome, Termination, parse_lsof_pids,
+    parse_netstat_listeners,
 };
+use systemprompt_models::subprocess::{MCP_SERVICE_ID_ENV, SPAWN_NONCE_ENV, SUBPROCESS_MARKER_ENV};
+
+fn mcp_claim(service: &str, nonce: &SpawnNonce) -> ChildClaim {
+    ChildClaim::Mcp {
+        service: ServiceName::new(service),
+        stamp: SpawnStamp::Boot(nonce.clone()),
+    }
+}
+
+fn marked_shell(script: &str, service: &str, nonce: Option<&SpawnNonce>) -> Child {
+    let mut command = Command::new("sh");
+    command
+        .args(["-c", script])
+        .env(SUBPROCESS_MARKER_ENV, "1")
+        .env(MCP_SERVICE_ID_ENV, service)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    if let Some(nonce) = nonce {
+        command.env(SPAWN_NONCE_ENV, nonce.as_str());
+    }
+    command.spawn().expect("spawn marked sh")
+}
+
+fn reap(mut child: Child) {
+    let _ = child.kill();
+    let _ = child.wait();
+}
 
 const GENEROUS_GRACE: Duration = Duration::from_secs(30);
 const MARKER_HELPER: &str = "subprocess::supervised_spawn::marker_helper";
@@ -134,11 +163,11 @@ async fn a_group_leader_is_stopped_with_its_group() {
 async fn owns_rejects_a_live_pid_without_the_marker() {
     let child = sleeper();
     let pid = child.id();
-    let service = ServiceName::new("files");
+    let claim = mcp_claim("files", &SpawnNonce::generate());
 
-    assert!(!subprocess::owns(pid, ChildKind::Mcp, &service).await);
+    assert!(!subprocess::owns(pid, &claim).await);
     assert!(matches!(
-        subprocess::stop_owned(pid, ChildKind::Mcp, &service, GENEROUS_GRACE).await,
+        subprocess::stop_owned(pid, &claim, GENEROUS_GRACE).await,
         Ok(StopOutcome::NotOurs)
     ));
     assert!(
@@ -156,13 +185,18 @@ async fn owns_rejects_a_live_pid_without_the_marker() {
 async fn stop_owned_stops_a_marked_child() {
     let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "files");
     let pid = marked.pid();
-    let service = ServiceName::new("files");
+    let claim = marked.mcp_claim("files");
+    let as_agent = ChildClaim::Agent {
+        service: ServiceName::new("files"),
+        stamp: marked.stamp(),
+    };
 
-    assert!(subprocess::owns(pid, ChildKind::Mcp, &service).await);
-    assert!(!subprocess::owns(pid, ChildKind::Agent, &service).await);
-    assert!(!subprocess::owns(pid, ChildKind::Mcp, &ServiceName::new("other")).await);
+    assert!(subprocess::owns(pid, &claim).await);
+    assert!(!subprocess::owns(pid, &as_agent).await);
+    assert!(!subprocess::owns(pid, &marked.mcp_claim("other")).await);
+    assert!(!subprocess::owns(pid, &mcp_claim("files", &SpawnNonce::generate())).await);
 
-    let outcome = subprocess::stop_owned(pid, ChildKind::Mcp, &service, GENEROUS_GRACE).await;
+    let outcome = subprocess::stop_owned(pid, &claim, GENEROUS_GRACE).await;
 
     assert!(
         matches!(outcome, Ok(StopOutcome::Stopped(Termination::Exited))),
@@ -176,13 +210,7 @@ async fn stop_owned_leaves_a_child_marked_for_another_service_running() {
     let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "files");
     let pid = marked.pid();
 
-    let outcome = subprocess::stop_owned(
-        pid,
-        ChildKind::Mcp,
-        &ServiceName::new("other"),
-        GENEROUS_GRACE,
-    )
-    .await;
+    let outcome = subprocess::stop_owned(pid, &marked.mcp_claim("other"), GENEROUS_GRACE).await;
 
     assert!(matches!(outcome, Ok(StopOutcome::NotOurs)), "{outcome:?}");
     assert!(
@@ -199,13 +227,55 @@ async fn stop_owned_reports_a_reaped_pid_as_not_running() {
     assert!(matches!(
         subprocess::stop_owned(
             child.id(),
-            ChildKind::Agent,
-            &ServiceName::new("greeter"),
+            &ChildClaim::Agent {
+                service: ServiceName::new("greeter"),
+                stamp: SpawnStamp::Boot(SpawnNonce::generate()),
+            },
             GENEROUS_GRACE
         )
         .await,
         Ok(StopOutcome::NotRunning)
     ));
+}
+
+#[tokio::test]
+async fn a_forged_marker_without_the_boot_nonce_is_never_signalled() {
+    let mut child = marked_shell("echo ready; exec sleep 30", "svc", None);
+    assert_eq!(first_line(&mut child), "ready");
+    let pid = child.id();
+
+    let outcome = subprocess::stop_owned(
+        pid,
+        &mcp_claim("svc", &SpawnNonce::generate()),
+        GENEROUS_GRACE,
+    )
+    .await;
+
+    assert!(matches!(outcome, Ok(StopOutcome::NotOurs)), "{outcome:?}");
+    assert!(subprocess::is_running(pid).await);
+    reap(child);
+}
+
+#[tokio::test]
+async fn a_pid_that_drops_its_marker_during_the_grace_is_not_killed() {
+    let nonce = SpawnNonce::generate();
+    let mut child = marked_shell(
+        r#"trap "exec env -i sleep 30" TERM; echo ready; while :; do sleep 0.05; done"#,
+        "svc",
+        Some(&nonce),
+    );
+    assert_eq!(first_line(&mut child), "ready");
+    let pid = child.id();
+
+    let outcome =
+        subprocess::stop_owned(pid, &mcp_claim("svc", &nonce), Duration::from_millis(500)).await;
+
+    assert!(matches!(outcome, Ok(StopOutcome::NotOurs)), "{outcome:?}");
+    assert!(
+        subprocess::is_running(pid).await,
+        "a pid that stopped identifying as ours is never SIGKILLed"
+    );
+    reap(child);
 }
 
 #[tokio::test]

@@ -1,5 +1,9 @@
 //! Server configuration.
 //!
+//! `max_in_flight` is the API's admission ceiling: an omitted key is
+//! [`DEFAULT_MAX_IN_FLIGHT`] in-flight requests per replica (the gateway's
+//! default admission limit), an explicit `null` is no ceiling.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -59,7 +63,7 @@ pub struct ServerConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub advertise_url: Option<String>,
 
-    #[serde(default)]
+    #[serde(default = "default_max_in_flight")]
     pub max_in_flight: Option<std::num::NonZeroU32>,
 
     #[serde(
@@ -71,7 +75,39 @@ pub struct ServerConfig {
     pub trusted_proxies: Vec<IpNet>,
 
     #[serde(default)]
+    pub analytics_queue: AnalyticsQueueConfig,
+
+    #[serde(default)]
     pub shutdown: super::ShutdownConfig,
+}
+
+/// `server.analytics_queue`: the request-analytics write queue. `capacity`
+/// bounds the writes held at once (past it a write is dropped and counted);
+/// `writers` bounds how many run concurrently.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyticsQueueConfig {
+    #[serde(default = "default_analytics_queue_capacity")]
+    pub capacity: std::num::NonZeroU32,
+    #[serde(default = "default_analytics_writers")]
+    pub writers: std::num::NonZeroU32,
+}
+
+impl Default for AnalyticsQueueConfig {
+    fn default() -> Self {
+        Self {
+            capacity: default_analytics_queue_capacity(),
+            writers: default_analytics_writers(),
+        }
+    }
+}
+
+const fn default_analytics_queue_capacity() -> std::num::NonZeroU32 {
+    std::num::NonZeroU32::new(8192).expect("non-zero")
+}
+
+const fn default_analytics_writers() -> std::num::NonZeroU32 {
+    std::num::NonZeroU32::new(8).expect("non-zero")
 }
 
 impl ServerConfig {
@@ -94,11 +130,24 @@ impl ServerConfig {
             max_concurrent_streams: default_max_concurrent_streams(),
             role: super::NodeRole::default(),
             advertise_url: None,
-            max_in_flight: None,
+            max_in_flight: default_max_in_flight(),
             trusted_proxies: Vec::new(),
+            analytics_queue: AnalyticsQueueConfig::default(),
             shutdown: super::ShutdownConfig::default(),
         }
     }
+}
+
+pub const DEFAULT_MAX_IN_FLIGHT: std::num::NonZeroU32 =
+    std::num::NonZeroU32::new(4096).expect("the default in-flight ceiling is non-zero");
+
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "serde's default for an Option field: an omitted key is the default ceiling, an \
+              explicit null is no ceiling"
+)]
+const fn default_max_in_flight() -> Option<std::num::NonZeroU32> {
+    Some(DEFAULT_MAX_IN_FLIGHT)
 }
 
 #[derive(Debug, thiserror::Error)]

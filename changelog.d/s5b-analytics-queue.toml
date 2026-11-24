@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Request analytics"
+text = "Request-analytics writes (session activity, velocity and scanner checks, behavioural scoring, the analytics event) go through one bounded queue with a single writer task owned by `BackgroundTasks` instead of up to five spawned tasks per request. `server.analytics_queue.capacity` (default 8192) bounds the queued writes and `server.analytics_queue.writers` (default 8) their concurrency; a write offered to a full queue is dropped, counted on `http_analytics_dropped_total` and reported by a WARN at most every 10 s."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`ServerConfig` gains `analytics_queue: AnalyticsQueueConfig`; a struct literal must name it (`AnalyticsQueueConfig::default()`)."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`services::middleware::analytics::{AnalyticsQueue, Offered}`."

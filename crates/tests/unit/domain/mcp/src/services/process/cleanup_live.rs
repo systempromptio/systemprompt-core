@@ -5,8 +5,8 @@
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
-use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, StopOutcome};
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{self, SpawnStamp, StopOutcome};
 use systemprompt_mcp::services::process::ProcessService;
 
 const MARKER_HELPER: &str = "services::process::cleanup_live::marker_helper";
@@ -32,9 +32,14 @@ async fn stop_terminates_and_reaps_a_child_marked_for_the_service() {
     let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "cleanup-live-test");
     let pid = marked.pid();
 
-    let outcome = ProcessService::stop(pid, &ServiceName::new("cleanup-live-test"))
-        .await
-        .expect("verified stop");
+    let outcome = ProcessService::stop(
+        pid,
+        &ServiceName::new("cleanup-live-test"),
+        &marked.stamp(),
+        Duration::from_secs(5),
+    )
+    .await
+    .expect("verified stop");
 
     assert!(matches!(outcome, StopOutcome::Stopped(_)), "{outcome:?}");
     assert!(!subprocess::is_running(pid).await);
@@ -46,9 +51,14 @@ async fn stop_leaves_a_child_marked_for_another_service_running() {
         systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "some-other-service");
     let pid = marked.pid();
 
-    let outcome = ProcessService::stop(pid, &ServiceName::new("cleanup-live-test"))
-        .await
-        .expect("an unowned pid is not a failure");
+    let outcome = ProcessService::stop(
+        pid,
+        &ServiceName::new("cleanup-live-test"),
+        &marked.stamp(),
+        Duration::from_secs(5),
+    )
+    .await
+    .expect("an unowned pid is not a failure");
 
     assert_eq!(outcome, StopOutcome::NotOurs);
     assert!(
@@ -62,9 +72,14 @@ async fn stop_leaves_an_unmarked_child_running() {
     let mut child = spawn_sleeper();
     let pid = child.id();
 
-    let outcome = ProcessService::stop(pid, &ServiceName::new("cleanup-live-test"))
-        .await
-        .expect("an unowned pid is not a failure");
+    let outcome = ProcessService::stop(
+        pid,
+        &ServiceName::new("cleanup-live-test"),
+        &SpawnStamp::Boot(SpawnNonce::generate()),
+        Duration::from_secs(5),
+    )
+    .await
+    .expect("an unowned pid is not a failure");
 
     assert_eq!(outcome, StopOutcome::NotOurs);
     assert!(child.try_wait().expect("try_wait").is_none());

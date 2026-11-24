@@ -13,18 +13,21 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{AgentName, ServiceName};
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp, StopOutcome};
 
 use super::AgentOrchestrator;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, PortService};
 
-const AGENT_STOP_GRACE: Duration = Duration::from_secs(5);
-
 impl AgentOrchestrator {
     pub async fn start_clean(&self, agent: &AgentName, port: u16) -> OrchestrationResult<()> {
+        let grace = self.lifecycle.child_grace();
         if let Ok(status) = self.get_status(agent).await {
             match status {
-                AgentStatus::Running { pid, port: running } => {
+                AgentStatus::Running {
+                    pid,
+                    port: running,
+                    stamp,
+                } => {
                     tracing::info!(
                         agent = %agent,
                         pid,
@@ -32,7 +35,7 @@ impl AgentOrchestrator {
                         desired_port = port,
                         "stopping the running agent before a clean start"
                     );
-                    stop_recorded_agent(pid, agent).await?;
+                    stop_recorded_agent(pid, agent, stamp, grace).await?;
                     if let Err(e) = self.delete_agent(agent).await {
                         tracing::warn!(error = %e, agent = %agent, "Failed to delete agent during cleanup");
                     }
@@ -43,16 +46,22 @@ impl AgentOrchestrator {
             }
         }
 
-        PortService::new()
-            .cleanup_port_if_needed(port, agent)
+        let stamp = self.db_service.recorded_stamp(agent).await?;
+        PortService::new(grace)
+            .cleanup_port_if_needed(port, agent, &stamp)
             .await?;
         self.start_agent(agent, None).await.map(drop)
     }
 }
 
-async fn stop_recorded_agent(pid: u32, agent: &AgentName) -> OrchestrationResult<()> {
-    let service = ServiceName::of_agent(agent);
-    match subprocess::stop_owned(pid, ChildKind::Agent, &service, AGENT_STOP_GRACE).await? {
+async fn stop_recorded_agent(
+    pid: u32,
+    agent: &AgentName,
+    stamp: SpawnStamp,
+    grace: Duration,
+) -> OrchestrationResult<()> {
+    let claim = ChildClaim::spawned(ChildKind::Agent, &ServiceName::of_agent(agent), stamp);
+    match subprocess::stop_owned(pid, &claim, grace).await? {
         StopOutcome::NotRunning | StopOutcome::Stopped(_) => Ok(()),
         StopOutcome::NotOurs => {
             tracing::warn!(

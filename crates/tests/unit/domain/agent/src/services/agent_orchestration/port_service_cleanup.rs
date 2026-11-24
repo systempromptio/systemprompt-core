@@ -3,9 +3,12 @@
 // must be refused rather than reclaimed — the identity check protects
 // unrelated listeners from being killed.
 
+use std::time::Duration;
+
 use systemprompt_agent::services::agent_orchestration::OrchestrationError;
 use systemprompt_agent::services::agent_orchestration::port_service::PortService;
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::subprocess::SpawnStamp;
 use tokio::net::TcpListener;
 
 async fn held_port() -> (TcpListener, u16) {
@@ -22,19 +25,27 @@ async fn free_port() -> u16 {
 
 #[tokio::test]
 async fn cleanup_port_if_needed_free_port_is_ok() {
-    let service = PortService::new();
+    let service = PortService::new(Duration::from_secs(5));
     service
-        .cleanup_port_if_needed(free_port().await, &AgentName::new("cleanup_free"))
+        .cleanup_port_if_needed(
+            free_port().await,
+            &AgentName::new("cleanup_free"),
+            &SpawnStamp::Unrecorded,
+        )
         .await
         .expect("free port");
 }
 
 #[tokio::test]
 async fn cleanup_port_if_needed_non_agent_holder_is_refused() {
-    let service = PortService::new();
+    let service = PortService::new(Duration::from_secs(5));
     let (listener, port) = held_port().await;
     let result = service
-        .cleanup_port_if_needed(port, &AgentName::new("cleanup_held"))
+        .cleanup_port_if_needed(
+            port,
+            &AgentName::new("cleanup_held"),
+            &SpawnStamp::Unrecorded,
+        )
         .await;
     drop(listener);
     assert!(
@@ -49,7 +60,7 @@ async fn cleanup_port_if_needed_non_agent_holder_is_refused() {
 
 #[tokio::test]
 async fn wait_for_port_available_free_port_returns_immediately() {
-    let service = PortService::new();
+    let service = PortService::new(Duration::from_secs(5));
     service
         .wait_for_port_available(free_port().await, 1)
         .await
@@ -58,7 +69,7 @@ async fn wait_for_port_available_free_port_returns_immediately() {
 
 #[tokio::test]
 async fn wait_for_port_available_held_port_times_out() {
-    let service = PortService::new();
+    let service = PortService::new(Duration::from_secs(5));
     let (listener, port) = held_port().await;
     let result = service.wait_for_port_available(port, 1).await;
     drop(listener);
@@ -67,7 +78,7 @@ async fn wait_for_port_available_held_port_times_out() {
 
 #[tokio::test]
 async fn wait_for_port_available_observes_release_during_the_poll_window() {
-    let service = PortService::new();
+    let service = PortService::new(Duration::from_secs(5));
     let (listener, port) = held_port().await;
     let release = tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_millis(250)).await;
@@ -88,7 +99,7 @@ async fn wait_for_port_available_observes_release_during_the_poll_window() {
 
 #[tokio::test]
 async fn wait_for_port_available_timeout_names_port_and_deadline() {
-    let service = PortService::new();
+    let service = PortService::new(Duration::from_secs(5));
     let (listener, port) = held_port().await;
     let err = service
         .wait_for_port_available(port, 1)

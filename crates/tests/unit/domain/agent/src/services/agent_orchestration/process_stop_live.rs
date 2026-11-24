@@ -12,8 +12,8 @@
 
 use std::process::Command;
 use std::time::{Duration, Instant};
-use systemprompt_identifiers::{AgentName, ServiceName};
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome, Termination};
+use systemprompt_identifiers::{AgentName, ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{self, ChildClaim, SpawnStamp, StopOutcome, Termination};
 
 // Spawns `script` in the background of a shell that then exits, and returns the
 // orphan's pid. The background job's stdout is redirected away from the
@@ -26,6 +26,18 @@ const MARKER_HELPER: &str = "services::agent_orchestration::process_stop_live::m
 fn marker_helper() {
     systemprompt_test_fixtures::announce_helper_ready();
     std::thread::sleep(Duration::from_secs(600));
+}
+
+fn fixture_nonce() -> &'static SpawnNonce {
+    static NONCE: std::sync::OnceLock<SpawnNonce> = std::sync::OnceLock::new();
+    NONCE.get_or_init(SpawnNonce::generate)
+}
+
+fn agent_claim(agent: &AgentName) -> ChildClaim {
+    ChildClaim::Agent {
+        service: ServiceName::of_agent(agent),
+        stamp: SpawnStamp::Boot(fixture_nonce().clone()),
+    }
 }
 
 async fn spawn_orphan(service_name: &AgentName, wrap: impl FnOnce(&str) -> String) -> Option<u32> {
@@ -45,6 +57,10 @@ async fn spawn_orphan(service_name: &AgentName, wrap: impl FnOnce(&str) -> Strin
         .env(
             systemprompt_models::subprocess::AGENT_NAME_ENV,
             service_name.as_str(),
+        )
+        .env(
+            systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+            fixture_nonce().as_str(),
         )
         .output()
         .ok()?;
@@ -84,13 +100,7 @@ async fn reap(pid: u32) {
 }
 
 async fn stop(pid: u32, agent: &AgentName) -> Result<StopOutcome, subprocess::SupervisionError> {
-    subprocess::stop_owned(
-        pid,
-        ChildKind::Agent,
-        &ServiceName::of_agent(agent),
-        Duration::from_secs(1),
-    )
-    .await
+    subprocess::stop_owned(pid, &agent_claim(agent), Duration::from_secs(1)).await
 }
 
 #[tokio::test]
@@ -170,18 +180,39 @@ async fn stop_owned_refuses_an_agent_marker_read_as_an_mcp_child() {
         return;
     };
 
-    let outcome = subprocess::stop_owned(
-        pid,
-        ChildKind::Mcp,
-        &ServiceName::of_agent(&agent),
-        Duration::from_secs(1),
-    )
-    .await;
+    let as_mcp = ChildClaim::Mcp {
+        service: ServiceName::of_agent(&agent),
+        stamp: SpawnStamp::Boot(fixture_nonce().clone()),
+    };
+    let outcome = subprocess::stop_owned(pid, &as_mcp, Duration::from_secs(1)).await;
     let still_alive = subprocess::is_running(pid).await;
     reap(pid).await;
 
     assert!(matches!(outcome, Ok(StopOutcome::NotOurs)), "{outcome:?}");
     assert!(still_alive, "an agent marker never proves an MCP child");
+}
+
+#[tokio::test]
+async fn stop_owned_refuses_an_agent_of_another_boot() {
+    let agent = unique_service("sigboot");
+    // skip-ok: no spawnable child process on this host
+    let Some(pid) = spawn_marked_agent(&agent).await else {
+        return;
+    };
+
+    let other_boot = ChildClaim::Agent {
+        service: ServiceName::of_agent(&agent),
+        stamp: SpawnStamp::Boot(SpawnNonce::generate()),
+    };
+    let outcome = subprocess::stop_owned(pid, &other_boot, Duration::from_secs(1)).await;
+    let still_alive = subprocess::is_running(pid).await;
+    reap(pid).await;
+
+    assert!(matches!(outcome, Ok(StopOutcome::NotOurs)), "{outcome:?}");
+    assert!(
+        still_alive,
+        "a nonce of another boot never proves ownership"
+    );
 }
 
 #[tokio::test]

@@ -78,7 +78,7 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
             .collect();
 
         database.sync_state(&target_servers).await?;
-        cleanup_orphaned_and_stale(database, &target_servers, events).await?;
+        cleanup_orphaned_and_stale(database, lifecycle, &target_servers, events).await?;
 
         kill_running_servers(database, owned, events).await?;
         let running_names = HashSet::new();
@@ -109,10 +109,13 @@ fn notify_cleanup(events: Option<&StartupEventSender>, count: usize, reason: &st
 
 async fn cleanup_orphaned_and_stale(
     database: &DatabaseService,
+    lifecycle: &LifecycleService,
     servers: &[McpServerConfig],
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
-    let orphaned = detect_and_handle_orphaned_processes(servers, database).await?;
+    let orphaned =
+        detect_and_handle_orphaned_processes(servers, database, lifecycle.process().nonce())
+            .await?;
     log_and_notify_cleanup(
         orphaned,
         "orphaned",
@@ -191,7 +194,13 @@ async fn kill_single_server(
             {
                 tracing::warn!(error = %e, "Failed to send cleanup notification");
             }
-            let outcome = ProcessService::stop(pid, &service_name).await?;
+            let outcome = ProcessService::stop(
+                pid,
+                &service_name,
+                &service_info.stamp,
+                database.child_grace(),
+            )
+            .await?;
             tracing::debug!(server = %server_name, pid, ?outcome, "Stopped previous MCP process");
         }
         if let Err(e) = database.unregister_service(&service_name).await {

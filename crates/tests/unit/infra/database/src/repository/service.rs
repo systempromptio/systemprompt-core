@@ -15,6 +15,7 @@ fn config(
         module_name,
         status,
         pid,
+        spawn_nonce: None,
         port: 8080,
         binary_mtime: Some(1700000000),
         created_at: "2024-01-01T00:00:00Z".to_string(),

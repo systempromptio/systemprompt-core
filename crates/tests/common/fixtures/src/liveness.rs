@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 use systemprompt_traits::ProcessLiveness;
 
 #[derive(Debug, Clone, Default)]
@@ -22,7 +22,7 @@ impl LivePids {
 
 #[async_trait]
 impl ProcessLiveness for LivePids {
-    async fn owns(&self, pid: u32, _service: &ServiceName) -> bool {
+    async fn owns(&self, pid: u32, _service: &ServiceName, _nonce: Option<&SpawnNonce>) -> bool {
         self.0.contains(&pid)
     }
 }

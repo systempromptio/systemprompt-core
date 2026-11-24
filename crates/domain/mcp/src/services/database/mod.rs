@@ -13,9 +13,11 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::registry::RegistryService;
 use std::sync::Arc;
+use std::time::Duration;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{Reaped, ServiceRepository};
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::SpawnStamp;
 use systemprompt_manifest::services::ServiceStatus;
 
 // Why: `services.pid` is a signed column; a negative value is corrupt data
@@ -49,12 +51,32 @@ impl DatabaseService {
         &self.app_paths
     }
 
+    #[must_use]
+    pub fn child_grace(&self) -> Duration {
+        self.registry.config().shutdown.child_grace()
+    }
+
+    pub async fn recorded_stamp(&self, name: &ServiceName) -> McpDomainResult<SpawnStamp> {
+        Ok(self
+            .get_service_by_name(name)
+            .await?
+            .map_or(SpawnStamp::Unrecorded, |info| info.stamp))
+    }
+
     pub async fn register_service(
         &self,
         config: &McpServerConfig,
         pid: u32,
+        spawn_nonce: &SpawnNonce,
     ) -> McpDomainResult<ServiceName> {
-        state::register_service(&self.service_repo, &self.app_paths, config, pid).await
+        state::register_service(
+            &self.service_repo,
+            &self.app_paths,
+            config,
+            pid,
+            spawn_nonce,
+        )
+        .await
     }
 
     pub async fn unregister_service(&self, service_name: &ServiceName) -> McpDomainResult<()> {
@@ -102,15 +124,8 @@ impl DatabaseService {
         &self,
         enabled_servers: &[McpServerConfig],
     ) -> McpDomainResult<usize> {
-        sync::delete_disabled_services(&self.service_repo, enabled_servers).await
-    }
-
-    pub async fn register_existing_process(
-        &self,
-        config: &McpServerConfig,
-        pid: u32,
-    ) -> McpDomainResult<ServiceName> {
-        state::register_existing_process(&self.service_repo, &self.app_paths, config, pid).await
+        sync::delete_disabled_services(&self.service_repo, enabled_servers, self.child_grace())
+            .await
     }
 }
 
@@ -119,6 +134,7 @@ pub struct ServiceInfo {
     pub name: ServiceName,
     pub status: ServiceStatus,
     pub pid: Option<i32>,
+    pub stamp: SpawnStamp,
     pub port: u16,
     pub binary_mtime: Option<i64>,
 }

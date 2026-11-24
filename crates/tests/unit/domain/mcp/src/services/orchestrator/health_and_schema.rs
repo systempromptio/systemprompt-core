@@ -1,4 +1,5 @@
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::SpawnStamp;
 use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::database::ServiceInfo;
 use systemprompt_mcp::services::monitoring::health::{
@@ -98,6 +99,7 @@ fn service_info_construction() {
         pid: Some(1234),
         port: 8080,
         binary_mtime: Some(1000),
+        stamp: SpawnStamp::Unrecorded,
     };
     assert_eq!(info.name, "test-svc");
     assert_eq!(info.status, ServiceStatus::Running);
@@ -114,6 +116,7 @@ fn service_info_without_pid() {
         pid: None,
         port: 9090,
         binary_mtime: None,
+        stamp: SpawnStamp::Unrecorded,
     };
     assert!(info.pid.is_none());
     assert!(info.binary_mtime.is_none());
@@ -127,6 +130,7 @@ fn service_info_debug() {
         pid: None,
         port: 4000,
         binary_mtime: None,
+        stamp: SpawnStamp::Unrecorded,
     };
     let debug = format!("{:?}", info);
     assert!(debug.contains("debug-svc"));

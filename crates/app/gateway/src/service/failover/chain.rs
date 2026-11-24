@@ -1,5 +1,8 @@
 //! The failover loop over a route's deployment chain: per-hop bind, send,
 //! breaker settlement and the hop's metric, audit and `route_match` updates.
+//! A send holds its deployment's bulkhead permit for the attempt; a full
+//! bulkhead moves on to the next deployment, and a chain that ends on one
+//! answers `GatewayError::Saturated` with `Retry-After`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,6 +36,10 @@ pub(super) async fn run(
         .iter()
         .map(|hop| breakers.for_endpoint(&breaker_key(hop, owner), &hop.resilience))
         .collect();
+    let bulkheads: Vec<_> = deployments
+        .iter()
+        .map(|hop| breakers.bulkhead_for(&hop.endpoint_ref().to_string(), &hop.resilience))
+        .collect();
     let mut probes: Vec<Option<Probe<'_>>> = handles.iter().map(|b| acquire(b)).collect();
     let tripped: Vec<bool> = probes.iter().map(Option::is_none).collect();
     let mut order = plan_attempts(&tripped);
@@ -53,6 +60,10 @@ pub(super) async fn run(
             break;
         }
         let probe = probes.get_mut(index).and_then(Option::take);
+        let Ok(_permit) = bulkheads[index].try_acquire() else {
+            chain.saturated(index, bulkheads[index].limit());
+            continue;
+        };
         match chain.attempt(scanned, index, probe).await {
             Step::Served(outcome) => return Ok(outcome),
             Step::Fatal(provider, error) => return Err(chain.failed(&provider, error).await),
@@ -134,6 +145,22 @@ impl<'r> Chain<'_, 'r> {
                 Step::Next
             },
         }
+    }
+
+    fn saturated(&mut self, index: usize, limit: usize) {
+        let name = self.names[index].clone();
+        tracing::warn!(
+            ai_request_id = %self.send.ai_request_id,
+            deployment = %name,
+            limit,
+            "Gateway upstream concurrency cap reached; trying the next deployment"
+        );
+        self.last = Some((
+            name,
+            GatewayError::Saturated {
+                limit: u32::try_from(limit).unwrap_or(u32::MAX),
+            },
+        ));
     }
 
     fn record_hop(&self, to: &str) {

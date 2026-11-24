@@ -19,7 +19,7 @@ use systemprompt_api::services::server::{
     ReadinessState, SchedulerHealth, handle_health, shutdown,
 };
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_runtime::{AppContext, ShutdownRequest};
@@ -56,7 +56,8 @@ async fn seed_mcp_service(
     })
     .await?;
     if let Some(pid) = pid {
-        repo.update_service_pid(&name, pid).await?;
+        repo.update_service_pid(&name, pid, &SpawnNonce::generate())
+            .await?;
     }
     Ok(())
 }
@@ -78,7 +79,8 @@ async fn seed_agent_service(
     })
     .await?;
     if let Some(pid) = pid {
-        repo.update_service_pid(&name, pid).await?;
+        repo.update_service_pid(&name, pid, &SpawnNonce::generate())
+            .await?;
     }
     Ok(())
 }

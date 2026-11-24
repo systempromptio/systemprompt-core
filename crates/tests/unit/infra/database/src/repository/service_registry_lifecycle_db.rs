@@ -9,7 +9,7 @@ use systemprompt_database::{
     CreateServiceInput, Database, DbPool, PoolConfig, ServiceModule, ServiceRepository,
     ServiceStatus,
 };
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::{InstanceId, ServiceName, SpawnNonce};
 use systemprompt_test_fixtures::{LivePids, test_database_url, unique_name};
 
 async fn db_pool() -> DbPool {
@@ -48,7 +48,9 @@ async fn register(
     })
     .await
     .expect("create service");
-    repo.update_service_pid(name, pid).await.expect("set pid");
+    repo.update_service_pid(name, pid, &SpawnNonce::generate())
+        .await
+        .expect("set pid");
 }
 
 #[tokio::test]

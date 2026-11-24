@@ -8,7 +8,8 @@ use nix::unistd::Pid;
 use systemprompt_cli_integration_tests::full_bootstrap::{
     TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER, isolated_fixture,
 };
-use systemprompt_loader::subprocess;
+use systemprompt_identifiers::SpawnNonce;
+use systemprompt_loader::subprocess::{self, ChildClaim, SpawnStamp};
 use systemprompt_test_fixtures::{DisposableDb, bounded_output, seed_user_row_with_roles};
 
 const DETAIL_BOUND: Duration = Duration::from_secs(30);
@@ -26,6 +27,7 @@ struct OwnedServer {
 struct OwnedAgent {
     name: String,
     observed_pids: Vec<u32>,
+    observed_nonces: Vec<SpawnNonce>,
     log_file: std::path::PathBuf,
 }
 
@@ -53,15 +55,11 @@ impl Drop for OwnedServer {
         }
         if let Some(agent) = &self.cleanup_agent {
             let mut candidates = agent.observed_pids.clone();
-            candidates.extend(agent_pids(&agent.name));
+            candidates.extend(agent_pids(&agent.name, &agent.observed_nonces));
             candidates.sort_unstable();
             candidates.dedup();
             for pid in candidates {
-                if systemprompt_loader::subprocess::live_pid_is_subprocess(
-                    pid,
-                    "AGENT_NAME",
-                    &systemprompt_identifiers::ServiceName::new(&agent.name),
-                ) {
+                if identifies_agent(pid, &agent.name, &agent.observed_nonces) {
                     let _ = kill(Pid::from_raw(pid as i32), Signal::SIGKILL);
                     for _ in 0..40 {
                         if kill(Pid::from_raw(pid as i32), None).is_err()
@@ -91,20 +89,36 @@ async fn port_released(port: u16, within: Duration) -> bool {
         .is_ok()
 }
 
-fn agent_pids(name: &str) -> Vec<u32> {
+fn agent_claim(name: &str, nonce: &SpawnNonce) -> ChildClaim {
+    ChildClaim::Agent {
+        service: systemprompt_identifiers::ServiceName::new(name),
+        stamp: SpawnStamp::Boot(nonce.clone()),
+    }
+}
+
+fn identifies_agent(pid: u32, name: &str, nonces: &[SpawnNonce]) -> bool {
+    let service = systemprompt_identifiers::ServiceName::new(name);
+    std::iter::once(SpawnStamp::PreNonce)
+        .chain(nonces.iter().cloned().map(SpawnStamp::Boot))
+        .any(|stamp| {
+            subprocess::live_pid_is_subprocess(
+                pid,
+                &ChildClaim::Agent {
+                    service: service.clone(),
+                    stamp,
+                },
+            )
+        })
+}
+
+fn agent_pids(name: &str, nonces: &[SpawnNonce]) -> Vec<u32> {
     let Ok(output) = Command::new("ps").args(["-axo", "pid="]).output() else {
         return Vec::new();
     };
     String::from_utf8_lossy(&output.stdout)
         .split_whitespace()
         .filter_map(|value| value.parse().ok())
-        .filter(|pid| {
-            systemprompt_loader::subprocess::live_pid_is_subprocess(
-                *pid,
-                "AGENT_NAME",
-                &systemprompt_identifiers::ServiceName::new(name),
-            )
-        })
+        .filter(|pid| identifies_agent(*pid, name, nonces))
         .collect()
 }
 
@@ -447,6 +461,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
             observed_pids: Vec::new(),
+            observed_nonces: Vec::new(),
             log_file: fixture
                 .system_dir
                 .join(format!("logs/agent-{agent_name}.log")),
@@ -462,8 +477,8 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     wait_for_owned_listener(api_port, server.child.id()).await;
     assert_eq!(port_holder(api_port).await, Some(server.child.id()));
 
-    let (status, pid, stored_port): (String, Option<i32>, i32) =
-        sqlx::query_as("SELECT status, pid, port FROM services WHERE name = $1")
+    let (status, pid, stored_port, nonce): (String, Option<i32>, i32, Option<String>) =
+        sqlx::query_as("SELECT status, pid, port, spawn_nonce FROM services WHERE name = $1")
             .bind(&agent_name)
             .fetch_one(raw_pool.as_ref())
             .await
@@ -471,18 +486,12 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     assert_eq!(status, "running");
     assert_eq!(stored_port, i32::from(agent_port));
     let agent_pid = u32::try_from(pid.expect("running agent PID")).expect("positive agent PID");
-    server
-        .cleanup_agent
-        .as_mut()
-        .expect("agent cleanup")
-        .observed_pids
-        .push(agent_pid);
+    let agent_nonce = SpawnNonce::new(nonce.expect("running agent spawn nonce"));
+    let agent_cleanup = server.cleanup_agent.as_mut().expect("agent cleanup");
+    agent_cleanup.observed_pids.push(agent_pid);
+    agent_cleanup.observed_nonces.push(agent_nonce.clone());
     assert!(
-        systemprompt_loader::subprocess::live_pid_is_subprocess(
-            agent_pid,
-            "AGENT_NAME",
-            &systemprompt_identifiers::ServiceName::new(&agent_name)
-        ),
+        subprocess::live_pid_is_subprocess(agent_pid, &agent_claim(&agent_name, &agent_nonce)),
         "database PID must identify the owned agent"
     );
 
@@ -586,6 +595,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
             observed_pids: vec![agent_pid],
+            observed_nonces: vec![agent_nonce.clone()],
             log_file: fixture
                 .system_dir
                 .join(format!("logs/agent-{agent_name}.log")),
@@ -603,27 +613,30 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         Some(server.child.id()),
         "restart command must become the replacement API process"
     );
-    let (replacement_status, replacement_pid): (String, Option<i32>) =
-        sqlx::query_as("SELECT status, pid FROM services WHERE name = $1")
-            .bind(&agent_name)
-            .fetch_one(raw_pool.as_ref())
-            .await
-            .expect("replacement agent service row");
+    let (replacement_status, replacement_pid, replacement_nonce): (
+        String,
+        Option<i32>,
+        Option<String>,
+    ) = sqlx::query_as("SELECT status, pid, spawn_nonce FROM services WHERE name = $1")
+        .bind(&agent_name)
+        .fetch_one(raw_pool.as_ref())
+        .await
+        .expect("replacement agent service row");
     assert_eq!(replacement_status, "running");
     let replacement_agent_pid =
         u32::try_from(replacement_pid.expect("replacement agent PID")).expect("positive PID");
-    server
-        .cleanup_agent
-        .as_mut()
-        .expect("agent cleanup")
-        .observed_pids
-        .push(replacement_agent_pid);
+    let replacement_nonce =
+        SpawnNonce::new(replacement_nonce.expect("replacement agent spawn nonce"));
+    let agent_cleanup = server.cleanup_agent.as_mut().expect("agent cleanup");
+    agent_cleanup.observed_pids.push(replacement_agent_pid);
+    agent_cleanup
+        .observed_nonces
+        .push(replacement_nonce.clone());
     assert_ne!(replacement_agent_pid, agent_pid);
     assert!(
-        systemprompt_loader::subprocess::live_pid_is_subprocess(
+        subprocess::live_pid_is_subprocess(
             replacement_agent_pid,
-            "AGENT_NAME",
-            &systemprompt_identifiers::ServiceName::new(&agent_name)
+            &agent_claim(&agent_name, &replacement_nonce)
         ),
         "replacement database PID must identify the owned agent"
     );
@@ -726,6 +739,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
             observed_pids: vec![replacement_agent_pid],
+            observed_nonces: vec![replacement_nonce.clone()],
             log_file: fixture
                 .system_dir
                 .join(format!("logs/agent-{agent_name}.log")),
@@ -743,8 +757,8 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         Some(server.child.id()),
         "recovery restart must own the API port"
     );
-    let (restarted_status, restarted_pid): (String, Option<i32>) =
-        sqlx::query_as("SELECT status, pid FROM services WHERE name = $1")
+    let (restarted_status, restarted_pid, restarted_nonce): (String, Option<i32>, Option<String>) =
+        sqlx::query_as("SELECT status, pid, spawn_nonce FROM services WHERE name = $1")
             .bind(&agent_name)
             .fetch_one(raw_pool.as_ref())
             .await
@@ -753,20 +767,17 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     let restarted_after_stop_pid =
         u32::try_from(restarted_pid.expect("recovered agent PID")).expect("positive PID");
     assert_ne!(restarted_after_stop_pid, replacement_agent_pid);
+    let restarted_nonce = SpawnNonce::new(restarted_nonce.expect("recovered agent spawn nonce"));
     assert!(
-        systemprompt_loader::subprocess::live_pid_is_subprocess(
+        subprocess::live_pid_is_subprocess(
             restarted_after_stop_pid,
-            "AGENT_NAME",
-            &systemprompt_identifiers::ServiceName::new(&agent_name)
+            &agent_claim(&agent_name, &restarted_nonce)
         ),
         "recovery API must register the new owned agent process"
     );
-    server
-        .cleanup_agent
-        .as_mut()
-        .expect("agent cleanup")
-        .observed_pids
-        .push(restarted_after_stop_pid);
+    let agent_cleanup = server.cleanup_agent.as_mut().expect("agent cleanup");
+    agent_cleanup.observed_pids.push(restarted_after_stop_pid);
+    agent_cleanup.observed_nonces.push(restarted_nonce);
     wait_for_owned_listener(agent_port, restarted_after_stop_pid).await;
 
     kill(Pid::from_raw(server.child.id() as i32), Signal::SIGTERM)

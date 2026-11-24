@@ -101,7 +101,8 @@ pub use security::{
     UiSessionDiscovery, default_resource_audiences,
 };
 pub use server::{
-    ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,
+    AnalyticsQueueConfig, ContentNegotiationConfig, DEFAULT_MAX_IN_FLIGHT, FrameOptions,
+    ReferrerPolicy, SecurityHeadersConfig, ServerConfig,
 };
 pub use services::{
     BundleVerification, FetchFailurePolicy, HttpsServicesSource, OciServicesSource,

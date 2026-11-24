@@ -16,7 +16,7 @@ use systemprompt_api::services::health::{
     HealthChecker, HealthSummary, ModuleHealth, ProcessMonitor,
 };
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::{InstanceId, ServiceName, SpawnNonce};
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -41,7 +41,8 @@ async fn register_running(
     })
     .await?;
     if let Some(pid) = pid {
-        repo.update_service_pid(&name, pid).await?;
+        repo.update_service_pid(&name, pid, &SpawnNonce::generate())
+            .await?;
     }
     Ok(())
 }

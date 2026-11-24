@@ -34,14 +34,17 @@ pub async fn start_server(
 
     ProcessService::verify_binary(lifecycle.app_paths(), config)?;
 
-    lifecycle
-        .network()
-        .prepare_port(port, &config.service_name())
-        .await?;
+    let service_name = config.service_name();
+    let holder = super::super::network::PortHolderClaim {
+        service: &service_name,
+        stamp: &lifecycle.database().recorded_stamp(&service_name).await?,
+        grace: lifecycle.process().child_grace(),
+    };
+    lifecycle.network().prepare_port(port, &holder).await?;
 
     lifecycle
         .network()
-        .wait_for_port_release_with_retry(port, &config.service_name(), MAX_PORT_CLEANUP_ATTEMPTS)
+        .wait_for_port_release_with_retry(port, &holder, MAX_PORT_CLEANUP_ATTEMPTS)
         .await?;
 
     let pid = lifecycle
@@ -50,7 +53,10 @@ pub async fn start_server(
 
     wait_for_startup(config, lifecycle.monitoring().probe(), pid, events).await?;
 
-    lifecycle.database().register_service(config, pid).await?;
+    lifecycle
+        .database()
+        .register_service(config, pid, lifecycle.process().nonce())
+        .await?;
 
     tracing::info!(server = %config.name, port, "MCP server started");
 

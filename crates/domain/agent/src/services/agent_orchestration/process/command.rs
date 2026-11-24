@@ -8,8 +8,7 @@ use crate::services::shared::Result;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use systemprompt_identifiers::{AgentName, ServiceName};
-use systemprompt_loader::subprocess::ChildKind;
+use systemprompt_identifiers::AgentName;
 use systemprompt_manifest::Config;
 use systemprompt_models::CliPaths;
 
@@ -141,11 +140,6 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
 
-    systemprompt_loader::subprocess::mark_child(
-        &mut command,
-        ChildKind::Agent,
-        &ServiceName::of_agent(agent_name),
-    );
     systemprompt_loader::subprocess::place_in_own_process_group(&mut command);
 
     command

@@ -12,8 +12,8 @@ use std::time::Duration;
 
 use systemprompt_agent::services::agent_orchestration::OrchestrationError;
 use systemprompt_agent::services::agent_orchestration::port_service::PortService;
-use systemprompt_identifiers::AgentName;
-use systemprompt_loader::subprocess;
+use systemprompt_identifiers::{AgentName, SpawnNonce};
+use systemprompt_loader::subprocess::{self, SpawnStamp};
 
 const LISTENER_HELPER: &str = "services::agent_orchestration::port_service::listener_helper";
 const LISTEN_PORT_ENV: &str = "SYSTEMPROMPT_TEST_LISTEN_PORT";
@@ -41,7 +41,7 @@ fn unique_agent(prefix: &str) -> AgentName {
     AgentName::new(format!("{prefix}_{}", uuid::Uuid::new_v4().simple()))
 }
 
-fn spawn_marked_listener(agent: &AgentName, port: u16) -> Child {
+fn spawn_marked_listener(agent: &AgentName, port: u16, nonce: &SpawnNonce) -> Child {
     let helper = systemprompt_test_fixtures::helper(LISTENER_HELPER);
     let child = Command::new(std::env::current_exe().expect("test binary path"))
         .args(["--exact", LISTENER_HELPER, "--ignored"])
@@ -54,6 +54,10 @@ fn spawn_marked_listener(agent: &AgentName, port: u16) -> Child {
         .env(
             systemprompt_models::subprocess::AGENT_NAME_ENV,
             agent.as_str(),
+        )
+        .env(
+            systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+            nonce.as_str(),
         )
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -71,11 +75,12 @@ async fn reap(child: Child) {
 async fn cleanup_port_if_needed_stops_a_stale_copy_of_this_agent() {
     let agent = unique_agent("reclaim");
     let port = reserve_port();
-    let child = spawn_marked_listener(&agent, port);
+    let nonce = SpawnNonce::generate();
+    let child = spawn_marked_listener(&agent, port, &nonce);
     let pid = child.id();
 
-    let result = PortService::new()
-        .cleanup_port_if_needed(port, &agent)
+    let result = PortService::new(Duration::from_secs(5))
+        .cleanup_port_if_needed(port, &agent, &SpawnStamp::Boot(nonce))
         .await;
     let still_running = subprocess::is_running(pid).await;
     reap(child).await;
@@ -89,13 +94,37 @@ async fn cleanup_port_if_needed_stops_a_stale_copy_of_this_agent() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn cleanup_port_if_needed_refuses_a_holder_marked_for_another_agent() {
+async fn cleanup_port_if_needed_refuses_a_copy_of_this_agent_from_another_boot() {
+    let agent = unique_agent("otherboot");
     let port = reserve_port();
-    let child = spawn_marked_listener(&unique_agent("owner"), port);
+    let child = spawn_marked_listener(&agent, port, &SpawnNonce::generate());
     let pid = child.id();
 
-    let result = PortService::new()
-        .cleanup_port_if_needed(port, &unique_agent("other"))
+    let result = PortService::new(Duration::from_secs(5))
+        .cleanup_port_if_needed(port, &agent, &SpawnStamp::Boot(SpawnNonce::generate()))
+        .await;
+    let still_running = subprocess::is_running(pid).await;
+    reap(child).await;
+
+    assert!(
+        matches!(
+            result,
+            Err(OrchestrationError::PortHeldByForeignProcess { pid: holder, .. }) if holder == pid
+        ),
+        "a holder carrying another boot's nonce is refused: {result:?}"
+    );
+    assert!(still_running, "a holder of another boot is never signalled");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cleanup_port_if_needed_refuses_a_holder_marked_for_another_agent() {
+    let port = reserve_port();
+    let nonce = SpawnNonce::generate();
+    let child = spawn_marked_listener(&unique_agent("owner"), port, &nonce);
+    let pid = child.id();
+
+    let result = PortService::new(Duration::from_secs(5))
+        .cleanup_port_if_needed(port, &unique_agent("other"), &SpawnStamp::Boot(nonce))
         .await;
     let still_running = subprocess::is_running(pid).await;
     reap(child).await;

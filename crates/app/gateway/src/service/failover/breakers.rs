@@ -11,6 +11,13 @@
 //! [`REGISTRY_CAP`] entries a closed breaker nobody holds is dropped; a breaker
 //! rebuilt later starts closed, which is the state the dropped one was in.
 //!
+//! Each endpoint also has one [`Bulkhead`]
+//! ([`ProviderBreakers::bulkhead_for`]), keyed by the endpoint alone and sized
+//! by the same settings' `max_concurrent`: it caps the gateway's concurrent
+//! sends to that upstream, so one slow upstream cannot hold every admitted
+//! request. A send that finds it full fails over to the next deployment like an
+//! open circuit.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,12 +27,13 @@ use std::sync::{Arc, Mutex, PoisonError};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_manifest::services::catalog::ResolvedHop;
-use systemprompt_storage::resilience::{CircuitBreaker, Probe, ResilienceConfig};
+use systemprompt_storage::resilience::{Bulkhead, CircuitBreaker, Probe, ResilienceConfig};
 
 /// Circuit breakers owned by one gateway, one per provider name, sharing the
 /// provider's `resilience:` settings with the internal `ResilientProvider`.
 pub struct ProviderBreakers {
     inner: Mutex<HashMap<String, Arc<CircuitBreaker>>>,
+    bulkheads: Mutex<HashMap<String, Arc<Bulkhead>>>,
 }
 
 impl std::fmt::Debug for ProviderBreakers {
@@ -52,7 +60,21 @@ impl ProviderBreakers {
     pub fn new() -> Self {
         Self {
             inner: Mutex::new(HashMap::new()),
+            bulkheads: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub fn bulkhead_for(&self, endpoint: &str, settings: &ResilienceSettings) -> Arc<Bulkhead> {
+        let mut map = self
+            .bulkheads
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        Arc::clone(map.entry(endpoint.to_owned()).or_insert_with(|| {
+            Arc::new(Bulkhead::new(
+                format!("gateway:{endpoint}"),
+                ResilienceConfig::from(settings).bulkhead.max_concurrent,
+            ))
+        }))
     }
 
     pub fn for_endpoint(&self, name: &str, settings: &ResilienceSettings) -> Arc<CircuitBreaker> {

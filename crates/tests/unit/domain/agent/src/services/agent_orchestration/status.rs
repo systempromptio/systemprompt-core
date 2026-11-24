@@ -8,16 +8,18 @@
 use systemprompt_agent::services::agent_orchestration::{
     AgentStatus, OrchestrationError, ValidationReport,
 };
+use systemprompt_loader::subprocess::SpawnStamp;
 
 #[test]
 fn test_agent_status_running() {
     let status = AgentStatus::Running {
         pid: 12345,
         port: 8080,
+        stamp: SpawnStamp::PreNonce,
     };
 
     match status {
-        AgentStatus::Running { pid, port } => {
+        AgentStatus::Running { pid, port, .. } => {
             assert_eq!(pid, 12345);
             assert_eq!(port, 8080);
         },
@@ -68,6 +70,7 @@ fn test_agent_status_debug_running() {
     let status = AgentStatus::Running {
         pid: 1000,
         port: 9000,
+        stamp: SpawnStamp::PreNonce,
     };
 
     let debug_str = format!("{:?}", status);

@@ -59,6 +59,7 @@ tracing = { workspace = true }
 
 # Metrics
 metrics = { workspace = true }
+lru = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
 
 

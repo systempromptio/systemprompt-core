@@ -1,4 +1,5 @@
 use super::repos;
+use systemprompt_identifiers::SpawnNonce;
 use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_test_fixtures::{test_db_pool, unique_agent_name};
 
@@ -9,7 +10,7 @@ async fn register_and_get_status_running() {
     let name = unique_agent_name("svc-running");
 
     r.agent_services
-        .register_agent(&name, 4242, 9100)
+        .register_agent(&name, 4242, &SpawnNonce::generate(), 9100)
         .await
         .expect("register");
 
@@ -37,7 +38,7 @@ async fn register_starting_then_mark_running() {
     let name = unique_agent_name("svc-starting");
 
     r.agent_services
-        .register_agent_starting(&name, 1, 9101)
+        .register_agent_starting(&name, 1, &SpawnNonce::generate(), 9101)
         .await
         .expect("register starting");
     let status = r
@@ -69,7 +70,7 @@ async fn mark_crashed_clears_pid() {
     let r = repos(&pool);
     let name = unique_agent_name("svc-crash");
     r.agent_services
-        .register_agent(&name, 99, 9102)
+        .register_agent(&name, 99, &SpawnNonce::generate(), 9102)
         .await
         .expect("register");
 
@@ -93,7 +94,7 @@ async fn mark_stopped_and_error_clear_pid() {
 
     let stopped = unique_agent_name("svc-stop");
     r.agent_services
-        .register_agent(&stopped, 5, 9103)
+        .register_agent(&stopped, 5, &SpawnNonce::generate(), 9103)
         .await
         .expect("register");
     r.agent_services.mark_stopped(&stopped).await.expect("stop");
@@ -108,7 +109,7 @@ async fn mark_stopped_and_error_clear_pid() {
 
     let errored = unique_agent_name("svc-err");
     r.agent_services
-        .register_agent(&errored, 6, 9104)
+        .register_agent(&errored, 6, &SpawnNonce::generate(), 9104)
         .await
         .expect("register");
     r.agent_services.mark_error(&errored).await.expect("error");
@@ -130,7 +131,7 @@ async fn unrecognised_stored_status_is_refused_by_the_check() {
     let r = repos(&pool);
     let name = unique_agent_name("svc-garbled");
     r.agent_services
-        .register_agent(&name, 7, 9105)
+        .register_agent(&name, 7, &SpawnNonce::generate(), 9105)
         .await
         .expect("register");
 
@@ -154,7 +155,7 @@ async fn list_running_agents_includes_registered() {
     let r = repos(&pool);
     let name = unique_agent_name("svc-list");
     r.agent_services
-        .register_agent(&name, 31337, 9106)
+        .register_agent(&name, 31337, &SpawnNonce::generate(), 9106)
         .await
         .expect("register");
 
@@ -186,11 +187,11 @@ async fn register_twice_upserts() {
     let r = repos(&pool);
     let name = unique_agent_name("svc-upsert");
     r.agent_services
-        .register_agent(&name, 1, 9107)
+        .register_agent(&name, 1, &SpawnNonce::generate(), 9107)
         .await
         .expect("first");
     r.agent_services
-        .register_agent(&name, 2, 9108)
+        .register_agent(&name, 2, &SpawnNonce::generate(), 9108)
         .await
         .expect("second");
     let s = r

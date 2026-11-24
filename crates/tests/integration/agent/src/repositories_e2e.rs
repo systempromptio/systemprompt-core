@@ -13,7 +13,8 @@ use systemprompt_agent::repository::task::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AgentId, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
+    AgentId, AgentName, ArtifactId, ContextId, MessageId, SessionId, SpawnNonce, TaskId, TraceId,
+    UserId,
 };
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_models::{ExecutionStep, StepContent};
@@ -450,7 +451,7 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
 
     repos
         .agent_services
-        .register_agent_starting(&name, 99999, 19999)
+        .register_agent_starting(&name, 99999, &SpawnNonce::generate(), 19999)
         .await?;
     repos.agent_services.mark_running(&name).await?;
 
@@ -468,7 +469,7 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
     repos.agent_services.mark_stopped(&name).await?;
     repos
         .agent_services
-        .register_agent(&name, 12345, 20000)
+        .register_agent(&name, 12345, &SpawnNonce::generate(), 20000)
         .await?;
     repos.agent_services.remove_agent_service(&name).await?;
 

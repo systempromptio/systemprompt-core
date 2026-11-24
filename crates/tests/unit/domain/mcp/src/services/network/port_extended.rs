@@ -4,7 +4,10 @@
 // only bind plain loopback listeners.
 
 use std::net::TcpListener;
+use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::SpawnStamp;
+use systemprompt_mcp::services::network::port::PortHolderClaim;
 
 use systemprompt_mcp::services::network::port::{
     is_port_in_use, is_port_responsive, wait_for_port_release, wait_for_port_release_with_retry,
@@ -59,7 +62,15 @@ async fn wait_for_port_release_bound_port_times_out() {
 
 #[tokio::test]
 async fn wait_for_port_release_with_retry_free_port_ok() {
-    let result =
-        wait_for_port_release_with_retry(59778, &ServiceName::new("systemprompt"), 2).await;
+    let result = wait_for_port_release_with_retry(
+        59778,
+        &PortHolderClaim {
+            service: &ServiceName::new("systemprompt"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+        2,
+    )
+    .await;
     result.expect("free port releases with retry");
 }

@@ -14,7 +14,9 @@ use std::sync::Arc;
 
 use systemprompt_models::routing::EventMetadata;
 use systemprompt_models::{RequestContext, RouteClassifier};
-use systemprompt_traits::{BackgroundTasks, DynRequestAnalytics, RequestAnalyticsEvent};
+use systemprompt_traits::{DynRequestAnalytics, RequestAnalyticsEvent};
+
+use super::queue::AnalyticsQueue;
 
 #[derive(Debug)]
 pub struct AnalyticsEventParams {
@@ -40,14 +42,14 @@ pub fn event_metadata_for(classified: EventMetadata, html_response: bool) -> Eve
 }
 
 pub(super) fn spawn_analytics_event_task(
-    background: &BackgroundTasks,
+    queue: &AnalyticsQueue,
     recorder: DynRequestAnalytics,
     route_classifier: Arc<RouteClassifier>,
     params: AnalyticsEventParams,
 ) {
     let sanitized_uri = sanitize_uri(&params.uri);
 
-    background.spawn("analytics_event", async move {
+    queue.offer(async move {
         let message = format!(
             "HTTP {} - {} {}",
             params.status_code, params.method, sanitized_uri

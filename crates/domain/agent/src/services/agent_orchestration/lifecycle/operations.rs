@@ -3,15 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use systemprompt_identifiers::{AgentName, ServiceName};
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp, StopOutcome};
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use super::AgentLifecycle;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
-
-const STOP_GRACE: Duration = Duration::from_secs(5);
 
 impl AgentLifecycle {
     pub async fn start_agent(
@@ -81,8 +79,8 @@ impl AgentLifecycle {
 
         let status = self.db_service.get_status(agent_name).await?;
 
-        if let AgentStatus::Running { pid, .. } = status {
-            let outcome = stop_agent_process(agent_name, pid).await?;
+        if let AgentStatus::Running { pid, stamp, .. } = status {
+            let outcome = self.stop_agent_process(agent_name, pid, stamp).await?;
             tracing::debug!(agent_name = %agent_name, pid = %pid, outcome = ?outcome, "Stopped agent process");
         }
 
@@ -109,8 +107,8 @@ impl AgentLifecycle {
         tracing::debug!(agent_name = %agent_name, "Restarting agent");
 
         let status = self.db_service.get_status(agent_name).await?;
-        if let AgentStatus::Running { pid, .. } = status {
-            let outcome = stop_agent_process(agent_name, pid).await?;
+        if let AgentStatus::Running { pid, stamp, .. } = status {
+            let outcome = self.stop_agent_process(agent_name, pid, stamp).await?;
             tracing::debug!(agent_name = %agent_name, pid = %pid, outcome = ?outcome, "Stopped agent process before restart");
 
             self.db_service.update_agent_stopped(agent_name).await?;
@@ -126,14 +124,15 @@ impl AgentLifecycle {
         port: u16,
     ) -> OrchestrationResult<()> {
         self.db_service
-            .register_agent_starting(agent_name, pid, port)
+            .register_agent_starting(agent_name, pid, self.spawner.nonce(), port)
             .await?;
         self.verify_startup(agent_name, pid, port).await?;
         self.db_service.mark_running(agent_name).await
     }
 
     async fn reap_failed_spawn(&self, agent_name: &AgentName, pid: u32) {
-        match stop_agent_process(agent_name, pid).await {
+        let stamp = SpawnStamp::Boot(self.spawner.nonce().clone());
+        match self.stop_agent_process(agent_name, pid, stamp).await {
             Ok(_) => {
                 if let Err(e) = self.db_service.mark_failed(agent_name).await {
                     tracing::error!(
@@ -168,20 +167,23 @@ impl AgentLifecycle {
     }
 }
 
-async fn stop_agent_process(agent_name: &AgentName, pid: u32) -> OrchestrationResult<StopOutcome> {
-    let outcome = subprocess::stop_owned(
-        pid,
-        ChildKind::Agent,
-        &ServiceName::of_agent(agent_name),
-        STOP_GRACE,
-    )
-    .await?;
-    if outcome == StopOutcome::NotOurs {
-        tracing::warn!(
-            agent_name = %agent_name,
-            pid,
-            "Recorded pid is not this agent's process; it was left running and the row is cleared"
-        );
+impl AgentLifecycle {
+    async fn stop_agent_process(
+        &self,
+        agent_name: &AgentName,
+        pid: u32,
+        stamp: SpawnStamp,
+    ) -> OrchestrationResult<StopOutcome> {
+        let claim =
+            ChildClaim::spawned(ChildKind::Agent, &ServiceName::of_agent(agent_name), stamp);
+        let outcome = subprocess::stop_owned(pid, &claim, self.child_grace()).await?;
+        if outcome == StopOutcome::NotOurs {
+            tracing::warn!(
+                agent_name = %agent_name,
+                pid,
+                "Recorded pid is not this agent's process; it was left running and the row is cleared"
+            );
+        }
+        Ok(outcome)
     }
-    Ok(outcome)
 }
