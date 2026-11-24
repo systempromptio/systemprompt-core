@@ -65,73 +65,70 @@ impl Extension for UsersExtension {
         for schema in schemas() {
             c.schema(schema);
         }
-        c.user_purge(UserPurgeTable {
-            table: "user_rate_limit_buckets",
-            column: "user_id",
-            predicate: None,
-        })
-        .user_purge(UserPurgeTable {
-            table: "sso_login_events",
-            column: "user_id",
-            predicate: None,
-        })
-        .migrations(extension_migrations!())
-        .admin_bootstrap(crate::provides::admin_bootstrap)
-        .provide(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
-            Ok(bans)
-        })
-        .provide_sealed(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
-            Ok(sessions)
-        })
-        .provide(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let telemetry: DynSessionTelemetry = Arc::new(SessionRepository::new(&db));
-            Ok(telemetry)
-        })
-        .provide_sealed(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let sessions: systemprompt_traits::DynAiSessionProvider = Arc::new(
-                crate::UsersAiSessionProvider::from_repository(SessionRepository::new(&db)),
-            );
-            Ok(sessions)
-        })
-        .provide_conferred(
-            ConferralRow::GatewaySessionMint,
-            crate::provides::gateway_session_mint,
-        )
-        .provide_conferred(
-            ConferralRow::IdentitySignInSessions,
-            crate::provides::sign_in_sessions,
-        )
-        .provide(crate::provides::request_authenticator)
-        .provide(crate::provides::rate_limit_buckets)
-        .provide(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&db));
-            Ok(usage)
-        })
-        .provide(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let resolver: Arc<dyn NotificationAudienceResolver> = Arc::new(
-                UserRoleAudienceResolver::new(Arc::new(UserRepository::new(&db))),
-            );
-            Ok(RoleAudienceSeam::new(resolver))
-        })
-        .subject_attributes(|r: &Resolved<'_>| {
-            let db = r.get::<DbPool>()?;
-            let provider: Arc<dyn SubjectAttributeProvider> =
-                Arc::new(UsersRoleSubjectProvider::new(db.write_pool()));
-            Ok(provider)
-        })
-        .job(UserRateLimitPruneJob)
-        .provide_sealed(crate::provides::user_retention)
-        .provide_sealed_after_governance(crate::provides::user_provider)
-        .job(CleanupAnonymousUsersJob)
-        .job(CleanupInactiveSessionsJob);
+        for table in ["user_rate_limit_buckets", "sso_login_events"] {
+            c.user_purge(UserPurgeTable {
+                table,
+                column: "user_id",
+                predicate: None,
+            });
+        }
+        c.migrations(extension_migrations!())
+            .admin_bootstrap(crate::provides::admin_bootstrap)
+            .provide(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));
+                Ok(bans)
+            })
+            .provide_sealed(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let sessions: DynSessionStore = Arc::new(SessionRepository::new(&db));
+                Ok(sessions)
+            })
+            .provide(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let telemetry: DynSessionTelemetry = Arc::new(SessionRepository::new(&db));
+                Ok(telemetry)
+            })
+            .provide_sealed(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let sessions: systemprompt_traits::DynAiSessionProvider = Arc::new(
+                    crate::UsersAiSessionProvider::from_repository(SessionRepository::new(&db)),
+                );
+                Ok(sessions)
+            })
+            .provide_conferred(
+                ConferralRow::GatewaySessionMint,
+                crate::provides::gateway_session_mint,
+            )
+            .provide_conferred(
+                ConferralRow::IdentitySignInSessions,
+                crate::provides::sign_in_sessions,
+            )
+            .provide(crate::provides::request_authenticator)
+            .provide(crate::provides::rate_limit_buckets)
+            .provide(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&db));
+                Ok(usage)
+            })
+            .provide(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let resolver: Arc<dyn NotificationAudienceResolver> = Arc::new(
+                    UserRoleAudienceResolver::new(Arc::new(UserRepository::new(&db))),
+                );
+                Ok(RoleAudienceSeam::new(resolver))
+            })
+            .subject_attributes(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let provider: Arc<dyn SubjectAttributeProvider> =
+                    Arc::new(UsersRoleSubjectProvider::new(db.write_pool()));
+                Ok(provider)
+            })
+            .job(UserRateLimitPruneJob)
+            .provide_sealed(crate::provides::user_retention)
+            .provide_sealed_after_governance(crate::provides::user_provider)
+            .job(CleanupAnonymousUsersJob)
+            .job(CleanupInactiveSessionsJob);
         c.slot::<RoleDirectorySlot>().directory(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let directory: SharedRoleDirectory = UsersRoleDirectory::shared(db.write_pool());
