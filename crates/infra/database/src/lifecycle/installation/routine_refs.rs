@@ -14,8 +14,10 @@
 //! `pg_get_functiondef`. Dynamic SQL (`EXECUTE`) is opaque and not checked;
 //! relations the function itself creates, and a statement trigger's
 //! transition tables, are not references. The trigger listing is a catalog
-//! scan another session's DDL can race, so it is read again on the same
-//! transient failures as the schema catalog digest.
+//! scan: an install runs it under the bootstrap lock it holds exclusively
+//! ([`check_trigger_routines_held`]), any other caller holds that lock shared
+//! for the scan ([`check_trigger_routines`]), and a lock conflict reads it
+//! again on the same SQLSTATEs as the schema catalog digest.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +29,7 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
+use super::extension::lock::BootstrapLockGuard;
 use super::lock_conflict::read_catalog;
 use crate::error::RepositoryError;
 use crate::services::DatabaseProvider;
@@ -104,6 +107,15 @@ fn text(row: &crate::models::JsonRow, key: &str) -> String {
 }
 
 pub async fn check_trigger_routines(db: &dyn DatabaseProvider) -> Result<(), LoaderError> {
+    let lock = BootstrapLockGuard::acquire_shared(db).await?;
+    let checked = check_trigger_routines_held(db).await;
+    lock.release().await;
+    checked
+}
+
+pub(crate) async fn check_trigger_routines_held(
+    db: &dyn DatabaseProvider,
+) -> Result<(), LoaderError> {
     let failed =
         |context: String, source: RepositoryError| LoaderError::SchemaInstallationStepFailed {
             extension: ExtensionId::new("database"),

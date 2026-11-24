@@ -1,6 +1,13 @@
 //! Session-pinned Postgres advisory lock serialising concurrent bootstraps.
 //!
-//! Acquisition polls `pg_try_advisory_lock` with a deadline and logs progress,
+//! Every schema install (and every migration repair) holds the lock
+//! exclusively for its whole run. A catalog scan outside an install holds it
+//! shared ([`BootstrapLockGuard::acquire_shared`]), so an install's DDL never
+//! drops an object a scan has listed but not yet opened; scans do not exclude
+//! each other.
+//!
+//! Acquisition polls `pg_try_advisory_lock` (or its `_shared` form) with a
+//! deadline and logs progress,
 //! so a wedged holder surfaces as a typed [`BootstrapLockTimeout`] rather than
 //! an unbounded silent wait.
 //!
@@ -36,6 +43,13 @@ const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
 /// outlives a cancelled or panicking holder.
 pub struct BootstrapLockGuard {
     conn: Option<PoolConnection<Postgres>>,
+    mode: LockMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LockMode {
+    Exclusive,
+    Shared,
 }
 
 impl std::fmt::Debug for BootstrapLockGuard {
@@ -43,6 +57,7 @@ impl std::fmt::Debug for BootstrapLockGuard {
         f.debug_struct("BootstrapLockGuard")
             .field("key", &BOOTSTRAP_ADVISORY_LOCK_KEY)
             .field("held", &self.conn.is_some())
+            .field("mode", &self.mode)
             .finish()
     }
 }
@@ -61,9 +76,21 @@ impl BootstrapLockGuard {
         Self::acquire_within(db, Self::DEFAULT_WAIT).await
     }
 
+    pub async fn acquire_shared(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
+        Self::acquire_mode(db, Self::DEFAULT_WAIT, LockMode::Shared).await
+    }
+
     pub async fn acquire_within(
         db: &dyn DatabaseProvider,
         wait: Duration,
+    ) -> Result<Self, LoaderError> {
+        Self::acquire_mode(db, wait, LockMode::Exclusive).await
+    }
+
+    async fn acquire_mode(
+        db: &dyn DatabaseProvider,
+        wait: Duration,
+        mode: LockMode,
     ) -> Result<Self, LoaderError> {
         let mut conn = db.get_postgres_pool().acquire().await.map_err(|e| {
             LoaderError::SchemaInstallationStepFailed {
@@ -77,13 +104,25 @@ impl BootstrapLockGuard {
         let deadline = started + wait;
         let mut next_progress = started + PROGRESS_INTERVAL;
         loop {
-            let acquired = sqlx::query_scalar!(
-                r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#,
-                BOOTSTRAP_ADVISORY_LOCK_KEY
-            )
-            .fetch_one(conn.as_mut())
-            .await
-            .map_err(|e| LoaderError::SchemaInstallationStepFailed {
+            let attempt = match mode {
+                LockMode::Exclusive => {
+                    sqlx::query_scalar!(
+                        r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#,
+                        BOOTSTRAP_ADVISORY_LOCK_KEY
+                    )
+                    .fetch_one(conn.as_mut())
+                    .await
+                },
+                LockMode::Shared => {
+                    sqlx::query_scalar!(
+                        r#"SELECT pg_try_advisory_lock_shared($1) AS "acquired!""#,
+                        BOOTSTRAP_ADVISORY_LOCK_KEY
+                    )
+                    .fetch_one(conn.as_mut())
+                    .await
+                },
+            };
+            let acquired = attempt.map_err(|e| LoaderError::SchemaInstallationStepFailed {
                 extension: ExtensionId::new("database"),
                 context: "Failed to acquire bootstrap advisory lock".to_owned(),
                 source: Box::new(e),
@@ -112,20 +151,36 @@ impl BootstrapLockGuard {
 
         debug!(
             key = BOOTSTRAP_ADVISORY_LOCK_KEY,
+            ?mode,
             "Acquired bootstrap advisory lock"
         );
 
-        Ok(Self { conn: Some(conn) })
+        Ok(Self {
+            conn: Some(conn),
+            mode,
+        })
     }
 
     pub async fn release(mut self) {
         let Some(mut conn) = self.conn.take() else {
             return;
         };
-        match sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
-            .fetch_one(conn.as_mut())
-            .await
-        {
+        let unlocked = match self.mode {
+            LockMode::Exclusive => {
+                sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
+                    .fetch_one(conn.as_mut())
+                    .await
+            },
+            LockMode::Shared => {
+                sqlx::query_scalar!(
+                    "SELECT pg_advisory_unlock_shared($1)",
+                    BOOTSTRAP_ADVISORY_LOCK_KEY
+                )
+                .fetch_one(conn.as_mut())
+                .await
+            },
+        };
+        match unlocked {
             Ok(Some(true)) => drop(conn),
             Ok(released) => {
                 warn!(

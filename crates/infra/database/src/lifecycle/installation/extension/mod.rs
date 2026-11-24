@@ -68,7 +68,7 @@ use super::migration_owners::MigrationMembers;
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
-use super::routine_refs::check_trigger_routines;
+use super::routine_refs::check_trigger_routines_held;
 use super::seeds::apply_seeds;
 use super::undeclared::residue_including;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
@@ -204,7 +204,7 @@ async fn run_install(
     // Why: after every phase, so the schema checked is the one the server
     // will write to; a trigger left writing a dropped table fails every
     // request that touches its table.
-    check_trigger_routines(db).await?;
+    check_trigger_routines_held(db).await?;
 
     for ext in schema_extensions {
         apply_seeds(ext.as_ref(), db).await?;
