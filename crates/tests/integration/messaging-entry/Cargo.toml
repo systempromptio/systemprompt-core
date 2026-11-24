@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 systemprompt = { workspace = true, features = ["full", "slack", "teams"] }
+systemprompt-agent-entry = { workspace = true, features = ["http"] }
 systemprompt-api = { workspace = true }
 systemprompt-slack-entry = { workspace = true, features = ["http"] }
 systemprompt-teams-entry = { workspace = true, features = ["http"] }

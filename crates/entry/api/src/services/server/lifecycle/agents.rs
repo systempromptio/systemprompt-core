@@ -74,13 +74,13 @@ pub async fn reconcile_agents(
             "Attempting cleanup and retry",
         );
         for (agent, first_error) in &failed_agents {
-            tracing::warn!(agent = %agent.name, error = %first_error, "Agent failed on first start attempt");
+            tracing::warn!(agent = %agent.name, error = %describe(first_error), "Agent failed on first start attempt");
         }
         let retry: Vec<AgentConfig> = failed_agents.into_iter().map(|(agent, _)| agent).collect();
         let (restarted, retry_failed) = start_agents(agents.as_ref(), &retry, events).await;
         if !retry_failed.is_empty() {
             for (agent, error) in &retry_failed {
-                events.agent_failed(agent.name.clone(), error.to_string());
+                events.agent_failed(agent.name.clone(), describe(error));
             }
             return Err(fatal(&retry_failed));
         }
@@ -134,6 +134,17 @@ pub(super) async fn start_agent(
     Ok(())
 }
 
+fn describe(error: &ServiceProcessError) -> String {
+    let mut text = error.to_string();
+    let mut source = std::error::Error::source(error);
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
+}
+
 fn fatal(retry_failed: &[(AgentConfig, ServiceProcessError)]) -> anyhow::Error {
     let agent_names: Vec<&str> = retry_failed
         .iter()
@@ -150,7 +161,7 @@ fn fatal(retry_failed: &[(AgentConfig, ServiceProcessError)]) -> anyhow::Error {
         agent_names.join(", "),
         retry_failed
             .iter()
-            .map(|(agent, err)| format!("  - {}: {err}", agent.name))
+            .map(|(agent, err)| format!("  - {}: {}", agent.name, describe(err)))
             .collect::<Vec<_>>()
             .join("\n")
     )

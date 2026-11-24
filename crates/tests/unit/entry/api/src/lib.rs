@@ -19,8 +19,6 @@ mod composition;
 #[cfg(test)]
 mod error_conversions;
 #[cfg(test)]
-mod messaging_helpers;
-#[cfg(test)]
 pub(crate) mod middleware;
 #[cfg(test)]
 mod probes;

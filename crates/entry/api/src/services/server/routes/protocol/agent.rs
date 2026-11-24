@@ -31,8 +31,7 @@ use crate::services::middleware::MountError;
 
 const REGISTRY_SEGMENT: &str = "/registry";
 
-pub(in crate::services::server::routes) const WEBHOOK_RATE: RateLimit =
-    RateLimit::new("webhook", RateBudget::PerSecond(200));
+pub const WEBHOOK_RATE: RateLimit = RateLimit::new("webhook", RateBudget::PerSecond(200));
 
 pub(in crate::services::server::routes) fn agent_routes(
     mount: &MountCtx<'_>,

@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Agent supervision"
+text = "Startup agent reconciliation and the leased process actuator drive agents and MCP servers through the `ServiceProcessSet` each member contributes. An agent restart (`infra services restart` included) is a clean start: a running agent is stopped through its owned pid, its record dropped and its port freed before it starts. A leased MCP server is started with the set's `start`. A kind with no admitted process set is not actuated and does not fail the boot."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Added"
+text = "`AgentOrchestrator::start_clean`."

@@ -35,6 +35,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-agent-entry = { workspace = true, features = ["http"] }
 systemprompt-brain = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-oauth = { workspace = true }

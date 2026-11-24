@@ -4,12 +4,12 @@
 //! as are the surrounding dispatch types. None of this touches the network or
 //! the database — the dispatch pipeline is covered by the integration suite.
 
-use systemprompt_api::services::messaging::MessagingError;
-use systemprompt_api::services::messaging::a2a::{permissions_for, reply_text};
+use systemprompt_agent_entry::messaging::MessagingError;
+use systemprompt_agent_entry::messaging::a2a::{permissions_for, reply_text};
 use systemprompt_identifiers::{ContextId, MessageId};
 use systemprompt_models::a2a::{Message, MessageRole, Part, SendMessageResult, Task};
 use systemprompt_models::auth::Permission;
-use systemprompt_traits::DispatchOutcome;
+use systemprompt_traits::{DispatchOutcome, MessagingDispatchError};
 
 fn agent_message(parts: Vec<Part>) -> Message {
     Message {
@@ -107,4 +107,40 @@ fn every_other_role_set_stays_below_admin() {
             "roles {roles:?} must not imply admin"
         );
     }
+}
+
+#[test]
+fn a_dispatch_failure_renders_one_apologetic_line_per_variant() {
+    let variants = [
+        MessagingError::AgentRejected {
+            code: -32603,
+            message: "agent unreachable".to_owned(),
+        },
+        MessagingError::Response(
+            serde_json::from_str::<serde_json::Value>("not json").unwrap_err(),
+        ),
+        MessagingError::Encode(serde_json::from_str::<serde_json::Value>("{").unwrap_err()),
+    ];
+
+    for err in variants {
+        let rendered = MessagingDispatchError::failed(err).user_message();
+        assert!(
+            rendered.starts_with("Sorry — something went wrong handling that."),
+            "every failure gets the same opaque opener: {rendered}"
+        );
+    }
+}
+
+#[test]
+fn the_reply_surface_never_names_the_failing_subsystem_to_the_user() {
+    let err = MessagingError::AgentRejected {
+        code: -32000,
+        message: "vault credentials expired".to_owned(),
+    };
+
+    assert!(err.to_string().contains("vault credentials expired"));
+
+    let rendered = MessagingDispatchError::failed(err).user_message();
+    assert_eq!(rendered, "Sorry — something went wrong handling that.");
+    assert!(!rendered.contains("vault credentials expired"));
 }

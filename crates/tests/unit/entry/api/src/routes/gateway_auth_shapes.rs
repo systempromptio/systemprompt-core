@@ -1,16 +1,12 @@
-//! Bridge-auth response shapes and the messaging reply-surface renderer.
+//! Bridge-auth response shapes.
 //!
 //! `AuthResponse: From<BridgeAuthResult>` is the only place a minted bridge
-//! credential becomes a wire body, and `MessagingError::user_message` is the
-//! only text a Slack or Teams user ever sees when a dispatch fails. Neither is
-//! called by any test.
+//! credential becomes a wire body.
 
 use std::collections::HashMap;
 
 use systemprompt_api::routes::gateway::auth::{AuthResponse, capabilities};
-use systemprompt_api::services::messaging::MessagingError;
 use systemprompt_oauth::services::BridgeAuthResult;
-use systemprompt_traits::MessagingDispatchError;
 
 #[test]
 fn a_minted_bridge_credential_becomes_the_wire_body_intact() {
@@ -47,40 +43,4 @@ async fn the_advertised_auth_modes_are_the_ones_the_bridge_can_use() {
             "the bridge negotiates against this list; {expected} is missing: {modes:?}"
         );
     }
-}
-
-#[test]
-fn a_dispatch_failure_renders_one_apologetic_line_per_variant() {
-    let variants = [
-        MessagingError::AgentRejected {
-            code: -32603,
-            message: "agent unreachable".to_owned(),
-        },
-        MessagingError::Response(
-            serde_json::from_str::<serde_json::Value>("not json").unwrap_err(),
-        ),
-        MessagingError::Encode(serde_json::from_str::<serde_json::Value>("{").unwrap_err()),
-    ];
-
-    for err in variants {
-        let rendered = MessagingDispatchError::failed(err).user_message();
-        assert!(
-            rendered.starts_with("Sorry — something went wrong handling that."),
-            "every failure gets the same opaque opener: {rendered}"
-        );
-    }
-}
-
-#[test]
-fn the_reply_surface_never_names_the_failing_subsystem_to_the_user() {
-    let err = MessagingError::AgentRejected {
-        code: -32000,
-        message: "vault credentials expired".to_owned(),
-    };
-
-    assert!(err.to_string().contains("vault credentials expired"));
-
-    let rendered = MessagingDispatchError::failed(err).user_message();
-    assert_eq!(rendered, "Sorry — something went wrong handling that.");
-    assert!(!rendered.contains("vault credentials expired"));
 }

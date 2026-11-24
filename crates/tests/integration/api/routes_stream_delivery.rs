@@ -13,7 +13,6 @@ use axum::Extension;
 use axum::body::Body;
 use axum::http::Response;
 use http_body_util::BodyExt;
-use systemprompt_api::routes::stream::stream_router;
 use systemprompt_events::Broadcaster;
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::agui::AgUiEventBuilder;
@@ -31,7 +30,7 @@ fn fresh_user() -> UserId {
 async fn open_agui(ctx: &AppContext, user: &UserId) -> anyhow::Result<Response<Body>> {
     let mut req_ctx = request_context("ignored");
     req_ctx.auth.actor.user_id = user.clone();
-    Ok(stream_router(ctx)
+    Ok(crate::common::stream_app(ctx)
         .layer(Extension(req_ctx))
         .oneshot(empty_get("/agui"))
         .await?)
@@ -152,7 +151,7 @@ async fn the_a2a_stream_registers_on_its_own_broadcaster() -> anyhow::Result<()>
     let mut req_ctx = request_context("ignored");
     req_ctx.auth.actor.user_id = user.clone();
 
-    let resp = stream_router(&ctx)
+    let resp = crate::common::stream_app(&ctx)
         .layer(Extension(req_ctx))
         .oneshot(empty_get("/a2a"))
         .await?;

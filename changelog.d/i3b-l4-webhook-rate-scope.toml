@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "`/api/v1/webhook` is rate limited under the `webhook` scope at 200 requests per second per caller (times the profile burst multiplier); it was unthrottled. Its authenticated gate and user request context are unchanged."

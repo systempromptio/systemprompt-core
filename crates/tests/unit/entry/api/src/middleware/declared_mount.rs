@@ -357,3 +357,42 @@ async fn a_public_context_with_a_policy_excluding_anonymous_callers_is_refused_a
         );
     }
 }
+
+#[tokio::test]
+async fn the_webhook_budget_refuses_an_authenticated_caller_past_its_burst() {
+    let limits = RateLimitsConfig {
+        burst_multiplier: 1,
+        ..RateLimitsConfig::default()
+    };
+    let protection = RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
+        .with_rate_limit(systemprompt_api::services::server::routes::WEBHOOK_RATE);
+    let app = protect(
+        ok_router(),
+        &protection,
+        &layers(limits, UserType::User).await,
+        BASE,
+    )
+    .expect("the webhook declaration mounts");
+
+    let mut admitted = 0_u32;
+    let mut refused = false;
+    for _ in 0..5_000 {
+        let status = app
+            .clone()
+            .oneshot(request(UserType::User))
+            .await
+            .expect("request must complete")
+            .status();
+        if status == StatusCode::TOO_MANY_REQUESTS {
+            refused = true;
+            break;
+        }
+        assert_eq!(status, StatusCode::OK);
+        admitted += 1;
+    }
+    assert!(refused, "the webhook scope refuses past its budget");
+    assert!(
+        admitted >= 200,
+        "the webhook scope admits its 200-per-second burst first, admitted {admitted}"
+    );
+}

@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The chat-platform messaging dispatcher moves to the `agent-http` member: it is built in that member's provide fn from the host's sealed authz hook cell, signing keys, issuer and agent dispatch cell, provided sealed, and bound into the messaging cell by the kernel when the server builds its routes. With `agent-http` not admitted every Slack and Teams dispatch is refused. `systemprompt_api::services::messaging` is removed; `bind_dispatcher` and `DispatcherBindError` are `systemprompt_api::services::agent_dispatch::{bind_dispatchers, DispatcherBindError}`."
+
+[[crate]]
+name = "systemprompt-agent-entry"
+section = "Added"
+text = "`messaging::{A2aMessagingDispatcher, DispatcherInputs, MessagingError, NoMessagingDispatch}`; `A2aMessagingDispatcher::new` takes `DispatcherInputs` instead of an `AppContext`."

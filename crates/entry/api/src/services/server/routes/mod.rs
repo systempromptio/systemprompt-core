@@ -41,7 +41,7 @@ use systemprompt_manifest::profile::NodeRole;
 
 use crate::routes::admin::services::RefreshLock;
 pub(super) use error::RouteMountError;
-pub use protocol::Composed;
+pub use protocol::{Composed, WEBHOOK_RATE};
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;

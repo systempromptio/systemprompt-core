@@ -8,14 +8,24 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use systemprompt_api::routes::wellknown::agent_cards::wellknown_router;
+use systemprompt_agent_entry::http::agent_cards::{self, AgentCardsState};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tower::ServiceExt;
+
+fn cards_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
+    let resolved = ctx.kernel().resolved();
+    agent_cards::router(AgentCardsState {
+        services: resolved.get().expect("the services view is seeded"),
+        site: resolved
+            .get()
+            .expect("the agent member provides the card site"),
+    })
+}
 
 async fn router() -> axum::Router {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&boot.database_url).await;
-    wellknown_router(&ctx)
+    cards_router(&ctx)
 }
 
 async fn get(uri: &str) -> axum::http::Response<Body> {

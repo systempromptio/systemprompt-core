@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Agent routes"
+text = "The webhook broadcasts, the agent SSE streams and the well-known agent cards move from `systemprompt-api` to the `agent-http` member (`systemprompt-agent-entry`), mounted through the new `systemprompt_extension::router::AgentSurface` builder with each route's policy, context and role group unchanged. With `agent-http` disabled they answer 404. `systemprompt_api::routes::webhook`, `systemprompt_api::routes::stream::stream_router` and `systemprompt_api::routes::wellknown::agent_cards` are removed; build the routers with `systemprompt_agent_entry::http::{webhook, stream, agent_cards}`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`router::{AgentSurface, DynAgentSurface, AgentRouteState, AgentSurfaceRoutes, AgentSurfaceError}`: the builder the API mounts the `agent-http` webhook, stream and agent-card routers through."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::webhook`, `routes::wellknown::agent_cards`, the `/contexts`, `/agui` and `/a2a` stream routes and `repository::{context_provider, webhook}` are removed; `routes::stream` keeps only `create_sse_stream` and `StreamWithGuard`. `routes::wellknown_router` no longer serves the agent cards."
+
+[[crate]]
+name = "systemprompt-agent-entry"
+section = "Added"
+text = "`http::{webhook, stream, agent_cards}` and `http::AgentHttpSurface`; `http::stream::StreamFeeds`, the per-user subscription handle the stream routes open connections through, provided sealed."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`services::registry::AgentCardSite` gains `cloud`, the deployment fact that picks the default agent card."

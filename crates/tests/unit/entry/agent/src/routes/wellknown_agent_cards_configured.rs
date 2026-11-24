@@ -1,7 +1,7 @@
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
-use systemprompt_api::routes::wellknown::agent_cards::wellknown_router;
+use systemprompt_agent_entry::http::agent_cards::{self, AgentCardsState};
 use systemprompt_test_fixtures::{fixture_app_context_on_bootstrap, init_isolated_bootstrap};
 use tower::ServiceExt;
 
@@ -11,6 +11,16 @@ use tower::ServiceExt;
     reason = "shared with the contract crate; this test uses only assert_valid"
 )]
 mod a2a_schema;
+
+fn cards_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
+    let resolved = ctx.kernel().resolved();
+    agent_cards::router(AgentCardsState {
+        services: resolved.get().expect("the services view is seeded"),
+        site: resolved
+            .get()
+            .expect("the agent member provides the card site"),
+    })
+}
 
 const SERVICES: &str = r#"agents:
   configured_agent:
@@ -70,7 +80,7 @@ async fn configured_default_named_and_list_cards_share_the_public_agent_contract
     )
     .await
     .unwrap();
-    let app = wellknown_router(&ctx);
+    let app = cards_router(&ctx);
 
     let (default_status, default) = get(&app, "/.well-known/agent-card.json").await;
     let (named_status, named) = get(&app, "/.well-known/agent-cards/configured_agent.json").await;
