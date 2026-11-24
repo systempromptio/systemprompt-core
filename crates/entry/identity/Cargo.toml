@@ -68,6 +68,7 @@ cli = [
     "dep:systemprompt-models",
     "dep:systemprompt-oauth",
     "dep:systemprompt-security",
+    "dep:systemprompt-traits",
     "dep:systemprompt-users",
     "dep:anyhow",
     "dep:chrono",

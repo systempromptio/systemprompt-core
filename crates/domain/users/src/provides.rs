@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedOwnerReassignments;
 use systemprompt_extension::prelude::{ProvideError, Resolved};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations};
 use systemprompt_security::keys::VerificationKeyring;
@@ -26,9 +26,10 @@ use systemprompt_security::{
     JwtRequestAuthenticator, JwtRequestAuthenticatorParts, UnavailableRevocations,
 };
 use systemprompt_traits::{
-    AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion, DatabaseHandle,
-    DynAdminBootstrap, DynGatewaySessionMint, DynRateLimitBuckets, DynSignInSessions,
-    DynUserProvider, DynUserRetention,
+    AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion,
+    CreateSessionInput, DatabaseHandle, DynAdminBootstrap, DynGatewaySessionMint,
+    DynRateLimitBuckets, DynSignInSessions, DynUserProvider, DynUserRetention, SessionAnalytics,
+    SessionProvider,
 };
 
 use crate::repository::{SessionRepository, UserRateLimitBucketRepository, UserRepository};
@@ -100,13 +101,17 @@ pub fn admin_bootstrap(
 ) -> Result<DynAdminBootstrap, AdminBootstrapError> {
     let db = systemprompt_database::pool_from_handle(handle)
         .map_err(|error| AdminBootstrapError(Box::new(error)))?;
-    Ok(Arc::new(UsersAdminBootstrap(UserService::new(Arc::new(
-        UserRepository::new(&db),
-    )))))
+    Ok(Arc::new(UsersAdminBootstrap {
+        users: UserService::new(Arc::new(UserRepository::new(&db))),
+        sessions: SessionRepository::new(&db),
+    }))
 }
 
 #[derive(Debug)]
-struct UsersAdminBootstrap(UserService);
+struct UsersAdminBootstrap {
+    users: UserService,
+    sessions: SessionRepository,
+}
 
 fn refused(error: crate::UserError) -> AdminBootstrapError {
     AdminBootstrapError(Box::new(error))
@@ -128,7 +133,7 @@ fn account(user: User) -> AdminAccount {
 impl AdminBootstrap for UsersAdminBootstrap {
     async fn find_by_name(&self, name: &str) -> Result<Option<AdminAccount>, AdminBootstrapError> {
         Ok(self
-            .0
+            .users
             .find_by_name(name)
             .await
             .map_err(refused)?
@@ -140,7 +145,7 @@ impl AdminBootstrap for UsersAdminBootstrap {
         email: &str,
     ) -> Result<Option<AdminAccount>, AdminBootstrapError> {
         Ok(self
-            .0
+            .users
             .find_by_email(email)
             .await
             .map_err(refused)?
@@ -153,7 +158,7 @@ impl AdminBootstrap for UsersAdminBootstrap {
         email: &str,
         full_name: Option<&str>,
     ) -> Result<AdminAccount, AdminBootstrapError> {
-        self.0
+        self.users
             .create(name, email, full_name, None)
             .await
             .map(account)
@@ -166,7 +171,7 @@ impl AdminBootstrap for UsersAdminBootstrap {
         email: &str,
     ) -> Result<Option<AdminAccount>, AdminBootstrapError> {
         Ok(self
-            .0
+            .users
             .create_if_absent(name, email, None, None)
             .await
             .map_err(refused)?
@@ -183,7 +188,7 @@ impl AdminBootstrap for UsersAdminBootstrap {
             AdminGrant::Only => vec![admin],
             AdminGrant::Added => {
                 let current = self
-                    .0
+                    .users
                     .find_by_id(user)
                     .await
                     .map_err(refused)?
@@ -195,7 +200,7 @@ impl AdminBootstrap for UsersAdminBootstrap {
                 roles
             },
         };
-        self.0
+        self.users
             .assign_roles(user, &roles)
             .await
             .map(account)
@@ -203,7 +208,7 @@ impl AdminBootstrap for UsersAdminBootstrap {
     }
 
     async fn promote(&self, reference: &str) -> Result<AdminPromotion, AdminBootstrapError> {
-        let admin = UserAdminService::new(self.0.clone());
+        let admin = UserAdminService::new(self.users.clone());
         Ok(
             match admin.promote_to_admin(reference).await.map_err(refused)? {
                 PromoteResult::Promoted(user, _) => AdminPromotion::Promoted(account(user)),
@@ -214,6 +219,35 @@ impl AdminBootstrap for UsersAdminBootstrap {
     }
 
     async fn session_exists(&self, session: &SessionId) -> Result<bool, AdminBootstrapError> {
-        self.0.session_exists(session).await.map_err(refused)
+        self.users.session_exists(session).await.map_err(refused)
+    }
+
+    async fn open_cli_session(
+        &self,
+        user: &UserId,
+        ttl: chrono::Duration,
+    ) -> Result<SessionId, AdminBootstrapError> {
+        self.users
+            .find_by_id(user)
+            .await
+            .map_err(refused)?
+            .ok_or_else(|| refused(crate::UserError::NotFound(user.clone())))?;
+        let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4()));
+        let analytics = SessionAnalytics::default();
+        SessionProvider::create_session(
+            &self.sessions,
+            CreateSessionInput {
+                session_id: &session_id,
+                user_id: Some(user),
+                analytics: &analytics,
+                session_source: SessionSource::Cli,
+                is_bot: false,
+                is_ai_crawler: false,
+                expires_at: chrono::Utc::now() + ttl,
+            },
+        )
+        .await
+        .map_err(|error| AdminBootstrapError(error.into()))?;
+        Ok(session_id)
     }
 }

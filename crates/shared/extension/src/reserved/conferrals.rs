@@ -35,6 +35,7 @@ pub enum ConferralRow {
     GatewaySettings,
     BridgeEventStream,
     IdentityOwnerReassignments,
+    IdentityPluginTokens,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -60,6 +61,7 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::GatewaySettings.entry(),
     ConferralRow::BridgeEventStream.entry(),
     ConferralRow::IdentityOwnerReassignments.entry(),
+    ConferralRow::IdentityPluginTokens.entry(),
 ];
 
 impl ConferralRow {
@@ -80,6 +82,7 @@ impl ConferralRow {
             Self::GatewaySettings => "gateway-settings",
             Self::BridgeEventStream => "bridge-event-stream",
             Self::IdentityOwnerReassignments => "identity-owner-reassignments",
+            Self::IdentityPluginTokens => "identity-plugin-tokens",
         }
     }
 
@@ -99,6 +102,7 @@ impl ConferralRow {
             | Self::IdentityOAuthRepositories
             | Self::IdentityOwnerReassignments => (CoreId::Kernel.id(), CoreId::IdentityHttp),
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
+            Self::IdentityPluginTokens => ("oauth", CoreId::IdentityHttp),
             Self::DocumentLinkTokens => ("documents", CoreId::FilesHttp),
         };
         SealedConferral {

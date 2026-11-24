@@ -1,4 +1,5 @@
-//! The oauth member's composed provides: the sealed browser-session issuer
+//! The oauth member's composed provides: the plugin-token minter conferred on
+//! `identity-http` ([`plugin_tokens`]) and the sealed browser-session issuer
 //! (`DynSessionIssuer`) the API's session middleware and static-content
 //! serving read. It is built over the users member's sealed session store and
 //! user directory and the kernel's sealed token authority, all read by this
@@ -8,6 +9,10 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+mod plugin_tokens;
+
+pub(crate) use plugin_tokens::plugin_token_minter;
 
 use std::sync::Arc;
 

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use systemprompt_cloud::SessionKey;
 use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::Database;
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_loader::BootContext;
@@ -29,7 +29,7 @@ use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
 use crate::session::SessionContexts;
-use crate::session::api::{create_local_session_row, load_signing_keys};
+use crate::session::api::load_signing_keys;
 use crate::session::resolution::extract_profile_name;
 
 #[derive(Debug, Args)]
@@ -81,17 +81,17 @@ fn ensure_interactive_admin(admin_user: &AdminAccount) -> Result<()> {
 async fn connect_profile_database(
     boot: &BootContext,
     host: &dyn KernelHost,
-) -> Result<(DbPool, DynAdminBootstrap)> {
+) -> Result<DynAdminBootstrap> {
     let profile = boot.profile();
     let secrets = boot.secrets().get();
     let database_url = secrets.effective_database_url(profile.database.external_db_access);
     let db = Database::new_postgres(database_url)
         .await
         .context("Failed to connect to database")?;
-    let db_pool = DbPool::from(Arc::new(db));
-    let admins =
-        crate::kernel::admin_bootstrap(host.admitted()?, Arc::<Database>::clone(&db_pool))?;
-    Ok((db_pool, admins))
+    Ok(crate::kernel::admin_bootstrap(
+        host.admitted()?,
+        Arc::new(db),
+    )?)
 }
 
 pub async fn login_for_profile(
@@ -107,7 +107,7 @@ pub async fn login_for_profile(
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let session_key = session_key_for_profile(profile);
 
-    let (db_pool, admins) = connect_profile_database(boot, host).await?;
+    let admins = connect_profile_database(boot, host).await?;
 
     if !args.force_new
         && let Some(output) = try_use_existing_session(
@@ -135,14 +135,10 @@ pub async fn login_for_profile(
 
     progress(args, "Creating session...");
     let keys = load_signing_keys(boot)?;
-    let session_id = create_local_session_row(
-        &db_pool,
-        &admin_user.id,
-        chrono::Duration::hours(args.duration_hours),
-        keys.clone(),
-        boot,
-    )
-    .await?;
+    let session_id = admins
+        .open_cli_session(&admin_user.id, chrono::Duration::hours(args.duration_hours))
+        .await
+        .context("Failed to create the CLI session row")?;
 
     progress(args, "Creating context...");
     let context_id = issue_login_context(host, profile_path, &admin_user.id, &session_id).await?;
