@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Marketplace"
+text = "`render_marketplace_list` returns the typed `MarketplaceListView` instead of a `serde_json::Value`; its serialised body is unchanged."
