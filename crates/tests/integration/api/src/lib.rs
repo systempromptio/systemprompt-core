@@ -42,7 +42,9 @@ mod server_declared_groups;
 #[cfg(test)]
 mod gateway_overhead_metrics;
 
+#[cfg(test)]
 mod load_shed_outermost;
+
 #[cfg(test)]
 mod server_load_shed;
 

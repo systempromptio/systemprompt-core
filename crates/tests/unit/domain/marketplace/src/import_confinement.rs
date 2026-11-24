@@ -14,6 +14,8 @@ const PLUGIN: &str = r#"{"name":"p","description":"A plugin."}"#;
 const SKILL: &str = "---\nname: a-skill\ndescription: What it does.\n---\n\nBody.\n";
 const SIDECAR: &str = "schema: 1\n";
 
+type EscapeCase = (&'static str, fn(&Fixture));
+
 struct Fixture {
     tree: TempDir,
     outside: TempDir,
@@ -91,7 +93,7 @@ fn the_unmodified_fixture_imports() {
 
 #[test]
 fn every_reader_refuses_a_path_that_escapes_the_tree() {
-    let cases: [(&str, fn(&Fixture)); 9] = [
+    let cases: [EscapeCase; 9] = [
         ("marketplace manifest", |f| {
             f.link(".claude-plugin/marketplace.json", "marketplace.json");
         }),
