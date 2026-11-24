@@ -22,13 +22,11 @@ use systemprompt_models::ContentConfigRaw;
 use systemprompt_models::authz::CatalogRoleNames;
 
 use systemprompt_models::auth::TokenAuthority;
-#[cfg(feature = "notifications")]
-use systemprompt_notifications::service::EscalationDelivery;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
 use systemprompt_traits::{
-    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
+    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, EscalationDelivery, DynInstanceRegistry, DynLeaseRepository,
     FileStorage, SecretLookup, SecretStore,
 };
 
@@ -61,7 +59,6 @@ pub struct KernelSeed<'a> {
     pub event_router: &'a EventRouter,
     pub documents: DocumentsHandlesSlot,
     pub catalog_roles: CatalogRoleNames,
-    #[cfg(feature = "notifications")]
     pub escalation: EscalationDelivery,
 }
 

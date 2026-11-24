@@ -136,8 +136,7 @@ impl HostKernel {
             event_router: &event_router,
             documents: documents_slot,
             catalog_roles: crate::builder::composition::catalog_roles(&admitted),
-            #[cfg(feature = "notifications")]
-            escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
+            escalation: systemprompt_traits::EscalationDelivery::Consumer,
         });
         let handle: Arc<dyn DatabaseHandle> =
             Arc::<systemprompt_database::Database>::clone(&database);

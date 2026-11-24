@@ -569,7 +569,7 @@ pub fn fixture_kernel_seed(
             event_router: &parts.event_router,
             documents: parts.documents,
             catalog_roles: systemprompt_models::authz::CatalogRoleNames::default(),
-            escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
+            escalation: systemprompt_traits::EscalationDelivery::InProcess,
         });
     seed
 }

@@ -178,8 +178,7 @@ impl AppContextBuilder {
                 event_router: &router,
                 documents: documents_slot,
                 catalog_roles: composition::catalog_roles(&self.admitted),
-                #[cfg(feature = "notifications")]
-                escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
+                escalation: systemprompt_traits::EscalationDelivery::InProcess,
             },
             signing_keys: &signing_keys,
             token_authority: &token_authority,

@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`EscalationDelivery` (`InProcess`, `Consumer`): where an escalated notification is delivered on this host. Every host seeds one."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Breaking"
+text = "`service::EscalationDelivery` is removed; the type is `systemprompt_traits::EscalationDelivery`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "The `notifications` feature and the `EscalationDelivery` re-export are removed; every host seeds `systemprompt_traits::EscalationDelivery` and the crate no longer depends on `systemprompt-notifications`."

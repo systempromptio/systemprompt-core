@@ -25,6 +25,7 @@ use systemprompt_extension::notifications::{DynNotificationSink, PublishPolicy};
 use systemprompt_extension::{LateBinder, LateRead, late_pair};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::AlreadyBound;
+use systemprompt_traits::EscalationDelivery;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::notifications::{SimulateRequest, SimulateResponse};
 
@@ -108,19 +109,6 @@ impl std::fmt::Debug for NotificationsServiceSlot {
             .field("seams", &self.seams)
             .finish()
     }
-}
-
-/// Where an escalated notification is delivered.
-///
-/// `InProcess` delivers it through this service's pipeline at once.
-/// `Consumer` leaves the row `pending` for the process that runs the
-/// notifications consumer with the full extension seams; its sweep delivers
-/// it. A process that holds only the core channels uses `Consumer`, so no
-/// extension channel is skipped.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EscalationDelivery {
-    InProcess,
-    Consumer,
 }
 
 /// Everything [`NotificationsService`] is built from.

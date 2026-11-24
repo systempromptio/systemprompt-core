@@ -78,6 +78,7 @@ pub mod core_seam;
 pub use core_seam::CoreSeam;
 pub mod coordination;
 pub mod drive_tokens;
+pub mod escalation;
 pub mod events;
 pub mod extension_error;
 pub mod gateway_session;
@@ -225,3 +226,4 @@ pub use gateway_session::{
 pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
 pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};
 pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};
+pub use escalation::EscalationDelivery;

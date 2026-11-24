@@ -158,9 +158,8 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(Arc::new(seed.event_router.clone()))
         .with_sealed(authz_cell)
         .with(Arc::new(seed.catalog_roles))
-        .with(seed.documents);
-    #[cfg(feature = "notifications")]
-    let state = state.with(seed.escalation);
+        .with(seed.documents)
+        .with(seed.escalation);
     (
         state,
         KernelBinders {

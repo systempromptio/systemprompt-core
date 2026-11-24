@@ -17,7 +17,7 @@ use systemprompt::brain::{BrainHandleSlot, BrainSeams, BrainSlot};
 use systemprompt::database::{Database, DbPool};
 use systemprompt::events::{EventBroadcasters, EventRouter};
 use systemprompt::models::brain::BrainEnvelope;
-use systemprompt::notifications::service::EscalationDelivery;
+use systemprompt::traits::EscalationDelivery;
 use systemprompt::notifications::{NotificationSeams, NotificationsSlot, OutboxNotificationSink};
 use systemprompt::reference;
 use systemprompt::users::SessionRepository;

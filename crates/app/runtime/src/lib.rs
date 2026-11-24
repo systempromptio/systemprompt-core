@@ -56,8 +56,6 @@ pub use startup_validation::{
     display_validation_warnings, merge_mcp_errors, validate_extension_configs,
 };
 pub use systemprompt_database::MigrationConfig;
-#[cfg(feature = "notifications")]
-pub use systemprompt_notifications::service::EscalationDelivery;
 
 pub use systemprompt_provider_contracts::{ConfigPlaneSet, EffectiveAuthority};
 pub use trace::{
