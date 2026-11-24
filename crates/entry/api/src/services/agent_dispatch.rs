@@ -2,12 +2,11 @@
 //!
 //! [`bind_dispatchers`] binds it, through the binder the context kept
 //! outside the extension state, into the kernel-seeded, sealed
-//! `AgentDispatchCell` when the routes are built, and binds the messaging
-//! cell to the dispatcher the `agent-http` member provides sealed. The proxy
-//! it builds reads the secret store and configuration; the cell is withheld
-//! from every member command, job and route state. With `agent-http` not
-//! admitted the messaging cell stays unbound, so every chat-platform dispatch
-//! is refused.
+//! `AgentDispatchCell` when the routes are built. The proxy it builds reads
+//! the secret store and configuration; the cell is withheld from every member
+//! command, job and route state. The messaging cell is the kernel's: the
+//! context builder binds it to the dispatcher the `agent-http` member
+//! provides as soon as the kernel resolves.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,7 +24,6 @@ use systemprompt_models::a2a::dispatch::{AgentDispatch, AgentDispatchBinder, Age
 use systemprompt_models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 use systemprompt_models::late_bound::AlreadyBound;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::MessagingDispatcher;
 
 use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
 
@@ -97,8 +95,7 @@ impl AgentDispatch for ApiAgentDispatch {
     }
 }
 
-/// Binding the agent dispatch and the messaging dispatcher failed; the
-/// server refuses to boot.
+/// Binding the agent dispatch failed; the server refuses to boot.
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 pub enum DispatcherBindError {
     #[error("the late binders were already taken from this context")]
@@ -112,13 +109,6 @@ pub fn bind_dispatchers(ctx: &AppContext) -> Result<(), DispatcherBindError> {
         .take_late_binders()
         .ok_or(DispatcherBindError::BindersTaken)?;
     bind_agent_dispatch(ctx, binders.agent_dispatch)?;
-    if let Some(dispatcher) = ctx.kernel().state().find::<Arc<dyn MessagingDispatcher>>() {
-        binders.messaging.bind(Arc::clone(dispatcher))?;
-    } else {
-        tracing::info!(
-            "agent-http is not admitted; chat-platform messages are refused at dispatch"
-        );
-    }
     Ok(())
 }
 

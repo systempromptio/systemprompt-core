@@ -3,9 +3,11 @@
 //! [`base_kernel_state`](super::kernel_state::base_kernel_state) and
 //! [`kernel_state`](super::kernel_state::kernel_state) seed only each cell's
 //! read half and return its bind half here, outside the extension state. The
-//! host consumes each binder in the one kernel function that binds the cell;
-//! the API's binders wait in [`PendingBinders`] on the context until the
-//! route build takes them, once.
+//! host consumes each binder in the one kernel function that binds the cell:
+//! the messaging dispatcher's as soon as the kernel resolves (the `agent-http`
+//! member provides the dispatcher sealed, so no member boot hook is needed),
+//! the agent dispatch's from [`PendingBinders`] on the context when the
+//! route build takes it, once.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,16 +34,15 @@ pub struct KernelBinders {
 #[derive(Debug)]
 pub struct ApiKernelBinders {
     pub base: KernelBinders,
+    pub messaging: LateBinder<dyn MessagingDispatcher>,
     pub late: ApiLateBinders,
 }
 
-/// The write halves of the cells the API binds while it builds its routes:
-/// the agent dispatch and the messaging dispatcher, both of which hold the
-/// built context.
+/// The write half of the cell the API binds while it builds its routes: the
+/// agent dispatch, which holds the built context.
 #[derive(Debug)]
 pub struct ApiLateBinders {
     pub agent_dispatch: AgentDispatchBinder,
-    pub messaging: LateBinder<dyn MessagingDispatcher>,
 }
 
 /// The API's [`ApiLateBinders`] between the context build and the route

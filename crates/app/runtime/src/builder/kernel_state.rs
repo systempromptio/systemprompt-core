@@ -77,8 +77,10 @@
 //! read half (`SecretScannerCell`) is open: reading the configured scanner
 //! confers nothing. The messaging dispatcher (`LateRead<dyn
 //! MessagingDispatcher>`) and the agent dispatch (`AgentDispatchCell`) are
-//! seeded unbound and **sealed**: both need the API's agent proxy, which
-//! exists only after this state is built, so the API binds them while it
+//! seeded unbound and **sealed**. The messaging cell is bound by the context
+//! builder as soon as the kernel resolves, to the dispatcher the `agent-http`
+//! member provides; the agent dispatch needs the API's agent proxy, which
+//! exists only after the context is built, so the API binds it while it
 //! builds its routes. The dispatcher mints a token for the user it resolves
 //! and sends as them, so only kernel code and provide fns read it; the Slack
 //! and Teams members wrap it, in their own provide fns, in a handle that
@@ -214,10 +216,8 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         state,
         ApiKernelBinders {
             base: base_binders,
-            late: ApiLateBinders {
-                agent_dispatch,
-                messaging,
-            },
+            messaging,
+            late: ApiLateBinders { agent_dispatch },
         },
     )
 }
