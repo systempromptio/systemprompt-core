@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod budget;
 pub mod connection;
 pub mod conversion;
 mod introspection;
