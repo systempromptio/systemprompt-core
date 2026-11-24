@@ -139,24 +139,15 @@ The gateway exposes an OTLP ingest endpoint at `POST /otel` (and `POST /otel/{*r
 
 ### Export to a collector
 
-The instance can also *emit* OTLP. With a `observability.otlp` block in the profile ([configuration.md §observability](../reference/configuration.md#observability)) and the `otlp_export` job enabled in the scheduler config, the server tails its own audit tables and posts OTLP/HTTP protobuf envelopes to the collector (`crates/app/scheduler/src/jobs/otlp_export/`):
+The instance can also *emit* OTLP. With a `observability.otlp` block in the profile ([configuration.md §observability](../reference/configuration.md#observability)) and a server built with the `otel` feature, the server exports its own `tracing` pipeline live as OTLP/HTTP protobuf envelopes (`crates/infra/logging/src/otlp/`):
 
-- **Traces** — one `ai_request <model>` span per completed `ai_requests` row (user, session, provider and `served_provider`, requested and served model, tokens, cache tokens, cost, latency, finish reason, client kind, wire protocol), with a `tool_call <name>` child span for every `tool_call_ledger` row of that request and a `governance_decision <policy>` child for every `governance_decisions` row under its trace. A denied decision, a failed tool or a failed request sets the span status to error. A request whose `trace_id` is a 32-hex W3C id keeps it, so client-side spans correlate; every other id is a digest of the row key, so a re-sent batch overwrites rather than duplicates.
-- **Logs** — one record per `logs` row (level → severity, module, message, metadata, user/session/context/client/instance ids), carrying the trace id and request span id when the row was written under a gateway request.
+- **Logs** — one record per log entry the server persists (level → severity, module, message, metadata, user/session/task/context/client/instance ids), carrying the OTLP trace id derived from the platform trace id.
+- **Traces** — one span per `tracing` span that runs under a platform trace, with its start and end time, its parent span and the attribution it inherits (user, session, task, context, client). A platform trace id that is a 32-hex W3C id is kept, so client-side spans correlate; every other id is digested to 16 bytes, so every span and record of one trace share one OTLP trace id.
 - **Metrics** are not exported. They stay on `/metrics`; a collector that wants them scrapes it (`prometheusreceiver`).
 
 Any collector that speaks OTLP/HTTP works — the OpenTelemetry Collector fronting Datadog, Splunk, Grafana Tempo and Loki, Honeycomb, or the vendor agent directly. `protocol: grpc` is not yet supported and is refused at validation.
 
-Progress is in the `otlp_export_state` table, one row per signal:
-
-| Column | Meaning |
-|--------|---------|
-| `watermark`, `watermark_id` | The `(timestamp, id)` of the last row the collector acknowledged. The row is created with the watermark at the moment of the first export — enabling the exporter ships forward from then, never the history. Delete a row to restart that signal from now. |
-| `last_attempt_at`, `last_success_at` | When the job last tailed the signal and last got a 2xx. |
-| `last_error`, `last_error_at` | The most recent delivery failure, cleared on the next success. |
-| `batches_total`, `failures_total`, `rows_total` | Lifetime counters. |
-
-The job reads `lag_seconds` (now minus the watermark) alongside these; when the tail is caught up the watermark sits at the edge of the five-second settle window, so a healthy idle exporter reports a lag of roughly five seconds. A batch that fails is retried three times in-run with increasing backoff on transport errors and 429/502/503/504 (never on other 4xx), then keeps its watermark and is retried at the next tick — nothing is dropped, nothing is skipped. Each batch of up to 500 rows increments `otlp_export_batches_total{signal,status}` on `/metrics`, `status` being `ok` or `error`. Console integrations read the state through `systemprompt_scheduler::OtlpExportStateRepository::list_states` and trigger an unpaced run with `otlp_export_now`.
+Export is live and at-most-once. Items wait in a bounded queue (8,192 items) and ship every `batch_seconds` or every 512 items; a full queue drops the item rather than slow the code that emitted it. A batch is retried three times with increasing backoff on transport errors and 429/502/503/504 (never on other 4xx), and is then dropped. Every drop is counted in `otlp_export_dropped_total{signal}`, and every post in `otlp_export_batches_total{signal,status}` (`ok` or `error`), both on `/metrics`. What is still queued at shutdown is flushed before the process exits. The audit tables remain the durable record; the export is the live view of it.
 
 One limit to account for when planning telemetry: **OTLP-ingested metrics are not recorded.** The metrics path of the ingest endpoint counts and logs metric names only; values are discarded and never appear on `/metrics` or in the database. Only ingested traces and logs are persisted.
 

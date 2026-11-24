@@ -34,11 +34,6 @@
 //! the trait contract; a `From<SchedulerError> for ProviderError` impl makes
 //! `?` propagation transparent inside job bodies.
 //!
-//! # Feature flags
-//!
-//! - `otel` — the `otlp_export` job, which ships the audit trail to an OTLP
-//!   collector. Without it the job is not registered.
-//!
 //! The crate has no platform-specific code: process and port supervision is
 //! [`systemprompt_loader::subprocess`].
 //!
@@ -57,15 +52,7 @@ pub use error::{SchedulerError, SchedulerResult};
 pub use extension::SchedulerExtension;
 
 pub use jobs::DatabaseCleanupJob;
-#[cfg(feature = "otel")]
-pub use jobs::OtlpExportJob;
-#[cfg(feature = "otel")]
-pub use jobs::otlp_export::{
-    ExportReport as OtlpExportReport, SignalReport as OtlpSignalReport,
-    export_now as otlp_export_now,
-};
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
-pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};
 pub use repository::{
     JobRepository, LicenceCheckinRepository, LicenceCheckinState, LockKeyCollision,
     SchedulerRepository, find_lock_key_collision,

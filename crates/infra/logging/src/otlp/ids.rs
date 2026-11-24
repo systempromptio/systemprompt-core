@@ -1,28 +1,15 @@
-//! Stable OTLP identifiers derived from audit-row keys.
+//! Stable OTLP identifiers derived from platform keys.
 //!
-//! An OTLP trace id is 16 bytes and a span id 8; the audit tables key rows by
-//! opaque strings. Deriving the bytes from a digest of the key means an
-//! exported row always maps to the same id, whichever tick shipped it and
-//! whichever replica ran the job, so a re-export after a failed batch
-//! overwrites rather than duplicates.
+//! An OTLP trace id is 16 bytes and a span id 8; the platform keys traces by
+//! opaque strings. Deriving the bytes from a digest of the key means every
+//! span and log record of one platform trace carries the same OTLP trace id,
+//! whichever replica emitted it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::TraceId;
-
-use crate::repository::otlp::RequestRow;
-
-pub(super) fn trace_key(request: &RequestRow) -> &str {
-    request
-        .trace_id
-        .as_ref()
-        .map(TraceId::as_str)
-        .filter(|t| !t.is_empty())
-        .unwrap_or(request.id.as_str())
-}
 
 pub(super) const TRACE_ID_LEN: usize = 16;
 pub(super) const SPAN_ID_LEN: usize = 8;

@@ -99,6 +99,8 @@ nix = { workspace = true }
 [features]
 default = []
 bridge = []
+# Starts the live OTLP export when the profile names a collector.
+otel = ["systemprompt-logging/otel"]
 
 [lints]
 workspace = true

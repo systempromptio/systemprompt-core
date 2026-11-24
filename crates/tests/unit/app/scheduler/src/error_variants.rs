@@ -46,14 +46,6 @@ mod additional_variants {
     }
 
     #[test]
-    fn unknown_otlp_signal_names_the_signal() {
-        let err = SchedulerError::UnknownOtlpSignal {
-            signal: "metrics".to_string(),
-        };
-        assert_eq!(err.to_string(), "Unknown OTLP export signal 'metrics'");
-    }
-
-    #[test]
     fn sqlx_row_not_found_is_classified_as_repository_not_found() {
         let err = SchedulerError::from(sqlx::Error::RowNotFound);
         assert!(matches!(err, SchedulerError::Repository(ref e) if e.is_not_found()));

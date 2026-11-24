@@ -3,7 +3,8 @@
 //! [`LogSink`] is what [`crate::init_logging`] and the console initialisers
 //! return: a handle onto the database layer inside the installed `tracing`
 //! subscriber. It enqueues entries persisted outside a `tracing` call, reports
-//! the drop count, and flushes the writer on shutdown. [`LoggingRuntime`]
+//! the drop count, and flushes the writer on shutdown; with `otel` it also
+//! starts the live OTLP export of the pipeline. [`LoggingRuntime`]
 //! pairs a sink with the resolved platform owner, so originator-less telemetry
 //! is attributed without a process-wide cell. The runtime builds it once at
 //! bootstrap and stores it on `AppContext`; code with no context in scope is
@@ -52,6 +53,30 @@ impl LogSink {
 
     pub async fn shutdown(&self) -> Result<(), LogWriterShutdownError> {
         self.proxy.shutdown().await
+    }
+
+    #[cfg(feature = "otel")]
+    pub fn start_otlp_export(
+        &self,
+        config: &systemprompt_manifest::profile::OtlpExportConfig,
+        tasks: &systemprompt_traits::BackgroundTasks,
+    ) -> bool {
+        let slot = &self.proxy.shared().otlp;
+        if slot.get().is_some() {
+            return false;
+        }
+        let feed = crate::otlp::OtlpFeed::spawn(config, self.instance_id().cloned(), tasks);
+        slot.set(feed).is_ok()
+    }
+
+    #[cfg(feature = "otel")]
+    #[must_use]
+    pub fn otlp_dropped(&self) -> Option<u64> {
+        self.proxy
+            .shared()
+            .otlp
+            .get()
+            .map(crate::otlp::OtlpFeed::dropped)
     }
 }
 
