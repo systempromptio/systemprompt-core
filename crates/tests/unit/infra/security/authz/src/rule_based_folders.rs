@@ -19,6 +19,7 @@ fn hook(pool: Arc<PgPool>) -> RuleBasedHook {
             sources: ChainSources::default(),
             epochs: systemprompt_traits::CacheEpochs::new(),
             providers: Default::default(),
+            audit_spans: None,
         },
     )
 }
