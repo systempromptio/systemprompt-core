@@ -28,6 +28,7 @@ domain_error! {
         },
 
         #[error("Tool execution failed: task failed: {error}")]
+        // JSON: the MCP server's task error object, relayed as the server sent it.
         TaskFailed { error: serde_json::Value },
 
         #[error("Tool execution failed: task was cancelled by the server")]
