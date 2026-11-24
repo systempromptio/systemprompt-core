@@ -162,7 +162,8 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(authz_cell)
         .with(Arc::new(seed.catalog_roles))
         .with(seed.documents)
-        .with(seed.escalation);
+        .with(seed.escalation)
+        .with(seed.audit_spans);
     (
         state,
         KernelBinders {

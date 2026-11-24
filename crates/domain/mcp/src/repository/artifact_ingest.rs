@@ -31,4 +31,13 @@ impl ArtifactIngestRepositories {
             ingest_marks: Arc::new(ToolResultIngestMarkRepository::new(db)),
         }
     }
+
+    #[must_use]
+    pub fn with_audit_spans(
+        mut self,
+        spans: Option<systemprompt_models::audit_spans::DynAuditSpanSink>,
+    ) -> Self {
+        self.executions = Arc::new((*self.executions).clone().with_audit_spans(spans));
+        self
+    }
 }

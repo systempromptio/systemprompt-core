@@ -154,6 +154,7 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
             sources: ChainSources::default(),
             epochs: systemprompt_traits::CacheEpochs::new(),
             providers: Default::default(),
+            audit_spans: None,
         },
     ));
 

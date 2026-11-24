@@ -60,6 +60,7 @@ pub struct KernelSeed<'a> {
     pub documents: DocumentsHandlesSlot,
     pub catalog_roles: CatalogRoleNames,
     pub escalation: EscalationDelivery,
+    pub audit_spans: systemprompt_models::audit_spans::DynAuditSpanSink,
 }
 
 /// The handles only the API seeds on top of [`KernelSeed`].

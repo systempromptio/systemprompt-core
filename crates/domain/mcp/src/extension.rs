@@ -47,6 +47,7 @@ use crate::services::registry::RegistryService;
 use crate::services::tool_provider::McpToolProvider;
 use crate::services::ui_renderer::UiRendererRegistry;
 use crate::tool::McpToolExecutions;
+use systemprompt_models::audit_spans::DynAuditSpanSink;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct McpExtension;
@@ -185,7 +186,10 @@ impl Extension for McpExtension {
                     );
                 }
                 Ok(Arc::new(McpToolExecutions::new(
-                    Arc::new(ToolUsageRepository::new(&db)),
+                    Arc::new(
+                        ToolUsageRepository::new(&db)
+                            .with_audit_spans(r.optional::<DynAuditSpanSink>()),
+                    ),
                     intents,
                     r.get::<Arc<ArtifactIngest>>()?,
                     r.get::<Arc<UiRendererRegistry>>()?,
@@ -235,8 +239,9 @@ fn contribute_stores(c: &mut Contributions<'_>) {
     )
     .provide(
         |r: &Resolved<'_>| -> Result<Arc<ArtifactIngest>, ProvideError> {
-            Ok(Arc::new(ArtifactIngest::from_db(
-                &r.get::<DbPool>()?,
+            Ok(Arc::new(ArtifactIngest::new(
+                crate::repository::ArtifactIngestRepositories::new(&r.get::<DbPool>()?)
+                    .with_audit_spans(r.optional::<DynAuditSpanSink>()),
                 r.get::<SecretScannerCell>()?,
             )))
         },

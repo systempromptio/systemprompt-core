@@ -1,0 +1,29 @@
+[root]
+section = "Added"
+area = "Observability"
+text = "The live OTLP export carries the audit spans again: an `ai_request` span per settled gateway request (model, tokens, cost, latency, route, scope attribution, API key id) and `tool_call` and `governance_decision` spans, each handed to the exporter as the fact is recorded, with the attribute names the replay job used."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`audit_spans`: `RequestSpanRecord`, `ToolCallSpanRecord`, `GovernanceSpanRecord`, the `AuditSpanSink` trait and `DynAuditSpanSink`."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Added"
+text = "`LogSink` implements `AuditSpanSink`; feature `otel` adds `otlp::{request_span, tool_call_span, governance_span}` and the span-name constants."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`ToolUsageRepository::complete_execution` takes a `ToolCallSubject`; `ToolUsageRepository::with_audit_spans` and `ArtifactIngestRepositories::with_audit_spans` are new."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`AuthzWiring` gains `audit_spans`; `GovernanceDecisionRepository::with_audit_spans` is new."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelSeed` gains `audit_spans`, seeded into the kernel state as `DynAuditSpanSink`."

@@ -7,14 +7,17 @@
 use crate::error::McpDomainResult;
 mod intent;
 mod queries;
+mod span;
 pub use intent::IntentStamp;
 pub use queries::ProximityProbe;
+pub use span::ToolCallSubject;
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
+use systemprompt_models::audit_spans::DynAuditSpanSink;
 use systemprompt_models::mcp::Correlation;
 
 use crate::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
@@ -29,13 +32,24 @@ fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
 pub struct ToolUsageRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
+    spans: Option<DynAuditSpanSink>,
 }
 
 impl ToolUsageRepository {
     pub fn new(db: &DbPool) -> Self {
         let pool = db.pool();
         let write_pool = db.write_pool();
-        Self { pool, write_pool }
+        Self {
+            pool,
+            write_pool,
+            spans: None,
+        }
+    }
+
+    #[must_use]
+    pub fn with_audit_spans(mut self, spans: Option<DynAuditSpanSink>) -> Self {
+        self.spans = spans;
+        self
     }
 
     pub async fn purge_before(&self, cutoff: DateTime<Utc>, batch: i64) -> McpDomainResult<u64> {
@@ -102,6 +116,7 @@ impl ToolUsageRepository {
     pub async fn complete_execution(
         &self,
         mcp_execution_id: &McpExecutionId,
+        subject: ToolCallSubject<'_>,
         result: &ToolExecutionResult,
     ) -> McpDomainResult<()> {
         let id = mcp_execution_id.as_str();
@@ -128,7 +143,9 @@ impl ToolUsageRepository {
         )
         .execute(&*self.write_pool)
         .await?;
-
+        if let Some(sink) = &self.spans {
+            span::emit(sink.as_ref(), mcp_execution_id, subject, result);
+        }
         Ok(())
     }
 
@@ -207,7 +224,15 @@ impl ToolUsageRepository {
         )
         .execute(&*self.write_pool)
         .await?;
-
+        if let Some(sink) = &self.spans {
+            let subject = ToolCallSubject {
+                tool_name: &request.tool_name,
+                server_name: &request.server_name,
+                context: &request.context,
+                source: request.source,
+            };
+            span::emit(sink.as_ref(), mcp_execution_id, subject, result);
+        }
         Ok(())
     }
 
