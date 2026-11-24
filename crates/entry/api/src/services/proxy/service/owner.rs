@@ -134,8 +134,8 @@ impl HandoverWaits {
     }
 }
 
-fn supervised(service_name: &ServiceName, ctx: &AppContext) -> bool {
-    match desired_processes(ctx) {
+async fn supervised(service_name: &ServiceName, ctx: &AppContext) -> bool {
+    match desired_processes(ctx).await {
         Ok(wanted) => wanted.iter().any(|key| key.name() == service_name),
         Err(error) => {
             tracing::warn!(service = %service_name, error = %error, "supervised processes could not be listed; not waiting for an owner");
@@ -150,7 +150,7 @@ impl ProxyService {
         service_name: &ServiceName,
         ctx: &AppContext,
     ) -> Result<Option<ProcessOwner>, ProxyError> {
-        if !supervised(service_name, ctx) {
+        if !supervised(service_name, ctx).await {
             return Ok(None);
         }
         let deadline = self.handovers.deadline(service_name, Instant::now());

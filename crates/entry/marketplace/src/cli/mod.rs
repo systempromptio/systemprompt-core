@@ -1,5 +1,5 @@
 //! The marketplace capability's commands: `core marketplace`,
-//! `core plugins` and `core skills`.
+//! `core plugins`, `core skills` and the `core services validate` leaf.
 //!
 //! `marketplace-http` contributes the three groups under the kernel's
 //! `core` group, each requesting `KernelGrant::ServicesTree`, the one grant
@@ -13,6 +13,7 @@
 //! | `core plugins` | profile, secrets and paths | none (detached kernel) |
 //! | `core marketplace explain` | full | none |
 //! | `core marketplace import` | none | none |
+//! | `core services validate` | none | none |
 //! | `core skills` | full | the owner-bound `Arc<OwnerSkillView>` the `managed_resources` member provides; disk only when it cannot be resolved |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -20,6 +21,7 @@
 
 pub mod marketplace;
 pub mod plugins;
+pub mod services;
 pub mod skills;
 
 use std::sync::Arc;
@@ -31,6 +33,7 @@ use systemprompt_manifest::services::ServicesConfig;
 
 pub use marketplace::MarketplaceCommands;
 pub use plugins::PluginsCommands;
+pub use services::ValidateArgs;
 pub use skills::SkillsCommands;
 
 async fn services_config(host: &dyn CommandHost) -> Result<Arc<ServicesConfig>> {

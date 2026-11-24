@@ -10,6 +10,7 @@ use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_identifiers::ManagedSourceId;
 use systemprompt_marketplace::managed::GitCredentialSource;
+use systemprompt_marketplace::managed::git_sources::git_credential_key;
 
 fn source(name: &str, repository: &str, label: &str) -> GitCredentialSource {
     GitCredentialSource {
@@ -48,7 +49,7 @@ fn dry_run_reports_every_outcome_and_leaves_the_file_alone() {
         source("c", "https://github.com/acme/c", "missing"),
         source("d", "https://github.com/acme/d", "clash"),
     ];
-    let out = migrate_file(&path, &sources, false).unwrap();
+    let out = migrate_file(&path, &sources, &git_credential_key, false).unwrap();
     let statuses: Vec<_> = out.sources.iter().map(|r| r.status).collect();
     assert_eq!(
         statuses,
@@ -82,7 +83,7 @@ fn apply_renames_without_overwriting_and_keeps_conflicting_labels() {
         source("b", "https://gitlab.com/acme/b", "shared"),
         source("c", "https://gitlab.com/acme/c", "clash"),
     ];
-    let out = migrate_file(&path, &sources, true).unwrap();
+    let out = migrate_file(&path, &sources, &git_credential_key, true).unwrap();
     assert_eq!(out.removed_bare_labels, vec!["shared".to_owned()]);
     assert_eq!(
         read(&path),

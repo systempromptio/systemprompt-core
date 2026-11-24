@@ -46,9 +46,9 @@ async fn get_as(
     id: &str,
     req_ctx: RequestContext,
 ) -> anyhow::Result<(StatusCode, String)> {
-    let resp = systemprompt_mcp_entry::http::executions_router(
-        systemprompt_api::repository::tool_usage(ctx.db_pool()),
-    )
+    let resp = systemprompt_mcp_entry::http::executions_router(std::sync::Arc::new(
+        systemprompt_mcp::repository::ToolUsageRepository::new(ctx.db_pool()),
+    ))
     .layer(Extension(req_ctx))
     .oneshot(empty_get(&format!("/executions/{id}")))
     .await?;

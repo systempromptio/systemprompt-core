@@ -60,7 +60,7 @@ pub async fn run_server(
         admitted: ctx.admitted(),
         kernel: ctx.kernel(),
     };
-    let engines = super::builder::admitted_gateway_engines(&ctx, &composed);
+    let engines = super::builder::admitted_gateway_engines(&composed);
     let scheduler_handle = start_role_phases(
         &ctx,
         plan,
@@ -218,14 +218,6 @@ fn spawn_runner_service(ctx: &AppContext, shared: &Dependencies, service: Arc<dy
     super::runner_supervisor::supervise(ctx.background_tasks(), service, move || {
         JobContext::new(Actor::job(admin.clone(), name), shared.clone())
     });
-}
-
-pub(crate) fn mcp_registry(ctx: &AppContext) -> systemprompt_mcp::RegistryService {
-    systemprompt_mcp::RegistryService::new(
-        ctx.system_admin().id().clone(),
-        ctx.services_state().view(),
-        Arc::clone(ctx.config_arc()),
-    )
 }
 
 async fn start_metrics_listener(

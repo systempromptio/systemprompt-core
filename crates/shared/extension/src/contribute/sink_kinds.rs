@@ -36,6 +36,8 @@ impl ContributionSink {
             orphan_sweeps: _,
             owner_reassignments: _,
             doctor_checks: _,
+            #[cfg(feature = "sqlx")]
+                doctor_probe_sources: _,
             roles: _,
             assets: _,
             configs: _,

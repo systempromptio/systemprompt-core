@@ -2,7 +2,8 @@
 //! bundles.
 //!
 //! The group spans the two sides of a bundle's life. An editing repository
-//! runs [`validate`], [`bundle`], [`keygen`] and [`publish`] in CI: they touch
+//! runs `validate` (the `marketplace-http` member's leaf in this group),
+//! [`bundle`], [`keygen`] and [`publish`] in CI: they touch
 //! only the filesystem and the registry, never a profile or a database.
 //! An instance runs [`refresh`] and [`inspect`] against its own profile.
 //!
@@ -25,9 +26,6 @@ pub mod publish;
 pub mod reconcile;
 pub mod refresh;
 pub mod signing;
-pub mod staging;
-pub mod validate;
-pub mod versions;
 
 use crate::kernel::KernelHost;
 use anyhow::Result;
@@ -37,12 +35,6 @@ use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
-    #[command(
-        about = "Check a services tree loads, optionally against a base and a previous \
-                       bundle"
-    )]
-    Validate(validate::ValidateArgs),
-
     #[command(about = "Pack a services tree into a signed bundle archive")]
     Bundle(bundle::BundleArgs),
 
@@ -64,14 +56,6 @@ pub enum ServicesCommands {
 
 pub async fn execute(command: ServicesCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match command {
-        ServicesCommands::Validate(args) => {
-            let (output, ok) = validate::execute(&args)?;
-            if !ok {
-                host.render(&output);
-                anyhow::bail!("Services validation failed");
-            }
-            Ok(output)
-        },
         ServicesCommands::Bundle(args) => bundle::execute(&args),
         ServicesCommands::Keygen(args) => keygen::execute(&args),
         ServicesCommands::Publish(args) => publish::execute(&args, host).await,

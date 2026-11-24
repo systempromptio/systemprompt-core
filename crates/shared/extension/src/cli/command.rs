@@ -112,6 +112,8 @@ pub mod parents {
     pub struct Plugins;
     #[derive(Debug, Clone, Copy)]
     pub struct ContentGroup;
+    #[derive(Debug, Clone, Copy)]
+    pub struct Services;
 
     impl CommandParent for Core {
         const PATH: &'static [&'static str] = &["core"];
@@ -130,6 +132,9 @@ pub mod parents {
     }
     impl CommandParent for ContentGroup {
         const PATH: &'static [&'static str] = &["core", "content"];
+    }
+    impl CommandParent for Services {
+        const PATH: &'static [&'static str] = &["core", "services"];
     }
 }
 

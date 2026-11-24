@@ -10,7 +10,6 @@ use std::time::Duration;
 use axum::body::to_bytes;
 use futures::{StreamExt, TryStreamExt};
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_api::repository::tool_usage;
 use systemprompt_database::DbPool;
 use systemprompt_extension::router::CallAudit;
 use systemprompt_identifiers::McpServerId;
@@ -34,7 +33,7 @@ async fn record_tool_call(
 ) -> anyhow::Result<axum::response::Response<axum::body::Body>> {
     let invocation = parse_tool_call(request_body)
         .ok_or_else(|| anyhow::anyhow!("request body is not a tools/call"))?;
-    let repo = tool_usage(pool);
+    let repo = std::sync::Arc::new(systemprompt_mcp::repository::ToolUsageRepository::new(pool));
     let intents: DynToolCallIntentClaims = Arc::new(AiRequestRepository::new(pool));
     let claims = IntentClaimService::new(intents, Arc::clone(&repo));
     let sinks = AuditSinks {

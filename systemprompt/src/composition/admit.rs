@@ -138,6 +138,7 @@ pub(super) fn granted_members(
 const COMMAND_PARENTS: &[&[&str]] = &[
     &[],
     &["core"],
+    &["core", "services"],
     &["infra"],
     &["admin"],
     &["web"],

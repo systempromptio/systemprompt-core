@@ -21,30 +21,6 @@ fn parse(args: &[&str]) -> Result<ServicesCommands, clap::Error> {
 }
 
 #[test]
-fn validate_takes_a_root_a_base_and_a_previous_bundle() {
-    let command = parse(&[
-        "validate",
-        "--root",
-        "services",
-        "--base",
-        "base.tar.gz",
-        "--against",
-        "prev.tar.gz",
-        "--strict",
-    ])
-    .expect("parses");
-    match command {
-        ServicesCommands::Validate(args) => {
-            assert_eq!(args.root, std::path::PathBuf::from("services"));
-            assert!(args.base.is_some());
-            assert!(args.against.is_some());
-            assert!(args.strict);
-        },
-        other => panic!("wrong subcommand: {other:?}"),
-    }
-}
-
-#[test]
 fn refresh_defaults_to_swapping_and_opts_into_checking() {
     match parse(&["refresh"]).expect("parses") {
         ServicesCommands::Refresh(args) => assert!(!args.check),

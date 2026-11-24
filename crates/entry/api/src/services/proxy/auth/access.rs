@@ -11,9 +11,9 @@
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::services::proxy::backend::ProxyError;
-use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::Config;
@@ -120,10 +120,15 @@ async fn lookup_oauth_requirement(
 ) -> Result<OAuthRequirement, ProxyError> {
     match service.module_name {
         ServiceModule::Agent => {
-            let registry = AgentRegistryProviderService::new(
-                &ctx.services_state().view(),
-                ctx.config().is_cloud,
-            );
+            let registry = ctx
+                .kernel()
+                .state()
+                .get::<Arc<dyn AgentRegistryProvider>>()
+                .cloned()
+                .map_err(|absent| ProxyError::RegistryUnavailable {
+                    service: service_name.to_string(),
+                    source: Box::new(absent),
+                })?;
             let info = registry
                 .get_agent(service_name.as_str())
                 .map_err(|error| registry_lookup_error(service_name, error))?;

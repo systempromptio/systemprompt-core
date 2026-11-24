@@ -1,0 +1,13 @@
+[root]
+section = "Changed"
+text = "The gateway member registers its tool-result scanner on the MCP artifact ingest when it builds its engines, instead of the API server builder. The proxy reads agent OAuth requirements through the agent member's live `Arc<dyn AgentRegistryProvider>`, and the lease supervisor lists managed MCP servers through `Arc<dyn McpRegistryProvider>`; the API no longer depends on `systemprompt-mcp` or `systemprompt-agent`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`repository::{tool_usage, proxy_sessions}` are removed (build the repositories from `systemprompt_mcp`); `admitted_gateway_engines` takes only the composed kernel."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Added"
+text = "`services::registry_provider::LiveAgentRegistry`, provided open as `Arc<dyn AgentRegistryProvider>`."

@@ -52,8 +52,8 @@ pub use host_kernel::{AdmitFn, HostBootError, HostKernel, HostParts, PROFILE_ENV
 pub use kernel::{Kernel, KernelError};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
-    ExtensionConfigOutcome, StartupValidator, collect_manifest_errors, display_validation_report,
-    display_validation_warnings, merge_mcp_errors, validate_extension_configs,
+    StartupValidator, collect_manifest_errors, display_validation_report,
+    display_validation_warnings, merge_mcp_errors,
 };
 pub use systemprompt_database::MigrationConfig;
 

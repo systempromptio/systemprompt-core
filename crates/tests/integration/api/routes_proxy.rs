@@ -39,9 +39,9 @@ async fn mcp_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_get_execution_unknown_is_not_found() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = systemprompt_mcp_entry::http::executions_router(
-        systemprompt_api::repository::tool_usage(ctx.db_pool()),
-    )
+    let app = systemprompt_mcp_entry::http::executions_router(std::sync::Arc::new(
+        systemprompt_mcp::repository::ToolUsageRepository::new(ctx.db_pool()),
+    ))
     .layer(Extension(request_context("u")));
     let resp = app.oneshot(empty_get("/executions/exec_unknown")).await?;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);

@@ -4,7 +4,8 @@
 //! whenever this member is admitted.
 //!
 //! It contributes the `git-credentials` `cloud doctor` check
-//! ([`GitCredentialCheck`]) and provides the marketplace's runtime state:
+//! ([`GitCredentialCheck`]) with its probe source, the open
+//! `DynGitCredentialDirectory`, and the marketplace's runtime state:
 //!
 //! - after governance, the `Arc<ManagedRepository>` with its publication
 //!   policy, assembled from the services marketplace configuration, the
@@ -50,8 +51,8 @@ use crate::inventory::{
 };
 use crate::managed::git_sources::GitCredentialReferences;
 use crate::managed::{
-    GitCredentialCheck, ManagedRepository, OrganizationSkillResolver, OwnerSkillView,
-    PublicationPolicy,
+    GitCredentialCheck, GitSourceDirectory, ManagedRepository, OrganizationSkillResolver,
+    OwnerSkillView, PublicationPolicy,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -86,8 +87,8 @@ impl Extension for ManagedResourcesExtension {
         });
         provide_state(c);
         c.slot::<MarketplaceSlot>();
+        GitCredentialCheck::contribute(c);
         c.job(InventoryRefreshJob::default())
-            .doctor_check(Arc::new(GitCredentialCheck))
             .secret_references(|_: &Resolved<'_>| {
                 Ok::<_, FactoryError>(GitCredentialReferences::shared())
             });
@@ -134,6 +135,7 @@ fn provide_state(c: &mut Contributions<'_>) {
                 Ok(Arc::new(InventoryRefresher::new(refresher_parts(r)?)))
             },
         )
+        .provide_after_governance(GitSourceDirectory::provide)
         .provide_after_governance(|r: &Resolved<'_>| {
             let repository = r.get::<Arc<ManagedRepository>>()?;
             let owner = r.get::<SystemAdmin>()?;

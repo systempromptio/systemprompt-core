@@ -1,6 +1,6 @@
 //! Coverage for the offline extension-config preflight.
 //!
-//! `systemprompt_runtime::validate_extension_configs` is the shared validator
+//! `systemprompt_extension::AdmittedConfigs::validate` is the shared validator
 //! the serve boot path and the `cloud deploy` / `cloud doctor` preflight both
 //! run over the admitted build. A `slack.yaml` in the flat shape rather than
 //! `map<app-name, SlackAppConfig>` must be reported as an error here rather
@@ -12,7 +12,6 @@ use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts};
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Admitted, Contributions, Extension, StandingTag};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_runtime::validate_extension_configs;
 use systemprompt_slack_entry::SlackExtension;
 use tempfile::TempDir;
 
@@ -45,15 +44,13 @@ fn services_dir_with_slack(slack_yaml: &str) -> TempDir {
 }
 
 fn slack_error(dir: &std::path::Path) -> Option<String> {
-    let outcomes = validate_extension_configs(
-        &systemprompt_extension::AdmittedConfigs::of(slack_admitted().built()),
-        dir,
-    );
+    let outcomes =
+        systemprompt_extension::AdmittedConfigs::of(slack_admitted().built()).validate(dir);
     let slack = outcomes
         .iter()
         .find(|o| o.extension_id == "slack")
         .expect("the admitted slack member declares its config");
-    slack.error.clone()
+    slack.error.as_ref().map(ToString::to_string)
 }
 
 #[test]

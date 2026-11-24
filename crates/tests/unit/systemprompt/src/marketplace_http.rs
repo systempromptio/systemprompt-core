@@ -71,7 +71,8 @@ fn skills_decl(grants: &'static [KernelGrant]) -> CommandDecl {
 }
 
 #[test]
-fn marketplace_http_declares_the_three_core_groups_with_only_the_services_tree_grant() {
+fn marketplace_http_declares_the_three_core_groups_with_only_the_services_tree_grant_and_the_grant_free_validate_leaf()
+ {
     let declared = reference()
         .declare()
         .expect("the reference composition declares");
@@ -82,10 +83,11 @@ fn marketplace_http_declares_the_three_core_groups_with_only_the_services_tree_g
         .filter(|command| command.owner.as_str() == OWNER)
         .map(|command| (command.decl.path(), command.decl.grants().to_vec()))
         .collect();
-    let expected: Vec<(Vec<&str>, Vec<KernelGrant>)> = GROUPS
+    let mut expected: Vec<(Vec<&str>, Vec<KernelGrant>)> = GROUPS
         .iter()
         .map(|group| (vec!["core", *group], vec![KernelGrant::ServicesTree]))
         .collect();
+    expected.insert(2, (vec!["core", "services", "validate"], Vec::new()));
     assert_eq!(owned, expected);
 }
 

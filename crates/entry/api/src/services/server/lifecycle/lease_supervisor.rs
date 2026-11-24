@@ -117,7 +117,7 @@ impl LeaseLoop {
                 self.settled.clone()
             },
         };
-        let wanted = match desired_processes(&self.ctx) {
+        let wanted = match desired_processes(&self.ctx).await {
             Ok(wanted) => wanted,
             Err(error) => {
                 tracing::warn!(error = %error, "supervised processes could not be listed");
@@ -273,12 +273,16 @@ async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool 
     }
 }
 
-pub(crate) fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
-    let mut wanted: Vec<ProcessKey> = crate::services::server::runner::mcp_registry(ctx)
-        .get_managed_servers()?
-        .iter()
-        .map(|server| ProcessKey::new(ServiceModule::Mcp, server.service_name()))
-        .collect();
+pub(crate) async fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
+    let mut wanted: Vec<ProcessKey> = match crate::services::proxy::mcp_registry(ctx) {
+        Ok(registry) => registry
+            .managed_servers()
+            .await?
+            .into_iter()
+            .map(|server| ProcessKey::new(ServiceModule::Mcp, ServiceName::new(server.name)))
+            .collect(),
+        Err(_) => Vec::new(),
+    };
     wanted.extend(
         super::agents::enabled_agents(ctx)
             .into_iter()

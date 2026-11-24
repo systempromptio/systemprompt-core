@@ -46,9 +46,7 @@ impl DescribeCommand for CoreCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Services(
-                services::ServicesCommands::Validate(_)
-                | services::ServicesCommands::Bundle(_)
-                | services::ServicesCommands::Keygen(_),
+                services::ServicesCommands::Bundle(_) | services::ServicesCommands::Keygen(_),
             ) => CommandDescriptor::NONE,
             Self::Services(services::ServicesCommands::Publish(args)) => {
                 if args.auth_secret.is_some() {
@@ -78,8 +76,7 @@ impl CoreCommands {
             ) => DataImpact::Destructive,
             Self::Hooks(_)
             | Self::Services(
-                services::ServicesCommands::Validate(_)
-                | services::ServicesCommands::Bundle(_)
+                services::ServicesCommands::Bundle(_)
                 | services::ServicesCommands::Keygen(_)
                 | services::ServicesCommands::Inspect(_),
             ) => DataImpact::Preserving,

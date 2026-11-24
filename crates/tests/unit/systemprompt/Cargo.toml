@@ -14,7 +14,7 @@ workspace = true
 systemprompt = { workspace = true, features = ["full"] }
 systemprompt-agent-runs = { workspace = true }
 systemprompt-cli = { workspace = true }
-systemprompt-extension = { workspace = true, features = ["router", "cli"] }
+systemprompt-extension = { workspace = true, features = ["router", "cli", "sqlx"] }
 systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -29,6 +29,7 @@ async-trait = { workspace = true }
 axum = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
+sqlx = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 http = { workspace = true }

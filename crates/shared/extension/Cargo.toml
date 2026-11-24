@@ -17,7 +17,7 @@ readme = "README.md"
 workspace = true
 
 [features]
-sqlx = ["dep:sqlx"]
+sqlx = ["dep:sqlx", "systemprompt-provider-contracts/sqlx"]
 router = ["dep:axum", "dep:futures", "dep:tower", "dep:http-body-util"]
 cli = ["dep:clap"]
 slack = []
@@ -31,6 +31,7 @@ async-trait = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 tracing = { workspace = true }
 xxhash-rust = { workspace = true }
 axum = { workspace = true, optional = true }

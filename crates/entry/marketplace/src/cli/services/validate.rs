@@ -8,6 +8,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
+use systemprompt_extension::cli::{
+    CliCommandLeaf, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
+};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_marketplace::CatalogContent;
@@ -16,7 +20,6 @@ use systemprompt_models::bridge::opencode::agents_md::{self, AGENTS_MD_BUDGET_CH
 
 use super::staging::{StagedBundle, compose_staged, stage_archive, stage_tree};
 use super::versions::detect_drift;
-use systemprompt_extension::cli::CommandOutput;
 
 const VALIDATE_API_URL: &str = "http://localhost";
 const CONFIG_RELPATH: &str = "config/config.yaml";
@@ -62,6 +65,33 @@ impl Finding {
             status: status.to_owned(),
             detail: detail.into(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("Services validation failed")]
+pub struct ValidationFailed;
+
+impl DescribeCommand for ValidateArgs {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving)
+    }
+}
+
+impl CliCommandLeaf for ValidateArgs {
+    const NAME: &'static str = "validate";
+    const ABOUT: &'static str =
+        "Check a services tree loads, optionally against a base and a previous bundle";
+
+    fn run(
+        self,
+        _host: &dyn CommandHost,
+    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
+        std::future::ready(match execute(&self) {
+            Ok((output, true)) => Ok(output),
+            Ok((output, false)) => Err(CommandError::new(ValidationFailed).with_output(output)),
+            Err(error) => Err(super::super::command_error(error)),
+        })
     }
 }
 

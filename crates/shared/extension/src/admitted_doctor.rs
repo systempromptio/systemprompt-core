@@ -6,7 +6,9 @@
 //! is built from the admitted composition without running any member code.
 //! Core and install members' checks are both admitted and are run by
 //! [`AdmittedDoctorChecks::run`] against one context, so no standing sees
-//! more than another.
+//! more than another. It also carries the first core member's
+//! `DoctorProbeSource` (with the `sqlx` feature): the doctor opens core
+//! checks' probes through it, and an install member's source is never read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,11 +19,13 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{DoctorCheck, DoctorContext, DoctorOutcome};
 
 use crate::admitted::BuiltState;
+use crate::contribute::StandingTag;
 
 /// One admitted doctor check with its owner.
 #[derive(Clone)]
 pub struct OwnedDoctorCheck {
     pub owner: ExtensionId,
+    pub standing: StandingTag,
     pub check: Arc<dyn DoctorCheck>,
 }
 
@@ -29,15 +33,26 @@ impl std::fmt::Debug for OwnedDoctorCheck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OwnedDoctorCheck")
             .field("owner", &self.owner)
+            .field("standing", &self.standing)
             .field("check", &self.check.name())
             .finish()
     }
 }
 
 /// The doctor checks of an admitted composition.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct AdmittedDoctorChecks {
     entries: Vec<OwnedDoctorCheck>,
+    #[cfg(feature = "sqlx")]
+    probe_source: Option<Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>>,
+}
+
+impl std::fmt::Debug for AdmittedDoctorChecks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AdmittedDoctorChecks")
+            .field("entries", &self.entries)
+            .finish_non_exhaustive()
+    }
 }
 
 impl AdmittedDoctorChecks {
@@ -53,11 +68,25 @@ impl AdmittedDoctorChecks {
                         .iter()
                         .map(|check| OwnedDoctorCheck {
                             owner: member.owner.clone(),
+                            standing: member.standing,
                             check: Arc::clone(check),
                         })
                 })
                 .collect(),
+            #[cfg(feature = "sqlx")]
+            probe_source: built
+                .members()
+                .filter(|member| member.standing == StandingTag::Core)
+                .find_map(|member| member.sink.doctor_probe_sources().first().cloned()),
         }
+    }
+
+    #[cfg(feature = "sqlx")]
+    #[must_use]
+    pub fn probe_source(
+        &self,
+    ) -> Option<&Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>> {
+        self.probe_source.as_ref()
     }
 
     #[must_use]

@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use serde::Deserialize;
 use systemprompt_extension::{Admitted, ExtensionConfig, ExtensionConfigError};
 use systemprompt_logging::OutputState;
-use systemprompt_runtime::{StartupValidator, validate_extension_configs};
+use systemprompt_runtime::StartupValidator;
 use systemprompt_test_fixtures::{ComposedParts, Probe, ensure_test_bootstrap, probe_admitted};
 use tracing_subscriber::layer::SubscriberExt;
 
@@ -93,27 +93,23 @@ fn validate_runs_full_pipeline_when_bootstrapped_verbose() {
 fn validate_extension_configs_reports_each_admitted_config_section() {
     let env = ensure_test_bootstrap();
 
-    let outcomes = validate_extension_configs(
-        &systemprompt_extension::AdmittedConfigs::of(admitted(true).built()),
-        &env.services_path,
-    );
+    let outcomes = systemprompt_extension::AdmittedConfigs::of(admitted(true).built())
+        .validate(&env.services_path);
 
     let probe = outcomes
         .iter()
         .find(|outcome| outcome.extension_id.as_str() == "validatorprobe")
         .unwrap_or_else(|| panic!("the admitted probe's config is validated: {outcomes:?}"));
     assert_eq!(probe.config_key, "validatorprobe.config");
-    assert_eq!(probe.error, None);
+    assert!(probe.error.is_none());
 }
 
 #[test]
 fn validate_extension_configs_reports_nothing_for_an_unadmitted_member() {
     let env = ensure_test_bootstrap();
 
-    let outcomes = validate_extension_configs(
-        &systemprompt_extension::AdmittedConfigs::of(admitted(false).built()),
-        &env.services_path,
-    );
+    let outcomes = systemprompt_extension::AdmittedConfigs::of(admitted(false).built())
+        .validate(&env.services_path);
 
     assert!(
         outcomes

@@ -19,6 +19,7 @@
 
 pub mod audience;
 mod config;
+mod doctor;
 mod entries;
 mod error;
 mod factories;
@@ -39,7 +40,7 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{ExtensionId, SecretName};
 use systemprompt_provider_contracts::governance::GovernancePolicy;
-use systemprompt_provider_contracts::{ConfigPlane, DoctorCheck, Job};
+use systemprompt_provider_contracts::{ConfigPlane, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService, SecretPattern, SecretReferences};
 
@@ -135,11 +136,6 @@ impl<'a> Contributions<'a> {
 
     pub fn owner_reassignment(&mut self, r: OwnerReassignment) -> &mut Self {
         self.sink.owner_reassignments.push(r);
-        self
-    }
-
-    pub fn doctor_check(&mut self, check: Arc<dyn DoctorCheck>) -> &mut Self {
-        self.sink.doctor_checks.push(check);
         self
     }
 

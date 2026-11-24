@@ -43,9 +43,9 @@ async fn sync_router_download_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn proxy_mcp_unknown_execution_returns_4xx() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = systemprompt_mcp_entry::http::executions_router(
-        systemprompt_api::repository::tool_usage(ctx.db_pool()),
-    )
+    let app = systemprompt_mcp_entry::http::executions_router(std::sync::Arc::new(
+        systemprompt_mcp::repository::ToolUsageRepository::new(ctx.db_pool()),
+    ))
     .layer(Extension(request_context("u")));
     let resp = app.oneshot(empty_get("/executions/exec_missing")).await?;
     assert_eq!(resp.status(), http::StatusCode::NOT_FOUND);

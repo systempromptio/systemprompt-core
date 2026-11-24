@@ -2,11 +2,12 @@
 //! provides the conversation-context seams other members and the kernel read
 //! by type: `DynContextDirectory`, `DynContextMaterializer` and
 //! `DynSessionContextIssuer`, each open (database-only), the open
-//! status-only `Arc<AgentStatusView>`, the sealed `DynAgentServer` a child host
-//! serves one agent through (after governance: it reads the AI provider), and
-//! the open `Arc<AgentCardSite>` (the public URL and skills directory, narrowed
-//! from the configuration). It contributes its supervised process set to the
-//! sealed `ServiceProcessSlot`.
+//! live `Arc<dyn AgentRegistryProvider>` (the proxy's agent OAuth lookup), the
+//! open status-only `Arc<AgentStatusView>`, the sealed `DynAgentServer` a child
+//! host serves one agent through (after governance: it reads the AI provider),
+//! and the open `Arc<AgentCardSite>` (the public URL and skills directory,
+//! narrowed from the configuration). It contributes its supervised process set
+//! to the sealed `ServiceProcessSlot`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,8 +21,8 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{
-    DynAgentServer, DynContextDirectory, DynContextMaterializer, DynServiceProcessSet,
-    DynSessionContextIssuer,
+    AgentRegistryProvider, DynAgentServer, DynContextDirectory, DynContextMaterializer,
+    DynServiceProcessSet, DynSessionContextIssuer,
 };
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
@@ -32,6 +33,7 @@ use crate::services::a2a_server::serve::HostedAgentServer;
 use crate::services::agent_orchestration::process_set::AgentProcessSet;
 use crate::services::agent_orchestration::status_view::AgentStatusView;
 use crate::services::registry::AgentCardSite;
+use crate::services::registry_provider::LiveAgentRegistry;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentExtension;
@@ -200,6 +202,14 @@ fn provide_seams(c: &mut Contributions<'_>) {
                 skills_dir: std::path::PathBuf::from(&config.skills_path),
                 cloud: config.is_cloud,
             }))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<Arc<dyn AgentRegistryProvider>, ProvideError> {
+            Ok(Arc::new(LiveAgentRegistry::new(
+                r.get::<ServicesView>()?,
+                r.get::<Arc<Config>>()?.is_cloud,
+            )))
         },
     )
     .provide(

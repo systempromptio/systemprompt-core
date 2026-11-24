@@ -3,12 +3,13 @@
 //! alike, run in composition order and reported under the check's own name.
 //!
 //! Every check gets a [`DoctorContext`]: the presence of each secret, never
-//! its value, and probes, the read-only facts the doctor answers itself. A
-//! core member's check reads [`TenantProbes`], which read through one
+//! its value, and read-only probes. A core member's check reads the probes
+//! the admitted core probe source (`DoctorProbeSource`) opens over one
 //! short-lived pool opened from the checked profile's secrets with
-//! `default_transaction_read_only` on; no check receives the pool. An install
-//! member's check reads [`WithheldProbes`]: the tenant's Git source list
-//! (repository URLs included) is not a fact an install check is told, so
+//! `default_transaction_read_only` on; no check receives the pool, and with
+//! no source or no reachable database the core probes answer `Unreachable`. An
+//! install member's check reads [`WithheldProbes`]: the tenant's Git source
+//! list (repository URLs included) is not a fact an install check is told, so
 //! every probe answers `Unreachable`. With no admitted composition the member
 //! checks are not evaluated.
 //!
@@ -23,9 +24,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use sqlx::PgPool;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use systemprompt_database::Database;
-use systemprompt_extension::reserved::CoreId;
-use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_extension::contribute::StandingTag;
 use systemprompt_traits::{
     DoctorContext, DoctorProbeError, DoctorProbes, DoctorStatus, GitCredentialSource,
 };
@@ -50,23 +49,6 @@ async fn connect_read_only(secrets: &HashMap<String, String>) -> Option<Arc<PgPo
         .inspect_err(|error| tracing::debug!(%error, "doctor database unreachable"))
         .ok()
         .map(Arc::new)
-}
-
-struct TenantProbes {
-    managed: Option<ManagedRepository>,
-}
-
-#[async_trait]
-impl DoctorProbes for TenantProbes {
-    async fn git_credential_sources(&self) -> Result<Vec<GitCredentialSource>, DoctorProbeError> {
-        let Some(managed) = &self.managed else {
-            return Err(DoctorProbeError::Unreachable);
-        };
-        managed
-            .git_sources_with_credentials()
-            .await
-            .map_err(|error| DoctorProbeError::Read(Box::new(error)))
-    }
 }
 
 struct WithheldProbes;
@@ -100,14 +82,13 @@ pub(super) async fn run_member_checks(
         return Vec::new();
     }
     let pool = connect_read_only(secrets).await;
-    let probes = TenantProbes {
-        managed: pool.as_ref().map(|pool| {
-            ManagedRepository::new(&Arc::new(Database::from_pools(Arc::clone(pool), None)))
-        }),
+    let probes: Box<dyn DoctorProbes> = match (pool.as_ref(), views.doctor.probe_source()) {
+        (Some(pool), Some(source)) => source.probes(Arc::clone(pool)),
+        _ => Box::new(WithheldProbes),
     };
     let core = DoctorContext {
         secrets,
-        probes: &probes,
+        probes: probes.as_ref(),
     };
     let install = DoctorContext {
         secrets,
@@ -115,7 +96,7 @@ pub(super) async fn run_member_checks(
     };
     let mut results = Vec::with_capacity(views.doctor.entries().len());
     for owned in views.doctor.entries() {
-        let ctx = if CoreId::for_id(owned.owner.as_str()).is_some() {
+        let ctx = if owned.standing == StandingTag::Core {
             core
         } else {
             install

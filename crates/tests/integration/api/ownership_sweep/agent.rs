@@ -175,8 +175,8 @@ fn webhooks(ctx: &AppContext) -> Router {
 }
 
 fn executions(ctx: &AppContext) -> Router {
-    systemprompt_mcp_entry::http::executions_router(systemprompt_api::repository::tool_usage(
-        ctx.db_pool(),
+    systemprompt_mcp_entry::http::executions_router(std::sync::Arc::new(
+        systemprompt_mcp::repository::ToolUsageRepository::new(ctx.db_pool()),
     ))
 }
 

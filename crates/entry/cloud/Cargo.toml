@@ -37,6 +37,7 @@ http = [
 ]
 cli = [
     "systemprompt-extension/cli",
+    "systemprompt-extension/sqlx",
     "systemprompt-logging/cli",
     "dep:systemprompt-cloud",
     "dep:systemprompt-client",
@@ -48,9 +49,7 @@ cli = [
     "dep:systemprompt-loader",
     "dep:systemprompt-logging",
     "dep:systemprompt-manifest",
-    "dep:systemprompt-marketplace",
     "dep:systemprompt-models",
-    "dep:systemprompt-runtime",
     "dep:systemprompt-scheduler",
     "dep:systemprompt-traits",
     "dep:anyhow",
@@ -84,9 +83,7 @@ systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-loader = { workspace = true, optional = true }
 systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
-systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
-systemprompt-runtime = { workspace = true, optional = true }
 systemprompt-scheduler = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }

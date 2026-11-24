@@ -29,6 +29,37 @@ impl AgentRegistryProviderService {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct LiveAgentRegistry {
+    services: ServicesView,
+    is_cloud: bool,
+}
+
+impl LiveAgentRegistry {
+    #[must_use]
+    pub const fn new(services: ServicesView, is_cloud: bool) -> Self {
+        Self { services, is_cloud }
+    }
+
+    fn current(&self) -> AgentRegistryProviderService {
+        AgentRegistryProviderService::new(&self.services, self.is_cloud)
+    }
+}
+
+impl AgentRegistryProvider for LiveAgentRegistry {
+    fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
+        self.current().get_agent(name)
+    }
+
+    fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
+        self.current().list_enabled_agents()
+    }
+
+    fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
+        self.current().get_default_agent()
+    }
+}
+
 impl AgentRegistryProvider for AgentRegistryProviderService {
     fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
         let agent = self.registry.get_agent(name).map_err(registry_error)?;

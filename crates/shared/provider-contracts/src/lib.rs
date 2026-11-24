@@ -56,6 +56,7 @@ mod error;
 mod extender;
 mod frame_options;
 mod frontmatter;
+mod git_credentials;
 pub mod governance;
 mod job;
 mod job_batch;
@@ -82,6 +83,8 @@ pub use config_plane::{
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, DependencyProvider};
 pub use dependency_error::{DuplicateDependency, MissingDependency};
+#[cfg(feature = "sqlx")]
+pub use doctor::DoctorProbeSource;
 pub use doctor::{
     DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
     GitCredentialSource, SecretPresence,
@@ -90,6 +93,9 @@ pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
 pub use frame_options::FrameOptions;
 pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
+pub use git_credentials::{
+    DynGitCredentialDirectory, GitCredentialDirectory, GitCredentialReadError,
+};
 pub use job::{Job, JobContext, JobResult, JobScope};
 pub use job_batch::{BatchPlan, BatchedRun, run_batched};
 pub use job_budget::DbBudget;

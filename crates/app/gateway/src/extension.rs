@@ -13,7 +13,10 @@
 //! `brain` member provides (read optionally: disabling the brain leaves the
 //! engines without recall). The engines hold the provider secrets, so only
 //! kernel code (the API's gateway routes) and core provide fns read them.
-//! Their presence is the gateway's one owner check.
+//! Their presence is the gateway's one owner check. Building them registers
+//! the gateway's safety scanners on the mcp member's artifact ingest, when that
+//! member is admitted, so every tool result is scanned by the installation's
+//! policy.
 //!
 //! It builds the bridge routes' narrow views
 //! ([`crate::surface::views`]) from the sealed signing keys, secret lookup,
@@ -38,16 +41,19 @@
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
+use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_extension::prelude::*;
 use systemprompt_manifest::Config;
-use systemprompt_manifest::profile::BrainProfile;
+use systemprompt_manifest::profile::{BrainProfile, UnappliedPlaneMode};
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_mcp::ArtifactIngest;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_traits::{SecretLookup, SecretStore};
+use systemprompt_traits::{CacheEpochView, SecretLookup, SecretStore};
 
+use crate::artifact_scanner::GatewayArtifactScanner;
 use crate::at_rest::GatewayAtRest;
 use crate::surface::views::{
     BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsSource,
@@ -135,10 +141,32 @@ fn provide_engines(r: &Resolved<'_>) -> Result<Arc<GatewayEngines>, ProvideError
     let recall = r
         .optional::<Arc<dyn MemoryRecall>>()
         .filter(|_| brain_enabled);
-    Ok(Arc::new(match recall {
+    let engines = Arc::new(match recall {
         Some(recall) => engines.with_memory_recall(recall),
         None => engines,
-    }))
+    });
+    register_artifact_scanner(r, &engines)?;
+    Ok(engines)
+}
+
+fn register_artifact_scanner(
+    r: &Resolved<'_>,
+    engines: &GatewayEngines,
+) -> Result<(), ProvideError> {
+    let Some(ingest) = r.optional::<Arc<ArtifactIngest>>() else {
+        tracing::info!(
+            reason = "mcp_member_not_admitted",
+            "No artifact ingest; the gateway scanner is not registered"
+        );
+        return Ok(());
+    };
+    ingest.register_scanner(Arc::new(GatewayArtifactScanner::over_policy_table(
+        &r.get::<DbPool>()?,
+        r.get::<CacheEpochView>()?,
+        r.get::<UnappliedPlaneMode>()?,
+        Arc::clone(&engines.scanner_registry),
+    )));
+    Ok(())
 }
 
 fn at_rest(r: &Resolved<'_>) -> Arc<GatewayAtRest> {

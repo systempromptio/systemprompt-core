@@ -6,11 +6,11 @@
 //! extension's values, and cannot provide a type the kernel already holds.
 //!
 //! Every host seeds the database handle, the paths, the files, notifications
-//! and brain profiles, the instance id, the file storage
-//! (`Arc<dyn FileStorage>`), the background-task owner (`BackgroundTasks`),
-//! the coordination seams (`DynInstanceRegistry`, `DynLeaseRepository`,
-//! `DynAdvisoryLocks`; a child host seeds `UnavailableCoordination` for all
-//! three), the runtime `Config`, the services
+//! and brain profiles, the profile's `UnappliedPlaneMode`, the instance id, the
+//! file storage (`Arc<dyn FileStorage>`), the background-task owner
+//! (`BackgroundTasks`), the coordination seams (`DynInstanceRegistry`,
+//! `DynLeaseRepository`, `DynAdvisoryLocks`; a child host seeds
+//! `UnavailableCoordination` for all three), the runtime `Config`, the services
 //! view and active services root, the secret store, the system admin, the
 //! event router and the escalation delivery mode the notifications member
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
@@ -138,6 +138,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with(Arc::clone(seed.files_config))
         .with(Arc::new(seed.profile.notifications))
         .with(Arc::new(seed.profile.brain.clone()))
+        .with(seed.profile.unapplied_plane_mode())
         .with(seed.config.instance_id.clone())
         .with(seed.file_storage)
         .with(seed.background_tasks)

@@ -51,12 +51,11 @@ pub fn setup_api_server(
     events: Option<&StartupEventSender>,
     readiness: &Arc<ReadinessState>,
 ) -> Result<Router> {
-    let engines = admitted_gateway_engines(ctx, &composed);
+    let engines = admitted_gateway_engines(&composed);
     assemble_api_server(ctx, composed, events, readiness, engines.as_ref())
 }
 
 pub fn admitted_gateway_engines(
-    ctx: &AppContext,
     composed: &super::routes::Composed<'_>,
 ) -> Option<Arc<GatewayEngines>> {
     let Some(engines) = crate::routes::gateway::gateway_engines(composed.kernel) else {
@@ -66,7 +65,6 @@ pub fn admitted_gateway_engines(
         );
         return None;
     };
-    register_artifact_scanner(ctx, &engines);
     Some(engines)
 }
 
@@ -94,31 +92,6 @@ pub fn assemble_api_server(
     let router = configure_routes(ctx, composed, events, engines)?
         .layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)
-}
-
-// Why: the ingest is built by the mcp member, which cannot see the gateway's
-// scanner registry; the composition root closes the loop here so every tool
-// result — from any vantage point — is scanned by the installation's policy.
-fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
-    let Ok(ingest) = ctx
-        .kernel()
-        .state()
-        .get::<Arc<systemprompt_mcp::ArtifactIngest>>()
-    else {
-        tracing::info!(
-            reason = "mcp_member_not_admitted",
-            "No artifact ingest; the gateway scanner is not registered"
-        );
-        return;
-    };
-    ingest.register_scanner(Arc::new(
-        systemprompt_gateway::GatewayArtifactScanner::over_policy_table(
-            ctx.db_pool(),
-            ctx.cache_epochs().view(),
-            ctx.profile().unapplied_plane_mode(),
-            Arc::clone(&engines.scanner_registry),
-        ),
-    ));
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {

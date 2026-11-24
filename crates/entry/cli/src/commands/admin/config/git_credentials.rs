@@ -2,12 +2,14 @@
 //! stored under a bare label to the name the runtime resolves.
 //!
 //! A Git source's `credential_reference` is a label, resolved only as the
-//! custom secret `GIT_SOURCE__<HOST>__<LABEL>` (see `git_credential_key`) for
-//! the host of the source's repository. For each registered Git source with a
-//! label, a secret stored under the bare label is copied to that name. An
-//! existing namespaced secret is never overwritten, and the bare secret is
-//! removed only when every source using that label now has its namespaced copy.
-//! Secret values are never printed. Without `--apply` the command only reports.
+//! custom secret `GIT_SOURCE__<HOST>__<LABEL>` for the host of the source's
+//! repository. The source list and that naming rule are read through the
+//! `managed_resources` member's open `DynGitCredentialDirectory`. For each
+//! registered Git source with a label, a secret stored under the bare label is
+//! copied to that name. An existing namespaced secret is never overwritten, and
+//! the bare secret is removed only when every source using that label now has
+//! its namespaced copy. Secret values are never printed. Without `--apply` the
+//! command only reports.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,8 +25,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use systemprompt_config::write_private_atomic;
 use systemprompt_logging::CliService;
-use systemprompt_marketplace::managed::git_sources::git_credential_key;
-use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
+use systemprompt_traits::{DynGitCredentialDirectory, GitCredentialSource};
 
 use systemprompt_extension::cli::CommandOutput;
 
@@ -65,13 +66,14 @@ pub struct MigrateGitCredentialsOutput {
 pub fn plan_renames(
     secrets: &mut Map<String, Value>,
     sources: &[GitCredentialSource],
+    credential_key: &dyn Fn(&str, &str) -> Option<String>,
 ) -> (Vec<SourceCredentialReport>, Vec<String>) {
     let mut reports = Vec::with_capacity(sources.len());
     let mut blocked: BTreeSet<&str> = BTreeSet::new();
     let mut used: BTreeSet<&str> = BTreeSet::new();
     for source in sources {
         let label = source.credential_reference.as_str();
-        let target = git_credential_key(&source.repository, label);
+        let target = credential_key(&source.repository, label);
         let bare = secrets.get(label).cloned();
         let status = match (&target, bare) {
             (None, _) => CredentialStatus::UnsupportedRepository,
@@ -110,6 +112,7 @@ pub fn plan_renames(
 pub fn migrate_file(
     secrets_file: &Path,
     sources: &[GitCredentialSource],
+    credential_key: &dyn Fn(&str, &str) -> Option<String>,
     apply: bool,
 ) -> Result<MigrateGitCredentialsOutput> {
     let content = std::fs::read_to_string(secrets_file)
@@ -123,7 +126,7 @@ pub fn migrate_file(
             secrets_file.display()
         )
     })?;
-    let (sources, removed_bare_labels) = plan_renames(object, sources);
+    let (sources, removed_bare_labels) = plan_renames(object, sources, credential_key);
     let renamed = sources
         .iter()
         .filter(|r| r.status == CredentialStatus::Renamed)
@@ -154,10 +157,13 @@ pub(super) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let secrets_file = super::secret::file_secrets_path(host)?;
-    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
-    let sources = ManagedRepository::new(&pool)
-        .git_sources_with_credentials()
-        .await?;
-    let output = migrate_file(&secrets_file, &sources, args.apply)?;
+    let directory = super::super::state::get::<DynGitCredentialDirectory>(host).await?;
+    let sources = directory.sources().await?;
+    let output = migrate_file(
+        &secrets_file,
+        &sources,
+        &|repository, label| directory.credential_key(repository, label),
+        args.apply,
+    )?;
     Ok(CommandOutput::card_value("Git Source Credentials", &output))
 }
