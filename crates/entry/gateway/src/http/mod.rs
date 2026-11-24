@@ -67,7 +67,7 @@ impl GatewaySurface for GatewayHttpSurface {
         Ok(match credentials {
             Some(credentials) => router.merge(provider_credentials::routes(
                 &provider_credentials::ProviderCredentialsState {
-                    gateway: state.clone(),
+                    gateway: state,
                     credentials,
                 },
             )),
