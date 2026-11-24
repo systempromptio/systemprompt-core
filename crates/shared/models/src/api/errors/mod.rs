@@ -15,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod config_plane;
+mod context_extraction;
 mod extension;
 mod identifier;
 mod repository;

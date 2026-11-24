@@ -15,8 +15,8 @@ use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_oauth::OauthError;
 use systemprompt_oauth::services::SessionCreationError;
-use systemprompt_oauth::{OauthError, OauthErrorKind};
 use systemprompt_oauth_issuance::DriveSyncError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
@@ -94,34 +94,7 @@ impl From<UserError> for ApiHttpError {
 
 impl From<OauthError> for ApiHttpError {
     fn from(err: OauthError) -> Self {
-        if matches!(
-            err,
-            OauthError::CodeNotFound(_)
-                | OauthError::TokenNotFound(_)
-                | OauthError::ClientNotFound(_)
-                | OauthError::UserNotFound(_)
-        ) {
-            return Self(Box::new(ApiError::not_found(err.to_string())));
-        }
-        let api = match err.kind() {
-            OauthErrorKind::InvalidRequest
-            | OauthErrorKind::InvalidClientMetadata
-            | OauthErrorKind::ExpiredChallenge
-            | OauthErrorKind::InvalidCredential => ApiError::bad_request(err.to_string()),
-            OauthErrorKind::UsernameUnavailable | OauthErrorKind::EmailExists => {
-                ApiError::conflict(err.to_string())
-            },
-            OauthErrorKind::InvalidClient => ApiError::unauthorized("Client authentication failed"),
-            OauthErrorKind::AuthenticationFailed => ApiError::unauthorized("Authentication failed"),
-            OauthErrorKind::InvalidGrant
-            | OauthErrorKind::InvalidToken
-            | OauthErrorKind::AccessDenied => ApiError::unauthorized(err.to_string()),
-            OauthErrorKind::NotFound => ApiError::not_found(err.to_string()),
-            OauthErrorKind::ServerError => {
-                ApiError::internal("Authorization operation failed", err)
-            },
-        };
-        Self(Box::new(api))
+        Self(Box::new(ApiError::from(err)))
     }
 }
 
@@ -136,30 +109,7 @@ impl From<SessionCreationError> for ApiHttpError {
 
 impl From<ContextExtractionError> for ApiHttpError {
     fn from(err: ContextExtractionError) -> Self {
-        let api = match err {
-            ContextExtractionError::InvalidToken(source) => {
-                ApiError::unauthorized("Invalid or expired token").with_source(source)
-            },
-            e @ (ContextExtractionError::MissingHeader(_)
-            | ContextExtractionError::MissingAuthHeader
-            | ContextExtractionError::Revoked
-            | ContextExtractionError::MissingSessionId
-            | ContextExtractionError::MissingUserId) => ApiError::unauthorized(e.to_string()),
-            e @ (ContextExtractionError::MissingContextId
-            | ContextExtractionError::InvalidHeaderValue { .. }
-            | ContextExtractionError::InvalidUserId(_)) => ApiError::bad_request(e.to_string()),
-            e @ ContextExtractionError::ForbiddenHeader { .. } => {
-                ApiError::forbidden(e.to_string())
-            },
-            e @ ContextExtractionError::UserNotFound(_) => ApiError::not_found(e.to_string()),
-            e @ ContextExtractionError::PayloadTooLarge { .. } => {
-                ApiError::payload_too_large(e.to_string())
-            },
-            e @ ContextExtractionError::DatabaseError { .. } => {
-                ApiError::internal("Request context lookup failed", e)
-            },
-        };
-        Self(Box::new(api))
+        Self(Box::new(ApiError::from(err)))
     }
 }
 
