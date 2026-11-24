@@ -66,7 +66,7 @@ CREATE TRIGGER event_outbox_backlog_delete
 -- recount against a compaction; `systemprompt_database::OUTBOX_BACKLOG_LOCK_CLASS`
 -- holds the same value. Appends never take it.
 CREATE OR REPLACE FUNCTION event_outbox_backlog_lock_class()
-RETURNS INTEGER LANGUAGE sql IMMUTABLE AS $ SELECT 1397751873 $;
+RETURNS INTEGER LANGUAGE sql IMMUTABLE AS $$ SELECT 1397751873 $$;
 
 -- Recounts the queued consumers from the ledger: the projector an upgrade
 -- drains after it queues every consumer, and the repair for a sum that
@@ -78,7 +78,7 @@ RETURNS INTEGER LANGUAGE sql IMMUTABLE AS $ SELECT 1397751873 $;
 -- keeps its delta row and is not counted. The rollup job compacts, it does
 -- not recount, so a queued key is the only way a drift is repaired.
 CREATE OR REPLACE FUNCTION refresh_event_outbox_backlog(keys TEXT[])
-RETURNS BIGINT LANGUAGE plpgsql AS $
+RETURNS BIGINT LANGUAGE plpgsql AS $$
 BEGIN
     PERFORM pg_advisory_xact_lock(event_outbox_backlog_lock_class(), 0);
     WITH gone AS (
@@ -90,14 +90,14 @@ BEGIN
                WHERE e.consumer = k AND e.processed_at IS NULL)
     FROM unnest(keys) AS k;
     RETURN cardinality(keys);
-END $;
+END $$;
 
 -- Compacts every consumer's deltas to one row: the rows up to the highest
 -- id in the snapshot are replaced by their per-consumer sums, and rows a
 -- concurrent append writes after that id survive. It holds the ledger lock,
 -- so two compactions, or a compaction and a recount, never interleave.
 CREATE OR REPLACE FUNCTION compact_event_outbox_backlog()
-RETURNS BIGINT LANGUAGE plpgsql AS $
+RETURNS BIGINT LANGUAGE plpgsql AS $$
 DECLARE compacted BIGINT;
 BEGIN
     PERFORM pg_advisory_xact_lock(event_outbox_backlog_lock_class(), 0);
@@ -113,4 +113,4 @@ BEGIN
     )
     SELECT count(*) INTO compacted FROM gone;
     RETURN compacted;
-END $;
+END $$;

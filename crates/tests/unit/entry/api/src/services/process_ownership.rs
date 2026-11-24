@@ -13,6 +13,7 @@ fn lease_held_by(owner: &str) -> Lease {
     Lease {
         key: LeaseKey::new("mcp:files"),
         owner: InstanceId::new(owner),
+        fencing_token: systemprompt_traits::FencingToken::new(1),
         acquired_at: now,
         expires_at: now,
     }

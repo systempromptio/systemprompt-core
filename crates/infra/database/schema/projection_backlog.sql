@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_projection_backlog_staged_xact
 -- (projection, key) order; a key already queued stays where it is. The
 -- first deferred firing moves them all, later firings find none.
 CREATE OR REPLACE FUNCTION flush_projection_backlog_staged()
-RETURNS trigger LANGUAGE plpgsql AS $
+RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     WITH mine AS (
         DELETE FROM projection_backlog_staged WHERE xact = pg_current_xact_id()
@@ -56,7 +56,7 @@ BEGIN
     SELECT DISTINCT projection, key FROM mine ORDER BY projection, key
     ON CONFLICT DO NOTHING;
     RETURN NULL;
-END $;
+END $$;
 
 DROP TRIGGER IF EXISTS projection_backlog_staged_flush ON projection_backlog_staged;
 CREATE CONSTRAINT TRIGGER projection_backlog_staged_flush
@@ -68,13 +68,13 @@ CREATE CONSTRAINT TRIGGER projection_backlog_staged_flush
 -- calling transaction commits (a statement outside a transaction commits at
 -- its end). Returns how many distinct keys were queued.
 CREATE OR REPLACE FUNCTION queue_projection_backlog(projection_name TEXT, keys TEXT[])
-RETURNS BIGINT LANGUAGE sql AS $
+RETURNS BIGINT LANGUAGE sql AS $$
 WITH staged AS (
     INSERT INTO projection_backlog_staged(projection, key)
     SELECT DISTINCT projection_name, k FROM unnest(keys) AS k WHERE k IS NOT NULL
     RETURNING 1)
 SELECT COUNT(*) FROM staged
-$;
+$$;
 
 -- Takes up to `batch` queued keys of one projection, oldest first, removing
 -- them from the queue in the caller's transaction. SKIP LOCKED lets two
