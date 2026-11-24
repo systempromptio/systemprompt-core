@@ -76,14 +76,7 @@ impl GatewayAudit {
         let tokens_used = usage.billable_total();
 
         let completion = super::journal::Completion {
-            usage: [
-                usage.input_tokens,
-                usage.output_tokens,
-                usage.cache_read_tokens,
-                usage.cache_creation_tokens,
-                usage.reasoning_tokens,
-                tokens_used,
-            ],
+            usage: super::span::usage_columns(&usage, tokens_used),
             cost,
             latency: latency_ms,
             upstream_latency: upstream_latency_ms,
@@ -116,14 +109,7 @@ impl GatewayAudit {
         self.emit_request_span(&super::span::SettledOutcome {
             status: systemprompt_traits::RequestStatus::Completed,
             error: None,
-            usage: Some([
-                usage.input_tokens,
-                usage.output_tokens,
-                usage.cache_read_tokens,
-                usage.cache_creation_tokens,
-                usage.reasoning_tokens,
-                tokens_used,
-            ]),
+            usage: Some(super::span::usage_columns(&usage, tokens_used)),
             cost_microdollars: cost,
             latency_ms,
             upstream_latency_ms,
