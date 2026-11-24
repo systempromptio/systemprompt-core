@@ -2,8 +2,9 @@
 //! (`DynSessionIssuer`) the API's session middleware and static-content
 //! serving read. It is built over the users member's sealed session store and
 //! user directory and the kernel's sealed token authority, all read by this
-//! core member's provide fn; on a host that seeds no token authority it is the
-//! issuer that refuses every call.
+//! core member's provide fn; on a host that seeds no token authority, or with
+//! the users member's seams absent (the member's declared requirement then
+//! refuses the composition), it is the issuer that refuses every call.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -182,12 +183,14 @@ impl SessionIssuer for UnavailableSessionIssuer {
 }
 
 pub(crate) fn session_issuer(r: &Resolved<'_>) -> Result<DynSessionIssuer, ProvideError> {
-    let Some(authority) = r.optional::<Arc<dyn TokenAuthority>>() else {
+    let (Some(authority), Some(store), Some(users)) = (
+        r.optional::<Arc<dyn TokenAuthority>>(),
+        r.optional::<DynSessionStore>(),
+        r.optional::<DynUserProvider>(),
+    ) else {
         return Ok(Arc::new(UnavailableSessionIssuer));
     };
-    let store: DynSessionStore = r.get::<DynSessionStore>()?;
     let sessions: Arc<dyn SessionProvider> = store;
-    let users: DynUserProvider = r.get::<DynUserProvider>()?;
     let config = r.get::<Arc<Config>>()?;
     Ok(Arc::new(OauthSessionIssuer {
         service: SessionCreationService::new(
