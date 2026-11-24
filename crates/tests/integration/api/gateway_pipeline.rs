@@ -1415,6 +1415,7 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         ClientFamily::Claude,
     );
     let repositories = gw_repos(&pool);
+    systemprompt_test_fixtures::await_window_headroom(60, std::time::Duration::from_secs(20)).await;
     let first = GatewayService::dispatch(
         &config,
         &registry,

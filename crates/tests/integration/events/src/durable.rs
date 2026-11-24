@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use sqlx::postgres::{PgListener, PgPoolOptions};
+use sqlx::postgres::PgListener;
 use systemprompt_events::services::durable::{
     DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
 };
@@ -16,57 +16,8 @@ use systemprompt_test_fixtures::unique_instance;
 async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     let admin = crate::setup_test_pool().await;
     verify_upgrade(&admin).await;
-    let suffix = ConnectionId::generate().to_string().replace('-', "_");
-    let schema = format!("outbox_test_{suffix}");
-    assert!(
-        schema
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'_')
-    );
-    sqlx::query(sqlx::AssertSqlSafe(format!("CREATE SCHEMA \"{schema}\"")))
-        .execute(admin.as_ref())
-        .await
-        .unwrap();
-    let search_path = schema.clone();
-    let application_name = schema.clone();
-    let pool = PgPoolOptions::new()
-        .max_connections(8)
-        .after_connect(move |connection, _| {
-            let search_path = search_path.clone();
-            let application_name = application_name.clone();
-            Box::pin(async move {
-                sqlx::query("SELECT set_config('search_path', $1, false)")
-                    .bind(search_path)
-                    .execute(&mut *connection)
-                    .await?;
-                sqlx::query("SELECT set_config('application_name', $1, false)")
-                    .bind(application_name)
-                    .execute(connection)
-                    .await?;
-                Ok(())
-            })
-        })
-        .connect(&systemprompt_test_fixtures::test_database_url())
-        .await
-        .unwrap();
-    sqlx::raw_sql(include_str!(
-        "../../../../infra/events/schema/event_outbox.sql"
-    ))
-    .execute(&pool)
-    .await
-    .unwrap();
-    sqlx::raw_sql(include_str!(
-        "../../../../infra/events/schema/event_outbox_backlog.sql"
-    ))
-    .execute(&pool)
-    .await
-    .unwrap();
-    sqlx::raw_sql(include_str!(
-        "../../../../infra/events/schema/migrations/004_durable_consumption.sql"
-    ))
-    .execute(&pool)
-    .await
-    .unwrap();
+    let scratch = crate::OutboxSchema::create().await;
+    let pool = scratch.pool().clone();
     sqlx::query("CREATE TABLE projection (id TEXT PRIMARY KEY)")
         .execute(&pool)
         .await
@@ -75,7 +26,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     let instance = unique_instance();
     let outbox = DurableOutbox::new(pool.clone(), instance.clone());
     let consumer = OutboxConsumer::new(pool.clone());
-    let user = UserId::new(format!("user_{suffix}"));
+    let user = UserId::new(format!("user_{}", scratch.name()));
     let actor = Actor::user(user.clone());
     let event = AnalyticsEventBuilder::heartbeat();
     let fact = ReportingFact {
@@ -282,13 +233,8 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     verify_all_channels(&pool, &outbox, &router).await;
     bridge.shutdown().await;
     broadcasters.analytics.unregister(&user, &connection).await;
-    pool.close().await;
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP SCHEMA \"{schema}\" CASCADE"
-    )))
-    .execute(admin.as_ref())
-    .await
-    .unwrap();
+    drop(pool);
+    scratch.drop_now().await;
 }
 
 // Why: NOTIFY channels are database-wide, so other test processes sharing the

@@ -38,19 +38,33 @@ pub async fn test_pg_pool() -> sqlx::PgPool {
     test_db_pool().await.write_pool().as_ref().clone()
 }
 
-// Connection ceiling for a single test's pool.
+// The per-run connection budget.
 //
-// The budget is `RUST_TEST_THREADS` (8, set in this workspace's cargo config)
-// times this value against Postgres `max_connections` of 100. Connections open
-// on demand (`min_connections` is 0) and close with the pool, so the ceiling
-// only has to cover one test's concurrent queries.
-const FIXTURE_POOL_MAX_CONNECTIONS: u32 = 8;
+// A pool a fixture opens for a test's own queries (`connect`, a disposable
+// database) is capped at `FIXTURE_POOL_MAX_CONNECTIONS`. The fixture
+// AppContext pool, sized through the `database.pool` block of the bootstrap
+// profile, is capped at `FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS`: a served
+// context runs the scheduler, heartbeat, lease supervisor and event bridge
+// over it, and starves itself below that. A test process holds
+// `FIXTURE_TEST_CONNECTIONS`: one test pool and one AppContext pool.
+// nextest runs each test in its own process, so the `db-connection-budget`
+// test group in `.config/nextest.toml` bounds a run to (its slots ×
+// `FIXTURE_TEST_CONNECTIONS`) sessions, which stays within
+// `SERVER_CONNECTION_BUDGET` with room for the one-slot shared-state groups
+// that run beside it. The budget is the share of the server's
+// `max_connections` (100) left after superuser-reserved, migration and
+// operator sessions.
+pub const FIXTURE_POOL_MAX_CONNECTIONS: u32 = 4;
+pub const FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS: u32 = 10;
+pub const FIXTURE_TEST_CONNECTIONS: u32 =
+    FIXTURE_POOL_MAX_CONNECTIONS + FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS;
+pub const SERVER_CONNECTION_BUDGET: u32 = 85;
 
 // Idle connections are returned to the server promptly rather than parked for
 // the default five minutes: a test's pool outlives the test by however long the
 // binary runs, and parked connections from finished tests are what exhausts the
 // server mid-run.
-const FIXTURE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
+pub const FIXTURE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
 // A pool handle that never opens a socket: the connection is lazy and no
 // query ever runs through it. Fake `DatabaseProvider`s that script every call

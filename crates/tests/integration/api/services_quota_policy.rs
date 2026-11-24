@@ -80,6 +80,17 @@ async fn pool() -> systemprompt_database::DbPool {
     test_db_pool().await
 }
 
+const WINDOW_HEADROOM: std::time::Duration = std::time::Duration::from_secs(15);
+
+async fn one_bucket_window(window_seconds: i32) -> QuotaWindow {
+    systemprompt_test_fixtures::await_window_headroom(
+        u64::try_from(window_seconds).expect("a positive window"),
+        WINDOW_HEADROOM,
+    )
+    .await;
+    window(window_seconds)
+}
+
 fn window(window_seconds: i32) -> QuotaWindow {
     QuotaWindow {
         window_seconds,
@@ -200,7 +211,7 @@ async fn precheck_over_limit_denies_second_call() {
     let user = UserId::new(format!("quota-deny-{}", uuid::Uuid::new_v4()));
     let windows = vec![QuotaWindow {
         max_requests: Some(1),
-        ..window(60)
+        ..one_bucket_window(60).await
     }];
     assert!(
         reserve(&p, &user, &windows, QuotaFaultMode::Open)
@@ -440,7 +451,7 @@ async fn precheck_denies_once_the_cost_ceiling_is_spent() {
     let user = UserId::new(format!("quota-cost-{}", uuid::Uuid::new_v4()));
     let windows = vec![QuotaWindow {
         max_cost_microdollars: Some(1_000),
-        ..window(3600)
+        ..one_bucket_window(3600).await
     }];
     let reservation = admitted(&p, &user, &windows).await;
     settle(
@@ -573,7 +584,7 @@ async fn precheck_denies_once_the_input_token_ceiling_is_spent() {
     let user = UserId::new(format!("quota-input-{}", uuid::Uuid::new_v4()));
     let windows = vec![QuotaWindow {
         max_input_tokens: Some(100),
-        ..window(3600)
+        ..one_bucket_window(3600).await
     }];
     let reservation = admitted(&p, &user, &windows).await;
     settle(
@@ -602,7 +613,7 @@ async fn precheck_denies_once_the_output_token_ceiling_is_spent() {
     let user = UserId::new(format!("quota-output-{}", uuid::Uuid::new_v4()));
     let windows = vec![QuotaWindow {
         max_output_tokens: Some(100),
-        ..window(3600)
+        ..one_bucket_window(3600).await
     }];
     let reservation = admitted(&p, &user, &windows).await;
     settle(
