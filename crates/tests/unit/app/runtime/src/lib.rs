@@ -167,6 +167,8 @@ mod mcp_host_serve;
 #[cfg(test)]
 mod mcp_tool_provider;
 #[cfg(test)]
+mod oauth_withheld_provides;
+#[cfg(test)]
 mod plugin_tokens_conferral;
 #[cfg(test)]
 mod reassignments_conferral;
