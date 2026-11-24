@@ -723,7 +723,7 @@ fn creating_an_agent_named_registry_is_refused() {
 fn a_create_the_check_refuses_leaves_no_agent_file() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let err = AgentConfigAuthoringService::new(tmp.path())
-        .create(create_request("refused_agent", 8106), || {
+        .create(create_request("refused_agent", 8106), |_| {
             Err("services configuration invalid".into())
         })
         .expect_err("a refused check fails the create");
