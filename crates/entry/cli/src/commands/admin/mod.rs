@@ -3,8 +3,9 @@
 //! [`AdminCommands`] groups configuration, session, access-control, replica
 //! identity and licence check-in management plus the setup and bootstrap flows
 //! and the agent and MCP child hosts. The `users`, `keys` and `bridge`
-//! groups are `identity-http`'s. On a `--database-url` invocation only the session and `config migrate`
-//! commands are served here; the rest require a full profile context.
+//! groups are `identity-http`'s. On a `--database-url` invocation only the
+//! session and `config migrate` commands are served here; the rest require a
+//! full profile context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

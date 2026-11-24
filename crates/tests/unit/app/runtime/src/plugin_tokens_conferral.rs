@@ -25,7 +25,7 @@ async fn context() -> Arc<AppContext> {
 }
 
 fn minter(ctx: &AppContext) -> DynPluginTokenMinter {
-    let kernel = ctx.kernel();
+    let kernel = ctx.kernel().as_ref();
     let owner = ExtensionId::new(CoreId::IdentityHttp.id());
     Resolved::__member_command_owned(kernel, kernel.state(), &owner, StandingTag::Core)
         .get::<DynPluginTokenMinter>()
@@ -51,7 +51,7 @@ async fn sessions_of(ctx: &AppContext, user: &UserId) -> Vec<String> {
 #[tokio::test]
 async fn the_minter_is_conferred_on_identity_http_and_withheld_from_every_other_reader() {
     let ctx = context().await;
-    let kernel = ctx.kernel();
+    let kernel = ctx.kernel().as_ref();
     let state = kernel.state();
     assert!(state.is_sealed::<DynPluginTokenMinter>());
     let conferred = state
