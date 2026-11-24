@@ -11,15 +11,14 @@ use anyhow::Result;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
-use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_api::routes::gateway::models::{families_from_header, humanize_model_id};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::audit::GatewayAudit;
 use systemprompt_gateway::audit::message_text::flatten_message_content;
 use systemprompt_gateway::protocol::{CanonicalContent, ImageSource};
 use systemprompt_gateway::registry::{GatewayUpstreamRegistry, SafetyScannerRegistry};
 use systemprompt_gateway::{GatewayRequestContext, SafetyConfig};
+use systemprompt_gateway_entry::http::models::{families_from_header, humanize_model_id};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
@@ -127,7 +126,7 @@ fn families_from_header_rejects_unknown_tag() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "quantum")]);
     let err = families_from_header(&h).expect_err("unknown must fail");
     assert_eq!(err.tag, "quantum");
-    let err = ApiHttpError::from(err).into_inner();
+    let err = systemprompt_extension::router::ApiHttpError::from(err).into_inner();
     assert_eq!(err.code, ErrorCode::BadRequest);
     assert!(err.message.contains("unknown"), "{}", err.message);
 }

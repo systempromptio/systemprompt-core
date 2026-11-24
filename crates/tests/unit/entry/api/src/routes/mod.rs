@@ -10,6 +10,8 @@ mod admin_cli_disconnect;
 mod admin_services;
 mod admin_services_refresh;
 mod bridge_profile_models;
+#[cfg(test)]
+mod bridge_support;
 mod gateway_access_log_polling;
 mod gateway_auth_provision_client;
 mod gateway_auth_provision_success;

@@ -7,9 +7,9 @@ use systemprompt_ai::error::{
     StorageOperation, ToolError,
 };
 use systemprompt_ai::models::image_generation::{AspectRatio, ImageResolution};
-use systemprompt_database::resilience::Outcome;
 use systemprompt_identifiers::{AgentName, McpServerId, McpToolName, ModelId, ProviderId};
 use systemprompt_models::errors::AiInferenceError;
+use systemprompt_storage::resilience::Outcome;
 use systemprompt_traits::{RepositoryError, ServerListingFailure};
 
 mod ai_error_tests {

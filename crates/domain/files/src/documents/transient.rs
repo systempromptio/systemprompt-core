@@ -15,7 +15,7 @@
 use std::future::Future;
 use std::time::Duration;
 
-use systemprompt_database::resilience::{Outcome, RetryConfig, retry_async};
+use systemprompt_storage::resilience::{Outcome, RetryConfig, retry_async};
 use systemprompt_traits::RepositoryError;
 
 use super::blob_store::BlobStoreError;

@@ -6,22 +6,20 @@
 
 use std::sync::Arc;
 
-use axum::Json;
-use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge_device::enroll_self;
-use systemprompt_api::services::middleware::JwtContextExtractor;
-use systemprompt_models::api::ErrorCode;
-use systemprompt_models::bridge::gateway::{SelfEnrollRequest, SelfEnrollResponse};
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use systemprompt_api::routes::gateway::gateway_router;
+use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::gateway::SelfEnrollResponse;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context,
     test_database_url, test_db_pool,
 };
+use tower::ServiceExt;
 
 struct Harness {
     ctx: Arc<AppContext>,
-    extractor: Arc<JwtContextExtractor>,
     authed: AuthedFixture,
 }
 
@@ -30,26 +28,10 @@ async fn harness() -> Harness {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&url).await;
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
     let authed = seed_bridge_credential(&pool, "device@bridge-device.invalid")
         .await
         .expect("bridge credential");
-    Harness {
-        ctx,
-        extractor,
-        authed,
-    }
-}
-
-fn bearer(token: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "authorization",
-        HeaderValue::from_str(&format!("Bearer {token}")).unwrap(),
-    );
-    headers
+    Harness { ctx, authed }
 }
 
 fn fingerprint(seed: char) -> String {
@@ -58,52 +40,61 @@ fn fingerprint(seed: char) -> String {
 
 async fn enroll(
     h: &Harness,
-    headers: HeaderMap,
+    bearer: Option<&str>,
     fingerprint: String,
-) -> Result<Json<SelfEnrollResponse>, ApiHttpError> {
-    enroll_self(
-        Arc::clone(&h.extractor),
-        (*h.ctx).clone(),
-        headers,
-        Json(SelfEnrollRequest {
-            fingerprint,
-            label: "unit laptop".to_owned(),
-        }),
-    )
-    .await
+) -> Result<SelfEnrollResponse, (StatusCode, String)> {
+    let app = gateway_router(&h.ctx, h.ctx.admitted(), h.ctx.kernel()).expect("gateway router");
+    let mut builder = Request::builder()
+        .method("POST")
+        .uri(ApiPaths::gateway_relative(ApiPaths::BRIDGE_DEVICE))
+        .header("content-type", "application/json");
+    if let Some(token) = bearer {
+        builder = builder.header("authorization", format!("Bearer {token}"));
+    }
+    let body = serde_json::json!({ "fingerprint": fingerprint, "label": "unit laptop" });
+    let response = app
+        .oneshot(builder.body(Body::from(body.to_string())).expect("request"))
+        .await
+        .expect("the device route answers");
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body");
+    if status.is_success() {
+        Ok(serde_json::from_slice(&bytes).expect("an enrolment response"))
+    } else {
+        Err((status, String::from_utf8_lossy(&bytes).into_owned()))
+    }
 }
 
 #[tokio::test]
 async fn missing_bearer_is_unauthorized() {
     let h = harness().await;
-    let error = enroll(&h, HeaderMap::new(), fingerprint('a'))
+    let (status, body) = enroll(&h, None, fingerprint('a'))
         .await
-        .expect_err("no credential must be refused")
-        .into_inner();
-    assert_eq!(error.code, ErrorCode::Unauthorized);
-    assert_eq!(error.error_key.as_deref(), Some("missing_credential"));
+        .expect_err("no credential must be refused");
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(body.contains("missing_credential"), "{body}");
 }
 
 #[tokio::test]
 async fn malformed_fingerprint_is_a_client_error() {
     let h = harness().await;
-    let error = enroll(&h, bearer(h.authed.jwt.as_str()), "deadbeef".to_owned())
+    let (status, body) = enroll(&h, Some(h.authed.jwt.as_str()), "deadbeef".to_owned())
         .await
-        .expect_err("short fingerprint must be refused")
-        .into_inner();
-    assert_eq!(error.code, ErrorCode::BadRequest, "{}", error.message);
+        .expect_err("short fingerprint must be refused");
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
 }
 
 #[tokio::test]
 async fn a_rejected_credential_is_unauthorized_without_the_decoder_cause() {
     let h = harness().await;
-    let error = enroll(&h, bearer("not-a-jwt"), fingerprint('b'))
+    let (status, body) = enroll(&h, Some("not-a-jwt"), fingerprint('b'))
         .await
-        .expect_err("a forged credential must be refused")
-        .into_inner();
-    assert_eq!(error.code, ErrorCode::Unauthorized);
-    assert_eq!(error.error_key.as_deref(), Some("invalid_credential"));
-    assert_eq!(error.message, "Bridge credential rejected");
+        .expect_err("a forged credential must be refused");
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(body.contains("invalid_credential"), "{body}");
+    assert!(body.contains("Bridge credential rejected"), "{body}");
 }
 
 #[tokio::test]
@@ -115,7 +106,7 @@ async fn self_enrolment_issues_a_device_credential_and_repeats_on_the_same_devic
             .as_str()
             .to_owned();
 
-    let first = enroll(&h, bearer(h.authed.jwt.as_str()), fingerprint.clone())
+    let first = enroll(&h, Some(h.authed.jwt.as_str()), fingerprint.clone())
         .await
         .expect("first enrolment");
     assert_eq!(first.consumer_id, h.authed.user_id);
@@ -124,7 +115,7 @@ async fn self_enrolment_issues_a_device_credential_and_repeats_on_the_same_devic
         "credential must carry the device prefix"
     );
 
-    let second = enroll(&h, bearer(h.authed.jwt.as_str()), fingerprint)
+    let second = enroll(&h, Some(h.authed.jwt.as_str()), fingerprint)
         .await
         .expect("repeat enrolment");
     assert_eq!(second.device_id, first.device_id);

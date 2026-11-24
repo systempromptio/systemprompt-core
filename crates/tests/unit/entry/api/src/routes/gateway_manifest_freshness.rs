@@ -12,9 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use axum::http::{HeaderMap, header};
-use systemprompt_api::routes::gateway::bridge_manifest;
-use systemprompt_api::routes::gateway::bridge_resolved::Freshness;
-use systemprompt_api::services::middleware::JwtContextExtractor;
+use systemprompt_gateway_entry::http::bridge::resolved::Freshness;
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
 use systemprompt_runtime::AppContext;
@@ -56,7 +54,6 @@ impl MarketplaceFilter for CountingFilter {
 struct Harness {
     database: DisposableDb,
     ctx: AppContext,
-    extractor: Arc<JwtContextExtractor>,
     filter: Arc<CountingFilter>,
     jwt: String,
 }
@@ -76,16 +73,12 @@ async fn harness(mailbox: &str) -> Harness {
     seed_user_row(&pool, owner, &format!("{owner}@manifest-freshness.invalid"))
         .await
         .expect("seed the organisation owner");
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
     let consumer = seed_bridge_credential(&pool, mailbox)
         .await
         .expect("consumer credential");
     Harness {
         database,
         ctx: (*ctx).clone(),
-        extractor,
         filter,
         jwt: consumer.jwt.as_str().to_owned(),
     }
@@ -105,10 +98,9 @@ async fn fetch(harness: &Harness, cache_control: Option<&str>) {
             value.parse().expect("cache-control header"),
         );
     }
-    let response =
-        bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
-            .await
-            .expect("a signed-in consumer receives a manifest");
+    let response = super::bridge_support::manifest(&harness.ctx, headers)
+        .await
+        .expect("a signed-in consumer receives a manifest");
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("manifest body");

@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Resilience"
+text = "The resilience primitives (`ResilienceGuard`, `CircuitBreaker`, `Bulkhead`, `retry_async`, `guarded_stream`, `Outcome`) move from `systemprompt_database::resilience` to `systemprompt_storage::resilience`. Migrate by changing the import path."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`systemprompt_database::resilience` is removed; the module is `systemprompt_storage::resilience`. The connection and transaction retries run on it."
+
+[[crate]]
+name = "systemprompt-storage"
+section = "Added"
+text = "`resilience`: the retry, circuit-breaker, bulkhead and guarded-stream primitives formerly in `systemprompt-database`."

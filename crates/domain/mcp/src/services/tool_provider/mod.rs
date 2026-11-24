@@ -17,10 +17,10 @@ use async_trait::async_trait;
 use tracing::{info, warn};
 
 use systemprompt_database::DbPool;
-use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_security::credential::TokenCache;
+use systemprompt_storage::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_traits::{
     BoxedSource, SecretLookup, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext,
     ToolInventory, ToolProvider, ToolProviderError, ToolProviderResult,

@@ -27,14 +27,10 @@ mod admin;
 mod repository;
 
 #[cfg(test)]
-#[cfg(test)]
 mod lifecycle;
 
 #[cfg(test)]
 mod extension;
-
-#[cfg(test)]
-mod resilience;
 
 #[cfg(test)]
 mod services;

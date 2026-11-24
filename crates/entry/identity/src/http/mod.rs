@@ -1,6 +1,8 @@
-//! The identity HTTP surface: the OAuth 2.0 / OIDC endpoints ([`oauth`]),
-//! browser-redirect SSO ([`sso`]), the caller's own session revocation
-//! ([`users`]) and admin API-key management (`admin_keys`).
+//! The identity HTTP surface.
+//!
+//! The OAuth 2.0 / OIDC endpoints ([`oauth`]), browser-redirect SSO
+//! ([`sso`]), the caller's own session revocation ([`users`]), admin API-key
+//! management (`admin_keys`) and the bridge credential exchange ([`bridge`]).
 //!
 //! [`IdentityHttpSurface`] builds them from the `identity-http` route state.
 //! It reads, scoped to `identity-http`: the token authority and the signing
@@ -15,6 +17,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod admin_keys;
+pub mod bridge;
 pub mod oauth;
 pub mod sso;
 pub mod users;
@@ -92,11 +95,22 @@ impl IdentitySurface for IdentityHttpSurface {
 
         let sso = sso::SsoRouteState::build(&host.config, &db, &oauth_state, &host.sso);
         let discovery = DiscoveryState::from_config(&host.config, mcp_registry);
+        let keys = Arc::new(ApiKeyService::new(
+            Arc::clone(&own.users),
+            ApiKeyLifetime::from_max_days(host.config.api_key_max_lifetime_days),
+        ));
+        let bridge_auth = bridge::router(&bridge::BridgeAuthState {
+            authenticator: r.get()?,
+            keys: r.get::<SigningKeys>()?,
+            oauth: oauth_repositories.oauth.clone(),
+            sessions: Arc::clone(&sessions),
+            users: Arc::clone(&users),
+            api_keys: Arc::clone(&keys),
+            analytics: Arc::clone(&host.analytics),
+            config: Arc::clone(&host.config),
+        });
         let api_keys = ApiKeysState {
-            keys: Arc::new(ApiKeyService::new(
-                Arc::clone(&own.users),
-                ApiKeyLifetime::from_max_days(host.config.api_key_max_lifetime_days),
-            )),
+            keys,
             subjects: r.get::<Arc<SubjectProviderSet>>()?,
         };
 
@@ -113,6 +127,7 @@ impl IdentitySurface for IdentityHttpSurface {
             wellknown: oauth::wellknown_routes(discovery),
             sessions: users::router(sessions),
             api_keys: admin_keys::router(api_keys),
+            bridge_auth,
         })
     }
 }

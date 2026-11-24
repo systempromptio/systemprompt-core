@@ -12,8 +12,6 @@ use std::sync::{Arc, OnceLock};
 
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, Request, StatusCode, header};
-use systemprompt_api::routes::gateway::bridge_manifest;
-use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, UserId};
 use systemprompt_marketplace::managed::{
@@ -101,7 +99,6 @@ impl MarketplaceFilter for DropSkillsFilter {
 struct Harness {
     pool: DbPool,
     ctx: AppContext,
-    extractor: Arc<JwtContextExtractor>,
 }
 
 async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
@@ -112,13 +109,9 @@ async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     seed_user_row(&pool, owner, &format!("{owner}@manifest-grants.invalid"))
         .await
         .expect("seed the organisation owner");
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
     Harness {
         pool,
         ctx: (*ctx).clone(),
-        extractor,
     }
 }
 
@@ -235,10 +228,9 @@ async fn fetch_manifest(harness: &Harness, jwt: &str) -> SignedManifest {
         header::AUTHORIZATION,
         format!("Bearer {jwt}").parse().expect("bearer header"),
     );
-    let response =
-        bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
-            .await
-            .expect("a signed-in consumer receives a manifest");
+    let response = super::bridge_support::manifest(&harness.ctx, headers)
+        .await
+        .expect("a signed-in consumer receives a manifest");
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("manifest body");
@@ -800,13 +792,9 @@ async fn private_harness(label: &str) -> (systemprompt_test_fixtures::Disposable
     seed_user_row(&pool, &owner, &format!("{owner}@private-consumer.invalid"))
         .await
         .unwrap();
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
     let harness = Harness {
         pool,
         ctx: (*ctx).clone(),
-        extractor,
     };
     (database, harness)
 }
@@ -896,7 +884,9 @@ fn consumer_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
             std::sync::Arc::clone(systemprompt_test_fixtures::fixture_managed_repository(ctx)),
             ctx.services_state().view(),
             std::sync::Arc::from(ctx.config().api_external_url.as_str()),
-            systemprompt_api::routes::managed_state::consumer_catalog(ctx),
+            super::bridge_support::surface_routes(ctx)
+                .consumer_catalog
+                .expect("gateway-http builds the consumer catalog"),
         ),
     )
 }

@@ -1,0 +1,41 @@
+//! Tests for `Outcome` and error classification.
+
+use std::time::Duration;
+
+use systemprompt_storage::resilience::classify::Outcome;
+
+#[test]
+fn success_is_not_transient() {
+    assert!(!Outcome::Success.is_transient());
+}
+
+#[test]
+fn permanent_is_not_transient() {
+    assert!(!Outcome::Permanent.is_transient());
+}
+
+#[test]
+fn transient_without_hint_is_transient() {
+    assert!(Outcome::Transient { retry_after: None }.is_transient());
+}
+
+#[test]
+fn transient_with_hint_is_transient() {
+    let outcome = Outcome::Transient {
+        retry_after: Some(Duration::from_millis(500)),
+    };
+    assert!(outcome.is_transient());
+}
+
+#[test]
+fn outcome_equality_transient_none() {
+    assert_eq!(
+        Outcome::Transient { retry_after: None },
+        Outcome::Transient { retry_after: None }
+    );
+}
+
+#[test]
+fn outcome_inequality_success_vs_permanent() {
+    assert_ne!(Outcome::Success, Outcome::Permanent);
+}

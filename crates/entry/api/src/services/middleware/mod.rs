@@ -13,7 +13,6 @@ pub mod authz;
 pub mod body;
 pub mod bot_detector;
 pub mod caller_purpose;
-pub mod client_addr;
 pub mod context;
 pub mod cors;
 pub mod ip_ban;

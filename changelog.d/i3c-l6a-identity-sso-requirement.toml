@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Composition"
+text = "`identity-http` declares its requirement on the SSO slot's built providers, so a profile that disables `identity` is refused at admission (or disables `identity-http` as its dependant) instead of failing at mount."
+
+[[crate]]
+name = "systemprompt-identity-entry"
+section = "Fixed"
+text = "`IdentityHttpExtension` requires `Arc<SsoProviders>`; disabling the `identity` member surfaces as `CompositionError::DisabledDependency`."

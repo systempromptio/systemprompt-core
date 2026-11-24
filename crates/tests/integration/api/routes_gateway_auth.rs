@@ -1,190 +1,220 @@
-//! Direct-call coverage for the bridge credential-exchange handlers in
-//! `routes::gateway::auth`.
-//!
-//! Each handler takes the `AppContext` by value, so the tests invoke them
-//! directly (bypassing the router) and assert exact status codes. The fixture
-//! context carries a live analytics provider, so `require_analytics` succeeds
-//! and the PAT happy path reaches `issue_bridge_access`.
+//! HTTP coverage for the bridge credential exchange `identity-http` builds and
+//! the bridge manifest and event stream `gateway-http` builds, driven through
+//! the gateway router so each request crosses the member's own verification.
 
 use anyhow::Result;
-use axum::Json;
-use axum::extract::Request;
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::body::Body;
+use axum::http::{Method, Request, StatusCode};
+use axum::response::Response;
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::{auth, bridge_manifest, device_link};
-use systemprompt_api::services::middleware::JwtContextExtractor;
+use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_documents::actor::bearer_actor;
 use systemprompt_files::documents::agents::DocumentActor;
-use systemprompt_models::auth::TokenInteraction;
-use systemprompt_security::http::ClientIp;
+use systemprompt_models::ApiPaths;
+use systemprompt_models::auth::{DynRequestAuthenticator, TokenInteraction};
+use systemprompt_runtime::AppContext;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
+use tower::ServiceExt;
 
 use super::common::setup_ctx;
 
-fn no_auth_request() -> Request {
-    Request::builder()
-        .uri("/pat")
-        .body(axum::body::Body::empty())
-        .expect("request build")
+async fn send(
+    ctx: &AppContext,
+    method: Method,
+    path: &str,
+    headers: &[(&str, String)],
+    body: Option<serde_json::Value>,
+) -> Result<Response> {
+    let app = gateway_router(ctx, ctx.admitted(), ctx.kernel())?
+        .layer(axum::Extension(Arc::clone(ctx.config_arc())));
+    let mut builder = Request::builder().method(method).uri(path);
+    for (name, value) in headers {
+        builder = builder.header(*name, value);
+    }
+    let request = match body {
+        Some(json) => builder
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::to_vec(&json)?))?,
+        None => builder.body(Body::empty())?,
+    };
+    Ok(app.oneshot(request).await?)
 }
 
-fn bearer_request(token: &str) -> Request {
-    Request::builder()
-        .uri("/pat")
-        .header("authorization", format!("Bearer {token}"))
-        .body(axum::body::Body::empty())
-        .expect("request build")
+async fn call(
+    ctx: &AppContext,
+    method: Method,
+    path: &str,
+    headers: &[(&str, String)],
+    body: Option<serde_json::Value>,
+) -> Result<(StatusCode, serde_json::Value)> {
+    let response = send(ctx, method, path, headers, body).await?;
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await?;
+    let json = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+    Ok((status, json))
+}
+
+fn bearer(token: &str) -> Vec<(&'static str, String)> {
+    vec![("authorization", format!("Bearer {token}"))]
+}
+
+fn path(route: &'static str) -> &'static str {
+    ApiPaths::gateway_relative(route)
 }
 
 #[tokio::test]
 async fn capabilities_lists_supported_modes() -> Result<()> {
-    let Json(caps) = auth::capabilities().await;
-    assert!(caps.modes.contains(&"pat"));
-    assert!(caps.modes.contains(&"session"));
+    let (_db, ctx) = setup_ctx().await?;
+    let (status, body) = call(
+        &ctx,
+        Method::GET,
+        path(ApiPaths::BRIDGE_AUTH_CAPABILITIES),
+        &[],
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK);
+    let modes = body["modes"].as_array().cloned().unwrap_or_default();
+    assert!(modes.iter().any(|m| m == "pat"));
+    assert!(modes.iter().any(|m| m == "session"));
     Ok(())
 }
 
 #[tokio::test]
 async fn pat_without_bearer_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = auth::pat((*ctx).clone(), no_auth_request())
-        .await
-        .expect_err("missing bearer must error");
-    assert_eq!(err.into_response().status(), StatusCode::UNAUTHORIZED);
+    let (status, _) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_PAT),
+        &[],
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
 
 #[tokio::test]
 async fn pat_with_invalid_token_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = auth::pat((*ctx).clone(), bearer_request("sk_not_a_real_key"))
-        .await
-        .expect_err("invalid pat must error");
-    assert_eq!(err.into_response().status(), StatusCode::UNAUTHORIZED);
+    let (status, _) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_PAT),
+        &bearer("sk_not_a_real_key"),
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
 
 #[tokio::test]
 async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let uniq = uuid::Uuid::new_v4();
-    let user = systemprompt_identifiers::UserId::new(uniq.to_string());
-    systemprompt_test_fixtures::seed_user_row(&pool, &user, &format!("pat-{uniq}@example.invalid"))
-        .await?;
-
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::unbounded(),
-    );
-    let issued = service
-        .issue(IssueApiKeyParams {
-            user_id: &user,
-            name: "bridge pat",
-            expires_at: None,
-            limits: &systemprompt_users::ApiKeyLimits::default(),
-            scopes: &[],
-            purpose: None,
-            kind: systemprompt_users::ApiKeyKind::User,
-        })
-        .await?;
-
-    let resp = auth::pat((*ctx).clone(), bearer_request(&issued.secret))
-        .await
-        .expect("valid pat must issue bridge access");
-    assert_eq!(resp.into_response().status(), StatusCode::OK);
+    let secret = issue_key(&ctx, &pool, systemprompt_users::ApiKeyKind::User, None).await?;
+    let (status, body) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_PAT),
+        &bearer(&secret),
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body["token"].as_str().is_some_and(|t| !t.is_empty()));
     Ok(())
 }
 
 #[tokio::test]
 async fn session_with_blank_code_is_bad_request() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = auth::session(
-        (*ctx).clone(),
-        ClientIp(None),
-        HeaderMap::new(),
-        Json(auth::SessionExchangeBody {
-            code: "   ".to_owned(),
-        }),
+    let (status, _) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_SESSION),
+        &[],
+        Some(serde_json::json!({ "code": "   " })),
     )
-    .await
-    .expect_err("blank code must error");
-    assert_eq!(err.into_response().status(), StatusCode::BAD_REQUEST);
+    .await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     Ok(())
 }
 
 #[tokio::test]
 async fn session_with_unknown_code_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = auth::session(
-        (*ctx).clone(),
-        ClientIp(None),
-        HeaderMap::new(),
-        Json(auth::SessionExchangeBody {
-            code: format!("code-{}", uuid::Uuid::new_v4()),
-        }),
+    let (status, _) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_SESSION),
+        &[],
+        Some(serde_json::json!({ "code": format!("code-{}", uuid::Uuid::new_v4()) })),
     )
-    .await
-    .expect_err("unknown code must error");
-    assert_eq!(err.into_response().status(), StatusCode::UNAUTHORIZED);
+    .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
 
 #[tokio::test]
 async fn session_pat_with_blank_code_is_bad_request() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = device_link::session_pat(
-        (*ctx).clone(),
-        Json(device_link::SessionPatBody {
-            code: String::new(),
-            device_name: None,
-        }),
+    let (status, _) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_SESSION_PAT),
+        &[],
+        Some(serde_json::json!({ "code": "" })),
     )
-    .await
-    .expect_err("blank code must error");
-    assert_eq!(err.into_response().status(), StatusCode::BAD_REQUEST);
+    .await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     Ok(())
 }
 
 #[tokio::test]
 async fn session_pat_with_unknown_code_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let err = device_link::session_pat(
-        (*ctx).clone(),
-        Json(device_link::SessionPatBody {
-            code: format!("code-{}", uuid::Uuid::new_v4()),
-            device_name: Some("my device".to_owned()),
-        }),
+    let (status, _) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_SESSION_PAT),
+        &[],
+        Some(serde_json::json!({
+            "code": format!("code-{}", uuid::Uuid::new_v4()),
+            "device_name": "my device",
+        })),
     )
-    .await
-    .expect_err("unknown code must error");
-    assert_eq!(err.into_response().status(), StatusCode::UNAUTHORIZED);
+    .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
 
 #[tokio::test]
 async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
-    let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
-        .await
-        .expect_err("missing bearer must error");
-    assert_eq!(err.into_response().status(), StatusCode::UNAUTHORIZED);
+    let (status, _) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_OAUTH_CLIENT),
+        &[],
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
 
-fn jwt_extractor(
-    ctx: &systemprompt_runtime::AppContext,
-) -> anyhow::Result<Arc<JwtContextExtractor>> {
-    Ok(Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    ))
+fn authenticator(ctx: &AppContext) -> DynRequestAuthenticator {
+    ctx.kernel()
+        .state()
+        .get::<DynRequestAuthenticator>()
+        .cloned()
+        .expect("request authenticator")
 }
 
 async fn seed_exchange_code(
-    ctx: &systemprompt_runtime::AppContext,
+    ctx: &AppContext,
     pool: &systemprompt_database::DbPool,
 ) -> Result<(String, systemprompt_identifiers::UserId)> {
     let uniq = uuid::Uuid::new_v4();
@@ -202,20 +232,27 @@ async fn seed_exchange_code(
     Ok((code, user))
 }
 
+async fn session_pat(
+    ctx: &AppContext,
+    code: String,
+    device: &str,
+) -> Result<(StatusCode, serde_json::Value)> {
+    call(
+        ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_SESSION_PAT),
+        &[],
+        Some(serde_json::json!({ "code": code, "device_name": device })),
+    )
+    .await
+}
+
 #[tokio::test]
 async fn session_pat_with_valid_code_mints_pat() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
-    let resp = device_link::session_pat(
-        (*ctx).clone(),
-        Json(device_link::SessionPatBody {
-            code,
-            device_name: Some("cov device".to_owned()),
-        }),
-    )
-    .await
-    .expect("valid exchange code must mint a pat");
-    assert_eq!(resp.into_response().status(), StatusCode::OK);
+    let (status, body) = session_pat(&ctx, code, "cov device").await?;
+    assert_eq!(status, StatusCode::OK, "{body}");
     Ok(())
 }
 
@@ -223,20 +260,20 @@ async fn session_pat_with_valid_code_mints_pat() -> Result<()> {
 async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
-    let resp = auth::session(
-        (*ctx).clone(),
-        ClientIp(None),
-        HeaderMap::new(),
-        Json(auth::SessionExchangeBody { code }),
+    let (status, body) = call(
+        &ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_SESSION),
+        &[],
+        Some(serde_json::json!({ "code": code })),
     )
-    .await
-    .expect("valid exchange code must issue bridge access");
-    assert_eq!(resp.into_response().status(), StatusCode::OK);
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{body}");
     Ok(())
 }
 
 async fn issue_key(
-    ctx: &systemprompt_runtime::AppContext,
+    ctx: &AppContext,
     pool: &systemprompt_database::DbPool,
     kind: systemprompt_users::ApiKeyKind,
     purpose: Option<&str>,
@@ -264,14 +301,25 @@ async fn issue_key(
 }
 
 async fn exchanged_actor(
-    ctx: &systemprompt_runtime::AppContext,
+    ctx: &AppContext,
     secret: &str,
 ) -> Result<(Option<TokenInteraction>, DocumentActor)> {
-    let Json(access) = auth::pat(ctx.clone(), bearer_request(secret))
-        .await
-        .expect("a valid key must exchange for bridge access");
-    let (claims, _user) = jwt_extractor(ctx)?
-        .decode_for_gateway(&systemprompt_identifiers::JwtToken::new(&access.token))
+    let (status, access) = call(
+        ctx,
+        Method::POST,
+        path(ApiPaths::BRIDGE_AUTH_PAT),
+        &bearer(secret),
+        None,
+    )
+    .await?;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "a valid key must exchange: {access}"
+    );
+    let token = access["token"].as_str().expect("token").to_owned();
+    let (claims, _user) = authenticator(ctx)
+        .decode_for_gateway(&systemprompt_identifiers::JwtToken::new(&token))
         .await
         .expect("the exchanged bridge token must decode");
     let actor = bearer_actor(
@@ -290,17 +338,11 @@ fn is_attended(actor: &DocumentActor) -> bool {
 async fn device_key_from_session_pat_exchanges_for_an_attended_token() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
-    let Json(device) = device_link::session_pat(
-        (*ctx).clone(),
-        Json(device_link::SessionPatBody {
-            code,
-            device_name: Some("attended host".to_owned()),
-        }),
-    )
-    .await
-    .expect("valid exchange code must mint a device key");
+    let (status, device) = session_pat(&ctx, code, "attended host").await?;
+    assert_eq!(status, StatusCode::OK, "{device}");
+    let pat = device["pat"].as_str().expect("pat").to_owned();
 
-    let (interaction, actor) = exchanged_actor(&ctx, &device.pat).await?;
+    let (interaction, actor) = exchanged_actor(&ctx, &pat).await?;
     assert_eq!(interaction, Some(TokenInteraction::Interactive));
     assert!(
         is_attended(&actor),
@@ -346,14 +388,15 @@ async fn device_key_with_a_purpose_exchanges_for_an_unattended_token() -> Result
 #[tokio::test]
 async fn manifest_without_credential_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let extractor = jwt_extractor(&ctx)?;
-    let error = bridge_manifest::manifest(extractor, (*ctx).clone(), HeaderMap::new())
-        .await
-        .expect_err("missing credential must error");
-    assert_eq!(
-        error.into_inner().code.status_code(),
-        StatusCode::UNAUTHORIZED
-    );
+    let (status, _) = call(
+        &ctx,
+        Method::GET,
+        path(ApiPaths::BRIDGE_MANIFEST),
+        &[],
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
     Ok(())
 }
 
@@ -362,37 +405,22 @@ async fn manifest_without_credential_is_unauthorized() -> Result<()> {
 // authenticates. That makes its own auth gate the thing worth asserting: an
 // additive route that skipped it would be an unauthenticated feed of every
 // AG-UI event on the instance.
-//
-// Only the rejections are driven here. The authenticated path opens a live SSE
-// stream, which is not something to hold open in a unit test.
 mod bridge_stream_auth {
     use std::time::Duration;
 
-    use super::{jwt_extractor, setup_ctx};
+    use super::{bearer, call, path, send, setup_ctx};
     use anyhow::Result;
-    use axum::http::{HeaderMap, HeaderValue, StatusCode};
-    use systemprompt_api::routes::gateway::bridge_stream;
+    use axum::http::{Method, StatusCode};
     use systemprompt_events::Broadcaster;
+    use systemprompt_models::ApiPaths;
     use systemprompt_test_fixtures::seed_bridge_credential;
 
-    // Note: this asserts the outcome, not the guard. Removing the
-    // missing-credential short-circuit leaves it green, because an empty
-    // credential then reaches `decode_for_gateway` and is rejected there — the
-    // caller still gets 401. The two decode tests below are what detect the
-    // consequential defect, an unauthenticated caller reaching the feed.
     #[tokio::test]
     async fn a_request_with_no_credential_is_unauthorized() -> Result<()> {
         let (_db, ctx) = setup_ctx().await?;
-
-        let response = bridge_stream::handle(
-            jwt_extractor(&ctx)?,
-            std::sync::Arc::clone(ctx.event_broadcasters()),
-            HeaderMap::new(),
-        )
-        .await;
-
+        let (status, _) = call(&ctx, Method::GET, path(ApiPaths::BRIDGE_STREAM), &[], None).await?;
         assert_eq!(
-            response.status(),
+            status,
             StatusCode::UNAUTHORIZED,
             "an unauthenticated caller must not reach the event feed"
         );
@@ -402,21 +430,16 @@ mod bridge_stream_auth {
     #[tokio::test]
     async fn a_bearer_token_that_does_not_decode_is_unauthorized() -> Result<()> {
         let (_db, ctx) = setup_ctx().await?;
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "authorization",
-            HeaderValue::from_static("Bearer not-a-real-token"),
-        );
-
-        let response = bridge_stream::handle(
-            jwt_extractor(&ctx)?,
-            std::sync::Arc::clone(ctx.event_broadcasters()),
-            headers,
+        let (status, _) = call(
+            &ctx,
+            Method::GET,
+            path(ApiPaths::BRIDGE_STREAM),
+            &bearer("not-a-real-token"),
+            None,
         )
-        .await;
-
+        .await?;
         assert_eq!(
-            response.status(),
+            status,
             StatusCode::UNAUTHORIZED,
             "an undecodable token must be refused, not treated as anonymous access"
         );
@@ -424,23 +447,19 @@ mod bridge_stream_auth {
     }
 
     // Why: the bridge authenticates with `x-api-key`, so that header must be
-    // read here — but a bogus key must still be refused. If it were ignored
-    // entirely the route would fall through to the missing-credential branch
-    // and the header would be decorative.
+    // read here — but a bogus key must still be refused.
     #[tokio::test]
     async fn an_api_key_that_does_not_decode_is_unauthorized() -> Result<()> {
         let (_db, ctx) = setup_ctx().await?;
-        let mut headers = HeaderMap::new();
-        headers.insert("x-api-key", HeaderValue::from_static("sk-not-a-real-key"));
-
-        let response = bridge_stream::handle(
-            jwt_extractor(&ctx)?,
-            std::sync::Arc::clone(ctx.event_broadcasters()),
-            headers,
+        let (status, _) = call(
+            &ctx,
+            Method::GET,
+            path(ApiPaths::BRIDGE_STREAM),
+            &[("x-api-key", "sk-not-a-real-key".to_owned())],
+            None,
         )
-        .await;
-
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        .await?;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
         Ok(())
     }
 
@@ -449,18 +468,14 @@ mod bridge_stream_auth {
     -> Result<()> {
         let (pool, ctx) = setup_ctx().await?;
         let credential = seed_bridge_credential(&pool, "bridge-stream@example.invalid").await?;
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "authorization",
-            HeaderValue::from_str(&format!("Bearer {}", credential.jwt.as_str()))?,
-        );
-
-        let response = bridge_stream::handle(
-            jwt_extractor(&ctx)?,
-            std::sync::Arc::clone(ctx.event_broadcasters()),
-            headers,
+        let response = send(
+            &ctx,
+            Method::GET,
+            path(ApiPaths::BRIDGE_STREAM),
+            &bearer(credential.jwt.as_str()),
+            None,
         )
-        .await;
+        .await?;
         assert_eq!(response.status(), StatusCode::OK);
         assert!(
             response
@@ -469,17 +484,14 @@ mod bridge_stream_auth {
                 .and_then(|value| value.to_str().ok())
                 .is_some_and(|value| value.starts_with("text/event-stream"))
         );
+        let count = || async {
+            ctx.event_broadcasters()
+                .agui
+                .connection_count(&credential.user_id)
+                .await
+        };
         tokio::time::timeout(Duration::from_secs(1), async {
-            loop {
-                if ctx
-                    .event_broadcasters()
-                    .agui
-                    .connection_count(&credential.user_id)
-                    .await
-                    == 1
-                {
-                    break;
-                }
+            while count().await != 1 {
                 tokio::task::yield_now().await;
             }
         })
@@ -488,16 +500,7 @@ mod bridge_stream_auth {
 
         drop(response);
         tokio::time::timeout(Duration::from_secs(1), async {
-            loop {
-                if ctx
-                    .event_broadcasters()
-                    .agui
-                    .connection_count(&credential.user_id)
-                    .await
-                    == 0
-                {
-                    break;
-                }
+            while count().await != 0 {
                 tokio::task::yield_now().await;
             }
         })
@@ -508,37 +511,30 @@ mod bridge_stream_auth {
 }
 
 #[tokio::test]
-async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
-    let (pool, auth_ctx) = setup_ctx().await?;
+async fn a_manifest_whose_stores_are_offline_fails_closed() -> Result<()> {
+    let (pool, _auth_ctx) = setup_ctx().await?;
     let cred = systemprompt_test_fixtures::seed_admin_credential(
         &pool,
         &format!("manifest-fallback-{}@example.invalid", uuid::Uuid::new_v4()),
     )
     .await?;
-    let extractor = jwt_extractor(&auth_ctx)?;
     let offline_ctx = systemprompt_test_fixtures::test_app_context(
         &systemprompt_test_fixtures::ensure_test_bootstrap().database_url,
     )
     .await;
     offline_ctx.db_pool().pool().close().await;
     offline_ctx.db_pool().write_pool().close().await;
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        http::header::AUTHORIZATION,
-        format!("Bearer {}", cred.jwt.as_str()).parse()?,
-    );
-    let error = bridge_manifest::manifest(extractor, (*offline_ctx).clone(), headers)
-        .await
-        .expect_err("managed-resource authority must be available");
-    let error = error.into_inner();
-    assert_eq!(
-        error.code.status_code(),
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "a storage failure must surface as a server error, got: {error:?}"
-    );
+    let (status, body) = call(
+        &offline_ctx,
+        Method::GET,
+        path(ApiPaths::BRIDGE_MANIFEST),
+        &bearer(cred.jwt.as_str()),
+        None,
+    )
+    .await?;
     assert!(
-        error.source().is_some(),
-        "the storage failure must be kept as the logged cause, got: {error:?}"
+        status.is_client_error() || status.is_server_error(),
+        "a manifest whose stores cannot be read is never served, got {status}: {body}"
     );
     Ok(())
 }

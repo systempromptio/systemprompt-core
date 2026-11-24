@@ -16,9 +16,11 @@
 //! hook, the analytics extractor, the logging runtime) and the profile facts
 //! the repositories are sized by.
 //!
-//! [`credential`] and [`authz`] are the request helpers the surface and the
-//! API's remaining bridge handlers share; [`GatewayLogIdentity`] is what a
-//! handler attaches to its response for the access log.
+//! [`credential`] and [`authz`] are the request helpers the surface's
+//! handlers share; [`GatewayLogIdentity`] is what a handler attaches to its
+//! response for the access log. [`views`] are the narrow views of sealed
+//! kernel seeds the `gateway` member confers on `gateway-http` for the bridge
+//! routes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,6 +28,7 @@
 pub mod authz;
 pub mod credential;
 pub mod repositories;
+pub mod views;
 
 use std::sync::Arc;
 
@@ -33,10 +36,11 @@ use axum::Router;
 use systemprompt_extension::prelude::{MissingDependency, Resolved};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_identifiers::{SessionId, TenantId, TraceId, UserId};
 use systemprompt_loader::ServicesState;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::profile::{BrainProfile, QuotaConfig, UnappliedPlaneMode};
+use systemprompt_marketplace::surface::DynConsumerCatalog;
 use systemprompt_traits::{AnalyticsProvider, ConfigWatch};
 
 /// Builds the gateway's handler routes from the `gateway-http` route state.
@@ -52,11 +56,25 @@ pub trait GatewaySurface: Send + Sync + std::fmt::Debug {
 /// `traffic` verifies its own callers; the API mount places `principal_bound`
 /// behind the kernel's gateway verifier, which attaches the caller's
 /// [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal)
-/// before a handler runs.
-#[derive(Debug, Default)]
+/// before a handler runs. `public_sessions` is the API-key session mint the
+/// mount places under the public gateway base with its own rate scope.
+/// `consumer_catalog` is the bridge manifest's candidate resolution the
+/// `marketplace-http` consumer routes read; absent when `gateway-http` is not
+/// admitted, and those routes are then not mounted.
+#[derive(Default)]
 pub struct GatewaySurfaceRoutes {
     pub traffic: Router,
     pub principal_bound: Router,
+    pub public_sessions: Router,
+    pub consumer_catalog: Option<DynConsumerCatalog>,
+}
+
+impl std::fmt::Debug for GatewaySurfaceRoutes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GatewaySurfaceRoutes")
+            .field("consumer_catalog", &self.consumer_catalog.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 pub type DynGatewaySurface = Arc<dyn GatewaySurface>;
@@ -69,7 +87,8 @@ pub struct GatewayRouteState<'a> {
 }
 
 /// The live process handles and profile facts the gateway surface reads that
-/// the kernel state does not hold.
+/// the kernel state does not hold; `tenant_id` is the profile's cloud tenant,
+/// absent for a self-hosted profile.
 #[derive(Clone)]
 pub struct GatewayHostHandles {
     pub services: ServicesState,
@@ -81,6 +100,7 @@ pub struct GatewayHostHandles {
     pub quota: QuotaConfig,
     pub unapplied_plane: UnappliedPlaneMode,
     pub brain: BrainProfile,
+    pub tenant_id: Option<TenantId>,
 }
 
 impl std::fmt::Debug for GatewayHostHandles {
@@ -97,6 +117,8 @@ pub enum GatewaySurfaceError {
     Resolve(#[from] MissingDependency),
     #[error("the gateway journal does not open")]
     Journal(#[source] crate::at_rest::GatewayAtRestError),
+    #[error("the bridge release feed does not build")]
+    ReleaseFeed(#[source] systemprompt_traits::BoxedSource),
 }
 
 /// The caller a gateway handler served, attached to its response for the

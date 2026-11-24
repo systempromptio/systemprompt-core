@@ -15,6 +15,16 @@
 //! kernel code (the API's gateway routes) and core provide fns read them.
 //! Their presence is the gateway's one owner check.
 //!
+//! It builds the bridge routes' narrow views
+//! ([`crate::surface::views`]) from the sealed signing keys, secret lookup,
+//! configuration, system admin, services root and event router, and provides
+//! each sealed, conferred on `gateway-http` under its own row
+//! (`gateway-manifest-signer`, `bridge-release-source`, `gateway-settings`,
+//! `bridge-event-stream`); no route state reads the seeds themselves. A host
+//! that does not seed what a view is built from (a child host, a probe
+//! composition) resolves that view as `None`, and `gateway-http` then builds
+//! no bridge routes.
+//!
 //! It also provides [`GatewayAtRest`] **sealed**, conferred on `gateway-http`:
 //! the accounting journal under the storage data directory and the at-rest
 //! cipher, both keyed from the `encryption_master_key` it reads from the
@@ -28,13 +38,21 @@
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
+use systemprompt_events::EventRouter;
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_extension::prelude::*;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::BrainProfile;
+use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_security::credential::TokenCache;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{SecretLookup, SecretStore};
 
 use crate::at_rest::GatewayAtRest;
+use crate::surface::views::{
+    BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsSource,
+    GatewaySettingsView,
+};
 
 use crate::contract::{OutboundSlot, OverrideSlot, RouteSelectorSlot, SafetyScannerSlot};
 use crate::policies::GatewayPoliciesPlane;
@@ -63,8 +81,47 @@ impl Extension for GatewayExtension {
             ConferralRow::GatewayAtRest,
             |r: &Resolved<'_>| -> Result<Arc<GatewayAtRest>, ProvideError> { Ok(at_rest(r)) },
         );
+        c.provide_conferred(
+            ConferralRow::GatewayManifestSigner,
+            |r: &Resolved<'_>| -> Result<Option<Arc<GatewayManifestSigner>>, ProvideError> {
+                Ok(r.optional::<SigningKeys>()
+                    .map(|keys| Arc::new(GatewayManifestSigner::new(keys))))
+            },
+        );
+        c.provide_conferred(
+            ConferralRow::BridgeReleaseSource,
+            |r: &Resolved<'_>| -> Result<Option<Arc<BridgeReleaseSource>>, ProvideError> {
+                Ok(r.optional::<Arc<dyn SecretLookup>>()
+                    .map(|lookup| Arc::new(BridgeReleaseSource::new(lookup))))
+            },
+        );
+        c.provide_conferred(
+            ConferralRow::GatewaySettings,
+            |r: &Resolved<'_>| -> Result<Option<Arc<GatewaySettingsView>>, ProvideError> {
+                Ok(settings(r))
+            },
+        );
+        c.provide_conferred(
+            ConferralRow::BridgeEventStream,
+            |r: &Resolved<'_>| -> Result<Option<Arc<BridgeEventStream>>, ProvideError> {
+                Ok(r.optional::<Arc<EventRouter>>()
+                    .map(|router| Arc::new(BridgeEventStream::new(&router))))
+            },
+        );
         Ok(())
     }
+}
+
+fn settings(r: &Resolved<'_>) -> Option<Arc<GatewaySettingsView>> {
+    let config = r.optional::<Arc<Config>>()?;
+    let admin = r.optional::<SystemAdmin>()?;
+    let paths = r.optional::<Arc<AppPaths>>()?;
+    Some(Arc::new(GatewaySettingsView::new(GatewaySettingsSource {
+        config: &config,
+        system_admin: admin.id().clone(),
+        services_root: paths.system().services().to_path_buf(),
+        secrets: r.optional::<Arc<dyn SecretLookup>>()?,
+    })))
 }
 
 fn provide_engines(r: &Resolved<'_>) -> Result<Arc<GatewayEngines>, ProvideError> {

@@ -34,6 +34,8 @@ urlencoding = { workspace = true }
 sha2 = { workspace = true }
 hmac = { workspace = true }
 hex = { workspace = true }
+rand = { workspace = true }
+futures-util = { workspace = true }
 
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }

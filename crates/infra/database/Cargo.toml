@@ -37,6 +37,7 @@ systemprompt-traits = { workspace = true, features = ["sqlx"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-manifest = { workspace = true }
 systemprompt-extension = { workspace = true }
+systemprompt-storage = { workspace = true }
 
 # Utilities
 chrono = { workspace = true }
@@ -44,7 +45,6 @@ uuid = { workspace = true }
 base64 = { workspace = true }
 rust_decimal = { workspace = true }
 rand = { workspace = true }
-futures-util = { workspace = true }
 
 xxhash-rust = { workspace = true }
 

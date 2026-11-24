@@ -389,8 +389,10 @@ async fn a_download_whose_asset_fetch_fails_upstream_is_a_bad_gateway() -> anyho
     Ok(())
 }
 
-fn secrets() -> std::sync::Arc<systemprompt_manifest::Secrets> {
-    systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get()
+fn secrets() -> systemprompt_gateway::surface::views::BridgeReleaseSource {
+    systemprompt_gateway::surface::views::BridgeReleaseSource::new(
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
 }
 
 fn spec(api_base: &str) -> systemprompt_manifest::services::BridgeReleasesSpec {
@@ -437,7 +439,7 @@ async fn a_whole_fleet_checking_at_once_costs_one_github_round_trip() -> anyhow:
     .await;
     mount_sums().await;
 
-    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::new()
+    let feed = systemprompt_gateway_entry::http::bridge::release::ReleaseFeed::new()
         .expect("the feed builds");
     let spec = spec(&base);
     for _ in 0..5u8 {
@@ -472,7 +474,7 @@ async fn a_github_outage_serves_the_last_known_release_rather_than_failing() -> 
     .await;
     mount_sums().await;
 
-    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::with_ttl(
+    let feed = systemprompt_gateway_entry::http::bridge::release::ReleaseFeed::with_ttl(
         std::time::Duration::ZERO,
     )?;
     let spec = spec(&base);
@@ -516,7 +518,7 @@ async fn an_outage_with_nothing_cached_still_reports_the_failure() -> anyhow::Re
         .mount(s)
         .await;
 
-    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::new()
+    let feed = systemprompt_gateway_entry::http::bridge::release::ReleaseFeed::new()
         .expect("the feed builds");
     let err = feed
         .resolve(&spec(&base), &secrets(), "darwin-arm64")

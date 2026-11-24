@@ -74,6 +74,7 @@ pub struct IdentityRoutes {
     pub wellknown: Router,
     pub sessions: Router,
     pub api_keys: Router,
+    pub bridge_auth: Router,
 }
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]

@@ -11,6 +11,8 @@ mod audit_payload;
 #[cfg(test)]
 mod audit_phases;
 #[cfg(test)]
+mod bridge_views;
+#[cfg(test)]
 mod canonical_inbound;
 #[cfg(test)]
 mod canonical_request;

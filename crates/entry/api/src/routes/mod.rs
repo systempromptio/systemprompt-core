@@ -1,7 +1,7 @@
 //! HTTP route modules for the API server.
 //!
 //! Each submodule owns one functional area (admin, documents, gateway, proxy,
-//! stream, wellknown) and exposes
+//! wellknown) and exposes
 //! a `Router` builder. The
 //! re-exports here surface the router constructors the API assembler composes
 //! into the top-level service.
@@ -13,9 +13,7 @@ pub mod admin;
 pub mod documents;
 pub mod gateway;
 pub mod internal;
-pub mod managed_state;
 pub mod proxy;
-pub mod stream;
 pub mod wellknown;
 
 pub use wellknown::wellknown_router;

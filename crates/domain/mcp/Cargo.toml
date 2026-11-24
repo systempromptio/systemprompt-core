@@ -63,6 +63,7 @@ bytes = { workspace = true }
 # systemprompt.io integration
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["mcp"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-loader = { workspace = true }

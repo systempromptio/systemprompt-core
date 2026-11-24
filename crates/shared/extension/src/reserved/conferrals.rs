@@ -29,6 +29,10 @@ pub enum ConferralRow {
     IdentitySigningKeys,
     IdentitySignInSessions,
     IdentityOAuthRepositories,
+    GatewayManifestSigner,
+    BridgeReleaseSource,
+    GatewaySettings,
+    BridgeEventStream,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -49,6 +53,10 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::IdentitySigningKeys.entry(),
     ConferralRow::IdentitySignInSessions.entry(),
     ConferralRow::IdentityOAuthRepositories.entry(),
+    ConferralRow::GatewayManifestSigner.entry(),
+    ConferralRow::BridgeReleaseSource.entry(),
+    ConferralRow::GatewaySettings.entry(),
+    ConferralRow::BridgeEventStream.entry(),
 ];
 
 impl ConferralRow {
@@ -64,13 +72,22 @@ impl ConferralRow {
             Self::IdentitySigningKeys => "identity-signing-keys",
             Self::IdentitySignInSessions => "identity-sign-in-sessions",
             Self::IdentityOAuthRepositories => "identity-oauth-repositories",
+            Self::GatewayManifestSigner => "gateway-manifest-signer",
+            Self::BridgeReleaseSource => "bridge-release-source",
+            Self::GatewaySettings => "gateway-settings",
+            Self::BridgeEventStream => "bridge-event-stream",
         }
     }
 
     #[must_use]
     pub const fn entry(self) -> SealedConferral {
         let (provider, holder) = match self {
-            Self::GatewayEngines | Self::GatewayAtRest => ("gateway", CoreId::GatewayHttp),
+            Self::GatewayEngines
+            | Self::GatewayAtRest
+            | Self::GatewayManifestSigner
+            | Self::BridgeReleaseSource
+            | Self::GatewaySettings
+            | Self::BridgeEventStream => ("gateway", CoreId::GatewayHttp),
             Self::GatewaySessionMint => ("users", CoreId::GatewayHttp),
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
             Self::IdentityTokenAuthority

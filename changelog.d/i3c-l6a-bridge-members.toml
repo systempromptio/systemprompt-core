@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The bridge routes move out of `systemprompt-api`: the credential exchange (`/v1/gateway/auth/bridge/*`) is built by `identity-http`, and the bridge profile, manifest, plugin files, device enrolment, host preferences, usage, heartbeat, event stream, release feed, `/models` and the public session mint by `gateway-http`. Their route state holds no application context: the `gateway` member confers four narrow views on `gateway-http` (`gateway-manifest-signer`, `bridge-release-source`, `gateway-settings`, `bridge-event-stream`), and every handler verifies the bridge bearer through the kernel's request authenticator. `GatewayPrincipal` is stamped only by the API's gateway verifier, which now also fronts the bridge profile. A profile that disables `gateway-http` or `identity-http` serves none of their routes (404)."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::gateway::{auth, bridge, bridge_admission, bridge_data, bridge_device, bridge_error, bridge_heartbeat, bridge_manifest, bridge_plugin_archive, bridge_plugin_file, bridge_profile_usage, bridge_release, bridge_resolved, bridge_stream, bridge_whoami, device_link, models, sessions}`, `routes::stream`, `routes::managed_state` and `kernel::create_sse_stream` are removed; the handlers live in `systemprompt-gateway-entry` (`http::bridge`, `http::models`, `http::sessions`) and `systemprompt-identity-entry` (`http::bridge`)."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Added"
+text = "`surface::views` (`GatewayManifestSigner`, `BridgeReleaseSource`, `GatewaySettingsView`, `BridgeEventStream`), conferred on `gateway-http`; `GatewaySurfaceRoutes` gains `public_sessions` and `consumer_catalog`, `GatewayHostHandles` gains `tenant_id`, `GatewaySurfaceError` gains `ReleaseFeed`."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Breaking"
+text = "`IdentityRoutes` gains `bridge_auth`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "Conferral rows `GatewayManifestSigner`, `BridgeReleaseSource`, `GatewaySettings` and `BridgeEventStream` (provider `gateway`, holder `gateway-http`)."

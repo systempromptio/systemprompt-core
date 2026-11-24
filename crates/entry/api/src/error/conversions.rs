@@ -12,7 +12,6 @@ use systemprompt_config::{ProfileBootstrapError, SecretsBootstrapError};
 use systemprompt_governance::authz::{AuthzError, ScopeBindingError, SubjectAttributeError};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_loader::{BundleError, ConfigLoadError};
-use systemprompt_marketplace::MarketplaceError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
@@ -84,12 +83,6 @@ impl From<SecretsBootstrapError> for ApiHttpError {
 impl From<GlobalConfigError> for ApiHttpError {
     fn from(err: GlobalConfigError) -> Self {
         Self(Box::new(ApiError::internal("Configuration not ready", err)))
-    }
-}
-
-impl From<MarketplaceError> for ApiHttpError {
-    fn from(err: MarketplaceError) -> Self {
-        Self(Box::new(ApiError::from(err)))
     }
 }
 

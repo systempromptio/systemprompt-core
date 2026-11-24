@@ -3,7 +3,7 @@
 //! resolve, an absent asset is `None`, and a prefix match must not satisfy a
 //! different asset's lookup.
 
-use systemprompt_api::routes::gateway::bridge_release::parse_sha256sums;
+use systemprompt_gateway_entry::http::bridge::release::parse_sha256sums;
 
 const SUMS: &str = "\
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  systemprompt-internal-bridge-macos.zip

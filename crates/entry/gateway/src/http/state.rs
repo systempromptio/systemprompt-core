@@ -18,6 +18,8 @@ use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_traits::{DynContextMaterializer, DynGatewaySessionMint};
 use systemprompt_users::{ApiKeyService, UserApiKey, UserResult};
 
+use crate::http::bridge::BridgeRepositories;
+
 /// The state shared by every `gateway-http` handler.
 #[derive(Clone)]
 pub struct GatewayHttpState {
@@ -36,12 +38,14 @@ impl std::fmt::Debug for GatewayHttpState {
     }
 }
 
-/// What the `gateway-http` member builds in its provide: the API-key check
-/// and the context materializer its repositories bind conversations with.
+/// What the `gateway-http` member builds in its provide: the API-key check,
+/// the context materializer its repositories bind conversations with, and the
+/// bridge routes' repositories.
 #[derive(Clone)]
 pub struct GatewayHttpRepositories {
     pub api_keys: GatewayApiKeys,
     pub contexts: DynContextMaterializer,
+    pub bridge: BridgeRepositories,
 }
 
 impl std::fmt::Debug for GatewayHttpRepositories {

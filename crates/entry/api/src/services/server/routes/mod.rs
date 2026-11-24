@@ -41,6 +41,7 @@ use systemprompt_manifest::profile::NodeRole;
 
 use crate::routes::admin::services::RefreshLock;
 pub(super) use error::RouteMountError;
+pub(crate) use oauth_mount::identity_bridge_auth;
 pub use protocol::{Composed, WEBHOOK_RATE};
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
@@ -102,27 +103,29 @@ fn build_routes(
         composed,
     };
     let identity = oauth_mount::identity_routes(&mount)?;
-    let (identity_wellknown, identity_passkey, identity_accounts) = if let Some(routes) = identity {
-        if serves(RouteGroup::Oauth) {
-            router = oauth_mount::mount_oauth(
-                router,
-                &mount,
-                oauth_mount::IdentityOauthRoutes {
-                    public: routes.oauth_public,
-                    authenticated: routes.oauth_authenticated,
-                    revocation: routes.oauth_revocation,
-                    sso: routes.sso,
-                },
-            )?;
-        }
-        (
-            Some(routes.wellknown),
-            Some(routes.passkey_link_page),
-            Some((routes.sessions, routes.api_keys)),
-        )
-    } else {
-        (None, None, None)
-    };
+    let (identity_wellknown, identity_passkey, identity_accounts, identity_bridge_auth) =
+        if let Some(routes) = identity {
+            if serves(RouteGroup::Oauth) {
+                router = oauth_mount::mount_oauth(
+                    router,
+                    &mount,
+                    oauth_mount::IdentityOauthRoutes {
+                        public: routes.oauth_public,
+                        authenticated: routes.oauth_authenticated,
+                        revocation: routes.oauth_revocation,
+                        sso: routes.sso,
+                    },
+                )?;
+            }
+            (
+                Some(routes.wellknown),
+                Some(routes.passkey_link_page),
+                Some((routes.sessions, routes.api_keys)),
+                Some(routes.bridge_auth),
+            )
+        } else {
+            (None, None, None, None)
+        };
     let agent = protocol::agent_routes(&mount)?;
     if serves(RouteGroup::Agent) {
         router = protocol::mount_agent(router, &mount, agent.webhook)?;
@@ -142,10 +145,8 @@ fn build_routes(
     if serves(RouteGroup::InternalLinks) {
         router = documents::mount_internal_links(router, &mount)?;
     }
-    if serves(RouteGroup::Gateway) && engines.is_some() {
-        router = gateway::mount_gateway(router, &mount)?;
-    }
-    router = feature_mount::mount_feature_routes(router, &mount)?;
+    let gateway_on = serves(RouteGroup::Gateway) && engines.is_some();
+    router = gateway::mount_with_features(router, &mount, gateway_on, identity_bridge_auth)?;
     crate::services::agent_dispatch::bind_dispatchers(ctx)
         .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;

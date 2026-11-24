@@ -10,10 +10,10 @@
 //! and the normaliser wraps the protected router outermost so a refusal from
 //! any inner layer is normalised too.
 //!
-//! The host read the surface takes is
-//! [`consumer_catalog`](crate::routes::managed_state::consumer_catalog): the
-//! marketplace candidate a consumer's bridge manifest resolves to, assembled
-//! by the bridge manifest path that still lives in this crate.
+//! The host read the surface takes is the consumer catalog the `gateway-http`
+//! surface builds: the marketplace candidate a consumer's bridge manifest
+//! resolves to. Without `gateway-http` there is no bridge manifest and these
+//! routes are not mounted (404).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,7 +24,7 @@ use systemprompt_extension::{
     AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteProtection,
 };
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_marketplace::surface::{DynManagedSurface, ManagedRouteState};
+use systemprompt_marketplace::surface::{DynConsumerCatalog, DynManagedSurface, ManagedRouteState};
 
 use super::RouteMountError;
 use super::protocol::MountCtx;
@@ -32,7 +32,11 @@ use crate::services::middleware::place;
 
 const CONSUMER_BASE: &str = "/api/v1";
 
-pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, RouteMountError> {
+pub(super) fn mount(
+    router: Router,
+    mount: &MountCtx<'_>,
+    catalog: DynConsumerCatalog,
+) -> Result<Router, RouteMountError> {
     let owner = ExtensionId::new(CoreId::MarketplaceHttp.id());
     let kernel = mount.composed.kernel;
     let (Some(standing), Some(surface)) = (
@@ -44,7 +48,7 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Rout
     let built = surface
         .build(ManagedRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
-            catalog: crate::routes::managed_state::consumer_catalog(mount.ctx),
+            catalog,
         })
         .map_err(|source| RouteMountError::initialization("managed_consumer", source))?;
     let protected = built.protect(|consumer| {

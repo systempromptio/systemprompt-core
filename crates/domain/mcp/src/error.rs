@@ -258,8 +258,8 @@ impl McpDomainError {
     }
 
     #[must_use]
-    pub const fn classify(&self) -> systemprompt_database::resilience::Outcome {
-        use systemprompt_database::resilience::Outcome;
+    pub const fn classify(&self) -> systemprompt_storage::resilience::Outcome {
+        use systemprompt_storage::resilience::Outcome;
         match self {
             Self::ConnectionFailed { .. }
             | Self::Transport { .. }

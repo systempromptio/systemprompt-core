@@ -4,9 +4,9 @@
 `Admitted::__from_facade` and `DeclaredCommands::__from_facade` build the
 handoff the kernel mounts and dispatches from; only the facade
 (`systemprompt/`) calls them. `GatewayPrincipal::__from_kernel` stamps a
-verified gateway caller; only the API kernel's bridge credential check
-(`crates/entry/api/src/routes/gateway/bridge_error.rs`) calls it, after the
-gateway verifier accepted the bearer.
+verified gateway caller; only the API kernel's gateway verifier
+(`crates/entry/api/src/routes/gateway/registered.rs`) calls it, after the
+request authenticator accepted the bearer.
 `VerifiedCaller::__from_hop` stamps the caller a tool execution is recorded
 for; only the toolset host's hop admission (`crates/app/mcp-host/`) calls it.
 A call anywhere else in the root workspace's production source fails.
@@ -36,7 +36,7 @@ from rust_tokens import located, rust_files  # noqa: E402
 FACADE = "systemprompt"
 ALLOWED = {
     "__from_facade": (FACADE,),
-    "__from_kernel": ("crates/entry/api/src/routes/gateway/bridge_error.rs",),
+    "__from_kernel": ("crates/entry/api/src/routes/gateway/registered.rs",),
     "__from_hop": ("crates/app/mcp-host",),
 }
 SCANNED = ("crates", FACADE)

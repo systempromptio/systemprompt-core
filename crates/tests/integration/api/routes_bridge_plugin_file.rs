@@ -5,9 +5,9 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, header};
 use http::StatusCode;
-use systemprompt_api::routes::gateway::bridge_plugin_file::{content_type, relative_path_is_safe};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
+use systemprompt_gateway_entry::http::bridge::plugin_file::{content_type, relative_path_is_safe};
 use systemprompt_test_fixtures::{seed_bridge_credential, test_db_pool};
 use tower::ServiceExt;
 
