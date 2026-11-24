@@ -4,6 +4,10 @@
 //! `refresh_event_outbox_backlog` recounts a drifted consumer, and
 //! `pending()` answers from the sum plus the oldest row's age. An open
 //! transaction that appended never blocks another append for the consumer.
+//!
+//! Compaction folds every consumer's rows, so a recount racing it keeps the
+//! folded row beside its own; the compaction test holds the backlog guard
+//! exclusively and the recount test shares it, across test processes.
 
 use systemprompt_events::services::durable::{
     DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
@@ -45,6 +49,26 @@ async fn append_n(
         tx.commit().await.expect("commit");
     }
     ids
+}
+
+const COMPACTION_LOCK: i64 = 0x6f75_7462_6163_6b6c;
+
+async fn compaction_guard(
+    pool: &sqlx::PgPool,
+    exclusive: bool,
+) -> sqlx::Transaction<'static, sqlx::Postgres> {
+    let mut tx = pool.begin().await.expect("begin guard");
+    let sql = if exclusive {
+        "SELECT pg_advisory_xact_lock($1)"
+    } else {
+        "SELECT pg_advisory_xact_lock_shared($1)"
+    };
+    sqlx::query(sql)
+        .bind(COMPACTION_LOCK)
+        .execute(&mut *tx)
+        .await
+        .expect("compaction guard");
+    tx
 }
 
 async fn counter(pool: &sqlx::PgPool, consumer: &str) -> Option<i64> {
@@ -115,6 +139,7 @@ async fn the_counter_follows_insert_acknowledge_and_delete() {
 async fn the_projector_recounts_a_drifted_consumer() {
     let pool = crate::setup_test_pool().await;
     let pool = pool.as_ref().clone();
+    let _guard = compaction_guard(&pool, false).await;
     let consumer = consumer_name();
     let outbox = DurableOutbox::new(pool.clone(), unique_instance());
     let reader = OutboxConsumer::new(pool.clone());
@@ -150,6 +175,7 @@ async fn the_projector_recounts_a_drifted_consumer() {
 async fn compaction_folds_the_deltas_and_keeps_the_sum() {
     let pool = crate::setup_test_pool().await;
     let pool = pool.as_ref().clone();
+    let _guard = compaction_guard(&pool, true).await;
     let consumer = consumer_name();
     let outbox = DurableOutbox::new(pool.clone(), unique_instance());
     let reader = OutboxConsumer::new(pool.clone());
