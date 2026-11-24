@@ -51,7 +51,9 @@ impl ExtensionBinaryIndex {
         self.discovered
             .get(binary_name)
             .map(|ext| ext.path.clone())
-            .ok_or_else(|| ExtensionLoadError::ManifestMissing(binary_name.to_owned()))
+            .ok_or_else(|| ExtensionLoadError::ManifestMissing {
+                extension: binary_name.to_owned(),
+            })
     }
 
     #[must_use]

@@ -56,29 +56,29 @@ pub enum ConfigLoadError {
     #[error("include cycle detected: {chain}")]
     IncludeCycle { chain: String },
 
-    #[error("duplicate agent definition: {0}")]
-    DuplicateAgent(String),
+    #[error("duplicate agent definition: {name}")]
+    DuplicateAgent { name: String },
 
-    #[error("duplicate MCP server definition: {0}")]
-    DuplicateMcpServer(String),
+    #[error("duplicate MCP server definition: {name}")]
+    DuplicateMcpServer { name: String },
 
-    #[error("duplicate plugin definition: {0}")]
-    DuplicatePlugin(String),
+    #[error("duplicate plugin definition: {name}")]
+    DuplicatePlugin { name: String },
 
-    #[error("duplicate marketplace definition: {0}")]
-    DuplicateMarketplace(String),
+    #[error("duplicate marketplace definition: {name}")]
+    DuplicateMarketplace { name: String },
 
-    #[error("duplicate skill definition: {0}")]
-    DuplicateSkill(String),
+    #[error("duplicate skill definition: {name}")]
+    DuplicateSkill { name: String },
 
-    #[error("duplicate external agent definition: {0}")]
-    DuplicateExternalAgent(String),
+    #[error("duplicate external agent definition: {name}")]
+    DuplicateExternalAgent { name: String },
 
-    #[error("duplicate Slack app definition: {0}")]
-    DuplicateSlackApp(String),
+    #[error("duplicate Slack app definition: {name}")]
+    DuplicateSlackApp { name: String },
 
-    #[error("duplicate Teams app definition: {0}")]
-    DuplicateTeamsApp(String),
+    #[error("duplicate Teams app definition: {name}")]
+    DuplicateTeamsApp { name: String },
 
     #[error("{path}: {what} is the pre-0.73 catalog shape; {hint}", hint = systemprompt_manifest::services::catalog::MIGRATE_HINT)]
     LegacyCatalog { path: PathBuf, what: &'static str },
@@ -149,6 +149,17 @@ pub enum ConfigWriteError {
 
     #[error("the services configuration is invalid with this change; nothing was written")]
     Rejected(#[source] Box<dyn std::error::Error + Send + Sync>),
+
+    #[error(
+        "the services configuration is invalid with this change; nothing was written, but the \
+         staged file {staged} was not removed: {cleanup}"
+    )]
+    RejectedStagedNotRemoved {
+        staged: PathBuf,
+        #[source]
+        refusal: Box<dyn std::error::Error + Send + Sync>,
+        cleanup: std::io::Error,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -156,8 +167,8 @@ pub enum ExtensionLoadError {
     #[error("Binary '{name}' not found at {path}")]
     BinaryNotFound { name: String, path: PathBuf },
 
-    #[error("No manifest.yaml found for extension '{0}' in extensions/")]
-    ManifestMissing(String),
+    #[error("No manifest.yaml found for extension '{extension}' in extensions/")]
+    ManifestMissing { extension: String },
 }
 
 #[derive(Debug, Error)]

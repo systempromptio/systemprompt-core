@@ -57,7 +57,9 @@ use discovery::{discover_marketplaces, discover_plugins, discover_skills};
 use includes::resolve_includes_recursively;
 use merge::{resolve_skill_instruction_includes, resolve_system_prompt_includes};
 use parse::{EnvLookup, Interpolator};
-use types::IncludeResolveCtx;
+use types::{IncludeResolveCtx, StagedSubstitute};
+
+use crate::config_writer::StagedAgentFile;
 
 #[derive(Debug)]
 pub struct ConfigLoader {
@@ -66,6 +68,7 @@ pub struct ConfigLoader {
     port_offset: Option<u16>,
     interpolation: ServicesInterpolation,
     env_lookup: EnvLookup,
+    staged: Option<StagedSubstitute>,
 }
 
 impl ConfigLoader {
@@ -81,7 +84,14 @@ impl ConfigLoader {
             port_offset: None,
             interpolation: ServicesInterpolation::Resolve,
             env_lookup: read_env_optional,
+            staged: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_staged(mut self, staged: &StagedAgentFile<'_>) -> Self {
+        self.staged = Some(StagedSubstitute::new(staged.live_path(), staged.staged_path()));
+        self
     }
 
     #[must_use]
@@ -126,6 +136,7 @@ impl ConfigLoader {
             port_offset: self.port_offset,
             interpolation: ServicesInterpolation::Inspect,
             env_lookup: self.env_lookup,
+            staged: self.staged.clone(),
         }
     }
 
@@ -187,6 +198,7 @@ impl ConfigLoader {
                 merged: &mut merged,
                 chain: vec![self.config_path.clone()],
                 interpolator,
+                staged: self.staged.as_ref(),
             };
             for include_path in &includes {
                 resolve_includes_recursively(

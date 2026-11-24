@@ -18,7 +18,7 @@ use systemprompt_extension::cli::{
     CliConfig, CommandHost, CommandOutput, Prompter, resolve_required,
 };
 
-use super::{notice, reload_services_config, services_root};
+use super::{check_staged_agent, notice, services_root};
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -164,9 +164,7 @@ fn write_agent_config(
 
     let service = AgentConfigAuthoringService::new(services_dir);
     let agent_file = service
-        .create(request, || {
-            reload_services_config(host).map(drop).map_err(Into::into)
-        })
+        .create(request, |staged| check_staged_agent(host, staged))
         .with_context(|| {
             format!("Agent '{name}' was not created: the configuration would be invalid")
         })?;

@@ -21,18 +21,28 @@ pub(super) fn resolve_includes_recursively(
 ) -> ConfigLoadResult<()> {
     let referrer_dir = referrer.parent().unwrap_or(base_path);
     let full_path = referrer_dir.join(include_path);
+    let staged_source = ctx
+        .staged
+        .and_then(|staged| staged.source_for(&full_path))
+        .map(Path::to_path_buf);
 
-    if !full_path.exists() {
+    if staged_source.is_none() && !full_path.exists() {
         return Err(ConfigLoadError::IncludeNotFound {
             include: full_path,
             referrer: referrer.to_path_buf(),
         });
     }
 
-    let canonical = fs::canonicalize(&full_path).map_err(|e| ConfigLoadError::Io {
-        path: full_path.clone(),
-        source: e,
-    })?;
+    let canonical = match fs::canonicalize(&full_path) {
+        Ok(canonical) => canonical,
+        Err(_) if staged_source.is_some() => full_path.clone(),
+        Err(e) => {
+            return Err(ConfigLoadError::Io {
+                path: full_path.clone(),
+                source: e,
+            });
+        },
+    };
 
     if ctx.visited.contains(&canonical) {
         let mut chain: Vec<String> = ctx.chain.iter().map(|p| p.display().to_string()).collect();
@@ -43,8 +53,9 @@ pub(super) fn resolve_includes_recursively(
     }
     ctx.visited.insert(canonical.clone());
 
-    let content = fs::read_to_string(&canonical).map_err(|e| ConfigLoadError::Io {
-        path: canonical.clone(),
+    let read_from = staged_source.as_deref().unwrap_or(&canonical);
+    let content = fs::read_to_string(read_from).map_err(|e| ConfigLoadError::Io {
+        path: read_from.to_path_buf(),
         source: e,
     })?;
 

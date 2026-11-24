@@ -18,7 +18,7 @@ use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
 
-use super::{reload_services_config, services_config_as_written, services_root};
+use super::{check_staged_agent, services_config_as_written, services_root};
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
@@ -87,8 +87,8 @@ pub(super) fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<Command
 
     let services_dir = services_root(host)?;
 
-    ConfigWriter::update_agent(&name, &agent, &services_dir, || {
-        reload_services_config(host).map(drop).map_err(Into::into)
+    ConfigWriter::update_agent(&name, &agent, &services_dir, |staged| {
+        check_staged_agent(host, staged)
     })
     .with_context(|| {
         format!("Agent '{name}' was not updated: the configuration would be invalid")

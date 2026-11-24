@@ -49,7 +49,7 @@ use systemprompt_extension::cli::{
     CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
     DescribeCommand,
 };
-use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::{CheckError, ConfigLoader, StagedAgentFile};
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::artifacts::NoticeLine;
@@ -104,6 +104,18 @@ fn services_config_path(host: &dyn CommandHost) -> Result<PathBuf> {
 
 pub(crate) fn reload_services_config(host: &dyn CommandHost) -> Result<ServicesConfig> {
     Ok(ConfigLoader::new(services_config_path(host)?).load()?)
+}
+
+pub(crate) fn check_staged_agent(
+    host: &dyn CommandHost,
+    staged: &StagedAgentFile<'_>,
+) -> std::result::Result<(), CheckError> {
+    let config_path = services_config_path(host)?;
+    ConfigLoader::new(config_path)
+        .with_staged(staged)
+        .load()
+        .map(drop)
+        .map_err(Into::into)
 }
 
 pub(crate) fn services_config_as_written(host: &dyn CommandHost) -> Result<ServicesConfig> {
