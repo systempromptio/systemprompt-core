@@ -108,7 +108,7 @@ pub mod service_process;
 pub mod state;
 mod traits;
 
-pub use admitted::{Admitted, BuiltState, DeclaredCommands};
+pub use admitted::{Admitted, BuiltState, DeclaredCommands, MemberWithheld, WithheldBecause};
 pub use admitted_assets::AdmittedAssets;
 pub use admitted_configs::{
     AdmittedConfigs, ExtensionConfigFileError, ExtensionConfigOutcome, validate_config,

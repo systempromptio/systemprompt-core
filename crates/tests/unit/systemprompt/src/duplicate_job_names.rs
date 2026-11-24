@@ -71,6 +71,7 @@ fn an_install_job_named_like_a_scheduler_job_is_refused_naming_both_owners() {
 #[test]
 fn a_forged_handoff_with_two_owners_of_one_job_name_builds_no_schedule() {
     let admitted = Admitted::__from_facade(AdmittedParts {
+        withheld: Vec::new(),
         members: vec![
             forged_member("scheduler", StandingTag::Core, SCHEDULER_JOB),
             forged_member("probe-install", StandingTag::Install, SCHEDULER_JOB),
@@ -115,6 +116,7 @@ fn every_admitted_job_keeps_its_owners_stamped_standing() {
 #[test]
 fn a_member_stamped_install_never_carries_core_standing_for_its_jobs() {
     let admitted = Admitted::__from_facade(AdmittedParts {
+        withheld: Vec::new(),
         members: vec![forged_member(
             "scheduler",
             StandingTag::Install,

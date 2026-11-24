@@ -1,4 +1,5 @@
-//! The admission checks: removals, secrets kinds, member dependencies, job
+//! The admission checks: removals and the members withheld with a removed,
+//! disabled or withheld dependency, secrets kinds, member dependencies, job
 //! names (one owner per name), disabled members, providers, CLI commands,
 //! route sets and gateway routes.
 //!
@@ -7,9 +8,9 @@
 
 use std::any::TypeId;
 
-use systemprompt_extension::DuplicateJobOwner;
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
+use systemprompt_extension::{DuplicateJobOwner, MemberWithheld, WithheldBecause};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::{DisabledExtension, ExtensionsConfig};
 
@@ -21,25 +22,76 @@ use super::{DeclaredMember, Member, RESERVED_SECRETS_KINDS, SecretsKind};
 pub(super) fn apply_removals(
     members: Vec<Member>,
     removed: &[TypeId],
-) -> Result<Vec<Member>, CompositionError> {
+) -> Result<(Vec<Member>, Vec<(TypeId, ExtensionId)>), CompositionError> {
     let mut kept = Vec::with_capacity(members.len());
+    let mut gone = Vec::new();
     for member in members {
         if removed.contains(&member.type_id) {
-            if member.standing.required() {
-                let meta = member.ext.metadata();
-                let id = ExtensionId::try_new(meta.id).map_err(|source| {
-                    CompositionError::InvalidId {
-                        id: meta.id,
-                        source,
-                    }
+            let meta = member.ext.metadata();
+            let id =
+                ExtensionId::try_new(meta.id).map_err(|source| CompositionError::InvalidId {
+                    id: meta.id,
+                    source,
                 })?;
+            if member.standing.required() {
                 return Err(CompositionError::RequiredDisabled(id));
             }
+            gone.push((member.type_id, id));
             continue;
         }
         kept.push(member);
     }
-    Ok(kept)
+    Ok((kept, gone))
+}
+
+pub(super) fn withhold_dependants(
+    members: &mut Vec<DeclaredMember>,
+    absent: Vec<(TypeId, ExtensionId)>,
+    because: WithheldBecause,
+) -> Result<Vec<MemberWithheld>, CompositionError> {
+    let mut absent = absent;
+    let mut withheld = Vec::new();
+    loop {
+        let Some(position) = members.iter().position(|member| {
+            member
+                .sink
+                .depends_on()
+                .iter()
+                .any(|dependency| absent.iter().any(|(ty, _)| *ty == dependency.type_id()))
+        }) else {
+            return Ok(withheld);
+        };
+        let member = members.remove(position);
+        if member.standing.required() {
+            return Err(CompositionError::RequiredDisabled(member.id));
+        }
+        let (dependency, reason) = member
+            .sink
+            .depends_on()
+            .iter()
+            .find_map(|dependency| {
+                absent
+                    .iter()
+                    .find(|(ty, _)| *ty == dependency.type_id())
+                    .map(|(_, id)| id.clone())
+            })
+            .map(|id| {
+                let cascaded = withheld.iter().any(|w: &MemberWithheld| w.owner == id);
+                let reason = if cascaded {
+                    WithheldBecause::DependencyWithheld
+                } else {
+                    because
+                };
+                (id, reason)
+            })
+            .ok_or_else(|| CompositionError::RequiredDisabled(member.id.clone()))?;
+        absent.push((member.type_id, member.id.clone()));
+        withheld.push(MemberWithheld {
+            owner: member.id,
+            dependency,
+            because: reason,
+        });
+    }
 }
 
 #[cfg(feature = "config")]

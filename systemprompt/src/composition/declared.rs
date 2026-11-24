@@ -8,14 +8,14 @@ use std::any::TypeId;
 
 use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts, DeclaredCommandParts};
 use systemprompt_extension::contribute::ContributionSink;
-use systemprompt_extension::{Admitted, DeclaredCommands};
+use systemprompt_extension::{Admitted, DeclaredCommands, MemberWithheld, WithheldBecause};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::ExtensionsConfig;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
 
-use super::admit::{disabled_members, granted_members};
+use super::admit::{disabled_members, granted_members, withhold_dependants};
 use super::providers::check_providers;
 #[cfg(feature = "api")]
 use super::routes::{
@@ -34,6 +34,7 @@ pub(super) struct DeclaredMember {
 /// Every member's declarations, before the profile is applied.
 pub struct Declared {
     pub(super) members: Vec<DeclaredMember>,
+    pub(super) withheld: Vec<MemberWithheld>,
     #[cfg(feature = "cli")]
     pub(super) commands: Vec<AdmittedCommand>,
     #[cfg(feature = "config")]
@@ -77,10 +78,18 @@ impl Declared {
     fn admit_with(self, extensions: &ExtensionsConfig) -> Result<Admitted, CompositionError> {
         let disabled = disabled_members(&self.members, &extensions.disabled)?;
         granted_members(&self.members, extensions)?;
-        let (enabled, dropped): (Vec<DeclaredMember>, Vec<DeclaredMember>) = self
+        let (mut enabled, dropped): (Vec<DeclaredMember>, Vec<DeclaredMember>) = self
             .members
             .into_iter()
             .partition(|member| !disabled.contains(&member.id));
+        let absent = dropped
+            .iter()
+            .map(|member| (member.type_id, member.id.clone()))
+            .collect();
+        let mut withheld = self.withheld;
+        let cascaded =
+            withhold_dependants(&mut enabled, absent, WithheldBecause::DependencyDisabled)?;
+        withheld.extend(cascaded);
         check_providers(&enabled, &dropped)?;
         drop(dropped);
         let mut members = Vec::with_capacity(enabled.len());
@@ -114,6 +123,7 @@ impl Declared {
         }
         Ok(Admitted::__from_facade(AdmittedParts {
             members,
+            withheld,
             #[cfg(feature = "api")]
             routes,
             #[cfg(feature = "api")]

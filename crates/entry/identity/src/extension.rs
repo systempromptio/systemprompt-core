@@ -5,11 +5,13 @@
 //! the API mount builds the OAuth, SSO, self-service session and admin
 //! API-key routes from (see [`crate::http`]), and provides sealed the
 //! [`IdentityHttpRepositories`](crate::http::IdentityHttpRepositories) those
-//! routes read. The surface reads the sealed kernel-seeded
+//! routes read. The surface reads the oauth member's sealed
 //! `Arc<OAuthRepositories>`, conferred on `identity-http` under the
 //! `identity-oauth-repositories` row, when the API builds it; a child host
-//! seeds none and never builds the surface, so the member declares no
-//! boot-time requirement on it. The API
+//! holds none (no at-rest pepper) and never builds the surface, so the member
+//! declares no boot-time requirement on it. It declares the oauth member as a
+//! dependency (`depends_on`): with oauth disabled or removed the composition
+//! withholds `identity-http` too and reports it withheld. The API
 //! keeps their layering: the policies, context kinds, rate scopes and budgets,
 //! the file-managed client-write refusal and the route groups.
 //!
@@ -29,6 +31,7 @@
 //! | profile disables | identity routes |
 //! |---|---|
 //! | `identity-http` | 404 (not mounted) |
+//! | `oauth` | 404 (not mounted): `identity-http` is withheld with it and reported at boot |
 //! | `identity` | refused at admission unless `identity-http` is disabled with it: the member requires the SSO slot's built providers |
 //! | `users` | boot refused (`users` is a required member) |
 //!
@@ -60,6 +63,8 @@ impl Extension for IdentityHttpExtension {
         )
     )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        #[cfg(any(feature = "http", feature = "cli"))]
+        c.depends_on::<systemprompt_oauth::OauthExtension>();
         #[cfg(feature = "http")]
         surface::contribute(c);
         #[cfg(feature = "cli")]

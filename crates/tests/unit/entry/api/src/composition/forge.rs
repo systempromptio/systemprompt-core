@@ -87,6 +87,7 @@ pub(super) fn forged(
     gateway_routes: Vec<AdmittedGatewayRoute>,
 ) -> Admitted {
     Admitted::__from_facade(AdmittedParts {
+        withheld: Vec::new(),
         members: Vec::new(),
         routes,
         gateway_routes,

@@ -66,6 +66,7 @@ pub fn schema_admitted() -> Result<Admitted, ContributionError> {
         .map(|ext| admitted_member(ext.as_ref(), StandingTag::Core))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(Admitted::__from_facade(AdmittedParts {
+        withheld: Vec::new(),
         members,
         ..AdmittedParts::default()
     }))

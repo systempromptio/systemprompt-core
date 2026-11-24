@@ -8,6 +8,11 @@
 //! its command tree first. The CLI dispatches only from it, and decides
 //! whether a command's owner is disabled from the profile itself.
 //!
+//! [`Admitted::withheld`] lists every member the composition withheld with a
+//! member it depends on (disabled in the profile, removed from the
+//! composition, or itself withheld), with that dependency; the host reports
+//! each one at boot and serves none of its contributions.
+//!
 //! Both are constructed only through a hidden `__from_facade` constructor. The
 //! kernel re-checks every privileged entry against the constants in
 //! [`reserved`](crate::reserved), so a handoff built any other way gains
@@ -29,6 +34,34 @@ pub struct AdmittedMember {
     pub standing: StandingTag,
     pub sink: ContributionSink,
     pub secret_grants: Vec<systemprompt_traits::SecretPattern>,
+}
+
+/// A member the composition withheld with a member it depends on
+/// (`Contributions::depends_on`): none of its contributions is admitted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemberWithheld {
+    pub owner: ExtensionId,
+    pub dependency: ExtensionId,
+    pub because: WithheldBecause,
+}
+
+/// Why a [`MemberWithheld`]'s dependency is absent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WithheldBecause {
+    DependencyDisabled,
+    DependencyRemoved,
+    DependencyWithheld,
+}
+
+impl WithheldBecause {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::DependencyDisabled => "dependency_disabled",
+            Self::DependencyRemoved => "dependency_removed",
+            Self::DependencyWithheld => "dependency_withheld",
+        }
+    }
 }
 
 /// Every admitted member's contributions, in composition order.
@@ -78,6 +111,7 @@ impl BuiltState {
 #[derive(Debug, Default)]
 pub struct AdmittedParts {
     pub members: Vec<AdmittedMember>,
+    pub withheld: Vec<MemberWithheld>,
     #[cfg(feature = "router")]
     pub routes: Vec<AdmittedRouteSet>,
     #[cfg(feature = "router")]
@@ -87,6 +121,7 @@ pub struct AdmittedParts {
 #[derive(Debug)]
 pub struct Admitted {
     built: BuiltState,
+    withheld: Vec<MemberWithheld>,
     #[cfg(feature = "router")]
     routes: Vec<AdmittedRouteSet>,
     #[cfg(feature = "router")]
@@ -101,6 +136,7 @@ impl Admitted {
             built: BuiltState {
                 members: parts.members,
             },
+            withheld: parts.withheld,
             #[cfg(feature = "router")]
             routes: parts.routes,
             #[cfg(feature = "router")]
@@ -123,6 +159,11 @@ impl Admitted {
     #[must_use]
     pub const fn built(&self) -> &BuiltState {
         &self.built
+    }
+
+    #[must_use]
+    pub fn withheld(&self) -> &[MemberWithheld] {
+        &self.withheld
     }
 }
 

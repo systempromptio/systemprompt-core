@@ -17,7 +17,12 @@
 //! every contribution of a disabled member — routes, commands, jobs,
 //! retention, projections, config planes, guards, subject providers,
 //! policies, slot entries, provide fns, factories and asset closures — and
-//! only then admits routes against the conferrals and checks providers. No
+//! only then admits routes against the conferrals and checks providers. A
+//! member that `depends_on` a member removed with [`Composition::without`],
+//! disabled in the profile, or itself withheld is withheld with it (its
+//! contributions dropped exactly as a disabled member's) and listed in
+//! [`Admitted::withheld`]; withholding a required member refuses the
+//! composition (`RequiredDisabled`). No
 //! provide fn, factory, slot build or asset closure runs here; the runtime
 //! runs them over the [`Admitted`] handoff.
 //!
@@ -29,7 +34,7 @@ use std::collections::HashSet;
 
 use systemprompt_extension::contribute::{ContributionSink, Contributions};
 use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES, PrivilegedShape};
-use systemprompt_extension::{Admitted, Extension, StandingTag};
+use systemprompt_extension::{Admitted, Extension, StandingTag, WithheldBecause};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
 
@@ -37,7 +42,7 @@ use systemprompt_manifest::Profile;
 use admit::admit_commands;
 #[cfg(feature = "config")]
 use admit::check_secrets;
-use admit::{apply_removals, check_job_names, check_member_dependencies};
+use admit::{apply_removals, check_job_names, check_member_dependencies, withhold_dependants};
 pub use error::{CompositionError, RunError};
 
 mod admit;
@@ -216,7 +221,7 @@ impl Composition {
     pub fn declare(self) -> Result<Declared, CompositionError> {
         #[cfg(feature = "config")]
         let secrets = check_secrets(self.secrets)?;
-        let members = apply_removals(self.members, &self.removed)?;
+        let (members, removed) = apply_removals(self.members, &self.removed)?;
         let mut declared = Vec::with_capacity(members.len());
         let mut ids = HashSet::new();
         for member in members {
@@ -253,12 +258,15 @@ impl Composition {
                 sink,
             });
         }
+        let withheld =
+            withhold_dependants(&mut declared, removed, WithheldBecause::DependencyRemoved)?;
         check_member_dependencies(&declared)?;
         check_job_names(&declared)?;
         #[cfg(feature = "cli")]
         let commands = admit_commands(&mut declared)?;
         Ok(Declared {
             members: declared,
+            withheld,
             #[cfg(feature = "cli")]
             commands,
             #[cfg(feature = "config")]

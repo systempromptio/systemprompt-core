@@ -24,6 +24,7 @@ fn slack_admitted() -> Admitted {
         .contribute(&mut Contributions::__new(owner.clone(), &mut sink))
         .expect("the slack member contributes");
     Admitted::__from_facade(AdmittedParts {
+        withheld: Vec::new(),
         members: vec![AdmittedMember {
             secret_grants: Vec::new(),
             owner,

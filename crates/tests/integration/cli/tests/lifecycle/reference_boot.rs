@@ -9,6 +9,7 @@ use std::sync::Arc;
 use systemprompt::{CompositionError, reference};
 use systemprompt_api::services::server::routes::Composed;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
+use systemprompt_extension::WithheldBecause;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_boot_profile,
@@ -96,4 +97,55 @@ async fn each_disableable_member_disabled_in_turn_still_builds_the_api_applicati
     }
     assert!(mounted > 0, "at least one optional member is exercised");
     assert!(failed.is_empty(), "{failed:#?}");
+}
+
+#[tokio::test]
+async fn oauth_disabled_withholds_identity_http_and_the_api_still_mounts() {
+    let oauth = ExtensionId::new("oauth");
+    let admitted = admit(std::slice::from_ref(&oauth)).expect("oauth is optional");
+    let withheld = admitted.withheld();
+    assert!(
+        withheld
+            .iter()
+            .any(|member| member.owner.as_str() == "identity-http"
+                && member.dependency == oauth
+                && member.because == WithheldBecause::DependencyDisabled),
+        "identity-http is withheld with oauth: {withheld:?}"
+    );
+    assert!(
+        !admitted
+            .built()
+            .contains(&ExtensionId::new("identity-http"))
+    );
+    if let Err(error) = mount(&[oauth]).await {
+        panic!("the API application builds with oauth disabled: {error}");
+    }
+}
+
+#[test]
+fn oauth_removed_from_the_composition_withholds_identity_http() {
+    let admitted = reference()
+        .without::<systemprompt::oauth::OauthExtension>()
+        .build(&test_boot_profile())
+        .expect("a composition without oauth admits");
+    assert!(
+        admitted
+            .withheld()
+            .iter()
+            .any(|member| member.owner.as_str() == "identity-http"
+                && member.because == WithheldBecause::DependencyRemoved),
+        "{:?}",
+        admitted.withheld()
+    );
+}
+
+#[test]
+fn oauth_enabled_withholds_nothing() {
+    let admitted = admit(&[]).expect("the reference composition admits");
+    assert!(admitted.withheld().is_empty(), "{:?}", admitted.withheld());
+    assert!(
+        admitted
+            .built()
+            .contains(&ExtensionId::new("identity-http"))
+    );
 }

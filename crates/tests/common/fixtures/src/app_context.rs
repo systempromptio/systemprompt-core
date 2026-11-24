@@ -197,6 +197,7 @@ fn admitted_of(members: Vec<Box<dyn Extension>>) -> Admitted {
         })
         .collect();
     Admitted::__from_facade(systemprompt_extension::admitted::AdmittedParts {
+        withheld: Vec::new(),
         members,
         ..Default::default()
     })

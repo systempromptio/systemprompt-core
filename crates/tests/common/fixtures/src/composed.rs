@@ -98,6 +98,7 @@ fn admitted_over(mut members: Vec<AdmittedMember>, parts: ComposedParts) -> Admi
         member
     }));
     Admitted::__from_facade(AdmittedParts {
+        withheld: Vec::new(),
         members,
         gateway_routes: parts.gateway_routes,
         ..AdmittedParts::default()

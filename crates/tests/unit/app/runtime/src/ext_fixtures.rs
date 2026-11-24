@@ -115,6 +115,7 @@ pub fn fixture_admitted() -> Admitted {
         })
         .collect();
     Admitted::__from_facade(AdmittedParts {
+        withheld: Vec::new(),
         members,
         ..AdmittedParts::default()
     })

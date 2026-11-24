@@ -88,6 +88,15 @@ pub fn assemble_api_server(
         tx.warning("Rate limiting disabled - development mode only");
     }
 
+    for member in composed.admitted.withheld() {
+        tracing::warn!(
+            member = %member.owner,
+            dependency = %member.dependency,
+            reason = member.because.as_str(),
+            "Member withheld with its dependency; its routes are not mounted"
+        );
+    }
+
     let router = configure_routes(ctx, composed, events, engines)?
         .layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)

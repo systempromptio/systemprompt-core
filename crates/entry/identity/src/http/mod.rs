@@ -7,11 +7,12 @@
 //! [`IdentityHttpSurface`] builds them from the `identity-http` route state.
 //! It reads, scoped to `identity-http`: the token authority and the signing
 //! keys (both host seeds conferred on `identity-http`, the issuer), the users
-//! member's sign-in session view (conferred), the OAuth repositories (a host
-//! seed conferred on `identity-http`), the open subject-provider set and MCP
-//! registry, and the member's own sealed [`IdentityHttpRepositories`]. Without
-//! an MCP registry an authorization request naming a `resource` is refused with
-//! `invalid_target`; it never falls back to the client's registered scopes.
+//! member's sign-in session view (conferred), the oauth member's repositories
+//! (sealed, conferred on `identity-http`), the open subject-provider set and
+//! MCP registry, and the member's own sealed [`IdentityHttpRepositories`].
+//! Without an MCP registry an authorization request naming a `resource` is
+//! refused with `invalid_target`; it never falls back to the client's
+//! registered scopes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
