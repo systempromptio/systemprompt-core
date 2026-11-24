@@ -1,4 +1,5 @@
-use systemprompt_api::routes::oauth::discovery::{UiSessionDiscovery, WellKnownResponse};
+use systemprompt_identity_entry::http::oauth::discovery::WellKnownResponse;
+use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 

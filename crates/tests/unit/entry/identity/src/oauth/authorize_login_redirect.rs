@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_api::routes::oauth::endpoints::authorize::{
+use systemprompt_identity_entry::http::oauth::endpoints::authorize::{
     AuthorizeQuery, login_page_redirect_target,
 };
 use systemprompt_identifiers::ClientId;

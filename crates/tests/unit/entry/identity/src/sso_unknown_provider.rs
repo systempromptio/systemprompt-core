@@ -4,7 +4,7 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::routes::sso::{SsoRouteState, binder_from_headers, router};
+use systemprompt_identity_entry::http::sso::{SsoRouteState, binder_from_headers, router};
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 use systemprompt_traits::AppContext as _;
@@ -22,7 +22,8 @@ async fn app() -> axum::Router {
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     router(SsoRouteState::build(
-        &ctx,
+        ctx.config_arc(),
+        ctx.db_pool(),
         &oauth,
         &systemprompt_oauth_issuance::contract::SsoProviders::default(),
     ))

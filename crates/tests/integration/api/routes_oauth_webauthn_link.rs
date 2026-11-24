@@ -16,8 +16,8 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use axum::response::IntoResponse;
-use systemprompt_api::routes::oauth::public_router;
-use systemprompt_api::routes::oauth::webauthn::link::link_passkey_page;
+use systemprompt_identity_entry::http::oauth::public_router;
+use systemprompt_identity_entry::http::oauth::webauthn::link::link_passkey_page;
 use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
@@ -216,7 +216,7 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.
-    let merged = systemprompt_api::routes::oauth::router(std::sync::Arc::new(
+    let merged = systemprompt_identity_entry::http::oauth::router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(state);

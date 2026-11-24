@@ -18,7 +18,7 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::routes::oauth::public_router;
+use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::{WebAuthnService, generate_secure_token};

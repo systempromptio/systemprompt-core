@@ -4,7 +4,7 @@ use axum::body::to_bytes;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use serde_json::Value;
-use systemprompt_api::routes::oauth::{OAuthErrorCode, OAuthHttpError};
+use systemprompt_identity_entry::http::oauth::{OAuthErrorCode, OAuthHttpError};
 
 async fn body_string(
     resp: axum::response::Response,

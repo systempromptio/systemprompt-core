@@ -15,8 +15,6 @@ mod authz_policy;
 mod bearer_window;
 mod bot_detection_functions;
 mod bot_detector;
-mod client_addr;
-mod client_ip_extractor;
 mod content_negotiation;
 mod context_flavours;
 mod cors_config;

@@ -9,7 +9,7 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::routes::oauth::authenticated_router;
+use systemprompt_identity_entry::http::oauth::authenticated_router;
 use systemprompt_identifiers::{
     AccessTokenId, Actor, AgentName, ContextId, SessionId, TraceId, UserId,
 };

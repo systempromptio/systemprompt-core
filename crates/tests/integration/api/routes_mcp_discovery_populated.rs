@@ -69,7 +69,7 @@ async fn protected_resource(path: &str) -> anyhow::Result<(u16, serde_json::Valu
     let ctx = test_app_context_on(&b).await;
     let (status, body) = body_to_string(
         super::common::with_config(
-            systemprompt_api::routes::oauth::wellknown_routes(&ctx),
+            systemprompt_identity_entry::http::oauth::wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())),
             &ctx,
         )
         .oneshot(empty_get(path))

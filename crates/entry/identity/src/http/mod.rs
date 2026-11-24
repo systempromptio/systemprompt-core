@@ -25,7 +25,6 @@ use axum::Router;
 use axum::routing::get;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::SubjectProviderSet;
-use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_oauth::services::WebAuthnService;
@@ -91,11 +90,7 @@ impl IdentitySurface for IdentityHttpSurface {
         }
 
         let sso = sso::SsoRouteState::build(&host.config, &db, &oauth_state, &host.sso);
-        let discovery = DiscoveryState {
-            allow_dynamic_client_registration: host.config.allow_dynamic_client_registration,
-            ui_session: UiSessionDiscovery::from_config(&host.config.ui_session),
-            mcp_registry,
-        };
+        let discovery = DiscoveryState::from_config(&host.config, mcp_registry);
         let api_keys = ApiKeysState {
             keys: Arc::new(ApiKeyService::new(
                 Arc::clone(&own.users),

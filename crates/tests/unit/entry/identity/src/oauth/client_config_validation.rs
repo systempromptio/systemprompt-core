@@ -1,6 +1,6 @@
 use http::HeaderMap;
 use http::header::HeaderValue;
-use systemprompt_api::routes::oauth::endpoints::client_config::validation::validate_registration_token;
+use systemprompt_identity_entry::http::oauth::endpoints::client_config::validation::validate_registration_token;
 
 #[test]
 fn test_missing_authorization_header_returns_error() {

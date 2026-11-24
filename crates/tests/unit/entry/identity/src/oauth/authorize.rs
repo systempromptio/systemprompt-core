@@ -5,7 +5,7 @@
 //! These tests cover the public data types: AuthorizeQuery, AuthorizeRequest —
 //! verifying construction, serde behavior, and Debug.
 
-use systemprompt_api::routes::oauth::endpoints::authorize::{AuthorizeQuery, AuthorizeRequest};
+use systemprompt_identity_entry::http::oauth::endpoints::authorize::{AuthorizeQuery, AuthorizeRequest};
 use systemprompt_identifiers::ClientId;
 
 fn create_valid_authorize_query() -> AuthorizeQuery {

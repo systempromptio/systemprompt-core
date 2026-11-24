@@ -3,7 +3,7 @@
 
 use axum::body::to_bytes;
 use axum::http::StatusCode;
-use systemprompt_api::routes::oauth::responses::{created_response, single_response};
+use systemprompt_identity_entry::http::oauth::responses::{created_response, single_response};
 
 #[tokio::test]
 async fn single_response_wraps_data_in_data_field() {

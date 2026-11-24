@@ -6,7 +6,7 @@ use axum::extract::ConnectInfo;
 use axum::http::{HeaderMap, HeaderValue};
 use ipnet::IpNet;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use systemprompt_api::services::middleware::client_addr::{
+use systemprompt_security::http::{
     forwarded_headers_ignored, resolve_client_ip,
 };
 

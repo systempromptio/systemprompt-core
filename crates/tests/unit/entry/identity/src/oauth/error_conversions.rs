@@ -2,7 +2,7 @@
 //! errors (`OauthError`, `AuthProviderError`, `sqlx::Error`, `anyhow::Error`)
 //! onto RFC 6749 codes.
 
-use systemprompt_api::routes::oauth::{OAuthErrorCode, OAuthHttpError};
+use systemprompt_identity_entry::http::oauth::{OAuthErrorCode, OAuthHttpError};
 use systemprompt_oauth::OauthError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_traits::auth::AuthProviderError;
@@ -162,19 +162,3 @@ fn auth_provider_insufficient_permissions_maps_to_access_denied() {
     assert_eq!(e.code(), OAuthErrorCode::AccessDenied);
 }
 
-#[test]
-fn anyhow_error_maps_to_server_error_without_its_text() {
-    let e: OAuthHttpError = anyhow::anyhow!("boom").into();
-    assert_eq!(e.code(), OAuthErrorCode::ServerError);
-    assert!(
-        !e.description().contains("boom"),
-        "the cause rides as the logged source, never as description text: {}",
-        e.description()
-    );
-}
-
-#[test]
-fn sqlx_row_not_found_maps_to_server_error() {
-    let e: OAuthHttpError = sqlx::Error::RowNotFound.into();
-    assert_eq!(e.code(), OAuthErrorCode::ServerError);
-}

@@ -3,7 +3,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::middleware::{self, Next};
-use systemprompt_api::routes::oauth::authenticated_router;
+use systemprompt_identity_entry::http::oauth::authenticated_router;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::UserType;
 use systemprompt_oauth::OAuthState;

@@ -83,13 +83,6 @@ impl SessionProvider for StubAnalyticsProvider {
         Ok(0)
     }
 
-    async fn migrate_user_sessions(
-        &self,
-        _from_user_id: &UserId,
-        _to_user_id: &UserId,
-    ) -> AnalyticsResult<u64> {
-        Ok(0)
-    }
 
     async fn mark_session_converted(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
         Ok(())
@@ -500,13 +493,6 @@ impl SessionProvider for FailingAnalyticsProvider {
     async fn revoke_all_sessions_for_user(&self, _user_id: &UserId) -> AnalyticsResult<u64> {
         Ok(0)
     }
-    async fn migrate_user_sessions(
-        &self,
-        _from_user_id: &UserId,
-        _to_user_id: &UserId,
-    ) -> AnalyticsResult<u64> {
-        Ok(0)
-    }
     async fn mark_session_converted(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
         Ok(())
     }
@@ -557,13 +543,6 @@ impl SessionProvider for SlowAnalyticsProvider {
         Ok(())
     }
     async fn revoke_all_sessions_for_user(&self, _user_id: &UserId) -> AnalyticsResult<u64> {
-        Ok(0)
-    }
-    async fn migrate_user_sessions(
-        &self,
-        _from_user_id: &UserId,
-        _to_user_id: &UserId,
-    ) -> AnalyticsResult<u64> {
         Ok(0)
     }
     async fn mark_session_converted(&self, _session_id: &SessionId) -> AnalyticsResult<()> {

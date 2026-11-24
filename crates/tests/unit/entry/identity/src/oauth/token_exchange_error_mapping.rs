@@ -6,7 +6,7 @@
 use axum::body::to_bytes;
 use axum::response::IntoResponse;
 use http::StatusCode;
-use systemprompt_api::routes::oauth::OAuthHttpError;
+use systemprompt_identity_entry::http::oauth::OAuthHttpError;
 use systemprompt_oauth::services::validation::id_jag::IdJagError;
 use systemprompt_oauth_issuance::IssuanceError;
 

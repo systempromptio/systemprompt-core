@@ -1,4 +1,4 @@
-use systemprompt_api::services::request_base_url::resolve;
+use systemprompt_security::http::resolve_request_base_url as resolve;
 use url::Url;
 
 fn configured(url: &str) -> Url {

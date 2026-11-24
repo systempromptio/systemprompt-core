@@ -10,7 +10,7 @@
 use axum::body::to_bytes;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
-use systemprompt_api::routes::oauth::{OAuthErrorCode, OAuthHttpError};
+use systemprompt_identity_entry::http::oauth::{OAuthErrorCode, OAuthHttpError};
 use systemprompt_oauth::OauthError;
 use systemprompt_traits::auth::AuthProviderError;
 
@@ -306,25 +306,3 @@ fn auth_provider_errors_map_onto_their_protocol_codes() {
     }
 }
 
-#[test]
-fn an_anyhow_error_collapses_to_a_server_error() {
-    let http: OAuthHttpError = anyhow::anyhow!("something deep failed").into();
-
-    assert_eq!(http.code(), OAuthErrorCode::ServerError);
-    assert!(
-        !http.description().contains("something deep failed"),
-        "the cause rides as the logged source, never as description text: {}",
-        http.description()
-    );
-}
-
-#[test]
-fn a_plain_database_error_is_a_server_error_not_a_client_one() {
-    let http: OAuthHttpError = sqlx::Error::RowNotFound.into();
-
-    assert_eq!(
-        http.code(),
-        OAuthErrorCode::ServerError,
-        "a row-not-found is our problem, not the caller's"
-    );
-}

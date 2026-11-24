@@ -12,7 +12,7 @@
 
 use axum::Router;
 use axum::http::StatusCode;
-use systemprompt_api::routes::oauth::public_router;
+use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_oauth::OAuthState;
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;

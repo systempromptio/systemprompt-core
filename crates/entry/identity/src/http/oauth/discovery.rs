@@ -27,6 +27,20 @@ pub struct DiscoveryState {
     pub mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
 }
 
+impl DiscoveryState {
+    #[must_use]
+    pub fn from_config(
+        config: &systemprompt_manifest::Config,
+        mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
+    ) -> Self {
+        Self {
+            allow_dynamic_client_registration: config.allow_dynamic_client_registration,
+            ui_session: UiSessionDiscovery::from_config(&config.ui_session),
+            mcp_registry,
+        }
+    }
+}
+
 impl std::fmt::Debug for DiscoveryState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DiscoveryState")

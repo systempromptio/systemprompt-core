@@ -13,7 +13,7 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::routes::oauth::{public_router, wellknown_routes};
+use systemprompt_identity_entry::http::oauth::{public_router, wellknown_routes};
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::mint_admin_jwt;
@@ -71,7 +71,7 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_api::routes::oauth::authenticated_router()
+    let app = systemprompt_identity_entry::http::oauth::authenticated_router()
         .with_state(state)
         .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
     let resp = app.oneshot(get_userinfo(None)).await?;
@@ -84,7 +84,7 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
 #[tokio::test]
 async fn userinfo_malformed_token_returns_invalid_token() -> anyhow::Result<()> {
     let state = oauth_state().await?;
-    let app = systemprompt_api::routes::oauth::authenticated_router()
+    let app = systemprompt_identity_entry::http::oauth::authenticated_router()
         .with_state(state)
         .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
     let resp = app
@@ -99,7 +99,7 @@ async fn userinfo_malformed_token_returns_invalid_token() -> anyhow::Result<()> 
 #[tokio::test]
 async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
     let state = oauth_state().await?;
-    let app = systemprompt_api::routes::oauth::authenticated_router()
+    let app = systemprompt_identity_entry::http::oauth::authenticated_router()
         .with_state(state)
         .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
     let user = UserId::new(Uuid::new_v4().to_string());
@@ -125,7 +125,7 @@ async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
 #[tokio::test]
 async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
+    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
     let resp = app
         .oneshot(
             Request::builder()
@@ -142,7 +142,7 @@ async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
 #[tokio::test]
 async fn wellknown_options_preflight_returns_200() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
+    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
     let resp = app
         .oneshot(
             Request::builder()

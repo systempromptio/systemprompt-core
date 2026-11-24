@@ -4,8 +4,9 @@
 use axum::body::to_bytes;
 use axum::response::IntoResponse;
 use http::StatusCode;
-use systemprompt_api::routes::oauth::OAuthHttpError;
-use systemprompt_api::routes::oauth::discovery::{UiSessionDiscovery, WellKnownResponse};
+use systemprompt_identity_entry::http::oauth::OAuthHttpError;
+use systemprompt_identity_entry::http::oauth::discovery::WellKnownResponse;
+use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_manifest::profile::UiSessionConfig;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 

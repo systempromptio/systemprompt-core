@@ -12,7 +12,6 @@ mod proxy_audit;
 mod proxy_fixed_arguments;
 mod proxy_oauth_challenge;
 mod proxy_resolver;
-mod request_base_url;
 mod server_health_stats;
 mod server_metrics;
 mod server_ops_metrics;

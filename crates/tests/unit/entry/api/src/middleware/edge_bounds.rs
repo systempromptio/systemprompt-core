@@ -8,11 +8,11 @@ use axum::response::IntoResponse;
 use bytes::Bytes;
 use ipnet::IpNet;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::services::middleware::client_addr::resolve_client_ip;
+use systemprompt_security::http::resolve_client_ip;
 use systemprompt_api::services::middleware::context::PayloadSource;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
 use systemprompt_api::services::middleware::{BodyReadError, read_body_bounded};
-use systemprompt_api::services::session_cookie::{SameSite, SessionCookie};
+use systemprompt_security::http::{SameSite, SessionCookie};
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES;
 

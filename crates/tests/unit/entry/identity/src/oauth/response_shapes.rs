@@ -6,7 +6,7 @@
 
 use axum::body::to_bytes;
 use axum::http::{StatusCode, header};
-use systemprompt_api::routes::oauth::responses::{created_response, single_response};
+use systemprompt_identity_entry::http::oauth::responses::{created_response, single_response};
 
 async fn body_json(resp: axum::response::Response) -> serde_json::Value {
     let bytes = to_bytes(resp.into_body(), 1024 * 1024)

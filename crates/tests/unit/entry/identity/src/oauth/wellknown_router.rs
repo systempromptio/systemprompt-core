@@ -12,7 +12,7 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use systemprompt_api::routes::oauth::wellknown_routes;
+use systemprompt_identity_entry::http::oauth::wellknown_routes;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 use tower::ServiceExt;
@@ -21,7 +21,7 @@ async fn router() -> Router {
     let url = test_database_url();
     ensure_test_bootstrap();
     let ctx = test_app_context(&url).await;
-    wellknown_routes(&ctx)
+    wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned()))
 }
 
 async fn status(method: &str, uri: &str) -> StatusCode {

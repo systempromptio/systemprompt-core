@@ -13,7 +13,7 @@ use axum::body::{Body, to_bytes};
 use axum::extract::{ConnectInfo, Request};
 use axum::http::StatusCode;
 use axum::routing::get;
-use systemprompt_api::services::middleware::client_addr::ClientIp;
+use systemprompt_security::http::ClientIp;
 use tower::ServiceExt;
 
 async fn echo_ip(ClientIp(ip): ClientIp) -> String {

@@ -2,7 +2,7 @@
 //! HTTP status mapping the server uses when it doesn't override `with_status`.
 
 use axum::http::StatusCode;
-use systemprompt_api::routes::oauth::error::OAuthErrorCode;
+use systemprompt_identity_entry::http::oauth::error::OAuthErrorCode;
 
 #[test]
 fn as_str_emits_canonical_rfc_wire_strings() {

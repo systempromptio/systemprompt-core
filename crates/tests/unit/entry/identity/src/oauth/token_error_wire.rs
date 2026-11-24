@@ -1,7 +1,7 @@
 use axum::body::to_bytes;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_api::routes::oauth::OAuthHttpError;
+use systemprompt_identity_entry::http::oauth::OAuthHttpError;
 use systemprompt_oauth_issuance::IssuanceError;
 
 async fn body_to_json(resp: axum::response::Response) -> serde_json::Value {

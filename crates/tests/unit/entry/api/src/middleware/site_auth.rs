@@ -42,7 +42,7 @@ mod gate {
     use axum::{Router, middleware};
     use chrono::{Duration, Utc};
     use systemprompt_api::services::middleware::{SiteAuthSession, site_auth_gate};
-    use systemprompt_api::services::session_cookie::SessionCookie;
+    use systemprompt_security::http::SessionCookie;
     use systemprompt_database::DbPool;
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::{AccessTokenId, UserId};
