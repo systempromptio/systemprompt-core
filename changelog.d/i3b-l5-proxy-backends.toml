@@ -1,5 +1,6 @@
 [root]
 section = "Changed"
+area = "MCP"
 text = "The API's proxy engine reads what is MCP-specific about a backend (external servers, the spawn port, managed and external session binding, the external upstream with its fixed tool arguments and per-call audit) through `ProxyBackendResolver`, which the `mcp-http` member provides sealed. A crashed proxied service restarts through its kind's process set, and the MCP startup reconciliation runs as `ServiceProcessSet::reconcile` of the `mcp` member's process set."
 
 [[crate]]
