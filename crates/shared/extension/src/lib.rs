@@ -179,11 +179,11 @@ pub use retention::{
     RetentionTarget,
 };
 pub use seed::Seed;
-pub use state::{StateHandle, StateRequirement};
+pub use state::StateHandle;
 pub use systemprompt_models::{AlreadyBound, LateBinder, LateBound, LateRead, late_pair};
 #[cfg(feature = "sqlx")]
 pub use systemprompt_provider_contracts::DoctorProbeSource;
-pub use systemprompt_provider_contracts::MissingDependency;
+pub use systemprompt_provider_contracts::{MissingDependency, StateRequirement};
 pub use traits::Extension;
 
 pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
@@ -204,7 +204,7 @@ pub mod prelude {
     pub use crate::seed::Seed;
     #[cfg(feature = "router")]
     pub use crate::stamp_frame_options;
-    pub use crate::state::{StateHandle, StateRequirement};
+    pub use crate::state::StateHandle;
     pub use crate::{
         AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, Migration,
         MissingDependency, OrphanSweep, OwnerReassignment, PurgePredicate, RateBudget, RateLimit,
@@ -212,6 +212,7 @@ pub mod prelude {
         extension_migrations,
     };
     pub use systemprompt_models::{LateBound, LateRead};
+    pub use systemprompt_provider_contracts::StateRequirement;
 
     pub use systemprompt_provider_contracts::governance::RuleType;
     pub use systemprompt_provider_contracts::{

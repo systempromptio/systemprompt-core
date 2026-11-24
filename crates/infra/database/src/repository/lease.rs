@@ -7,6 +7,13 @@
 //! claiming statement so two replicas racing for a dead owner's lease cannot
 //! both win it.
 //!
+//! Every claim that changes the owner (or inserts the row) stamps the next
+//! value of `instance_lease_fencing_seq`, one sequence for every key, so a
+//! key's token only grows, across releases too; a claim by the current owner
+//! keeps its token. [`LeaseRepository::renew`] is fenced on that token in its
+//! own statement: a holder whose lease another replica took changes nothing
+//! and gets [`CoordinationError::Fenced`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,7 +25,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_traits::{
-    CoordinationError, CoordinationResult, Lease, LeaseRepository, RepositoryError,
+    CoordinationError, CoordinationResult, FencingToken, Lease, LeaseRepository, RepositoryError,
 };
 
 use super::service::{INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS};
@@ -35,6 +42,7 @@ pub struct InstanceLeaseRepository {
 struct LeaseRow {
     lease_key: LeaseKey,
     owner_instance_id: String,
+    fencing_token: i64,
     acquired_at: DateTime<Utc>,
     expires_at: DateTime<Utc>,
 }
@@ -44,6 +52,7 @@ impl LeaseRow {
         Lease {
             key: self.lease_key,
             owner: InstanceId::new(self.owner_instance_id),
+            fencing_token: FencingToken::new(self.fencing_token),
             acquired_at: self.acquired_at,
             expires_at: self.expires_at,
         }
@@ -78,11 +87,16 @@ impl LeaseRepository for InstanceLeaseRepository {
             LeaseRow,
             r#"
             INSERT INTO instance_leases AS held
-                (lease_key, owner_instance_id, acquired_at, expires_at)
-            VALUES ($1, $2, CURRENT_TIMESTAMP,
+                (lease_key, owner_instance_id, fencing_token, acquired_at, expires_at)
+            VALUES ($1, $2, nextval('instance_lease_fencing_seq'), CURRENT_TIMESTAMP,
                     CURRENT_TIMESTAMP + make_interval(secs => $3::double precision))
             ON CONFLICT (lease_key) DO UPDATE SET
                 owner_instance_id = EXCLUDED.owner_instance_id,
+                fencing_token = CASE
+                    WHEN held.owner_instance_id = EXCLUDED.owner_instance_id
+                        THEN held.fencing_token
+                    ELSE EXCLUDED.fencing_token
+                END,
                 acquired_at = CASE
                     WHEN held.owner_instance_id = EXCLUDED.owner_instance_id
                         THEN held.acquired_at
@@ -108,6 +122,7 @@ impl LeaseRepository for InstanceLeaseRepository {
                    )
                )
             RETURNING lease_key AS "lease_key!: LeaseKey", owner_instance_id AS "owner_instance_id!",
+                      fencing_token AS "fencing_token!",
                       acquired_at AS "acquired_at!", expires_at AS "expires_at!"
             "#,
             key.as_str(),
@@ -120,6 +135,32 @@ impl LeaseRepository for InstanceLeaseRepository {
         .await
         .map_err(RepositoryError::from)?;
         Ok(row.map(LeaseRow::into_lease))
+    }
+
+    async fn renew(&self, lease: &Lease, ttl: Duration) -> CoordinationResult<Lease> {
+        let secs = ttl_secs(ttl)?;
+        let row = sqlx::query_as!(
+            LeaseRow,
+            r#"
+            UPDATE instance_leases
+            SET expires_at = CURRENT_TIMESTAMP + make_interval(secs => $4::double precision)
+            WHERE lease_key = $1 AND owner_instance_id = $2 AND fencing_token = $3
+            RETURNING lease_key AS "lease_key!: LeaseKey", owner_instance_id, fencing_token,
+                      acquired_at, expires_at
+            "#,
+            lease.key.as_str(),
+            self.instance_id.as_str(),
+            lease.fencing_token.get(),
+            secs
+        )
+        .fetch_optional(&*self.write_pool)
+        .await
+        .map_err(RepositoryError::from)?;
+        row.map(LeaseRow::into_lease)
+            .ok_or_else(|| CoordinationError::Fenced {
+                key: lease.key.clone(),
+                token: lease.fencing_token,
+            })
     }
 
     async fn release(&self, key: &LeaseKey) -> CoordinationResult<bool> {
@@ -138,7 +179,8 @@ impl LeaseRepository for InstanceLeaseRepository {
         let row = sqlx::query_as!(
             LeaseRow,
             r#"
-            SELECT lease_key AS "lease_key: LeaseKey", owner_instance_id, acquired_at, expires_at
+            SELECT lease_key AS "lease_key: LeaseKey", owner_instance_id, fencing_token,
+                   acquired_at, expires_at
             FROM instance_leases
             WHERE lease_key = $1 AND expires_at > CURRENT_TIMESTAMP
             "#,

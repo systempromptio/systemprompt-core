@@ -42,6 +42,20 @@ pub enum SchedulerError {
     #[error("Invalid cron schedule: {schedule}")]
     InvalidSchedule { schedule: String },
 
+    #[error("Invalid cron schedule '{schedule}': {source}")]
+    InvalidCron {
+        schedule: String,
+        #[source]
+        source: croner::errors::CronError,
+    },
+
+    #[error(
+        "job '{job}' requires state of type '{ty}', which neither the kernel nor any admitted \
+         member provides to its context; link and enable the member that provides it or disable \
+         the job"
+    )]
+    UnmetRequirement { job: JobName, ty: &'static str },
+
     #[error("Job execution failed: {job_name} - {source}")]
     JobExecutionFailed {
         job_name: JobName,

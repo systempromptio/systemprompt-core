@@ -27,11 +27,19 @@
 //! this map. [`Dependencies::is_sealed`] lets a resolver refuse it per read
 //! with the same [`MissingDependency`] an absent type gets, and
 //! [`Dependencies::withholding_sealed`] returns a copy with every sealed
-//! entry removed and its type reserved; every job, runner-service and
-//! config-plane context is built only from such a copy. A member that needs a
-//! capability derived from a sealed value builds a narrow handle from it in
+//! entry removed and its type reserved; every runner-service and
+//! config-plane context is built only from such a copy.
+//! [`Dependencies::withholding_sealed_except`] keeps the sealed entries one
+//! member provided and withholds every other: a job context is built from
+//! that copy for the job's owning member, so a member's job reads its own
+//! sealed values and never another member's or a host seed. A member that needs
+//! a capability derived from a sealed value builds a narrow handle from it in
 //! its `provide` fn or factory. [`Dependencies::sealed_types`] enumerates
 //! the sealed set; [`Dependencies::host_types`] names the host's seeds.
+//!
+//! A [`StateRequirement`] names a type a member, job or runner service
+//! cannot run without; [`StateRequirement::is_met_by`] checks it against a
+//! built map, so the host refuses boot instead of failing a run.
 //!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
@@ -40,7 +48,8 @@
 //! | Context | Seeded from |
 //! |---------|-------------|
 //! | `Resolved` (provide fns, factories, slots, route sets, commands) | kernel handles + every enabled extension's `provide` |
-//! | `JobContext` (scheduler, runner services) | the extension state without its sealed seeds + per-run handles |
+//! | `JobContext` (scheduler) | the extension state without every sealed entry but the job owner's own + per-run handles |
+//! | `JobContext` (runner services) | the extension state without its sealed seeds + per-run handles |
 //! | config-plane context | the extension state without its sealed seeds + per-call handles |
 //! | prerender contexts | the extension state + per-call handles |
 //!
@@ -142,6 +151,27 @@ impl Dependencies {
         let entries = Arc::make_mut(&mut self.entries);
         let reserved = Arc::make_mut(&mut self.reserved);
         for id in self.sealed.iter() {
+            if let Some(entry) = entries.remove(id) {
+                reserved.insert(*id, entry.type_name);
+            }
+        }
+        self
+    }
+
+    #[must_use]
+    pub fn withholding_sealed_except(mut self, owner: &ExtensionId) -> Self {
+        if self.sealed.is_empty() {
+            return self;
+        }
+        let entries = Arc::make_mut(&mut self.entries);
+        let reserved = Arc::make_mut(&mut self.reserved);
+        for id in self.sealed.iter() {
+            let own = entries.get(id).is_some_and(|entry| {
+                matches!(&entry.provider, DependencyProvider::Extension(provider) if provider == owner)
+            });
+            if own {
+                continue;
+            }
             if let Some(entry) = entries.remove(id) {
                 reserved.insert(*id, entry.type_name);
             }
@@ -252,6 +282,39 @@ impl Dependencies {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+}
+
+/// A type a member, job or runner service declares it cannot run without,
+/// checked against the built state before anything serves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StateRequirement {
+    type_id: TypeId,
+    type_name: &'static str,
+}
+
+impl StateRequirement {
+    #[must_use]
+    pub fn of<T: Any + Send + Sync>() -> Self {
+        Self {
+            type_id: TypeId::of::<T>(),
+            type_name: type_name::<T>(),
+        }
+    }
+
+    #[must_use]
+    pub const fn type_name(&self) -> &'static str {
+        self.type_name
+    }
+
+    #[must_use]
+    pub const fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+
+    #[must_use]
+    pub fn is_met_by(&self, state: &Dependencies) -> bool {
+        state.contains_type(self.type_id)
     }
 }
 

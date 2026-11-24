@@ -12257,6 +12257,7 @@ version = "0.87.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "croner",
  "futures",
  "metrics",
  "reqwest",

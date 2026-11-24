@@ -75,7 +75,7 @@ use crate::purge::{OrphanSweep, UserPurgeTable};
 use crate::reassignment::OwnerReassignment;
 use crate::retention::RetentionDecl;
 use crate::seed::Seed;
-use crate::state::StateRequirement;
+use systemprompt_provider_contracts::StateRequirement;
 
 /// A member's sink for its declarations; every value it provides is provided
 /// on every host that admits the member.

@@ -8,7 +8,9 @@
 //! or another member put it there. A member reads it through `Resolved`.
 //!
 //! A type a member cannot run without is declared with
-//! `Contributions::requires`, as a [`StateRequirement`] checked against the
+//! `Contributions::requires`, as a
+//! [`StateRequirement`](systemprompt_provider_contracts::StateRequirement)
+//! checked against the
 //! built state before anything serves, so an unlinked or disabled provider
 //! fails boot rather than a request.
 //!
@@ -21,46 +23,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::any::{Any, TypeId, type_name};
+use std::any::Any;
 use std::sync::Arc;
 
 use systemprompt_models::LateBound;
 use systemprompt_provider_contracts::Dependencies;
 
 use crate::error::ExtensionStateError;
-
-/// A type an extension declares it cannot run without, checked against the
-/// built extension state at boot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StateRequirement {
-    type_id: TypeId,
-    type_name: &'static str,
-}
-
-impl StateRequirement {
-    #[must_use]
-    pub fn of<T: Any + Send + Sync>() -> Self {
-        Self {
-            type_id: TypeId::of::<T>(),
-            type_name: type_name::<T>(),
-        }
-    }
-
-    #[must_use]
-    pub const fn type_name(&self) -> &'static str {
-        self.type_name
-    }
-
-    #[must_use]
-    pub const fn type_id(&self) -> TypeId {
-        self.type_id
-    }
-
-    #[must_use]
-    pub fn is_met_by(&self, state: &Dependencies) -> bool {
-        state.contains_type(self.type_id)
-    }
-}
 
 /// The extension state for a factory that runs before the state is built.
 ///

@@ -1,5 +1,5 @@
 //! Tests for cluster- versus node-scoped job claims: a node-scoped job runs on
-//! every replica and only de-duplicates against its own instance, while a
+//! every replica (per-instant claims are in `s5a_runs_db`), while a
 //! cluster-scoped job still yields to a peer-held advisory lock. DB-backed
 //! tests fail when `DATABASE_URL` is unset.
 
@@ -81,7 +81,7 @@ mod node_scope {
         assert_eq!(
             NODE_JOB_RUNS.load(Ordering::SeqCst) - before,
             2,
-            "a node-scoped job must run on both replicas even within the dedupe window"
+            "a node-scoped job must run on both replicas"
         );
         let row = repo
             .find_job(&JobName::new(NODE_JOB))
@@ -91,24 +91,6 @@ mod node_scope {
         assert_eq!(
             row.last_instance_id.as_ref().map(|id| id.as_str()),
             Some("node-b")
-        );
-    }
-
-    #[tokio::test]
-    async fn same_replica_within_dedupe_window_is_skipped() {
-        let url = test_database_url();
-        let pool = test_db_pool().await;
-        let _guard = SERIALIZE.lock().await;
-        seed_row(&pool).await;
-
-        let before = NODE_JOB_RUNS.load(Ordering::SeqCst);
-        dispatch_on(&pool, &url, "node-same", Vec::new()).await;
-        dispatch_on(&pool, &url, "node-same", Vec::new()).await;
-
-        assert_eq!(
-            NODE_JOB_RUNS.load(Ordering::SeqCst) - before,
-            1,
-            "the same replica must not re-run a node-scoped job within 900ms"
         );
     }
 }

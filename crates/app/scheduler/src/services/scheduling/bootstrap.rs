@@ -76,20 +76,23 @@ impl SchedulerService {
             Some(job.as_ref()),
             &self.app_context.config().instance_id,
         );
-        dispatch::execute_job(dispatch::JobDispatch {
-            job,
-            job_name: job_name.clone(),
-            actor,
-            repository: self.repository.clone(),
-            app_context: Arc::clone(&self.app_context),
-            running_jobs: Arc::clone(ctx.running_jobs),
-            claim_policy,
-            enforce: config_entry.is_some_and(|job| job.enforce),
-            parameters: config_entry
-                .map(|job| job.parameters.clone())
-                .unwrap_or_default(),
-            schedule: Arc::clone(&self.schedule),
-        })
+        dispatch::execute_job(
+            dispatch::JobDispatch {
+                job,
+                job_name: job_name.clone(),
+                actor,
+                repository: self.repository.clone(),
+                app_context: Arc::clone(&self.app_context),
+                running_jobs: Arc::clone(ctx.running_jobs),
+                claim_policy,
+                enforce: config_entry.is_some_and(|job| job.enforce),
+                parameters: config_entry
+                    .map(|job| job.parameters.clone())
+                    .unwrap_or_default(),
+                schedule: Arc::clone(&self.schedule),
+            },
+            dispatch::Trigger::Bootstrap,
+        )
         .await;
 
         let (success, message) = match self.repository.find_job(job_name).await {

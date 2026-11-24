@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO scheduled_job_runs\n                (job_name, scheduled_at, instance_key, claimed_by, fencing_token)\n            VALUES ($1, $2, $3, $4, nextval('scheduled_job_run_fencing_seq'))\n            ON CONFLICT (job_name, scheduled_at, instance_key) DO NOTHING\n            RETURNING fencing_token\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fencing_token",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "scheduled_job_runs",
+            "name": "fencing_token"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c507a9348dadda39e36f93ad3248fbdf1629bb8b355478fee561e729eca40d02"
+}

@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Lease fencing"
+text = "Every instance lease carries a monotonic `FencingToken`: a claim that changes the owner stamps a strictly larger token, and `LeaseRepository::renew` extends a lease only while it still carries the holder's token, otherwise changing nothing and returning `CoordinationError::Fenced`. Database migration 016 adds `instance_leases.fencing_token`. Implementors of `LeaseRepository` add `renew`; code building `Lease` sets `fencing_token`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`Lease` gains `fencing_token: FencingToken`; `LeaseRepository` gains `renew(&Lease, ttl)`; `CoordinationError` gains `Fenced`."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`InstanceLeaseRepository` stamps fencing tokens from `instance_lease_fencing_seq` and implements the fenced `renew` (migration 016)."

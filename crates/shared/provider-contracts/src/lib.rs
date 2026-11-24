@@ -81,7 +81,7 @@ pub use config_plane::{
     ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash, resolve_apply,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
-pub use dependencies::{Dependencies, DependencyProvider};
+pub use dependencies::{Dependencies, DependencyProvider, StateRequirement};
 pub use dependency_error::{DuplicateDependency, MissingDependency};
 #[cfg(feature = "sqlx")]
 pub use doctor::DoctorProbeSource;
@@ -96,7 +96,7 @@ pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
 pub use git_credentials::{
     DynGitCredentialDirectory, GitCredentialDirectory, GitCredentialReadError,
 };
-pub use job::{Job, JobContext, JobResult, JobScope};
+pub use job::{Job, JobContext, JobResult, JobScope, MissedRunPolicy};
 pub use job_batch::{BatchPlan, BatchedRun, run_batched};
 pub use job_budget::DbBudget;
 pub use page::{PageContext, PageDataProvider};

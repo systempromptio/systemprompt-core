@@ -15,11 +15,17 @@
 //! provided values. Sealed seeds are withheld and the application context is
 //! not in it.
 //!
+//! [`RunnerService::requires`] lists the types the service cannot run
+//! without, checked against the runner's context with
+//! [`StateRequirement::is_met_by`] before the service starts, so an unlinked
+//! or disabled provider refuses the runner's boot instead of ending the
+//! service on its first read.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_provider_contracts::JobContext;
+use systemprompt_provider_contracts::{JobContext, StateRequirement};
 use tokio_util::sync::CancellationToken;
 
 /// A service runs until its `shutdown` token is cancelled. Returning early ends
@@ -30,6 +36,10 @@ use tokio_util::sync::CancellationToken;
 #[async_trait]
 pub trait RunnerService: Send + Sync + 'static {
     fn name(&self) -> &'static str;
+
+    fn requires(&self) -> Vec<StateRequirement> {
+        Vec::new()
+    }
 
     async fn run(&self, ctx: JobContext, shutdown: CancellationToken);
 }

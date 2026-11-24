@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Scheduler delivery"
+text = "A scheduled run is claimed per (job, scheduled instant) by inserting its `scheduled_job_runs` row in the claiming statement (node-scoped jobs per instance too), so two replicas yield one run per instant whatever their clock skew; a claim that cannot reach the database skips the tick. The 900 ms wall-clock de-duplication window is removed. With the distributed lock on, delivery is exactly once per instant while the database is reachable and at most once under an outage. Missed instants are applied at start by the job's `MissedRunPolicy`. Run rows older than seven days, except each job's latest, are deleted by `database_cleanup` under `enforce`. Scheduler migration 009."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Added"
+text = "`JobRunRepository`, `RunClaim`, `RunKey`, `CronInstants`, `SchedulerClock`/`SystemClock`, `SchedulerService::with_clock`, `SchedulerError::{UnmetRequirement, InvalidCron}`."

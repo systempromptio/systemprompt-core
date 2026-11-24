@@ -28,7 +28,7 @@ use crate::purge::{OrphanSweep, UserPurgeTable};
 use crate::reassignment::OwnerReassignment;
 use crate::retention::RetentionDecl;
 use crate::seed::Seed;
-use crate::state::StateRequirement;
+use systemprompt_provider_contracts::StateRequirement;
 
 #[cfg(feature = "sqlx")]
 use super::factories::DoctorProbeSourceRef;

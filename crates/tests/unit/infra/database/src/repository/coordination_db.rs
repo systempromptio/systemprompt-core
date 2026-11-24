@@ -301,6 +301,68 @@ async fn an_expired_lease_is_free_even_while_its_owner_lives() {
 }
 
 #[tokio::test]
+async fn a_holder_that_lost_its_lease_writes_nothing_under_its_old_token() {
+    let db = db_pool().await;
+    let stale = replica(&db);
+    let successor = replica(&db);
+    let _claim = stale.services.claim_instance().await.expect("claim");
+    let key = LeaseKey::new(unique_name("lease"));
+
+    let lost = stale
+        .coordination
+        .leases
+        .claim(&key, Duration::from_secs(60))
+        .await
+        .expect("claim")
+        .expect("stale holder claims first");
+    sqlx::query(
+        "UPDATE instance_leases SET expires_at = CURRENT_TIMESTAMP - make_interval(secs => 1) \
+         WHERE lease_key = $1",
+    )
+    .bind(key.as_str())
+    .execute(&*db.write_pool())
+    .await
+    .expect("expire lease");
+    let taken = successor
+        .coordination
+        .leases
+        .claim(&key, Duration::from_secs(60))
+        .await
+        .expect("claim")
+        .expect("successor takes the expired lease");
+    assert!(
+        taken.fencing_token > lost.fencing_token,
+        "a new owner holds a larger token"
+    );
+
+    let refused = stale
+        .coordination
+        .leases
+        .renew(&lost, Duration::from_secs(60))
+        .await;
+    assert!(
+        matches!(refused, Err(CoordinationError::Fenced { .. })),
+        "the stale holder's fenced write is refused: {refused:?}"
+    );
+    let holder = successor
+        .coordination
+        .leases
+        .holder(&key)
+        .await
+        .expect("holder")
+        .expect("held");
+    assert_eq!(holder, taken, "the refused write changed nothing");
+
+    let renewed = successor
+        .coordination
+        .leases
+        .renew(&taken, Duration::from_secs(120))
+        .await
+        .expect("the current holder renews");
+    assert_eq!(renewed.fencing_token, taken.fencing_token);
+}
+
+#[tokio::test]
 async fn a_ttl_outside_one_second_to_one_day_is_refused() {
     let db = db_pool().await;
     let owner = replica(&db);
