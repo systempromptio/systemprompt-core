@@ -101,6 +101,11 @@ pub use admin_bootstrap::{
     AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion,
     DynAdminBootstrap,
 };
+pub mod plugin_token;
+pub use plugin_token::{
+    DynPluginTokenMinter, MintedPluginToken, PLUGIN_TOKEN_MAX_DAYS, PluginTokenHolder,
+    PluginTokenMintError, PluginTokenMinter, PluginTokenRequest,
+};
 pub mod registry;
 pub mod repository;
 pub mod request_analytics;

@@ -5,8 +5,9 @@
 //! a [`DynAdminBootstrap`]; the CLI host reads it from the admitted set, from
 //! a core-standing `users` member only, for `admin bootstrap`, `admin session
 //! login`, CLI session creation and `infra db assign-admin`. The view finds a
-//! user by name or email, creates a user, grants the admin role and confirms a
-//! session row exists. It cannot demote, delete, ban, merge, list or update a
+//! user by name or email, creates a user, grants the admin role, opens a CLI
+//! session row for an existing user and confirms a session row exists. It
+//! mints no token and cannot demote, delete, ban, merge, list or update a
 //! user, and it reads no credential.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -92,6 +93,12 @@ pub trait AdminBootstrap: Send + Sync + Debug {
     async fn promote(&self, reference: &str) -> Result<AdminPromotion, AdminBootstrapError>;
 
     async fn session_exists(&self, session: &SessionId) -> Result<bool, AdminBootstrapError>;
+
+    async fn open_cli_session(
+        &self,
+        user: &UserId,
+        ttl: chrono::Duration,
+    ) -> Result<SessionId, AdminBootstrapError>;
 }
 
 pub type DynAdminBootstrap = Arc<dyn AdminBootstrap>;

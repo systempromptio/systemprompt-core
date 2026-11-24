@@ -16,7 +16,7 @@ use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use super::api::{create_local_session_row, load_signing_keys};
+use super::api::load_signing_keys;
 use super::contexts::SessionContexts;
 use super::resolution::ProfileContext;
 use admin_bootstrap::{
@@ -77,15 +77,13 @@ pub(super) async fn create_local_session(
     }
 
     let keys = load_signing_keys(boot)?;
-    let session_id = create_local_session_row(
-        &db_pool,
-        &admin_user.id,
-        chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
-        keys.clone(),
-        boot,
-    )
-    .await
-    .context("Failed to create local CLI session row in the database")?;
+    let session_id = admins
+        .open_cli_session(
+            &admin_user.id,
+            chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
+        )
+        .await
+        .context("Failed to create local CLI session row in the database")?;
 
     let context_id = contexts
         .issue(&admin_user.id, &session_id, profile_ctx.name)
@@ -168,15 +166,13 @@ pub(super) async fn create_session_for_tenant(
             .await?;
 
     let keys = load_signing_keys(boot)?;
-    let session_id = create_local_session_row(
-        &db_pool,
-        &admin_user.id,
-        chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
-        keys.clone(),
-        boot,
-    )
-    .await
-    .context("Failed to create local tenant CLI session row in the database")?;
+    let session_id = admins
+        .open_cli_session(
+            &admin_user.id,
+            chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
+        )
+        .await
+        .context("Failed to create local tenant CLI session row in the database")?;
 
     let context_id = contexts
         .issue(&admin_user.id, &session_id, profile_ctx.name)

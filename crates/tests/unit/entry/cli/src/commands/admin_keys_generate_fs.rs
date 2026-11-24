@@ -31,8 +31,8 @@ fn ctx() -> CommandContext {
     )
 }
 
-#[test]
-fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
+#[tokio::test]
+async fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("signing_key.pem");
 
@@ -40,6 +40,7 @@ fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
         parse(&["generate", "--output", out.to_str().unwrap()]),
         &crate::boot_ctx::identity(&ctx()),
     )
+    .await
     .unwrap();
 
     let pem = std::fs::read_to_string(&out).unwrap();
@@ -47,8 +48,8 @@ fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
     assert!(pem.contains("END PRIVATE KEY"), "{pem}");
 }
 
-#[test]
-fn generate_refuses_to_overwrite_without_force() {
+#[tokio::test]
+async fn generate_refuses_to_overwrite_without_force() {
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("existing.pem");
     std::fs::write(&out, "sentinel").unwrap();
@@ -57,14 +58,15 @@ fn generate_refuses_to_overwrite_without_force() {
         parse(&["generate", "--output", out.to_str().unwrap()]),
         &crate::boot_ctx::identity(&ctx()),
     )
+    .await
     .unwrap_err();
 
     assert!(format!("{err:#}").contains("Refusing to overwrite"));
     assert_eq!(std::fs::read_to_string(&out).unwrap(), "sentinel");
 }
 
-#[test]
-fn force_replaces_an_existing_key_with_a_fresh_one() {
+#[tokio::test]
+async fn force_replaces_an_existing_key_with_a_fresh_one() {
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("rotate.pem");
 
@@ -72,6 +74,7 @@ fn force_replaces_an_existing_key_with_a_fresh_one() {
         parse(&["generate", "--output", out.to_str().unwrap()]),
         &crate::boot_ctx::identity(&ctx()),
     )
+    .await
     .unwrap();
     let first = std::fs::read_to_string(&out).unwrap();
 
@@ -79,6 +82,7 @@ fn force_replaces_an_existing_key_with_a_fresh_one() {
         parse(&["generate", "--output", out.to_str().unwrap(), "--force"]),
         &crate::boot_ctx::identity(&ctx()),
     )
+    .await
     .unwrap();
     let second = std::fs::read_to_string(&out).unwrap();
 
@@ -86,8 +90,8 @@ fn force_replaces_an_existing_key_with_a_fresh_one() {
     assert!(second.contains("BEGIN PRIVATE KEY"));
 }
 
-#[test]
-fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
+#[tokio::test]
+async fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
     let admin = |args: &[&str]| parse(args).data_impact();
     for args in [
         vec!["stage"],
@@ -107,9 +111,11 @@ fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
     );
 }
 
-#[test]
-fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
-    let err = execute(parse(&["rotate"]), &crate::boot_ctx::identity(&ctx())).unwrap_err();
+#[tokio::test]
+async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
+    let err = execute(parse(&["rotate"]), &crate::boot_ctx::identity(&ctx()))
+        .await
+        .unwrap_err();
     let text = format!("{err:#}");
     assert!(
         text.contains("Failed to write the signing keys to the secrets file"),
@@ -117,9 +123,11 @@ fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
     );
 }
 
-#[test]
-fn promote_with_nothing_staged_is_refused_and_writes_nothing() {
-    let err = execute(parse(&["promote"]), &crate::boot_ctx::identity(&ctx())).unwrap_err();
+#[tokio::test]
+async fn promote_with_nothing_staged_is_refused_and_writes_nothing() {
+    let err = execute(parse(&["promote"]), &crate::boot_ctx::identity(&ctx()))
+        .await
+        .unwrap_err();
     let text = format!("{err:#}");
     assert!(text.contains("no signing key is staged"), "{text}");
 }

@@ -4,7 +4,7 @@
 
 use clap::Parser;
 use std::sync::Arc;
-use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
+use systemprompt_cli::session::api::DEFAULT_CLI_SESSION_HOURS;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identity_entry::cli::users::{self, UsersCommands};
@@ -49,12 +49,10 @@ async fn end_specific_session_succeeds() {
     let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesend");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    let session_id = create_local_session_row(
+    let session_id = super::open_cli_session(
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
-        systemprompt_test_fixtures::test_signing_keys(),
-        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();
@@ -90,21 +88,17 @@ async fn end_all_sessions_for_user() {
     let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesall");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    create_local_session_row(
+    super::open_cli_session(
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
-        systemprompt_test_fixtures::test_signing_keys(),
-        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();
-    create_local_session_row(
+    super::open_cli_session(
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
-        systemprompt_test_fixtures::test_signing_keys(),
-        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();

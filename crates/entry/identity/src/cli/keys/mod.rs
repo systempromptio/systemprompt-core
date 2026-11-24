@@ -3,13 +3,15 @@
 //! [`KeysCommands`] generates fresh RS256 keypairs and rotates the
 //! deployment's token key in two phases (stage, then promote) with a
 //! verification overlap, through the kernel-held signing handle the
-//! `signing-keys` grant serves. `identity-http` contributes the group; the
-//! kernel attaches `issue-plugin-token` under it.
+//! `signing-keys` grant serves, and mints admin hook credentials
+//! (`issue-plugin-token`) through the plugin-token minter conferred on
+//! `identity-http`. `identity-http` contributes the group.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod generate;
+mod plugin_token;
 mod rotation;
 
 use anyhow::Result;
@@ -37,10 +39,17 @@ pub enum KeysCommands {
 
     #[command(about = "Single-replica rotation: exactly `stage` then `promote`")]
     Rotate(rotation::PromoteArgs),
+
+    #[command(
+        name = "issue-plugin-token",
+        about = "Mint a long-lived RS256 JWT with `aud=plugin` for hook/governance authentication"
+    )]
+    IssuePluginToken(plugin_token::IssuePluginTokenArgs),
 }
 
-pub fn execute(cmd: KeysCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: KeysCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
+        KeysCommands::IssuePluginToken(args) => plugin_token::execute(args, host).await,
         KeysCommands::Generate(args) => {
             generate::execute(&args).map(|()| CommandOutput::rendered())
         },
@@ -54,7 +63,7 @@ impl KeysCommands {
     pub const fn data_impact(&self) -> DataImpact {
         match self {
             Self::Stage(_) | Self::Promote(_) | Self::Rotate(_) => DataImpact::Irreversible,
-            Self::Generate(_) => DataImpact::Preserving,
+            Self::Generate(_) | Self::IssuePluginToken(_) => DataImpact::Preserving,
         }
     }
 }
@@ -73,6 +82,6 @@ impl CliCommandGroup for KeysCommands {
         self,
         host: &dyn CommandHost,
     ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
-        std::future::ready(execute(self, host).map_err(crate::cli::command_error))
+        async move { execute(self, host).await.map_err(crate::cli::command_error) }
     }
 }

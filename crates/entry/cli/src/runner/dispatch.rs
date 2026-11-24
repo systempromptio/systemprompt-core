@@ -126,11 +126,6 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
             args::Commands::Web(cmd) => web::execute(cmd, host),
             args::Commands::Plugins(cmd) => Box::pin(plugins::execute(cmd, host)).await,
         },
-        Selected::Registered(registered)
-            if admin::plugin_token::is_issue_plugin_token(&registered) =>
-        {
-            Box::pin(admin::plugin_token::run_resolved(&registered, host)).await
-        },
         Selected::Registered(registered) => {
             let member = MemberHost::new(ctx, registered.parsed.descriptor());
             let member = match registered.member_scope() {

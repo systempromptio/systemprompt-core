@@ -363,6 +363,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_oauth::services::SessionCreationService>(),
         ),
         (
+            type_name::<systemprompt_traits::DynPluginTokenMinter>(),
+            carrier::<systemprompt_oauth::services::SessionCreationService>(),
+        ),
+        (
             type_name::<Option<Arc<systemprompt_gateway::surface::views::GatewayManifestSigner>>>(),
             carrier::<systemprompt_security::keys::RsaSigningKey>(),
         ),
