@@ -152,7 +152,7 @@ pub(super) async fn init_core(
         None => SigningKeys::resolve(&config.signing_key_path, boot.secrets())?,
     };
 
-    let database = connect_database(profile, &config).await?;
+    let database = connect_database(profile, &config, systemprompt_database::PoolSeat::Node).await?;
 
     validate_write_pool_is_primary(&database).await?;
 

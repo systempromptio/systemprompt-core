@@ -105,6 +105,13 @@ impl RoleMaxConnections {
     }
 }
 
+/// The database section of a profile.
+///
+/// `connection_budget` is the most Postgres connections one node may hold,
+/// its hosted children included; the runtime divides it between the main,
+/// write and session pools and the children's share
+/// (`systemprompt_database::ConnectionBudget`) and refuses to boot when the
+/// pinned pool sizes exceed it. Omitted, every pool keeps its own ceiling.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DatabaseConfig {
@@ -119,6 +126,9 @@ pub struct DatabaseConfig {
 
     #[serde(default = "default_migrate_on_boot")]
     pub migrate_on_boot: bool,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connection_budget: Option<u32>,
 }
 
 const fn default_migrate_on_boot() -> bool {
