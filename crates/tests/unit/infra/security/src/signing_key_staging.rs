@@ -37,7 +37,7 @@ fn a_verifier_loaded_before_stage_rejects_a_token_signed_after_promote() {
     let (_, staged) = stage(&before).expect("stage");
     let (promoted, _) = promote(&staged, OVERLAP, Utc::now()).expect("promote");
     let err = verify(&verifier, &mint(&promoted)).expect_err("unknown key accepted");
-    assert!(matches!(err, AuthError::UnknownKid(_)), "{err}");
+    assert!(matches!(err, AuthError::UnknownKid { .. }), "{err}");
 }
 
 #[test]

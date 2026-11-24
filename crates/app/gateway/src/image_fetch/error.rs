@@ -50,8 +50,8 @@ pub enum ImageFetchFault {
     HostStatus(reqwest::StatusCode),
     #[error("no content-type")]
     NoContentType,
-    #[error("content-type {0} is not an inlineable image")]
-    UnsupportedType(String),
+    #[error("content-type {mime} is not an inlineable image")]
+    UnsupportedType { mime: String },
     #[error("larger than {0} bytes")]
     TooLarge(usize),
     #[error("empty response body")]
@@ -68,7 +68,7 @@ impl ImageFetchFault {
             | Self::Guarded { .. }
             | Self::HostStatus(_)
             | Self::NoContentType
-            | Self::UnsupportedType(_)
+            | Self::UnsupportedType { .. }
             | Self::TooLarge(_)
             | Self::EmptyBody => true,
             Self::Request(source) => source.is_redirect(),
@@ -83,8 +83,8 @@ pub enum GuardedRejection {
     RedirectRefused { url: String },
     #[error("redirect rejected: more than {0} redirects")]
     TooManyRedirects(usize),
-    #[error("host rejected: cannot resolve {0}")]
-    Unresolvable(String),
+    #[error("host rejected: cannot resolve {host}")]
+    Unresolvable { host: String },
     #[error("host rejected: host {host} resolves to blocked address {addr}")]
     BlockedAddress { host: String, addr: IpAddr },
 }
@@ -96,7 +96,7 @@ impl From<&GuardedConnectError> for GuardedRejection {
                 Self::RedirectRefused { url: url.clone() }
             },
             GuardedConnectError::TooManyRedirects(limit) => Self::TooManyRedirects(*limit),
-            GuardedConnectError::Unresolvable { host, .. } => Self::Unresolvable(host.clone()),
+            GuardedConnectError::Unresolvable { host, .. } => Self::Unresolvable { host: host.clone() },
             GuardedConnectError::BlockedAddress { host, addr } => Self::BlockedAddress {
                 host: host.clone(),
                 addr: *addr,

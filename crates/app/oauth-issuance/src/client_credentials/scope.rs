@@ -66,7 +66,7 @@ pub fn authorize_client_grant(
         } else {
             "no scopes requested".to_owned()
         };
-        return Err(ClientCredentialsError::InvalidScope(reason));
+        return Err(ClientCredentialsError::InvalidScope { reason });
     }
 
     Ok(granted)
@@ -81,9 +81,9 @@ pub fn resolve_audience(
     };
 
     if !is_allowed_resource(value, global_config) {
-        return Err(ClientCredentialsError::InvalidAudience(format!(
-            "'{value}' not in allowed audiences"
-        )));
+        return Err(ClientCredentialsError::InvalidAudience {
+            audience: value.to_owned(),
+        });
     }
 
     JwtAudience::from_str(value)

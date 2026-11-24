@@ -84,7 +84,9 @@ fn a_spent_budget_is_503_unavailable() {
 
 #[test]
 fn role_lookup_failure_is_a_fixed_500() {
-    let error = BrainHttpError::from(AuthzError::InvalidRuleType("bogus".to_owned()));
+    let error = BrainHttpError::from(AuthzError::InvalidRuleType {
+        rule_type: "bogus".to_owned(),
+    });
     let status = error.into_response().status();
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
 }

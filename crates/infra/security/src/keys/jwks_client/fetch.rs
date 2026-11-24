@@ -112,18 +112,22 @@ impl JwksClient {
             source,
         })?;
         if !scheme_is_acceptable(&parsed) {
-            return Err(JwksClientError::InsecureScheme(raw.to_owned()));
+            return Err(JwksClientError::InsecureScheme {
+                issuer: raw.to_owned(),
+            });
         }
         let host = parsed
             .host_str()
-            .ok_or_else(|| JwksClientError::HostNotAllowed(raw.to_owned()))?
+            .ok_or_else(|| JwksClientError::HostNotAllowed {
+                host: raw.to_owned(),
+            })?
             .to_owned();
         if !self
             .allowed_hosts
             .iter()
             .any(|h| h.eq_ignore_ascii_case(&host))
         {
-            return Err(JwksClientError::HostNotAllowed(host));
+            return Err(JwksClientError::HostNotAllowed { host });
         }
         Ok(parsed)
     }

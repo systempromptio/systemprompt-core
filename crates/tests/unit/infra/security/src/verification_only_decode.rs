@@ -45,7 +45,7 @@ fn without_the_staged_key_in_the_set_its_token_is_unknown() {
     });
 
     let err = verify_with(&keyring, &mint(&staged)).expect_err("outside the set");
-    assert!(matches!(err, AuthError::UnknownKid(_)), "{err:?}");
+    assert!(matches!(err, AuthError::UnknownKid { .. }), "{err:?}");
 }
 
 #[test]
@@ -69,5 +69,5 @@ fn a_retired_key_verifies_until_its_expiry_and_not_after() {
         &token,
     )
     .expect_err("expired retired key");
-    assert!(matches!(err, AuthError::UnknownKid(_)), "{err:?}");
+    assert!(matches!(err, AuthError::UnknownKid { .. }), "{err:?}");
 }

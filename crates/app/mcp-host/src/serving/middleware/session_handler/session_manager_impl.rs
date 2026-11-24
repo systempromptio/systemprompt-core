@@ -112,15 +112,17 @@ impl SessionManager for DatabaseSessionHandler {
                     "Session in DB but not memory (server restart?) — signaling reconnect"
                 );
                 self.persist_close(id).await;
-                return Err(DatabaseSessionHandlerError::SessionNeedsReconnect(
-                    id.to_string(),
-                ));
+                return Err(DatabaseSessionHandlerError::SessionNeedsReconnect {
+                    session_id: id.to_string(),
+                });
             }
             tracing::warn!(
                 session_id = %id,
                 "Resume called but session not found anywhere"
             );
-            return Err(DatabaseSessionHandlerError::SessionNotFound(id.to_string()));
+            return Err(DatabaseSessionHandlerError::SessionNotFound {
+                session_id: id.to_string(),
+            });
         }
 
         match self.local_sessions.resume(id, last_event_id).await {
@@ -157,7 +159,9 @@ impl SessionManager for DatabaseSessionHandler {
                             tracing::warn!(session_id = %id, error = %e, "Failed to close local session during recovery");
                         }
                         self.persist_close(id).await;
-                        Err(DatabaseSessionHandlerError::SessionNotFound(id.to_string()))
+                        Err(DatabaseSessionHandlerError::SessionNotFound {
+                session_id: id.to_string(),
+            })
                     },
                 }
             },

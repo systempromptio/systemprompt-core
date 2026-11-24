@@ -17,8 +17,8 @@ pub enum S3Error {
     #[error("S3 URL: {0}")]
     Url(#[from] url::ParseError),
 
-    #[error("S3 endpoint {0} has no host")]
-    EndpointHost(String),
+    #[error("S3 endpoint {endpoint} has no host")]
+    EndpointHost { endpoint: String },
 
     #[error("S3 signing key: {0}")]
     SigningKey(#[source] hmac::digest::InvalidLength),

@@ -45,10 +45,10 @@ pub enum JwksClientError {
         #[source]
         source: url::ParseError,
     },
-    #[error("issuer '{0}' must use https scheme")]
-    InsecureScheme(String),
-    #[error("issuer host '{0}' is not in the trusted allowlist")]
-    HostNotAllowed(String),
+    #[error("issuer '{issuer}' must use https scheme")]
+    InsecureScheme { issuer: String },
+    #[error("issuer host '{host}' is not in the trusted allowlist")]
+    HostNotAllowed { host: String },
     #[error("HTTP request to '{url}' failed: {source}")]
     Http {
         url: String,

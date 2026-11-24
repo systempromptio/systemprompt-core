@@ -49,10 +49,10 @@ pub enum HarnessError {
         #[source]
         source: systemprompt_models::managed::RevisionBundleError,
     },
-    #[error("harness path {0} has no bytes in the bundle")]
-    MissingAsset(String),
-    #[error("harness path {0} is written by two revisions")]
-    Collision(String),
+    #[error("harness path {path} has no bytes in the bundle")]
+    MissingAsset { path: String },
+    #[error("harness path {path} is written by two revisions")]
+    Collision { path: String },
     #[error("harness installation task did not finish")]
     Join(#[source] tokio::task::JoinError),
     #[error("harness file {path} could not be written")]
@@ -136,12 +136,12 @@ pub fn materialise(
             let bytes = bundle
                 .assets
                 .get(&entry.digest)
-                .ok_or_else(|| HarnessError::MissingAsset(path.clone()))?;
+                .ok_or_else(|| HarnessError::MissingAsset { path: path.clone() })?;
             if plan
                 .insert(path.clone(), (bytes.as_slice(), entry.executable))
                 .is_some()
             {
-                return Err(HarnessError::Collision(path.clone()));
+                return Err(HarnessError::Collision { path: path.clone() });
             }
         }
     }

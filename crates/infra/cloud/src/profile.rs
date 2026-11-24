@@ -30,10 +30,10 @@ pub enum ProfileResolutionError {
     NoProfilesFound,
 
     #[error(
-        "Profile '{0}' not found.\n\nRun 'systemprompt cloud profile list' to see available \
+        "Profile '{name}' not found.\n\nRun 'systemprompt cloud profile list' to see available \
          profiles."
     )]
-    ProfileNotFound(String),
+    ProfileNotFound { name: String },
 
     #[error("Failed to read profiles directory: {}", path.display())]
     ReadProfilesDir {
@@ -144,7 +144,9 @@ fn resolve_profile_input(input: &str) -> Result<PathBuf, ProfileResolutionError>
         return resolve_profile_from_path(input);
     }
     resolve_profile_by_name(input)?
-        .ok_or_else(|| ProfileResolutionError::ProfileNotFound(input.to_owned()))
+        .ok_or_else(|| ProfileResolutionError::ProfileNotFound {
+            name: input.to_owned(),
+        })
 }
 
 pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResolutionError> {
@@ -159,7 +161,9 @@ pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResol
         return Ok(profile_yaml);
     }
 
-    Err(ProfileResolutionError::ProfileNotFound(path_str.to_owned()))
+    Err(ProfileResolutionError::ProfileNotFound {
+        name: path_str.to_owned(),
+    })
 }
 
 fn expand_path(path_str: &str) -> PathBuf {

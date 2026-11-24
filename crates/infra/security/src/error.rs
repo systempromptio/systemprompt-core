@@ -58,11 +58,11 @@ pub enum AuthError {
     #[error("token is missing `kid` header")]
     MissingKid,
 
-    #[error("token `kid` `{0}` does not match any known signing key")]
-    UnknownKid(String),
+    #[error("token `kid` `{kid}` does not match any known signing key")]
+    UnknownKid { kid: String },
 
-    #[error("issuer `{0}` is not trusted")]
-    UntrustedIssuer(String),
+    #[error("issuer `{issuer}` is not trusted")]
+    UntrustedIssuer { issuer: String },
 
     #[error("JWKS fetch failed for issuer `{issuer}`: {source}")]
     JwksFetch {

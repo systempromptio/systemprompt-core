@@ -60,8 +60,8 @@ pub enum OidcProviderError {
     AuthorizedParty,
     #[error("id_token carries no sub")]
     NoSubject,
-    #[error("identity provider answered `{0}`")]
-    IdpError(String),
+    #[error("identity provider answered `{code}`")]
+    IdpError { code: String },
     #[error("callback carries no code")]
     NoCode,
     #[error("authorization response iss does not name the issuer")]
@@ -78,7 +78,7 @@ impl OidcProviderError {
             Self::Nonce => "nonce",
             Self::AuthorizedParty => "azp",
             Self::NoSubject => "sub",
-            Self::IdpError(_) => "identity provider error",
+            Self::IdpError { .. } => "identity provider error",
             Self::NoCode => "missing code",
             Self::ResponseIssuer => "iss",
             Self::CodeRefused { .. } => "code refused",

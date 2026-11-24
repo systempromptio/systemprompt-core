@@ -91,7 +91,9 @@ pub fn decode_rs256_claims(
     let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
     let key = keys
         .decoding_key_for_kid(kid)
-        .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
+        .ok_or_else(|| AuthError::UnknownKid {
+            kid: kid.to_owned(),
+        })?;
 
     let mut validation = Validation::new(Algorithm::RS256);
     validation.validate_exp = true;

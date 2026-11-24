@@ -189,5 +189,5 @@ fn declared_mime(response: &reqwest::Response) -> Result<String, ImageFetchFault
     if ACCEPTED_MIME.contains(&mime.as_str()) {
         return Ok(mime);
     }
-    Err(ImageFetchFault::UnsupportedType(mime))
+    Err(ImageFetchFault::UnsupportedType { mime })
 }

@@ -84,7 +84,7 @@ fn a_home_relative_profile_path_is_expanded_before_it_is_probed() {
     let err = resolve_profile_from_path("~/cov-definitely-absent-profile").unwrap_err();
 
     match err {
-        ProfileResolutionError::ProfileNotFound(input) => {
+        ProfileResolutionError::ProfileNotFound { name: input } => {
             // The error echoes the input as given, not the expanded path.
             assert_eq!(input, "~/cov-definitely-absent-profile");
         },
@@ -96,5 +96,5 @@ fn a_home_relative_profile_path_is_expanded_before_it_is_probed() {
 fn a_bare_tilde_is_also_expanded() {
     let err = resolve_profile_from_path("~cov-absent").unwrap_err();
 
-    assert!(matches!(err, ProfileResolutionError::ProfileNotFound(_)));
+    assert!(matches!(err, ProfileResolutionError::ProfileNotFound { .. }));
 }

@@ -10,8 +10,8 @@ domain_error! {
     pub enum AuthzError {
         common: [repository, validation],
 
-        #[error("invalid rule_type: {0}")]
-        InvalidRuleType(String),
+        #[error("invalid rule_type: {rule_type}")]
+        InvalidRuleType { rule_type: String },
 
         #[error("governance value: {0}")]
         Parse(#[from] systemprompt_provider_contracts::governance::GovernanceParseError),
