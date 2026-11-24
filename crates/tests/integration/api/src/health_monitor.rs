@@ -54,7 +54,8 @@ fn dead_pid() -> i32 {
         .expect("spawn sleep");
     let pid = child.id() as i32;
     child.kill().expect("kill child");
-    child.wait().expect("reap child");
+    let status = child.wait().expect("reap child");
+    assert!(!status.success(), "the killed child exited on its own: {status}");
     pid
 }
 
@@ -222,7 +223,7 @@ async fn health_checker_bounds_transport_retries_then_recovers_on_same_endpoint(
 
     // Why: macOS silently drops a SYN aimed at a bound socket that is not
     // listening, where Linux answers RST; a released port refuses on both.
-    let address = std::net::TcpListener::bind("127.0.0.1:0")?.local_addr()?;
+    let address = systemprompt_test_fixtures::ReservedPort::loopback().addr();
     let checker = HealthChecker::new(format!("http://{address}/health"))
         .with_max_retries(2)
         .with_retry_delay(Duration::ZERO);

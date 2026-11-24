@@ -54,9 +54,7 @@ fn a_refusal_names_its_code() {
 
 #[tokio::test]
 async fn an_unreachable_endpoint_says_so() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
-    let addr = listener.local_addr().expect("addr");
-    drop(listener);
+    let addr = systemprompt_test_fixtures::ReservedPort::loopback().addr();
     let issuer =
         ApiLinkIssuer::new(&format!("http://{addr}"), McpServerId::new("docs")).expect("issuer");
     let error = issuer

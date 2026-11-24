@@ -55,12 +55,6 @@ async fn validate_connection_by_url_empty_tools_reports_no_tools() {
     );
 }
 
-fn unused_port() -> u16 {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral");
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
-    port
-}
 
 #[tokio::test]
 async fn validate_connection_by_url_invalid_uri_returns_failure() {
@@ -79,7 +73,7 @@ async fn validate_connection_by_url_invalid_uri_returns_failure() {
 
 #[tokio::test]
 async fn validate_connection_unreachable_port_returns_failure() {
-    let port = unused_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let r = validate_connection(&ServiceName::new("svc-unreach"), UNREACHABLE_HOST, port)
         .await
         .expect("returns Ok with failure result");
@@ -110,7 +104,7 @@ async fn validate_hosted_service_reports_a_listening_port_as_hop_protected() {
 
 #[tokio::test]
 async fn validate_hosted_service_reports_a_closed_port_unavailable() {
-    let port = unused_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let r = validate_hosted_service(
         &ServiceName::new("svc-oauth-down"),
         UNREACHABLE_HOST,

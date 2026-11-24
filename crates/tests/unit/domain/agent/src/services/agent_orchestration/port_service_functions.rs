@@ -4,18 +4,10 @@ use systemprompt_agent::services::agent_orchestration::port_service::PortService
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::subprocess::SpawnStamp;
 
-fn free_port() -> u16 {
-    std::net::TcpListener::bind("127.0.0.1:0")
-        .expect("bind ephemeral")
-        .local_addr()
-        .expect("addr")
-        .port()
-}
-
 #[tokio::test]
 async fn port_service_wait_for_port_available_succeeds_when_free() {
     let svc = PortService::new(Duration::from_secs(5));
-    svc.wait_for_port_available(free_port(), 1)
+    svc.wait_for_port_available(systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(), 1)
         .await
         .expect("free port must be reported available");
 }
@@ -24,7 +16,7 @@ async fn port_service_wait_for_port_available_succeeds_when_free() {
 async fn port_service_cleanup_port_if_not_in_use_returns_ok() {
     let svc = PortService::new(Duration::from_secs(5));
     svc.cleanup_port_if_needed(
-        free_port(),
+        systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(),
         &AgentName::new("free_port_agent"),
         &SpawnStamp::Unrecorded,
     )

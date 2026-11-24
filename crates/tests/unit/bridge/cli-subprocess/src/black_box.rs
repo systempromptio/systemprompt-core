@@ -1,9 +1,8 @@
 //! Black-box tests that spawn the real `systemprompt-bridge` binary.
 //!
-//! The binary path comes from `SP_BRIDGE_BIN` (set by the coverage recipe so
-//! the spawned process is instrumented) or falls back to building/locating
-//! `bin/bridge`'s debug binary; if neither exists the tests are skipped so a
-//! plain `nextest` run stays green without a prebuilt binary.
+//! The binary is resolved by [`crate::bridge_binary`]: `SP_BRIDGE_BIN` when
+//! set, otherwise the build in this test's own cargo target directory. Outside
+//! CI a missing binary skips the tests; under CI it fails them.
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -29,18 +28,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn bridge_bin() -> Option<PathBuf> {
-    let candidate = match std::env::var_os("SP_BRIDGE_BIN") {
-        Some(explicit) => PathBuf::from(explicit),
-        None => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(5)
-            .expect("the test crate sits five levels below the repository root")
-            .join("bin")
-            .join("bridge")
-            .join("target")
-            .join("debug")
-            .join("systemprompt-bridge"),
-    };
+    let candidate = crate::bridge_binary::candidate();
     if candidate.is_file() {
         return Some(candidate);
     }

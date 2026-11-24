@@ -6,21 +6,10 @@ use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionI
 use tempfile::TempDir;
 
 fn bridge_bin() -> PathBuf {
-    let candidate = match std::env::var_os("SP_BRIDGE_BIN") {
-        Some(explicit) => PathBuf::from(explicit),
-        None => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(5)
-            .expect("the test crate sits five levels below the repository root")
-            .join("bin")
-            .join("bridge")
-            .join("target")
-            .join("debug")
-            .join("systemprompt-bridge"),
-    };
+    let candidate = crate::bridge_binary::candidate();
     assert!(
         candidate.is_file(),
-        "bridge binary {} missing; build bin/bridge or set SP_BRIDGE_BIN",
+        "bridge binary {} missing; build systemprompt-bridge into this test's target directory or set SP_BRIDGE_BIN",
         candidate.display()
     );
     candidate

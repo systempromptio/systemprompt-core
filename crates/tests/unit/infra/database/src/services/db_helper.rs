@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_database::{Database, DbPool, PoolConfig};
-use systemprompt_test_fixtures::{lazy_pg_pool, test_database_url};
+use systemprompt_test_fixtures::{ScratchSchema, lazy_pg_pool, test_database_url};
 
 pub async fn test_pool() -> DbPool {
     let url = test_database_url();
@@ -28,6 +28,16 @@ pub async fn test_pool() -> DbPool {
         .await
         .expect("connect to the test database");
     Arc::new(db)
+}
+
+// A test that creates or drops tables of its own works in a scratch schema,
+// never in the shared database's `public`: the pool's `search_path` is the
+// scratch schema alone, and `ScratchSchema::drop_now` removes every table the
+// test made.
+pub async fn scratch_pool(prefix: &str) -> (ScratchSchema, DbPool) {
+    let scratch = ScratchSchema::create(prefix).await;
+    let db = scratch.db_pool().await;
+    (scratch, db)
 }
 
 pub fn lazy_pool() -> Arc<sqlx::PgPool> {

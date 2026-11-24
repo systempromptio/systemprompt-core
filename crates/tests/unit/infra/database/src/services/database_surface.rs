@@ -7,7 +7,7 @@ use systemprompt_database::{
     Database, PoolConfig, validate_column_exists, validate_database_connection,
     validate_table_exists,
 };
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{ScratchSchema, test_database_url};
 
 fn pool_config() -> PoolConfig {
     PoolConfig {
@@ -106,7 +106,9 @@ async fn debug_and_info_report_postgres_backend() {
 
 #[tokio::test]
 async fn provider_impl_delegates_reads_and_writes() {
-    let db = test_database().await;
+    let scratch = ScratchSchema::create("db_surface").await;
+    let handle = scratch.db_pool().await;
+    let db: &Database = &handle;
     let table = unique_table();
     db.execute_batch(&format!(
         "CREATE TABLE \"{table}\" (id BIGINT PRIMARY KEY, name TEXT NOT NULL); INSERT INTO \
@@ -116,7 +118,7 @@ async fn provider_impl_delegates_reads_and_writes() {
     .expect("create+seed");
 
     let insert = format!("INSERT INTO \"{table}\" (id, name) VALUES ($1, $2)");
-    let affected = DatabaseProvider::execute(&db, &insert, &[&2_i64, &"two".to_owned()])
+    let affected = DatabaseProvider::execute(db, &insert, &[&2_i64, &"two".to_owned()])
         .await
         .expect("insert");
     assert_eq!(affected, 1);
@@ -152,7 +154,7 @@ async fn provider_impl_delegates_reads_and_writes() {
         .expect("raw with");
     assert_eq!(raw_with.row_count, 1);
 
-    DatabaseProvider::test_connection(&db).await.expect("ping");
+    DatabaseProvider::test_connection(db).await.expect("ping");
     let info = db.get_database_info().await.expect("info");
     assert!(!info.version.is_empty());
 
@@ -170,9 +172,7 @@ async fn provider_impl_delegates_reads_and_writes() {
         .expect("optional");
     assert!(remaining.is_none(), "rolled-back row must not persist");
 
-    db.execute_raw(&format!("DROP TABLE \"{table}\""))
-        .await
-        .expect("drop");
+    scratch.drop_now().await;
 }
 
 #[tokio::test]

@@ -7,7 +7,6 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::net::TcpListener;
 use std::sync::Arc;
 
 use futures::StreamExt;
@@ -16,11 +15,11 @@ use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_config::LoadedProfile;
 use systemprompt_extension::cli::CliConfig;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_test_fixtures::{ReservedPort, ensure_test_bootstrap};
 use systemprompt_traits::StartupEvent;
 
 struct Held {
-    _listener: TcpListener,
+    _reserved: ReservedPort,
     _dir: tempfile::TempDir,
     port: u16,
     profile: Arc<LoadedProfile>,
@@ -28,8 +27,8 @@ struct Held {
 
 fn held_port() -> Held {
     let bootstrap = ensure_test_bootstrap();
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().expect("addr").port();
+    let reserved = ReservedPort::loopback();
+    let port = reserved.port();
     let text = std::fs::read_to_string(&bootstrap.profile_path).expect("profile");
     let mut yaml: serde_yaml::Value = serde_yaml::from_str(&text).expect("yaml");
     yaml["server"]["port"] = serde_yaml::Value::from(port);
@@ -38,7 +37,7 @@ fn held_port() -> Held {
     std::fs::write(&path, serde_yaml::to_string(&yaml).expect("ser")).expect("write");
     let profile = LoadedProfile::from_path(&path).expect("loads");
     Held {
-        _listener: listener,
+        _reserved: reserved,
         _dir: dir,
         port,
         profile,

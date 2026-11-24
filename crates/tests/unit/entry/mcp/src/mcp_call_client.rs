@@ -30,19 +30,16 @@ fn session() -> CallerSession {
 const PROXY_PATH: &str = "/api/v1/mcp/strict/mcp";
 
 fn closed_api() -> String {
-    format!("http://127.0.0.1:{}", free_port())
+    format!(
+        "http://127.0.0.1:{}",
+        systemprompt_test_fixtures::ReservedPort::loopback().release_for_child()
+    )
 }
 
 fn block(json: serde_json::Value) -> ContentBlock {
     serde_json::from_value(json).unwrap()
 }
 
-fn free_port() -> u16 {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
-    port
-}
 
 #[test]
 fn convert_content_maps_text_image_audio_and_resource_link() {

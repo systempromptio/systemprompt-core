@@ -2,12 +2,12 @@
 //! `services/transaction.rs`: commit, no retry on a permanent error, and the
 //! serialization-failure classification it retries on.
 //!
-//! Each test creates a uniquely-named temporary table so parallel runs never
-//! collide, and drops it on the way out.
+//! A test that creates a table works in its own scratch schema and drops it
+//! on the way out, so nothing it makes lands in the shared `public` schema.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use super::db_helper::test_pool;
+use super::db_helper::{scratch_pool, test_pool};
 use systemprompt_database::{DbPool, PgDbPool, with_transaction_retry};
 use systemprompt_traits::RepositoryError;
 
@@ -27,10 +27,6 @@ async fn create_table(pool: &sqlx::PgPool, table: &str) {
         .expect("create table");
 }
 
-async fn drop_table(pool: &sqlx::PgPool, table: &str) {
-    let ddl = format!("DROP TABLE IF EXISTS \"{table}\"");
-    let _ = sqlx::query(sqlx::AssertSqlSafe(ddl)).execute(pool).await;
-}
 
 async fn row_count(pool: &sqlx::PgPool, table: &str) -> i64 {
     let q = format!("SELECT COUNT(*) FROM \"{table}\"");
@@ -42,7 +38,7 @@ async fn row_count(pool: &sqlx::PgPool, table: &str) -> i64 {
 
 #[tokio::test]
 async fn with_transaction_retry_commits_on_first_success() {
-    let db = test_pool().await;
+    let (scratch, db) = scratch_pool("tx_test").await;
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -67,12 +63,12 @@ async fn with_transaction_retry_commits_on_first_success() {
     assert_eq!(attempts.load(Ordering::SeqCst), 1);
     assert_eq!(row_count(&pool, &table).await, 1);
 
-    drop_table(&pool, &table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn with_transaction_retry_does_not_retry_permanent_error() {
-    let db = test_pool().await;
+    let (scratch, db) = scratch_pool("tx_test").await;
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -101,7 +97,7 @@ async fn with_transaction_retry_does_not_retry_permanent_error() {
     );
     assert_eq!(row_count(&pool, &table).await, 0);
 
-    drop_table(&pool, &table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]

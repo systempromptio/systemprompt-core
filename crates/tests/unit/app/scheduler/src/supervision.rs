@@ -16,24 +16,6 @@ use systemprompt_scheduler::{
 const POSTGRES_PORT: u16 = 5432;
 const PGBOUNCER_PORT: u16 = 6432;
 
-// Why: a port taken from `bind(:0)` and released is back in the kernel's
-// ephemeral pool, so a concurrent `bind(:0)` anywhere on the host can take it
-// before the check runs. A port below the ephemeral range is never handed out
-// that way; only an explicit binder could take it.
-fn free_port() -> u16 {
-    let range = std::fs::read_to_string("/proc/sys/net/ipv4/ip_local_port_range")
-        .expect("read the ephemeral port range");
-    let low: u16 = range
-        .split_whitespace()
-        .next()
-        .and_then(|bound| bound.parse().ok())
-        .expect("the ephemeral range has a numeric low bound");
-    (1024..low)
-        .rev()
-        .find(|port| std::net::TcpListener::bind(("0.0.0.0", *port)).is_ok())
-        .expect("a bindable port below the ephemeral range")
-}
-
 #[test]
 fn service_modules_map_to_their_marker_kind() {
     assert_eq!(child_kind(ServiceModule::Agent), ChildKind::Agent);
@@ -66,7 +48,7 @@ async fn protected_database_ports_are_never_signalled() {
 
 #[tokio::test]
 async fn an_unbound_port_is_free() {
-    wait_for_port_free(free_port(), Duration::ZERO)
+    wait_for_port_free(systemprompt_test_fixtures::ReservedPort::below_ephemeral_range().release_for_child(), Duration::ZERO)
         .await
         .expect("unbound port reported free");
 }

@@ -9,21 +9,15 @@
 //!    documented merge rule (here: last-write-wins by value comparison) and
 //!    never loses an update of an unrelated column on the same row.
 //!
-//! These tests use ephemeral schemas (UUID-suffixed table names) so they
-//! are safe to run in parallel and against any reachable Postgres
-//! instance.
+//! Each test works in its own [`ScratchSchema`], so its tables never land in
+//! the shared database's `public` schema and parallel runs cannot collide.
 
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::ScratchSchema;
+use systemprompt_test_fixtures::db::FIXTURE_POOL_MAX_CONNECTIONS;
 use uuid::Uuid;
-
-async fn connect_pool() -> PgPool {
-    PgPool::connect(&test_database_url())
-        .await
-        .expect("connect to test database")
-}
 
 fn unique_table(prefix: &str) -> String {
     format!(
@@ -33,13 +27,6 @@ fn unique_table(prefix: &str) -> String {
     )
 }
 
-async fn drop_table(pool: &PgPool, table: &str) {
-    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS {table} CASCADE"
-    )))
-    .execute(pool)
-    .await;
-}
 
 async fn count(pool: &PgPool, table: &str) -> i64 {
     let row = sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -53,7 +40,8 @@ async fn count(pool: &PgPool, table: &str) -> i64 {
 
 #[tokio::test]
 async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
-    let pool = connect_pool().await;
+    let scratch = ScratchSchema::create("batch_atomicity").await;
+    let pool = scratch.pool(FIXTURE_POOL_MAX_CONNECTIONS).await;
     let table = unique_table("multi_unique");
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
@@ -81,12 +69,14 @@ async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
          commit semantic"
     );
 
-    drop_table(&pool, &table).await;
+    pool.close().await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn transactional_batch_rolls_back_on_mid_batch_failure() {
-    let pool = connect_pool().await;
+    let scratch = ScratchSchema::create("batch_atomicity").await;
+    let pool = scratch.pool(FIXTURE_POOL_MAX_CONNECTIONS).await;
     let table = unique_table("tx_batch");
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
@@ -133,12 +123,14 @@ async fn transactional_batch_rolls_back_on_mid_batch_failure() {
          mean the batch helper is not actually transactional"
     );
 
-    drop_table(&pool, &table).await;
+    pool.close().await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn upsert_do_nothing_preserves_existing_rows() {
-    let pool = connect_pool().await;
+    let scratch = ScratchSchema::create("batch_atomicity").await;
+    let pool = scratch.pool(FIXTURE_POOL_MAX_CONNECTIONS).await;
     let table = unique_table("conflict_nothing");
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
@@ -180,12 +172,14 @@ async fn upsert_do_nothing_preserves_existing_rows() {
     );
     assert_eq!(row2, "new", "new row inserts as expected");
 
-    drop_table(&pool, &table).await;
+    pool.close().await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
-    let pool = Arc::new(connect_pool().await);
+    let scratch = ScratchSchema::create("batch_atomicity").await;
+    let pool = Arc::new(scratch.pool(FIXTURE_POOL_MAX_CONNECTIONS).await);
     let table = unique_table("upsert_race");
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL, version INT NOT NULL)"
@@ -246,12 +240,14 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
         "winning version {version} must be one of the participating writers"
     );
 
-    drop_table(pool.as_ref(), &table).await;
+    pool.close().await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn upsert_do_update_does_not_clobber_unrelated_columns() {
-    let pool = connect_pool().await;
+    let scratch = ScratchSchema::create("batch_atomicity").await;
+    let pool = scratch.pool(FIXTURE_POOL_MAX_CONNECTIONS).await;
     let table = unique_table("upsert_partial");
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (
@@ -297,5 +293,6 @@ async fn upsert_do_update_does_not_clobber_unrelated_columns() {
          broadened the SET list would lose this update"
     );
 
-    drop_table(&pool, &table).await;
+    pool.close().await;
+    scratch.drop_now().await;
 }

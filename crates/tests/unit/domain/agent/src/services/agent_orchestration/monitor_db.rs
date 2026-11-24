@@ -35,13 +35,6 @@ fn db_service_with(
     AgentDatabaseService::with_registry(repo, registry)
 }
 
-async fn free_port_listener() -> (tokio::net::TcpListener, u16) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-    (listener, port)
-}
 
 #[tokio::test]
 async fn health_check_reports_not_running_for_unknown_agent() {
@@ -64,7 +57,9 @@ async fn health_check_reports_not_running_for_unknown_agent() {
 async fn health_check_passes_for_live_process_with_open_port() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
-    let (listener, port) = free_port_listener().await;
+    let reserved = systemprompt_test_fixtures::ReservedPort::loopback();
+    let port = reserved.port();
+    let listener = reserved.into_tokio_listener();
     let accept_loop = tokio::spawn(async move {
         loop {
             let _ = listener.accept().await;
@@ -95,8 +90,7 @@ async fn health_check_passes_for_live_process_with_open_port() {
 async fn health_check_fails_for_live_process_with_closed_port() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
-    let (listener, port) = free_port_listener().await;
-    drop(listener);
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
 
     let name = unique_agent_name("mon_closed");
     let svc = db_service_with(&pool, &instance, &[(&name, port)]);

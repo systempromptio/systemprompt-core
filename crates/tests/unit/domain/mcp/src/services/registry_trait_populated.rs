@@ -136,7 +136,7 @@ async fn registry_get_server_of_an_unknown_name_is_not_found() {
         .get_server("rtp_no_such_server")
         .expect_err("unknown");
     assert!(
-        matches!(err, systemprompt_mcp::McpDomainError::ServerNotFound(_)),
+        matches!(err, systemprompt_mcp::McpDomainError::ServerNotFound { .. }),
         "{err:?}"
     );
     let converted = systemprompt_models::errors::McpRegistryError::from(err);

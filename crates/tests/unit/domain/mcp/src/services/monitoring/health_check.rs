@@ -13,12 +13,6 @@ use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_test_fixtures::fixture_user_id;
 
-fn unused_port() -> u16 {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
-    port
-}
 
 fn make_config(
     name: &str,
@@ -175,7 +169,7 @@ fn unhealthy_constructor() {
 
 #[tokio::test]
 async fn perform_health_check_internal_unreachable_returns_unhealthy() {
-    let port = unused_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let config = make_config("internal-unreach", McpServerType::Internal, port, "");
     let result = perform_health_check(&config, &systemprompt_test_fixtures::fixture_health_probe())
         .await
@@ -197,7 +191,7 @@ async fn perform_health_check_external_invalid_url_returns_unhealthy() {
 
 #[tokio::test]
 async fn check_service_health_returns_status_for_unreachable() {
-    let port = unused_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let config = make_config("svc-h", McpServerType::Internal, port, "");
     let status = check_service_health(&config, &systemprompt_test_fixtures::fixture_health_probe())
         .await

@@ -4,32 +4,33 @@
 //! semantics (`status = 'inactive'` / `'deleted'`) are also pinned: they are
 //! state transitions, not row removals, and must not trigger cascades.
 //!
-//! Each test creates its own ephemeral schema (UUID-suffixed table prefix)
-//! so parallel test runs do not collide. The shapes mirror the production
+//! Each test works in its own [`ScratchSchema`], so its tables never land in
+//! the shared database's `public` schema and parallel runs cannot collide. The shapes mirror the production
 //! domain — `users` is the parent; `user_api_keys`-style children cascade;
 //! `user_sessions`-style children set NULL; `governance_decisions`-style
 //! audit rows have no FK at all.
 
 use sqlx::{PgPool, Row};
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::ScratchSchema;
+use systemprompt_test_fixtures::db::FIXTURE_POOL_MAX_CONNECTIONS;
 use uuid::Uuid;
 
-async fn connect_pool() -> PgPool {
-    PgPool::connect(&test_database_url())
-        .await
-        .expect("connect to test database")
-}
-
 struct Fixture {
+    scratch: ScratchSchema,
     pool: PgPool,
     suffix: String,
 }
 
 impl Fixture {
     async fn new() -> Self {
-        let pool = connect_pool().await;
+        let scratch = ScratchSchema::create("cascade_delete").await;
+        let pool = scratch.pool(FIXTURE_POOL_MAX_CONNECTIONS).await;
         let suffix = Uuid::new_v4().simple().to_string()[..12].to_string();
-        Self { pool, suffix }
+        Self {
+            scratch,
+            pool,
+            suffix,
+        }
     }
 
     fn t(&self, base: &str) -> String {
@@ -43,13 +44,9 @@ impl Fixture {
             .unwrap_or_else(|e| panic!("exec failed for {sql}: {e}"));
     }
 
-    async fn drop_all(&self) {
-        for base in ["audit", "session", "api_key", "fed_id", "user"] {
-            let stmt = format!("DROP TABLE IF EXISTS {} CASCADE", self.t(base));
-            let _ = sqlx::query(sqlx::AssertSqlSafe(stmt))
-                .execute(&self.pool)
-                .await;
-        }
+    async fn drop_all(self) {
+        self.pool.close().await;
+        self.scratch.drop_now().await;
     }
 
     async fn install_user_schema(&self) {

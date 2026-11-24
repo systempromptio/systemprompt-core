@@ -42,15 +42,15 @@ fn tool_context() -> ToolContext {
 // Internal MCP servers are validated against the 5000-5999 range, so an
 // ephemeral port would be rejected by config validation before any probe runs.
 fn listener_in_mcp_range() -> std::net::TcpListener {
-    systemprompt_test_fixtures::bind_in_range(5000..6000)
+    systemprompt_test_fixtures::ReservedPort::in_range(5000..6000)
         .expect("no free port in the internal MCP range 5000-5999")
+        .into_listener()
 }
 
 fn dead_port() -> u16 {
-    let listener = listener_in_mcp_range();
-    let port = listener.local_addr().expect("addr").port();
-    drop(listener);
-    port
+    systemprompt_test_fixtures::ReservedPort::in_range(5000..6000)
+        .expect("no free port in the internal MCP range 5000-5999")
+        .release_for_child()
 }
 
 async fn provider_over_internal_servers(

@@ -1,5 +1,6 @@
-use super::db_helper::test_pool;
+use super::db_helper::{scratch_pool, test_pool};
 use systemprompt_database::{SqlExecutor, validate_column_exists, validate_table_exists};
+use systemprompt_test_fixtures::DisposableDb;
 use systemprompt_traits::RepositoryError;
 
 fn unique_table() -> String {
@@ -164,7 +165,8 @@ fn statement_without_trailing_newline_is_still_emitted() {
 
 #[tokio::test]
 async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
-    let db = test_pool().await;
+    let database = DisposableDb::empty("sql_executor").await;
+    let db = database.test_pool().await;
     let table = unique_table();
 
     assert!(
@@ -199,10 +201,8 @@ async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
         "absent column must report false"
     );
 
-    let drop = format!("DROP TABLE IF EXISTS \"{table}\";");
-    SqlExecutor::execute_statements(&db, &drop)
-        .await
-        .expect("drop");
+    db.write_pool().close().await;
+    database.drop_now().await;
 }
 
 #[tokio::test]
@@ -227,7 +227,7 @@ async fn execute_query_returns_rows_and_columns() {
 
 #[tokio::test]
 async fn execute_statements_parsed_runs_each_statement() {
-    let db = test_pool().await;
+    let (scratch, db) = scratch_pool("sql_executor").await;
     let table = unique_table();
 
     let provider = db.write();
@@ -246,15 +246,14 @@ async fn execute_statements_parsed_runs_each_statement() {
         Some(2)
     );
 
-    SqlExecutor::execute_statements(&db, &format!("DROP TABLE IF EXISTS \"{table}\";"))
-        .await
-        .expect("drop");
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn execute_file_reads_and_runs_sql() {
     use std::io::Write;
-    let db = test_pool().await;
+    let database = DisposableDb::empty("sql_executor").await;
+    let db = database.test_pool().await;
     let table = unique_table();
 
     let mut file = tempfile::NamedTempFile::new().expect("tempfile");
@@ -270,9 +269,8 @@ async fn execute_file_reads_and_runs_sql() {
             .expect("table_exists")
     );
 
-    SqlExecutor::execute_statements(&db, &format!("DROP TABLE IF EXISTS \"{table}\";"))
-        .await
-        .expect("drop");
+    db.write_pool().close().await;
+    database.drop_now().await;
 }
 
 #[tokio::test]

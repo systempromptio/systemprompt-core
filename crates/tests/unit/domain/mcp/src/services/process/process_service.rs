@@ -10,11 +10,6 @@ use systemprompt_mcp::services::process::ProcessService;
 
 const DEAD_PID: u32 = 4_194_305;
 
-fn free_port() -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-    listener.local_addr().expect("addr").port()
-}
-
 #[tokio::test]
 async fn a_dead_pid_is_not_running() {
     assert!(!ProcessService::is_running(DEAD_PID).await);
@@ -41,7 +36,7 @@ async fn stopping_a_dead_pid_reports_not_running() {
 
 #[tokio::test]
 async fn a_free_port_has_no_listener_and_no_owned_holder() {
-    let port = free_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
 
     assert!(!ProcessService::port_has_listener(port).await.expect("lsof"));
     assert!(
