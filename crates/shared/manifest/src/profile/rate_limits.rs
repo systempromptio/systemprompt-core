@@ -45,6 +45,15 @@ use serde::{Deserialize, Serialize};
 ///   lookup. It sits in front of the per-group budgets above and is sized for a
 ///   whole network behind one address, not for one person.
 ///
+/// `memory_capacity` bounds the callers this node tracks in its per-replica
+/// windows when no replica-shared buckets are provided: the total number of
+/// `(user, scope)` counters it holds, divided evenly over the limiter's
+/// shards, each shard holding `memory_capacity / shards` rounded up. It is a
+/// per-node bound, not a budget: each replica counts its own callers, so the
+/// effective limit across N replicas is N times the published rate. Omitted,
+/// it is 262 144 (64 shards × 4096); it must lie in
+/// `1..=MAX_MEMORY_CAPACITY`.
+///
 /// `per_second_budgets` projects those fields as a list; both validators
 /// iterate it rather than naming the fields themselves, which had already let
 /// them drift apart and let a zero in an unnamed field through.
@@ -88,7 +97,12 @@ pub struct RateLimitsConfig {
 
     #[serde(default = "default_burst")]
     pub burst_multiplier: u64,
+
+    #[serde(default = "default_memory_capacity")]
+    pub memory_capacity: u64,
 }
+
+pub const MAX_MEMORY_CAPACITY: u64 = 16_777_216;
 
 pub const fn default_oauth_public() -> u64 {
     10
@@ -138,6 +152,9 @@ const fn default_pre_auth_ip() -> u64 {
 pub const fn default_burst() -> u64 {
     3
 }
+pub const fn default_memory_capacity() -> u64 {
+    262_144
+}
 
 impl RateLimitsConfig {
     #[must_use]
@@ -160,6 +177,17 @@ impl RateLimitsConfig {
             ("bridge_auth_per_second", self.bridge_auth_per_second),
             ("pre_auth_ip_per_second", self.pre_auth_ip_per_second),
         ]
+    }
+
+    #[must_use]
+    pub const fn memory_capacity_error(&self) -> Option<&'static str> {
+        if self.memory_capacity == 0 {
+            Some("must be at least 1; a zero capacity tracks no caller and refuses every request")
+        } else if self.memory_capacity > MAX_MEMORY_CAPACITY {
+            Some("exceeds MAX_MEMORY_CAPACITY (16777216 callers per node)")
+        } else {
+            None
+        }
     }
 
     #[must_use]
@@ -188,6 +216,7 @@ impl RateLimitsConfig {
             bridge_auth_per_second: 10000,
             pre_auth_ip_per_second: 10000,
             burst_multiplier: 100,
+            memory_capacity: default_memory_capacity(),
         }
     }
 
@@ -220,6 +249,7 @@ impl Default for RateLimitsConfig {
             bridge_auth_per_second: default_bridge_auth(),
             pre_auth_ip_per_second: default_pre_auth_ip(),
             burst_multiplier: default_burst(),
+            memory_capacity: default_memory_capacity(),
         }
     }
 }

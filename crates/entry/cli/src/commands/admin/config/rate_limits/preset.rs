@@ -7,7 +7,7 @@ use crate::commands::admin::config::restart_note;
 use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
-use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_manifest::profile::{RateLimitsConfig, default_memory_capacity};
 
 use super::super::profile_io::profile_path;
 use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
@@ -174,6 +174,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             bridge_auth_per_second: 50,
             pre_auth_ip_per_second: 1000,
             burst_multiplier: 5,
+            memory_capacity: default_memory_capacity(),
         }),
         "production" => Ok(RateLimitsConfig::default()),
         "high-traffic" => Ok(RateLimitsConfig {
@@ -195,6 +196,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             bridge_auth_per_second: 20,
             pre_auth_ip_per_second: 100,
             burst_multiplier: 2,
+            memory_capacity: default_memory_capacity(),
         }),
         _ => bail!(
             "Unknown preset: {}. Valid presets: development, production, high-traffic",
