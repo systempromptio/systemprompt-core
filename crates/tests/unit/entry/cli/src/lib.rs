@@ -38,6 +38,8 @@ mod explicit_cloud_profile;
 #[cfg(test)]
 mod help_env_values;
 #[cfg(test)]
+mod identity_registry;
+#[cfg(test)]
 mod interactive;
 #[cfg(test)]
 mod interactive_terminal;

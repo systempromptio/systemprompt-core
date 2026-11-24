@@ -18,6 +18,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, SessionId, SessionToken, TraceId, UserId,
 };
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::bridge::instance::BridgeVersionWindow;
 use systemprompt_models::execution::context::RequestContext;
@@ -194,7 +195,8 @@ pub struct RetiredTokenKey {
 }
 
 /// The configuration scalars the identity commands act on, built by the
-/// kernel from the profile's configuration and the services tree.
+/// kernel from the profile's configuration, its security section and the
+/// services tree.
 ///
 /// The host serves it only to a command whose owner is `identity-http` with
 /// core standing; nothing in it is a secret.
@@ -204,4 +206,6 @@ pub struct IdentityCliSettings {
     pub archived_users_days: u32,
     pub api_external_url: String,
     pub bridge_release_window: BridgeVersionWindow,
+    pub issuer: String,
+    pub trusted_issuers: Vec<TrustedIssuer>,
 }

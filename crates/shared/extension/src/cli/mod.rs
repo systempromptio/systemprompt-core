@@ -16,6 +16,8 @@ mod claim;
 #[cfg(feature = "cli")]
 mod command;
 #[cfg(feature = "cli")]
+mod confirm;
+#[cfg(feature = "cli")]
 mod decl;
 #[cfg(feature = "cli")]
 mod descriptor;
@@ -44,6 +46,8 @@ pub use command::{
     BoxFuture, CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost,
     CommandParent, DescribedCommand, REGISTERED_DISPLAY_ORDER, parents,
 };
+#[cfg(feature = "cli")]
+pub use confirm::ConfirmArgs;
 #[cfg(feature = "cli")]
 pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]

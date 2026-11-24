@@ -1,11 +1,12 @@
 //! `admin` command tree: privileged platform administration.
 //!
-//! [`AdminCommands`] groups user, configuration, session, bridge,
-//! access-control, signing-key, issue-report triage and licence check-in
-//! management plus the setup and bootstrap flows and the agent and MCP child
-//! hosts. On a `--database-url`
-//! invocation only the user-management subgroup is served; the rest require a
-//! full profile context.
+//! [`AdminCommands`] groups configuration, session, access-control, replica
+//! identity and licence check-in management plus the setup and bootstrap flows
+//! and the agent and MCP child hosts. The `users`, `keys` and `bridge`
+//! groups are `identity-http`'s; the kernel attaches
+//! [`plugin_token`]'s `issue-plugin-token` under its `keys` group. On a
+//! `--database-url` invocation only the session and `config migrate`
+//! commands are served here; the rest require a full profile context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,16 +14,14 @@
 pub mod access_control;
 pub mod agent_host;
 pub mod bootstrap;
-pub mod bridge;
 pub mod config;
 pub mod identity;
-pub mod keys;
 pub mod licence;
 pub mod mcp;
+pub mod plugin_token;
 pub mod session;
 pub mod setup;
 mod state;
-pub mod users;
 
 use crate::kernel::KernelHost;
 use anyhow::Result;
@@ -32,9 +31,6 @@ use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, 
 
 #[derive(Debug, Subcommand)]
 pub enum AdminCommands {
-    #[command(subcommand, about = "User management and IP banning")]
-    Users(users::UsersCommands),
-
     #[command(subcommand, about = "Configuration management and rate limits")]
     Config(config::ConfigCommands),
 
@@ -54,22 +50,10 @@ pub enum AdminCommands {
 
     #[command(
         subcommand,
-        about = "Bridge helper enrollment (device certs, exchange codes)"
-    )]
-    Bridge(bridge::BridgeCommands),
-
-    #[command(
-        subcommand,
         name = "access-control",
         about = "Access-control baseline operations (DB → YAML export)"
     )]
     AccessControl(access_control::AccessControlCommands),
-
-    #[command(
-        subcommand,
-        about = "RSA signing-key generation for the federated JWT plane"
-    )]
-    Keys(keys::KeysCommands),
 
     #[command(
         subcommand,
@@ -95,24 +79,19 @@ pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<Comman
     if host.is_database_scoped()
         && !matches!(
             cmd,
-            AdminCommands::Users(_)
-                | AdminCommands::Session(_)
-                | AdminCommands::Config(config::ConfigCommands::Migrate(_))
+            AdminCommands::Session(_) | AdminCommands::Config(config::ConfigCommands::Migrate(_))
         )
     {
         return Err(crate::shared::database_scoped_command_error(host));
     }
 
     match cmd {
-        AdminCommands::Users(cmd) => users::execute(cmd, host).await,
         AdminCommands::AgentHost(cmd) => Box::pin(agent_host::execute(cmd, host)).await,
         AdminCommands::Config(cmd) => config::execute(cmd, host).await,
         AdminCommands::Setup(args) => Box::pin(setup::execute(args, host)).await,
         AdminCommands::Bootstrap(args) => bootstrap::execute(args, host).await,
         AdminCommands::Session(cmd) => session::execute(cmd, host).await,
-        AdminCommands::Bridge(cmd) => bridge::execute(cmd, host).await,
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, host).await,
-        AdminCommands::Keys(cmd) => keys::execute(cmd, host).await,
         AdminCommands::Identity(cmd) => identity::execute(cmd, host),
         AdminCommands::Licence(cmd) => licence::execute(cmd, host).await,
         AdminCommands::Mcp(cmd) => mcp::execute(cmd, host).await,
@@ -125,9 +104,6 @@ impl DescribeCommand for AdminCommands {
             Self::Session(cmd) => cmd.descriptor(),
             Self::Config(cmd) => cmd.descriptor(),
             Self::AgentHost(_) | Self::Mcp(_) => CommandDescriptor::CHILD_HOST,
-            Self::Bridge(bridge::BridgeCommands::SigningKeyFingerprint(_)) => {
-                CommandDescriptor::PROFILE_AND_SECRETS
-            },
             Self::Setup(_) => CommandDescriptor::NONE,
             Self::Licence(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::FULL,
@@ -138,30 +114,14 @@ impl DescribeCommand for AdminCommands {
 impl AdminCommands {
     pub const fn data_impact(&self) -> DataImpact {
         match self {
-            Self::Users(cmd) => cmd.data_impact(),
             Self::Setup(args) if args.reset_role_password => DataImpact::Irreversible,
-            Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_))
-            | Self::Keys(
-                keys::KeysCommands::Stage(_)
-                | keys::KeysCommands::Promote(_)
-                | keys::KeysCommands::Rotate(_),
-            ) => DataImpact::Irreversible,
             Self::Bootstrap(_)
             | Self::Config(config::ConfigCommands::Secret(
                 config::secret::SecretCommands::MigrateGitCredentials(_),
             )) => DataImpact::Destructive,
-            Self::Bridge(
-                bridge::BridgeCommands::EnrollCert(_)
-                | bridge::BridgeCommands::IssueCode(_)
-                | bridge::BridgeCommands::List(_)
-                | bridge::BridgeCommands::SigningKeyFingerprint(_),
-            )
-            | Self::AccessControl(
+            Self::AccessControl(
                 access_control::AccessControlCommands::ExportYaml(_)
                 | access_control::AccessControlCommands::Lint(_),
-            )
-            | Self::Keys(
-                keys::KeysCommands::Generate(_) | keys::KeysCommands::IssuePluginToken(_),
             )
             | Self::Config(_)
             | Self::Setup(_)

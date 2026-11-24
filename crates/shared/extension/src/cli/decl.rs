@@ -165,6 +165,11 @@ impl ParsedCommand {
     }
 
     #[must_use]
+    pub const fn matches(&self) -> &ArgMatches {
+        &self.matches
+    }
+
+    #[must_use]
     pub fn granted(mut self, grants: &[KernelGrant], claims: &[CommandClaim]) -> Self {
         self.descriptor = grants.iter().fold(self.descriptor, |descriptor, grant| {
             descriptor.with_grant(*grant)

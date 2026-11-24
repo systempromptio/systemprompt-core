@@ -24,6 +24,9 @@
 
 use std::sync::Arc;
 
+use async_trait::async_trait;
+use systemprompt_traits::{BridgeHostFilterMigration, RepositoryError};
+
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
@@ -194,7 +197,11 @@ impl BridgeHostPrefsRepository {
         Ok(HostPrefWrite::Written)
     }
 
-    pub async fn update_model_protocol_tag(&self, from: &str, to: &str) -> OauthResult<u64> {
+    pub async fn update_model_protocol_tag(
+        &self,
+        from: &str,
+        to: &str,
+    ) -> Result<u64, RepositoryError> {
         let done = sqlx::query!(
             r#"
             UPDATE bridge_user_host_model_prefs
@@ -206,7 +213,8 @@ impl BridgeHostPrefsRepository {
             to,
         )
         .execute(self.write_pool.as_ref())
-        .await?;
+        .await
+        .map_err(RepositoryError::from)?;
         Ok(done.rows_affected())
     }
 
@@ -271,5 +279,16 @@ impl BridgeHostPrefsRepository {
             },
         }
         Ok(())
+    }
+}
+
+#[async_trait]
+impl BridgeHostFilterMigration for BridgeHostPrefsRepository {
+    async fn rename_model_protocol_tag(
+        &self,
+        from: &str,
+        to: &str,
+    ) -> Result<u64, RepositoryError> {
+        self.update_model_protocol_tag(from, to).await
     }
 }

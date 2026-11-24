@@ -1,0 +1,244 @@
+//! User administration command tree.
+//!
+//! [`UsersCommands`] groups the user CRUD, search, export, stats, merge, and
+//! the `bulk`, `role`, `session`, `ban`, and `webauthn` subcommand trees. On a
+//! `--database-url` invocation only the read-only commands are served; write
+//! operations require a full profile context. While the `identity` config
+//! plane is file-managed, every command that writes users, roles or service
+//! accounts is refused: the declaration under `services/identity/` is the
+//! source of truth.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+mod apikey;
+mod ban;
+mod bulk;
+mod count;
+mod create;
+pub(crate) mod delete;
+pub use delete::purge_output;
+mod export;
+pub mod federated_rekey;
+mod list;
+mod merge;
+mod restore;
+mod role;
+mod search;
+mod service_account;
+mod session;
+mod show;
+mod stats;
+mod types;
+mod update;
+mod webauthn;
+
+use anyhow::{Result, bail};
+use clap::Subcommand;
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand, GrantedPlane,
+};
+
+pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
+pub use types::{
+    BanAddOutput, BanCheckOutput, BanCleanupOutput, BanListOutput, BanRemoveOutput, BanSummary,
+    BulkDeleteOutput, BulkUpdateOutput, RoleAssignOutput, SessionCleanupOutput, SessionEndOutput,
+    SessionListOutput, SessionSummary, UserActivityOutput, UserCountBreakdownOutput,
+    UserCountOutput, UserCreatedOutput, UserDeletedOutput, UserDetailOutput, UserExportItem,
+    UserExportOutput, UserListOutput, UserMergeOutput, UserStatsOutput, UserSummary,
+    UserUpdatedOutput, WebauthnSetupTokenOutput,
+};
+
+#[derive(Debug, Subcommand)]
+pub enum UsersCommands {
+    #[command(about = "List users with pagination and filtering")]
+    List(list::ListArgs),
+
+    #[command(about = "Show detailed user information")]
+    Show(show::ShowArgs),
+
+    #[command(about = "Search users by name, email, or full name")]
+    Search(search::SearchArgs),
+
+    #[command(about = "Create a new user")]
+    Create(create::CreateArgs),
+
+    #[command(about = "Update user fields")]
+    Update(update::UpdateArgs),
+
+    #[command(about = "Archive a user (restorable); --purge deletes an archived user")]
+    Delete(delete::DeleteArgs),
+
+    #[command(about = "Restore an archived user within the retention window")]
+    Restore(restore::RestoreArgs),
+
+    #[command(name = "legal-hold", about = "Place or release a legal hold on a user")]
+    LegalHold(restore::LegalHoldArgs),
+
+    #[command(about = "Get total user count")]
+    Count(count::CountArgs),
+
+    #[command(about = "Export users to JSON")]
+    Export(export::ExportArgs),
+
+    #[command(about = "Show user statistics dashboard")]
+    Stats,
+
+    #[command(about = "Merge source user into target user")]
+    Merge(merge::MergeArgs),
+
+    #[command(
+        name = "federated-rekey",
+        about = "Move federated links recorded under this deployment's own issuer to the upstream \
+                 ID-JAG issuer, or remove them when it cannot be attributed (dry-run unless \
+                 --apply)"
+    )]
+    FederatedRekey(federated_rekey::FederatedRekeyArgs),
+
+    #[command(subcommand, about = "Bulk operations on users")]
+    Bulk(bulk::BulkCommands),
+
+    #[command(subcommand, about = "Role management commands")]
+    Role(role::RoleCommands),
+
+    #[command(subcommand, about = "Session management commands")]
+    Session(session::SessionCommands),
+
+    #[command(subcommand, about = "IP ban management commands")]
+    Ban(ban::BanCommands),
+
+    #[command(subcommand, about = "WebAuthn credential management commands")]
+    Webauthn(webauthn::WebauthnCommands),
+
+    #[command(
+        subcommand,
+        name = "api-key",
+        about = "Personal access token (sp-live-) management"
+    )]
+    ApiKey(ApiKeyCommands),
+
+    #[command(
+        subcommand,
+        name = "service-account",
+        about = "Service account management"
+    )]
+    ServiceAccount(service_account::ServiceAccountCommands),
+}
+
+pub async fn execute(cmd: UsersCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
+    if host.is_database_scoped()
+        && matches!(
+            cmd,
+            UsersCommands::Create(_)
+                | UsersCommands::Update(_)
+                | UsersCommands::Delete(_)
+                | UsersCommands::Restore(_)
+                | UsersCommands::LegalHold(_)
+                | UsersCommands::Merge(_)
+                | UsersCommands::FederatedRekey(_)
+                | UsersCommands::Bulk(_)
+                | UsersCommands::Webauthn(_)
+                | UsersCommands::ApiKey(_)
+                | UsersCommands::ServiceAccount(_)
+        )
+    {
+        bail!("Write operations require full profile context");
+    }
+    if !host.is_database_scoped() && writes_identity(&cmd) {
+        host.require_writable_plane(GrantedPlane::Identity).await?;
+    }
+
+    match cmd {
+        UsersCommands::Bulk(cmd) => Box::pin(bulk::execute(cmd, host)).await,
+        UsersCommands::Role(cmd) => Box::pin(role::execute(cmd, host)).await,
+        UsersCommands::Session(cmd) => Box::pin(session::execute(cmd, host)).await,
+        UsersCommands::Ban(cmd) => Box::pin(ban::execute(cmd, host)).await,
+        UsersCommands::Webauthn(cmd) => Box::pin(webauthn::execute(cmd, host)).await,
+        UsersCommands::List(args) => Box::pin(list::execute(args, host)).await,
+        UsersCommands::Show(args) => Box::pin(show::execute(args, host)).await,
+        UsersCommands::Search(args) => Box::pin(search::execute(args, host)).await,
+        UsersCommands::Create(args) => Box::pin(create::execute(args, host)).await,
+        UsersCommands::Update(args) => Box::pin(update::execute(args, host)).await,
+        UsersCommands::Delete(args) => Box::pin(delete::execute(args, host)).await,
+        UsersCommands::Restore(args) => Box::pin(restore::execute(args, host)).await,
+        UsersCommands::LegalHold(args) => Box::pin(restore::execute_legal_hold(args, host)).await,
+        UsersCommands::Count(args) => Box::pin(count::execute(args, host)).await,
+        UsersCommands::Export(args) => Box::pin(export::execute(args, host)).await,
+        UsersCommands::Stats => Box::pin(stats::execute(host)).await,
+        UsersCommands::Merge(args) => Box::pin(merge::execute(args, host)).await,
+        UsersCommands::FederatedRekey(args) => Box::pin(federated_rekey::execute(args, host)).await,
+        UsersCommands::ApiKey(cmd) => Box::pin(apikey::execute(cmd, host)).await,
+        UsersCommands::ServiceAccount(cmd) => Box::pin(service_account::execute(cmd, host)).await,
+    }
+}
+
+const fn writes_identity(cmd: &UsersCommands) -> bool {
+    matches!(
+        cmd,
+        UsersCommands::Create(_)
+            | UsersCommands::Update(_)
+            | UsersCommands::Delete(_)
+            | UsersCommands::Restore(_)
+            | UsersCommands::Merge(_)
+            | UsersCommands::Bulk(_)
+            | UsersCommands::Role(_)
+            | UsersCommands::ServiceAccount(_)
+    )
+}
+
+impl UsersCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::FederatedRekey(args) if args.apply => DataImpact::Irreversible,
+            Self::Role(
+                role::RoleCommands::Assign(_)
+                | role::RoleCommands::Promote(_)
+                | role::RoleCommands::Demote(_),
+            ) => DataImpact::Irreversible,
+            Self::Delete(_)
+            | Self::Merge(_)
+            | Self::FederatedRekey(_)
+            | Self::Bulk(bulk::BulkCommands::Delete(_) | bulk::BulkCommands::Update(_))
+            | Self::Session(session::SessionCommands::Cleanup(_))
+            | Self::Ban(ban::BanCommands::Cleanup(_)) => DataImpact::Destructive,
+            Self::List(_)
+            | Self::Show(_)
+            | Self::Search(_)
+            | Self::Create(_)
+            | Self::Update(_)
+            | Self::Restore(_)
+            | Self::LegalHold(_)
+            | Self::Count(_)
+            | Self::Export(_)
+            | Self::Stats
+            | Self::Session(session::SessionCommands::List(_) | session::SessionCommands::End(_))
+            | Self::Ban(
+                ban::BanCommands::List(_)
+                | ban::BanCommands::Add(_)
+                | ban::BanCommands::Remove(_)
+                | ban::BanCommands::Check(_),
+            )
+            | Self::Webauthn(webauthn::WebauthnCommands::GenerateSetupToken(_))
+            | Self::ApiKey(
+                ApiKeyCommands::Issue(_) | ApiKeyCommands::List(_) | ApiKeyCommands::Revoke(_),
+            )
+            | Self::ServiceAccount(_) => DataImpact::Preserving,
+        }
+    }
+}
+
+impl DescribeCommand for UsersCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::FULL.with_data_impact(self.data_impact())
+    }
+}
+
+impl CliCommandGroup for UsersCommands {
+    const NAME: &'static str = "users";
+    const ABOUT: &'static str = "User management and IP banning";
+
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(crate::cli::command_error)
+    }
+}

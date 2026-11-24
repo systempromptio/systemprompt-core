@@ -56,6 +56,7 @@ pub mod ai_providers;
 pub mod analytics;
 pub mod background_tasks;
 pub mod backoff;
+pub mod bridge_host_filters;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod cache_epoch;
 pub use cache_epoch::{CacheDomain, CacheEpochView, CacheEpochs};
@@ -157,6 +158,7 @@ pub use ai_reports::{
     CatalogMigrationPort, DynCatalogMigrationPort, DynSafetyFindingsReader, LegacyCatalogEntry,
     SafetyFindingRollup, SafetyFindingsReader,
 };
+pub use bridge_host_filters::{BridgeHostFilterMigration, DynBridgeHostFilterMigration};
 pub use ownership::is_plain_identifier;
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,

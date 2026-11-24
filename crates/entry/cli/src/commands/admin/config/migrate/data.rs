@@ -17,8 +17,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::AccessControlRepository;
-use systemprompt_oauth::repository::BridgeHostPrefsRepository;
-use systemprompt_traits::{CatalogMigrationPort, LegacyCatalogEntry};
+use systemprompt_traits::{BridgeHostFilterMigration, CatalogMigrationPort, LegacyCatalogEntry};
 
 use super::legacy_map::{LEGACY_MAP_FILE, LegacyMap};
 
@@ -47,6 +46,7 @@ pub fn read_map(services: &Path) -> Result<LegacyMap> {
 pub async fn apply_with(
     db: &DbPool,
     repo: &dyn CatalogMigrationPort,
+    host_filters: &dyn BridgeHostFilterMigration,
     map: &LegacyMap,
 ) -> Result<DataReport> {
     let mut report = DataReport {
@@ -80,8 +80,8 @@ pub async fn apply_with(
             }
         }
     }
-    report.host_filters_rewritten = BridgeHostPrefsRepository::new(db)
-        .update_model_protocol_tag("anthropic", "claude")
+    report.host_filters_rewritten = host_filters
+        .rename_model_protocol_tag("anthropic", "claude")
         .await?;
     let moves: Vec<(&str, &str)> = map
         .route_models

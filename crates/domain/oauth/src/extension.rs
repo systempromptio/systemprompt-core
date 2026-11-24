@@ -1,12 +1,19 @@
 //! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
-//! migrations, and the expired-grant cleanup job.
+//! migrations, the expired-grant cleanup job, and the sealed
+//! `DynBridgeHostFilterMigration` `admin config migrate --data` runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 
+use std::sync::Arc;
+
+use systemprompt_database::DbPool;
+use systemprompt_traits::DynBridgeHostFilterMigration;
+
 use crate::jobs::OauthCleanupJob;
+use crate::repository::BridgeHostPrefsRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
@@ -29,7 +36,14 @@ impl Extension for OauthExtension {
         {
             c.schema(schema);
         }
-        c.migrations(extension_migrations!()).job(OauthCleanupJob);
+        c.migrations(extension_migrations!())
+            .job(OauthCleanupJob)
+            .provide_sealed(
+                |r: &Resolved<'_>| -> Result<DynBridgeHostFilterMigration, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    Ok(Arc::new(BridgeHostPrefsRepository::new(&db)))
+                },
+            );
         c.user_purge(UserPurgeTable {
             table: "oauth_jti_revocations",
             column: "user_id",

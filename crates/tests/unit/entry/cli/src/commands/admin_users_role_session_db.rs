@@ -5,11 +5,11 @@
 
 use clap::Parser;
 use std::sync::Arc;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
@@ -67,7 +67,7 @@ async fn role_assign_replaces_roles() {
     let ctx = ctx().await;
     users::execute(
         parse(&["role", "assign", user.id.as_str(), "--roles", "user,admin"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap();
@@ -90,7 +90,7 @@ async fn role_assign_unknown_user_errors() {
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(
         parse(&["role", "assign", &missing, "--roles", "admin"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap_err();
@@ -105,9 +105,12 @@ async fn role_promote_then_repeat_reports_already_admin() {
     let user = service.create(&n, &e, None, None).await.unwrap();
 
     let ctx = ctx().await;
-    users::execute(parse(&["role", "promote", user.id.as_str()]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["role", "promote", user.id.as_str()]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
 
     let promoted = service.find_by_id(&user.id).await.unwrap().unwrap();
     assert!(
@@ -116,9 +119,12 @@ async fn role_promote_then_repeat_reports_already_admin() {
         promoted.roles
     );
 
-    users::execute(parse(&["role", "promote", user.id.as_str()]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["role", "promote", user.id.as_str()]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
 
     let _ = service
         .delete(&user.id, &crate::boot_ctx::core_purge())
@@ -129,9 +135,12 @@ async fn role_promote_then_repeat_reports_already_admin() {
 async fn role_promote_unknown_user_errors() {
     let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
-    let err = users::execute(parse(&["role", "promote", &missing]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["role", "promote", &missing]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("User not found"), "{err}");
 }
 
@@ -143,12 +152,18 @@ async fn role_demote_admin_and_non_admin_paths() {
     let user = service.create(&n, &e, None, None).await.unwrap();
 
     let ctx = ctx().await;
-    users::execute(parse(&["role", "promote", user.id.as_str()]), &ctx)
-        .await
-        .unwrap();
-    users::execute(parse(&["role", "demote", user.id.as_str()]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["role", "promote", user.id.as_str()]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
+    users::execute(
+        parse(&["role", "demote", user.id.as_str()]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
 
     let demoted = service.find_by_id(&user.id).await.unwrap().unwrap();
     assert!(
@@ -157,9 +172,12 @@ async fn role_demote_admin_and_non_admin_paths() {
         demoted.roles
     );
 
-    users::execute(parse(&["role", "demote", user.id.as_str()]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["role", "demote", user.id.as_str()]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
 
     let _ = service
         .delete(&user.id, &crate::boot_ctx::core_purge())
@@ -170,9 +188,12 @@ async fn role_demote_admin_and_non_admin_paths() {
 async fn role_demote_unknown_user_errors() {
     let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
-    let err = users::execute(parse(&["role", "demote", &missing]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["role", "demote", &missing]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("User not found"), "{err}");
 }
 
@@ -180,9 +201,12 @@ async fn role_demote_unknown_user_errors() {
 async fn role_commands_require_full_profile_context() {
     let pool = test_db_pool().await;
     let ctx = db_scoped_ctx(&pool);
-    let err = users::execute(parse(&["role", "promote", "someone"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["role", "promote", "someone"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("full profile context"), "{err}");
 }
 
@@ -197,9 +221,12 @@ async fn delete_requires_confirmation() {
     // The user has to exist for the guard to be reached: `delete` resolves the
     // reference first so a typo reports "not found" instead of prompting to
     // confirm the deletion of something that was never there.
-    let err = users::execute(parse(&["delete", n.as_str()]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["delete", n.as_str()]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
 
     let msg = err.to_string();
     assert!(msg.contains("--yes to confirm"), "{msg}");
@@ -216,9 +243,12 @@ async fn delete_requires_confirmation() {
 #[tokio::test]
 async fn delete_of_an_unknown_reference_reports_not_found() {
     let ctx = ctx().await;
-    let err = users::execute(parse(&["delete", "no-such-user-reference"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["delete", "no-such-user-reference"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(
         err.to_string().contains("User not found"),
         "an unresolvable reference must not reach the confirmation guard: {err}"
@@ -233,9 +263,12 @@ async fn delete_removes_user() {
     let user = service.create(&n, &e, None, None).await.unwrap();
 
     let ctx = ctx().await;
-    users::execute(parse(&["delete", user.id.as_str(), "--yes"]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["delete", user.id.as_str(), "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
 
     assert!(service.find_by_id(&user.id).await.unwrap().is_none());
 }
@@ -244,9 +277,12 @@ async fn delete_removes_user() {
 async fn delete_unknown_user_errors() {
     let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
-    let err = users::execute(parse(&["delete", &missing, "--yes"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["delete", &missing, "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("User not found"), "{err}");
 }
 
@@ -258,10 +294,15 @@ async fn count_breakdown_reports_totals() {
     let user = service.create(&n, &e, None, None).await.unwrap();
 
     let ctx = ctx().await;
-    users::execute(parse(&["count", "--breakdown"]), &ctx)
+    users::execute(
+        parse(&["count", "--breakdown"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
+    users::execute(parse(&["count"]), &crate::boot_ctx::identity(&ctx))
         .await
         .unwrap();
-    users::execute(parse(&["count"]), &ctx).await.unwrap();
 
     let _ = service
         .delete(&user.id, &crate::boot_ctx::core_purge())
@@ -285,12 +326,15 @@ async fn session_list_recent_and_active_for_seeded_user() {
     .unwrap();
 
     let ctx = ctx().await;
-    users::execute(parse(&["session", "list", user.id.as_str()]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["session", "list", user.id.as_str()]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
     users::execute(
         parse(&["session", "list", user.id.as_str(), "--active"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap();
@@ -304,18 +348,24 @@ async fn session_list_recent_and_active_for_seeded_user() {
 async fn session_list_unknown_user_errors() {
     let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
-    let err = users::execute(parse(&["session", "list", &missing]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "list", &missing]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("User not found"), "{err}");
 }
 
 #[tokio::test]
 async fn session_cleanup_requires_confirmation() {
     let ctx = ctx().await;
-    let err = users::execute(parse(&["session", "cleanup"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "cleanup"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("--yes to confirm"), "{err}");
 }
 
@@ -334,7 +384,7 @@ async fn session_cleanup_deletes_old_anonymous_users() {
     let ctx = ctx().await;
     users::execute(
         parse(&["session", "cleanup", "--days", "30", "--yes"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap();
@@ -346,8 +396,11 @@ async fn session_cleanup_deletes_old_anonymous_users() {
 async fn session_cleanup_requires_full_profile_context() {
     let pool = test_db_pool().await;
     let ctx = db_scoped_ctx(&pool);
-    let err = users::execute(parse(&["session", "cleanup", "--yes"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "cleanup", "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("full profile context"), "{err}");
 }

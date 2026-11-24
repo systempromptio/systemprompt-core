@@ -14,7 +14,7 @@
 /// `Irreversible` is `Destructive` plus an operator confirmation: the runner
 /// prompts before the command runs, and with no terminal the command refuses
 /// unless `--yes` was passed. Such a command flattens
-/// the CLI's `ConfirmArgs` so that `--yes` parses.
+/// [`ConfirmArgs`](super::ConfirmArgs) so that `--yes` parses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataImpact {
     Preserving,

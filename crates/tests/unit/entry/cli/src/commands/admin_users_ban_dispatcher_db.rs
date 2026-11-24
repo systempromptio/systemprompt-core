@@ -10,6 +10,7 @@ use systemprompt_cli::admin::{self, AdminCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
@@ -23,6 +24,28 @@ fn parse(args: &[&str]) -> AdminCommands {
     Harness::try_parse_from(std::iter::once("admin").chain(args.iter().copied()))
         .unwrap()
         .cmd
+}
+
+#[derive(Debug, Parser)]
+struct UsersHarness {
+    #[command(subcommand)]
+    cmd: UsersCommands,
+}
+
+async fn run(
+    args: &[&str],
+    ctx: &CommandContext,
+) -> anyhow::Result<systemprompt_extension::cli::CommandOutput> {
+    match args.split_first() {
+        Some((&"users", rest)) => {
+            let cmd =
+                UsersHarness::try_parse_from(std::iter::once("users").chain(rest.iter().copied()))
+                    .unwrap()
+                    .cmd;
+            users::execute(cmd, &crate::boot_ctx::identity(ctx)).await
+        },
+        _ => admin::execute(parse(args), ctx).await,
+    }
 }
 
 fn ctx(pool: &DbPool) -> CommandContext {
@@ -41,14 +64,12 @@ async fn ban_listing_runs_with_and_without_a_source_filter() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    admin::execute(parse(&["users", "ban", "list"]), &ctx)
+    run(&["users", "ban", "list"], &ctx).await.unwrap();
+    run(&["users", "ban", "list", "--limit", "5"], &ctx)
         .await
         .unwrap();
-    admin::execute(parse(&["users", "ban", "list", "--limit", "5"]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(
-        parse(&["users", "ban", "list", "--source", "cov_no_such_source"]),
+    run(
+        &["users", "ban", "list", "--source", "cov_no_such_source"],
         &ctx,
     )
     .await
@@ -60,7 +81,7 @@ async fn checking_an_unbanned_address_reports_it_as_clear() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    admin::execute(parse(&["users", "ban", "check", "198.51.100.7"]), &ctx)
+    run(&["users", "ban", "check", "198.51.100.7"], &ctx)
         .await
         .unwrap();
 }
@@ -82,7 +103,7 @@ async fn ban_writes_are_refused_under_a_database_scope() {
         vec!["users", "ban", "remove", "198.51.100.9", "--yes"],
         vec!["users", "ban", "cleanup"],
     ] {
-        let err = admin::execute(parse(&args), &ctx).await.unwrap_err();
+        let err = run(&args, &ctx).await.unwrap_err();
         assert!(
             format!("{err:#}").contains("Write operations require full profile"),
             "{args:?}: {err:#}"

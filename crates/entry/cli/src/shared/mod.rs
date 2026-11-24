@@ -1,19 +1,16 @@
 //! Cross-command CLI utilities shared across command modules.
 //!
-//! Aggregates the command-result rendering sink, confirmation arguments,
-//! setup database access, text helpers and the database-scoped command
-//! error.
+//! Aggregates the command-result rendering sink, setup database access, text
+//! helpers and the database-scoped command error.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod confirm;
 pub mod ddl;
 pub mod postgres_access;
 pub mod render;
 pub mod text;
 
-pub use confirm::ConfirmArgs;
 pub use render::render_result;
 pub use text::truncate_with_ellipsis;
 

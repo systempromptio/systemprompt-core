@@ -12,6 +12,7 @@ use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool, unique_user_id};
 
@@ -25,6 +26,28 @@ fn parse(args: &[&str]) -> AdminCommands {
     Harness::try_parse_from(std::iter::once("admin").chain(args.iter().copied()))
         .unwrap()
         .cmd
+}
+
+#[derive(Debug, Parser)]
+struct UsersHarness {
+    #[command(subcommand)]
+    cmd: UsersCommands,
+}
+
+async fn run(
+    args: &[&str],
+    ctx: &CommandContext,
+) -> anyhow::Result<systemprompt_extension::cli::CommandOutput> {
+    match args.split_first() {
+        Some((&"users", rest)) => {
+            let cmd =
+                UsersHarness::try_parse_from(std::iter::once("users").chain(rest.iter().copied()))
+                    .unwrap()
+                    .cmd;
+            users::execute(cmd, &crate::boot_ctx::identity(ctx)).await
+        },
+        _ => admin::execute(parse(args), ctx).await,
+    }
 }
 
 fn ctx(pool: &DbPool) -> CommandContext {
@@ -51,21 +74,13 @@ async fn read_only_user_arms_render_against_a_seeded_user() {
     let (user_id, email) = seed(&pool).await;
     let ctx = ctx(&pool);
 
-    admin::execute(parse(&["users", "list", "--limit", "5"]), &ctx)
+    run(&["users", "list", "--limit", "5"], &ctx).await.unwrap();
+    run(&["users", "show", user_id.as_str()], &ctx)
         .await
         .unwrap();
-    admin::execute(parse(&["users", "show", user_id.as_str()]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(parse(&["users", "search", &email]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(parse(&["users", "count"]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(parse(&["users", "stats"]), &ctx)
-        .await
-        .unwrap();
+    run(&["users", "search", &email], &ctx).await.unwrap();
+    run(&["users", "count"], &ctx).await.unwrap();
+    run(&["users", "stats"], &ctx).await.unwrap();
 }
 
 #[tokio::test]
@@ -76,8 +91,8 @@ async fn export_arm_writes_the_requested_file() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("users.json");
 
-    admin::execute(
-        parse(&["users", "export", "--output", path.to_str().unwrap()]),
+    run(
+        &["users", "export", "--output", path.to_str().unwrap()],
         &ctx,
     )
     .await
@@ -96,7 +111,7 @@ async fn show_arm_reports_an_unknown_user() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    let err = admin::execute(parse(&["users", "show", "cov_absent_user"]), &ctx)
+    let err = run(&["users", "show", "cov_absent_user"], &ctx)
         .await
         .unwrap_err();
     assert!(!format!("{err:#}").is_empty());
@@ -108,26 +123,26 @@ async fn session_listing_is_allowed_but_role_and_session_writes_are_not() {
     let (user_id, _email) = seed(&pool).await;
     let ctx = ctx(&pool);
 
-    admin::execute(parse(&["users", "session", "list", user_id.as_str()]), &ctx)
+    run(&["users", "session", "list", user_id.as_str()], &ctx)
         .await
         .unwrap();
 
-    let role_err = admin::execute(
-        parse(&[
+    let role_err = run(
+        &[
             "users",
             "role",
             "assign",
             user_id.as_str(),
             "--roles",
             "user",
-        ]),
+        ],
         &ctx,
     )
     .await
     .unwrap_err();
     assert!(format!("{role_err:#}").contains("Role management operations require full profile"));
 
-    let session_err = admin::execute(parse(&["users", "session", "cleanup", "--yes"]), &ctx)
+    let session_err = run(&["users", "session", "cleanup", "--yes"], &ctx)
         .await
         .unwrap_err();
     assert!(format!("{session_err:#}").contains("Write operations require full profile"));
@@ -138,8 +153,8 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    for args in [vec!["config", "show"], vec!["keys", "generate"]] {
-        let err = admin::execute(parse(&args), &ctx).await.unwrap_err();
+    for args in [vec!["config", "show"]] {
+        let err = run(&args, &ctx).await.unwrap_err();
         assert!(
             format!("{err:#}").contains("requires full profile context"),
             "{args:?}: {err:#}"
@@ -150,9 +165,7 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
     // `admin users`): `session login` against a cloud profile with
     // external_db_access is the command that mints the token remote routing
     // needs, so refusing it made cloud login circular.
-    admin::execute(parse(&["session", "list"]), &ctx)
-        .await
-        .unwrap();
+    run(&["session", "list"], &ctx).await.unwrap();
 }
 
 #[tokio::test]
@@ -167,7 +180,7 @@ async fn user_listing_honours_its_role_and_status_filters() {
         vec!["users", "list", "--status", "active"],
         vec!["users", "list", "--limit", "3", "--offset", "1"],
     ] {
-        admin::execute(parse(&args), &ctx).await.unwrap();
+        run(&args, &ctx).await.unwrap();
     }
 }
 
@@ -196,7 +209,7 @@ async fn user_write_arms_are_refused_under_a_database_scope() {
             user_id.as_str(),
         ],
     ] {
-        let err = admin::execute(parse(&args), &ctx).await.unwrap_err();
+        let err = run(&args, &ctx).await.unwrap_err();
         assert!(
             format!("{err:#}").contains("Write operations require full profile"),
             "{args:?}: {err:#}"

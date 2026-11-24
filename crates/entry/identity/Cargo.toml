@@ -57,12 +57,35 @@ http = [
     "dep:webauthn-rs",
 ]
 
+cli = [
+    "systemprompt-extension/cli",
+    "dep:systemprompt-database",
+    "dep:systemprompt-governance",
+    "dep:systemprompt-identifiers",
+    "dep:systemprompt-logging",
+    "systemprompt-logging/cli",
+    "dep:systemprompt-manifest",
+    "dep:systemprompt-models",
+    "dep:systemprompt-oauth",
+    "dep:systemprompt-security",
+    "dep:systemprompt-users",
+    "dep:anyhow",
+    "dep:chrono",
+    "dep:clap",
+    "dep:hex",
+    "dep:schemars",
+    "dep:serde",
+    "dep:sha2",
+    "dep:thiserror",
+]
+
 [dependencies]
 systemprompt-extension = { workspace = true }
 systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
 systemprompt-governance = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
+systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-oauth = { workspace = true, optional = true }
@@ -71,14 +94,17 @@ systemprompt-provider-contracts = { workspace = true, optional = true }
 systemprompt-security = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 bcrypt = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
+schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }

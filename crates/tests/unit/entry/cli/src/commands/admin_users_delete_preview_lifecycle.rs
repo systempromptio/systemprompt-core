@@ -6,9 +6,9 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
 };
@@ -94,7 +94,7 @@ async fn delete_preview_helper() {
         &context,
         users::execute(
             parse(&["delete", target.id.as_str(), "--dry-run"]),
-            &context,
+            &crate::boot_ctx::identity(&context),
         )
         .await,
     )
