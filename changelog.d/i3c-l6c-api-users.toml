@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "API"
+text = "`repository::session_usage` and the `From<UserError> for ApiHttpError` conversion are removed and the API no longer depends on `systemprompt-users`; the session usage counters are the `DynSessionUsageCounters` the `users` member provides."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`repository::session_usage` and `impl From<UserError> for ApiHttpError` are removed; the crate no longer depends on `systemprompt-users`."

@@ -19,7 +19,6 @@ use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
 use systemprompt_oauth_issuance::DriveSyncError;
 use systemprompt_traits::RepositoryError;
-use systemprompt_users::UserError;
 
 use super::ApiHttpError;
 
@@ -83,12 +82,6 @@ impl From<SecretsBootstrapError> for ApiHttpError {
 impl From<GlobalConfigError> for ApiHttpError {
     fn from(err: GlobalConfigError) -> Self {
         Self(Box::new(ApiError::internal("Configuration not ready", err)))
-    }
-}
-
-impl From<UserError> for ApiHttpError {
-    fn from(err: UserError) -> Self {
-        Self(Box::new(ApiError::from(err)))
     }
 }
 

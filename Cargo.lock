@@ -6615,7 +6615,6 @@ dependencies = [
  "systemprompt-security",
  "systemprompt-storage",
  "systemprompt-traits",
- "systemprompt-users",
  "thiserror 2.0.21",
  "tokio",
  "tower",

@@ -5,11 +5,6 @@
 
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_traits::DynSessionUsageCounters;
-
-pub fn session_usage(db: &DbPool) -> DynSessionUsageCounters {
-    Arc::new(systemprompt_users::SessionRepository::new(db))
-}
 
 pub fn config_plane_state(
     db: &DbPool,
