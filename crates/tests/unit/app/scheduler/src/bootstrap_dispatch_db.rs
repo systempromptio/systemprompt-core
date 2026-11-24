@@ -17,10 +17,8 @@
 use std::sync::Arc;
 use systemprompt_identifiers::JobName;
 
-use systemprompt_scheduler::{
-    JobRunRecord, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
-};
-use systemprompt_test_fixtures::{test_database_url, test_db_pool, unique_instance};
+use systemprompt_scheduler::{JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 fn config_with_bootstrap(bootstrap: Vec<String>, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
@@ -368,59 +366,6 @@ mod distributed_lock_arms {
             .fetch_one(peer.as_mut())
             .await
             .expect("peer unlock");
-    }
-
-    #[tokio::test]
-    async fn fresh_last_run_deduplicates_the_tick() {
-        let fixture_instance = unique_instance();
-        let url = test_database_url();
-        let pool = test_db_pool().await;
-        let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
-
-        let job_name = "cleanup_empty_contexts";
-        let repo = SchedulerRepository::new(&pool);
-        repo.upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
-            .await
-            .expect("seed scheduled_jobs row");
-        repo.update_job_execution(
-            &JobName::new(job_name),
-            JobRunRecord {
-                status: JobStatus::Success,
-                error: None,
-                message: None,
-                next_run: None,
-                instance_id: &fixture_instance,
-            },
-        )
-        .await
-        .expect("stamp last_run = now");
-        let before = repo
-            .find_job(&JobName::new(job_name))
-            .await
-            .expect("find_job")
-            .expect("seeded row")
-            .run_count;
-
-        let config = config_with_bootstrap(vec![job_name.to_owned()], true);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
-        svc.run_bootstrap_jobs(None)
-            .await
-            .expect("a tick-deduplicated dispatch must not abort bootstrap");
-
-        let row = repo
-            .find_job(&JobName::new(job_name))
-            .await
-            .expect("find_job")
-            .expect("row still present");
-        assert_eq!(
-            row.run_count, before,
-            "a peer-completed tick within 900ms must be skipped, not re-run"
-        );
-        assert_eq!(
-            row.last_status.as_deref(),
-            Some(JobStatus::Success.as_str()),
-            "a skipped dispatch must not overwrite the recorded status"
-        );
     }
 }
 

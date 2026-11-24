@@ -45,7 +45,8 @@ pub use plans::{
     RestartPlan, RestartScope, RestartTarget, ServiceSnapshot, StartupPlan, StartupRequest,
 };
 pub use scheduling::{
-    SchedulerHandle, SchedulerService, SchedulerStartup, unknown_job_names, unlisted_job_names,
+    CronInstants, DynSchedulerClock, SchedulerClock, SchedulerHandle, SchedulerService,
+    SchedulerStartup, SystemClock, unknown_job_names, unlisted_job_names,
 };
 pub use service_management::{
     OrphanCleanupReport, OrphanDisposition, OrphanOutcome, ServiceManagementService,

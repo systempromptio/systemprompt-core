@@ -83,6 +83,8 @@ mod retention_holds_db;
 #[cfg(test)]
 mod retention_targets_db;
 #[cfg(test)]
+mod s5a_runs_db;
+#[cfg(test)]
 mod sealed_contexts_db;
 #[cfg(test)]
 mod service_config_manifest;

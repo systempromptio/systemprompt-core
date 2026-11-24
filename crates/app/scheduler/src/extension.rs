@@ -1,8 +1,8 @@
 //! The scheduler member: schemas, migrations and the kernel's built-in jobs.
 //!
-//! It owns the `scheduled_jobs`, config-plane, OTLP export and licence
-//! check-in schemas and migrations, and the built-in jobs (config reconcile,
-//! licence check-in, the drainers of kernel-owned
+//! It owns the `scheduled_jobs` and `scheduled_job_runs`, config-plane, OTLP
+//! export and licence check-in schemas and migrations, and the built-in jobs
+//! (config reconcile, licence check-in, the drainers of kernel-owned
 //! projections, database cleanup, Vertex discovery and,
 //! with `otel`, the OTLP export).
 //!
@@ -59,6 +59,16 @@ fn schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/scheduled_jobs.sql"),
         )
         .with_required_columns(vec!["id".into(), "job_name".into(), "created_at".into()]),
+        SchemaDefinition::new(
+            "scheduled_job_runs",
+            include_str!("../schema/scheduled_job_runs.sql"),
+        )
+        .with_required_columns(vec![
+            "job_name".into(),
+            "scheduled_at".into(),
+            "instance_key".into(),
+            "fencing_token".into(),
+        ]),
         SchemaDefinition::new(
             "config_plane_state",
             include_str!("../schema/config_plane_state.sql"),

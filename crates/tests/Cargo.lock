@@ -12244,6 +12244,7 @@ version = "0.86.2"
 dependencies = [
  "async-trait",
  "chrono",
+ "croner",
  "futures",
  "hex",
  "metrics",

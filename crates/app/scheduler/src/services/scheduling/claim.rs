@@ -1,30 +1,52 @@
-//! Per-tick job claims: who may run a job when several replicas tick together.
+//! Per-instant job claims: who runs a job when several replicas tick together.
+//!
+//! A tick is a [`Trigger::Scheduled`] for the cron instant it belongs to
+//! (see [`super::instants`]) or a [`Trigger::Bootstrap`] run at scheduler
+//! start.
 //!
 //! [`ClaimPolicy::None`] is the single-process case (no distributed lock
-//! configured). [`ClaimPolicy::Cluster`] takes the cross-replica advisory
-//! lock for the run and then skips a tick whose job row records a run less
-//! than 900 ms ago. The lock is released when the job ends, so a replica whose
-//! tick arrives later than that window (clock skew plus tick jitter) runs the
-//! job again: delivery is at-least-once per tick, and an idle run writes no
-//! `last_run` for the window to compare against. [`ClaimPolicy::Node`] runs on
-//! every replica and only de-duplicates against this replica's own last run
-//! (`scheduled_jobs.last_instance_id`), so other replicas never starve it.
+//! configured): every tick runs and nothing is claimed.
+//! [`ClaimPolicy::Cluster`] takes the job's cross-replica advisory lock, which
+//! excludes a run that overlaps one still going on another replica, and then
+//! claims the instant's
+//! run row ([`crate::repository::JobRunRepository::claim`]); the row insert
+//! is the judgement, so of two replicas ticking for one instant exactly one
+//! runs, whatever their clocks read and however late the second arrives.
+//! [`ClaimPolicy::Node`] claims the instant's row under its own instance, so
+//! it runs once per instant on every replica and other replicas never starve
+//! it. A bootstrap run is per boot, not per instant: a cluster-scoped one runs
+//! under the advisory lock alone.
+//!
+//! The claim fails closed. A database error while taking the lock or claiming
+//! the row skips the tick (the run for that instant may then be lost: at most
+//! once under a database outage), never runs it unclaimed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_traits::{Job as JobTrait, JobScope};
 use tracing::{debug, error};
 
 use crate::models::{JobConfig, SchedulerConfig};
-use crate::repository::{JobLockGuard, SchedulerRepository};
+use crate::repository::{JobLockGuard, RunClaim, RunKey, SchedulerRepository};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ClaimPolicy {
     None,
     Cluster,
     Node { instance_id: InstanceId },
+}
+
+impl ClaimPolicy {
+    pub(super) fn run_key(&self) -> Option<RunKey> {
+        match self {
+            Self::None => None,
+            Self::Cluster => Some(RunKey::Cluster),
+            Self::Node { instance_id } => Some(RunKey::Node(instance_id.clone())),
+        }
+    }
 }
 
 pub(crate) fn claim_policy(
@@ -47,79 +69,84 @@ pub(crate) fn claim_policy(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Trigger {
+    Scheduled(DateTime<Utc>),
+    Bootstrap,
+}
+
 pub(super) enum Claim {
-    Held(JobLockGuard),
-    Free,
+    Run {
+        lock: Option<JobLockGuard>,
+        run: Option<RunClaim>,
+    },
     Skip,
 }
 
-const TICK_DEDUPE_WINDOW_MS: i64 = 900;
-
-async fn ran_within_dedupe_window(
+pub(super) async fn acquire(
+    policy: &ClaimPolicy,
+    trigger: Trigger,
     job_name: &JobName,
-    repository: &SchedulerRepository,
-    same_instance: Option<&InstanceId>,
-) -> bool {
-    match repository.find_job(job_name).await {
-        Ok(Some(job)) => {
-            let instance_matches =
-                same_instance.is_none_or(|id| job.last_instance_id.as_ref() == Some(id));
-            job.last_run.is_some_and(|last_run| {
-                instance_matches
-                    && chrono::Utc::now().signed_duration_since(last_run)
-                        < chrono::Duration::milliseconds(TICK_DEDUPE_WINDOW_MS)
-            })
-        },
-        Ok(None) => false,
-        Err(e) => {
-            error!(job_name = %job_name, error = %e, "Failed to read job row for tick de-duplication");
-            false
-        },
-    }
-}
-
-pub(super) async fn acquire_node_claim(
-    job_name: &JobName,
-    instance_id: &InstanceId,
+    claimer: &InstanceId,
     repository: &SchedulerRepository,
 ) -> Claim {
-    if ran_within_dedupe_window(job_name, repository, Some(instance_id)).await {
-        debug!(job_name = %job_name, "node-scoped job already ran on this replica for this tick, skipping");
-        return Claim::Skip;
-    }
-    Claim::Free
-}
-
-pub(super) async fn acquire_cluster_claim(
-    job_name: &JobName,
-    repository: &SchedulerRepository,
-) -> Claim {
-    let guard = match repository.try_acquire_job_lock(job_name).await {
-        Ok(Some(guard)) => guard,
-        Ok(None) => {
-            skipped_by_lock(job_name);
-            return Claim::Skip;
+    let lock = match policy {
+        ClaimPolicy::None => {
+            return Claim::Run {
+                lock: None,
+                run: None,
+            };
         },
-        Err(e) => {
-            error!(job_name = %job_name, error = %e, "Failed to acquire distributed job lock");
-            return Claim::Skip;
+        ClaimPolicy::Cluster => match repository.try_acquire_job_lock(job_name).await {
+            Ok(Some(guard)) => Some(guard),
+            Ok(None) => {
+                skipped(job_name, "job is running on another replica");
+                return Claim::Skip;
+            },
+            Err(e) => {
+                error!(job_name = %job_name, error = %e, "Failed to acquire distributed job lock; skipping this tick");
+                return Claim::Skip;
+            },
         },
+        ClaimPolicy::Node { .. } => None,
     };
-
-    if ran_within_dedupe_window(job_name, repository, None).await {
-        guard.release().await;
-        skipped_by_lock(job_name);
-        return Claim::Skip;
+    let (Trigger::Scheduled(scheduled_at), Some(key)) = (trigger, policy.run_key()) else {
+        return Claim::Run { lock, run: None };
+    };
+    match repository
+        .runs()
+        .claim(job_name, scheduled_at, &key, claimer)
+        .await
+    {
+        Ok(Some(run)) => Claim::Run {
+            lock,
+            run: Some(run),
+        },
+        Ok(None) => {
+            release(lock).await;
+            skipped(job_name, "instant already claimed");
+            Claim::Skip
+        },
+        Err(e) => {
+            release(lock).await;
+            error!(job_name = %job_name, %scheduled_at, error = %e, "Failed to claim the job's run for this instant; skipping it");
+            Claim::Skip
+        },
     }
-
-    Claim::Held(guard)
 }
 
-fn skipped_by_lock(job_name: &JobName) {
+async fn release(lock: Option<JobLockGuard>) {
+    if let Some(lock) = lock {
+        lock.release().await;
+    }
+}
+
+fn skipped(job_name: &JobName, reason: &'static str) {
     debug!(
         monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
         job_name = %job_name,
+        reason,
         event = "scheduler.job.skipped_by_lock",
-        "job already claimed for this tick by another replica, skipping"
+        "job's run for this tick is claimed elsewhere, skipping"
     );
 }

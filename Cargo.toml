@@ -264,6 +264,7 @@ ttf-parser = "0.25"
 png = "0.18"
 tar = "0.4"
 tokio-cron-scheduler = "0.15"
+croner = "3.0"
 maxminddb = "0.32"
 
 # Additional utilities

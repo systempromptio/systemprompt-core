@@ -1,11 +1,14 @@
-//! The [`JobContext`] every dispatched job receives: the kernel's runtime
-//! state ([`systemprompt_runtime::Kernel::runtime_state`]: the open seeds,
-//! every admitted member's provided values and built slots, the
+//! The [`JobContext`] every dispatched job receives: the kernel's state (the
+//! open seeds, every admitted member's provided values and built slots, the
 //! [`AdmittedSchedule`] the retention job reads its purges, sweeps and holds
-//! from, and the [`AdmittedProjections`] the drainers read, every sealed seed
-//! withheld) extended with only the per-run handle: the budgeted database. No
-//! signing key, secret, profile or runtime
-//! `Config` is in it.
+//! from, and the [`AdmittedProjections`] the drainers read) resolved for the
+//! job's admitted owner ([`JobContext::for_member`]): every sealed entry is
+//! withheld except the sealed values that owner provided itself, so a member's
+//! job reads its own sealed value and never another member's or a host-sealed
+//! seed. It is extended with only the per-run handle: the budgeted database.
+//! No signing key, secret, profile or runtime `Config` is in it.
+//! [`job_dependencies`] is that same map, which the start-time requirement
+//! check reads.
 //!
 //! A job the scheduler member itself contributes is kernel work and also
 //! receives [`KernelJobHandles`]. The type is private to this crate, so no
@@ -65,16 +68,33 @@ pub(crate) fn make_job_context(
     app_context: &Arc<AppContext>,
     schedule: &AdmittedSchedule,
 ) -> JobContext {
-    let mut dependencies = app_context.kernel().runtime_state().with(BudgetedDb::new(
-        Arc::clone(app_context.db_pool()),
-        run.budget,
-    ));
-    if is_kernel_job(schedule, run.job_name) {
+    let dependencies = job_dependencies(run.job_name, run.budget, app_context, schedule);
+    match schedule.owner_of(run.job_name.as_str()) {
+        Some((owner, _)) => JobContext::for_member(run.actor, dependencies, owner),
+        None => JobContext::new(run.actor, dependencies),
+    }
+}
+
+pub(crate) fn job_dependencies(
+    job_name: &JobName,
+    budget: Option<DbBudget>,
+    app_context: &Arc<AppContext>,
+    schedule: &AdmittedSchedule,
+) -> Dependencies {
+    let mut dependencies = app_context
+        .kernel()
+        .state()
+        .clone()
+        .with(BudgetedDb::new(Arc::clone(app_context.db_pool()), budget));
+    if is_kernel_job(schedule, job_name) {
         dependencies.insert(KernelJobHandles {
             app: Arc::clone(app_context),
         });
     }
-    JobContext::new(run.actor, dependencies)
+    match schedule.owner_of(job_name.as_str()) {
+        Some((owner, _)) => dependencies.withholding_sealed_except(owner),
+        None => dependencies.withholding_sealed(),
+    }
 }
 
 fn is_kernel_job(schedule: &AdmittedSchedule, job_name: &JobName) -> bool {
