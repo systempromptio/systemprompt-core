@@ -114,6 +114,12 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
     ),
     cli(
         CoreId::MarketplaceHttp,
+        &["core", "services", "validate"],
+        &[],
+        &[],
+    ),
+    cli(
+        CoreId::MarketplaceHttp,
         &["core", "skills"],
         &[KernelGrant::ServicesTree],
         &[CommandClaim::LocalDatabase, CommandClaim::PreservesData],

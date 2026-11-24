@@ -52,6 +52,8 @@ cli = [
     "dep:serde",
     "dep:serde_json",
     "dep:serde_yaml",
+    "dep:tempfile",
+    "dep:thiserror",
     "dep:tracing",
 ]
 
@@ -70,6 +72,7 @@ schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }

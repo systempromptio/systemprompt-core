@@ -13,6 +13,8 @@ pub use diff::{ChangeKind, FileChange, diff_files};
 mod doctor;
 pub use doctor::{GitCredentialCheck, GitSourceProbes, classify_git_credentials};
 mod error;
+mod git_directory;
+pub use git_directory::GitSourceDirectory;
 pub mod git_execution;
 pub mod git_sources;
 mod import;

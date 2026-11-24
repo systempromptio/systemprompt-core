@@ -20,6 +20,9 @@
 //!   member job, command or route state can resolve. The open, crate-private
 //!   `Arc<MemberRefresher>` is the `managed_inventory_refresh` job's narrow
 //!   view: it publishes only as the configured owner;
+//! - after governance, the open `DynGitCredentialDirectory` (the registered
+//!   Git sources with a credential label and the secret name each resolves
+//!   to) the kernel's `admin config secret migrate-git-credentials` reads;
 //! - after governance, two separate values bound to the system admin's managed
 //!   inventory. `Arc<OwnerSkillView>` is open: the `core skills` commands list
 //!   and resolve the owner's own skills through it, with no consumer parameter
@@ -40,7 +43,9 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
-use systemprompt_traits::{DynInventoryPublisher, DynManagedSkillResolver};
+use systemprompt_traits::{
+    DynGitCredentialDirectory, DynInventoryPublisher, DynManagedSkillResolver,
+};
 use tokio::sync::Mutex;
 
 use crate::catalog::MarketplaceCache;
@@ -50,8 +55,8 @@ use crate::inventory::{
 };
 use crate::managed::git_sources::GitCredentialReferences;
 use crate::managed::{
-    GitCredentialCheck, GitSourceProbes, ManagedRepository, OrganizationSkillResolver,
-    OwnerSkillView, PublicationPolicy,
+    GitCredentialCheck, GitSourceDirectory, GitSourceProbes, ManagedRepository,
+    OrganizationSkillResolver, OwnerSkillView, PublicationPolicy,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -133,6 +138,14 @@ fn provide_state(c: &mut Contributions<'_>) {
         .provide_sealed_after_governance(
             |r: &Resolved<'_>| -> Result<DynInventoryPublisher, ProvideError> {
                 Ok(Arc::new(InventoryRefresher::new(refresher_parts(r)?)))
+            },
+        )
+        .provide_after_governance(
+            |r: &Resolved<'_>| -> Result<DynGitCredentialDirectory, ProvideError> {
+                let repository = r.get::<Arc<ManagedRepository>>()?;
+                Ok(Arc::new(GitSourceDirectory::new(
+                    repository.as_ref().clone(),
+                )))
             },
         )
         .provide_after_governance(|r: &Resolved<'_>| {

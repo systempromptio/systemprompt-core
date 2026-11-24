@@ -10,10 +10,9 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_cli::core::services::bundle::{BundleArgs, pack_bundle};
-use systemprompt_cli::core::services::validate::{ValidateArgs, execute, run};
-use systemprompt_cli::core::services::{self, ServicesCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_extension::cli::CliCommandLeaf;
+use systemprompt_marketplace_entry::cli::services::validate::{ValidateArgs, execute, run};
 
 fn write(root: &Path, relative: &str, body: &str) {
     let path = root.join(relative);
@@ -62,16 +61,11 @@ fn args(root: &Path, base: Option<PathBuf>, strict: bool) -> ValidateArgs {
 }
 
 fn ctx() -> CommandContext {
-    crate::boot_ctx::new_with_boot(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    )
+    CommandContext::new(crate::common::json_cli(), EnvOverrides::default())
 }
 
 fn finding(
-    findings: &[systemprompt_cli::core::services::validate::Finding],
+    findings: &[systemprompt_marketplace_entry::cli::services::validate::Finding],
     check: &str,
 ) -> String {
     findings
@@ -172,23 +166,52 @@ fn a_clean_tree_passes_and_strictness_does_not_change_that() {
 }
 
 #[tokio::test]
-async fn services_dispatcher_returns_success_for_a_clean_tree_and_fails_the_ci_gate_for_invalid_input()
- {
+async fn the_validate_leaf_returns_success_for_a_clean_tree_and_fails_the_ci_gate_with_its_report()
+{
     let dir = tempfile::tempdir().expect("tempdir");
     let clean = dir.path().join("clean");
     platform_tree(&clean);
+    let ctx = ctx();
 
-    services::execute(ServicesCommands::Validate(args(&clean, None, true)), &ctx())
+    CliCommandLeaf::run(args(&clean, None, true), &ctx)
         .await
-        .expect("a clean services tree passes through the CLI dispatcher");
+        .expect("a clean services tree passes through the leaf");
 
     let marketplace = dir.path().join("marketplace");
     marketplace_tree(&marketplace);
-    let err = services::execute(
-        ServicesCommands::Validate(args(&marketplace, None, true)),
-        &ctx(),
-    )
-    .await
-    .expect_err("the strict CLI validation gate must fail a marketplace-only tree without a base");
-    assert!(format!("{err:#}").contains("Services validation failed"));
+    let err = CliCommandLeaf::run(args(&marketplace, None, true), &ctx)
+        .await
+        .expect_err("the strict validation gate must fail a marketplace-only tree without a base");
+    assert!(err.to_string().contains("Services validation failed"));
+    assert!(
+        err.output().is_some(),
+        "the failing report is rendered before the failure"
+    );
+}
+
+#[derive(Debug, clap::Parser)]
+struct ValidateHarness {
+    #[command(flatten)]
+    args: ValidateArgs,
+}
+
+#[test]
+fn validate_takes_a_root_a_base_and_a_previous_bundle() {
+    use clap::Parser;
+    let parsed = ValidateHarness::try_parse_from([
+        "validate",
+        "--root",
+        "services",
+        "--base",
+        "base.tar.gz",
+        "--against",
+        "prev.tar.gz",
+        "--strict",
+    ])
+    .expect("parses")
+    .args;
+    assert_eq!(parsed.root, PathBuf::from("services"));
+    assert!(parsed.base.is_some());
+    assert!(parsed.against.is_some());
+    assert!(parsed.strict);
 }

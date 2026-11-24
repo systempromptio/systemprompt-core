@@ -1,0 +1,23 @@
+[root]
+section = "Changed"
+text = "`core services validate` is the `marketplace-http` member's leaf under the kernel's `core services` group (reserved row `core services validate`, no grant), and `admin config secret migrate-git-credentials` reads the Git sources and their credential names through the `managed_resources` member's open `DynGitCredentialDirectory`. The CLI kernel no longer depends on `systemprompt-marketplace`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`core::services::{validate, staging, versions}` and `ServicesCommands::Validate` are removed (now `systemprompt_marketplace_entry::cli::services`); `admin::config::git_credentials::{plan_renames, migrate_file}` take the credential naming function."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`GitCredentialDirectory`, `DynGitCredentialDirectory` and `GitCredentialReadError`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`cli::parents::Services` (`core services`) and the reserved CLI row `core services validate` held by `marketplace-http`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Added"
+text = "`managed::GitSourceDirectory`, provided open after governance as `DynGitCredentialDirectory`."

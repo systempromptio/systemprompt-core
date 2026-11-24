@@ -21,13 +21,14 @@
 //!
 //! With `cli` it contributes the `core marketplace`, `core plugins` and
 //! `core skills` groups under the kernel's `core` group, each requesting
-//! `KernelGrant::ServicesTree`, the grant their reserved CLI rows list. The
-//! `core skills` commands resolve the owner-bound
+//! `KernelGrant::ServicesTree`, the grant their reserved CLI rows list, and
+//! the grant-free `core services validate` leaf under the kernel's `core
+//! services` group. The `core skills` commands resolve the owner-bound
 //! `Arc<OwnerSkillView>` the `managed_resources` member provides.
 //!
 //! | profile disables | `/api/v1/marketplace` | CLI |
 //! |---|---|---|
-//! | `marketplace-http` | 404 (consumer routes too) | `core marketplace`, `core plugins`, `core skills` refused at dispatch |
+//! | `marketplace-http` | 404 (consumer routes too) | `core marketplace`, `core plugins`, `core skills`, `core services validate` refused at dispatch |
 //! | `managed_resources` | boot refused (required member) | boot refused (required member) |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -109,7 +110,7 @@ mod commands {
     use systemprompt_extension::prelude::*;
     use systemprompt_marketplace::managed::OwnerSkillView;
 
-    use crate::cli::{MarketplaceCommands, PluginsCommands, SkillsCommands};
+    use crate::cli::{MarketplaceCommands, PluginsCommands, SkillsCommands, ValidateArgs};
 
     const SERVICES_TREE: &[KernelGrant] = &[KernelGrant::ServicesTree];
 
@@ -124,6 +125,7 @@ mod commands {
                 CommandDecl::group_under::<parents::Core, PluginsCommands>()
                     .requesting(SERVICES_TREE),
             )
+            .command(CommandDecl::leaf_under::<parents::Services, ValidateArgs>())
             .command(
                 CommandDecl::group_under::<parents::Core, SkillsCommands>()
                     .requesting(SERVICES_TREE)

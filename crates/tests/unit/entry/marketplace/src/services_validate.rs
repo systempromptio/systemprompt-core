@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_cli::core::services::bundle::{BundleArgs, pack_bundle};
-use systemprompt_cli::core::services::validate::{ValidateArgs, run};
+use systemprompt_marketplace_entry::cli::services::validate::{ValidateArgs, run};
 
 fn write(root: &Path, relative: &str, body: &str) {
     let path = root.join(relative);
