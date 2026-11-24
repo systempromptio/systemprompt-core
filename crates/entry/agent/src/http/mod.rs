@@ -188,10 +188,12 @@ impl FromState for AgentRegistryState {
     }
 }
 
-/// The `agent-http` member's [`AgentSurface`]: the webhook broadcasts over
-/// [`AgentHttpState`], the streams over the member's [`StreamFeeds`] and a
-/// context provider on the same repositories, and the well-known agent cards
-/// over the services view and the open [`AgentCardSite`].
+/// The `agent-http` member's [`AgentSurface`].
+///
+/// The webhook broadcasts run over [`AgentHttpState`], the streams over the
+/// member's [`StreamFeeds`] and a context provider on the same repositories,
+/// and the well-known agent cards over the services view and the open
+/// [`AgentCardSite`].
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentHttpSurface;
 

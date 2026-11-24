@@ -10,9 +10,9 @@
 //! exact `/api/v1/agents/registry` reservation belongs to `agent-http`: with
 //! the member not admitted an authenticated caller gets 404 there, from its
 //! own declaration under the user context, so the request never reaches the
-//! proxy's `/{service_name}` route or its A2A context extraction. The well-known agent cards are merged under the
-//! public discovery declaration. Every surface route is absent (404) when
-//! `agent-http` is not admitted.
+//! proxy's `/{service_name}` route or its A2A context extraction. The
+//! well-known agent cards are merged under the public discovery declaration.
+//! Every surface route is absent (404) when `agent-http` is not admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
