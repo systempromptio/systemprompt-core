@@ -22,6 +22,7 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_runtime::AppContext;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
     AuthedFixture, TestBootstrap, init_services_bootstrap, seed_admin_credential,
     settle_background, test_app_context_on, test_db_pool,
@@ -371,6 +372,7 @@ mod streaming {
     use super::{MODEL, SECRET_NAME, credential, drain_background, upstream_response};
     use std::sync::Arc;
     use systemprompt_runtime::AppContext;
+    use systemprompt_test_fixtures::AppContextSeeds as _;
 
     use anyhow::Result;
     use axum::body::Body;

@@ -6,13 +6,14 @@
 //! drives the context's governance watch through one epoch reload. A test
 //! whose plane is deliberately empty records the plane as applied instead.
 
+use crate::AppContextSeeds as _;
 use std::time::Duration;
 
 use systemprompt_database::{DbPool, PgConfigVersion, PlaneTransaction};
 use systemprompt_extension::prelude::{
     ChangeSource, ConfigPlane, PlaneContext, PlaneTx, ResolvedEntities, ResolvedEntity,
 };
-use systemprompt_governance::policy::{GovernancePlane, GOVERNANCE_FILE};
+use systemprompt_governance::policy::{GOVERNANCE_FILE, GovernancePlane};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{CacheDomain, Dependencies, WatchSignals};
 
@@ -70,7 +71,7 @@ pub async fn apply_governance(ctx: &AppContext, yaml: &str) -> anyhow::Result<()
     ctx.governance_watch()
         .spawn(ctx.background_tasks(), signals, move || {
             let ctx = reload_ctx.clone();
-            async move { ctx.load_governance().await }
+            async move { systemprompt_runtime::reload_governance(ctx.kernel()).await }
         });
     let start = ctx.governance_watch().reloads();
     for _ in 0..500 {

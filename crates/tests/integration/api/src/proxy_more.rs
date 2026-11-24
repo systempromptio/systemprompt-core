@@ -14,6 +14,7 @@ use systemprompt_api::services::proxy::service::external::outbound_headers;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::McpDomainError;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use uuid::Uuid;
 
 use super::common::setup_ctx;

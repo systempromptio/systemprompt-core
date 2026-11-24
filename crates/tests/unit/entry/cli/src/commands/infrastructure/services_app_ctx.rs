@@ -11,6 +11,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};

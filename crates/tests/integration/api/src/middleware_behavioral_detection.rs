@@ -9,6 +9,7 @@
 
 use systemprompt_analytics::collect_analysis_input;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
 use systemprompt_traits::DetectionSubject;
 

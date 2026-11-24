@@ -46,7 +46,8 @@ mod bootstrap_dispatch_db {
         // (the inventory catalog size) is still returned and must be non-zero
         // because the crate registers built-in jobs via `submit_job!`.
         let config = config_with_bootstrap(Vec::new(), true);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let count = svc
             .run_bootstrap_jobs(None)
@@ -70,7 +71,8 @@ mod bootstrap_dispatch_db {
         // path is deterministic.
         let job_name = crate::test_jobs::WORKING_JOB;
         let config = config_with_bootstrap(vec![job_name.to_owned()], false);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         // The bootstrap dispatch path only *updates* an existing scheduled_jobs
         // row — `record_run` returns early when the row is absent — mirroring a
@@ -114,7 +116,8 @@ mod bootstrap_dispatch_db {
         let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
 
         let config = config_with_bootstrap(vec!["totally_unregistered_job_xyz".to_owned()], true);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let err = svc
             .run_bootstrap_jobs(None)
@@ -138,7 +141,8 @@ mod bootstrap_dispatch_db {
         // the lock-acquisition branch of dispatch.rs.
         let job_name = crate::test_jobs::WORKING_JOB;
         let config = config_with_bootstrap(vec![job_name.to_owned()], true);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
         SchedulerRepository::new(&pool)
             .upsert_job(&JobName::new(job_name), "0 0 * * * *", true)
             .await
@@ -181,6 +185,7 @@ mod bootstrap_dispatch_db {
 
         let config = config_with_bootstrap(vec![job_name.to_owned()], false);
         SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler")
             .run_bootstrap_jobs(None)
             .await
             .expect("an idle bootstrap run must succeed");
@@ -212,7 +217,8 @@ mod dispatch_outcome_arms {
             .expect("seed scheduled_jobs row");
 
         let config = config_with_bootstrap(vec![PANIC_JOB.to_owned()], false);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         svc.run_bootstrap_jobs(None)
             .await
@@ -248,7 +254,8 @@ mod dispatch_outcome_arms {
             .expect("seed scheduled_jobs row");
 
         let config = config_with_bootstrap(vec![FAILING_JOB.to_owned()], false);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         svc.run_bootstrap_jobs(None)
             .await
@@ -287,7 +294,8 @@ mod dispatch_outcome_arms {
         .expect("clear any pre-existing test-job row");
 
         let config = config_with_bootstrap(vec![FAILING_JOB.to_owned()], false);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         // Dispatch only UPDATEs the scheduled_jobs row; with no row present the
         // bootstrap completion probe hits its row-missing arm and the pass still
@@ -346,7 +354,8 @@ mod distributed_lock_arms {
         );
 
         let config = config_with_bootstrap(vec![job_name.to_owned()], true);
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
         svc.run_bootstrap_jobs(None)
             .await
             .expect("a lock-skipped dispatch must not abort bootstrap");
@@ -383,7 +392,8 @@ mod closed_pool_resilience {
         // failure recording) and the job body itself fail against the closed
         // pool; dispatch logs each error and the bootstrap pass still succeeds.
         let config = config_with_bootstrap(vec!["cleanup_inactive_sessions".to_owned()], false);
-        let svc = SchedulerService::new(config, &closed, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &closed, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let count = svc
             .run_bootstrap_jobs(None)
@@ -401,7 +411,8 @@ mod closed_pool_resilience {
         // With distributed_lock enabled, the advisory-lock acquisition fails on
         // the closed pool and the dispatch is skipped rather than run.
         let config = config_with_bootstrap(vec!["cleanup_inactive_sessions".to_owned()], true);
-        let svc = SchedulerService::new(config, &closed, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &closed, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let count = svc
             .run_bootstrap_jobs(None)
@@ -444,7 +455,8 @@ mod bootstrap_owner_arms {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         svc.run_bootstrap_jobs(None)
             .await
@@ -506,7 +518,8 @@ mod bootstrap_owner_arms {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         svc.run_bootstrap_jobs(None)
             .await

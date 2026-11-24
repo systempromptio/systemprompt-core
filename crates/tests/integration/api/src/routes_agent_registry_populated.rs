@@ -11,6 +11,7 @@ use axum::Extension;
 use systemprompt_agent_entry::http::registry::create_mcp_extensions_from_config;
 use systemprompt_agent_entry::http::registry_routes;
 use systemprompt_database::DbPool;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
     ensure_messaging_bootstrap, seed_running_service, test_app_context_on, test_db_pool,
     test_messaging_agent,

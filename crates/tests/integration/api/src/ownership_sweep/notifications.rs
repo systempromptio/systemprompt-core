@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::Result;
 use axum::body::Body;

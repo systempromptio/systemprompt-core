@@ -5,6 +5,7 @@
 
 use std::os::unix::fs::PermissionsExt;
 use std::process::{Child, Command};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};

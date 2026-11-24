@@ -1,8 +1,7 @@
 //! Tests for health check, list agents, and verify token API methods.
 
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
-use wiremock::matchers::{header, method, path};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn response_meta() -> serde_json::Value {

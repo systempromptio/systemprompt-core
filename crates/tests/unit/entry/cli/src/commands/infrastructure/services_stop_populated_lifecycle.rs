@@ -4,6 +4,7 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use clap::Parser;
 use serde_json::Value;

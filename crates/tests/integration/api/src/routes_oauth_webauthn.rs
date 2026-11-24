@@ -14,6 +14,8 @@
 //! the passkey ceremony proves who the user is, not that the request in the
 //! query string is the one `/authorize` admitted.
 
+use systemprompt_test_fixtures::AppContextSeeds;
+
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
@@ -48,8 +50,8 @@ async fn setup_webauthn_ctx() -> anyhow::Result<(
 async fn webauthn_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_webauthn_ctx().await?;
     let webauthn = WebAuthnService::new(
-        &ctx.config().api_external_url,
-        &ctx.config().sitename,
+        &AppContextSeeds::config(&*ctx).api_external_url,
+        &AppContextSeeds::config(&*ctx).sitename,
         systemprompt_test_fixtures::oauth_repositories(&ctx)
             .oauth
             .clone(),
@@ -240,8 +242,8 @@ async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
     let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let (_pool, ctx) = setup_webauthn_ctx().await?;
     let service = WebAuthnService::new(
-        &ctx.config().api_external_url,
-        &ctx.config().sitename,
+        &AppContextSeeds::config(&*ctx).api_external_url,
+        &AppContextSeeds::config(&*ctx).sitename,
         repo,
         ctx.user_provider().expect("user"),
     )

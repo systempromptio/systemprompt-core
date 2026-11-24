@@ -1,6 +1,7 @@
 //! Unit tests for database repository module
 
 mod coordination_db;
+mod lease_release_fencing_db;
 mod log_retention;
 mod presence_db;
 mod release_stamp_db;

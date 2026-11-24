@@ -3,6 +3,7 @@
 use axum::Router;
 use systemprompt_cloud_entry::http::SyncState;
 use systemprompt_runtime::AppContext;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 
 use super::common::{empty_get, setup_ctx};

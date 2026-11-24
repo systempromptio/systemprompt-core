@@ -32,6 +32,8 @@ mod profile_interpolation;
 #[cfg(test)]
 mod provider_settings;
 #[cfg(test)]
+mod rate_limits_memory_capacity;
+#[cfg(test)]
 mod resolved_catalog;
 #[cfg(test)]
 mod resolved_routes;

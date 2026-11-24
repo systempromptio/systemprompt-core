@@ -9,6 +9,7 @@
 
 use std::sync::Arc;
 use systemprompt_gateway_entry::http::messages::error::RejectionError;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::Result;
 use axum::body::Body;

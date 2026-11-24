@@ -89,7 +89,7 @@ pub fn job_service(
     let mut config = SchedulerConfig::with_system_admin();
     config.jobs = jobs;
     config.distributed_lock = false;
-    JobExecutionService::new(app, config, schedule)
+    JobExecutionService::new(app, config, schedule).expect("job execution service")
 }
 
 pub async fn run_admitted_job(

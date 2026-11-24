@@ -40,6 +40,7 @@ pub mod poll;
 pub mod schema_template;
 pub mod scratch_schema;
 pub mod secrets;
+pub mod seeds;
 #[cfg(test)]
 mod self_check;
 pub mod service_row;
@@ -48,51 +49,53 @@ pub mod slots;
 pub mod subprocess;
 pub mod usage;
 pub mod user;
+
+pub use seeds::AppContextSeeds;
 pub mod web_config;
 
 pub use agent::{
-    a2a_dependencies, a2a_repositories, not_managed_skills, scripted_skills, tool_execution_ledger,
-    NotManagedSkills, ScriptedSkills, ToolExecutionLedger,
+    NotManagedSkills, ScriptedSkills, ToolExecutionLedger, a2a_dependencies, a2a_repositories,
+    not_managed_skills, scripted_skills, tool_execution_ledger,
 };
 pub use app_context::{
-    bound_notification_hub, default_governance_engine, default_governance_watch, files_config,
-    fixture_admitted, fixture_admitted_of, fixture_admitted_without,
-    fixture_analytics_repositories, fixture_app_context_on_bootstrap,
-    fixture_app_context_reloaded_on, fixture_app_context_reloaded_with,
-    fixture_app_context_with_build, fixture_app_context_with_config,
-    fixture_app_context_with_extensions, fixture_app_context_with_filter,
-    fixture_app_context_with_hook, fixture_app_context_with_hook_over,
-    fixture_app_context_with_services, fixture_artifact_ingest, fixture_config,
-    fixture_context_builder, fixture_core_members, fixture_event_bridge,
+    FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER, FixtureSeedParts, bound_notification_hub,
+    default_governance_engine, default_governance_watch, files_config, fixture_admitted,
+    fixture_admitted_of, fixture_admitted_without, fixture_analytics_repositories,
+    fixture_app_context_on_bootstrap, fixture_app_context_reloaded_on,
+    fixture_app_context_reloaded_with, fixture_app_context_with_build,
+    fixture_app_context_with_config, fixture_app_context_with_extensions,
+    fixture_app_context_with_filter, fixture_app_context_with_hook,
+    fixture_app_context_with_hook_over, fixture_app_context_with_services, fixture_artifact_ingest,
+    fixture_config, fixture_context_builder, fixture_core_members, fixture_event_bridge,
     fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_kernel_seed,
     fixture_secret_store, fixture_services_state, fixture_services_view, fixture_session_store,
     fixture_session_usage, fixture_subject_providers, fixture_upstream_issuer, host_admitted,
     oauth_repositories, offline_kernel, offline_rate_windows, seed_fixture_system_admin_at,
     test_app_context, test_app_context_on, test_app_context_on_with, test_config, test_config_with,
-    user_repository, FixtureSeedParts, FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
+    user_repository,
 };
 pub use bootstrap::{
+    FIXTURE_EXTERNAL_URL, FIXTURE_SECRETS_BLOCK, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET,
+    TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
+    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID, TestBootstrap,
     enabled_documents, ensure_messaging_bootstrap, ensure_test_bootstrap, init_documents_bootstrap,
     init_isolated_bootstrap, init_services_bootstrap, init_unloadable_services_bootstrap,
     messaging_config_yaml_with_teams_endpoints, test_boot_active_services_root, test_boot_profile,
-    test_boot_services_root, test_messaging_agent, test_skills_root, TestBootstrap,
-    FIXTURE_EXTERNAL_URL, FIXTURE_SECRETS_BLOCK, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET,
-    TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
-    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+    test_boot_services_root, test_messaging_agent, test_skills_root,
 };
 pub use brain::{
     fixture_brain, fixture_brain_kernel, fixture_brain_kernel_with, fixture_brain_slot,
     seed_brain_fact,
 };
 pub use composed::{
-    empty_resolved_kernel, gateway_kernel_seed, gateway_probe_admitted, gateway_resolved_kernel,
-    offline_resolved_kernel, probe_admitted, resolved_kernel, ComposedParts, Probe,
+    ComposedParts, Probe, empty_resolved_kernel, gateway_kernel_seed, gateway_probe_admitted,
+    gateway_resolved_kernel, offline_resolved_kernel, probe_admitted, resolved_kernel,
 };
 pub use credential::{
-    seed_admin_credential, seed_bridge_client_credential, seed_bridge_credential,
-    seed_bridge_device_credential, seed_drive_credential, seed_fixture_owners,
-    seed_fixture_system_admin, seed_user_row, seed_user_row_with_roles, seed_user_session,
-    AuthedFixture, FixtureOwners,
+    AuthedFixture, FixtureOwners, seed_admin_credential, seed_bridge_client_credential,
+    seed_bridge_credential, seed_bridge_device_credential, seed_drive_credential,
+    seed_fixture_owners, seed_fixture_system_admin, seed_user_row, seed_user_row_with_roles,
+    seed_user_session,
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
@@ -111,31 +114,31 @@ pub use jwt::{
     fixture_verification_keys, mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, session_cookie_with,
     test_oauth_signing, test_signing_keys, test_token_authority,
 };
-pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
+pub use keys::{AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT, next_test_key, test_key};
 pub use keystore::install_headless_keystore;
 pub use liveness::LivePids;
-pub use marketplace::{fixture_admitted_with_filter, fixture_managed_repository, FilterMember};
+pub use marketplace::{FilterMember, fixture_admitted_with_filter, fixture_managed_repository};
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use net::ReservedPort;
 pub use oauth::{
-    oauth_fixture_pepper, oauth_fixture_repository, pkce_pair, seed_oauth_client,
     OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET, TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
+    oauth_fixture_pepper, oauth_fixture_repository, pkce_pair, seed_oauth_client,
 };
 pub use paths::{canonical_tempdir, repo_path, repo_root};
-pub use pdf::{parse_pdf, ParsedPdf};
+pub use pdf::{ParsedPdf, parse_pdf};
 pub use poll::{await_window_headroom, block_on, eventually, settle_background};
 pub use scratch_schema::ScratchSchema;
 pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{
-    announce_helper_ready, bounded_output, helper, spawn_marked_agent, spawn_marked_child,
-    test_spawner, Helper, MarkedChild, HELPER_READY_ENV,
+    HELPER_READY_ENV, Helper, MarkedChild, announce_helper_ready, bounded_output, helper,
+    spawn_marked_agent, spawn_marked_child, test_spawner,
 };
 pub use systemprompt_test_migrate::{
-    admitted_member, core_members, install_core_schemas, schema_admitted, InstallError,
+    InstallError, admitted_member, core_members, install_core_schemas, schema_admitted,
 };
-pub use usage::{usage, usage_update, UsageBuilder};
+pub use usage::{UsageBuilder, usage, usage_update};
 pub use user::{
     fixture_logging_runtime, fixture_system_admin, merging_user_service, unique_user_id,
 };
-pub use web_config::{web_config, WEB_CONFIG_YAML};
+pub use web_config::{WEB_CONFIG_YAML, web_config};

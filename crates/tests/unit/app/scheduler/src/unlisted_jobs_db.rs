@@ -100,7 +100,8 @@ async fn error_mode_refuses_to_start_and_names_the_jobs() {
         &pool,
         app_ctx,
         Arc::clone(&schedule),
-    );
+    )
+    .expect("scheduler");
 
     let err = svc.start().await.expect_err("unlisted jobs must fail boot");
     let SchedulerError::UnlistedJobs { names } = &err else {
@@ -120,7 +121,8 @@ async fn default_mode_schedules_jobs_with_a_declared_default() {
         &pool,
         app_ctx,
         Arc::clone(&schedule),
-    );
+    )
+    .expect("scheduler");
 
     let startup = svc.start().await.expect("scheduler starts");
     let handle = startup.handle.expect("scheduler running");
@@ -145,7 +147,8 @@ async fn warn_mode_schedules_nothing_it_was_not_told_to() {
         &pool,
         app_ctx,
         Arc::clone(&schedule),
-    );
+    )
+    .expect("scheduler");
 
     let startup = svc.start().await.expect("scheduler starts");
     if let Some(handle) = startup.handle {

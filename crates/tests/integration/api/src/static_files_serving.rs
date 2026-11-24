@@ -8,6 +8,7 @@
 //! via a custom `PathsConfig`.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::body::to_bytes;
 use axum::extract::State;

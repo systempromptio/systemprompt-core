@@ -67,7 +67,8 @@ async fn every_admitted_core_job_resolves_its_context_under_the_seal() {
         Arc::clone(&app),
         SchedulerConfig::with_system_admin(),
         Arc::clone(&schedule),
-    );
+    )
+    .expect("job execution service");
     let names: Vec<&'static str> = schedule.job_names().collect();
     assert!(
         names.contains(&"managed_inventory_refresh") && names.contains(&"agent_run_dirs_cleanup"),

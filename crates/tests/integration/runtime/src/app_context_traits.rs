@@ -6,6 +6,7 @@
 
 use anyhow::Result;
 use systemprompt_extension::HasRouteClassifier;
+use systemprompt_test_fixtures::AppContextSeeds;
 use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
@@ -40,15 +41,16 @@ async fn has_route_classifier_present() -> Result<()> {
 #[tokio::test]
 async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     let ctx = build_ctx().await;
-    let _ = ctx.config();
+    let _ = AppContextSeeds::config(&*ctx);
     let _ = ctx.db_pool();
     let _ = ctx.app_paths();
     let _ = ctx.app_paths_arc();
     let _ = ctx.event_bridge();
-    let _ = ctx.route_classifier();
+    let _ = AppContextSeeds::route_classifier(&*ctx);
     let _ = ctx.system_admin();
     let _ = ctx.authz_hook();
-    let addr = ctx.server_address();
+    let config = AppContextSeeds::config(&*ctx);
+    let addr = format!("{}:{}", config.host, config.port);
     assert!(addr.contains(':'));
     Ok(())
 }

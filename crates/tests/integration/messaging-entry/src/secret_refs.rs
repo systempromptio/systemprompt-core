@@ -4,6 +4,7 @@
 //! no unscoped secret lookup.
 
 use axum::http::StatusCode;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{TEST_SLACK_SIGNING_SECRET, ensure_messaging_bootstrap};
 use systemprompt_traits::SecretLookup;
 use tower::ServiceExt;

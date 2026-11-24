@@ -10,6 +10,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::http::{HeaderMap, header};
 use systemprompt_gateway_entry::http::bridge::resolved::Freshness;

@@ -10,6 +10,8 @@
 //! branch that matters for a linking flow (a bad or replayed link token must
 //! never attach a credential to an account).
 
+use systemprompt_test_fixtures::AppContextSeeds;
+
 use std::sync::Arc;
 
 use axum::Router;
@@ -42,8 +44,8 @@ async fn setup_link_ctx() -> anyhow::Result<(
 
 fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthState> {
     let webauthn = WebAuthnService::new(
-        &ctx.config().api_external_url,
-        &ctx.config().sitename,
+        &AppContextSeeds::config(&*ctx).api_external_url,
+        &AppContextSeeds::config(&*ctx).sitename,
         systemprompt_test_fixtures::oauth_repositories(&ctx)
             .oauth
             .clone(),

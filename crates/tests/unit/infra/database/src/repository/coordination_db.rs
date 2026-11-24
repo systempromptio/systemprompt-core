@@ -189,28 +189,18 @@ async fn a_released_lease_passes_to_the_next_claimant() {
     let key = LeaseKey::new(unique_name("lease"));
     let ttl = Duration::from_secs(60);
 
-    owner
+    let lease = owner
         .coordination
         .leases
         .claim(&key, ttl)
         .await
-        .expect("claim");
-    assert!(
-        !rival
-            .coordination
-            .leases
-            .release(&key)
-            .await
-            .expect("release")
-    );
-    assert!(
-        owner
-            .coordination
-            .leases
-            .release(&key)
-            .await
-            .expect("release")
-    );
+        .expect("claim")
+        .expect("a free lease is granted");
+    assert!(matches!(
+        rival.coordination.leases.release(&lease).await,
+        Err(CoordinationError::Fenced { .. })
+    ));
+    assert!(owner.coordination.leases.release(&lease).await.is_ok());
 
     let taken = rival
         .coordination

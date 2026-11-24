@@ -50,7 +50,9 @@ pub(super) async fn instance(sharing: ExternalSharingConfig) -> Result<Instance>
             .service
             .clone()
             .expect("the document store is enabled"),
-        files_host_handles(&ctx).client_ip,
+        files_host_handles(&ctx)
+            .expect("files host handles")
+            .client_ip,
     )
     .layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 7], 4000))));
     Ok(Instance {

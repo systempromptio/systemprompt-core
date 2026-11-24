@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, Algorithm, Header};
+use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AccessTokenId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{

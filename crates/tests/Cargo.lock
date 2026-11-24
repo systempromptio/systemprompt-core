@@ -10967,6 +10967,7 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",
+ "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
  "systemprompt-traits",

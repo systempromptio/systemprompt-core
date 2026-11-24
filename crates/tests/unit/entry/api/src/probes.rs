@@ -11,6 +11,7 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::Extension;
 use systemprompt_api::services::server::{ReadinessState, SchedulerHealth, discovery_router};

@@ -17,6 +17,7 @@ use axum::{Router, middleware};
 use systemprompt_api::services::middleware::SessionMiddleware;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
     FIXTURE_JWT_ISSUER, ensure_test_bootstrap, mint_admin_jwt, seed_admin_credential, seed_user_row,
 };

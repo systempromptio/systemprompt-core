@@ -14,7 +14,7 @@ use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{FactCandidate, FactScope, FactSource, FactStatus, SubjectKey};
 use systemprompt_runtime::Kernel;
 use systemprompt_storage::LocalFileStorage;
-use systemprompt_traits::{core_seam, BackgroundTasks, CoreSeam, FileStorage};
+use systemprompt_traits::{BackgroundTasks, CoreSeam, FileStorage, core_seam};
 use systemprompt_users::UsersExtension;
 
 // The brain over the kernel seeds a host composes: the users member (its role

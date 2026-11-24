@@ -30,6 +30,7 @@ mod jwt_revocation_db;
 mod negotiation_middleware;
 mod payload_context_source;
 mod rate_limit_buckets;
+mod rate_limit_memory_capacity;
 mod rate_limit_memory_shards;
 mod router_ext;
 mod security_headers;

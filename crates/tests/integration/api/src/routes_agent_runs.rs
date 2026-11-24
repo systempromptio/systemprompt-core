@@ -2,6 +2,7 @@
 //! paths and per-user scoping, driven through the router.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::Result;
 use axum::{Extension, Router};

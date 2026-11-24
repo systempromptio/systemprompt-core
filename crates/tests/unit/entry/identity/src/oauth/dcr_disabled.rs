@@ -6,6 +6,8 @@
 //! The flag is read from the `IdentityConfigView` each test's context is built
 //! with.
 
+use systemprompt_test_fixtures::AppContextSeeds;
+
 use std::sync::Arc;
 
 use axum::Extension;
@@ -56,11 +58,13 @@ async fn register_is_forbidden_when_dcr_is_closed() {
     );
     let app = public_router(
         Arc::new(JwksCache::new()),
-        &Arc::new(IdentityConfigView::of(ctx.config())),
+        &Arc::new(IdentityConfigView::of(AppContextSeeds::config(&*ctx))),
     )
     .with_state(state)
     .layer(Extension(req_ctx))
-    .layer(Extension(Arc::new(EdgeConfigView::of(ctx.config()))));
+    .layer(Extension(Arc::new(EdgeConfigView::of(
+        AppContextSeeds::config(&*ctx),
+    ))));
     let body = serde_json::json!({
         "client_name": "probe",
         "redirect_uris": ["https://app.example/cb"],
@@ -87,14 +91,18 @@ async fn discovery_omits_registration_endpoint_when_dcr_is_closed() {
     let ctx = ctx().await;
     let app = wellknown_routes(
         systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-            &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
+            &systemprompt_oauth_issuance::surface::IdentityConfigView::of(AppContextSeeds::config(
+                &*ctx,
+            )),
             ctx.kernel()
                 .state()
                 .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
                 .cloned(),
         ),
     )
-    .layer(Extension(Arc::new(EdgeConfigView::of(ctx.config()))));
+    .layer(Extension(Arc::new(EdgeConfigView::of(
+        AppContextSeeds::config(&*ctx),
+    ))));
     let resp = app
         .oneshot(
             Request::builder()

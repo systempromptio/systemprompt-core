@@ -1,5 +1,5 @@
 //! Loader arms of `GeoIpDatabase::open` /
-//! `AppContext::load_content_config` not reachable from the existing tests:
+//! `load_content_config` not reachable from the existing tests:
 //! a valid MaxMind database (Some arm) and a content-config path that exists
 //! but cannot be read (it is a directory).
 
@@ -11,7 +11,6 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_runtime::AppContext;
 
 fn fixture_config(geoip: Option<String>) -> Config {
     Config {
@@ -127,7 +126,7 @@ fn load_content_config_returns_none_when_path_is_unreadable() {
     let app_paths = app_paths_for(tmp.path());
     let cfg = fixture_config(None);
 
-    let loaded = AppContext::load_content_config(&cfg, &app_paths);
+    let loaded = systemprompt_runtime::load_content_config(&cfg, &app_paths);
     assert!(
         loaded.is_none(),
         "an unreadable content config degrades to None"
@@ -140,7 +139,7 @@ fn load_content_config_returns_none_when_file_is_missing() {
     let app_paths = app_paths_for(tmp.path());
     let cfg = fixture_config(None);
 
-    let loaded = AppContext::load_content_config(&cfg, &app_paths);
+    let loaded = systemprompt_runtime::load_content_config(&cfg, &app_paths);
     assert!(
         loaded.is_none(),
         "a missing content config degrades to None"
@@ -159,7 +158,7 @@ fn load_content_config_returns_none_for_malformed_yaml() {
     let app_paths = app_paths_for(tmp.path());
     let cfg = fixture_config(None);
 
-    let loaded = AppContext::load_content_config(&cfg, &app_paths);
+    let loaded = systemprompt_runtime::load_content_config(&cfg, &app_paths);
     assert!(
         loaded.is_none(),
         "a malformed content config degrades to None"
@@ -178,8 +177,8 @@ fn load_content_config_rewrites_organization_urls() {
     let app_paths = app_paths_for(tmp.path());
     let cfg = fixture_config(None);
 
-    let loaded =
-        AppContext::load_content_config(&cfg, &app_paths).expect("valid content config loads");
+    let loaded = systemprompt_runtime::load_content_config(&cfg, &app_paths)
+        .expect("valid content config loads");
     assert_eq!(
         loaded.metadata.structured_data.organization.url,
         "http://base.example"

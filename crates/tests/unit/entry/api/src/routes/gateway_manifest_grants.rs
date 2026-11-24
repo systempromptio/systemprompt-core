@@ -9,6 +9,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, OnceLock};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, Request, StatusCode, header};

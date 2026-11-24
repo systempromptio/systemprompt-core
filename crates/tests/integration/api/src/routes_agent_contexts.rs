@@ -5,6 +5,7 @@ use axum::Extension;
 use axum::http::StatusCode;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent_entry::http::contexts_routes;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, seed_user_row};
 use tower::ServiceExt;
 

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use systemprompt_analytics::jobs::LinkFactsRollupJob;
 use systemprompt_identifiers::{Actor, JobName, UserId};

@@ -6,6 +6,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_identity_entry::http::sso::{SsoRouteState, binder_from_headers, router};
 use systemprompt_oauth::OAuthState;
+use systemprompt_test_fixtures::AppContextSeeds;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -25,14 +26,16 @@ async fn app() -> axum::Router {
     );
     router(SsoRouteState::build(
         &std::sync::Arc::new(
-            systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
+            systemprompt_oauth_issuance::surface::IdentityConfigView::of(AppContextSeeds::config(
+                &*ctx,
+            )),
         ),
         ctx.db_pool(),
         &oauth,
         &systemprompt_oauth_issuance::contract::SsoProviders::default(),
     ))
     .layer(axum::Extension(std::sync::Arc::new(
-        systemprompt_security::http::EdgeConfigView::of(ctx.config()),
+        systemprompt_security::http::EdgeConfigView::of(AppContextSeeds::config(&*ctx)),
     )))
 }
 

@@ -14,6 +14,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use systemprompt_identity_entry::http::oauth::wellknown_routes;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
 use tower::ServiceExt;
 

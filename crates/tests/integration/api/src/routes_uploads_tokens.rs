@@ -12,6 +12,7 @@ use systemprompt_documents::upload_links::{
 use systemprompt_files_entry::http::documents::DocumentsState;
 use systemprompt_files_entry::http::uploads::{router, with_upload_tokens};
 use systemprompt_identifiers::DocumentUploadId;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 

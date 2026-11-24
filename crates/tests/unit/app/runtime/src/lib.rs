@@ -35,6 +35,8 @@ mod builder_extra;
 #[cfg(test)]
 mod context;
 #[cfg(test)]
+mod context_host_seeds;
+#[cfg(test)]
 #[cfg(test)]
 mod context_loaders_paths;
 #[cfg(test)]

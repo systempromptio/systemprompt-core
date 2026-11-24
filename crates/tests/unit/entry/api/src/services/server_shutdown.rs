@@ -10,6 +10,7 @@ use systemprompt_api::services::server::readiness::ReadinessState;
 use systemprompt_api::services::server::shutdown;
 use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_runtime::ShutdownRequest;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 
 #[tokio::test]

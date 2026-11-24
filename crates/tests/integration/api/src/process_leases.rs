@@ -86,9 +86,16 @@ impl Worker {
                     }
                 },
                 KeyAction::HandOver => {
+                    let held_lease = self
+                        .coordination
+                        .leases
+                        .holder(&lease)
+                        .await
+                        .expect("holder")
+                        .expect("a held lease has a holder row");
                     self.coordination
                         .leases
-                        .release(&lease)
+                        .release(&held_lease)
                         .await
                         .expect("release");
                     held.retain(|k| k != key);
@@ -242,10 +249,17 @@ async fn a_gracefully_departing_worker_hands_its_processes_over_within_one_tick(
     );
 
     for key in held_leaving.drain(..) {
+        let lease = leaving
+            .coordination
+            .leases
+            .holder(&key.lease_key())
+            .await
+            .expect("holder")
+            .expect("a held lease has a holder row");
         leaving
             .coordination
             .leases
-            .release(&key.lease_key())
+            .release(&lease)
             .await
             .expect("release after stop");
     }

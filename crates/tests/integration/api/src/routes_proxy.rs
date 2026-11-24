@@ -5,6 +5,7 @@
 use axum::Extension;
 use http::StatusCode;
 use systemprompt_api::routes::proxy::agents;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 
 use super::common::{empty_get, request_context, setup_ctx};

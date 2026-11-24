@@ -7,6 +7,7 @@
 //! fixture app context.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, header};

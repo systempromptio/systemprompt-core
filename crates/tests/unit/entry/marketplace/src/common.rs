@@ -6,6 +6,7 @@
 //! services-tree grant.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::{Context, Result};
 use axum::Router;

@@ -15,6 +15,7 @@
 //! [`test_app_context`] panics when the context cannot be assembled: a test
 //! whose context is missing fails rather than skips (see [`crate::db`]).
 
+use crate::AppContextSeeds as _;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -25,14 +26,14 @@ use systemprompt_extension::{Admitted, Extension, StandingTag};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_runtime::{AppContext, AppContextBuilder};
 
-use crate::bootstrap::{ensure_test_bootstrap, TestBootstrap};
+use crate::bootstrap::{TestBootstrap, ensure_test_bootstrap};
 
 pub const FIXTURE_JWT_ISSUER: &str = "https://issuer.test";
 
@@ -501,8 +502,8 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
     )
 }
 
-pub fn default_governance_watch(
-) -> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
+pub fn default_governance_watch()
+-> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
     systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),

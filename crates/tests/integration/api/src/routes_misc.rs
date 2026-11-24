@@ -6,6 +6,7 @@ use axum::Extension;
 use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
 use systemprompt_api::routes;
 use systemprompt_runtime::AppContext;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 
 use super::common::{empty_delete, empty_get, json_post, request_context, setup_agent_ctx};

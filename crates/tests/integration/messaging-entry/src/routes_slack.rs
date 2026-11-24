@@ -7,6 +7,7 @@
 //! Kit reaches the captured `response_url` (a loopback wiremock).
 
 use std::time::Duration;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};

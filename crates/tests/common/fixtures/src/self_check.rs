@@ -1,3 +1,4 @@
+use crate::AppContextSeeds as _;
 use std::sync::Arc;
 
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};

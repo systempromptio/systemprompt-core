@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use async_trait::async_trait;
 use systemprompt_cli::admin::config::planes::{
@@ -205,7 +206,8 @@ async fn list_titles_plainly_once_every_plane_is_applied() {
         &[],
     )
     .await;
-    let planes = h.ctx.config_planes().expect("the admitted planes");
+    let planes = systemprompt_runtime::config_plane_set(h.ctx.admitted(), h.ctx.config())
+        .expect("the admitted planes");
     assert!(planes.names().contains(&h.plane.name));
     for name in planes.names() {
         systemprompt_test_fixtures::record_plane_applied(h.ctx.db_pool(), name)

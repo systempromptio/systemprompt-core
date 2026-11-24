@@ -4,6 +4,7 @@
 //! member provides to the commands.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use clap::Parser;
 use systemprompt_cli::kernel::MemberHost;

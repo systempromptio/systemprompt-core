@@ -29,6 +29,7 @@ async fn database_cleanup_job_execute_succeeds() {
     config.jobs = vec![JobConfig::new(name.clone())];
     config.distributed_lock = false;
     let result = JobExecutionService::new(app, config, schedule)
+        .expect("job execution service")
         .run_job(&name, &HashMap::new())
         .await;
     assert!(result.success, "job runs: {:?}", result.message);

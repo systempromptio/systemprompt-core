@@ -6,12 +6,12 @@ use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_extension::{
     DynNotificationSink, NotificationAudienceResolver, ResourceVisibility,
 };
+use systemprompt_files::DocumentsConfig;
 use systemprompt_files::contract::{AgentAccess, DocumentSeams};
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::repository::BlobHolders;
 use systemprompt_files::documents::{DocumentVisibility, DocumentsHandlesSlot};
 use systemprompt_files::issues::IssueVisibility;
-use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
@@ -21,7 +21,7 @@ use systemprompt_notifications::{
     NotificationsService, NotificationsServiceSlot, OutboxNotificationSink,
 };
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{core_seam, BackgroundTasks, CoreSeam, FileStorage};
+use systemprompt_traits::{BackgroundTasks, CoreSeam, FileStorage, core_seam};
 use systemprompt_users::{UserRepository, UserRoleAudienceResolver};
 
 pub fn fixture_notification_sink(pool: &DbPool) -> DynNotificationSink {

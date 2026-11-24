@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use systemprompt_cli::admin::licence::{self, LicenceCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};

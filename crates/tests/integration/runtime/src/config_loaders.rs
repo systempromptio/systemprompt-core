@@ -1,5 +1,5 @@
 //! Exercises `GeoIpDatabase::open` and
-//! `AppContext::load_content_config` against synthesised configs that
+//! `load_content_config` against synthesised configs that
 //! cover both the missing-file and present-file branches.
 
 use std::fs;
@@ -11,7 +11,6 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_runtime::AppContext;
 use tempfile::tempdir;
 
 fn minimal_config(
@@ -131,7 +130,7 @@ fn load_content_config_returns_none_when_file_missing() {
         dir.path().join("system").to_string_lossy().to_string(),
         dir.path().join("services").to_string_lossy().to_string(),
     );
-    let content = AppContext::load_content_config(&cfg, &paths);
+    let content = systemprompt_runtime::load_content_config(&cfg, &paths);
     assert!(content.is_none(), "missing content config must yield None");
 }
 
@@ -152,7 +151,7 @@ fn load_content_config_returns_none_when_yaml_invalid() {
         dir.path().join("system").to_string_lossy().to_string(),
         dir.path().join("services").to_string_lossy().to_string(),
     );
-    let content = AppContext::load_content_config(&cfg, &paths);
+    let content = systemprompt_runtime::load_content_config(&cfg, &paths);
     assert!(content.is_none(), "bad yaml must yield None");
 }
 
@@ -185,7 +184,7 @@ metadata:
         dir.path().join("system").to_string_lossy().to_string(),
         dir.path().join("services").to_string_lossy().to_string(),
     );
-    let content = AppContext::load_content_config(&cfg, &paths);
+    let content = systemprompt_runtime::load_content_config(&cfg, &paths);
     if let Some(cc) = content {
         let logo = &cc.metadata.structured_data.organization.logo;
         assert!(
@@ -212,7 +211,7 @@ fn load_content_config_parses_minimal_yaml() {
         dir.path().join("system").to_string_lossy().to_string(),
         dir.path().join("services").to_string_lossy().to_string(),
     );
-    let content = AppContext::load_content_config(&cfg, &paths);
+    let content = systemprompt_runtime::load_content_config(&cfg, &paths);
     assert!(content.is_some(), "valid yaml must parse to Some");
     let cc = content.expect("loaded content config");
     assert_eq!(

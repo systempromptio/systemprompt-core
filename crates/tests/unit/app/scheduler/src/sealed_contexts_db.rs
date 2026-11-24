@@ -8,6 +8,7 @@
 use systemprompt_identifiers::Actor;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::ConfigReconcileService;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{test_database_url, unique_user_id};
 use systemprompt_traits::{Dependencies, JobContext};
 
@@ -45,7 +46,8 @@ async fn every_runtime_context_withholds_every_sealed_seed_of_the_kernel_state()
         "job context"
     );
 
-    let planes = app.config_planes().expect("config planes");
+    let planes = systemprompt_runtime::config_plane_set(app.admitted(), app.config())
+        .expect("config planes");
     let built = ConfigReconcileService::new(
         planes,
         ConfigReconcileRepository::new(app.db_pool()),

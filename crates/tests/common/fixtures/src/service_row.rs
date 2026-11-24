@@ -23,6 +23,7 @@
 //! drive the sweep itself — should not use this helper; write the row directly
 //! so the intent is visible at the call site.
 
+use crate::AppContextSeeds as _;
 use anyhow::Result;
 use systemprompt_runtime::AppContext;
 
