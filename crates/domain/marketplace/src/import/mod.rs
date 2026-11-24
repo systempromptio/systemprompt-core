@@ -194,12 +194,11 @@ fn import_marketplace_tree(
     remote_source: &RemoteSource<'_>,
     report: &mut ImportReport,
 ) -> Result<(), MarketplaceError> {
-    let text = std::fs::read_to_string(manifest_path)
-        .map_err(|e| MarketplaceError::import(manifest_path, "read", e))?;
+    let text = writer::read_source(from, manifest_path)?;
     let manifest: MarketplaceJson = serde_json::from_str(&text)
         .map_err(|e| MarketplaceError::import(manifest_path, "marketplace.json is not valid", e))?;
 
-    let sidecar = sidecar::load_marketplace_sidecar(&from.join(SIDECAR_RELPATH))?;
+    let sidecar = sidecar::load_marketplace_sidecar(from, &from.join(SIDECAR_RELPATH))?;
     let (vendored, external_plugins) = pass_through::split(&manifest.plugins, manifest_path)?;
     let id = marketplace::import_marketplace(
         &manifest,
@@ -286,9 +285,9 @@ fn ensure_empty(into: &Path) -> Result<(), MarketplaceError> {
             message: "destination exists and is not a directory".to_owned(),
         });
     }
-    let mut read = std::fs::read_dir(into)
+    let entries = systemprompt_models::path_confine::entries_within(into, into)
         .map_err(|e| MarketplaceError::import(into, "read destination", e))?;
-    if read.next().is_some() {
+    if !entries.is_empty() {
         return Err(MarketplaceError::Import {
             path: into.display().to_string(),
             message: "destination is not empty; remove it before importing".to_owned(),

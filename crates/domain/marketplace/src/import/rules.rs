@@ -18,6 +18,7 @@ use systemprompt_identifiers::MarketplaceRuleId;
 use systemprompt_manifest::services::frontmatter::split_frontmatter;
 use systemprompt_manifest::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
 use systemprompt_models::bridge::host::{HostKind, HostProduct};
+use systemprompt_models::path_confine::entries_within;
 
 use crate::error::MarketplaceError;
 
@@ -45,12 +46,13 @@ pub(super) fn import_rules_dir(
         return Ok(without_opencode);
     }
 
-    let read =
-        std::fs::read_dir(rules_dir).map_err(|e| MarketplaceError::import(rules_dir, "read", e))?;
-    let mut files: Vec<std::path::PathBuf> = read
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| p.is_file() && p.extension().is_some_and(|x| x == "md"))
+    let entries =
+        entries_within(root, rules_dir).map_err(|e| MarketplaceError::import(rules_dir, "read", e))?;
+    let mut files: Vec<std::path::PathBuf> = entries
+        .into_iter()
+        .map(|e| (rules_dir.join(&e.name), e.is_dir))
+        .filter(|(p, is_dir)| !is_dir && p.extension().is_some_and(|x| x == "md"))
+        .map(|(p, _)| p)
         .collect();
     files.sort();
 

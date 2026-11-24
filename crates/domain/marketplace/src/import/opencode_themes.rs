@@ -45,9 +45,8 @@ impl<'a> ThemePins<'a> {
             if !path.is_file() {
                 continue;
             }
-            let bytes =
-                std::fs::read(&path).map_err(|e| MarketplaceError::import(&path, "read", e))?;
-            if hex::encode(Sha256::digest(&bytes)) == theme.sha256.as_str() {
+            let text = super::writer::read_source(plugin_dir, &path)?;
+            if hex::encode(Sha256::digest(text.as_bytes())) == theme.sha256.as_str() {
                 matched.insert(theme.name.as_str());
             }
         }

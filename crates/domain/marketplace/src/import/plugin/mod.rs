@@ -17,6 +17,8 @@ use systemprompt_models::plugin::{
     ComponentSource, PluginComponentRef, PluginDependency, PluginHooksRef,
 };
 
+use systemprompt_models::path_confine::entries_within;
+
 use crate::bundle::{NODE_PACKAGE_FILE, node_lockfile};
 use crate::error::MarketplaceError;
 
@@ -84,18 +86,18 @@ pub(super) fn import_plugin(
     let manifest_path = dir.join(PLUGIN_MANIFEST_RELPATH);
     let manifest = manifest::resolve_manifest(entry, dir)?;
     let extra_skill_dirs = manifest::skill_paths(&manifest, dir)?;
-    let sidecar = load_plugin_sidecar(&dir.join(SIDECAR_RELPATH))?;
+    let sidecar = load_plugin_sidecar(dir, &dir.join(SIDECAR_RELPATH))?;
 
     let id = PluginId::try_new(manifest.name.trim())
         .map_err(|e| MarketplaceError::import(&manifest_path, "plugin name", e))?;
     let mut warnings = Vec::new();
-    collect_manifest_warnings(&id, &manifest, dir, &mut warnings);
+    collect_manifest_warnings(&id, &manifest, dir, &mut warnings)?;
 
     let category = resolve_category(&id, &sidecar, entry, &mut warnings);
 
     let (skills, skill_warnings) = import_skills(dir, &extra_skill_dirs, &category, scope, sink)?;
     warnings.extend(skill_warnings);
-    for skill_dir in skill_dirs_without_manifest(dir) {
+    for skill_dir in skill_dirs_without_manifest(dir)? {
         warnings.push(ImportWarning::MissingSkillManifest {
             plugin: id.as_str().to_owned(),
             dir: skill_dir,
@@ -211,7 +213,7 @@ fn import_skills(
 ) -> Result<(Vec<String>, Vec<ImportWarning>), MarketplaceError> {
     let mut skills = Vec::new();
     let mut warnings = Vec::new();
-    for (skill_id, skill_dir) in discover_skill_dirs(dir, extra) {
+    for (skill_id, skill_dir) in discover_skill_dirs(dir, extra)? {
         if !scope.seen_skills.insert(skill_id.clone()) {
             return Err(MarketplaceError::Import {
                 path: skill_dir.display().to_string(),
@@ -224,7 +226,7 @@ fn import_skills(
         let typed = SkillId::try_new(skill_id.as_str())
             .map_err(|e| MarketplaceError::import(&skill_dir, "skill id", e))?;
         import_skill(&typed, dir, &skill_dir, Some(category), sink)?;
-        warnings.extend(skill_body_warnings(&typed, &skill_dir, sink));
+        warnings.extend(skill_body_warnings(&typed, dir, &skill_dir, sink)?);
         skills.push(skill_id);
     }
     Ok((skills, warnings))
@@ -256,7 +258,7 @@ fn collect_manifest_warnings(
     manifest: &PluginManifest,
     dir: &Path,
     warnings: &mut Vec<ImportWarning>,
-) {
+) -> Result<(), MarketplaceError> {
     if manifest.mcp_servers.is_some() || dir.join(".mcp.json").is_file() {
         warnings.push(ImportWarning::InlineMcpServers {
             plugin: id.as_str().to_owned(),
@@ -267,7 +269,7 @@ fn collect_manifest_warnings(
             plugin: id.as_str().to_owned(),
         });
     }
-    let agents = count_agent_files(&dir.join("agents"));
+    let agents = count_agent_files(dir, &dir.join("agents"))?;
     if agents > 0 {
         warnings.push(ImportWarning::AgentsDirectory {
             plugin: id.as_str().to_owned(),
@@ -279,15 +281,16 @@ fn collect_manifest_warnings(
             plugin: id.as_str().to_owned(),
         });
     }
+    Ok(())
 }
 
-fn count_agent_files(dir: &Path) -> usize {
-    std::fs::read_dir(dir).map_or(0, |read| {
-        read.filter_map(Result::ok)
-            .filter(|e| {
-                let p = e.path();
-                p.is_file() && p.extension().is_some_and(|x| x == "md")
-            })
-            .count()
-    })
+fn count_agent_files(root: &Path, dir: &Path) -> Result<usize, MarketplaceError> {
+    if !dir.is_dir() {
+        return Ok(0);
+    }
+    let entries = entries_within(root, dir).map_err(|e| MarketplaceError::import(dir, "read", e))?;
+    Ok(entries
+        .iter()
+        .filter(|e| !e.is_dir && e.path.extension().is_some_and(|x| x == "md"))
+        .count())
 }

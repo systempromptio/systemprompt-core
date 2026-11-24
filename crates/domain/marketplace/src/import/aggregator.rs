@@ -20,6 +20,8 @@
 
 use std::path::Path;
 
+use systemprompt_models::path_confine::entries_within;
+
 use crate::error::MarketplaceError;
 
 use super::writer::Sink;
@@ -54,14 +56,15 @@ pub(super) fn write_aggregator(
             continue;
         }
         let src = from.join(super::base::BASE_DIR).join(dir);
-        let Ok(read) = std::fs::read_dir(&src) else {
+        if !src.is_dir() {
             continue;
-        };
-        let mut files: Vec<String> = read
-            .filter_map(Result::ok)
-            .map(|e| e.path())
-            .filter(|p| p.is_file() && p.extension().is_some_and(|x| x == "yaml" || x == "yml"))
-            .filter_map(|p| Some(format!("../{dir}/{}", p.file_name()?.to_str()?)))
+        }
+        let entries =
+            entries_within(from, &src).map_err(|e| MarketplaceError::import(&src, "read", e))?;
+        let mut files: Vec<String> = entries
+            .into_iter()
+            .filter(|e| !e.is_dir && e.path.extension().is_some_and(|x| x == "yaml" || x == "yml"))
+            .filter_map(|e| Some(format!("../{dir}/{}", e.name.to_str()?)))
             .collect();
         files.sort();
         includes.extend(files);

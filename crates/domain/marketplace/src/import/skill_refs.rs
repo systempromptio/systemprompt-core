@@ -13,21 +13,23 @@ use std::path::Path;
 
 use systemprompt_identifiers::SkillId;
 
+use systemprompt_models::path_confine::entries_within;
+
 use super::skill::SKILL_FILE;
 use super::warning::ImportWarning;
-use super::writer::Sink;
+use super::writer::{Sink, read_source};
+use crate::error::MarketplaceError;
 
 const REFERENCES_PREFIX: &str = "references/";
 const PARENT_PREFIX: &str = "../";
 
 pub(super) fn skill_body_warnings(
     id: &SkillId,
+    root: &Path,
     skill_dir: &Path,
     sink: &Sink,
-) -> Vec<ImportWarning> {
-    let Ok(body) = std::fs::read_to_string(skill_dir.join(SKILL_FILE)) else {
-        return Vec::new();
-    };
+) -> Result<Vec<ImportWarning>, MarketplaceError> {
+    let body = read_source(root, &skill_dir.join(SKILL_FILE))?;
     let copied = Path::new("skills").join(id.as_str());
     let mut missing = BTreeSet::new();
     let mut parent = BTreeSet::new();
@@ -39,7 +41,7 @@ pub(super) fn skill_body_warnings(
         }
     }
     let skill = id.as_str().to_owned();
-    missing
+    Ok(missing
         .into_iter()
         .map(|path| ImportWarning::MissingReference {
             skill: skill.clone(),
@@ -53,21 +55,23 @@ pub(super) fn skill_body_warnings(
                     path,
                 }),
         )
-        .collect()
+        .collect())
 }
 
-pub(super) fn skill_dirs_without_manifest(plugin_dir: &Path) -> Vec<String> {
-    let Ok(read) = std::fs::read_dir(plugin_dir.join("skills")) else {
-        return Vec::new();
-    };
-    let mut out: Vec<String> = read
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| p.is_dir() && !p.join(SKILL_FILE).is_file())
-        .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(str::to_owned))
+pub(super) fn skill_dirs_without_manifest(plugin_dir: &Path) -> Result<Vec<String>, MarketplaceError> {
+    let skills = plugin_dir.join("skills");
+    if !skills.is_dir() {
+        return Ok(Vec::new());
+    }
+    let entries =
+        entries_within(plugin_dir, &skills).map_err(|e| MarketplaceError::import(&skills, "read", e))?;
+    let mut out: Vec<String> = entries
+        .into_iter()
+        .filter(|e| e.is_dir && !e.path.join(SKILL_FILE).is_file())
+        .filter_map(|e| e.name.to_str().map(str::to_owned))
         .collect();
     out.sort();
-    out
+    Ok(out)
 }
 
 fn cited_paths(body: &str) -> impl Iterator<Item = &str> {
