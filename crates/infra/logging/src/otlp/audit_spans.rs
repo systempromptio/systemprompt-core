@@ -15,7 +15,7 @@ use opentelemetry_proto::tonic::trace::v1::status::StatusCode;
 use opentelemetry_proto::tonic::trace::v1::{Span, Status};
 use systemprompt_identifiers::{
     AiRequestId, AiToolCallId, ApiKeyId, InstanceId, McpExecutionId, McpServerId, McpToolName,
-    PluginId, SessionId, TraceId,
+    PluginId, SessionId, ToolUseId, TraceId,
 };
 use systemprompt_models::audit_spans::{
     GovernanceSpanRecord, RequestSpanRecord, ToolCallSpanRecord,
@@ -41,14 +41,15 @@ fn parent_of(request: Option<&AiRequestId>) -> Vec<u8> {
 }
 
 fn request_attrs(record: &RequestSpanRecord) -> Attrs {
+    let (actor_kind, actor_id) = record.actor.audit_columns();
     let mut attrs = Attrs::new();
     attrs
         .text("systemprompt.request.id", record.request_id.as_str())
         .text("systemprompt.request.kind", &record.request_kind)
         .text("systemprompt.request.status", record.status.as_str())
         .text("enduser.id", record.user_id.as_str())
-        .text("systemprompt.actor.kind", &record.actor_kind)
-        .text("systemprompt.actor.id", &record.actor_id)
+        .text("systemprompt.actor.kind", actor_kind)
+        .text("systemprompt.actor.id", actor_id)
         .opt_str(
             "session.id",
             record.session_id.as_ref().map(SessionId::as_str),
@@ -194,24 +195,28 @@ pub fn tool_call_span(record: &ToolCallSpanRecord) -> Span {
 
 #[must_use]
 pub fn governance_span(record: &GovernanceSpanRecord) -> Span {
+    let (actor_kind, actor_id) = record.actor.audit_columns();
     let mut attrs = Attrs::new();
     attrs
         .text("systemprompt.governance.decision", &record.decision)
         .text("systemprompt.governance.policy", &record.policy)
         .text("systemprompt.governance.reason", &record.reason)
         .text("gen_ai.tool.name", &record.tool_name)
-        .opt_str("gen_ai.tool.call.id", record.tool_use_id.as_deref())
+        .opt_str(
+            "gen_ai.tool.call.id",
+            record.tool_use_id.as_ref().map(ToolUseId::as_str),
+        )
         .opt_str(
             "systemprompt.plugin.id",
             record.plugin_id.as_ref().map(PluginId::as_str),
         )
-        .text("systemprompt.actor.kind", &record.actor_kind)
-        .text("systemprompt.actor.id", &record.actor_id);
+        .text("systemprompt.actor.kind", actor_kind)
+        .text("systemprompt.actor.id", actor_id);
     let at = unix_nanos(record.decided_at);
     let denied = record.decision == "deny";
     Span {
-        trace_id: trace_id_bytes(trace_key(record.trace_id.as_ref(), &record.id)),
-        span_id: span_id_bytes(GOVERNANCE_SPAN, &record.id),
+        trace_id: trace_id_bytes(trace_key(record.trace_id.as_ref(), record.id.as_str())),
+        span_id: span_id_bytes(GOVERNANCE_SPAN, record.id.as_str()),
         parent_span_id: parent_of(record.request_id.as_ref()),
         name: format!("{GOVERNANCE_SPAN} {}", record.policy),
         kind: SpanKind::Internal as i32,

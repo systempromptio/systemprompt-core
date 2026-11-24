@@ -13,7 +13,8 @@
 
 use sqlx::{PgExecutor, PgPool};
 use systemprompt_identifiers::{
-    Actor, AgentId, ClientId, ContextId, PluginId, SessionId, TaskId, TraceId, UserId,
+    Actor, AgentId, ClientId, ContextId, GovernanceDecisionId, PluginId, SessionId, TaskId,
+    ToolUseId, TraceId, UserId,
 };
 use systemprompt_models::audit_spans::{DynAuditSpanSink, GovernanceSpanRecord};
 use systemprompt_models::errors::RepositoryError;
@@ -143,19 +144,17 @@ where
 }
 
 fn governance_span(record: &GovernanceDecisionRecord<'_>) -> GovernanceSpanRecord {
-    let (actor_kind, actor_id) = record.actor.audit_columns();
     GovernanceSpanRecord {
-        id: record.id.to_owned(),
+        id: GovernanceDecisionId::new(record.id),
         request_id: None,
         trace_id: record.trace_id.cloned(),
         decision: record.decision.as_str().to_owned(),
         policy: record.policy.to_owned(),
         reason: record.reason.to_owned(),
         tool_name: record.tool_name.to_owned(),
-        tool_use_id: record.tool_use_id.map(str::to_owned),
+        tool_use_id: record.tool_use_id.map(ToolUseId::new),
         plugin_id: record.plugin_id.cloned(),
-        actor_kind: actor_kind.to_owned(),
-        actor_id: actor_id.to_owned(),
+        actor: record.actor.clone(),
         decided_at: chrono::Utc::now(),
     }
 }

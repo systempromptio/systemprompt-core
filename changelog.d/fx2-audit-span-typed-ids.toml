@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Observability"
+text = "The audit span records carry typed identifiers: the actor as one `Actor`, the governance decision id as `GovernanceDecisionId` and the provider tool-use id as `ToolUseId`. The exported attributes are unchanged."
+
+[[crate]]
+name = "systemprompt-identifiers"
+section = "Added"
+text = "`GovernanceDecisionId` and `ToolUseId`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`RequestSpanRecord` and `GovernanceSpanRecord` replace `actor_kind`/`actor_id` with `actor: Actor`; `GovernanceSpanRecord::id` is a `GovernanceDecisionId` and `tool_use_id` an `Option<ToolUseId>`."

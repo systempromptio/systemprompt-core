@@ -8,8 +8,9 @@ use opentelemetry_proto::tonic::trace::v1::Span;
 use opentelemetry_proto::tonic::trace::v1::span::SpanKind;
 use opentelemetry_proto::tonic::trace::v1::status::StatusCode;
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ApiKeyId, ContextId, InstanceId, McpExecutionId, McpServerId,
-    McpToolName, PluginId, ScopeDimension, SessionId, TraceId, UserId,
+    Actor, AgentId, AiRequestId, AiToolCallId, ApiKeyId, ContextId, GovernanceDecisionId,
+    InstanceId, McpExecutionId, McpServerId, McpToolName, PluginId, ScopeDimension, SessionId,
+    ToolUseId, TraceId, UserId,
 };
 use systemprompt_logging::otlp::{
     GOVERNANCE_SPAN, REQUEST_SPAN, TOOL_SPAN, governance_span, request_span, span_id_bytes,
@@ -59,8 +60,7 @@ fn request() -> RequestSpanRecord {
         status: RequestStatus::Completed,
         error_message: None,
         user_id: UserId::new("user-1"),
-        actor_kind: "user".to_owned(),
-        actor_id: "user-1".to_owned(),
+        actor: Actor::user(UserId::new("user-1")),
         session_id: Some(SessionId::new("sess-1")),
         context_id: ContextId::generate(),
         trace_id: Some(TraceId::new("trace-1")),
@@ -223,17 +223,16 @@ fn tool_call_span_without_a_known_request_is_a_root_of_its_trace() {
 #[test]
 fn governance_span_carries_the_replay_attribute_set() {
     let span = governance_span(&GovernanceSpanRecord {
-        id: "gd-1".to_owned(),
+        id: GovernanceDecisionId::new("gd-1"),
         request_id: None,
         trace_id: Some(TraceId::new("trace-1")),
         decision: "deny".to_owned(),
         policy: "rule_based".to_owned(),
         reason: "no grant".to_owned(),
         tool_name: "mcp__docs__search".to_owned(),
-        tool_use_id: Some("toolu_1".to_owned()),
+        tool_use_id: Some(ToolUseId::new("toolu_1")),
         plugin_id: Some(PluginId::new("plugin-1")),
-        actor_kind: "user".to_owned(),
-        actor_id: "user-1".to_owned(),
+        actor: Actor::user(UserId::new("user-1")),
         decided_at: at(),
     });
     assert_eq!(
@@ -271,4 +270,17 @@ fn audit_span_attributes_carry_no_secret_material() {
             );
         }
     }
+}
+
+#[test]
+fn an_agent_actor_is_exported_as_its_audit_columns() {
+    let actor = Actor::agent(UserId::new("user-1"), AgentId::new("agent-1"));
+    let (kind, id) = actor.audit_columns();
+    let span = request_span(&RequestSpanRecord {
+        actor: actor.clone(),
+        ..request()
+    });
+    assert_eq!(text(&span, "systemprompt.actor.kind"), kind);
+    assert_eq!(text(&span, "systemprompt.actor.id"), id);
+    assert_eq!(text(&span, "enduser.id"), "user-1");
 }
