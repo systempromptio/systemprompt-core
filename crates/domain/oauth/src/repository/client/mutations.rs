@@ -103,7 +103,7 @@ impl ClientRepository {
             SELECT $1, unnest($12::text[])
             WHERE cardinality($12::text[]) > 0
             "#,
-            params.client_id.as_str(),
+            params.client_id as _,
             params.client_secret_hash,
             params.client_name,
             auth_method,
@@ -115,7 +115,7 @@ impl ClientRepository {
             response_types_list,
             &params.scopes,
             contacts_list,
-            params.owner_user_id.as_str(),
+            params.owner_user_id as _,
             params.application_type,
             params.registration_token_hash,
         )
@@ -149,7 +149,7 @@ impl ClientRepository {
             params.client_uri,
             params.logo_uri,
             now,
-            params.client_id.as_str()
+            params.client_id as _
         )
         .execute(&mut *tx)
         .await?;
@@ -183,13 +183,12 @@ impl ClientRepository {
         client_secret_hash: &str,
     ) -> Result<Option<OAuthClient>> {
         let now = Utc::now();
-        let client_id_str = client_id.as_str();
         let result = sqlx::query!(
             "UPDATE oauth_clients SET client_secret_hash = $1, updated_at = $2 WHERE client_id = \
              $3",
             client_secret_hash,
             now,
-            client_id_str
+            client_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -202,10 +201,9 @@ impl ClientRepository {
     }
 
     pub async fn delete(&self, client_id: &ClientId) -> Result<u64> {
-        let client_id_str = client_id.as_str();
         let result = sqlx::query!(
             "DELETE FROM oauth_clients WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -214,11 +212,10 @@ impl ClientRepository {
 
     pub async fn deactivate(&self, client_id: &ClientId) -> Result<u64> {
         let now = Utc::now();
-        let client_id_str = client_id.as_str();
         let result = sqlx::query!(
             "UPDATE oauth_clients SET is_active = false, updated_at = $1 WHERE client_id = $2",
             now,
-            client_id_str
+            client_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -227,11 +224,10 @@ impl ClientRepository {
 
     pub async fn activate(&self, client_id: &ClientId) -> Result<u64> {
         let now = Utc::now();
-        let client_id_str = client_id.as_str();
         let result = sqlx::query!(
             "UPDATE oauth_clients SET is_active = true, updated_at = $1 WHERE client_id = $2",
             now,
-            client_id_str
+            client_id as _
         )
         .execute(&*self.write_pool)
         .await?;

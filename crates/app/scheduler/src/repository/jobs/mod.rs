@@ -67,8 +67,8 @@ impl JobRepository {
                 schedule = EXCLUDED.schedule,
                 updated_at = EXCLUDED.updated_at
             "#,
-            id.as_str(),
-            job_name.as_str(),
+            id as _,
+            job_name as _,
             schedule,
             enabled,
             now,
@@ -108,7 +108,7 @@ impl JobRepository {
             FROM scheduled_jobs
             WHERE job_name = $1
             "#,
-            job_name.as_str()
+            job_name as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -176,9 +176,9 @@ impl JobRepository {
             status_str,
             error,
             next_run,
-            instance_id.as_str(),
+            instance_id as _,
             now,
-            job_name.as_str(),
+            job_name as _,
             message
         )
         .execute(&*self.write_pool)
@@ -208,7 +208,7 @@ impl JobRepository {
         sqlx::query!(
             "UPDATE scheduled_jobs SET enabled = $1, updated_at = NOW() WHERE job_name = $2",
             enabled,
-            job_name.as_str(),
+            job_name as _,
         )
         .execute(&*self.write_pool)
         .await?;

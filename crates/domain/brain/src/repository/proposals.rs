@@ -80,7 +80,7 @@ impl ProposalRepository {
         sqlx::query!(
             "INSERT INTO brain_proposals (id, analysis, kind, summary, body)
              VALUES ($1, $2, $3, $4, $5)",
-            id.as_str(),
+            id as _,
             proposal.analysis,
             encode_enum(proposal.kind)?,
             proposal.summary,
@@ -100,9 +100,9 @@ impl ProposalRepository {
         let result = sqlx::query!(
             "UPDATE brain_proposals SET status = $2, decided_by = $3, decided_at = now()
              WHERE id = $1 AND status = 'open'",
-            id.as_str(),
+            id as _,
             encode_enum(status)?,
-            by.as_str(),
+            by as _,
         )
         .execute(executor)
         .await?;
@@ -117,7 +117,7 @@ impl ProposalRepository {
     ) -> Result<bool, RepositoryError> {
         let result = sqlx::query!(
             "UPDATE brain_proposals SET replay = $2 WHERE id = $1",
-            id.as_str(),
+            id as _,
             report,
         )
         .execute(executor)
@@ -131,7 +131,7 @@ impl ProposalRepository {
     ) -> Result<bool, RepositoryError> {
         let found = sqlx::query_scalar!(
             r#"SELECT EXISTS (SELECT 1 FROM brain_proposals WHERE id = $1) AS "found!""#,
-            id.as_str(),
+            id as _,
         )
         .fetch_one(executor)
         .await?;

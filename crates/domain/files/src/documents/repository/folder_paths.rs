@@ -33,7 +33,7 @@ pub(super) async fn subtree_paths(
            WHERE (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))
              AND d.deleted_at IS NULL
            ORDER BY d.id"#,
-        root.as_str(),
+        root as _,
     )
     .fetch_all(tx)
     .await?;
@@ -75,7 +75,7 @@ pub(super) async fn retract_ancestor_grants(
              ON (f.id = r.id OR r.id = ANY(f.ancestor_ids)) AND f.deleted_at IS NULL
            JOIN documents d ON d.folder_id = f.id AND d.deleted_at IS NULL
            WHERE r.id = $1::text::uuid"#,
-        root.as_str(),
+        root as _,
     )
     .execute(tx)
     .await?;
@@ -96,8 +96,8 @@ pub(super) async fn foreign_subtree_documents(
              AND d.owner_user_id <> $2
            ORDER BY d.id
            FOR UPDATE OF d"#,
-        root.as_str(),
-        mover.as_str(),
+        root as _,
+        mover as _,
     )
     .fetch_all(tx)
     .await
@@ -111,7 +111,7 @@ pub(super) async fn ancestors_of(
     sqlx::query_scalar!(
         r#"SELECT ancestor_ids::text[] AS "ancestors!" FROM document_folders
            WHERE id = $1::text::uuid"#,
-        root.as_str(),
+        root as _,
     )
     .fetch_optional(tx)
     .await
@@ -146,7 +146,7 @@ pub(super) async fn deliver_new_ancestor_grants(
                         OR o.folder_id = ANY($2::text[]::uuid[])
                         OR (o.folder_id = ANY(f.ancestor_ids || f.id)
                             AND NOT (o.folder_id = ANY(r.ancestor_ids)))))"#,
-        root.as_str(),
+        root as _,
         former_ancestors,
     )
     .execute(tx)

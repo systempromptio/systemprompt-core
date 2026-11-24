@@ -198,14 +198,14 @@ impl ConfigPlane for IdentityPlane {
             .await
             .map_err(backend)?
         {
-            let value = match (row.account_kind.parse(), row.status.parse()) {
-                (Ok(kind), Ok(status)) => encode(&UserValue {
+            let value = match row.account_kind.parse() {
+                Ok(kind) => encode(&UserValue {
                     name: row.name,
                     kind,
                     roles: declaration::sorted_unique(&row.roles),
-                    status,
+                    status: row.status,
                 })?,
-                _ => format!("{}:{}", row.account_kind, row.status),
+                Err(_) => format!("{}:{}", row.account_kind, row.status),
             };
             snapshot.insert(user_key(&row.email), value);
         }

@@ -22,13 +22,13 @@ pub(crate) struct FactRow {
     pub kind: FactKindId,
     pub subject_kind: String,
     pub subject_id: String,
-    pub scope_level: String,
+    pub scope_level: ScopeLevel,
     pub scope_key: Option<String>,
     pub statement: String,
     pub fields: Json<FieldMap>,
     pub source: Json<FactSource>,
     pub topics: Vec<String>,
-    pub status: String,
+    pub status: FactStatus,
     pub confirmed_by: Option<UserId>,
     pub confirmed_at: Option<DateTime<Utc>>,
     pub importance_base: f64,
@@ -54,8 +54,8 @@ impl TryFrom<FactRow> for BrainFact {
 
     fn try_from(row: FactRow) -> Result<Self, Self::Error> {
         Ok(Self {
-            scope: decode_scope(&row.scope_level, row.scope_key)?,
-            status: decode_status(&row.status)?,
+            scope: decode_scope(row.scope_level, row.scope_key)?,
+            status: row.status,
             topics: decode_topics(row.topics)?,
             id: row.id,
             kind: row.kind,
@@ -91,7 +91,7 @@ pub(crate) struct RevisionRow {
     pub revision: i32,
     pub change: String,
     pub actor_user_id: Option<UserId>,
-    pub status: String,
+    pub status: FactStatus,
     pub statement: String,
     pub fields: Json<FieldMap>,
     pub recorded_at: DateTime<Utc>,
@@ -103,7 +103,7 @@ impl TryFrom<RevisionRow> for FactRevision {
     fn try_from(row: RevisionRow) -> Result<Self, Self::Error> {
         Ok(Self {
             change: decode_change(&row.change)?,
-            status: decode_status(&row.status)?,
+            status: row.status,
             id: row.id,
             fact_id: row.fact_id,
             revision: row.revision,
@@ -126,10 +126,7 @@ fn decode_change(value: &str) -> Result<RevisionChange, RepositoryError> {
         .map_err(|e| RepositoryError::decode(format!("revision change {value:?}"), e))
 }
 
-fn decode_scope(level: &str, key: Option<String>) -> Result<FactScope, RepositoryError> {
-    let level: ScopeLevel = level
-        .parse()
-        .map_err(|e| RepositoryError::decode(format!("scope level {level:?}"), e))?;
+fn decode_scope(level: ScopeLevel, key: Option<String>) -> Result<FactScope, RepositoryError> {
     let missing = || RepositoryError::invalid_data("scope_key", "missing for a keyed scope");
     Ok(match level {
         ScopeLevel::User => FactScope::User(UserId::new(key.ok_or_else(missing)?)),

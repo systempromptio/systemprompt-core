@@ -64,7 +64,7 @@ async fn seed_request(pool: &DbPool) -> AiRequestId {
 fn audit_output(status: &str) -> AuditOutput {
     AuditOutput {
         request_id: AiRequestId::generate(),
-        status: status.to_owned(),
+        status: status.parse().expect("a stored request status"),
         finish_reason: None,
         error_message: None,
         provider: Some("anthropic".to_owned()),

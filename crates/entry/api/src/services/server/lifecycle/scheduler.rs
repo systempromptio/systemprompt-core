@@ -76,7 +76,15 @@ async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
     let failures: Vec<String> = report
         .failures()
         .iter()
-        .map(|p| format!("{}: {}", p.plane, p.failure.as_ref().map_or_else(|| "failed".to_owned(), ToString::to_string)))
+        .map(|p| {
+            format!(
+                "{}: {}",
+                p.plane,
+                p.failure
+                    .as_ref()
+                    .map_or_else(|| "failed".to_owned(), ToString::to_string)
+            )
+        })
         .collect();
     if !failures.is_empty() {
         bail!(

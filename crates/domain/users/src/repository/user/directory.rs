@@ -39,7 +39,7 @@ impl UserRepository {
         let anonymous = UserRole::Anonymous.as_str();
         sqlx::query_as!(
             UserRow,
-            r#"SELECT id, name, email, full_name, display_name, status, email_verified,
+            r#"SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
                FROM users
                WHERE status = $1 AND NOT ($2 = ANY(roles)) AND NOT is_bot

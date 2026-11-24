@@ -123,7 +123,7 @@ pub async fn handle_health_detail(
                 (None, (false, false))
             });
 
-    let db_healthy = db_status == "healthy";
+    let db_healthy = matches!(db_status, "healthy");
     let services_ok = agent_status != "error" && mcp_status != "error";
     let content_ok = index_exists && sitemap_exists;
     let (overall_status, http_status) = match (

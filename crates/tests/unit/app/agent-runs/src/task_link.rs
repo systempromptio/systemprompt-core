@@ -138,7 +138,7 @@ async fn finish_on_a_terminal_task_still_records_the_run() {
         Fenced::Applied
     );
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "succeeded");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Succeeded);
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_CANCELED");
 }
 
@@ -163,7 +163,7 @@ async fn launcher_queues_finds_and_cancels_a_task_run() {
 
     launcher.cancel(&run_id).await.expect("cancel");
     let row = f.repo.find_run(&run_id).await.expect("find").expect("row");
-    assert_eq!(row.status, "cancelled");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Cancelled);
     assert!(row.cancel_requested_at.is_some());
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_CANCELED");
 
@@ -196,8 +196,11 @@ async fn final_attempt_reclaim_fails_its_task() {
         vec![id.clone()]
     );
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "failed");
-    assert_eq!(row.error_class.as_deref(), Some("host_crashed"));
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Failed);
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::HostCrashed)
+    );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_FAILED");
 }
 

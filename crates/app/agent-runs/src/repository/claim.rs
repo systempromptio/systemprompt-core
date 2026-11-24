@@ -83,7 +83,7 @@ impl AgentRunRepository {
             WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $5
               AND status IN ('preparing', 'running')
             "#,
-            id.as_str(),
+            id as _,
             lease.claimed_by(),
             lease.attempt(),
             duration.as_secs_f64(),
@@ -124,9 +124,9 @@ impl AgentRunRepository {
                 claimed_by = NULL, claimed_at = NULL, lease_until = NULL, pid = NULL
             FROM run
             WHERE r.id = run.id
-            RETURNING r.status, r.task_id AS "task_id?: TaskId"
+            RETURNING r.status AS "status: RunStatus", r.task_id AS "task_id?: TaskId"
             "#,
-            id.as_str(),
+            id as _,
             lease.claimed_by(),
             lease.attempt(),
             lease.claimed_at(),
@@ -137,7 +137,7 @@ impl AgentRunRepository {
         let Some(released) = released else {
             return Ok(Released::LeaseLost);
         };
-        if released.status == "queued" {
+        if released.status == RunStatus::Queued {
             tx.commit().await?;
             return Ok(Released::Requeued);
         }
@@ -176,7 +176,7 @@ impl AgentRunRepository {
                 claimed_by = NULL, claimed_at = NULL, lease_until = NULL, pid = NULL
             FROM stale s
             WHERE r.id = s.id
-            RETURNING r.id AS "id: AgentRunId", r.status, r.task_id AS "task_id?: TaskId"
+            RETURNING r.id AS "id: AgentRunId", r.status AS "status: RunStatus", r.task_id AS "task_id?: TaskId"
             "#,
             origin_kind,
             max_attempts,
@@ -185,7 +185,7 @@ impl AgentRunRepository {
         .await?;
         let mut ids = Vec::with_capacity(rows.len());
         for row in rows {
-            if row.status == "failed" && row.task_id.is_some() {
+            if row.status == RunStatus::Failed && row.task_id.is_some() {
                 task_link::transition_task(
                     &mut tx,
                     &row.id,

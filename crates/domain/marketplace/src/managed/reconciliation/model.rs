@@ -32,7 +32,9 @@ pub struct ReconciliationConflict {
     pub resolution: Option<ConflictResolution>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema, sqlx::Type,
+)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum ReconciliationStatus {

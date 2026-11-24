@@ -37,8 +37,8 @@ impl ContextNotificationRepository {
             r#"INSERT INTO context_notifications (context_id, agent_id, notification_type, notification_data)
             VALUES ($1, $2, $3, $4)
             RETURNING id"#,
-            context_id.as_str(),
-            agent_id.as_str(),
+            context_id as _,
+            agent_id as _,
             notification_type,
             notification_data,
         )

@@ -42,7 +42,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_one(&*self.pool)
         .await
@@ -74,7 +74,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id.as_str(),
+            user_id as _,
             limit
         )
         .fetch_all(&*self.pool)
@@ -106,7 +106,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id.as_str(),
+            user_id as _,
             limit
         )
         .fetch_all(&*self.pool)
@@ -194,7 +194,7 @@ impl CostAnalyticsRepository {
             ) last_row ON TRUE
             ORDER BY ctx.last_activity DESC
             "#,
-            user_id.as_str(),
+            user_id as _,
             end,
             limit
         )

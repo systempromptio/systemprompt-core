@@ -16,8 +16,8 @@ use super::{
     AssetDigest, EventOutboxId, ManagedError, ManagedRepository, ManagedResolution,
     ManagedResourceId, PublicationAction, PublicationAdmission, PublicationDecision, PublicationId,
     PublicationRequest, PublicationReviewId, PublicationRow, ResourceKind, ResourceRevisionId,
-    Result, RevisionBundle, SelectionRow, UserId, decision_from_row, invalid, request_digest,
-    resolution_from_row, validate_admission, validate_request,
+    Result, RevisionBundle, SelectionRow, SelectionState, UserId, decision_from_row, invalid,
+    request_digest, resolution_from_row, validate_admission, validate_request,
 };
 
 impl ManagedRepository {
@@ -53,8 +53,8 @@ impl ManagedRepository {
         let mut tx = self.pool.begin().await?;
         sqlx::query_scalar!(
             "SELECT 1 FROM managed_resources WHERE id=$1 AND owner_id=$2 FOR UPDATE",
-            request.resource_id.as_str(),
-            owner.as_str()
+            request.resource_id as _,
+            owner as _
         )
         .fetch_optional(&mut *tx)
         .await?
@@ -102,8 +102,8 @@ impl ManagedRepository {
         }
         let resource_kind = sqlx::query_scalar!(
             r#"SELECT kind AS "kind: ResourceKind" FROM managed_resources WHERE id=$1 AND owner_id=$2"#,
-            request.resource_id.as_str(),
-            owner.as_str()
+            request.resource_id as _,
+            owner as _
         )
         .fetch_optional(&self.pool)
         .await?
@@ -131,8 +131,8 @@ impl ManagedRepository {
     ) -> Result<ManagedResolution> {
         let resource = sqlx::query!(
             "SELECT id FROM managed_resources WHERE owner_id=$1 AND kind=$2 AND resource_key=$3",
-            owner.as_str(),
-            kind.as_str(),
+            owner as _,
+            kind as _,
             resource_key
         )
         .fetch_optional(&self.pool)
@@ -141,8 +141,8 @@ impl ManagedRepository {
             return Ok(ManagedResolution::NotManaged);
         };
         let resource_id = ManagedResourceId::new(resource.id);
-        let selection = sqlx::query!("SELECT generation,state,publication_id,revision_id,bundle_digest FROM managed_publication_selections WHERE owner_id=$1 AND resource_id=$2",
-            owner.as_str(), resource_id.as_str())
+        let selection = sqlx::query!(r#"SELECT generation,state AS "state: SelectionState",publication_id,revision_id,bundle_digest FROM managed_publication_selections WHERE owner_id=$1 AND resource_id=$2"#,
+            owner as _, resource_id as _)
             .fetch_optional(&self.pool)
             .await?;
         let Some(selection) = selection else {
@@ -168,7 +168,7 @@ impl ManagedRepository {
         expected_digest: &AssetDigest,
     ) -> Result<RevisionBundle> {
         let row = sqlx::query!(r#"SELECT revision_id AS "revision_id!",bundle_digest AS "bundle_digest!" FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 AND generation=$3 AND revision_id IS NOT NULL"#,
-            owner.as_str(), resource_id.as_str(), generation)
+            owner as _, resource_id as _, generation)
             .fetch_optional(&self.pool)
             .await?
             .ok_or(ManagedError::Unavailable)?;

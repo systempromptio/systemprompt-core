@@ -84,7 +84,7 @@ impl NotificationStreamRepository {
                       attention_default, attention_floor, attention_ceiling, retention_days,
                       coalesce_window_secs
                FROM notification_streams WHERE id = $1"#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(executor)
         .await?
@@ -139,7 +139,7 @@ impl NotificationStreamRepository {
                  retention_days = EXCLUDED.retention_days,
                  coalesce_window_secs = EXCLUDED.coalesce_window_secs,
                  source = EXCLUDED.source, updated_at = now()",
-            stream.id.as_str(),
+            stream.id as _,
             stream.name,
             stream.description,
             &audience,
@@ -160,12 +160,9 @@ impl NotificationStreamRepository {
         executor: impl PgExecutor<'_>,
         id: &NotificationStreamId,
     ) -> Result<bool, RepositoryError> {
-        let result = sqlx::query!(
-            "DELETE FROM notification_streams WHERE id = $1",
-            id.as_str()
-        )
-        .execute(executor)
-        .await?;
+        let result = sqlx::query!("DELETE FROM notification_streams WHERE id = $1", id as _)
+            .execute(executor)
+            .await?;
         Ok(result.rows_affected() > 0)
     }
 

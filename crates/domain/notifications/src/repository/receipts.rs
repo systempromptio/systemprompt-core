@@ -33,12 +33,11 @@ impl NotificationReceiptRepository {
         if ids.is_empty() {
             return Ok(());
         }
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         sqlx::query!(
             "INSERT INTO notification_receipts (notification_id, surface, state)
              SELECT t.id::uuid, $2, $3 FROM UNNEST($1::text[]) AS t(id)
              ON CONFLICT (notification_id, surface, state) DO NOTHING",
-            &ids,
+            ids as _,
             surface,
             state.as_str(),
         )
@@ -66,14 +65,13 @@ impl NotificationReceiptRepository {
         if ids.is_empty() {
             return Ok(0);
         }
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         let result = sqlx::query!(
             "INSERT INTO notification_receipts (notification_id, surface, state)
              SELECT n.id, $3, $4 FROM notifications n
              WHERE n.recipient_user_id = $1 AND n.id = ANY($2::text[]::uuid[])
              ON CONFLICT (notification_id, surface, state) DO NOTHING",
-            owner.as_str(),
-            &ids,
+            owner as _,
+            ids as _,
             surface,
             state.as_str(),
         )
@@ -86,12 +84,11 @@ impl NotificationReceiptRepository {
         executor: impl PgExecutor<'_>,
         ids: &[NotificationId],
     ) -> Result<HashMap<NotificationId, HashSet<String>>, RepositoryError> {
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT notification_id::text AS "id!: NotificationId", surface
                FROM notification_receipts
                WHERE notification_id = ANY($1::text[]::uuid[]) AND state = $2"#,
-            &ids,
+            ids as _,
             ReceiptState::Delivered.as_str(),
         )
         .fetch_all(executor)

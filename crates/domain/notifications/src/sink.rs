@@ -78,14 +78,13 @@ impl NotificationSink for OutboxNotificationSink {
                     .await
             },
         };
-        appended
-            .map_err(|error| match error {
-                DurableEventError::Database(e) => NotificationSinkError::Database(e),
-                DurableEventError::Serialization(e) => NotificationSinkError::Encode(e),
-                DurableEventError::InvalidContract => NotificationSinkError::Repository(
-                    RepositoryError::invalid_argument("fact", "outbox contract rejected the fact"),
-                ),
-            })?;
+        appended.map_err(|error| match error {
+            DurableEventError::Database(e) => NotificationSinkError::Database(e),
+            DurableEventError::Serialization(e) => NotificationSinkError::Encode(e),
+            DurableEventError::InvalidContract => NotificationSinkError::Repository(
+                RepositoryError::invalid_argument("fact", "outbox contract rejected the fact"),
+            ),
+        })?;
         Ok(())
     }
 }

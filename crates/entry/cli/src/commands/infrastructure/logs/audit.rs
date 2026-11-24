@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, McpToolName, TaskId, TraceId};
 use systemprompt_models::text::truncate_with_ellipsis;
 use systemprompt_runtime::{AuditPage, TraceQueryService, TraceRepository};
+use systemprompt_traits::RequestStatus;
 
 use super::types::MessageRow;
 use systemprompt_extension::cli::CommandOutput;
@@ -90,7 +91,8 @@ impl AuditArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuditOutput {
     pub request_id: AiRequestId,
-    pub status: String,
+    #[schemars(with = "String")]
+    pub status: RequestStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -189,7 +191,7 @@ async fn execute_with_pool_inner(
             .into_iter()
             .map(|m| MessageRow {
                 sequence: m.sequence_number,
-                role: m.role,
+                role: m.role.as_str().to_owned(),
                 content: args.bounded(m.content),
             })
             .collect(),
@@ -208,10 +210,13 @@ async fn execute_with_pool_inner(
 
 #[must_use]
 pub fn build_audit(output: &AuditOutput) -> CommandOutput {
-    let title = if output.status == "completed" {
+    let title = if output.status == RequestStatus::Completed {
         "AI Request Audit".to_owned()
     } else {
-        format!("AI Request Audit — {}", output.status.to_uppercase())
+        format!(
+            "AI Request Audit — {}",
+            output.status.as_str().to_uppercase()
+        )
     };
     CommandOutput::card_value(title, output)
 }

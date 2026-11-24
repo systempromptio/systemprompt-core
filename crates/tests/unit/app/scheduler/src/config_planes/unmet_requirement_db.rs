@@ -53,10 +53,16 @@ async fn a_plane_with_an_unmet_requirement_is_unavailable_and_unread() {
         Some(PlaneFailure::UnmetRequirement { requirement }) if requirement.ends_with("AbsentState")
     ));
     assert_eq!(row.declared_hash, None, "the declaration is not read");
-    assert!(report.failures().is_empty(), "an unavailable plane does not fail the pass");
+    assert!(
+        report.failures().is_empty(),
+        "an unavailable plane does not fail the pass"
+    );
 
     let states = svc.repository().list_states().await.expect("states");
-    let state = states.iter().find(|s| s.plane == plane.name).expect("state");
+    let state = states
+        .iter()
+        .find(|s| s.plane == plane.name)
+        .expect("state");
     assert_eq!(state.outcome.as_str(), "unavailable");
 }
 

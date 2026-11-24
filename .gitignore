@@ -292,3 +292,9 @@ scripts/rust-contracts/target/
 !scripts/test-release-proof.py
 !scripts/check-offline.sh
 !scripts/lint-ledger-reads.sh
+!scripts/lint-typed-binds.py
+!scripts/test-lint-typed-binds.py
+!scripts/lint-state-compare.sh
+!scripts/test-lint-state-compare.py
+!scripts/lint-owner-witness.py
+!scripts/test-lint-owner-witness.py

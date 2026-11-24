@@ -136,19 +136,19 @@ impl DocumentCommentRepository {
                          via_agent AS "via_agent: AgentName",
                          context_id AS "context_id: ContextId",
                          client_id AS "client_id: ClientId""#,
-            request.document_id.as_str(),
-            request.anchor.node.as_str(),
+            request.document_id as _,
+            request.anchor.node as _,
             request.anchor.find,
             request.anchor.nth,
             start,
             end,
-            request.author_user_id.as_str(),
+            request.author_user_id as _,
             request.body,
             &mentions,
-            request.parent_id.as_ref().map(DocumentCommentId::as_str),
-            request.via_agent.as_ref().map(AgentName::as_str),
-            request.context_id.as_ref().map(ContextId::as_str),
-            request.client_id.as_ref().map(ClientId::as_str),
+            request.parent_id as _,
+            request.via_agent as _,
+            request.context_id as _,
+            request.client_id as _,
             cells,
         )
         .fetch_one(&mut *conn)
@@ -164,7 +164,7 @@ impl DocumentCommentRepository {
             r#"SELECT document_id::text AS "document_id!: DocumentId"
                FROM document_comments
                WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
-            comment.as_str()
+            comment as _
         )
         .fetch_optional(&*self.pools.read)
         .await?)
@@ -191,7 +191,7 @@ impl DocumentCommentRepository {
                       client_id AS "client_id: ClientId"
                FROM document_comments WHERE document_id = $1::text::uuid
                ORDER BY created_at, id"#,
-            document.as_str()
+            document as _
         )
         .fetch_all(&*self.pools.read)
         .await?

@@ -21,7 +21,7 @@ impl ManagedRepository {
         request: &ConsumerReceiptRequest,
     ) -> Result<ConsumerReceiptResponse> {
         self.authenticate_consumer_device(credential).await?;
-        let publication = sqlx::query!("SELECT owner_id,resource_id,revision_id,generation,bundle_digest FROM managed_publications WHERE id=$1", request.publication_id.as_str())
+        let publication = sqlx::query!("SELECT owner_id,resource_id,revision_id,generation,bundle_digest FROM managed_publications WHERE id=$1", request.publication_id as _)
             .fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
         if publication.resource_id != request.resource_id.as_str()
             || publication.revision_id.as_deref() != Some(request.revision_id.as_str())
@@ -37,7 +37,7 @@ impl ManagedRepository {
         verify_readback(&bundle, request)?;
         let key = sqlx::query_scalar!(
             "SELECT resource_key FROM managed_resources WHERE id=$1",
-            request.resource_id.as_str()
+            request.resource_id as _
         )
         .fetch_one(&self.pool)
         .await?;
@@ -57,9 +57,9 @@ impl ManagedRepository {
         let id = InstallationReceiptId::generate();
         let host = host_key(request.host);
         let verified = request.fully_verified();
-        let inserted = sqlx::query!("INSERT INTO managed_installation_receipts(id,owner_id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence,consumer_id,device_id,host,consumer_evidence,fully_verified) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'{}'::jsonb,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING", id.as_str(), owner.as_str(), request.installation_id.as_str(), request.publication_id.as_str(), request.resource_id.as_str(), request.generation, request.bundle_digest.as_str(), manifest, identity.consumer_id.as_str(), identity.device_id.as_str(), host, evidence, verified)
+        let inserted = sqlx::query!("INSERT INTO managed_installation_receipts(id,owner_id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence,consumer_id,device_id,host,consumer_evidence,fully_verified) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'{}'::jsonb,$9,$10,$11,$12,$13) ON CONFLICT DO NOTHING", id as _, owner as _, request.installation_id as _, request.publication_id as _, request.resource_id as _, request.generation, request.bundle_digest as _, manifest, identity.consumer_id as _, identity.device_id as _, host, evidence, verified)
             .execute(&mut *tx).await?.rows_affected() == 1;
-        let row = sqlx::query!("SELECT id,consumer_evidence,verified_at,fully_verified FROM managed_installation_receipts WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND installation_id=$4 AND publication_id=$5", identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.installation_id.as_str(), request.publication_id.as_str())
+        let row = sqlx::query!("SELECT id,consumer_evidence,verified_at,fully_verified FROM managed_installation_receipts WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND installation_id=$4 AND publication_id=$5", identity.consumer_id as _, identity.device_id as _, host, request.installation_id as _, request.publication_id as _)
             .fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict("Installation identity belongs to different immutable evidence".to_owned()))?;
         if row.consumer_evidence.as_ref() != Some(&evidence) {
             return Err(ManagedError::Conflict(
@@ -85,7 +85,7 @@ impl ManagedRepository {
         receipt: &InstallationReceiptId,
     ) -> Result<systemprompt_identifiers::ManagedResourceId> {
         let identity = self.authenticate_consumer_device(credential).await?;
-        let row = sqlx::query!("SELECT resource_id FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3", receipt.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str())
+        let row = sqlx::query!("SELECT resource_id FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3", receipt as _, identity.consumer_id as _, identity.device_id as _)
             .fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
         Ok(systemprompt_identifiers::ManagedResourceId::new(
             row.resource_id,

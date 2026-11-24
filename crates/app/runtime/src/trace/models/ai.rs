@@ -7,6 +7,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
+use systemprompt_models::ai::StoredMessageRole;
+use systemprompt_traits::RequestStatus;
 
 #[derive(Debug, Clone)]
 pub struct AiRequestFilter {
@@ -143,7 +145,7 @@ pub struct AiRequestListItem {
     pub reasoning_tokens: Option<i32>,
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
-    pub status: String,
+    pub status: RequestStatus,
     pub finish_reason: Option<String>,
     pub billing_source: String,
 }
@@ -160,7 +162,7 @@ pub struct AiRequestDetail {
     pub output_tokens: Option<i32>,
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
-    pub status: String,
+    pub status: RequestStatus,
     pub error_message: Option<String>,
     pub client_kind: String,
     pub client_attestation: String,
@@ -252,7 +254,7 @@ impl AuditPage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConversationMessage {
-    pub role: String,
+    pub role: StoredMessageRole,
     pub content: String,
     pub sequence_number: i32,
 }

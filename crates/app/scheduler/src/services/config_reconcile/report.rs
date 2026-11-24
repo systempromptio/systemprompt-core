@@ -71,7 +71,10 @@ impl fmt::Display for PlaneFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnmetRequirement { requirement } => {
-                write!(f, "requires {requirement}, which this host does not provide")
+                write!(
+                    f,
+                    "requires {requirement}, which this host does not provide"
+                )
             },
             Self::Failed { error } => error.fmt(f),
         }

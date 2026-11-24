@@ -77,7 +77,7 @@ impl AnalyticsEventStore for AnalyticsRepository {
           AND event_type = 'page_view'
         ORDER BY timestamp ASC
         "#,
-            session_id.as_str()
+            session_id as _
         )
         .fetch_all(&*self.write_pool)
         .await
@@ -96,7 +96,7 @@ impl AnalyticsEventStore for AnalyticsRepository {
         WHERE session_id = $1
         ORDER BY timestamp ASC
         "#,
-            session_id.as_str()
+            session_id as _
         )
         .fetch_all(&*self.write_pool)
         .await
@@ -110,7 +110,7 @@ impl AnalyticsEventStore for AnalyticsRepository {
             SELECT 1 FROM analytics_events WHERE session_id = $1
         ) as "exists!"
         "#,
-            session_id.as_str()
+            session_id as _
         )
         .fetch_one(&*self.write_pool)
         .await

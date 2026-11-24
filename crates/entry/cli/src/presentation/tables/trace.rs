@@ -32,7 +32,7 @@ pub fn task_info_table(task_info: &TaskInfo) -> String {
     let rows = vec![TaskInfoRow {
         task: task_info.task_id.as_str().chars().take(8).collect(),
         agent_name: OrDash(task_info.agent_name.clone()),
-        status: task_info.status.clone(),
+        status: task_info.status.as_str().to_owned(),
         started_at: task_info
             .started_at
             .map_or_else(dash, |t| t.format("%H:%M:%S").to_string()),
@@ -64,7 +64,7 @@ pub fn execution_steps_table(steps: &[ExecutionStep]) -> String {
             step_number: i + 1,
             step_type: s.step_type.clone().unwrap_or_else(|| "unknown".to_owned()),
             title: truncate_cell(s.title.as_deref().unwrap_or_default(), 40),
-            status: s.status.clone(),
+            status: s.status.to_string(),
             duration: millis(s.duration_ms),
         })
         .collect();
@@ -132,7 +132,7 @@ pub fn mcp_tool_calls_table(executions: &[McpToolExecution]) -> String {
         .map(|e| ToolCallRow {
             tool_name: e.tool_name.clone(),
             server: e.server_name.clone(),
-            status: e.status.clone(),
+            status: e.status.to_string(),
             duration: millis(e.execution_time_ms),
         })
         .collect();

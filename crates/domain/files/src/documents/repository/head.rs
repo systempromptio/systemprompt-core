@@ -45,7 +45,7 @@ impl DocumentRepository {
     pub async fn move_head(conn: &mut PgConnection, head: HeadMove<'_>) -> RepoResult<bool> {
         sqlx::query_scalar!(
             r#"SELECT 1 AS "locked!" FROM documents WHERE id = $1::text::uuid FOR NO KEY UPDATE"#,
-            head.document.as_str(),
+            head.document as _,
         )
         .fetch_optional(&mut *conn)
         .await?;
@@ -60,9 +60,9 @@ impl DocumentRepository {
                                WHERE l.document_id = $1::text::uuid
                                  AND l.expires_at > now()
                                  AND l.holder_id IS DISTINCT FROM $4)",
-            head.document.as_str(),
-            head.expected.map(DocumentRevisionId::as_str),
-            head.new.as_str(),
+            head.document as _,
+            head.expected as _,
+            head.new as _,
             head.lock_holder.map(LockHolder::id_str),
         )
         .execute(conn)

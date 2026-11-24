@@ -55,8 +55,8 @@ impl DocumentWriteAckRepository {
             r#"SELECT user_id AS "user_id: UserId", request_sha256, ack
                FROM document_write_acks
                WHERE document_id = $1::text::uuid AND op_id = $2 AND user_id IS NOT NULL"#,
-            document.as_str(),
-            op_id.as_str(),
+            document as _,
+            op_id as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?
@@ -71,8 +71,8 @@ impl DocumentWriteAckRepository {
         sqlx::query!(
             "DELETE FROM document_write_acks
              WHERE document_id = $1::text::uuid AND op_id = $2 AND user_id IS NULL",
-            claim.document.as_str(),
-            claim.op_id.as_str(),
+            claim.document as _,
+            claim.op_id as _,
         )
         .execute(&mut *conn)
         .await?;
@@ -83,11 +83,11 @@ impl DocumentWriteAckRepository {
                VALUES ($1::text::uuid, $2, $3::text::uuid, $4, $5, $6)
                ON CONFLICT (document_id, op_id) DO NOTHING
                RETURNING 1 AS "claimed!""#,
-            claim.document.as_str(),
-            claim.op_id.as_str(),
-            claim.ack.revision_id.as_str(),
+            claim.document as _,
+            claim.op_id as _,
+            claim.ack.revision_id as _,
             ack,
-            claim.user.as_str(),
+            claim.user as _,
             claim.request_sha256,
         )
         .fetch_optional(&mut *conn)
@@ -100,8 +100,8 @@ impl DocumentWriteAckRepository {
             r#"SELECT user_id AS "user_id: UserId", request_sha256, ack
                FROM document_write_acks
                WHERE document_id = $1::text::uuid AND op_id = $2"#,
-            claim.document.as_str(),
-            claim.op_id.as_str(),
+            claim.document as _,
+            claim.op_id as _,
         )
         .fetch_one(&mut *conn)
         .await
@@ -118,9 +118,9 @@ impl DocumentWriteAckRepository {
         sqlx::query!(
             "DELETE FROM document_write_acks
              WHERE document_id = $1::text::uuid AND op_id = $2 AND user_id = $3",
-            document.as_str(),
-            op_id.as_str(),
-            user.as_str(),
+            document as _,
+            op_id as _,
+            user as _,
         )
         .execute(&*self.pools.write)
         .await?;

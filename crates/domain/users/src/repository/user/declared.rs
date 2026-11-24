@@ -25,7 +25,7 @@ pub struct DeclaredUserRow {
     pub name: String,
     pub account_kind: String,
     pub roles: Vec<String>,
-    pub status: String,
+    pub status: UserStatus,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -43,7 +43,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             DeclaredUserRow,
             r#"
-            SELECT email, name, account_kind, roles, status
+            SELECT email, name, account_kind, roles, status AS "status: UserStatus"
             FROM users
             WHERE declared_source IS NOT NULL
             ORDER BY email
@@ -77,7 +77,7 @@ impl UserRepository {
             WHERE users.account_kind = EXCLUDED.account_kind
             RETURNING id
             "#,
-            id.as_str(),
+            id as _,
             user.name,
             email,
             user.status,
@@ -127,10 +127,9 @@ impl UserRepository {
         conn: &mut PgConnection,
         ids: &[UserId],
     ) -> Result<Vec<(UserId, String)>> {
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             "SELECT id, email FROM users WHERE id = ANY($1::text[])",
-            &ids
+            ids as _
         )
         .fetch_all(conn)
         .await?;

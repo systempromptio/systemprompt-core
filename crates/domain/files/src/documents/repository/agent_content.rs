@@ -26,7 +26,7 @@ impl DocumentRepository {
                                   WHERE p.document_id = d.id AND p.actor_kind = 'agent'))
                       AS "flagged!"
                FROM documents d WHERE d.id = $1::text::uuid"#,
-            document.as_str(),
+            document as _,
         )
         .fetch_optional(self.pools.authz())
         .await?;
@@ -47,9 +47,9 @@ impl DocumentRepository {
                      SELECT 1 FROM document_proposals p
                      WHERE p.id = $3::text::uuid AND p.actor_kind = 'agent'
                  ))"#,
-            document.as_str(),
+            document as _,
             authored,
-            settles.map(DocumentProposalId::as_str),
+            settles as _,
         )
         .execute(conn)
         .await?;

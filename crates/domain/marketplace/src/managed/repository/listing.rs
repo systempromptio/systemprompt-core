@@ -62,7 +62,7 @@ impl ManagedRepository {
             (SELECT v.id FROM managed_revisions v WHERE v.resource_id=r.id ORDER BY v.created_at DESC,v.id DESC LIMIT 1) AS "latest_revision?"
             FROM managed_resources r JOIN managed_sources s ON s.id=r.source_id AND s.owner_id=r.owner_id
             WHERE r.owner_id=$1 ORDER BY r.kind,r.resource_key,r.id LIMIT $2 OFFSET $3"#,
-            owner.as_str(), Self::PAGE_SIZE + 1, offset).fetch_all(&self.pool).await?;
+            owner as _, Self::PAGE_SIZE + 1, offset).fetch_all(&self.pool).await?;
         Ok(Page::from_fetched(
             rows.into_iter()
                 .map(|row| ResourceSummary {
@@ -87,8 +87,8 @@ impl ManagedRepository {
         validate_offset(offset)?;
         let resource_exists = sqlx::query_scalar!(
             "SELECT id FROM managed_resources WHERE owner_id=$1 AND id=$2",
-            owner.as_str(),
-            resource.as_str()
+            owner as _,
+            resource as _
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -97,7 +97,7 @@ impl ManagedRepository {
         }
 
         let rows = sqlx::query!(r#"SELECT id,digest,parent_id,rationale,created_at FROM managed_revisions v WHERE owner_id=$1 AND resource_id=$2 ORDER BY v.created_at DESC,v.id DESC LIMIT $3 OFFSET $4"#,
-            owner.as_str(), resource.as_str(), Self::PAGE_SIZE + 1, offset).fetch_all(&self.pool).await?;
+            owner as _, resource as _, Self::PAGE_SIZE + 1, offset).fetch_all(&self.pool).await?;
         let items = rows
             .into_iter()
             .map(|row| {

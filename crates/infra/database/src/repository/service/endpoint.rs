@@ -38,7 +38,7 @@ impl ServiceRepository {
                 advertise_url = EXCLUDED.advertise_url,
                 heartbeat_at = EXCLUDED.heartbeat_at
             "#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             advertise_url
         )
         .execute(&*self.write_pool)
@@ -75,9 +75,9 @@ impl ServiceRepository {
             ORDER BY s.heartbeat_at DESC
             LIMIT 1
             "#,
-            service_name.as_str(),
+            service_name as _,
             ServiceStatus::Running.as_str(),
-            self.instance_id.as_str(),
+            self.instance_id as _,
             INSTANCE_DEAD_AFTER_SECS as f64,
             NodeRole::Worker.as_str()
         )

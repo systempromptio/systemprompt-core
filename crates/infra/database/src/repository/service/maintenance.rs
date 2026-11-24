@@ -48,7 +48,7 @@ impl ServiceRepository {
             WHERE instance_id = $1
               AND (status = $2 OR (status = $3 AND pid IS NULL))
             "#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             ServiceStatus::Error.as_str(),
             ServiceStatus::Running.as_str()
         )
@@ -63,7 +63,7 @@ impl ServiceRepository {
             WHERE instance_id = $1 AND status = $2 AND pid IS NOT NULL
             ORDER BY name
             "#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             ServiceStatus::Running.as_str()
         )
         .fetch_all(&*self.write_pool)
@@ -104,7 +104,7 @@ impl ServiceRepository {
     pub async fn touch_heartbeat(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!(
             r#"UPDATE services SET heartbeat_at = CURRENT_TIMESTAMP WHERE instance_id = $1"#,
-            self.instance_id.as_str()
+            self.instance_id as _
         )
         .execute(&*self.write_pool)
         .await?;

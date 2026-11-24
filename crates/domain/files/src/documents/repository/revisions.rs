@@ -115,7 +115,7 @@ impl DocumentRevisionRepository {
                       client_id AS "client_id: ClientId",
                       created_at, landed_at
                FROM document_revisions WHERE id = $1::text::uuid"#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.pools.write)
         .await?
@@ -141,7 +141,7 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       client_id AS "client_id: ClientId",
                       created_at, landed_at
                FROM document_revisions WHERE id = (SELECT head_revision_id FROM documents WHERE id = $1::text::uuid)"#,
-            document_id.as_str()
+            document_id as _
         )
         .fetch_optional(&*self.pools.write)
         .await?
@@ -176,7 +176,7 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3::uuid))
              ORDER BY created_at DESC, id DESC
              LIMIT $4"#,
-            document_id.as_str(),
+            document_id as _,
             before.map(|c| c.updated_at),
             before.map(|c| c.id),
             limit.max(1),
@@ -210,7 +210,7 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                FROM document_revisions WHERE content_sha256 = $1
              ORDER BY created_at DESC, id DESC
              LIMIT $2"#,
-            hash.as_str(),
+            hash as _,
             limit.max(1),
         )
         .fetch_all(&*self.pools.read)
@@ -221,7 +221,7 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
     pub async fn count(&self, document_id: &DocumentId) -> RepoResult<i64> {
         let count = sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM document_revisions WHERE document_id = $1::text::uuid AND landed_at IS NOT NULL"#,
-            document_id.as_str(),
+            document_id as _,
         )
         .fetch_one(&*self.pools.read)
         .await?;

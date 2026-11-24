@@ -46,7 +46,7 @@ impl AgentRunRepository {
               AND status IN ('preparing', 'running')
             FOR UPDATE
             "#,
-            run_id.as_str(),
+            run_id as _,
             lease.claimed_by(),
             lease.attempt(),
             lease.claimed_at(),
@@ -70,7 +70,7 @@ impl AgentRunRepository {
             ) WITH ORDINALITY AS u(kind, tool_name, tool_use_id, payload, created_at, ord),
             (SELECT COALESCE(MAX(seq), -1) AS seq FROM agent_run_events WHERE run_id = $1) AS last
             "#,
-            run_id.as_str(),
+            run_id as _,
             &kinds,
             &tool_names,
             &tool_use_ids,
@@ -81,7 +81,7 @@ impl AgentRunRepository {
         .await?;
         sqlx::query_scalar!(
             r#"SELECT 1 AS "notified!" FROM pg_notify('agent_run_events', $1)"#,
-            run_id.as_str(),
+            run_id as _,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -103,7 +103,7 @@ impl AgentRunRepository {
             ORDER BY seq
             LIMIT $3
             "#,
-            run_id.as_str(),
+            run_id as _,
             after_seq,
             limit,
         )
@@ -126,7 +126,7 @@ impl AgentRunRepository {
     pub async fn count_events(&self, run_id: &AgentRunId) -> AgentRunsResult<i64> {
         let count = sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM agent_run_events WHERE run_id = $1"#,
-            run_id.as_str(),
+            run_id as _,
         )
         .fetch_one(self.write_pool())
         .await?;

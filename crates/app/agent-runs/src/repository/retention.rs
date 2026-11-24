@@ -47,7 +47,7 @@ impl AgentRunRepository {
     pub async fn clear_run_dir(&self, id: &AgentRunId) -> AgentRunsResult<()> {
         sqlx::query!(
             "UPDATE agent_runs SET run_dir = NULL WHERE id = $1",
-            id.as_str()
+            id as _
         )
         .execute(self.write_pool())
         .await?;

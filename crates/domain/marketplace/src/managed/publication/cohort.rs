@@ -122,9 +122,9 @@ impl ManagedRepository {
                 AND p.id=c.publication_id AND p.generation=c.generation
             WHERE c.owner_id=$1 AND r.kind=$3 AND c.cohort_dimension = ANY($2)
             ORDER BY r.resource_key, c.cohort_dimension, c.cohort_value"#,
-            owner.as_str(),
+            owner as _,
             &dimensions,
-            kind.as_str()
+            kind as _
         )
         .fetch_all(&self.pool)
         .await?;

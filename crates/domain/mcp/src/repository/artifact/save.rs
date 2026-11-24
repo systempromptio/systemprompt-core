@@ -6,9 +6,7 @@
 
 use super::{ArtifactCorrelation, CreateMcpArtifact, McpArtifactRepository};
 use crate::error::McpDomainResult;
-use systemprompt_identifiers::{
-    AiToolCallId, ArtifactId, ContextId, McpToolName, SessionId, TraceId, UserId,
-};
+use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::mcp::ExecutionSource;
 
 impl McpArtifactRepository {
@@ -31,15 +29,15 @@ impl McpArtifactRepository {
                 payload_bytes = EXCLUDED.payload_bytes,
                 last_seen_source = EXCLUDED.source
             "#,
-            artifact.artifact_id.as_str(),
-            artifact.mcp_execution_id.as_str(),
-            artifact.context_id.as_ref().map(ContextId::as_str),
-            artifact.user_id.as_ref().map(UserId::as_str),
-            artifact.session_id.as_ref().map(SessionId::as_str),
-            artifact.trace_id.as_ref().map(TraceId::as_str),
-            artifact.ai_tool_call_id.as_ref().map(AiToolCallId::as_str),
-            artifact.server_name.as_str(),
-            artifact.tool_name.as_ref().map(McpToolName::as_str),
+            artifact.artifact_id as _,
+            artifact.mcp_execution_id as _,
+            artifact.context_id as _,
+            artifact.user_id as _,
+            artifact.session_id as _,
+            artifact.trace_id as _,
+            artifact.ai_tool_call_id as _,
+            artifact.server_name as _,
+            artifact.tool_name as _,
             &artifact.artifact_type,
             artifact.title.as_deref(),
             artifact.source.as_str(),
@@ -73,10 +71,10 @@ impl McpArtifactRepository {
                 last_seen_source = COALESCE($5, last_seen_source)
             WHERE artifact_id = $1
             "#,
-            artifact_id.as_str(),
-            keys.session_id.as_ref().map(SessionId::as_str),
-            keys.trace_id.as_ref().map(TraceId::as_str),
-            keys.ai_tool_call_id.as_ref().map(AiToolCallId::as_str),
+            artifact_id as _,
+            keys.session_id as _,
+            keys.trace_id as _,
+            keys.ai_tool_call_id as _,
             keys.last_seen_source.map(ExecutionSource::as_str),
         )
         .execute(&*self.write_pool)

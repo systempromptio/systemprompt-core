@@ -26,8 +26,8 @@ impl FactRepository {
                  AND source_revision_id IS DISTINCT FROM $2
                  AND status NOT IN ('stale', 'superseded', 'retired')
                ORDER BY id FOR UPDATE"#,
-            document_id.as_str(),
-            except_revision.as_str(),
+            document_id as _,
+            except_revision as _,
         )
         .fetch_all(&mut *conn)
         .await?;
@@ -43,7 +43,7 @@ impl FactRepository {
                WHERE source_comment_id = $1
                  AND status NOT IN ('stale', 'superseded', 'retired')
                ORDER BY id FOR UPDATE"#,
-            comment_id.as_str(),
+            comment_id as _,
         )
         .fetch_all(&mut *conn)
         .await?;

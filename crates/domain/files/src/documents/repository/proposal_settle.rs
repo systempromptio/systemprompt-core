@@ -20,8 +20,8 @@ impl DocumentProposalRepository {
             "UPDATE document_proposals
              SET landed_revision_id = $2::text::uuid, updated_at = now()
              WHERE id = $1::text::uuid AND status = 'accepted' AND landed_revision_id IS NULL",
-            id.as_str(),
-            landed.as_str(),
+            id as _,
+            landed as _,
         )
         .execute(conn)
         .await?;

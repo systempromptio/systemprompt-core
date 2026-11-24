@@ -27,7 +27,7 @@ impl TraceRepository {
         WHERE trace_id = $1
         ORDER BY timestamp ASC
         "#,
-            trace_id.as_str()
+            trace_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -67,7 +67,7 @@ impl TraceRepository {
         FROM ai_requests
         WHERE trace_id = $1
         "#,
-        trace_id.as_str()
+        trace_id as _
     )
     .fetch_one(&*self.pool)
     .await?;
@@ -102,7 +102,7 @@ impl TraceRepository {
         WHERE trace_id = $1
         ORDER BY created_at ASC
         "#,
-            trace_id.as_str()
+            trace_id as _
         )
         .fetch_all(&*self.pool)
         .await?;

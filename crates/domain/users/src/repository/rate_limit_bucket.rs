@@ -52,7 +52,7 @@ impl RateLimitBuckets for UserRateLimitBucketRepository {
             DO UPDATE SET hits = user_rate_limit_buckets.hits + 1
             RETURNING hits
             "#,
-            user_id.as_str(),
+            user_id as _,
             scope,
             window_start,
         )

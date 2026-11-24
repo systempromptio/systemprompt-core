@@ -50,8 +50,8 @@ impl McpArtifactRepository {
               AND artifact_id = $1
               AND user_id = $2
             "#,
-            artifact_id.as_str(),
-            owner.as_str()
+            artifact_id as _,
+            owner as _
         )
         .fetch_optional(&*self.pool)
         .await?
@@ -94,7 +94,7 @@ impl McpArtifactRepository {
             WHERE (expires_at IS NULL OR expires_at > NOW())
               AND mcp_execution_id = $1
             "#,
-            mcp_execution_id.as_str()
+            mcp_execution_id as _
         )
         .fetch_optional(&*self.pool)
         .await?
@@ -139,7 +139,7 @@ impl McpArtifactRepository {
             ORDER BY created_at DESC
             LIMIT 1
             "#,
-            ai_tool_call_id.as_str()
+            ai_tool_call_id as _
         )
         .fetch_optional(&*self.pool)
         .await?
@@ -185,7 +185,7 @@ impl McpArtifactRepository {
             ORDER BY created_at DESC
             LIMIT $2
             "#,
-            server_name.as_str(),
+            server_name as _,
             limit
         )
         .fetch_all(&*self.pool)
@@ -234,7 +234,7 @@ impl McpArtifactRepository {
             ORDER BY created_at DESC
             LIMIT $2
             "#,
-            session_id.as_str(),
+            session_id as _,
             limit
         )
         .fetch_all(&*self.pool)

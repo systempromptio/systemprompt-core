@@ -17,6 +17,7 @@ use crate::cli::shared::{
 };
 use systemprompt_extension::cli::{ChartType, CliConfig, CommandOutput};
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
+use systemprompt_models::mcp::McpToolExecutionStatus;
 
 #[derive(Debug, Args)]
 pub struct TrendsArgs {
@@ -73,7 +74,7 @@ async fn execute_internal(
         );
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
         entry.0 += 1;
-        if row.status.as_deref() == Some("success") {
+        if row.status == Some(McpToolExecutionStatus::Success) {
             entry.1 += 1;
         }
         entry.2 += i64::from(row.execution_time_ms.unwrap_or(0));

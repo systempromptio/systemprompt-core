@@ -13,6 +13,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{McpServerId, McpToolName, ServiceName};
+use systemprompt_mcp::services::client::McpHealthStatus;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpListOutput {
@@ -25,7 +26,7 @@ pub use systemprompt_manifest::services::McpServerSummary;
 pub struct McpValidateOutput {
     pub server: ServiceName,
     pub valid: bool,
-    pub health_status: String,
+    pub health_status: McpHealthStatus,
     pub validation_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools_count: Option<usize>,

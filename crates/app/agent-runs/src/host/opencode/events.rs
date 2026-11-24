@@ -19,7 +19,7 @@ use systemprompt_identifiers::HostSessionId;
 use crate::event::{RunEventPayload, RunnerLevel};
 use crate::host::HostEvent;
 
-use super::wire::{StepFinishPart, StreamEvent, ToolPart};
+use super::wire::{StepFinishPart, StreamEvent, ToolPart, ToolStatus};
 
 pub const MAX_STREAM_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_EVENTS: usize = 8192;
@@ -145,14 +145,14 @@ fn session_check(state: &mut DecodeState, session: &str) -> SessionCheck {
 }
 
 fn tool(state: &mut DecodeState, part: ToolPart) -> Vec<RunEventPayload> {
-    let finished = matches!(part.state.status.as_str(), "completed" | "error");
+    let finished = matches!(part.state.status, ToolStatus::Completed | ToolStatus::Error);
     let Some(id) = part.id.or(part.part_id) else {
         return Vec::new();
     };
     if !finished || !state.seen_tools.insert(id.clone()) {
         return Vec::new();
     }
-    let is_error = part.state.status == "error";
+    let is_error = part.state.status == ToolStatus::Error;
     let content = if is_error {
         part.state.error.unwrap_or_default()
     } else {

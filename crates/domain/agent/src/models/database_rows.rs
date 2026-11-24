@@ -15,12 +15,14 @@ use systemprompt_identifiers::{
     AgentName, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, MessageId, SessionId,
     SkillId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::StepStatus;
+use systemprompt_models::a2a::{MessageRole, TaskState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub(crate) struct TaskRow {
     pub task_id: TaskId,
     pub context_id: ContextId,
-    pub status: String,
+    pub status: TaskState,
     pub status_timestamp: Option<DateTime<Utc>>,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
@@ -42,7 +44,7 @@ pub struct TaskMessage {
     pub task_id: TaskId,
     pub message_id: MessageId,
     pub client_message_id: Option<MessageId>,
-    pub role: String,
+    pub role: MessageRole,
     pub context_id: ContextId,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
@@ -114,7 +116,7 @@ pub struct ArtifactPartRow {
 pub struct ExecutionStepBatchRow {
     pub step_id: ExecutionStepId,
     pub task_id: TaskId,
-    pub status: String,
+    pub status: StepStatus,
     // JSON: JSONB `content` column — decoded into `StepContent` by the repository.
     pub content: serde_json::Value,
     pub started_at: DateTime<Utc>,

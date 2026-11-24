@@ -33,7 +33,7 @@ impl AiRequestRepository {
         let error = without_nul(error);
         let affected = sqlx::query!(
             "UPDATE ai_requests SET status=$4, accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
-            request_id.as_str(), owner.as_str(), error.as_ref(), RequestStatus::Failed.as_str()
+            request_id as _, owner as _, error.as_ref(), RequestStatus::Failed.as_str()
         ).execute(self.write_pool()).await?.rows_affected();
         if affected != 1 {
             return Err(settlement_conflict(
@@ -54,7 +54,7 @@ impl AiRequestRepository {
         let mut tx = self.write_pool().begin().await?;
         let stored_owner = sqlx::query_scalar!(
             "SELECT user_id FROM ai_requests WHERE id = $1 FOR UPDATE",
-            request_id.as_str()
+            request_id as _
         )
         .fetch_optional(&mut *tx)
         .await?
@@ -90,7 +90,7 @@ impl AiRequestRepository {
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = $1 AND status <> $14 AND accounting_failed_at IS NULL
                     "#,
-                    request_id.as_str(),
+                    request_id as _,
                     error.as_ref(),
                     billed,
                     i32::try_from(usage.input_tokens).unwrap_or(i32::MAX),
@@ -121,7 +121,7 @@ async fn settle_completion(
 ) -> Result<(), RepositoryError> {
     let previous = sqlx::query_scalar!(
         "SELECT response_body_sha256 FROM ai_request_payloads WHERE ai_request_id = $1",
-        request_id.as_str()
+        request_id as _
     )
     .fetch_optional(&mut **tx)
     .await?
@@ -152,7 +152,7 @@ async fn settle_completion(
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         "#,
-        request_id.as_str(),
+        request_id as _,
         tokens(usage.input_tokens)?,
         tokens(usage.output_tokens)?,
         tokens(usage.cache_read_tokens)?,
@@ -197,7 +197,7 @@ async fn upsert_response_payload(
             response_body_sha256 = EXCLUDED.response_body_sha256,
             updated_at = CURRENT_TIMESTAMP
         "#,
-        request_id.as_str(),
+        request_id as _,
         body.as_deref(),
         excerpt.as_deref(),
         payload.truncated,

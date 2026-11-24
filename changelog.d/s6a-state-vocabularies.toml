@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Lifecycle state"
+text = "Persisted lifecycle vocabularies decode as closed enums at the repository (`RunStatus`, `ErrorClass`, `TaskState`, `StepStatus`, `StoredMessageRole`, `RequestStatus`, `McpToolExecutionStatus`, `McpSessionStatus`, `UserStatus`, `ApiKeyKind`, `FactStatus`, `ScopeLevel`, `BridgeState`, `SelectionState`, `ReconciliationStatus`, `ManagedSourceKind`); an unknown stored value is a decode error, never a default. Agent migration 017 adds a status CHECK on `task_execution_steps`; oauth migration 029 a state CHECK on `bridge_sessions`. The agent and tool trend success rates now match the stored `TASK_STATE_*` and execution-status values, so they no longer read 0. `lint-state-compare` refuses a state field compared against a string literal."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "Trace, task, AI, MCP, user, brain and bridge row fields named `status`, `state`, `kind` or `role` are enums instead of `String`; the enums derive `sqlx::Type` behind the `sqlx` feature."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "`ApiKeyKind::from_stored` is removed; an unknown stored kind is a decode error instead of `User`."

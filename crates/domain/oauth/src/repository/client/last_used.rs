@@ -12,11 +12,10 @@ impl ClientRepository {
     pub async fn update_last_used(&self, client_id: &ClientId, timestamp: i64) -> Result<()> {
         let dt = chrono::DateTime::<Utc>::from_timestamp(timestamp, 0)
             .ok_or(crate::error::OauthError::Internal("Invalid timestamp"))?;
-        let client_id_str = client_id.as_str();
         sqlx::query!(
             "UPDATE oauth_clients SET last_used_at = $1 WHERE client_id = $2",
             dt,
-            client_id_str
+            client_id as _
         )
         .execute(&*self.write_pool)
         .await?;

@@ -27,7 +27,7 @@ fn tool_item(server: Option<&str>, duration: Option<i32>) -> ToolExecutionItem {
         trace_id: TraceId::generate(),
         tool_name: McpToolName::new("list_files"),
         server_name: server.map(McpServerId::new),
-        status: "success".to_string(),
+        status: systemprompt_models::mcp::McpToolExecutionStatus::Success,
         execution_time_ms: duration,
     }
 }

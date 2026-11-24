@@ -71,7 +71,7 @@ impl DocumentRepository {
                    INSERT INTO document_path_changes (document_id, from_path, to_path)
                    SELECT id, $3, $4 FROM moved WHERE $3 <> $4 RETURNING 1)
                SELECT COUNT(*) AS "updated!" FROM moved"#,
-                id.as_str(),
+                id as _,
                 name,
                 paths.from,
                 paths.to,
@@ -143,8 +143,8 @@ impl DocumentRepository {
                            AND (o.document_id = m.id OR o.folder_id = ANY(b.chain)))
                    RETURNING 1)
                SELECT COUNT(*) AS "updated!" FROM moved"#,
-            id.as_str(),
-            folder.map(DocumentFolderId::as_str),
+            id as _,
+            folder as _,
             paths.from,
             paths.to,
         )
@@ -164,8 +164,8 @@ impl DocumentRepository {
                    INSERT INTO document_path_changes (document_id, from_path)
                    SELECT id, $3 FROM trashed RETURNING 1)
                SELECT COUNT(*) AS "updated!" FROM trashed"#,
-                id.as_str(),
-                by.as_str(),
+                id as _,
+                by as _,
                 from_path,
             )
             .fetch_one(&*self.pools.write)
@@ -186,7 +186,7 @@ impl DocumentRepository {
                    INSERT INTO document_path_changes (document_id, to_path)
                    SELECT id, $2 FROM restored RETURNING 1)
                SELECT COUNT(*) AS "updated!" FROM restored"#,
-                id.as_str(),
+                id as _,
                 to_path,
             )
             .fetch_one(&*self.pools.write)
@@ -247,7 +247,6 @@ impl DocumentRepository {
         documents: &[DocumentId],
         pairs: &SubjectPairs,
     ) -> RepoResult<Vec<(DocumentId, DriveCursor)>> {
-        let ids: Vec<String> = documents.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT DISTINCT ON (document_id)
                       document_id::text AS "document_id!: DocumentId",
@@ -259,7 +258,7 @@ impl DocumentRepository {
                  AND (subject_kind, subject_value) IN (
                      SELECT k, v FROM UNNEST($2::text[], $3::text[]) AS p(k, v))
                ORDER BY document_id, landing_xid DESC, landing_seq DESC"#,
-            &ids,
+            documents as _,
             &pairs.kinds,
             &pairs.values,
         )

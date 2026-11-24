@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Database"
+text = "Repository queries bind typed identifiers as themselves (`id as _`) instead of converting them to text at the bind site, and `logs.user_id` carries a validated `logs_user_id_not_null` CHECK (logging migration 013). A new source gate, `scripts/lint-typed-binds.py`, reports any `.as_str()`/`.to_string()` left in a query macro's bind arguments."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`AssetDigest`, `ContentDigest` and `NotificationKind` derive a transparent `sqlx::Type` behind the `sqlx` feature."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Changed"
+text = "Migration 013 adds the `logs_user_id_not_null` CHECK (added NOT VALID, then validated) and the base schema declares it."

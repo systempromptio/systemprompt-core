@@ -37,7 +37,7 @@ impl PipelineVersionRepository {
                  (version, declared_hash, code_version, prompt_versions)
              VALUES ($1, $2, $3, $4)
              ON CONFLICT (version) DO NOTHING",
-            version.as_str(),
+            version as _,
             inputs.declared_hash,
             code_version,
             serde_json::to_value(&inputs.prompt_versions)?,

@@ -28,7 +28,7 @@ impl DocumentRepository {
                       d.created_at, d.updated_at, d.deleted_at AS trashed_at,
                       d.trashed_by AS "trashed_by: UserId"
                FROM documents d WHERE d.id = $1::text::uuid"#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(self.pools.authz())
         .await?
@@ -50,19 +50,16 @@ impl DocumentRepository {
     }
 
     pub async fn hard_delete(&self, id: &DocumentId) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "DELETE FROM documents WHERE id = $1::text::uuid",
-            id.as_str()
-        )
-        .execute(&*self.pools.write)
-        .await?;
+        let result = sqlx::query!("DELETE FROM documents WHERE id = $1::text::uuid", id as _)
+            .execute(&*self.pools.write)
+            .await?;
         Ok(result.rows_affected() == 1)
     }
 
     pub async fn rename_any(&self, id: &DocumentId, name: &str) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE documents SET name = $2, updated_at = now() WHERE id = $1::text::uuid",
-            id.as_str(),
+            id as _,
             name,
         )
         .execute(&*self.pools.write)
@@ -91,8 +88,8 @@ impl DocumentRepository {
                AND ($2::text IS NULL OR EXISTS (
                    SELECT 1 FROM document_folders f
                    WHERE f.id = $2::text::uuid AND f.deleted_at IS NULL))",
-            id.as_str(),
-            folder.map(DocumentFolderId::as_str),
+            id as _,
+            folder as _,
         )
         .execute(&mut *tx)
         .await?;

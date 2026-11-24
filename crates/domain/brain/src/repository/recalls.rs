@@ -9,9 +9,7 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use sqlx::PgExecutor;
-use systemprompt_identifiers::{
-    AiRequestId, BrainRecallId, ContextId, GatewayConversationId, SessionId, WorkflowId,
-};
+use systemprompt_identifiers::{AiRequestId, BrainRecallId, GatewayConversationId};
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
@@ -44,18 +42,15 @@ impl RecallRepository {
                   context_id, client, project, workflow, injected, withheld, tokens, as_of,
                   skipped, rendered_block, reranked)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
-            audit.recall_id.as_str(),
-            recall.principal.as_str(),
-            conversation.ai_request_id.as_ref().map(AiRequestId::as_str),
-            conversation
-                .gateway_conversation_id
-                .as_ref()
-                .map(GatewayConversationId::as_str),
-            conversation.session_id.as_ref().map(SessionId::as_str),
-            conversation.context_id.as_ref().map(ContextId::as_str),
+            audit.recall_id as _,
+            recall.principal as _,
+            conversation.ai_request_id as _,
+            conversation.gateway_conversation_id as _,
+            conversation.session_id as _,
+            conversation.context_id as _,
             recall.client.as_str(),
             recall.project.as_deref(),
-            recall.workflow.as_ref().map(WorkflowId::as_str),
+            recall.workflow as _,
             serde_json::to_value(&audit.injected)?,
             serde_json::to_value(&audit.withheld)?,
             i32::try_from(audit.tokens).unwrap_or(i32::MAX),
@@ -83,7 +78,7 @@ impl RecallRepository {
                FROM brain_recalls
                WHERE gateway_conversation_id = $1 AND rendered_block IS NOT NULL
                ORDER BY created_at DESC LIMIT 1"#,
-            conversation.as_str(),
+            conversation as _,
         )
         .fetch_optional(executor)
         .await?;
@@ -120,7 +115,7 @@ impl RecallRepository {
                FROM brain_recalls
                WHERE ai_request_id = $1 AND skipped IS NULL
                ORDER BY created_at DESC LIMIT 1"#,
-            ai_request_id.as_str(),
+            ai_request_id as _,
         )
         .fetch_optional(&*self.pools.read)
         .await?;

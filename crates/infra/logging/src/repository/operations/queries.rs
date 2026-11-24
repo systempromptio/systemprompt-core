@@ -67,8 +67,6 @@ pub(in crate::repository) async fn get_log(
     pool: &PgPool,
     id: &LogId,
 ) -> Result<Option<LogEntry>, LoggingError> {
-    let id_str = id.as_str();
-
     let row = sqlx::query_as!(
         LogRow,
         r#"
@@ -84,7 +82,7 @@ pub(in crate::repository) async fn get_log(
             instance_id as "instance_id: InstanceId"
         FROM logs WHERE id = $1
         "#,
-        id_str
+        id as _
     )
     .fetch_optional(pool)
     .await?;

@@ -55,26 +55,23 @@ impl DocumentRevisionRepository {
                          agent_name AS "agent_name: AgentName",
                          client_id AS "client_id: ClientId",
                          created_at, landed_at"#,
-            request.document_id.as_str(),
-            request
-                .parent_revision_id
-                .as_ref()
-                .map(DocumentRevisionId::as_str),
-            request.content_sha256.as_str(),
-            request.author_user_id.as_str(),
+            request.document_id as _,
+            request.parent_revision_id as _,
+            request.content_sha256 as _,
+            request.author_user_id as _,
             request.actor_kind.as_str(),
             request.origin.kind().as_str(),
             request.origin.id_str(),
             request.message,
             edit_ops,
-            attribution.session_id.as_ref().map(SessionId::as_str),
-            attribution.context_id.as_ref().map(ContextId::as_str),
-            attribution.trace_id.as_ref().map(TraceId::as_str),
-            attribution.task_id.as_ref().map(TaskId::as_str),
-            attribution.on_behalf_of.as_ref().map(UserId::as_str),
-            request.id.as_str(),
-            attribution.agent_name.as_ref().map(AgentName::as_str),
-            attribution.client_id.as_ref().map(ClientId::as_str),
+            attribution.session_id as _,
+            attribution.context_id as _,
+            attribution.trace_id as _,
+            attribution.task_id as _,
+            attribution.on_behalf_of as _,
+            request.id as _,
+            attribution.agent_name as _,
+            attribution.client_id as _,
         )
         .fetch_one(conn)
         .await?;
@@ -91,7 +88,7 @@ impl DocumentRevisionRepository {
                       landing_seq = COALESCE(landing_seq, nextval('document_landing_seq'))
                WHERE id = $1::text::uuid
                RETURNING landed_at AS "landed_at!""#,
-            id.as_str(),
+            id as _,
         )
         .fetch_one(conn)
         .await?)

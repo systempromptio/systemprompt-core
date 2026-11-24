@@ -77,10 +77,10 @@ impl DocumentFolderRepository {
                          owner_user_id AS "owner_user_id: UserId",
                          created_by AS "created_by: UserId",
                          created_at, updated_at, deleted_at, agent_edit_policy"#,
-            request.parent_id.as_ref().map(DocumentFolderId::as_str),
+            request.parent_id as _,
             request.name,
-            request.owner_user_id.as_str(),
-            request.created_by.as_str(),
+            request.owner_user_id as _,
+            request.created_by as _,
         )
         .fetch_optional(&mut *tx)
         .await?;
@@ -107,7 +107,7 @@ impl DocumentFolderRepository {
                WHERE (id = $1::text::uuid OR $1::text::uuid = ANY(ancestor_ids))
                  AND deleted_at IS NULL
                ORDER BY cardinality(ancestor_ids), id"#,
-            root.as_str(),
+            root as _,
         )
         .fetch_all(self.pools.authz())
         .await?)
@@ -136,8 +136,8 @@ impl DocumentFolderRepository {
                  AND d.deleted_at IS NULL
                  AND ($2::text IS NULL OR d.id > $2::text::uuid)
                ORDER BY d.id LIMIT $3"#,
-            root.as_str(),
-            after.map(DocumentId::as_str),
+            root as _,
+            after as _,
             limit.max(1),
         )
         .fetch_all(self.pools.authz())
@@ -180,7 +180,7 @@ impl DocumentFolderRepository {
                WHERE (id = $1::text::uuid OR $1::text::uuid = ANY(ancestor_ids))
                  AND deleted_at IS NULL
                ORDER BY id FOR UPDATE"#,
-            root.as_str(),
+            root as _,
         )
         .fetch_all(&mut *tx)
         .await?;
@@ -199,7 +199,7 @@ impl DocumentFolderRepository {
             "UPDATE document_folders SET deleted_at = now(), updated_at = now()
              WHERE (id = $1::text::uuid OR $1::text::uuid = ANY(ancestor_ids))
                AND deleted_at IS NULL",
-            root.as_str(),
+            root as _,
         )
         .execute(&mut *tx)
         .await?

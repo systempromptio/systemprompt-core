@@ -23,7 +23,7 @@ impl OAuthRepository {
         let bound = sqlx::query!(
             "UPDATE oauth_auth_codes SET device_key_id = $2 WHERE code = $1 AND used_at IS NULL",
             code_hash,
-            device_key.as_str()
+            device_key as _
         )
         .execute(self.write_pool_ref())
         .await?;

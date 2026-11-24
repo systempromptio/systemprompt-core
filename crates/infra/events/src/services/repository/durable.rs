@@ -71,13 +71,13 @@ impl DurableOutboxRepository {
                     CASE WHEN $10::text = '' THEN 0 ELSE COALESCE( \
                         (SELECT max(e.aggregate_seq) FROM event_outbox e \
                          WHERE e.consumer = $8 AND e.aggregate_key = $10::text), 0) + 1 END",
-            row.id.as_str(),
+            row.id as _,
             row.channel.as_str(),
-            row.actor.user_id.as_str(),
+            row.actor.user_id as _,
             row.payload,
             actor_kind,
             actor_id,
-            row.origin.as_str(),
+            row.origin as _,
             row.consumer,
             row.fact,
             row.aggregate.map_or("", OutboxAggregateKey::as_str)
@@ -89,7 +89,7 @@ impl DurableOutboxRepository {
         } else {
             OUTBOX_CHANNEL
         };
-        sqlx::query!("SELECT pg_notify($1, $2)", wake, row.id.as_str())
+        sqlx::query!("SELECT pg_notify($1, $2)", wake, row.id as _)
             .fetch_one(&mut *conn)
             .await?;
         Ok(())
@@ -101,7 +101,6 @@ impl DurableOutboxRepository {
         limit: i64,
         skipped: &[EventOutboxId],
     ) -> Result<Vec<FactRow>, sqlx::Error> {
-        let skipped: Vec<String> = skipped.iter().map(ToString::to_string).collect();
         sqlx::query_as!(
             FactRow,
             r#"SELECT o.id AS "id: EventOutboxId", o.fact AS "fact!" FROM event_outbox o
@@ -115,7 +114,7 @@ impl DurableOutboxRepository {
              ORDER BY o.created_at, o.id LIMIT $2 FOR UPDATE OF o SKIP LOCKED"#,
             consumer,
             limit,
-            &skipped
+            skipped as _
         )
         .fetch_all(&mut *conn)
         .await
@@ -171,7 +170,7 @@ impl DurableOutboxRepository {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE event_outbox SET processed_at = now() WHERE id = $1",
-            id.as_str()
+            id as _
         )
         .execute(&mut *conn)
         .await
@@ -209,7 +208,7 @@ impl DurableOutboxRepository {
             query.since,
             query.until,
             query.limit,
-            query.after.map(EventOutboxId::as_str),
+            query.after as _,
         )
         .fetch_all(pool)
         .await

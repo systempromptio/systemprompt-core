@@ -222,7 +222,7 @@ impl ToolAnalyticsRepository {
                 r#"
                 SELECT
                     created_at as "created_at!",
-                    status,
+                    status as "status: systemprompt_models::mcp::McpToolExecutionStatus",
                     execution_time_ms
                 FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2 AND tool_name ILIKE $3
@@ -241,7 +241,7 @@ impl ToolAnalyticsRepository {
                 r#"
                 SELECT
                     created_at as "created_at!",
-                    status,
+                    status as "status: systemprompt_models::mcp::McpToolExecutionStatus",
                     execution_time_ms
                 FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2

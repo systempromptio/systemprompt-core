@@ -187,7 +187,7 @@ impl OAuthRepository {
                 WHERE client_id = $1 AND is_active AND declared_source IS NOT NULL
             ) AS "declared!"
             "#,
-            client_id.as_str()
+            client_id as _
         )
         .fetch_one(self.write_pool_ref())
         .await?;
@@ -213,8 +213,8 @@ impl OAuthRepository {
                   AND c.is_active AND c.declared_source IS NOT NULL
             ) AS "covered!"
             "#,
-            user_id.as_str(),
-            client_id.as_str(),
+            user_id as _,
+            client_id as _,
             scopes
         )
         .fetch_one(self.write_pool_ref())
@@ -245,8 +245,8 @@ impl OAuthRepository {
                 ),
                 updated_at = CURRENT_TIMESTAMP
             "#,
-            user_id.as_str(),
-            client_id.as_str(),
+            user_id as _,
+            client_id as _,
             scopes
         )
         .execute(self.write_pool_ref())

@@ -49,7 +49,7 @@ pub use external_proxy::ExternalProxyTarget;
 pub use handler::McpClientHandler;
 pub use http_client_with_context::{HttpClientWithContext, McpClientLimits};
 pub use invocation::execute_tool_call;
-pub use types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
+pub use types::{McpConnectionResult, McpHealthStatus, McpProtocolInfo, ValidationResult};
 pub use validation::{
     rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
     validate_hosted_service,

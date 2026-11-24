@@ -36,7 +36,7 @@ impl ServiceRepository {
                 role = EXCLUDED.role,
                 heartbeat_at = EXCLUDED.heartbeat_at
             "#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             role.as_str()
         )
         .execute(&*self.write_pool)
@@ -103,14 +103,14 @@ impl ServiceRepository {
     pub async fn delete_presence(&self) -> DatabaseResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM instance_presence WHERE instance_id = $1",
-            self.instance_id.as_str()
+            self.instance_id as _
         )
         .execute(&*self.write_pool)
         .await?;
         sqlx::query!(
             "SELECT pg_notify($1, $2)",
             PROCESS_OWNERSHIP_CHANNEL,
-            self.instance_id.as_str()
+            self.instance_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -121,7 +121,7 @@ impl ServiceRepository {
         sqlx::query!(
             "SELECT pg_notify($1, $2)",
             PROCESS_OWNERSHIP_CHANNEL,
-            lease.as_str()
+            lease as _
         )
         .execute(&*self.write_pool)
         .await?;

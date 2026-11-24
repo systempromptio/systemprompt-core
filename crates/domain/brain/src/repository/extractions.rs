@@ -7,7 +7,7 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::{PgConnection, PgExecutor};
-use systemprompt_identifiers::{AiRequestId, BrainExtractionId};
+use systemprompt_identifiers::BrainExtractionId;
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
@@ -35,18 +35,18 @@ impl ExtractionRepository {
                   raw_output, input_tokens, output_tokens, candidates, ai_request_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              ON CONFLICT (outbox_id, pipeline_version, extractor, kind) DO NOTHING",
-            id.as_str(),
-            extraction.outbox_id.as_str(),
-            extraction.pipeline_version.as_str(),
+            id as _,
+            extraction.outbox_id as _,
+            extraction.pipeline_version as _,
             record.extractor,
-            extraction.kind.as_str(),
+            extraction.kind as _,
             record.model,
             record.prompt_version,
             record.raw_output,
             saturating_i32(record.input_tokens),
             saturating_i32(record.output_tokens),
             saturating_i32(extraction.candidates),
-            record.ai_request_id.as_ref().map(AiRequestId::as_str),
+            record.ai_request_id as _,
         )
         .execute(conn)
         .await?;

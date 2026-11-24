@@ -39,7 +39,7 @@ fn create_test_result() -> ToolExecutionResult {
     ToolExecutionResult {
         output: Some(json!({"result": "success"})),
         output_schema: Some(json!({"type": "object"})),
-        status: McpToolExecutionStatus::Success.as_str().to_string(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
@@ -149,7 +149,7 @@ fn test_tool_execution_result_success() {
 
     result.output.expect("expected Some value");
     result.output_schema.expect("expected Some value");
-    assert_eq!(result.status, "success");
+    assert_eq!(result.status, McpToolExecutionStatus::Success);
     assert!(result.error_message.is_none());
 }
 
@@ -158,14 +158,14 @@ fn test_tool_execution_result_failure() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: McpToolExecutionStatus::Failed.as_str().to_string(),
+        status: McpToolExecutionStatus::Failed,
         error_message: Some("Connection timeout".to_string()),
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
     };
 
     assert!(result.output.is_none());
-    assert_eq!(result.status, "failed");
+    assert_eq!(result.status, McpToolExecutionStatus::Failed);
     assert_eq!(result.error_message, Some("Connection timeout".to_string()));
 }
 
@@ -174,13 +174,13 @@ fn test_tool_execution_result_pending() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: McpToolExecutionStatus::Pending.as_str().to_string(),
+        status: McpToolExecutionStatus::Pending,
         error_message: None,
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
     };
 
-    assert_eq!(result.status, "pending");
+    assert_eq!(result.status, McpToolExecutionStatus::Pending);
 }
 
 #[test]
@@ -190,7 +190,7 @@ fn test_tool_execution_result_with_large_output() {
     let result = ToolExecutionResult {
         output: Some(large_output.clone()),
         output_schema: None,
-        status: "success".to_string(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
@@ -208,7 +208,7 @@ fn test_tool_execution_result_duration() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: "success".to_string(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at: start,
         completed_at: Some(end),
@@ -223,7 +223,7 @@ fn test_tool_execution_result_with_unicode_error() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: "failed".to_string(),
+        status: McpToolExecutionStatus::Failed,
         error_message: Some("错误信息: Failed to process 文件".to_string()),
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
@@ -238,7 +238,7 @@ fn test_tool_execution_result_empty_error_message() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: "failed".to_string(),
+        status: McpToolExecutionStatus::Failed,
         error_message: Some(String::new()),
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),

@@ -90,9 +90,9 @@ pub struct ToolAgentUsageRow {
     pub usage_count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ToolExecutionRow {
     pub created_at: DateTime<Utc>,
-    pub status: Option<String>,
+    pub status: Option<systemprompt_models::mcp::McpToolExecutionStatus>,
     pub execution_time_ms: Option<i32>,
 }

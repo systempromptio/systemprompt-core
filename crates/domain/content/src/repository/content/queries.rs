@@ -27,7 +27,7 @@ pub(super) async fn find_by_id(
         FROM markdown_content
         WHERE id = $1
         "#,
-        id.as_str()
+        id as _
     )
     .fetch_optional(&**pool)
     .await
@@ -53,7 +53,7 @@ pub(super) async fn find_by_slug(
         WHERE slug = $1 AND locale = $2
         "#,
         slug,
-        locale.as_str()
+        locale as _
     )
     .fetch_optional(&**pool)
     .await
@@ -79,9 +79,9 @@ pub(super) async fn find_by_source_and_slug(
         FROM markdown_content
         WHERE source_id = $1 AND slug = $2 AND locale = $3
         "#,
-        source_id.as_str(),
+        source_id as _,
         slug,
-        locale.as_str()
+        locale as _
     )
     .fetch_optional(&**pool)
     .await
@@ -134,8 +134,8 @@ pub(super) async fn list_by_source(
         WHERE source_id = $1 AND locale = $2
         ORDER BY published_at DESC
         "#,
-        source_id.as_str(),
-        locale.as_str()
+        source_id as _,
+        locale as _
     )
     .fetch_all(&**pool)
     .await
@@ -163,8 +163,8 @@ pub(super) async fn list_by_source_limited(
         ORDER BY published_at DESC
         LIMIT $3
         "#,
-        source_id.as_str(),
-        locale.as_str(),
+        source_id as _,
+        locale as _,
         limit
     )
     .fetch_all(&**pool)
@@ -204,7 +204,7 @@ pub(super) async fn category_exists(
 ) -> Result<bool, sqlx::Error> {
     let result = sqlx::query_scalar!(
         r#"SELECT EXISTS(SELECT 1 FROM markdown_categories WHERE id = $1) as "exists!""#,
-        category_id.as_str()
+        category_id as _
     )
     .fetch_one(&**pool)
     .await?;
@@ -224,7 +224,7 @@ pub(super) async fn list_sources_by_slug(
         ORDER BY source_id
         "#,
         slug,
-        locale.as_str()
+        locale as _
     )
     .fetch_all(&**pool)
     .await?;
@@ -242,7 +242,7 @@ pub(super) async fn list_slugs_with_locales_by_source(
         WHERE source_id = $1 AND public = true
         ORDER BY slug, locale
         "#,
-        source_id.as_str()
+        source_id as _
     )
     .fetch_all(&**pool)
     .await?;

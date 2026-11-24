@@ -17,12 +17,12 @@ pub(crate) async fn active_user_row(
     sqlx::query_as!(
         UserRow,
         r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE id = $1 AND status = $2
             "#,
-        user_id.as_str(),
+        user_id as _,
         active_status
     )
     .fetch_optional(pool)
@@ -35,12 +35,12 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE id = $1 AND status != $2
             "#,
-            id.as_str(),
+            id as _,
             deleted_status
         )
         .fetch_optional(&*self.pool)
@@ -53,16 +53,15 @@ impl UserRepository {
 
     pub async fn find_by_ids(&self, ids: &[UserId]) -> Result<Vec<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE id = ANY($1::text[]) AND status != $2
             "#,
-            &ids,
+            ids as _,
             deleted_status
         )
         .fetch_all(&*self.pool)
@@ -76,7 +75,7 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE email = $1 AND status != $2
@@ -97,7 +96,7 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE name = $1 AND status != $2
@@ -119,7 +118,7 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE id = $1 OR email = $1 OR name = $1
@@ -141,7 +140,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE $1 = ANY(roles) AND status != $2
@@ -180,7 +179,7 @@ impl UserRepository {
                    SELECT 1 FROM users
                    WHERE id = $1 AND roles @> ARRAY[$2]::TEXT[] AND status = $3
                ) AS "exists!""#,
-            user.as_str(),
+            user as _,
             role,
             active,
         )
@@ -206,7 +205,7 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE status != $1
@@ -229,7 +228,7 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE $1 = ANY(roles) AND status != $2
@@ -257,14 +256,13 @@ impl UserRepository {
 
 impl UserRepository {
     pub async fn missing_ids(&self, candidates: &[UserId]) -> Result<Vec<UserId>> {
-        let ids: Vec<String> = candidates.iter().map(ToString::to_string).collect();
         let rows = sqlx::query_scalar!(
             r#"
             SELECT candidate AS "candidate!"
             FROM UNNEST($1::text[]) AS candidate
             WHERE NOT EXISTS (SELECT 1 FROM users WHERE users.id = candidate)
             "#,
-            &ids[..]
+            candidates as _
         )
         .fetch_all(&*self.pool)
         .await?;

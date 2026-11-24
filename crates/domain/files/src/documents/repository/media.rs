@@ -30,8 +30,8 @@ impl DocumentMediaRepository {
             r#"SELECT EXISTS (SELECT 1 FROM document_media
                               WHERE document_id = $1::text::uuid AND content_sha256 = $2)
                    AS "admitted!""#,
-            document.as_str(),
-            hash.as_str(),
+            document as _,
+            hash as _,
         )
         .fetch_one(&*self.pools.write)
         .await?)
@@ -48,7 +48,7 @@ impl DocumentMediaRepository {
         Ok(sqlx::query_scalar!(
             "SELECT content_sha256 FROM document_media
              WHERE document_id = $1::text::uuid AND content_sha256 = ANY($2)",
-            document.as_str(),
+            document as _,
             hashes,
         )
         .fetch_all(&*self.pools.write)
@@ -59,7 +59,7 @@ impl DocumentMediaRepository {
         Ok(sqlx::query_scalar!(
             "SELECT content_sha256 FROM document_media WHERE document_id = $1::text::uuid
              ORDER BY content_sha256",
-            document.as_str(),
+            document as _,
         )
         .fetch_all(&*self.pools.write)
         .await?)
@@ -105,9 +105,9 @@ impl DocumentMediaRepository {
             "INSERT INTO document_media (document_id, content_sha256, admitted_by)
              SELECT $1::text::uuid, h, $3 FROM unnest($2::text[]) AS h
              ON CONFLICT (document_id, content_sha256) DO NOTHING",
-            document.as_str(),
+            document as _,
             hashes,
-            admitted_by.as_str(),
+            admitted_by as _,
         )
         .execute(conn)
         .await?;

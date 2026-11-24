@@ -65,17 +65,17 @@ async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> Result<u64, Logg
         VALUES
         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         ",
-        p.user_id.as_str(),
-        p.session_id.as_str(),
-        p.context_id.as_str(),
+        p.user_id as _,
+        p.session_id as _,
+        p.context_id as _,
         p.event_type,
         p.event_category,
         p.severity,
         p.endpoint,
         p.error_code,
         p.response_time_ms,
-        p.agent_id.map(AgentId::as_str),
-        p.task_id.map(TaskId::as_str),
+        p.agent_id as _,
+        p.task_id as _,
         p.message,
         p.metadata,
         p.timestamp

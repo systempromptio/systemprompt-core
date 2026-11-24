@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId, UserId};
+use systemprompt_identifiers::{LogId, UserId};
 
 use crate::models::{LogEntry, LoggingError};
 
@@ -21,33 +21,25 @@ pub(in crate::repository) async fn create_log(
 
     let level_str = entry.level.to_string();
 
-    let user_id = entry.user_id.as_str();
-    let session_id = entry.session_id.as_str();
-    let task_id = entry.task_id.as_ref().map(TaskId::as_str);
-    let trace_id = entry.trace_id.as_str();
-    let context_id = entry.context_id.as_ref().map(ContextId::as_str);
-    let client_id = entry.client_id.as_ref().map(ClientId::as_str);
-
-    let entry_id = entry.id.as_str();
 
     sqlx::query!(
         r"
         INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id, instance_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ",
-        entry_id,
+        entry.id as _,
         entry.timestamp,
         level_str,
         entry.module,
         entry.message,
         metadata_json,
-        user_id,
-        session_id,
-        task_id,
-        trace_id,
-        context_id,
-        client_id,
-        entry.instance_id.as_ref().map(systemprompt_identifiers::InstanceId::as_str)
+        entry.user_id as _,
+        entry.session_id as _,
+        entry.task_id as _,
+        entry.trace_id as _,
+        entry.context_id as _,
+        entry.client_id as _,
+        entry.instance_id as _
     )
     .execute(pool)
     .await
@@ -69,7 +61,6 @@ pub(in crate::repository) async fn update_log(
 
     let level_str = entry.level.to_string();
 
-    let id_str = id.as_str();
 
     let result = sqlx::query!(
         r"
@@ -81,7 +72,7 @@ pub(in crate::repository) async fn update_log(
         entry.module,
         entry.message,
         metadata_json,
-        id_str
+        id as _
     )
     .execute(pool)
     .await?;
@@ -93,9 +84,7 @@ pub(in crate::repository) async fn delete_log(
     pool: &PgPool,
     id: &LogId,
 ) -> Result<bool, LoggingError> {
-    let id_str = id.as_str();
-
-    let result = sqlx::query!("DELETE FROM logs WHERE id = $1", id_str)
+    let result = sqlx::query!("DELETE FROM logs WHERE id = $1", id as _)
         .execute(pool)
         .await?;
 
@@ -110,9 +99,8 @@ pub(in crate::repository) async fn delete_logs_multiple(
         return Ok(0);
     }
 
-    let id_strs: Vec<String> = ids.iter().map(ToString::to_string).collect();
 
-    let result = sqlx::query!("DELETE FROM logs WHERE id = ANY($1)", &id_strs)
+    let result = sqlx::query!("DELETE FROM logs WHERE id = ANY($1)", ids as _)
         .execute(pool)
         .await?;
 
@@ -170,8 +158,7 @@ pub(in crate::repository) async fn delete_logs_for_users(
     pool: &PgPool,
     user_ids: &[UserId],
 ) -> Result<u64, LoggingError> {
-    let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
-    let result = sqlx::query!("DELETE FROM logs WHERE user_id = ANY($1)", &ids[..])
+    let result = sqlx::query!("DELETE FROM logs WHERE user_id = ANY($1)", user_ids as _)
         .execute(pool)
         .await?;
     Ok(result.rows_affected())
@@ -181,10 +168,9 @@ pub(in crate::repository) async fn count_logs_for_users(
     pool: &PgPool,
     user_ids: &[UserId],
 ) -> Result<u64, LoggingError> {
-    let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
     let count = sqlx::query_scalar!(
         r#"SELECT COUNT(*) as "count!" FROM logs WHERE user_id = ANY($1)"#,
-        &ids[..]
+        user_ids as _
     )
     .fetch_one(pool)
     .await?;

@@ -8,6 +8,7 @@
 pub mod embedding;
 pub mod execution_plan;
 pub mod media_types;
+pub mod message_role;
 pub mod models;
 pub mod provider_trait;
 pub mod request;
@@ -28,6 +29,7 @@ pub use media_types::{
     is_supported_audio, is_supported_image, is_supported_media, is_supported_text,
     is_supported_video,
 };
+pub use message_role::{StoredMessageRole, UnknownStoredMessageRole};
 pub use models::{ModelConfig, ToolModelConfig, ToolModelOverrides};
 pub use request::{AiContentPart, AiMessage, AiRequest, AiRequestBuilder, MessageRole};
 pub use response::{

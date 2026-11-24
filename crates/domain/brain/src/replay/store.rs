@@ -46,8 +46,8 @@ impl ReplayRepository {
     ) -> Result<(), RepositoryError> {
         sqlx::query!(
             "DELETE FROM brain_event_results WHERE outbox_id = $1 AND pipeline_version = $2",
-            outbox_id.as_str(),
-            version.as_str(),
+            outbox_id as _,
+            version as _,
         )
         .execute(conn)
         .await?;

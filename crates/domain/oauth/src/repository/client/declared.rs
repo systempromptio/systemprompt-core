@@ -102,7 +102,7 @@ impl ClientRepository {
               AND EXISTS (SELECT 1 FROM oauth_clients
                           WHERE client_id = $1 AND person_ui <> $2)
             "#,
-            client.client_id.as_str(),
+            client.client_id as _,
             client.person_ui,
         )
         .execute(&mut **tx)
@@ -114,7 +114,7 @@ impl ClientRepository {
               AND EXISTS (SELECT 1 FROM oauth_clients
                           WHERE client_id = $1 AND person_ui <> $2)
             "#,
-            client.client_id.as_str(),
+            client.client_id as _,
             client.person_ui,
         )
         .execute(&mut **tx)
@@ -150,13 +150,13 @@ impl ClientRepository {
                 person_ui = EXCLUDED.person_ui,
                 updated_at = EXCLUDED.updated_at
             "#,
-            client.client_id.as_str(),
+            client.client_id as _,
             client.secret_hash,
             client.client_name,
             auth_method.as_str(),
             client.is_active,
             Utc::now(),
-            client.owner_user_id.as_str(),
+            client.owner_user_id as _,
             client.source,
             client.secret_key,
             client.person_ui,
@@ -188,7 +188,7 @@ impl ClientRepository {
                   AND declared_source IS NOT NULL
             ) AS "person_ui!"
             "#,
-            client_id.as_str()
+            client_id as _
         )
         .fetch_one(&*self.write_pool)
         .await?;
@@ -198,7 +198,7 @@ impl ClientRepository {
     pub async fn release_declared_on(conn: &mut PgConnection, client_id: &ClientId) -> Result<()> {
         sqlx::query!(
             "DELETE FROM oauth_consents WHERE client_id = $1",
-            client_id.as_str()
+            client_id as _
         )
         .execute(&mut *conn)
         .await?;
@@ -209,7 +209,7 @@ impl ClientRepository {
                 is_active = false, updated_at = $2
             WHERE client_id = $1 AND declared_source IS NOT NULL
             "#,
-            client_id.as_str(),
+            client_id as _,
             Utc::now()
         )
         .execute(conn)

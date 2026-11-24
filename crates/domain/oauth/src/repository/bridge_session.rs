@@ -52,7 +52,7 @@ pub struct BridgeSessionRow {
     pub tokens_in_total: i64,
     pub tokens_out_total: i64,
     pub release_version: Option<String>,
-    pub state: Option<String>,
+    pub state: Option<BridgeState>,
 }
 
 impl BridgeSessionRepository {
@@ -84,8 +84,8 @@ impl BridgeSessionRepository {
                 release_version = EXCLUDED.release_version,
                 state = EXCLUDED.state
             "#,
-            params.session_id.as_str(),
-            params.user_id.as_str(),
+            params.session_id as _,
+            params.user_id as _,
             params.bridge_version,
             params.os,
             params.hostname,
@@ -111,7 +111,7 @@ impl BridgeSessionRepository {
                    bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
                    forwarded_total, tokens_in_total, tokens_out_total,
-                   release_version, state
+                   release_version, state as "state: BridgeState"
             FROM bridge_sessions
             WHERE last_heartbeat_at > NOW() - make_interval(secs => $1::double precision)
             ORDER BY last_heartbeat_at DESC
@@ -138,13 +138,13 @@ impl BridgeSessionRepository {
                    bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
                    forwarded_total, tokens_in_total, tokens_out_total,
-                   release_version, state
+                   release_version, state as "state: BridgeState"
             FROM bridge_sessions
             WHERE user_id = $1
               AND last_heartbeat_at > NOW() - make_interval(secs => $2::double precision)
             ORDER BY last_heartbeat_at DESC
             "#,
-            user_id.as_str(),
+            user_id as _,
             cutoff_seconds,
         )
         .fetch_all(self.write_pool.as_ref())

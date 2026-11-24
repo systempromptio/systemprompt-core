@@ -53,6 +53,8 @@ mod opencode_outcome;
 #[cfg(test)]
 mod outputs;
 #[cfg(test)]
+mod owned_run;
+#[cfg(test)]
 mod release_bound;
 #[cfg(test)]
 mod repository;

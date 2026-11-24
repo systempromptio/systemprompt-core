@@ -41,7 +41,7 @@ pub struct ArchiveOutcome {
 #[derive(Debug, Clone)]
 pub struct ArchiveState {
     pub id: UserId,
-    pub status: String,
+    pub status: UserStatus,
     pub archived_at: Option<DateTime<Utc>>,
     pub archived_by: Option<String>,
     pub archive_reason: Option<String>,
@@ -51,7 +51,7 @@ pub struct ArchiveState {
 impl ArchiveState {
     #[must_use]
     pub fn is_archived(&self) -> bool {
-        self.status == UserStatus::Deleted.as_str()
+        self.status == UserStatus::Deleted
     }
 }
 
@@ -69,9 +69,9 @@ impl UserRepository {
                 updated_at = NOW()
             WHERE id = $1
             "#,
-            id.as_str(),
+            id as _,
             UserStatus::Deleted.as_str(),
-            params.archived_by.map(UserId::as_str),
+            params.archived_by as _,
             params.reason,
             params.legal_hold
         )
@@ -82,19 +82,19 @@ impl UserRepository {
         }
         let sessions = sqlx::query!(
             "UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
-            id.as_str()
+            id as _
         )
         .execute(&mut *tx)
         .await?;
         let api_keys = sqlx::query!(
             "UPDATE user_api_keys SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
-            id.as_str()
+            id as _
         )
         .execute(&mut *tx)
         .await?;
         let device_certs = sqlx::query!(
             "UPDATE user_device_certs SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
-            id.as_str()
+            id as _
         )
         .execute(&mut *tx)
         .await?;
@@ -116,7 +116,7 @@ impl UserRepository {
               AND (archived_at IS NULL
                    OR archived_at > NOW() - make_interval(days => $4::int))
             "#,
-            id.as_str(),
+            id as _,
             UserStatus::Active.as_str(),
             UserStatus::Deleted.as_str(),
             i32::try_from(window_days).unwrap_or(i32::MAX)
@@ -129,7 +129,7 @@ impl UserRepository {
     pub async fn set_legal_hold(&self, id: &UserId, hold: bool) -> Result<()> {
         let updated = sqlx::query!(
             "UPDATE users SET legal_hold = $2, updated_at = NOW() WHERE id = $1",
-            id.as_str(),
+            id as _,
             hold
         )
         .execute(&*self.write_pool)
@@ -143,10 +143,11 @@ impl UserRepository {
     pub async fn find_archive_state(&self, id: &UserId) -> Result<Option<ArchiveState>> {
         let row = sqlx::query!(
             r#"
-            SELECT id, status, archived_at, archived_by, archive_reason, legal_hold
+            SELECT id, status AS "status: UserStatus", archived_at, archived_by, archive_reason,
+                   legal_hold
             FROM users WHERE id = $1
             "#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.pool)
         .await?;

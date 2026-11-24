@@ -76,7 +76,7 @@ impl TraceRepository {
             instance_id as "instance_id: InstanceId"
         FROM logs WHERE id = $1
         "#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -130,7 +130,7 @@ impl TraceRepository {
         WHERE trace_id = $1
         ORDER BY timestamp ASC
         "#,
-            trace_id.as_str()
+            trace_id as _
         )
         .fetch_all(&*self.pool)
         .await?;

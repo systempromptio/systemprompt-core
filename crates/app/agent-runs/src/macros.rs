@@ -9,9 +9,12 @@
 macro_rules! text_enum {
     ($(#[$meta:meta])* $name:ident, $err:ident { $($variant:ident => $text:literal),+ $(,)? }) => {
         $(#[$meta])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(
+            Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, sqlx::Type,
+        )]
+        #[sqlx(type_name = "text")]
         pub enum $name {
-            $(#[serde(rename = $text)] $variant),+
+            $(#[serde(rename = $text)] #[sqlx(rename = $text)] $variant),+
         }
 
         impl $name {

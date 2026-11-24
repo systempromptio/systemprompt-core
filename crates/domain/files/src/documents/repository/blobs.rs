@@ -46,7 +46,7 @@ impl DocumentBlobRepository {
             r#"SELECT content_sha256 AS "content_sha256: ContentHash",
                       size_bytes, storage_id AS "storage_id: StoredFileId", created_at
                FROM document_blobs WHERE content_sha256 = $1"#,
-            hash.as_str(),
+            hash as _,
         )
         .fetch_optional(pool)
         .await?)
@@ -181,9 +181,9 @@ impl HashLock {
                VALUES ($1, $2, $3)
                ON CONFLICT (content_sha256) DO UPDATE SET created_at = now()
                RETURNING (xmax = 0) AS "inserted!""#,
-            hash.as_str(),
+            hash as _,
             size_bytes,
-            storage_id.as_str(),
+            storage_id as _,
         )
         .fetch_one(&mut *self.tx)
         .await?)
@@ -205,7 +205,7 @@ impl HashLock {
                                WHERE s.snapshot_sha256 = b.content_sha256)
                AND NOT EXISTS (SELECT 1 FROM document_media m
                                WHERE m.content_sha256 = b.content_sha256)",
-            hash.as_str(),
+            hash as _,
         )
         .execute(&mut *self.tx)
         .await?;
@@ -224,8 +224,8 @@ impl HashLock {
             "INSERT INTO document_blob_collections (content_sha256, storage_id)
              VALUES ($1, $2)
              ON CONFLICT (content_sha256) DO UPDATE SET storage_id = EXCLUDED.storage_id",
-            hash.as_str(),
-            storage_id.as_str(),
+            hash as _,
+            storage_id as _,
         )
         .execute(&mut *self.tx)
         .await?;
@@ -236,7 +236,7 @@ impl HashLock {
         Ok(sqlx::query_scalar!(
             r#"SELECT EXISTS (SELECT 1 FROM document_blobs WHERE content_sha256 = $1)
                    AS "present!""#,
-            hash.as_str(),
+            hash as _,
         )
         .fetch_one(&mut *self.tx)
         .await?)
@@ -245,7 +245,7 @@ impl HashLock {
     pub async fn end_collection(&mut self, hash: &ContentHash) -> RepoResult<()> {
         sqlx::query!(
             "DELETE FROM document_blob_collections WHERE content_sha256 = $1",
-            hash.as_str(),
+            hash as _,
         )
         .execute(&mut *self.tx)
         .await?;

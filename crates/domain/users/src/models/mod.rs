@@ -161,8 +161,9 @@ impl ApiKeyLimits {
 
 /// What minted an API key: a person or a tool (`user`), or a bridge device
 /// enrolment (`device`), the PAT of the interactive host a person installed.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "text", rename_all = "snake_case")]
 pub enum ApiKeyKind {
     #[default]
     User,
@@ -175,15 +176,6 @@ impl ApiKeyKind {
         match self {
             Self::User => "user",
             Self::Device => "device",
-        }
-    }
-
-    #[must_use]
-    pub fn from_stored(value: &str) -> Self {
-        if value == "device" {
-            Self::Device
-        } else {
-            Self::User
         }
     }
 }

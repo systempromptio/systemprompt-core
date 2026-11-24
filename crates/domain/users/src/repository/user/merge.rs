@@ -63,8 +63,8 @@ impl UserRepository {
 
         let sessions = sqlx::query!(
             "UPDATE user_sessions SET user_id = $1 WHERE user_id = $2",
-            target_id.as_str(),
-            source_id.as_str()
+            target_id as _,
+            source_id as _
         )
         .execute(&mut *tx)
         .await?
@@ -72,7 +72,7 @@ impl UserRepository {
 
         record_merge_attribution(&mut tx, source_id, target_id).await?;
 
-        sqlx::query!("DELETE FROM users WHERE id = $1", source_id.as_str())
+        sqlx::query!("DELETE FROM users WHERE id = $1", source_id as _)
             .execute(&mut *tx)
             .await?;
 

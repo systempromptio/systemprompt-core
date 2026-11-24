@@ -90,7 +90,7 @@ impl EmptyContextRepository {
             AND (uc.kind != $2 OR uc.session_id IS NULL)
             "#,
             hours_old.to_string(),
-            ContextKind::CliSession.as_str()
+            ContextKind::CliSession as _
         )
         .fetch_all(&*self.write_pool)
         .await?;

@@ -21,7 +21,7 @@ use systemprompt_models::managed::{
 use crate::managed::error::invalid;
 use crate::managed::publication::{
     AssetDigest, ManagedError, ManagedRepository, ManagedResolution, ResourceKind, Result,
-    RevisionBundle, SelectionRow, resolution_from_row,
+    RevisionBundle, SelectionRow, SelectionState, resolution_from_row,
 };
 
 /// One managed resource of a principal with the publication that currently
@@ -41,7 +41,7 @@ impl ManagedRepository {
     ) -> Result<Vec<ResourceResolutionRow>> {
         let rows = sqlx::query!(
             r#"SELECT r.id, r.resource_key,
-                s.generation AS "generation?", s.state AS "state?", s.publication_id AS "publication_id?",
+                s.generation AS "generation?", s.state AS "state?: SelectionState", s.publication_id AS "publication_id?",
                 s.revision_id AS "revision_id?", s.bundle_digest AS "bundle_digest?",
                 p.revision_id AS "published_revision_id?", p.bundle_digest AS "published_bundle_digest?"
             FROM managed_resources r
@@ -50,8 +50,8 @@ impl ManagedRepository {
                 AND p.generation=s.generation AND p.revision_id IS NOT NULL
             WHERE r.owner_id=$1 AND r.kind=$2
             ORDER BY r.resource_key, r.id"#,
-            owner.as_str(),
-            kind.as_str()
+            owner as _,
+            kind as _
         )
         .fetch_all(&self.pool)
         .await?;
@@ -116,8 +116,8 @@ impl ManagedRepository {
                 $4::text
             )) AS "stamp!""#,
             &principals,
-            owner.as_str(),
-            consumer.as_str(),
+            owner as _,
+            consumer as _,
             cohorts
         )
         .fetch_one(&self.pool)
@@ -133,9 +133,9 @@ impl ManagedRepository {
     ) -> Result<BTreeSet<String>> {
         let keys = sqlx::query_scalar!(
             "SELECT r.resource_key FROM managed_consumer_grants g JOIN managed_resources r ON r.id=g.resource_id AND r.owner_id=g.owner_id WHERE g.owner_id=$1 AND g.consumer_id=$2 AND r.kind=$3 AND g.revoked_at IS NOT NULL",
-            owner.as_str(),
-            consumer.as_str(),
-            kind.as_str()
+            owner as _,
+            consumer as _,
+            kind as _
         )
         .fetch_all(&self.pool)
         .await?;

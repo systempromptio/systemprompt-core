@@ -143,7 +143,14 @@ impl ConfigPlane for FakePlane {
         }
         if mode != ApplyMode::InsertOnly {
             let before = store.len();
-            store.retain(|k, _| declared.entries.contains_key(k));
+            let stale: Vec<String> = store
+                .keys()
+                .filter(|k| !declared.entries.contains_key(*k))
+                .cloned()
+                .collect();
+            for k in stale {
+                store.remove(&k);
+            }
             outcome.deleted = before - store.len();
         }
         Ok(outcome)

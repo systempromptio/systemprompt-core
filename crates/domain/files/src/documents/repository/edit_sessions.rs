@@ -78,8 +78,8 @@ impl DocumentEditSessionRepository {
                       snapshot_sha256 AS "snapshot_sha256: ContentHash",
                       checkpoint_revision_id::text AS "checkpoint_revision_id: DocumentRevisionId",
                       opened_at, updated_at, closed_at"#,
-            document_id.as_str(),
-            base_revision.map(DocumentRevisionId::as_str),
+            document_id as _,
+            base_revision as _,
         )
         .fetch_one(&*self.pools.write)
         .await
@@ -109,7 +109,7 @@ impl DocumentEditSessionRepository {
                       opened_at, updated_at, closed_at
                FROM document_edit_sessions
                WHERE document_id = $1::text::uuid AND closed_at IS NULL"#,
-            document_id.as_str(),
+            document_id as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?)
@@ -165,7 +165,7 @@ impl DocumentEditSessionRepository {
                       snapshot_sha256 AS "snapshot_sha256: ContentHash",
                       checkpoint_revision_id::text AS "checkpoint_revision_id: DocumentRevisionId",
                       opened_at, updated_at, closed_at"#,
-            id.as_str(),
+            id as _,
             lease.as_uuid(),
             hold.as_secs_f64(),
         )
@@ -178,7 +178,7 @@ impl DocumentEditSessionRepository {
             r#"SELECT EXISTS (
                    SELECT 1 FROM document_edit_sessions
                    WHERE id = $1::text::uuid AND closed_at IS NULL) AS "open!""#,
-            id.as_str(),
+            id as _,
         )
         .fetch_one(&*self.pools.write)
         .await?;
@@ -198,7 +198,7 @@ impl DocumentEditSessionRepository {
             "UPDATE document_edit_sessions
              SET checkpoint_lease_id = NULL, checkpoint_lease_until = NULL
              WHERE id = $1::text::uuid AND checkpoint_lease_id = $2",
-            id.as_str(),
+            id as _,
             lease.as_uuid(),
         )
         .execute(&*self.pools.write)
@@ -214,8 +214,8 @@ impl DocumentEditSessionRepository {
         let result = sqlx::query!(
             "UPDATE document_edit_sessions SET snapshot_sha256 = $2, updated_at = now()
              WHERE id = $1::text::uuid AND closed_at IS NULL",
-            id.as_str(),
-            hash.as_str(),
+            id as _,
+            hash as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -233,7 +233,7 @@ impl DocumentEditSessionRepository {
              SET checkpoint_lease_until = now() + make_interval(secs => $3)
              WHERE id = $1::text::uuid AND closed_at IS NULL AND checkpoint_lease_id = $2
                AND checkpoint_lease_until > now()",
-            id.as_str(),
+            id as _,
             lease.as_uuid(),
             hold.as_secs_f64(),
         )
@@ -255,8 +255,8 @@ impl DocumentEditSessionRepository {
                  checkpoint_seq = GREATEST(checkpoint_seq, $4),
                  updated_at = now()
              WHERE id = $1::text::uuid AND closed_at IS NULL AND checkpoint_lease_id = $3",
-            id.as_str(),
-            revision.as_str(),
+            id as _,
+            revision as _,
             lease.as_uuid(),
             covered_seq,
         )
@@ -277,7 +277,7 @@ impl DocumentEditSessionRepository {
                  checkpoint_lease_id = NULL, checkpoint_lease_until = NULL
              WHERE id = $1::text::uuid AND closed_at IS NULL
                AND next_seq = $2::bigint + 1 AND checkpoint_lease_id = $3",
-            id.as_str(),
+            id as _,
             settled_seq,
             lease.as_uuid(),
         )
@@ -290,7 +290,7 @@ impl DocumentEditSessionRepository {
         let result = sqlx::query!(
             "UPDATE document_edit_sessions SET closed_at = now(), updated_at = now()
              WHERE id = $1::text::uuid AND closed_at IS NULL",
-            id.as_str(),
+            id as _,
         )
         .execute(&*self.pools.write)
         .await?;

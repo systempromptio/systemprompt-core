@@ -87,22 +87,22 @@ impl DocumentCommentRepository {
                       c.context_id AS "context_id: ContextId",
                       c.client_id AS "client_id: ClientId"
                FROM c"#,
-            request.document_id.as_str(),
-            request.anchor.node.as_str(),
+            request.document_id as _,
+            request.anchor.node as _,
             request.anchor.find,
             request.anchor.nth,
             start,
             end,
-            request.author_user_id.as_str(),
+            request.author_user_id as _,
             request.body,
             &ids(&request.mentions),
-            request.parent_id.as_ref().map(DocumentCommentId::as_str),
-            grants.via_agent.as_ref().map(AgentName::as_str),
-            grants.granted_by.as_str(),
+            request.parent_id as _,
+            grants.via_agent as _,
+            grants.granted_by as _,
             &grantees,
-            grants.trace_id.as_str(),
-            request.context_id.as_ref().map(ContextId::as_str),
-            request.client_id.as_ref().map(ClientId::as_str),
+            grants.trace_id as _,
+            request.context_id as _,
+            request.client_id as _,
             request.anchor.cells.map(|cells| cells.to_string()),
         )
         .fetch_one(&mut *conn)
@@ -157,14 +157,14 @@ impl DocumentCommentRepository {
                           'mentioned in comment ' || $1, $8
                    FROM g LEFT JOIN prev ON prev.subject_value = g.subject_value)
                SELECT COUNT(*) AS "updated!" FROM c"#,
-            comment.as_str(),
-            document.as_str(),
-            grants.granted_by.as_str(),
+            comment as _,
+            document as _,
+            grants.granted_by as _,
             body,
             &mentions,
             &grantees,
-            grants.trace_id.as_str(),
-            grants.via_agent.as_ref().map(AgentName::as_str),
+            grants.trace_id as _,
+            grants.via_agent as _,
         )
         .fetch_one(&mut *conn)
         .await?;

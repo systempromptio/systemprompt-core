@@ -15,7 +15,7 @@ use clap::Args;
 use systemprompt_extension::cli::{CommandHost, CommandOutput, resolve_required};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_mcp::services::client::validate_hosted_service;
+use systemprompt_mcp::services::client::{McpHealthStatus, validate_hosted_service};
 use systemprompt_mcp::services::health_probe::HealthProbe;
 use systemprompt_mcp::{McpDomainResult, McpServerConfig};
 
@@ -93,7 +93,7 @@ pub(super) async fn execute(
     let all_valid = valid_count == results.len();
     let healthy_count = results
         .iter()
-        .filter(|r| r.health_status == "healthy")
+        .filter(|r| r.health_status == McpHealthStatus::Healthy)
         .count();
 
     let output = McpBatchValidateOutput {
@@ -131,7 +131,7 @@ async fn validate_single_service(
         return failure_output(
             service_name,
             FailureDetail {
-                health_status: "not_found",
+                health_status: McpHealthStatus::NotFound,
                 validation_type: "config_error",
                 latency_ms: 0,
                 issue: format!("Server '{}' not found in configuration", service_name),
@@ -146,7 +146,7 @@ async fn validate_single_service(
             return failure_output(
                 service_name,
                 FailureDetail {
-                    health_status: "unknown",
+                    health_status: McpHealthStatus::Unknown,
                     validation_type: "database_error",
                     latency_ms: 0,
                     issue: format!("Failed to check service status: {}", e),
@@ -160,7 +160,7 @@ async fn validate_single_service(
         return failure_output(
             service_name,
             FailureDetail {
-                health_status: "stopped",
+                health_status: McpHealthStatus::Stopped,
                 validation_type: "not_running",
                 latency_ms: 0,
                 issue: "Service is not currently running".to_owned(),
@@ -173,7 +173,7 @@ async fn validate_single_service(
         return failure_output(
             service_name,
             FailureDetail {
-                health_status: "unknown",
+                health_status: McpHealthStatus::Unknown,
                 validation_type: "config_error",
                 latency_ms: 0,
                 issue: "Server declares no local port; external servers are validated at their endpoint".to_owned(),
@@ -201,7 +201,7 @@ pub async fn run_connection_validation(
                 return failure_output(
                     service_name,
                     FailureDetail {
-                        health_status: "unhealthy",
+                        health_status: McpHealthStatus::Unhealthy,
                         validation_type: "timeout",
                         latency_ms: timeout_secs as u32 * 1000,
                         issue: format!("Connection timed out after {} seconds", timeout_secs),

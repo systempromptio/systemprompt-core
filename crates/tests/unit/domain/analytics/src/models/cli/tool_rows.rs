@@ -123,12 +123,15 @@ mod tool_row_tests {
         let now = Utc::now();
         let row = ToolExecutionRow {
             created_at: now,
-            status: Some("success".to_string()),
+            status: Some(systemprompt_models::mcp::McpToolExecutionStatus::Success),
             execution_time_ms: Some(150),
         };
 
         assert_eq!(row.created_at, now);
-        assert_eq!(row.status, Some("success".to_string()));
+        assert_eq!(
+            row.status,
+            Some(systemprompt_models::mcp::McpToolExecutionStatus::Success)
+        );
         assert_eq!(row.execution_time_ms, Some(150));
     }
 

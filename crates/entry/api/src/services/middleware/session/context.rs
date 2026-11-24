@@ -40,7 +40,8 @@ impl SessionMiddleware {
         let establish = async {
             if should_skip {
                 Ok((
-                    Self::anonymous_context(issuer, SessionId::untracked(), trace_id.clone(), meta).await?,
+                    Self::anonymous_context(issuer, SessionId::untracked(), trace_id.clone(), meta)
+                        .await?,
                     None,
                 ))
             } else {

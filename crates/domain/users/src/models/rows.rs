@@ -33,12 +33,6 @@ fn required<T>(value: Option<T>, column: &'static str) -> Result<T, UserError> {
     })
 }
 
-fn decode_status(status: Option<String>) -> Result<UserStatus, UserError> {
-    required(status, "status")?
-        .parse::<UserStatus>()
-        .map_err(|source| UserError::Repository(RepositoryError::decode("users.status", source)))
-}
-
 #[derive(Debug)]
 pub(crate) struct UserRow {
     pub id: String,
@@ -46,7 +40,7 @@ pub(crate) struct UserRow {
     pub email: String,
     pub full_name: Option<String>,
     pub display_name: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<UserStatus>,
     pub email_verified: Option<bool>,
     pub roles: Vec<String>,
     pub avatar_url: Option<String>,
@@ -67,7 +61,7 @@ impl TryFrom<UserRow> for User {
             email: row.email,
             full_name: row.full_name,
             display_name: row.display_name,
-            status: decode_status(row.status)?,
+            status: required(row.status, "status")?,
             email_verified: required(row.email_verified, "email_verified")?,
             roles: row.roles,
             avatar_url: row.avatar_url,
@@ -109,7 +103,7 @@ pub(crate) struct UserWithSessionsRow {
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<UserStatus>,
     pub roles: Vec<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub active_sessions: i64,
@@ -125,7 +119,7 @@ impl TryFrom<UserWithSessionsRow> for UserWithSessions {
             name: row.name,
             email: row.email,
             full_name: row.full_name,
-            status: decode_status(row.status)?,
+            status: required(row.status, "status")?,
             roles: row.roles,
             created_at: required(row.created_at, "created_at")?,
             active_sessions: row.active_sessions,
@@ -150,7 +144,7 @@ pub(crate) struct UserApiKeyRow {
     pub max_requests: Option<i32>,
     pub request_window_seconds: Option<i32>,
     pub purpose: Option<String>,
-    pub kind: String,
+    pub kind: ApiKeyKind,
     pub scope_dimensions: Vec<String>,
     pub scope_values: Vec<String>,
 }
@@ -174,7 +168,7 @@ impl From<UserApiKeyRow> for UserApiKey {
                 request_window_seconds: row.request_window_seconds,
             },
             purpose: row.purpose,
-            kind: ApiKeyKind::from_stored(&row.kind),
+            kind: row.kind,
             scopes: row
                 .scope_dimensions
                 .into_iter()

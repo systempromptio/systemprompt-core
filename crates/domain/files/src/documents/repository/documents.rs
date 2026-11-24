@@ -95,13 +95,13 @@ impl DocumentRepository {
                          created_by AS "created_by: UserId",
                          created_at, updated_at, deleted_at AS trashed_at,
                          trashed_by AS "trashed_by: UserId""#,
-            request.folder_id.as_ref().map(DocumentFolderId::as_str),
+            request.folder_id as _,
             request.name,
             request.format.as_str(),
             request.mime_type,
-            request.template_id.as_ref().map(DocumentTemplateId::as_str),
-            request.owner_user_id.as_str(),
-            request.created_by.as_str(),
+            request.template_id as _,
+            request.owner_user_id as _,
+            request.created_by as _,
         )
         .fetch_optional(&mut *tx)
         .await?
@@ -131,7 +131,7 @@ impl DocumentRepository {
                       d.created_at, d.updated_at, d.deleted_at AS trashed_at,
                       d.trashed_by AS "trashed_by: UserId"
                FROM documents d WHERE d.id = $1::text::uuid AND d.deleted_at IS NULL"#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.pools.read)
         .await?
@@ -156,7 +156,7 @@ r#"SELECT d.id::text AS "id!: DocumentId",
                       d.created_at, d.updated_at, d.deleted_at AS trashed_at,
                       d.trashed_by AS "trashed_by: UserId"
                FROM documents d WHERE d.folder_id IS NOT DISTINCT FROM $1::text::uuid AND d.name = $2 AND d.deleted_at IS NULL"#,
-            folder.map(DocumentFolderId::as_str),
+            folder as _,
             name
         )
         .fetch_optional(&*self.pools.read)
@@ -173,8 +173,8 @@ r#"SELECT d.id::text AS "id!: DocumentId",
         let result = sqlx::query!(
             "UPDATE documents SET template_id = $2, updated_at = now()
              WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            template_id.map(DocumentTemplateId::as_str),
+            id as _,
+            template_id as _,
         )
         .execute(&*self.pools.write)
         .await?;

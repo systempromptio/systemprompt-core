@@ -149,7 +149,7 @@ async fn insert_link(
          ($1, $2, $3, $4)",
         issuer,
         external_sub,
-        user_id.as_str(),
+        user_id as _,
         provisioned
     )
     .execute(&mut **tx)
@@ -176,7 +176,7 @@ async fn touch_existing_link(
     let user = sqlx::query_as!(
         UserRow,
         r#"
-        SELECT id, name, email, full_name, display_name, status,
+        SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus",
                email_verified, roles, avatar_url, is_bot, is_scanner,
                created_at, updated_at, account_kind
         FROM users WHERE id = $1
@@ -194,7 +194,7 @@ async fn find_email_owner(tx: &mut Tx<'_>, email: &str) -> Result<Option<User>> 
     sqlx::query_as!(
         UserRow,
         r#"
-        SELECT id, name, email, full_name, display_name, status,
+        SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus",
                email_verified, roles, avatar_url, is_bot, is_scanner,
                created_at, updated_at, account_kind
         FROM users WHERE email = $1

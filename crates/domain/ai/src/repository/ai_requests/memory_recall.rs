@@ -30,7 +30,7 @@ where
     sqlx::query!(
         r#"UPDATE ai_requests SET memory_recall = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
         descriptor,
-        id.as_str()
+        id as _
     )
     .execute(executor)
     .await?;

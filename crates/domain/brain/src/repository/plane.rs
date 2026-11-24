@@ -159,7 +159,7 @@ impl InterestRepository {
             row.id,
             row.body,
             row.source.as_str(),
-            owner.map(UserId::as_str),
+            owner as _,
             expires_at,
         )
         .execute(conn)

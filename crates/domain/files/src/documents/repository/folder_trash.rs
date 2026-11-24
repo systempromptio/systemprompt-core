@@ -39,7 +39,7 @@ pub(super) async fn subtree_has_stray(
                  AND f.deleted_at IS NULL
                  AND NOT (f.id = ANY($3::text[]::uuid[]))
            ) AS "stray!""#,
-        root.as_str(),
+        root as _,
         &partitioned,
         folders,
     )
@@ -73,8 +73,8 @@ pub(super) async fn trash_subtree_documents(
                        JOIN document_folders a ON a.id = u.folder_id) || '/' || t.name
                FROM trashed t RETURNING 1)
            SELECT COUNT(*) AS "trashed!" FROM trashed"#,
-        root.as_str(),
-        by.as_str(),
+        root as _,
+        by as _,
         authorized,
     )
     .fetch_one(tx)
@@ -119,9 +119,9 @@ pub(super) async fn rehome_subtree_documents(
                JOIN document_grants g ON g.folder_id = ANY(h.chain)
                RETURNING 1)
            SELECT COUNT(*) AS "rehomed!" FROM homed"#,
-        root.as_str(),
+        root as _,
         rehome,
-        by.as_str(),
+        by as _,
     )
     .fetch_one(tx)
     .await
@@ -139,7 +139,7 @@ pub(super) async fn subtree_has_live_documents(
                WHERE (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))
                  AND d.deleted_at IS NULL
            ) AS "remaining!""#,
-        root.as_str(),
+        root as _,
     )
     .fetch_one(tx)
     .await

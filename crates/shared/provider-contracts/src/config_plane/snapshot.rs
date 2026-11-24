@@ -45,6 +45,11 @@ impl PlaneSnapshot {
     }
 
     #[must_use]
+    pub const fn entries(&self) -> &BTreeMap<String, String> {
+        &self.0
+    }
+
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -52,6 +57,12 @@ impl PlaneSnapshot {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+impl From<BTreeMap<String, String>> for PlaneSnapshot {
+    fn from(entries: BTreeMap<String, String>) -> Self {
+        Self(entries)
     }
 }
 

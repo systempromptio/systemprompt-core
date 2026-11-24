@@ -116,7 +116,7 @@ pub(super) async fn by_linked(
            ORDER BY h.score DESC, f.importance_base DESC, f.id
            LIMIT $5"#,
         &f.keys,
-        f.user.as_str(),
+        f.user as _,
         f.include_stale,
         f.as_of,
         f.limit,

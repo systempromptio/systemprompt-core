@@ -16,7 +16,7 @@ impl ManagedRepository {
     pub async fn refresh_installation_coverage(&self, owner: &UserId) -> Result<u64> {
         let changed = sqlx::query_scalar!(
             r#"SELECT refresh_managed_installation_coverage(ARRAY[$1::text]) AS "changed!""#,
-            owner.as_str()
+            owner as _
         )
         .fetch_one(&self.pool)
         .await?;
@@ -29,8 +29,8 @@ impl ManagedRepository {
     ) -> Result<Option<InstallationCoverage>> {
         let row = sqlx::query_scalar!(
             "SELECT body FROM managed_installation_coverage WHERE owner_id=$1 AND resource_id=$2",
-            owner.as_str(),
-            resource.as_str()
+            owner as _,
+            resource as _
         )
         .fetch_optional(&self.pool)
         .await?;

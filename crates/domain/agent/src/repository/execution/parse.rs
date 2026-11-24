@@ -11,7 +11,7 @@ use systemprompt_traits::RepositoryError;
 pub(super) struct ParseStepParams {
     pub step_id: StepId,
     pub task_id: TaskId,
-    pub status: String,
+    pub status: StepStatus,
     // JSON: JSONB `content` column — decoded into `StepContent` here.
     pub content: serde_json::Value,
     pub started_at: DateTime<Utc>,
@@ -31,9 +31,6 @@ pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep, Repos
         duration_ms,
         error_message,
     } = params;
-    let status = status
-        .parse::<StepStatus>()
-        .map_err(|e| RepositoryError::decode("execution step status", e))?;
     let content: StepContent = serde_json::from_value(content)
         .map_err(|e| RepositoryError::decode("execution step content", e))?;
     Ok(ExecutionStep {

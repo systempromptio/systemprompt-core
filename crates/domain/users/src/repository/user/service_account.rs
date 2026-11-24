@@ -47,10 +47,10 @@ impl UserRepository {
             )
             VALUES ($1, $2, $3, $2, $4, true, ARRAY[$5]::TEXT[], false, $6, $7, $7)
             ON CONFLICT (email) DO NOTHING
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
-            id.as_str(),
+            id as _,
             account.name,
             email,
             UserStatus::Active.as_str(),
@@ -75,7 +75,7 @@ impl UserRepository {
         let existing = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE email = $1
@@ -99,7 +99,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE account_kind = $1 AND status != $2

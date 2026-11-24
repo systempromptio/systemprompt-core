@@ -32,11 +32,10 @@ impl AliasRepository {
         conn: &mut PgConnection,
         owners: &[BrainFactId],
     ) -> Result<Vec<ReleasedAlias>, RepositoryError> {
-        let owners: Vec<String> = owners.iter().map(ToString::to_string).collect();
         let rows = sqlx::query!(
             "DELETE FROM brain_aliases WHERE owner_fact_id = ANY($1::text[])
              RETURNING subject_kind, alias_norm",
-            &owners,
+            owners as _,
         )
         .fetch_all(conn)
         .await?;

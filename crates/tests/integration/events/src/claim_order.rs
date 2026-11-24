@@ -24,10 +24,16 @@ async fn append(
     };
     let mut tx = pool.begin().await.expect("begin");
     let id = match aggregate {
-        Some(key) => outbox
-            .append_in_order_on(tx.as_mut(), &actor, SseEvent::FactOnly, &fact, key)
-            .await,
-        None => outbox.append_on(tx.as_mut(), &actor, SseEvent::FactOnly, &fact).await,
+        Some(key) => {
+            outbox
+                .append_in_order_on(tx.as_mut(), &actor, SseEvent::FactOnly, &fact, key)
+                .await
+        },
+        None => {
+            outbox
+                .append_on(tx.as_mut(), &actor, SseEvent::FactOnly, &fact)
+                .await
+        },
     }
     .expect("append");
     tx.commit().await.expect("commit");
@@ -55,10 +61,18 @@ async fn a_later_row_of_an_aggregate_waits_for_the_earlier_one() {
     let held_a1 = first.claim(&consumer).await.expect("claim").expect("a row");
     assert_eq!(held_a1.id(), a1, "the oldest row is claimed first");
 
-    let held_b1 = second.claim(&consumer).await.expect("claim").expect("a row");
+    let held_b1 = second
+        .claim(&consumer)
+        .await
+        .expect("claim")
+        .expect("a row");
     assert_eq!(held_b1.id(), b1, "a2 waits while a1 is claimed; b1 is free");
 
-    let held_free = second.claim(&consumer).await.expect("claim").expect("a row");
+    let held_free = second
+        .claim(&consumer)
+        .await
+        .expect("claim")
+        .expect("a row");
     assert_eq!(held_free.id(), free, "an unkeyed row is not held back");
 
     assert!(
@@ -70,7 +84,11 @@ async fn a_later_row_of_an_aggregate_waits_for_the_earlier_one() {
     held_b1.acknowledge().await.expect("acknowledge");
     drop(held_a1);
 
-    let again = second.claim(&consumer).await.expect("claim").expect("a row");
+    let again = second
+        .claim(&consumer)
+        .await
+        .expect("claim")
+        .expect("a row");
     assert_eq!(again.id(), a1, "a rolled-back claim leaves a1 at the head");
     again.acknowledge().await.expect("acknowledge");
 

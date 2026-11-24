@@ -129,7 +129,7 @@ fn build_row_output(row: RequestListRow) -> RequestListRowOutput {
         user_id: row.user_id,
         provider: row.provider.unwrap_or_else(|| "-".to_owned()),
         model: row.model.unwrap_or_else(|| "-".to_owned()),
-        status: row.status,
+        status: row.status.as_str().to_owned(),
         error_message: row.error_message,
         input_tokens: row.input_tokens.unwrap_or(0),
         output_tokens: row.output_tokens.unwrap_or(0),

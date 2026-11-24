@@ -1215,3 +1215,15 @@ lint-stringly-errors *ARGS:
 # Bridge control flow decides on a host warning's `kind`, never its text.
 lint-bridge-typed-warnings *ARGS:
     ./scripts/lint-bridge-typed-warnings.sh {{ARGS}}
+
+# A state field compared against a string literal outside the provider wire codecs.
+lint-state-compare *ARGS:
+    ./scripts/lint-state-compare.sh {{ARGS}}
+
+# An identifier converted to text inside a sqlx query macro's bind arguments.
+lint-typed-binds *ARGS:
+    python3 ./scripts/lint-typed-binds.py {{ARGS}}
+
+# An id-only repository read named from a user-policy handler module.
+lint-owner-witness *ARGS:
+    python3 ./scripts/lint-owner-witness.py {{ARGS}}
