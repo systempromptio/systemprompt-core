@@ -17,6 +17,7 @@ use super::RequestContext;
 pub use super::error::RejectionError;
 use super::extract::PreparedRequest;
 
+mod envelopes;
 pub mod errors;
 
 pub use self::errors::map_upstream_error;
