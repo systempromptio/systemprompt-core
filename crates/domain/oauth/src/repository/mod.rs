@@ -26,7 +26,7 @@ pub use exchange_code::{
 };
 pub use oauth::{
     AuthCodeParams, AuthCodeRedemption, AuthCodeValidationResult, CONSENT_TOKEN_TTL_SECS,
-    ConsentBinding, JtiRevocationCache, JtiRevocationChecker, MintAuthCodeParams, OAuthRepository,
+    ConsentBinding, MintAuthCodeParams, OAuthRepository,
     PostgresReplayGuard, REAUTH_MARKER_TTL_SECS, ReauthBinding, RefreshTokenLineage,
     RefreshTokenParams, SsoStateParams, SsoStateRow,
 };

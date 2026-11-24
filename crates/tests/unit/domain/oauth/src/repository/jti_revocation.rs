@@ -3,7 +3,8 @@
 use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AccessTokenId, UserId};
-use systemprompt_oauth::repository::{JtiRevocationCache, OauthCleanupRepository};
+use systemprompt_database::JtiRevocationCache;
+use systemprompt_oauth::repository::OauthCleanupRepository;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };

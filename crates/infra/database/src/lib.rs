@@ -102,12 +102,12 @@ pub use lifecycle::{
 pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
     INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
-    InstanceLeaseRepository, PLANE_NOT_APPLIED_HINT, PROCESS_OWNERSHIP_CHANNEL, PgConfigVersion,
+    InstanceLeaseRepository, JtiRevocationCache, JtiRevocationChecker, PLANE_NOT_APPLIED_HINT, PROCESS_OWNERSHIP_CHANNEL, PgConfigVersion,
     PgDbPool, PlaneTransaction, ProcessOwner, ProcessOwnershipWake, Reaped, ReapedService,
     ReleaseGate, ReleaseRun, ReleaseStampError, ReleaseStampRepository, RoleCount, ServiceConfig,
     ServiceModule, ServiceRepository, ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks,
     StampOutcome, UpsertServiceProcessInput, find_config_plane_applied,
-    record_config_plane_applied, release_key, with_change_context,
+    jti_revoked, record_config_plane_applied, release_key, with_change_context,
 };
 
 pub use admin::{

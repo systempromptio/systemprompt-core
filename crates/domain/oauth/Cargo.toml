@@ -64,7 +64,6 @@ webauthn-rs = { workspace = true }
 http = { workspace = true }
 
 # LRU cache for JTI revocation lookups
-lru = { workspace = true }
 
 
 # HTTP client for CLI-to-REST calls

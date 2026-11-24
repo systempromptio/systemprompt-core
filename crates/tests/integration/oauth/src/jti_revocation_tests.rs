@@ -3,7 +3,8 @@
 use crate::{create_test_user, setup_test_db};
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{AccessTokenId, UserId};
-use systemprompt_oauth::repository::{JtiRevocationCache, OauthCleanupRepository};
+use systemprompt_database::JtiRevocationCache;
+use systemprompt_oauth::repository::OauthCleanupRepository;
 use systemprompt_traits::CacheEpochs;
 
 fn unique_jti() -> AccessTokenId {

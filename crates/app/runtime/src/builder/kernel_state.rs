@@ -115,7 +115,7 @@ use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::auth::DynTokenRevocations;
-use systemprompt_oauth::repository::JtiRevocationChecker;
+use systemprompt_database::JtiRevocationChecker;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_traits::MessagingDispatcher;
 
