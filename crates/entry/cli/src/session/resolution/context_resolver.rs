@@ -164,39 +164,65 @@ pub fn resolve_profile_path_without_session(
         })
 }
 
-pub(super) async fn try_validate_context(
+/// What revalidating a stored session's context found.
+#[derive(Debug)]
+pub enum ContextCheck {
+    Owned,
+    Recovered(CliSession),
+    Unverified(SessionContextError),
+}
+
+impl ContextCheck {
+    #[must_use]
+    pub const fn is_verified(&self) -> bool {
+        !matches!(self, Self::Unverified(_))
+    }
+}
+
+pub async fn try_validate_context(
     session: &mut CliSession,
     profile_name: &ProfileName,
     contexts: Result<SessionContexts, SessionContextError>,
-) -> Option<CliSession> {
-    let contexts = contexts
-        .map_err(|e| tracing::debug!(error = %e, "Session context cannot be validated"))
-        .ok()?;
-    revalidate_context(&contexts, session, profile_name).await
+) -> ContextCheck {
+    match contexts {
+        Ok(contexts) => revalidate_context(&contexts, session, profile_name).await,
+        Err(error) => unverified(error),
+    }
 }
 
 pub async fn revalidate_context(
     contexts: &SessionContexts,
     session: &mut CliSession,
     profile_name: &ProfileName,
-) -> Option<CliSession> {
-    let is_valid = contexts
-        .owns(&session.user_id, &session.context_id)
-        .await
-        .unwrap_or(false);
-
-    if is_valid {
-        return None;
+) -> ContextCheck {
+    match contexts.owns(&session.user_id, &session.context_id).await {
+        Ok(true) => return ContextCheck::Owned,
+        Ok(false) => CliService::warning("Session context is stale, recovering session context..."),
+        Err(error) => {
+            tracing::warn!(%error, "Session context ownership could not be read; treating it as invalid");
+            CliService::warning(
+                "Session context ownership could not be read, recovering session context...",
+            );
+        },
     }
 
-    CliService::warning("Session context is stale, recovering session context...");
-
-    let new_context_id = contexts
+    match contexts
         .issue(&session.user_id, &session.session_id, profile_name)
         .await
-        .map_err(|e| tracing::warn!(error = %e, "Failed to recover session context"))
-        .ok()?;
+    {
+        Ok(new_context_id) => {
+            session.set_context_id(new_context_id);
+            ContextCheck::Recovered(session.clone())
+        },
+        Err(error) => unverified(error),
+    }
+}
 
-    session.set_context_id(new_context_id);
-    Some(session.clone())
+fn unverified(error: SessionContextError) -> ContextCheck {
+    tracing::warn!(%error, "Session context cannot be verified");
+    CliService::warning(&format!(
+        "Session context cannot be verified ({error}); commands that need a conversation context \
+         may fail until 'systemprompt admin session login' is run."
+    ));
+    ContextCheck::Unverified(error)
 }
