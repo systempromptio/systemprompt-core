@@ -22,7 +22,7 @@
 //! signalled. A second signal forces an immediate exit in either window: the
 //! drain guard watches for it, and so does the backstop the run loop holds
 //! (and aborts once teardown completes). [`drain`] then shuts the process's
-//! [`BackgroundTasks`](systemprompt_traits::BackgroundTasks) down alongside
+//! [`BackgroundTasks`] down alongside
 //! child termination and before the log writer flushes, so post-response
 //! audit and analytics writes still land. A forced exit reports a non-zero
 //! status: the teardown did not complete.

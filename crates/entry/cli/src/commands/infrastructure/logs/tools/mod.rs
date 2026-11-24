@@ -1,6 +1,6 @@
 //! `infra logs tools` subcommands for listing MCP tool executions.
 //!
-//! Exposes [`ToolsCommands`] and the [`ToolExecutionRow`] / [`ToolsListOutput`]
+//! Exposes [`ToolsCommands`] and the [`ToolExecutionRow`] / `ToolsListOutput`
 //! shapes rendered for each execution record.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

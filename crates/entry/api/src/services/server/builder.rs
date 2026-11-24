@@ -1,7 +1,7 @@
 //! Full API router construction and the global middleware stack.
 //!
 //! [`setup_api_server`] composes the route tree over the one gateway engines
-//! set the `gateway` member provides (sealed; [`admitted_gateway_engines`]
+//! set the `gateway` member provides (sealed; `admitted_gateway_engines`
 //! reads it from the kernel state), and applies the global layers
 //! (panic fence, body limit, analytics, context, session, CORS, trailing-slash,
 //! trace and served-by headers, content negotiation, security headers) in the
@@ -10,7 +10,7 @@
 //! extension that takes a core row it does not own; that is the one owner
 //! check on the boot path, and every router and gateway engine below it is
 //! built downstream of it. The server run loop reads the engines set once and
-//! hands the same set to the router ([`assemble_api_server`]) and to the
+//! hands the same set to the router (`assemble_api_server`) and to the
 //! brain consumer's model client. When the `mcp` member's artifact ingest
 //! exists, the gateway's policy scanner is registered on it, built from the
 //! gateway policy table over the database pool alone, so no other member's

@@ -6,7 +6,7 @@
 //! request, unchanged and with its own credentials, against the owner's
 //! advertised address, where the owner's proxy route authenticates and serves
 //! it as if it had arrived directly. No live owner is a 503 on an `api` node,
-//! never a guess. A found owner is remembered for [`OWNER_CACHE_TTL`] so a
+//! never a guess. A found owner is remembered for `OWNER_CACHE_TTL` so a
 //! burst of requests costs one registry read; a miss is never remembered, so
 //! a name nothing runs cannot fill the cache.
 //!
@@ -20,7 +20,7 @@
 //! owner, later requests are answered 503 at once until an owner is found
 //! again, so a process that cannot start costs one wait, not one per request.
 //! A name the configuration does not supervise is never waited for. A forwarded
-//! request carries [`FORWARDED_TO_OWNER`] holding a short-lived marker signed
+//! request carries `FORWARDED_TO_OWNER` holding a short-lived marker signed
 //! with the deployment key for that one service, and a worker receiving a
 //! marker it verifies serves the request locally rather than forwarding again,
 //! so two workers whose cached owners disagree during a handover cannot bounce

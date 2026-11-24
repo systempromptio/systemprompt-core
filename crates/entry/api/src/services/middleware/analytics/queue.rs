@@ -7,8 +7,8 @@
 //! an idle queue, runs up to `writers` writes concurrently, and ends when the
 //! queue is empty, so a drain still observes the moment nothing is pending.
 //! A write offered to a full queue is dropped: it is counted on
-//! [`HTTP_ANALYTICS_DROPPED_TOTAL`] and reported by a WARN at most once per
-//! [`DROP_WARN_INTERVAL`]; the request is never delayed.
+//! `HTTP_ANALYTICS_DROPPED_TOTAL` and reported by a WARN at most once per
+//! `DROP_WARN_INTERVAL`; the request is never delayed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

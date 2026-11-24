@@ -6,7 +6,7 @@
 //!
 //! A managed tenant routes with the stored `admin session login` session. A
 //! self-managed (kubernetes/gke) tenant resolves to
-//! [`ExecutionTarget::SelfManaged`]; [`authorize_target`] turns it into a
+//! [`ExecutionTarget::SelfManaged`]; `authorize_target` turns it into a
 //! remote target by exchanging the operator's OIDC sign-in for a tenant
 //! session at the tenant's token endpoint, so no database URL or signing key
 //! is needed on the operator's machine.

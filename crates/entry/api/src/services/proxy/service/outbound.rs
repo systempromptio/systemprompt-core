@@ -2,7 +2,7 @@
 //!
 //! The proxy owns every identity and context header the backend sees. Both
 //! backends receive only an allow-list of protocol headers copied from the
-//! client ([`MCP_PASSTHROUGH_HEADERS`], [`AGENT_PASSTHROUGH_HEADERS`]) plus the
+//! client (`MCP_PASSTHROUGH_HEADERS`, `AGENT_PASSTHROUGH_HEADERS`) plus the
 //! headers the proxy sets from the verified request context, so nothing else
 //! a client sends (identity headers, the owner-hop marker, a context id)
 //! reaches the backend. A managed MCP server additionally receives the signed

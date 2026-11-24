@@ -1,7 +1,7 @@
 //! Formatting helpers shared across the `infra logs` subcommands.
 //!
 //! Re-exports the timestamp/duration formatters from `systemprompt_models` and
-//! provides [`level_notice`], [`filter_notes`] and
+//! provides [`level_notice`], `filter_notes` and
 //! [`cost_microdollars_to_dollars`] used by the view, search, stream and trace
 //! outputs.
 //!
