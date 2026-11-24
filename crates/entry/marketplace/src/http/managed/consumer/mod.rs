@@ -11,14 +11,13 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, SessionBindingRequest};
-use systemprompt_runtime::AppContext;
-
-use crate::routes::managed_state::managed_repository;
-use error::ConsumerHttpError;
 use systemprompt_models::ApiPaths;
+use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, SessionBindingRequest};
 
-pub fn router() -> Router<AppContext> {
+use super::ManagedConsumerState;
+use error::ConsumerHttpError;
+
+pub fn router() -> Router<ManagedConsumerState> {
     Router::new()
         .route(
             ApiPaths::api_v1_relative(ApiPaths::CONSUMER_BUNDLE_ROUTE),
@@ -40,40 +39,43 @@ pub fn router() -> Router<AppContext> {
 }
 
 async fn receipt(
-    State(ctx): State<AppContext>,
+    State(state): State<ManagedConsumerState>,
     headers: HeaderMap,
     Json(input): Json<ConsumerReceiptRequest>,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
     Box::pin(authorization::resource(
-        &ctx,
+        &state,
         credential,
         &input.resource_id,
         input.host,
     ))
     .await?;
     Ok(Json(
-        managed_repository(&ctx)?
+        state
+            .repository
             .record_consumer_receipt(credential, &input)
             .await?,
     ))
 }
 
 async fn bind_session(
-    State(ctx): State<AppContext>,
+    State(state): State<ManagedConsumerState>,
     headers: HeaderMap,
     Json(input): Json<SessionBindingRequest>,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
-    let resource = managed_repository(&ctx)?
+    let resource = state
+        .repository
         .consumer_receipt_resource(credential, &input.receipt_id)
         .await?;
     Box::pin(authorization::resource(
-        &ctx, credential, &resource, input.host,
+        &state, credential, &resource, input.host,
     ))
     .await?;
     Ok(Json(
-        managed_repository(&ctx)?
+        state
+            .repository
             .bind_consumer_session(credential, &input)
             .await?,
     ))
@@ -86,11 +88,11 @@ struct Enrollment {
 }
 
 async fn enroll(
-    State(ctx): State<AppContext>,
+    State(state): State<ManagedConsumerState>,
     headers: HeaderMap,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
-    let identity = authorization::authenticate_device(&ctx, credential).await?;
+    let identity = authorization::authenticate_device(&state, credential).await?;
     Ok(Json(Enrollment {
         device_id: identity.device_id,
         consumer_id: identity.consumer_id,
@@ -104,7 +106,7 @@ struct BundleQuery {
 }
 
 async fn bundle(
-    State(ctx): State<AppContext>,
+    State(state): State<ManagedConsumerState>,
     headers: HeaderMap,
     Path((resource, publication)): Path<(
         systemprompt_identifiers::ManagedResourceId,
@@ -114,11 +116,12 @@ async fn bundle(
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
     Box::pin(authorization::resource(
-        &ctx, credential, &resource, query.host,
+        &state, credential, &resource, query.host,
     ))
     .await?;
     Ok(Json(
-        managed_repository(&ctx)?
+        state
+            .repository
             .consumer_installation_plan(credential, &resource, &publication, query.host)
             .await?,
     ))

@@ -19,10 +19,15 @@ all-features = true
 [lints]
 workspace = true
 
+[features]
+default = []
+http = ["dep:axum"]
+
 [build-dependencies]
 systemprompt-extension = { workspace = true }
 
 [dependencies]
+axum = { workspace = true, optional = true }
 schemars = { workspace = true }
 systemprompt-extension = { workspace = true }
 sqlx = { workspace = true }

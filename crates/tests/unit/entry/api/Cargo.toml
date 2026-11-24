@@ -63,7 +63,8 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-loader = { workspace = true }
-systemprompt-marketplace = { workspace = true }
+systemprompt-marketplace = { workspace = true, features = ["http"] }
+systemprompt-marketplace-entry = { workspace = true, features = ["http"] }
 systemprompt-runtime = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-users = { workspace = true }

@@ -71,6 +71,8 @@ mod manifest;
 mod membership;
 mod scope;
 mod service;
+#[cfg(feature = "http")]
+pub mod surface;
 pub mod trace;
 mod view;
 

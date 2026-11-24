@@ -33,6 +33,8 @@ mod set;
 mod shape;
 #[cfg(feature = "router")]
 mod sse;
+#[cfg(feature = "router")]
+mod surface;
 
 pub use base_ref::{BaseRef, GatewayPath};
 #[cfg(feature = "router")]
@@ -61,6 +63,8 @@ pub use sse::{
     HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive,
     subscription_refused,
 };
+#[cfg(feature = "router")]
+pub use surface::{DynSyncSurface, SyncSurface};
 
 #[cfg(feature = "router")]
 #[doc(hidden)]

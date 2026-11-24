@@ -1,5 +1,7 @@
 //! The cloud member: behind the `cli` feature, the top-level `cloud` command
-//! group with the `CloudOperator` grant the reserved `cloud` path confers.
+//! group with the `CloudOperator` grant the reserved `cloud` path confers;
+//! behind the `http` feature, the open `DynSyncSurface` the API builds the
+//! services-tree sync routes from (`cloud` disabled: `/api/v1/sync` is 404).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,13 +21,19 @@ impl Extension for CloudCliExtension {
     }
 
     #[cfg_attr(
-        not(feature = "cli"),
+        not(any(feature = "cli", feature = "http")),
         expect(
             unused_variables,
-            reason = "the cloud member contributes only CLI commands"
+            reason = "the cloud member contributes only with the cli or http feature"
         )
     )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        #[cfg(feature = "http")]
+        c.provide(
+            |_r: &Resolved<'_>| -> Result<systemprompt_extension::router::DynSyncSurface, ProvideError> {
+                Ok(std::sync::Arc::new(crate::http::CloudSyncSurface))
+            },
+        );
         #[cfg(feature = "cli")]
         c.command(
             systemprompt_extension::cli::CommandDecl::group::<crate::cli::CloudCommands>()

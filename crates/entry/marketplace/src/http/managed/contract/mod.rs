@@ -77,7 +77,7 @@ pub async fn normalize(request: Request, next: Next) -> Response {
     }
     response.headers_mut().insert(
         header::CACHE_CONTROL,
-        http::HeaderValue::from_static("no-store"),
+        axum::http::HeaderValue::from_static("no-store"),
     );
     response
 }

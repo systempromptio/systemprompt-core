@@ -178,7 +178,7 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_brain_entry::extension::BrainHttpExtension>(
             CoreTerms::conferred(CoreId::BrainHttp),
         ),
-        #[cfg(all(feature = "cloud", feature = "cli"))]
+        #[cfg(feature = "cloud")]
         Member::core::<systemprompt_cloud_entry::CloudCliExtension>(CoreTerms::conferred(
             CoreId::Cloud,
         )),

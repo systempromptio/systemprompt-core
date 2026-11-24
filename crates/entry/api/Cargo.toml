@@ -92,7 +92,7 @@ systemprompt-events = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
-systemprompt-marketplace = { workspace = true }
+systemprompt-marketplace = { workspace = true, features = ["http"] }
 
 # Authentication
 

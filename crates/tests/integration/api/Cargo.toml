@@ -48,6 +48,7 @@ systemprompt-content = { workspace = true }
 systemprompt-content-entry = { workspace = true, features = ["http"] }
 systemprompt-marketplace = { workspace = true }
 systemprompt-marketplace-entry = { workspace = true, features = ["http"] }
+systemprompt-cloud-entry = { workspace = true, features = ["http"] }
 systemprompt-mcp = { workspace = true }
 systemprompt-mcp-entry = { workspace = true, features = ["cli"] }
 systemprompt-users = { workspace = true }

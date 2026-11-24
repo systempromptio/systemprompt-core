@@ -4,16 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::super::ManagedConsumerState;
+use super::error::ConsumerHttpError;
 use axum::http::{HeaderMap, StatusCode, header};
 use systemprompt_identifiers::ManagedResourceId;
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
-use systemprompt_runtime::AppContext;
-
-use super::error::ConsumerHttpError;
-use crate::routes::managed_state::managed_repository;
 
 pub(super) fn credential(headers: &HeaderMap) -> Result<&str, ConsumerHttpError> {
     headers
@@ -27,10 +25,11 @@ pub(super) fn credential(headers: &HeaderMap) -> Result<&str, ConsumerHttpError>
 // Why: an unknown or revoked credential is the caller's 401; a storage
 // failure while checking it is not and keeps its 5xx classification.
 pub(super) async fn authenticate_device(
-    ctx: &AppContext,
+    state: &ManagedConsumerState,
     credential: &str,
 ) -> Result<AuthenticatedConsumerDevice, ConsumerHttpError> {
-    match managed_repository(ctx)?
+    match state
+        .repository
         .authenticate_consumer_device(credential)
         .await
     {
@@ -41,33 +40,29 @@ pub(super) async fn authenticate_device(
 }
 
 pub(super) async fn resource(
-    ctx: &AppContext,
+    state: &ManagedConsumerState,
     credential: &str,
     resource: &ManagedResourceId,
     host: EvaluatorClient,
 ) -> Result<(), ConsumerHttpError> {
-    let identity = authenticate_device(ctx, credential).await?;
-    let profile = ctx.profile();
-    let services = ctx.services_config();
-    if !services
+    let identity = authenticate_device(state, credential).await?;
+    if !state
+        .services
+        .config()
         .instance_enabled_hosts()
         .iter()
         .any(|value| host.accepts(*value))
     {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
-    let (candidate, _) = crate::routes::gateway::bridge_manifest::assemble_candidate(
-        ctx,
-        profile,
-        &identity.consumer_id,
-        (*services).clone(),
-        crate::routes::gateway::bridge_resolved::Freshness::Memo,
-    )
-    .await
-    .map_err(|error| {
-        tracing::warn!(%error, "consumer: candidate assembly failed");
-        ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
-    })?;
+    let candidate = state
+        .catalog
+        .candidate(&identity.consumer_id)
+        .await
+        .map_err(|error| {
+            tracing::warn!(%error, "consumer: candidate assembly failed");
+            ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
+        })?;
     let (entries, _) = candidate.into_manifest_parts();
     if !entries.skills.iter().any(|skill| {
         skill
@@ -83,7 +78,7 @@ pub(super) async fn resource(
     }) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
-    let repository = managed_repository(ctx)?;
+    let repository = &state.repository;
     let owner = repository.consumer_resource_owner(resource).await?;
     repository
         .retain_consumer_catalog_grant(&owner, resource, &identity.consumer_id)

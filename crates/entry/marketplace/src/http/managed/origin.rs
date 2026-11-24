@@ -8,11 +8,15 @@ use axum::extract::{Request, State};
 use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use systemprompt_runtime::AppContext;
+use std::sync::Arc;
 
-pub async fn protect(State(ctx): State<AppContext>, request: Request, next: Next) -> Response {
+pub async fn protect(
+    State(api_external_url): State<Arc<str>>,
+    request: Request,
+    next: Next,
+) -> Response {
     if !request.method().is_safe() && request.headers().contains_key(header::COOKIE) {
-        let expected = url::Url::parse(&ctx.config().api_external_url)
+        let expected = url::Url::parse(&api_external_url)
             .ok()
             .map(|url| url.origin().ascii_serialization());
         let actual = request
@@ -30,7 +34,7 @@ pub async fn protect(State(ctx): State<AppContext>, request: Request, next: Next
     let mut response = next.run(request).await;
     response.headers_mut().insert(
         header::CACHE_CONTROL,
-        http::HeaderValue::from_static("no-store"),
+        axum::http::HeaderValue::from_static("no-store"),
     );
     response
 }
