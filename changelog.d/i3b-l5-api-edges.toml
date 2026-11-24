@@ -1,5 +1,6 @@
 [root]
 section = "Changed"
+area = "API"
 text = "The gateway member registers its tool-result scanner on the MCP artifact ingest when it builds its engines, instead of the API server builder. The proxy reads agent OAuth requirements through the agent member's live `Arc<dyn AgentRegistryProvider>`, and the lease supervisor lists managed MCP servers through `Arc<dyn McpRegistryProvider>`; the API no longer depends on `systemprompt-mcp` or `systemprompt-agent`."
 
 [[crate]]

@@ -3,10 +3,9 @@
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
+use systemprompt_models::auth::API_KEY_PREFIX;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
-use systemprompt_users::{
-    API_KEY_PREFIX, ApiKeyService, IssueApiKeyParams, UserError, UserRepository,
-};
+use systemprompt_users::{ApiKeyService, IssueApiKeyParams, UserError, UserRepository};
 use uuid::Uuid;
 
 struct Ctx {

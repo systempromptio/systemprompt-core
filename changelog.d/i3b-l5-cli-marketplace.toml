@@ -1,5 +1,6 @@
 [root]
 section = "Changed"
+area = "CLI"
 text = "`core services validate` is the `marketplace-http` member's leaf under the kernel's `core services` group (reserved row `core services validate`, no grant), and `admin config secret migrate-git-credentials` reads the Git sources and their credential names through the `managed_resources` member's open `DynGitCredentialDirectory`. The CLI kernel no longer depends on `systemprompt-marketplace`."
 
 [[crate]]
