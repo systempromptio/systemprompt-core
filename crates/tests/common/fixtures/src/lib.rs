@@ -8,12 +8,14 @@
 //! and CI and `just test-shard` always provide `DATABASE_URL`. There is no
 //! skip-on-missing form.
 
+pub mod a2a_schema;
 pub mod agent;
 pub mod agent_reads;
 pub mod app_context;
 pub mod bootstrap;
 pub mod brain;
 pub mod catalog;
+pub mod cli;
 pub mod composed;
 pub mod credential;
 pub mod db;
@@ -88,7 +90,7 @@ pub use composed::{
 pub use credential::{
     seed_admin_credential, seed_bridge_client_credential, seed_bridge_credential,
     seed_bridge_device_credential, seed_drive_credential, seed_fixture_system_admin, seed_user_row,
-    seed_user_row_with_roles, seed_user_session, AuthedFixture,
+    seed_fixture_owners, seed_user_row_with_roles, seed_user_session, AuthedFixture, FixtureOwners,
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
@@ -112,7 +114,7 @@ pub use keystore::install_headless_keystore;
 pub use liveness::LivePids;
 pub use marketplace::{fixture_admitted_with_filter, fixture_managed_repository, FilterMember};
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
-pub use net::{bind_in_range, free_port_in_range, port_is_unheld};
+pub use net::ReservedPort;
 pub use oauth::{
     oauth_fixture_pepper, oauth_fixture_repository, pkce_pair, seed_oauth_client,
     OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET, TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,

@@ -16,6 +16,9 @@ mod declared_users;
 mod directory_search;
 
 #[cfg(test)]
+mod owner_isolation;
+
+#[cfg(test)]
 mod role_membership;
 
 #[cfg(test)]
