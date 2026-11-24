@@ -25,7 +25,8 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, CacheEpochView, CacheEpochs,
     DynAiSessionProvider, DynContextDirectory, DynGatewaySessionMint, DynSessionContextIssuer,
-    DynSessionStore, DynSessionTelemetry, DynSignInSessions, DynSessionUsageCounters, FileStorage, SecretStore,
+    DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters, DynSignInSessions, FileStorage,
+    SecretStore,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -341,12 +342,22 @@ async fn core_and_install_route_sets_are_refused_every_host_sealed_seed() {
 
 fn conferred_on_identity_http_alone<T: Clone + Send + Sync + 'static>(ctx: &AppContext) {
     assert!(route_reads::<T>(ctx, "identity-http"));
-    for owner in ["gateway", "gateway-http", "files-http", "agent-http", "mcp-http"] {
+    for owner in [
+        "gateway",
+        "gateway-http",
+        "files-http",
+        "agent-http",
+        "mcp-http",
+    ] {
         assert!(!route_reads::<T>(ctx, owner), "{owner}");
     }
     assert!(
         ctx.kernel()
-            .route_scoped(&ExtensionId::new("identity-http"), StandingTag::Install, &[])
+            .route_scoped(
+                &ExtensionId::new("identity-http"),
+                StandingTag::Install,
+                &[]
+            )
             .get::<T>()
             .is_err(),
         "an install holding the identity-http id reads nothing conferred"

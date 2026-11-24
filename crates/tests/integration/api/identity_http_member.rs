@@ -62,7 +62,12 @@ async fn status(app: &Router, method: &str, uri: &str) -> u16 {
             .parse::<std::net::SocketAddr>()
             .expect("addr"),
     ));
-    app.clone().oneshot(req).await.expect("response").status().as_u16()
+    app.clone()
+        .oneshot(req)
+        .await
+        .expect("response")
+        .status()
+        .as_u16()
 }
 
 #[tokio::test]
@@ -78,9 +83,16 @@ async fn the_admitted_member_serves_its_routes_behind_their_gates() {
 
 #[tokio::test]
 async fn a_disabled_identity_http_member_mounts_none_of_its_routes() {
-    let app = server(fixture_admitted_without(&[ExtensionId::new("identity-http")])).await;
+    let app = server(fixture_admitted_without(&[ExtensionId::new(
+        "identity-http",
+    )]))
+    .await;
     for (method, uri) in PUBLIC.into_iter().chain(GATED) {
         assert_ne!(status(&app, method, uri).await, 200, "{uri}");
-        assert_ne!(status(&app, method, uri).await, 401, "{uri} is not gated: not mounted");
+        assert_ne!(
+            status(&app, method, uri).await,
+            401,
+            "{uri} is not gated: not mounted"
+        );
     }
 }

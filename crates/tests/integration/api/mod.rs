@@ -169,6 +169,7 @@ mod routes_bridge_data;
 
 #[cfg(test)]
 mod gateway_http_member;
+#[cfg(test)]
 mod identity_http_member;
 #[cfg(test)]
 #[path = "routes_gateway_bridge_jwt.rs"]

@@ -16,8 +16,9 @@ use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::RepositoryError;
 
-/// The names of the catalog credentials a gateway principal stored a
-/// personal key for, and nothing else: no key material, no write, no other
+/// The catalog credential names a gateway principal stored a personal key for.
+///
+/// Nothing else: no key material, no write, no other
 /// principal. The `ai` member provides it sealed; the kernel's bridge
 /// profile reads it. Held as `Arc<dyn PersonalCredentialNames>`, hence
 /// `#[async_trait]`.
