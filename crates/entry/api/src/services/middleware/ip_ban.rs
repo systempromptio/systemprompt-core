@@ -36,7 +36,7 @@ use crate::error::ApiHttpError;
 use systemprompt_security::http::resolve_client_ip;
 
 fn is_probe_path(path: &str) -> bool {
-    path == "/health"
+    path == ApiPaths::HEALTH_ROOT
         || path == ApiPaths::LIVEZ
         || path == ApiPaths::READYZ
         || path == ApiPaths::HEALTH

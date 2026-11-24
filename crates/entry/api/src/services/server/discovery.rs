@@ -200,7 +200,7 @@ pub fn discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {
     Ok(Router::new()
         .route(ApiPaths::DISCOVERY, get(handle_root_discovery))
         .route(ApiPaths::HEALTH, get(handle_health))
-        .route("/health", get(handle_health))
+        .route(ApiPaths::HEALTH_ROOT, get(handle_health))
         .route(ApiPaths::LIVEZ, get(handle_livez))
         .route(ApiPaths::READYZ, get(handle_readyz))
         .route(ApiPaths::CORE_BASE, get(handle_core_discovery))
@@ -214,7 +214,7 @@ pub fn discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {
 pub fn probes_router(ctx: &AppContext) -> Result<Router, SlotError> {
     Ok(Router::new()
         .route(ApiPaths::HEALTH, get(handle_health))
-        .route("/health", get(handle_health))
+        .route(ApiPaths::HEALTH_ROOT, get(handle_health))
         .route(ApiPaths::LIVEZ, get(handle_livez))
         .route(ApiPaths::READYZ, get(handle_readyz))
         .layer(config_state_layer(ctx)?)
@@ -235,7 +235,7 @@ fn config_state_layer(
 
 pub fn authenticated_discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {
     Ok(Router::new()
-        .route("/api/v1/health/detail", get(handle_health_detail))
+        .route(ApiPaths::HEALTH_DETAIL, get(handle_health_detail))
         .layer(readiness_layer(ctx)?)
         .layer(diagnostics_layer(ctx)?)
         .with_state(ctx.clone()))

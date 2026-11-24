@@ -34,7 +34,7 @@ const EXEMPT_PATHS: [&str; 5] = [
     ApiPaths::LIVEZ,
     ApiPaths::READYZ,
     ApiPaths::HEALTH,
-    "/health",
+    ApiPaths::HEALTH_ROOT,
     "/metrics",
 ];
 

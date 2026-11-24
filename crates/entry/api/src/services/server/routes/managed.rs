@@ -24,12 +24,11 @@ use systemprompt_extension::{
 };
 use systemprompt_gateway::surface::ManagedConsumer;
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
 use super::protocol::MountCtx;
 use crate::services::middleware::place;
-
-const CONSUMER_BASE: &str = "/api/v1";
 
 pub(super) fn mount(
     router: Router,
@@ -58,8 +57,8 @@ pub(super) fn mount(
                 "consumer_evidence",
                 RateBudget::PerSecond(10),
             )),
-            CONSUMER_BASE,
+            ApiPaths::API_V1,
         )
     })?;
-    Ok(place(router, CONSUMER_BASE, protected))
+    Ok(place(router, ApiPaths::API_V1, protected))
 }

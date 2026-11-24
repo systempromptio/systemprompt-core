@@ -29,9 +29,7 @@
 use std::sync::Arc;
 
 use axum::Router;
-use systemprompt_documents::http::surface::{
-    DynFilesSurface, FilesRouteState, FilesRoutes, ISSUES_PATH,
-};
+use systemprompt_documents::http::surface::{DynFilesSurface, FilesRouteState, FilesRoutes};
 use systemprompt_documents::links::LinkMinter;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::{
@@ -78,7 +76,7 @@ pub(super) fn mount_files(
         router,
         declare(
             issues,
-            ISSUES_PATH,
+            ApiPaths::ISSUES,
             AuthzPolicy::user(),
             ContextKind::User,
             RouteGroup::ContentAndMisc,
