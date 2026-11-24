@@ -5,7 +5,7 @@
 
 use clap::Parser;
 use std::sync::Arc;
-use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
+use systemprompt_cli::session::api::DEFAULT_CLI_SESSION_HOURS;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
@@ -315,12 +315,10 @@ async fn session_list_recent_and_active_for_seeded_user() {
     let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("seslist");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    create_local_session_row(
+    super::open_cli_session(
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
-        systemprompt_test_fixtures::test_signing_keys(),
-        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();
