@@ -1,5 +1,5 @@
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_users::MERGE_EXCLUDED_SECURITY_TABLES;
+use systemprompt_traits::MERGE_EXCLUDED_SECURITY_TABLES;
 
 #[tokio::test]
 async fn excluded_security_tables_cascade_from_users() {

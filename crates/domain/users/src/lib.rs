@@ -53,7 +53,7 @@ pub use repository::{
     ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams,
     BannedIp, BannedIpRepository, CreateApiKeyParams, DeclaredUserRow, DeclaredUserWrite,
     EnrollDeviceCertParams, EnsuredApiKeyRecord, EnsuredServiceAccount, IssuerRekeyOutcome,
-    IssuerRekeyPlan, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
+    IssuerRekeyPlan, MergeResult, NewServiceAccount,
     NewSsoLoginEvent, PurgeCount, PurgeOutcome, SessionRepository, SessionTrafficRollupRepository,
     SkippedPurge, SsoLoginEvent, SsoLoginEventRepository, UserRateLimitBucketRepository,
     UserRepository, UsersRoleDirectory, UsersRoleSubjectProvider,

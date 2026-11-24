@@ -2,7 +2,7 @@
 //!
 //! The installer works over [`SchemaMember`]s: each admitted member's
 //! metadata, standing, schemas, migrations, seeds, retirements, cross-member
-//! tables and user-purge declarations, snapshotted from the admitted
+//! tables, user-purge declarations and owner reassignments, snapshotted from the admitted
 //! composition by [`schema_members`] in composition order. A disabled member is
 //! absent from the admitted composition, so its schema is never installed.
 //!
@@ -12,8 +12,8 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    BuiltState, ExtensionMetadata, Migration, PurgeDeclaration, SchemaDefinition, Seed,
-    StandingTag, purge_declarations,
+    BuiltState, ExtensionMetadata, Migration, OwnerReassignment, PurgeDeclaration,
+    SchemaDefinition, Seed, StandingTag, purge_declarations,
 };
 
 /// The schema-bearing view of one admitted member.
@@ -35,6 +35,7 @@ pub trait SchemaMember: Send + Sync {
     fn retirements(&self) -> Vec<SchemaDefinition>;
     fn cross_extension_tables(&self) -> Vec<&'static str>;
     fn purges(&self) -> Vec<PurgeDeclaration>;
+    fn reassignments(&self) -> Vec<OwnerReassignment>;
 
     fn has_schemas(&self) -> bool {
         !self.schemas().is_empty()
@@ -56,6 +57,7 @@ pub struct SchemaUnit {
     pub retirements: Vec<SchemaDefinition>,
     pub cross_tables: Vec<&'static str>,
     pub purges: Vec<PurgeDeclaration>,
+    pub reassignments: Vec<OwnerReassignment>,
 }
 
 impl SchemaMember for SchemaUnit {
@@ -90,6 +92,10 @@ impl SchemaMember for SchemaUnit {
     fn purges(&self) -> Vec<PurgeDeclaration> {
         self.purges.clone()
     }
+
+    fn reassignments(&self) -> Vec<OwnerReassignment> {
+        self.reassignments.clone()
+    }
 }
 
 pub fn schema_members(built: &BuiltState) -> Vec<Arc<dyn SchemaMember>> {
@@ -111,6 +117,7 @@ pub fn schema_members(built: &BuiltState) -> Vec<Arc<dyn SchemaMember>> {
                 retirements: member.sink.retirements().to_vec(),
                 cross_tables: member.sink.cross_tables().to_vec(),
                 purges: purge_declarations(&member.sink),
+                reassignments: member.sink.owner_reassignments().to_vec(),
             });
             unit
         })

@@ -5,7 +5,9 @@
 //! first; then this crate's own rows: the source's sessions move to the
 //! target, the merge is recorded as a governance decision, and the source user
 //! is deleted. Everything commits together, so a failure anywhere leaves every
-//! row and the source user in place for a rerun.
+//! row and the source user in place for a rerun. A reassignment naming a
+//! table in `MERGE_EXCLUDED_SECURITY_TABLES` refuses the merge before any
+//! row moves: those rows die with the source user.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,8 +17,9 @@ use systemprompt_extension::AdmittedOwnerReassignments;
 use systemprompt_governance::authz::types::DecisionTag;
 use systemprompt_governance::authz::{GovernanceDecisionRecord, insert_governance_decision};
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
+use systemprompt_traits::MERGE_EXCLUDED_SECURITY_TABLES;
 
-use crate::error::Result;
+use crate::error::{Result, UserError};
 use crate::repository::UserRepository;
 
 const MERGE_TOOL_NAME: &str = "users.merge";
@@ -29,20 +32,6 @@ pub struct MergeResult {
     pub total_rows: u64,
 }
 
-pub const MERGE_EXCLUDED_SECURITY_TABLES: &[&str] = &[
-    "oauth_auth_codes",
-    "oauth_refresh_tokens",
-    "oauth_clients",
-    "webauthn_credentials",
-    "webauthn_challenges",
-    "webauthn_setup_tokens",
-    "user_api_keys",
-    "user_device_certs",
-    "bridge_sessions",
-    "bridge_exchange_codes",
-    "federated_identities",
-];
-
 impl UserRepository {
     pub async fn merge(
         &self,
@@ -50,6 +39,14 @@ impl UserRepository {
         target_id: &UserId,
         reassignments: &AdmittedOwnerReassignments,
     ) -> Result<MergeResult> {
+        if let Some(owned) = reassignments.entries().iter().find(|owned| {
+            MERGE_EXCLUDED_SECURITY_TABLES.contains(&owned.reassignment.table)
+        }) {
+            return Err(UserError::SecurityTableReassignment {
+                owner: owned.owner.clone(),
+                table: owned.reassignment.table,
+            });
+        }
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;
         Self::lock_unless_held(&mut tx, source_id).await?;

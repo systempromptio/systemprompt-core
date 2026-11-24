@@ -222,6 +222,7 @@ fn retiring(retired: bool) -> Arc<dyn SchemaMember> {
         },
         cross_tables: vec![],
         purges: vec![],
+        reassignments: vec![],
     })
 }
 

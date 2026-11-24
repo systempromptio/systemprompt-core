@@ -40,6 +40,7 @@ mod object_owners;
 pub(crate) mod ownership;
 mod phase;
 mod purge_records;
+mod reassignment_targets;
 pub(crate) mod release_order;
 mod retire;
 mod routine_prepass;
@@ -95,6 +96,7 @@ pub async fn install_schema_members(
         return Ok(SchemaInstallReport::default());
     }
     admit_purges(schema_extensions)?;
+    reassignment_targets::refuse_security_tables(schema_extensions)?;
 
     info!(
         extensions = schema_extensions.len(),
@@ -211,6 +213,7 @@ async fn run_install(
     }
 
     record_owners(db, &prepared, members).await?;
+    reassignment_targets::check_catalog_targets(db, schema_extensions).await?;
     record_purges(db, schema_extensions).await?;
     report.residue = residue_including(db, &prepared, members.held_back()).await?;
 

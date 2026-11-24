@@ -45,6 +45,7 @@ fn creator(schema: &'static str, retirements: &[&'static str]) -> Arc<dyn Schema
             .collect(),
         cross_tables: vec![],
         purges: vec![],
+        reassignments: vec![],
     })
 }
 
@@ -149,6 +150,7 @@ fn a_retirement_never_takes_a_table_its_schema_declares_or_another_member_owns()
         }],
         cross_tables: vec![],
         purges: vec![],
+        reassignments: vec![],
     }) as Arc<dyn SchemaMember>;
     assert_eq!(
         dropped_by_peer(check_migration_ownership(

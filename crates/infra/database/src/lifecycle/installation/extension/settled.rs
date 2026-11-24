@@ -117,6 +117,7 @@ async fn run_settled(
         super::apply_seeds(ext.as_ref(), db).await?;
     }
     super::ownership::record_owners(db, prepared, members).await?;
+    super::reassignment_targets::check_catalog_targets(db, active).await?;
     super::purge_records::record_purges(db, active).await?;
     Ok(SchemaInstallReport {
         residue: super::residue_including(db, prepared, held_back).await?,

@@ -35,7 +35,7 @@ pub use session_traffic::SessionTrafficRollupRepository;
 pub use sso_login_events::{NewSsoLoginEvent, SsoLoginEvent, SsoLoginEventRepository};
 pub use user::{
     ArchiveOutcome, ArchiveParams, ArchiveState, DeclaredUserRow, DeclaredUserWrite,
-    EnsuredServiceAccount, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
+    EnsuredServiceAccount, MergeResult, NewServiceAccount,
     PurgeCount, PurgeOutcome, SkippedPurge, UpdateUserParams,
 };
 
