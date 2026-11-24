@@ -193,7 +193,6 @@ impl SchedulerService {
     }
 }
 
-/// One registered job's dispatch, keyed by its cron instants.
 #[derive(Clone)]
 pub(super) struct Ticker {
     pub(super) dispatch: dispatch::JobDispatch,

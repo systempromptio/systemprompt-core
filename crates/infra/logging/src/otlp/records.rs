@@ -81,7 +81,6 @@ fn trace_bytes(trace: &TraceId) -> Vec<u8> {
     }
 }
 
-/// A span the pipeline saw close, with the attribution it carried.
 #[derive(Debug, Clone)]
 pub(crate) struct ClosedSpan {
     pub name: &'static str,

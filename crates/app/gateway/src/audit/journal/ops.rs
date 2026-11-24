@@ -25,9 +25,6 @@ use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 // ceiling.
 pub(super) const MAX_ENTRIES: usize = 4096;
 
-/// Held by an admitted request for its whole life; recovery leaves a
-/// receipt alone while its lease is held, and settles it as failed once the
-/// lease is dropped without a terminal receipt.
 #[derive(Debug)]
 pub(crate) struct JournalLease {
     log: Arc<Log>,

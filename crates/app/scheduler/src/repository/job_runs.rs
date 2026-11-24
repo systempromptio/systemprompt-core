@@ -1,5 +1,3 @@
-//! `scheduled_job_runs`: the claim of one run per job and scheduled instant.
-//!
 //! [`JobRunRepository::claim`] inserts the run row in the statement that
 //! judges the claim (`ON CONFLICT DO NOTHING`), so there is no window between
 //! reading whether an instant ran and claiming it: of any number of replicas
