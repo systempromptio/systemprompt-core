@@ -10,9 +10,9 @@
 //! any inner layer is normalised too.
 //!
 //! The host read the surface takes is the
-//! [`ManagedConsumer`] the `gateway-http` surface builds: the marketplace candidate a consumer's bridge manifest
-//! resolves to. Without `gateway-http` there is no bridge manifest and these
-//! routes are not mounted (404).
+//! [`ManagedConsumer`] the `gateway-http` surface builds: the marketplace
+//! candidate a consumer's bridge manifest resolves to. Without `gateway-http`
+//! there is no bridge manifest and these routes are not mounted (404).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

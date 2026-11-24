@@ -8,9 +8,9 @@ use std::collections::BTreeMap;
 
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_gateway::surface::authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
-use systemprompt_security::extraction::extract_credential;
 use systemprompt_governance::authz::EntityRef;
 use systemprompt_identifiers::{Actor, ContextId, ModelId, RouteId, TraceId, UserId};
+use systemprompt_security::extraction::extract_credential;
 
 fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
     use axum::http::HeaderName;

@@ -3,7 +3,8 @@
 //! They are contributed as the [`FilesSurface`] the API mount calls:
 //! `/api/v1/documents`,
 //! `/api/v1/document-folders`, `/api/v1/uploads`, the anonymous public-link
-//! open `/s/{token}` and `/api/v1/issues`; and as the [`DriveSurface`](systemprompt_documents::http::surface::DriveSurface)
+//! open `/s/{token}` and `/api/v1/issues`; and as the
+//! [`DriveSurface`](systemprompt_documents::http::surface::DriveSurface)
 //! ([`drive::FilesDriveSurface`]) the bridge Drive feed the API mounts under
 //! the gateway.
 //!

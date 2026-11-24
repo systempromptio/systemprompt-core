@@ -3,8 +3,8 @@
 //! Three extractors cover the three transport contracts the API supports:
 //! the `Authorization` bearer header, the MCP proxy header, and the
 //! browser cookie; [`extract_credential`] reads the systemprompt credential
-//! a gateway-style request presents. The [`HeaderInjector`] runs in the opposite direction
-//! to stamp typed identifiers onto outbound requests.
+//! a gateway-style request presents. The [`HeaderInjector`] runs in the
+//! opposite direction to stamp typed identifiers onto outbound requests.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
