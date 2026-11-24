@@ -46,6 +46,7 @@ pub mod surface;
 pub mod token_exchange;
 pub mod user_tokens;
 pub mod validation;
+pub mod vocabulary;
 
 pub use client_credentials::{ClientCredentialsError, ClientTokenOptions, generate_client_tokens};
 pub use drive_sync::{DriveSyncError, DriveSyncTokenService};
@@ -62,3 +63,4 @@ pub use user_tokens::{
     GeneratedTokens, MintedRefreshToken, UserTokenError, UserTokenParams,
     generate_tokens_by_user_id, resolve_user_permissions,
 };
+pub use vocabulary::AuthorizationServerVocabulary;

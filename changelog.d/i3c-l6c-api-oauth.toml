@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The JWT authorization checks (`AuthorizationService`, `validate_service_access`, `validate_required_audience`, `validate_any_audience`) are `systemprompt_security::jwt`'s, the token endpoint's advertised vocabulary is `systemprompt_oauth_issuance::AuthorizationServerVocabulary`, and the API no longer depends on `systemprompt-oauth`. The checks themselves are unchanged. Migrate by importing them from `systemprompt_security::jwt`."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`services::jwt::AuthorizationService`, `AuthService::{authorize_service_access, authorize_required_audience}` and `services::{validate_any_audience, validate_required_audience, validate_service_access}` are removed; they are `systemprompt_security::jwt`'s."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`jwt::AuthorizationService` and `jwt::{validate_service_access, validate_required_audience, validate_any_audience}`."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Added"
+text = "`AuthorizationServerVocabulary::served`, the response types, grants, PKCE methods, client authentication methods, token types and grant profiles the token endpoint advertises."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "The `From<OauthError>` and `From<SessionCreationError>` conversions for `ApiHttpError` are removed; the crate no longer depends on `systemprompt-oauth`."

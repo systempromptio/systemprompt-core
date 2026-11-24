@@ -47,7 +47,4 @@ pub use generation::{
     hash_client_secret, verify_client_secret,
 };
 
-pub use validation::{
-    validate_any_audience, validate_jwt_token, validate_required_audience, validate_service_access,
-    verify_client_authentication,
-};
+pub use validation::{validate_jwt_token, verify_client_authentication};

@@ -71,7 +71,6 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router"] }
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
-systemprompt-oauth = { workspace = true }
 systemprompt-oauth-issuance = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-documents = { workspace = true, features = ["http"] }

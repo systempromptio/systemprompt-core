@@ -21,8 +21,8 @@ use systemprompt_manifest::services::ServiceModule;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::jwt::AuthorizationService;
 use systemprompt_traits::{AgentRegistryProvider, BoxedSource, RegistryError};
 
 use super::challenge::{AuthValidator, ChallengeRequest, challenge_or_error};
@@ -190,7 +190,7 @@ fn enforce_required_audience(
     if audience.is_empty() {
         return Ok(());
     }
-    AuthService::authorize_required_audience(authority, config, headers, audience)
+    AuthorizationService::authorize_required_audience(authority, config, headers, audience)
         .map(|_user| ())
         .inspect_err(|status| {
             tracing::warn!(

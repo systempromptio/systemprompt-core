@@ -5,9 +5,9 @@
 use http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_oauth::services::jwt::{
-    AuthService, AuthenticationService, AuthorizationService, extract_bearer_token,
-    extract_cookie_token,
+    AuthService, AuthenticationService, extract_bearer_token, extract_cookie_token,
 };
+use systemprompt_security::jwt::AuthorizationService;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, mint_admin_jwt};
 use uuid::Uuid;
 
@@ -261,7 +261,7 @@ fn auth_service_facade_delegates_all_paths() {
     )
     .expect("authenticate");
     assert_eq!(user.id.to_string(), user_id.as_str());
-    let user = AuthService::authorize_service_access(
+    let user = AuthorizationService::authorize_service_access(
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         )
@@ -272,7 +272,7 @@ fn auth_service_facade_delegates_all_paths() {
     )
     .expect("service access");
     assert_eq!(user.id.to_string(), user_id.as_str());
-    let user = AuthService::authorize_required_audience(
+    let user = AuthorizationService::authorize_required_audience(
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         )

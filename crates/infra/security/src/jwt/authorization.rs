@@ -1,16 +1,18 @@
-//! JWT-based authorisation policy checks.
+//! JWT-based authorisation policy checks: a bearer verified by the
+//! [`TokenAuthority`] and its audiences checked against the service, a required
+//! audience or an allow-list.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::JwtClaims;
-use crate::services::validation::{audience, jwt as jwt_validation};
-use http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
 use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenAuthority};
-use systemprompt_security::TokenExtractor;
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, JwtClaims, TokenAuthority};
+
+use super::audience;
+use crate::TokenExtractor;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AuthorizationService;
@@ -31,9 +33,7 @@ impl AuthorizationService {
             );
             return Err(StatusCode::UNAUTHORIZED);
         };
-        let Ok(claims) =
-            jwt_validation::validate_jwt_token(authority, &token, &config.jwt_audiences)
-        else {
+        let Ok(claims) = authority.verify_bearer(&token, &config.jwt_audiences) else {
             tracing::warn!(
                 service = %service_name,
                 "JWT validation failed"
@@ -62,7 +62,8 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let claims = jwt_validation::validate_jwt_token(authority, &token, &config.jwt_audiences)
+        let claims = authority
+            .verify_bearer(&token, &config.jwt_audiences)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let required_aud =
@@ -84,7 +85,8 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let claims = jwt_validation::validate_jwt_token(authority, &token, &config.jwt_audiences)
+        let claims = authority
+            .verify_bearer(&token, &config.jwt_audiences)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let allowed_auds: Vec<JwtAudience> = allowed_audiences

@@ -13,15 +13,11 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_models::ApiError;
 use systemprompt_models::mcp::McpExtensionId;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
-use systemprompt_oauth::services::validation::id_jag::{ID_JAG_GRANT_PROFILE, ID_JAG_TOKEN_TYPE};
-use systemprompt_oauth::{GrantType, PkceMethod, ResponseType, TokenAuthMethod};
+use systemprompt_oauth_issuance::AuthorizationServerVocabulary;
 use systemprompt_traits::McpRegistryProvider;
 
 use super::McpState;
 use crate::kernel::ApiHttpError;
-
-const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
-const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 
 #[derive(Debug, Serialize)]
 struct McpAuthorizationServerMetadata {
@@ -94,6 +90,7 @@ pub(super) async fn handle_mcp_authorization_server(
         config.allow_dynamic_client_registration,
     );
 
+    let vocabulary = AuthorizationServerVocabulary::served();
     let metadata = McpAuthorizationServerMetadata {
         issuer: base_url.clone(),
         authorization_endpoint: format!("{}/api/v1/core/oauth/authorize", base_url),
@@ -101,30 +98,14 @@ pub(super) async fn handle_mcp_authorization_server(
         registration_endpoint: allow_dcr
             .then(|| format!("{}/api/v1/core/oauth/register", base_url)),
         scopes_supported: vec!["user".to_owned(), "admin".to_owned()],
-        response_types_supported: vec![ResponseType::Code.to_string()],
-        grant_types_supported: vec![
-            GrantType::AuthorizationCode.to_string(),
-            GrantType::RefreshToken.to_string(),
-            GrantType::TokenExchange.to_string(),
-            GrantType::JwtBearer.to_string(),
-        ],
-        code_challenge_methods_supported: vec![PkceMethod::S256.to_string()],
-        token_endpoint_auth_methods_supported: vec![
-            TokenAuthMethod::None.to_string(),
-            TokenAuthMethod::ClientSecretPost.to_string(),
-            TokenAuthMethod::ClientSecretBasic.to_string(),
-        ],
+        response_types_supported: vocabulary.response_types,
+        grant_types_supported: vocabulary.grant_types,
+        code_challenge_methods_supported: vocabulary.code_challenge_methods,
+        token_endpoint_auth_methods_supported: vocabulary.token_endpoint_auth_methods,
         authorization_response_iss_parameter_supported: true,
-        subject_token_types_supported: vec![
-            ACCESS_TOKEN_TYPE.to_owned(),
-            ID_TOKEN_TYPE.to_owned(),
-            ID_JAG_TOKEN_TYPE.to_owned(),
-        ],
-        issued_token_types_supported: vec![
-            ACCESS_TOKEN_TYPE.to_owned(),
-            ID_JAG_TOKEN_TYPE.to_owned(),
-        ],
-        authorization_grant_profiles_supported: vec![ID_JAG_GRANT_PROFILE.to_owned()],
+        subject_token_types_supported: vocabulary.subject_token_types,
+        issued_token_types_supported: vocabulary.issued_token_types,
+        authorization_grant_profiles_supported: vocabulary.grant_profiles,
     };
 
     Ok((StatusCode::OK, Json(metadata)).into_response())
