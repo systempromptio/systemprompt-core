@@ -16,7 +16,6 @@ fn test_loader_error_missing_dependency_display() {
     assert!(msg.contains("requires dependency"));
 }
 
-
 #[test]
 fn test_loader_error_duplicate_extension_display() {
     let err = LoaderError::DuplicateExtension(ExtensionId::new("auth"));
@@ -24,7 +23,6 @@ fn test_loader_error_duplicate_extension_display() {
     assert!(msg.contains("auth"));
     assert!(msg.contains("already registered"));
 }
-
 
 #[test]
 fn test_loader_error_missing_provider_display() {
@@ -93,7 +91,6 @@ fn test_config_error_not_found_display() {
     assert!(msg.contains("not found"));
 }
 
-
 #[test]
 fn test_config_error_invalid_value_display() {
     let err = ExtensionConfigError::InvalidValue {
@@ -104,7 +101,6 @@ fn test_config_error_invalid_value_display() {
     assert!(msg.contains("port"));
     assert!(msg.contains("must be a positive integer"));
 }
-
 
 #[test]
 fn test_config_error_parse_error_display() {

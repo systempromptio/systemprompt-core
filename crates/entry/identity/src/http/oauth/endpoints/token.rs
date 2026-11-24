@@ -22,8 +22,8 @@ use systemprompt_oauth_issuance::{
 };
 use tracing::instrument;
 
-use systemprompt_security::http::ClientIp;
 use crate::http::oauth::OAuthHttpError;
+use systemprompt_security::http::ClientIp;
 
 #[instrument(skip(state, jwks, config, caller_ip, headers, request), fields(grant_type = %request.grant_type))]
 #[expect(

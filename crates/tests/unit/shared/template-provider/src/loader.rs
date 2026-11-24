@@ -63,7 +63,6 @@ mod filesystem_loader_tests {
         FileSystemLoader::new(paths)
     }
 
-
     #[test]
     fn can_load_embedded() {
         let loader = test_loader(vec![]);

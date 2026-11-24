@@ -32,7 +32,6 @@ fn as_str_returns_temporary() {
     assert_eq!(UserStatus::Temporary.as_str(), "temporary");
 }
 
-
 #[test]
 fn user_status_serializes_to_snake_case() {
     let json = serde_json::to_string(&UserStatus::Active).unwrap();

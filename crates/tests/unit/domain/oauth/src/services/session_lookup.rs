@@ -83,7 +83,6 @@ impl SessionProvider for StubAnalyticsProvider {
         Ok(0)
     }
 
-
     async fn mark_session_converted(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
         Ok(())
     }

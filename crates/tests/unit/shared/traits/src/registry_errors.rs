@@ -52,7 +52,6 @@ fn service_oauth_config_default_required_true() {
     assert!(!c.ema, "EMA is opt-in per service");
 }
 
-
 // --- AgentInfo ---
 
 #[test]
@@ -67,7 +66,6 @@ fn agent_info_fields_accessible() {
     assert_eq!(a.port, 9000);
     assert!(a.enabled);
 }
-
 
 // --- McpServerInfo ---
 

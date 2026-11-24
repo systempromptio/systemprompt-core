@@ -178,7 +178,6 @@ fn test_url_with_schema() {
     assert!(url.contains("currentSchema"));
 }
 
-
 #[test]
 fn test_database_context_clone_pattern() {
     use std::sync::Arc;

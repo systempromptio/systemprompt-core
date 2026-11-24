@@ -6,8 +6,8 @@ use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_identity_entry::http::oauth::OAuthHttpError;
 use systemprompt_identity_entry::http::oauth::discovery::WellKnownResponse;
-use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_manifest::profile::UiSessionConfig;
+use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 
 #[test]

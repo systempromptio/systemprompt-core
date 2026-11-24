@@ -12,7 +12,6 @@ use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
 
-
 async fn seeded_identity(pool: &DbPool, prefix: &str) -> (UserId, SessionId) {
     let user_id = unique_user_id(prefix);
     let email = format!("{}@test.local", user_id.as_str());

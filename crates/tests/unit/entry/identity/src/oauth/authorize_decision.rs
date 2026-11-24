@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::AuthorizeQuery;
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::decision::{
     Decision, REAUTH_WINDOW_SECS, Standing, decide, is_native_redirect, silent_allowed,
@@ -12,7 +13,6 @@ use systemprompt_identity_entry::http::oauth::endpoints::authorize::decision::{
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::session::{
     BrowserSignIn, session_subject,
 };
-use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
 use systemprompt_manifest::profile::AuthorizeConfig;
 use systemprompt_models::auth::{
     ActClaim, CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims,

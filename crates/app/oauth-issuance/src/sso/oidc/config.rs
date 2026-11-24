@@ -54,7 +54,6 @@ fn default_client_id() -> ClientId {
     ClientId::new("")
 }
 
-
 fn default_client_secret_key() -> String {
     "oidc_client_secret".to_owned()
 }

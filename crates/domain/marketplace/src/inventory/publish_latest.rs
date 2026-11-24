@@ -16,7 +16,6 @@ use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryO
 
 const PAGE_SIZE: u32 = 100;
 
-
 /// Outcome of one inventory entry in a `publish_latest` pass.
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct LatestPublication {

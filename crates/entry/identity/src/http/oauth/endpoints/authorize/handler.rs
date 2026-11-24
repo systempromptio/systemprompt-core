@@ -26,7 +26,6 @@ use super::validation::{
     validate_authorize_request, validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
-use systemprompt_security::http::RequestBaseUrl;
 use crate::http::oauth::{OAuthHttpError, internal};
 use axum::extract::{Extension, Form, OriginalUri, Query, State};
 use axum::http::{HeaderMap, Uri};
@@ -36,6 +35,7 @@ use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::CsrfToken;
+use systemprompt_security::http::RequestBaseUrl;
 use tracing::instrument;
 
 fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpError> {

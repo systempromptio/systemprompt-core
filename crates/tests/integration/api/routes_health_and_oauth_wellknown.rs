@@ -30,7 +30,18 @@ async fn handle_health_returns_status() -> anyhow::Result<()> {
 #[tokio::test]
 async fn oauth_wellknown_routes_oauth_authz_server() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
+    let app = super::common::with_config(
+        wellknown_routes(
+            systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
+                ctx.config(),
+                ctx.kernel()
+                    .state()
+                    .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                    .cloned(),
+            ),
+        ),
+        &ctx,
+    );
     let resp = app
         .oneshot(empty_get("/.well-known/oauth-authorization-server"))
         .await?;
@@ -41,7 +52,18 @@ async fn oauth_wellknown_routes_oauth_authz_server() -> anyhow::Result<()> {
 #[tokio::test]
 async fn oauth_wellknown_routes_openid_config() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
+    let app = super::common::with_config(
+        wellknown_routes(
+            systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
+                ctx.config(),
+                ctx.kernel()
+                    .state()
+                    .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                    .cloned(),
+            ),
+        ),
+        &ctx,
+    );
     let resp = app
         .oneshot(empty_get("/.well-known/openid-configuration"))
         .await?;
@@ -52,7 +74,18 @@ async fn oauth_wellknown_routes_openid_config() -> anyhow::Result<()> {
 #[tokio::test]
 async fn oauth_wellknown_routes_protected_resource() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
+    let app = super::common::with_config(
+        wellknown_routes(
+            systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
+                ctx.config(),
+                ctx.kernel()
+                    .state()
+                    .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                    .cloned(),
+            ),
+        ),
+        &ctx,
+    );
     let resp = app
         .oneshot(empty_get("/.well-known/oauth-protected-resource"))
         .await?;
@@ -63,7 +96,18 @@ async fn oauth_wellknown_routes_protected_resource() -> anyhow::Result<()> {
 #[tokio::test]
 async fn oauth_wellknown_routes_protected_resource_with_path() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
+    let app = super::common::with_config(
+        wellknown_routes(
+            systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
+                ctx.config(),
+                ctx.kernel()
+                    .state()
+                    .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                    .cloned(),
+            ),
+        ),
+        &ctx,
+    );
     let resp = app
         .oneshot(empty_get(
             "/.well-known/oauth-protected-resource/mcp/foo/mcp",

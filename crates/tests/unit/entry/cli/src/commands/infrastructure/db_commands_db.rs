@@ -24,7 +24,6 @@ fn try_parse(args: &[&str]) -> Result<Harness, clap::Error> {
     Harness::try_parse_from(std::iter::once("db").chain(args.iter().copied()))
 }
 
-
 fn ctx(pool: &DbPool) -> CommandContext {
     crate::boot_ctx::with_database(
         CliConfig::new()

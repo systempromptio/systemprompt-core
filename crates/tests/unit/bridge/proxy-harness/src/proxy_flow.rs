@@ -49,7 +49,6 @@ fn shared_runtime_config(gateway_uri: &str) -> SharedRuntimeConfig {
     Arc::new(ArcSwap::from_pointee(RuntimeConfig::from_config(&cfg)))
 }
 
-
 // Why: the token cache binds every minted JWT to the credential identity on
 // disk, so a proxy with no credentials configured answers 503 before the
 // refresh closure ever runs. Each test runs in a sandboxed config dir with a

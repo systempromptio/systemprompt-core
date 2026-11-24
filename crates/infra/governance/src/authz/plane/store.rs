@@ -13,7 +13,6 @@
 
 use std::collections::BTreeMap;
 
-
 use crate::authz::error::AuthzResult;
 use crate::authz::rules_file::{CanonicalEntity, CanonicalRule, EntityTarget};
 use crate::authz::types::{Access, EntityKind};

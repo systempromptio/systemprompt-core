@@ -9,12 +9,11 @@
 //! rejects an unparseable `client_id` and an unregistered third-party client,
 //! and issues a session for the first-party default.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_identity_entry::http::oauth::{public_router, wellknown_routes};
 use systemprompt_identifiers::UserId;
+use systemprompt_identity_entry::http::oauth::{public_router, wellknown_routes};
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::mint_admin_jwt;
 use systemprompt_traits::AppContext as _;
@@ -125,7 +124,18 @@ async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
 #[tokio::test]
 async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
+    let app = super::common::with_config(
+        wellknown_routes(
+            systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
+                ctx.config(),
+                ctx.kernel()
+                    .state()
+                    .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                    .cloned(),
+            ),
+        ),
+        &ctx,
+    );
     let resp = app
         .oneshot(
             Request::builder()
@@ -142,7 +152,18 @@ async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
 #[tokio::test]
 async fn wellknown_options_preflight_returns_200() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())), &ctx);
+    let app = super::common::with_config(
+        wellknown_routes(
+            systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
+                ctx.config(),
+                ctx.kernel()
+                    .state()
+                    .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                    .cloned(),
+            ),
+        ),
+        &ctx,
+    );
     let resp = app
         .oneshot(
             Request::builder()

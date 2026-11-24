@@ -26,7 +26,6 @@ fn user_stats_creation() {
     assert_eq!(stats.admins, 3);
 }
 
-
 #[test]
 fn user_stats_debug() {
     let stats = UserStats {

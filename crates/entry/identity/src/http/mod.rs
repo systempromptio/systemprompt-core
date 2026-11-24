@@ -55,7 +55,9 @@ impl IdentitySurface for IdentityHttpSurface {
     fn build(&self, state: IdentityRouteState<'_>) -> Result<IdentityRoutes, IdentitySurfaceError> {
         let r = &state.resolved;
         let host = state.host;
-        let users = host.users.ok_or(IdentitySurfaceError::MissingUserProvider)?;
+        let users = host
+            .users
+            .ok_or(IdentitySurfaceError::MissingUserProvider)?;
         let sessions = r.get::<DynSignInSessions>()?;
         let oauth_repositories = r.get::<Arc<OAuthRepositories>>()?;
         let own = r.get::<Arc<IdentityHttpRepositories>>()?;

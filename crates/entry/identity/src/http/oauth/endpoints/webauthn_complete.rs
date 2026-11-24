@@ -18,7 +18,6 @@ use axum::response::{IntoResponse, Redirect, Response};
 use super::authorize::issue::{CodeGrant, code_redirect_target, mint_code, response_issuer};
 use serde::{Deserialize, Serialize};
 
-use systemprompt_security::http::RequestBaseUrl;
 use crate::http::oauth::extractors::OAuthRepo;
 use crate::http::oauth::{OAuthHttpError, internal};
 use systemprompt_identifiers::{ClientId, UserId};
@@ -26,6 +25,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::is_browser_request;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
+use systemprompt_security::http::RequestBaseUrl;
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {

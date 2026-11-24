@@ -75,7 +75,6 @@ fn agent_runtime_info_debug() {
     assert!(dbg.contains("debug-agent"));
 }
 
-
 #[test]
 fn agent_runtime_info_with_system_prompt() {
     let info = AgentRuntimeInfo {

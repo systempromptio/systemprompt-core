@@ -10,7 +10,6 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct ThoughtSignatureCleanupJob;
 

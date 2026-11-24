@@ -47,7 +47,6 @@ fn inner_wraps_caller_error() {
     );
 }
 
-
 #[test]
 fn from_io_error_produces_inner() {
     let io_err = std::io::Error::from(std::io::ErrorKind::BrokenPipe);

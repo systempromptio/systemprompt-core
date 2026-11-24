@@ -1,8 +1,8 @@
+use systemprompt_identifiers::ClientId;
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::AuthorizeQuery;
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::validation::{
     SelfOrigins, validate_oauth_parameters,
 };
-use systemprompt_identifiers::ClientId;
 use url::Url;
 
 fn default_origin() -> SelfOrigins {

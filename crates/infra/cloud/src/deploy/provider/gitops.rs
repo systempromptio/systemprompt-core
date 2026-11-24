@@ -27,7 +27,6 @@ use super::{
 use crate::docker::{CommandRunner, CommandSpec, DockerCli, image_repository};
 use crate::error::{CloudError, CloudResult};
 
-
 #[derive(Debug, Clone)]
 pub struct GitOpsDeployParams {
     pub provider: HostingProvider,

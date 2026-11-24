@@ -23,7 +23,6 @@ fn parse(args: &[&str]) -> ContentCommands {
         .cmd
 }
 
-
 async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::common::with_app_boot(

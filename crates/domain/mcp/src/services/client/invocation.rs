@@ -13,7 +13,6 @@ use rmcp::{RoleClient, ServiceExt};
 use systemprompt_models::net::HTTP_STREAM_CONNECT_TIMEOUT;
 use tokio::time::timeout;
 
-
 // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
 // spec.
 pub async fn execute_tool_call(

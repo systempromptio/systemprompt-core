@@ -161,4 +161,3 @@ fn auth_provider_insufficient_permissions_maps_to_access_denied() {
     let e: OAuthHttpError = AuthProviderError::InsufficientPermissions.into();
     assert_eq!(e.code(), OAuthErrorCode::AccessDenied);
 }
-

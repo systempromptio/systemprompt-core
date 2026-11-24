@@ -14,7 +14,6 @@ use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::SourceId;
 use systemprompt_test_fixtures::test_db_pool;
 
-
 async fn seed(pool: &DbPool, source: &str) -> Content {
     let slug = format!("promptslug{}", uuid::Uuid::new_v4().simple());
     let repo = ContentRepository::new(pool);

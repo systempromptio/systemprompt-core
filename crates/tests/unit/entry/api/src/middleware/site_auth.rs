@@ -42,11 +42,11 @@ mod gate {
     use axum::{Router, middleware};
     use chrono::{Duration, Utc};
     use systemprompt_api::services::middleware::{SiteAuthSession, site_auth_gate};
-    use systemprompt_security::http::SessionCookie;
     use systemprompt_database::DbPool;
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::{AccessTokenId, UserId};
     use systemprompt_models::auth::{JwtAudience, Permission};
+    use systemprompt_security::http::SessionCookie;
     use systemprompt_test_fixtures::{
         fixture_request_authenticator, seed_user_row_with_roles, session_cookie_with, test_db_pool,
     };
@@ -387,7 +387,6 @@ mod gate {
         let resp = send(CONFIG, &user.pool, "/admin/agents", Some(&user.cookie)).await;
         assert_ne!(resp.status(), StatusCode::OK);
     }
-
 
     #[tokio::test]
     async fn a_token_without_a_jti_is_refused() {

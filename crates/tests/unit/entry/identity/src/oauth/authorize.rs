@@ -5,8 +5,10 @@
 //! These tests cover the public data types: AuthorizeQuery, AuthorizeRequest —
 //! verifying construction, serde behavior, and Debug.
 
-use systemprompt_identity_entry::http::oauth::endpoints::authorize::{AuthorizeQuery, AuthorizeRequest};
 use systemprompt_identifiers::ClientId;
+use systemprompt_identity_entry::http::oauth::endpoints::authorize::{
+    AuthorizeQuery, AuthorizeRequest,
+};
 
 fn create_valid_authorize_query() -> AuthorizeQuery {
     AuthorizeQuery {
@@ -151,7 +153,6 @@ fn test_authorize_query_deserialize_max_age_zero() {
     let query: AuthorizeQuery = serde_json::from_value(json).expect("should deserialize");
     assert_eq!(query.max_age, Some(0));
 }
-
 
 #[test]
 fn test_authorize_query_field_access() {
@@ -298,7 +299,6 @@ fn test_authorize_request_consent_none() {
     };
     assert!(request.user_consent.is_none());
 }
-
 
 #[test]
 fn test_query_and_request_share_common_fields() {

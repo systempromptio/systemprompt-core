@@ -19,7 +19,6 @@ use systemprompt_models::CliPaths;
 
 use systemprompt_cloud::deploy::DockerfileBuilder;
 
-
 pub fn existing_geoip_database(profile_path: &Path) -> Option<String> {
     let content = std::fs::read_to_string(profile_path).ok()?;
     let geoip = match Profile::from_yaml(&content, profile_path) {

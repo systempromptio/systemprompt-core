@@ -15,7 +15,6 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use systemprompt_manifest::Profile;
 
-
 pub(super) fn profile_path(host: &dyn KernelHost) -> Result<&str> {
     let path = host.profile_path()?;
     path.to_str()

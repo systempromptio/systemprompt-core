@@ -129,7 +129,6 @@ fn authenticated_https_git_rotation_redirects_and_redacted_failures() {
     assert!(!fixture.directory.path().join("forwarded").exists());
 }
 
-
 #[test]
 fn separate_https_sources_require_independent_credentials_and_rotate_without_cross_talk() {
     let root = Fixture::start();

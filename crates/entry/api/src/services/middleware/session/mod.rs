@@ -38,7 +38,6 @@ pub use skip::should_skip_session_tracking;
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::jwt::SessionClaims;
-use systemprompt_security::http::{SameSite, SessionCookie};
 use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
 use axum::middleware::Next;
@@ -52,6 +51,7 @@ use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::HeaderExtractor;
+use systemprompt_security::http::{SameSite, SessionCookie};
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as _, ExtractSignals, SessionAnalytics, SessionProvider,
     UserProvider,

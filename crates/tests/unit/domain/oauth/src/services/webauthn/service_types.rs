@@ -16,7 +16,6 @@ fn test_link_user_info_construction() {
     assert_eq!(info.name, "Test User");
 }
 
-
 #[test]
 fn test_link_user_info_debug() {
     let info = LinkUserInfo {

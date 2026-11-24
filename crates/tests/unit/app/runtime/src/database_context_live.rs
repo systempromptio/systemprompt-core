@@ -68,7 +68,6 @@ async fn database_context_clone_shares_pool() {
     assert!(std::sync::Arc::ptr_eq(ctx.db_pool(), cloned.db_pool()));
 }
 
-
 #[tokio::test]
 async fn from_pool_wraps_the_given_pool_without_reconnecting() {
     let url = test_database_url();

@@ -106,7 +106,6 @@ fn act_chain_and_approver_are_omitted_when_empty() {
     assert!(!obj.contains_key("context_id"));
 }
 
-
 fn pg(pool: &systemprompt_database::DbPool) -> std::sync::Arc<sqlx::PgPool> {
     pool.pool()
 }

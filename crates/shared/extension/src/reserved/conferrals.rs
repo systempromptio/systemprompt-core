@@ -64,8 +64,9 @@ impl ConferralRow {
             Self::GatewayEngines => ("gateway", CoreId::GatewayHttp),
             Self::GatewaySessionMint => ("users", CoreId::GatewayHttp),
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
-            Self::IdentityTokenAuthority => (CoreId::Kernel.id(), CoreId::IdentityHttp),
-            Self::IdentitySigningKeys => (CoreId::Kernel.id(), CoreId::IdentityHttp),
+            Self::IdentityTokenAuthority | Self::IdentitySigningKeys => {
+                (CoreId::Kernel.id(), CoreId::IdentityHttp)
+            },
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
         };
         SealedConferral {

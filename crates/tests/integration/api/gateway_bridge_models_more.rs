@@ -48,7 +48,6 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     .expect("gateway journal opens")
 }
 
-
 fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
     systemprompt_gateway::GatewayRepositories::new(
         db,

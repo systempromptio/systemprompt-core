@@ -157,9 +157,10 @@ pub trait AnalyticsProvider: Send + Sync {
     ) -> SessionAnalytics;
 }
 
-/// The sign-in session view: create a session for a sign-in, find or attest
-/// one by id or fingerprint, revoke one or all of a user's, and mark one
-/// converted. It has no telemetry, listing or reassignment surface; the users
+/// The sign-in session view.
+///
+/// It creates a session for a sign-in, finds or attests one by id or
+/// fingerprint, revokes one or all of a user's, and marks one converted. It has no telemetry, listing or reassignment surface; the users
 /// member provides it sealed and confers it on `identity-http`
 /// ([`DynSignInSessions`]). Held as `Arc<dyn SessionProvider>`, hence
 /// `#[async_trait]`.

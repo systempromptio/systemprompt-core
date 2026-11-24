@@ -35,7 +35,7 @@ pub use crate::services::middleware::{
     BodyReadError, JwtContextExtractor, JwtUserContext, RateLimitState, RouterExt,
     SessionAttestationError, SubjectThrottle, attest_session, read_body_bounded,
 };
+pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};
 pub use systemprompt_security::http::{
     ClientIp, RequestBaseUrl, SameSite, SessionCookie, resolve_client_ip, resolve_request_base_url,
 };
-pub use crate::services::proxy::{ProxyError, ProxyKind, ProxyService, ProxyTarget};

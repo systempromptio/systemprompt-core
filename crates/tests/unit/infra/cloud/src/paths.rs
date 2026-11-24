@@ -76,7 +76,6 @@ fn test_cloud_path_is_dir_true_for_sessions_dir() {
     assert!(path.is_dir());
 }
 
-
 #[test]
 fn test_cloud_path_hash() {
     use std::collections::HashSet;
@@ -196,7 +195,6 @@ fn test_cloud_paths_exists_true_for_existing() {
     let paths = CloudPaths::new(temp_dir.path());
     assert!(paths.exists(CloudPath::Credentials));
 }
-
 
 #[test]
 fn test_resolve_path_absolute() {

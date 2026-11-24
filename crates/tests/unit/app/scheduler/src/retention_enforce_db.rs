@@ -1,7 +1,6 @@
 //! The retention job under `enforce`: every table's batched delete runs, and
 //! a row past its window is gone afterwards while a fresh one stays.
 
-
 use systemprompt_scheduler::JobRunReport;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 

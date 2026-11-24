@@ -9,7 +9,6 @@
 //! This file's config installs `allow_registration: false`, so it also hosts
 //! the disabled-registration 403 gate tests for `register/start|finish`.
 
-
 use axum::Router;
 use axum::http::StatusCode;
 use systemprompt_identity_entry::http::oauth::public_router;

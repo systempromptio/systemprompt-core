@@ -54,7 +54,6 @@ impl GatewayRequestGuard for DenyServiceGuard {
     }
 }
 
-
 struct Fixture {
     database: DisposableDb,
     pool: DbPool,

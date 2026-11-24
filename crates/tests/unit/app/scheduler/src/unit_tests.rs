@@ -1076,7 +1076,6 @@ fn test_reconciliation_result_aggregation() {
     assert!(!result.is_success());
 }
 
-
 #[test]
 fn test_database_cleanup_job_properties() {
     use systemprompt_scheduler::DatabaseCleanupJob;
@@ -1090,7 +1089,6 @@ fn test_database_cleanup_job_properties() {
     );
     assert_eq!(job.schedule(), "0 0 3 * * *"); // Daily at 3 AM
 }
-
 
 #[test]
 fn test_cleanup_inactive_sessions_job_properties() {
@@ -1242,7 +1240,6 @@ fn test_verified_state_all_service_types() {
     }
 }
 
-
 #[test]
 fn test_service_config_debug() {
     let config = ServiceConfig {
@@ -1341,7 +1338,6 @@ fn test_all_jobs_have_snake_case_names() {
         );
     }
 }
-
 
 #[test]
 fn test_service_action_serialization_all_variants() {

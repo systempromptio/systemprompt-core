@@ -4,7 +4,6 @@ mod job_properties_tests {
     use super::*;
     use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
 
-
     #[test]
     fn database_cleanup_job_properties() {
         let job = DatabaseCleanupJob;
@@ -15,7 +14,6 @@ mod job_properties_tests {
         );
         assert_eq!(job.schedule(), "0 0 3 * * *");
     }
-
 
     #[test]
     fn cleanup_inactive_sessions_job_properties() {

@@ -11,7 +11,6 @@ use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{User, UserRepository, UserRole, UserService};
 use uuid::Uuid;
 
-
 fn service(pool: &DbPool) -> UserService {
     UserService::new(Arc::new(UserRepository::new(pool)))
 }

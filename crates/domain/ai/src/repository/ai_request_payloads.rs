@@ -78,7 +78,6 @@ impl AiRequestPayloadRepository {
         Ok(result.rows_affected())
     }
 
-
     pub fn new(db: &DbPool) -> Self {
         let pool = db.pool();
         let write_pool = db.write_pool();

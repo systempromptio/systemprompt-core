@@ -24,7 +24,6 @@ fn seed_sql_field_is_static_str() {
     assert!(sql.contains("UPDATE"));
 }
 
-
 #[test]
 fn seed_new_is_const() {
     const SEED: Seed = Seed::new(

@@ -61,7 +61,6 @@ fn test_health_check_details_auth_required() {
     assert_eq!(details.validation_type, "auth_required");
 }
 
-
 #[test]
 fn test_health_check_details_debug() {
     let details = HealthCheckDetails {

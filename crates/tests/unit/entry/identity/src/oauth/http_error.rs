@@ -305,4 +305,3 @@ fn auth_provider_errors_map_onto_their_protocol_codes() {
         assert_eq!(http.code(), expected, "{rendered}");
     }
 }
-

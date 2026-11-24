@@ -18,7 +18,6 @@
 #[cfg(test)]
 pub(crate) static SKILLS_FIXTURE_LOCK: tokio::sync::RwLock<()> = tokio::sync::RwLock::const_new(());
 
-
 #[cfg(test)]
 pub(crate) fn card_site(
     api_external_url: &str,

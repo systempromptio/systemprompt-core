@@ -89,7 +89,6 @@ fn test_agent_status_debug_failed() {
     assert!(debug_str.contains("Test reason"));
 }
 
-
 #[test]
 fn test_validation_report_new() {
     let report = ValidationReport::new();

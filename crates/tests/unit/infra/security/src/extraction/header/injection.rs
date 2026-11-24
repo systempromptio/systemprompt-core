@@ -221,7 +221,6 @@ fn test_inject_hyphenated_context_id_rejected() {
     );
 }
 
-
 #[test]
 fn test_inject_task_id_success() {
     let mut headers = HeaderMap::new();

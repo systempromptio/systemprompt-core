@@ -21,7 +21,6 @@ use systemprompt_test_fixtures::{
 };
 use uuid::Uuid;
 
-
 async fn ctx() -> CommandContext {
     let url = test_database_url();
     crate::common::with_app(

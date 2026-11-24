@@ -4,9 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_security::http::{SameSite, SessionCookie};
 use axum::http::header;
 use axum::response::{IntoResponse, Redirect, Response};
+use systemprompt_security::http::{SameSite, SessionCookie};
 
 pub fn session_cookie_redirect(
     cookie: SessionCookie,

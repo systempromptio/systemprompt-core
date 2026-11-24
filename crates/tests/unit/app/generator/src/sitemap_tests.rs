@@ -18,7 +18,6 @@ fn test_sitemap_url_creation() {
     assert!((url.priority - 0.8).abs() < f32::EPSILON);
 }
 
-
 #[test]
 fn test_generate_sitemap() {
     let urls = vec![SitemapUrl {

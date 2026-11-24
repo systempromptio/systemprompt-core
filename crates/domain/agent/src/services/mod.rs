@@ -36,7 +36,6 @@ pub use skills::{SkillMetadata, SkillService};
 
 pub use artifact_publishing::ArtifactPublishingService;
 
-
 pub use context::ContextService;
 
 pub use context_provider::ContextProviderService;

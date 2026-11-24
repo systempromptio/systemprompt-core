@@ -10,7 +10,6 @@ use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 
-
 pub const SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 pub struct ProfileTree {

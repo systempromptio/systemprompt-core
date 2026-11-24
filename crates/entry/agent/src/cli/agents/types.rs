@@ -14,7 +14,6 @@ use systemprompt_identifiers::AgentName;
 pub use systemprompt_manifest::services::AgentSummary;
 use systemprompt_models::a2a::Task;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidationOutput {
     pub valid: bool,
@@ -82,7 +81,6 @@ pub struct AgentDeleteOutput {
     pub deleted: Vec<AgentName>,
     pub message: String,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentLogsOutput {

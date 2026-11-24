@@ -112,7 +112,6 @@ fn test_agent_runtime_info_debug() {
     assert!(debug_str.contains("8888"));
 }
 
-
 #[test]
 fn test_agent_runtime_info_with_skills() {
     let info = AgentRuntimeInfo {

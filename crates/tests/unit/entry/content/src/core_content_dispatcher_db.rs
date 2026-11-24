@@ -37,7 +37,6 @@ fn parse(args: &[&str]) -> ContentCommands {
     command
 }
 
-
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
         CliConfig::new()

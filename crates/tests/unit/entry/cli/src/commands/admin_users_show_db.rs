@@ -27,7 +27,6 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-
 async fn ctx(json: bool) -> CommandContext {
     let url = test_database_url();
     let mut cli = CliConfig::new().with_interactive(false);

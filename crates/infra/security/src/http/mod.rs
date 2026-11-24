@@ -10,6 +10,10 @@ pub mod client_addr;
 pub mod request_base_url;
 pub mod session_cookie;
 
-pub use client_addr::{ClientIp, ClientIpConfigMissing, forwarded_headers_ignored, resolve_client_ip};
-pub use request_base_url::{RequestBaseUrl, RequestBaseUrlError, resolve as resolve_request_base_url};
+pub use client_addr::{
+    ClientIp, ClientIpConfigMissing, forwarded_headers_ignored, resolve_client_ip,
+};
+pub use request_base_url::{
+    RequestBaseUrl, RequestBaseUrlError, resolve as resolve_request_base_url,
+};
 pub use session_cookie::{SameSite, SessionCookie};

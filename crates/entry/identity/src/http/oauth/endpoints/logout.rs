@@ -17,11 +17,11 @@ use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
 use tracing::instrument;
 
-use systemprompt_security::http::SessionCookie;
 use crate::http::oauth::extractors::OAuthRepo;
 use crate::http::oauth::{OAuthHttpError, internal};
 use std::sync::Arc;
 use systemprompt_manifest::Config;
+use systemprompt_security::http::SessionCookie;
 
 #[instrument(skip(repo, req_ctx, config))]
 pub async fn handle_logout(

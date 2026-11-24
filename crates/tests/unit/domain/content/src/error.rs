@@ -61,7 +61,6 @@ fn test_content_error_parse() {
     assert!(msg.contains("Invalid date format"));
 }
 
-
 #[test]
 fn test_content_error_from_serde_json() {
     let invalid_json = "{invalid}";

@@ -1,6 +1,5 @@
 //! Public content mutation commands preserve unrelated content.
 
-
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
 use systemprompt_content::ContentRepository;

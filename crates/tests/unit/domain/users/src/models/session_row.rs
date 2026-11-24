@@ -66,7 +66,6 @@ mod session_row_conversion_tests {
         assert!(s.ended_at.is_some());
     }
 
-
     #[test]
     fn serde_round_trip() {
         let s = make_session_full();

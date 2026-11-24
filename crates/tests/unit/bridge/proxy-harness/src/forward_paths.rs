@@ -138,7 +138,6 @@ impl Harness {
     }
 }
 
-
 // Why: the token cache binds every minted JWT to the credential identity on
 // disk, so a proxy with no credentials configured answers 503 before the
 // refresh closure ever runs. Each test runs in a sandboxed config dir with a
@@ -825,7 +824,6 @@ fn a_request_that_cannot_mint_a_token_is_reported_as_service_unavailable() {
         assert_eq!(stats.last_status.load(Ordering::Relaxed), 502);
     });
 }
-
 
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
     tokio::runtime::Builder::new_multi_thread()

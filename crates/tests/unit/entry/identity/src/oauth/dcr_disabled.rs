@@ -10,8 +10,8 @@ use std::sync::Arc;
 use axum::Extension;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
-use systemprompt_identity_entry::http::oauth::{public_router, wellknown_routes};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identity_entry::http::oauth::{public_router, wellknown_routes};
 use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
@@ -77,7 +77,16 @@ async fn register_is_forbidden_when_dcr_is_closed() {
 #[tokio::test]
 async fn discovery_omits_registration_endpoint_when_dcr_is_closed() {
     let ctx = ctx().await;
-    let app = wellknown_routes(systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(ctx.config(), ctx.kernel().state().find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>().cloned())).layer(Extension(ctx.config_arc().clone()));
+    let app = wellknown_routes(
+        systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
+            ctx.config(),
+            ctx.kernel()
+                .state()
+                .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
+                .cloned(),
+        ),
+    )
+    .layer(Extension(ctx.config_arc().clone()));
     let resp = app
         .oneshot(
             Request::builder()

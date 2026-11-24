@@ -170,7 +170,6 @@ impl PolicyContext<'_> {
     }
 }
 
-
 /// Each charged window's 1-based position of the current call within it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RateCounts {

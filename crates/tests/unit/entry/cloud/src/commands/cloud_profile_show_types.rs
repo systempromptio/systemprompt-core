@@ -50,7 +50,6 @@ fn build_env_config_redacts_secrets_and_handles_missing_paths() {
     assert_eq!(env.core.port, config.port);
 }
 
-
 #[test]
 fn full_config_empty_serializes_to_empty_object() {
     let json = serde_json::to_value(FullConfig::empty()).unwrap();

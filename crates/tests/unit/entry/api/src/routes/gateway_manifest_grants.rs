@@ -889,7 +889,6 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
     }
 }
 
-
 fn consumer_router(f: &PrivateConsumer) -> axum::Router {
     systemprompt_api::routes::managed::consumer::router().with_state(f.harness.ctx.clone())
 }

@@ -11,7 +11,6 @@ use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 
-
 #[derive(Debug, Parser)]
 struct Harness {
     #[command(subcommand)]
@@ -23,7 +22,6 @@ fn parse(args: &[&str]) -> JobsCommands {
         .unwrap()
         .cmd
 }
-
 
 async fn ctx(json: bool) -> CommandContext {
     let mut cli = CliConfig::new().with_interactive(false);

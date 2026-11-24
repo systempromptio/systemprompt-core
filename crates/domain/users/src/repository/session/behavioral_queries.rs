@@ -31,7 +31,6 @@ pub(super) async fn count_sessions_by_fingerprint(
     Ok(count)
 }
 
-
 pub(super) async fn get_session_for_behavioral_analysis(
     pool: &PgPool,
     session_id: &SessionId,
@@ -60,7 +59,6 @@ pub(super) async fn get_session_for_behavioral_analysis(
     .map_err(Into::into)
 }
 
-
 pub(super) async fn count_unique_ips_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
@@ -82,7 +80,6 @@ pub(super) async fn count_unique_ips_by_fingerprint(
 
     Ok(count)
 }
-
 
 pub(super) async fn get_session_starts_by_fingerprint(
     pool: &PgPool,

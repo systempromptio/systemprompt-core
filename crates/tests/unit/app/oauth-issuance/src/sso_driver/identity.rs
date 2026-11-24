@@ -12,7 +12,6 @@ use super::providers::{
 };
 use super::{Harness, finish, harness, refusal_reason, start, success_return_to, unique};
 
-
 async fn sign_in(h: &Harness, params: &[(&str, &str)]) -> FinishOutcome {
     let started = start(&h.driver, OPEN, None).await;
     let mut all = vec![("state", started.state.as_str())];

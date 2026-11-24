@@ -9,7 +9,6 @@ use systemprompt_traits::{FileStorage, FileStorageError, StoredFileId};
 use wiremock::matchers::{body_bytes, header, header_regex, method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
-
 fn credentials(session_token: Option<&str>) -> S3Credentials {
     serde_json::from_value(serde_json::json!({
         "access_key_id": "AKIDEXAMPLE",

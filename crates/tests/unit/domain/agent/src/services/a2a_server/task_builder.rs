@@ -191,7 +191,6 @@ fn task_builder_full_chain() {
     assert_eq!(task.metadata.expect("metadata").agent_name, "chained-agent");
 }
 
-
 #[test]
 fn build_completed_task_sets_completed_state() {
     let tid = TaskId::generate();

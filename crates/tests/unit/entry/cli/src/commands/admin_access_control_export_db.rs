@@ -8,7 +8,6 @@ use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-
 async fn seed_role_rule(pool: &DbPool, entity_id: &str, role: &str, justification: Option<&str>) {
     let raw = pool.pool();
     sqlx::query(

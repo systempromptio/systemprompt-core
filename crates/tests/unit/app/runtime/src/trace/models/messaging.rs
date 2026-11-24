@@ -44,7 +44,6 @@ fn test_conversation_message_system_role() {
     assert_eq!(msg.sequence_number, 0);
 }
 
-
 #[test]
 fn test_conversation_message_serialize() {
     let msg = ConversationMessage {
@@ -84,7 +83,6 @@ fn test_tool_log_entry_error_level() {
 
     assert_eq!(entry.level, LogLevel::Error);
 }
-
 
 #[test]
 fn test_tool_log_entry_serialize() {
@@ -163,7 +161,6 @@ fn test_task_artifact_minimal() {
     assert!(artifact.text_content.is_none());
     assert!(artifact.data_content.is_none());
 }
-
 
 #[test]
 fn test_task_artifact_serialize() {

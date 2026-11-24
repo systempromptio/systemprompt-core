@@ -66,7 +66,8 @@ pub(super) async fn resolve_resource_scopes(
     registry: &dyn systemprompt_traits::McpRegistryProvider,
     resource: &str,
 ) -> Option<String> {
-    registry.oauth_scopes_for_resource(resource)
+    registry
+        .oauth_scopes_for_resource(resource)
         .await
         .map(|scopes| scopes.join(" "))
 }

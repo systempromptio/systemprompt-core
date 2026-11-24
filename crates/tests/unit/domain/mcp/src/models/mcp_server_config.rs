@@ -146,7 +146,6 @@ fn test_mcp_server_config_with_env_vars() {
     assert!(config.env_vars.contains(&"DATABASE_URL".to_string()));
 }
 
-
 #[test]
 fn test_mcp_server_config_debug() {
     let config = create_test_config();

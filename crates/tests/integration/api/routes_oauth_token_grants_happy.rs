@@ -6,15 +6,14 @@
 //! installed a config whose audiences differ), but every request must resolve
 //! to a structured wire response, never a 500.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
-use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_identifiers::{
     Actor, AgentName, AuthorizationCode, ContextId, SessionId, TraceId, UserId,
 };
+use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::AuthCodeParams;

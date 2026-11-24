@@ -48,7 +48,6 @@ fn test_token_request_deserialize_minimal() {
     assert!(request.resource.is_none());
 }
 
-
 #[test]
 fn test_token_response_serialize_full() {
     let response = TokenResponse {

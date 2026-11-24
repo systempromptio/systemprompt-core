@@ -106,8 +106,7 @@ pub(super) fn mount_oauth(
     )?;
     let revocation = mount.protect(
         routes.revocation,
-        &RouteProtection::new(AuthzPolicy::user(), ContextKind::UserUi)
-            .with_rate_limit(OAUTH_AUTH),
+        &RouteProtection::new(AuthzPolicy::user(), ContextKind::UserUi).with_rate_limit(OAUTH_AUTH),
         ApiPaths::OAUTH_BASE,
     )?;
     router = place(

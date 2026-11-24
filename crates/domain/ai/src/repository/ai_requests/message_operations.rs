@@ -45,7 +45,6 @@ impl AiRequestRepository {
         Ok(result.rows_affected())
     }
 
-
     pub async fn insert_message(
         &self,
         request_id: &AiRequestId,

@@ -2,11 +2,11 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{self, Request, StatusCode, header};
 use axum::middleware::{self, Next};
-use systemprompt_identity_entry::http::oauth::revocation_router;
 use systemprompt_identifiers::{
     Actor, AgentName, ClientId, ContextId, RefreshTokenFamilyId, RefreshTokenId, SessionId,
     TraceId, UserId,
 };
+use systemprompt_identity_entry::http::oauth::revocation_router;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;

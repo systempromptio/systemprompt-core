@@ -59,7 +59,6 @@ fn planned_strategy_new_and_default() {
     assert_eq!(d.name(), "planned");
 }
 
-
 #[test]
 fn execution_result_with_values() {
     let mut r = ExecutionResult::default();

@@ -160,7 +160,6 @@ fn a2a_parse_error_invalid_params_display() {
     assert!(std::error::Error::source(&err).is_some());
 }
 
-
 #[test]
 fn a2a_response_send_message_constructor() {
     let task = systemprompt_agent::Task::default();
@@ -223,7 +222,6 @@ fn task_not_found_error_serde_roundtrip() {
     assert_eq!(de.code, -32001);
 }
 
-
 #[test]
 fn task_not_cancelable_error_serde_roundtrip() {
     let err = TaskNotCancelableError {
@@ -238,7 +236,6 @@ fn task_not_cancelable_error_serde_roundtrip() {
     assert_eq!(de.task_id.as_str(), "task-done");
     assert_eq!(de.code, -32002);
 }
-
 
 #[test]
 fn unsupported_operation_error_serde_roundtrip() {

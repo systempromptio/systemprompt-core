@@ -4,7 +4,6 @@
 //! `bootstrap` helper so the URL helpers can be exercised against a real
 //! storage root.
 
-
 use crate::bootstrap::test_env;
 
 #[test]

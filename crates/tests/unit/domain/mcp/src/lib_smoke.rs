@@ -12,7 +12,6 @@ fn test_session_timeouts_default_is_none() {
     assert!(t.keep_alive.is_none());
 }
 
-
 #[test]
 fn test_mcp_http_config_default_allows_localhost_variants() {
     let config = McpHttpConfig::default();
@@ -29,7 +28,6 @@ fn test_mcp_http_config_default_no_origins() {
     let config = McpHttpConfig::default();
     assert!(config.allowed_origins.is_empty());
 }
-
 
 #[test]
 fn test_mcp_http_config_custom() {

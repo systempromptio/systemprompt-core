@@ -17,7 +17,6 @@ mod noop_default_tests {
         assert_eq!(debug_new, debug_default);
     }
 
-
     #[test]
     fn is_copy() {
         let provider = NoopToolProvider::new();

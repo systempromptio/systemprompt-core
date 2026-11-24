@@ -120,7 +120,6 @@ async fn validate_connection_returns_false_for_unreachable_url() {
     assert!(!ok);
 }
 
-
 #[test]
 fn generate_oauth_at_rest_pepper_produces_unique_values() {
     let a = generate_oauth_at_rest_pepper();

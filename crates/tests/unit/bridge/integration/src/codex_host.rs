@@ -245,7 +245,6 @@ fn installing_a_profile_merges_it_into_the_managed_config() {
     );
 }
 
-
 #[test]
 fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
     use systemprompt_bridge::integration::host_app::{ConfigFormat, HostAppKind};

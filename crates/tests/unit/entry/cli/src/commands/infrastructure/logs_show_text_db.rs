@@ -27,7 +27,6 @@ fn parse(args: &[&str]) -> LogsCommands {
         .cmd
 }
 
-
 fn ctx(pool: &DbPool, json: bool) -> CommandContext {
     let mut cli = CliConfig::new().with_interactive(false);
     if json {

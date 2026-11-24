@@ -18,7 +18,6 @@ fn channel_full_variant_display() {
     assert!(msg.contains("user-abc"));
 }
 
-
 #[test]
 fn event_result_ok_is_ok() {
     let result: EventResult<u32> = Ok(42);

@@ -48,7 +48,12 @@ impl std::fmt::Debug for SsoRouteState {
 }
 
 impl SsoRouteState {
-    pub fn build(config: &Arc<Config>, db: &DbPool, oauth: &OAuthState, sso: &SsoProviders) -> Self {
+    pub fn build(
+        config: &Arc<Config>,
+        db: &DbPool,
+        oauth: &OAuthState,
+        sso: &SsoProviders,
+    ) -> Self {
         let session_service = SessionCreationService::new(
             Arc::clone(oauth.session_provider()),
             Arc::clone(oauth.user_provider()),

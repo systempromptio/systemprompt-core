@@ -52,7 +52,6 @@ fn test_create_oauth_client_request_deserialization() {
     assert_eq!(request.scopes.len(), 2);
 }
 
-
 #[test]
 fn test_update_oauth_client_request_full() {
     let json = r#"{

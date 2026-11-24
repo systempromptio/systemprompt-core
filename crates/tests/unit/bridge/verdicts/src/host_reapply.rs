@@ -15,7 +15,6 @@ fn failure(message: &str) -> std::sync::Arc<ProfileFailure> {
     )))
 }
 
-
 const fn report(display_name: &'static str, outcome: Outcome) -> Report {
     Report {
         display_name,

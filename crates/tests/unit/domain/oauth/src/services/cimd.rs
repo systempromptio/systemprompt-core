@@ -24,7 +24,6 @@ fn test_cimd_fetcher_new_succeeds() {
     drop(fetcher);
 }
 
-
 #[tokio::test]
 async fn test_cimd_fetcher_rejects_http_url() {
     let fetcher = CimdFetcher::new().unwrap();

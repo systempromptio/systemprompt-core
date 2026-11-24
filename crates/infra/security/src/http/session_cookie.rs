@@ -12,10 +12,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::CookieExtractor;
 use axum::http::HeaderValue;
 use axum::http::header::InvalidHeaderValue;
 use systemprompt_manifest::Config;
-use crate::CookieExtractor;
 
 /// The `SameSite` policy a session cookie is issued under.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

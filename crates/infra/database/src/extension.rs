@@ -90,7 +90,6 @@ fn schemas() -> Vec<SchemaDefinition> {
     schemas
 }
 
-
 fn install_ledger_schemas() -> Vec<SchemaDefinition> {
     vec![
         SchemaDefinition::new(

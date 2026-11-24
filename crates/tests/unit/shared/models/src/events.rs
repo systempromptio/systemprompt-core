@@ -93,7 +93,6 @@ fn test_system_event_type_hash() {
     assert!(set.contains(&SystemEventType::ContextUpdated));
 }
 
-
 #[test]
 fn test_a2a_event_type_task_status_update_serialize() {
     let json = serde_json::to_string(&A2AEventType::TaskStatusUpdate).unwrap();
@@ -123,7 +122,6 @@ fn test_a2a_event_type_agent_message_serialize() {
     let json = serde_json::to_string(&A2AEventType::AgentMessage).unwrap();
     assert_eq!(json, "\"AGENT_MESSAGE\"");
 }
-
 
 #[test]
 fn test_a2a_event_type_hash() {

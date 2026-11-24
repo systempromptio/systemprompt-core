@@ -294,7 +294,6 @@ async fn a_task_whose_ttl_has_already_elapsed_times_out_instead_of_polling_forev
     );
 }
 
-
 #[derive(Clone)]
 struct DirectInputRequiredServer {
     tool_calls: Arc<AtomicUsize>,

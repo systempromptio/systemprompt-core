@@ -44,7 +44,10 @@ impl DiscoveryState {
 impl std::fmt::Debug for DiscoveryState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DiscoveryState")
-            .field("allow_dynamic_client_registration", &self.allow_dynamic_client_registration)
+            .field(
+                "allow_dynamic_client_registration",
+                &self.allow_dynamic_client_registration,
+            )
             .field("mcp_registry", &self.mcp_registry.is_some())
             .finish_non_exhaustive()
     }
@@ -186,7 +189,10 @@ pub async fn handle_oauth_protected_resource_with_path(
 
     let base_url = base.as_str().to_owned();
 
-    let scopes = match (McpServerId::try_new(service_name.as_str()), state.mcp_registry.as_ref()) {
+    let scopes = match (
+        McpServerId::try_new(service_name.as_str()),
+        state.mcp_registry.as_ref(),
+    ) {
         (Ok(server), Some(registry)) => registry.oauth_scopes(&server).await,
         _ => None,
     }

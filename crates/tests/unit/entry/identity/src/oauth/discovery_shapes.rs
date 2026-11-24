@@ -1,6 +1,6 @@
 use systemprompt_identity_entry::http::oauth::discovery::WellKnownResponse;
-use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_manifest::profile::UiSessionConfig;
+use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 
 #[test]

@@ -132,7 +132,6 @@ pub(crate) fn mcp(name: &str) -> ManagedMcpServer {
     }
 }
 
-
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(

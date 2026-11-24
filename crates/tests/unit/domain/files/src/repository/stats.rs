@@ -102,7 +102,6 @@ fn test_file_stats_other_size_bytes() {
     assert_eq!(stats.other_size_bytes, 100_000);
 }
 
-
 #[test]
 fn test_file_stats_debug() {
     let stats = create_test_stats();

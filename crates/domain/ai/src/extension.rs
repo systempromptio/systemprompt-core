@@ -44,7 +44,6 @@ use crate::repository::{
     AiRequestRepository, AiSafetyFindingRepository, CatalogMigrationRepository,
 };
 
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AiExtension;
 

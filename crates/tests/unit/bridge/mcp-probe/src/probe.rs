@@ -382,7 +382,6 @@ async fn probe_all_empty_registry_yields_no_servers() {
     assert_eq!(results[0].state, McpAuthState::NoServers);
 }
 
-
 fn state_sandbox<R>(state: &tempfile::TempDir, f: impl FnOnce() -> R) -> R {
     let root = state.path().display().to_string();
     temp_env::with_vars(

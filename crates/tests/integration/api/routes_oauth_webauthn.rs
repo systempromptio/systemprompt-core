@@ -14,12 +14,11 @@
 //! the passkey ceremony proves who the user is, not that the request in the
 //! query string is the one `/authorize` admitted.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
+use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::{WebAuthnService, generate_secure_token};
 use systemprompt_test_fixtures::{

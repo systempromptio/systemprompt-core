@@ -22,7 +22,6 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     .expect("gateway journal opens")
 }
 
-
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
         systemprompt_agent::repository::ContextRepository::new(db),

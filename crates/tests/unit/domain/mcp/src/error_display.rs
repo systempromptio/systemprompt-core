@@ -71,7 +71,6 @@ fn path_display_contains_path() {
     assert!(s.contains("/no/such/path"));
 }
 
-
 #[test]
 fn error_chain_timeout_zero_ms() {
     let e = McpDomainError::Timeout {

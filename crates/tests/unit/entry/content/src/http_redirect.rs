@@ -20,7 +20,6 @@ use uuid::Uuid;
 
 use crate::common::pool_state;
 
-
 fn ctx(session_id: &str) -> RequestContext {
     let mut ctx = RequestContext::new(
         SessionId::new(session_id),

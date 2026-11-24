@@ -26,7 +26,6 @@ fn test_clone() {
     let _r2 = r.clone();
 }
 
-
 #[test]
 fn test_get_server_missing_propagates_error() {
     let r = RegistryService::new(

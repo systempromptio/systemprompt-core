@@ -38,7 +38,6 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     .expect("gateway journal opens")
 }
 
-
 // Why: every cell taps the Anthropic surface with the same model, and the
 // render options are one struct so the tap's own signature stays readable.
 pub(super) fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {

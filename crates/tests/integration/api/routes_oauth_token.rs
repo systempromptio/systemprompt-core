@@ -6,13 +6,12 @@
 //! `RequestContext` extension layered in, which is what production gets
 //! from the route-mount context middleware.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response, StatusCode, header};
 use axum::middleware::{self, Next};
-use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_identifiers::{Actor, AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identity_entry::http::oauth::public_router;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};

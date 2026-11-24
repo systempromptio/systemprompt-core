@@ -6,9 +6,7 @@ use axum::extract::ConnectInfo;
 use axum::http::{HeaderMap, HeaderValue};
 use ipnet::IpNet;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use systemprompt_security::http::{
-    forwarded_headers_ignored, resolve_client_ip,
-};
+use systemprompt_security::http::{forwarded_headers_ignored, resolve_client_ip};
 
 fn sock(ip: &str) -> ConnectInfo<SocketAddr> {
     ConnectInfo(SocketAddr::new(ip.parse().unwrap(), 1234))

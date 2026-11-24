@@ -3,9 +3,9 @@
 //! Tests the convert_form_to_query function that supports the authorize POST
 //! handler.
 
+use systemprompt_identifiers::ClientId;
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::AuthorizeRequest;
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::response_builder::convert_form_to_query;
-use systemprompt_identifiers::ClientId;
 
 fn create_full_authorize_request() -> AuthorizeRequest {
     AuthorizeRequest {

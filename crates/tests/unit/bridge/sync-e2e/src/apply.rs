@@ -159,7 +159,6 @@ fn comms_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
     }
 }
 
-
 fn fresh_dir(label: &str) -> PathBuf {
     let mut p = std::env::temp_dir();
     p.push(format!(
@@ -180,7 +179,6 @@ fn normalize_key_produces_router_slug() {
     assert_eq!(normalize_key("a__b"), "a__b");
     assert_eq!(normalize_key("---"), "mcp-server");
 }
-
 
 struct SandboxDirs {
     _temp: tempfile::TempDir,
@@ -628,7 +626,6 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
     );
 }
 
-
 fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<HostKind>) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -754,7 +751,6 @@ fn an_enabled_host_with_nothing_installed_is_a_no_op() {
     );
     let _ = (&server, &pat_dir);
 }
-
 
 struct Bundle {
     server: MockServer,

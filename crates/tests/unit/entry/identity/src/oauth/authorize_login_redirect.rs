@@ -7,10 +7,10 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_identifiers::ClientId;
 use systemprompt_identity_entry::http::oauth::endpoints::authorize::{
     AuthorizeQuery, login_page_redirect_target,
 };
-use systemprompt_identifiers::ClientId;
 
 const LOGIN: &str = "http://localhost:8081/admin/login";
 const RETURN_PATH: &str =

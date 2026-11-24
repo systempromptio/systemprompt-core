@@ -36,9 +36,7 @@ mod static_setup;
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::reserved::WEB_ROOT_BASE_PATH;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, LoaderError, RouteGroup,
-};
+use systemprompt_extension::{AuthzPolicy, ContextKind, LoaderError, RouteGroup};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::NodeRole;
 
