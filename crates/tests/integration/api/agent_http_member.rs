@@ -7,6 +7,10 @@
 //! | `GET /.well-known/agent-cards` | 200 | 200 | 404 |
 //! | `GET /api/v1/agents/registry` | 200 | 200 | 404 (401 anonymous) |
 //!
+//! The webhook is limited under its own `webhook` scope (200 per second per
+//! caller, times the profile burst multiplier): past the budget it refuses
+//! with 429.
+//!
 //! With the member disabled the exact registry reservation answers 404 ahead
 //! of the A2A proxy's `/{service_name}` route, so it never reaches the proxy's
 //! request parsing.
@@ -35,11 +39,18 @@ const CARDS: &str = "/.well-known/agent-cards";
 const REGISTRY: &str = "/api/v1/agents/registry";
 
 async fn node(disabled: &[ExtensionId]) -> Result<(DbPool, Router)> {
+    node_limited(disabled, RateLimitsConfig::disabled()).await
+}
+
+async fn node_limited(
+    disabled: &[ExtensionId],
+    rate_limits: RateLimitsConfig,
+) -> Result<(DbPool, Router)> {
     let bootstrap = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.role = NodeRole::All;
-    config.rate_limits = RateLimitsConfig::disabled();
+    config.rate_limits = rate_limits;
     config.trusted_proxies = Vec::new();
     let ctx =
         fixture_app_context_with_extensions(config, super::common::reference_admitted(disabled)?)
@@ -148,6 +159,41 @@ async fn a_disabled_agent_http_member_answers_the_registry_404_ahead_of_the_prox
         status(&app, Method::GET, REGISTRY, None).await?,
         StatusCode::UNAUTHORIZED,
         "the proxy's authenticated gate still runs first"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_webhook_refuses_past_its_rate_budget() -> Result<()> {
+    let (pool, app) = node_limited(
+        &[],
+        RateLimitsConfig {
+            burst_multiplier: 1,
+            disabled: false,
+            ..RateLimitsConfig::testing()
+        },
+    )
+    .await?;
+    let user = seed_bridge_credential(&pool, "agent-http-webhook-budget").await?;
+    let first = status(&app, Method::POST, WEBHOOK, Some(&user.jwt)).await?;
+    assert_ne!(
+        first,
+        StatusCode::TOO_MANY_REQUESTS,
+        "the first call is within budget"
+    );
+    let burst = futures::future::join_all(
+        (0..300).map(|_| status(&app, Method::POST, WEBHOOK, Some(&user.jwt))),
+    )
+    .await;
+    let mut refused = 0_usize;
+    for outcome in burst {
+        if outcome? == StatusCode::TOO_MANY_REQUESTS {
+            refused += 1;
+        }
+    }
+    assert!(
+        refused > 0,
+        "the webhook scope refuses a caller past its 200-request budget"
     );
     Ok(())
 }
