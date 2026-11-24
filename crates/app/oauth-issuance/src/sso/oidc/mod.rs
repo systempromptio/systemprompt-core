@@ -30,6 +30,7 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest, Sha256};
 use systemprompt_client::{GuardedClientConfig, guarded_client};
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_security::keys::JwksClient;
 use systemprompt_traits::SecretStore;
 use systemprompt_traits::sso::{
@@ -50,8 +51,8 @@ use token::{CodeRedemption, redeem_code};
 pub const ID: &str = "oidc";
 
 const PATHS: SsoPaths = SsoPaths {
-    start: "/api/v1/core/sso/oidc/start",
-    callback: "/api/v1/core/sso/oidc/callback",
+    start: ApiPaths::SSO_OIDC_START,
+    callback: ApiPaths::SSO_OIDC_CALLBACK,
     metadata: None,
 };
 
