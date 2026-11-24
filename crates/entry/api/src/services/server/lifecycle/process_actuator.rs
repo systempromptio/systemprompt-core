@@ -19,8 +19,8 @@ use systemprompt_database::{CoordinationRepositories, ServiceModule, ServiceRepo
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{
-    BackgroundTasks, DynServiceProcessSet, LeaseRepository, RestartMode, ServiceProcessError,
-    ServiceProcessKind, StopMode,
+    BackgroundTasks, DynServiceProcessSet, Lease, LeaseRepository, RestartMode,
+    ServiceProcessError, ServiceProcessKind, StopMode,
 };
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
@@ -29,8 +29,14 @@ use super::process_ownership::ProcessKey;
 
 #[derive(Debug)]
 pub(super) enum ProcessCommand {
-    Start(ProcessKey),
-    Stop { key: ProcessKey, release: bool },
+    Start {
+        key: ProcessKey,
+        lease: Lease,
+    },
+    Stop {
+        key: ProcessKey,
+        release: Option<Lease>,
+    },
 }
 
 struct ProcessSets {
@@ -102,7 +108,7 @@ async fn apply(
 ) {
     {
         match command {
-            ProcessCommand::Start(key) => {
+            ProcessCommand::Start { key, lease } => {
                 if let Err(error) = start(sets, &key).await {
                     tracing::error!(
                         service = %key.name(),
@@ -110,7 +116,7 @@ async fn apply(
                         error = %error,
                         "owned process failed to start; releasing its lease"
                     );
-                    release_and_announce(services, leases, &key).await;
+                    release_and_announce(services, leases, &key, &lease).await;
                     if failed.send(key).is_err() {
                         tracing::debug!("process lease loop has stopped");
                     }
@@ -127,8 +133,8 @@ async fn apply(
                     return;
                 }
                 tracing::info!(service = %key.name(), module = %key.module(), "owned process stopped");
-                if release {
-                    release_and_announce(services, leases, &key).await;
+                if let Some(lease) = release {
+                    release_and_announce(services, leases, &key, &lease).await;
                 }
             },
         }
@@ -139,13 +145,13 @@ pub(super) async fn release_and_announce(
     services: &ServiceRepository,
     leases: &dyn LeaseRepository,
     key: &ProcessKey,
+    lease: &Lease,
 ) {
-    let lease = key.lease_key();
-    if let Err(error) = leases.release(&lease).await {
+    if let Err(error) = leases.release(lease).await {
         tracing::warn!(service = %key.name(), error = %error, "process lease release failed");
         return;
     }
-    if let Err(error) = services.announce_process_released(&lease).await {
+    if let Err(error) = services.announce_process_released(&lease.key).await {
         tracing::warn!(
             service = %key.name(),
             error = %error,

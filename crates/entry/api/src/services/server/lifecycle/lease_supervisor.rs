@@ -40,7 +40,7 @@ use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp, S
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{NodeRole, ShutdownConfig};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{BackgroundTasks, LeaseRepository};
+use systemprompt_traits::{BackgroundTasks, CoordinationError, Lease, LeaseRepository};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 use super::process_actuator::{ProcessCommand, release_and_announce, spawn_process_actuator};
@@ -49,6 +49,11 @@ use super::process_ownership::{
     next_tick, ownership_step, renewal_overdue, tick_kind, with_self,
 };
 
+struct Held {
+    lease: Lease,
+    renewed: Instant,
+}
+
 struct LeaseLoop {
     ctx: AppContext,
     services: Arc<ServiceRepository>,
@@ -56,7 +61,7 @@ struct LeaseLoop {
     me: InstanceId,
     leases: Arc<InstanceLeaseRepository>,
     actuator: UnboundedSender<ProcessCommand>,
-    held: HashMap<ProcessKey, Instant>,
+    held: HashMap<ProcessKey, Held>,
     backoff: HashMap<ProcessKey, Instant>,
     settled: Vec<InstanceId>,
     pending: bool,
@@ -143,8 +148,8 @@ impl LeaseLoop {
                 .cloned()
                 .collect();
             for key in unwanted {
-                self.held.remove(&key);
-                self.command(ProcessCommand::Stop { key, release: true });
+                let release = self.held.remove(&key).map(|held| held.lease);
+                self.command(ProcessCommand::Stop { key, release });
             }
         }
         for key in wanted {
@@ -169,45 +174,76 @@ impl LeaseLoop {
             KeyAction::Skip => {},
             KeyAction::HandOver => {
                 tracing::info!(service = %key.name(), "handing process over to its preferred worker");
+                let release = self.held.remove(&key).map(|held| held.lease);
+                self.command(ProcessCommand::Stop { key, release });
+            },
+            KeyAction::Claim | KeyAction::Renew => match self.held.get(&key) {
+                Some(held) => {
+                    let renewal = self.leases.renew(&held.lease, LEASE_TTL).await;
+                    self.renewed(key, renewal);
+                },
+                None => {
+                    let claim = self.leases.claim(&lease, LEASE_TTL).await;
+                    self.claimed(key, claim);
+                },
+            },
+        }
+    }
+
+    fn renewed(&mut self, key: ProcessKey, renewal: Result<Lease, CoordinationError>) {
+        match renewal {
+            Ok(lease) => {
+                self.held.insert(
+                    key,
+                    Held {
+                        lease,
+                        renewed: Instant::now(),
+                    },
+                );
+            },
+            Err(CoordinationError::Fenced { .. }) => {
+                tracing::warn!(service = %key.name(), "process lease lost to a peer");
                 self.held.remove(&key);
-                self.command(ProcessCommand::Stop { key, release: true });
+                self.command(ProcessCommand::Stop { key, release: None });
             },
-            KeyAction::Claim | KeyAction::Renew => match self.leases.claim(&lease, LEASE_TTL).await
-            {
-                Err(error) => {
-                    tracing::warn!(service = %key.name(), error = %error, "process lease claim failed");
-                    if self
-                        .held
-                        .get(&key)
-                        .is_some_and(|renewed| renewal_overdue(renewed.elapsed()))
-                    {
-                        self.held.remove(&key);
-                        self.command(ProcessCommand::Stop {
-                            key,
-                            release: false,
-                        });
-                    }
-                },
-                Ok(claim) => match ownership_step(held, claim.as_ref(), &self.me) {
-                    OwnershipStep::Acquired => {
-                        tracing::info!(service = %key.name(), "process lease acquired");
-                        self.held.insert(key.clone(), Instant::now());
-                        self.command(ProcessCommand::Start(key));
-                    },
-                    OwnershipStep::Renewed => {
-                        self.held.insert(key, Instant::now());
-                    },
-                    OwnershipStep::Standby => self.pending = true,
-                    OwnershipStep::Lost => {
-                        tracing::warn!(service = %key.name(), "process lease lost to a peer");
-                        self.held.remove(&key);
-                        self.command(ProcessCommand::Stop {
-                            key,
-                            release: false,
-                        });
-                    },
-                },
+            Err(error) => {
+                tracing::warn!(service = %key.name(), error = %error, "process lease renewal failed");
+                self.stop_if_overdue(key);
             },
+        }
+    }
+
+    fn claimed(&mut self, key: ProcessKey, claim: Result<Option<Lease>, CoordinationError>) {
+        match claim {
+            Err(error) => {
+                tracing::warn!(service = %key.name(), error = %error, "process lease claim failed");
+                self.stop_if_overdue(key);
+            },
+            Ok(claim) => match (ownership_step(false, claim.as_ref(), &self.me), claim) {
+                (OwnershipStep::Acquired, Some(lease)) => {
+                    tracing::info!(service = %key.name(), "process lease acquired");
+                    self.held.insert(
+                        key.clone(),
+                        Held {
+                            lease: lease.clone(),
+                            renewed: Instant::now(),
+                        },
+                    );
+                    self.command(ProcessCommand::Start { key, lease });
+                },
+                _ => self.pending = true,
+            },
+        }
+    }
+
+    fn stop_if_overdue(&mut self, key: ProcessKey) {
+        if self
+            .held
+            .get(&key)
+            .is_some_and(|held| renewal_overdue(held.renewed.elapsed()))
+        {
+            self.held.remove(&key);
+            self.command(ProcessCommand::Stop { key, release: None });
         }
     }
 
@@ -230,15 +266,15 @@ impl LeaseLoop {
             .background_grace()
             .saturating_sub(RELEASE_MARGIN)
             .min(timings.child_grace() + RELEASE_MARGIN);
-        let held = std::mem::take(&mut self.held).into_keys();
+        let held = std::mem::take(&mut self.held).into_iter();
         let services = &*self.services;
         let leases = &self.leases;
-        futures_util::future::join_all(held.map(|key| async move {
+        futures_util::future::join_all(held.map(|(key, held)| async move {
             let stopped =
                 tokio::time::timeout(budget, stop_held(services, &key, timings.child_grace()))
                     .await;
             if stopped == Ok(true) {
-                release_and_announce(services, &**leases, &key).await;
+                release_and_announce(services, &**leases, &key, &held.lease).await;
             } else {
                 tracing::warn!(
                     service = %key.name(),

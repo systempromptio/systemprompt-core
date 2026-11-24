@@ -11,8 +11,8 @@
 //! value of `instance_lease_fencing_seq`, one sequence for every key, so a
 //! key's token only grows, across releases too; a claim by the current owner
 //! keeps its token. [`LeaseRepository::renew`] is fenced on that token in its
-//! own statement: a holder whose lease another replica took changes nothing
-//! and gets [`CoordinationError::Fenced`].
+//! own statement, and so is [`LeaseRepository::release`]: a holder whose lease
+//! another replica took changes nothing and gets [`CoordinationError::Fenced`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -163,16 +163,24 @@ impl LeaseRepository for InstanceLeaseRepository {
             })
     }
 
-    async fn release(&self, key: &LeaseKey) -> CoordinationResult<bool> {
+    async fn release(&self, lease: &Lease) -> CoordinationResult<()> {
         let result = sqlx::query!(
-            "DELETE FROM instance_leases WHERE lease_key = $1 AND owner_instance_id = $2",
-            key.as_str(),
-            &self.instance_id as _
+            "DELETE FROM instance_leases WHERE lease_key = $1 AND owner_instance_id = $2 AND \
+             fencing_token = $3",
+            lease.key.as_str(),
+            &self.instance_id as _,
+            lease.fencing_token.get()
         )
         .execute(&*self.write_pool)
         .await
         .map_err(RepositoryError::from)?;
-        Ok(result.rows_affected() > 0)
+        if result.rows_affected() == 0 {
+            return Err(CoordinationError::Fenced {
+                key: lease.key.clone(),
+                token: lease.fencing_token,
+            });
+        }
+        Ok(())
     }
 
     async fn holder(&self, key: &LeaseKey) -> CoordinationResult<Option<Lease>> {

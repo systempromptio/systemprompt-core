@@ -97,7 +97,9 @@ pub struct Lease {
 ///
 /// `renew` is the fenced write: it extends the lease only while the row
 /// still carries this holder's token, and otherwise changes nothing and
-/// returns [`CoordinationError::Fenced`].
+/// returns [`CoordinationError::Fenced`]. `release` is fenced the same
+/// way: it deletes the row only while it still carries this holder's token,
+/// so a holder that lost its lease never releases the new holder's.
 ///
 /// Held as `Arc<dyn LeaseRepository>` (`DynLeaseRepository`), hence
 /// `#[async_trait]`.
@@ -107,7 +109,7 @@ pub trait LeaseRepository: Send + Sync {
 
     async fn renew(&self, lease: &Lease, ttl: Duration) -> CoordinationResult<Lease>;
 
-    async fn release(&self, key: &LeaseKey) -> CoordinationResult<bool>;
+    async fn release(&self, lease: &Lease) -> CoordinationResult<()>;
 
     async fn holder(&self, key: &LeaseKey) -> CoordinationResult<Option<Lease>>;
 }
@@ -171,7 +173,7 @@ impl LeaseRepository for UnavailableCoordination {
         Err(CoordinationError::Unavailable { seam: "leases" })
     }
 
-    async fn release(&self, _key: &LeaseKey) -> CoordinationResult<bool> {
+    async fn release(&self, _lease: &Lease) -> CoordinationResult<()> {
         Err(CoordinationError::Unavailable { seam: "leases" })
     }
 
