@@ -132,7 +132,6 @@ pub fn router(state: DriveState) -> Router {
         .with_state(state)
 }
 
-
 async fn manifest(
     State(state): State<DriveState>,
     headers: HeaderMap,

@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use systemprompt_models::execution::{ContextExtractionError, ContextIdSource};
 
-use crate::services::middleware::body::{BodyReadError, read_request_bounded};
+use systemprompt_extension::router::{BodyReadError, read_request_bounded};
 
 // JSON: the A2A JSON-RPC envelope is an external protocol boundary. Only the
 // routing fields are typed; every other field (message parts, file bytes) is

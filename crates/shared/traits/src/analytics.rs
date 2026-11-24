@@ -192,7 +192,8 @@ pub trait SessionProvider: Send + Sync {
 
 /// Session-scoped usage counters bumped by domain workflows.
 ///
-/// Fire-and-forget at the call sites (task and message creation): failures
+/// Fire-and-forget at the call sites (task and message creation, gateway
+/// settlement of a request's tokens and cost): failures
 /// are logged, never propagated into the owning workflow. Held as
 /// `Arc<dyn SessionUsageCounters>`, hence `#[async_trait]`.
 #[async_trait]
@@ -200,6 +201,13 @@ pub trait SessionUsageCounters: Send + Sync {
     async fn increment_task_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
 
     async fn increment_message_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
+
+    async fn increment_ai_usage(
+        &self,
+        session_id: &SessionId,
+        tokens: i32,
+        cost_microdollars: i64,
+    ) -> AnalyticsResult<()>;
 }
 
 #[async_trait]

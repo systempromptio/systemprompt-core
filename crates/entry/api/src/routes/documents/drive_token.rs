@@ -30,7 +30,7 @@ use super::caller::authenticated;
 use super::drive::DriveState;
 use super::error::DocumentsResult;
 use crate::kernel::ApiHttpError;
-use crate::routes::gateway::messages::extract_credential;
+use systemprompt_gateway::surface::credential::extract_credential;
 
 pub(super) async fn issue(
     State(state): State<DriveState>,

@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The gateway's inference, token-count, telemetry and personal-credential routes move from `systemprompt-api` into the `gateway-http` member (`systemprompt-gateway-entry`), contributed as a `GatewaySurface` the API mounts under the unchanged gateway layering. Their route state is resolved scoped to `gateway-http`: callers are verified through the request authenticator, and the engines, at-rest material, session mint and personal credential view arrive only through their conferral rows. Disabling `gateway-http` unmounts them; disabling `ai` unmounts only the personal-credential routes."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::gateway::{messages, count_tokens, otel, provider_credentials}` are removed (now `systemprompt_gateway_entry::http`); the `otel` feature is removed; `read_body_bounded`, `read_request_bounded` and `BodyReadError` move to `systemprompt_extension::router`; `routes::gateway::gateway_repositories` returns `GatewaySurfaceError`; `routes::gateway::host_handles` is added."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "Adds the `surface` module (`GatewaySurface`, `GatewayRouteState`, `GatewayHostHandles`, `GatewaySurfaceError`, `GatewayLogIdentity`, `credential`, `authz`, `repositories::gateway_repositories`). `GatewayHandles::cache_epochs`, `PolicyResolver::from_repository` and `GatewayArtifactScanner::over_policy_table` take a `CacheEpochView` instead of `CacheEpochs`."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Added"
+text = "`GatewayHttpExtension` (`gateway-http`) and the `http` handlers: inference proxy, token count, `/otel` ingest (`otel` feature) and `/me/provider-credentials`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`router::{read_body_bounded, read_request_bounded, BodyReadError}`."

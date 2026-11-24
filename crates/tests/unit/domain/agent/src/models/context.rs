@@ -72,7 +72,6 @@ fn test_context_message_debug() {
     assert!(debug_str.contains("msg-debug"));
 }
 
-
 #[test]
 fn test_context_detail_serialize() {
     let detail = ContextDetail {

@@ -232,7 +232,6 @@ fn test_domain_config_registry_default_is_empty() {
     assert!(registry.validators_sorted().is_empty());
 }
 
-
 #[derive(Debug)]
 struct TestValidator {
     id: &'static str,

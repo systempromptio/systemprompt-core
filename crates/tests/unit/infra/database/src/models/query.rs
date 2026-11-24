@@ -33,7 +33,6 @@ fn test_database_query_with_placeholders() {
     assert!(QUERY.postgres().contains("$2"));
 }
 
-
 #[test]
 fn test_query_selector_for_str() {
     let query: &str = "SELECT * FROM users";
@@ -168,7 +167,6 @@ fn test_query_result_with_multiple_columns() {
     assert_eq!(result.columns.len(), 3);
     assert!(!result.is_empty());
 }
-
 
 #[test]
 fn test_query_result_clone() {

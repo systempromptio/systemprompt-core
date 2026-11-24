@@ -72,7 +72,6 @@ fn test_agent_status_running_ne_failed() {
     assert_ne!(running, failed);
 }
 
-
 #[test]
 fn test_validation_report_default_equals_new() {
     let default_report = ValidationReport::default();
@@ -112,7 +111,6 @@ fn test_agent_info_with_failed_status() {
     assert_eq!(info.name.as_str(), "failed_agent");
     assert_eq!(info.port, 9090);
 }
-
 
 #[test]
 fn test_agent_info_debug() {

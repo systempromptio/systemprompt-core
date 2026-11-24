@@ -36,7 +36,6 @@ fn test_heartbeat_interval_is_reasonable() {
     assert!(HEARTBEAT_INTERVAL <= Duration::from_secs(60));
 }
 
-
 #[tokio::test]
 async fn test_broadcaster_register_single_connection() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();

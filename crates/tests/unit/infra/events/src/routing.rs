@@ -48,7 +48,6 @@ fn test_system_event() -> SystemEvent {
     systemprompt_models::SystemEventBuilder::heartbeat()
 }
 
-
 #[tokio::test]
 async fn test_route_agui_returns_tuple() {
     let broadcasters = Arc::new(EventBroadcasters::new());
@@ -286,7 +285,6 @@ fn test_analytics_event() -> AnalyticsEvent {
         Some("https://example.com/referrer".to_string()),
     )
 }
-
 
 #[tokio::test]
 async fn test_route_analytics_returns_count() {

@@ -6,13 +6,13 @@
 
 use axum::body::to_bytes;
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use systemprompt_api::routes::gateway::messages::extract::RejectionPartial;
-use systemprompt_api::routes::gateway::messages::extract::scope::{
-    ScopeHeaders, ScopeResolution, resolve_scope_attribution,
-};
 use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_gateway::GatewayRepositories;
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
+use systemprompt_gateway_entry::http::messages::extract::RejectionPartial;
+use systemprompt_gateway_entry::http::messages::extract::scope::{
+    ScopeHeaders, ScopeResolution, resolve_scope_attribution,
+};
 use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, EndpointRef, ModelEntry, ProviderConfig, ResolvedCatalog,

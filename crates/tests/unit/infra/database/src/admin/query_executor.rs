@@ -111,7 +111,6 @@ async fn execute_readonly_maps_bad_sql_to_execution_failure() {
     assert!(matches!(err, QueryExecutorError::ExecutionFailed(_)));
 }
 
-
 #[tokio::test]
 async fn execute_readonly_decodes_uuid_numeric_and_bytea_columns() {
     let exec = test_executor().await;

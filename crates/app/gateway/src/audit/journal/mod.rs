@@ -81,13 +81,13 @@ impl GatewayJournal {
 
 /// The collaborators a terminal receipt is settled through.
 ///
-/// `sessions` is absent only where the analytics layer is unavailable;
+/// `sessions` is absent only where no session usage counters were injected;
 /// settlement then records the request and skips the session counters.
 #[derive(Clone)]
 pub struct Settlement {
     pub journal: Arc<GatewayJournal>,
     pub requests: Arc<AiRequestRepository>,
-    pub sessions: Option<systemprompt_traits::DynSessionStore>,
+    pub sessions: Option<systemprompt_traits::DynSessionUsageCounters>,
 }
 
 impl std::fmt::Debug for Settlement {

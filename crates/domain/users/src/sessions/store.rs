@@ -72,16 +72,6 @@ impl systemprompt_traits::SessionTelemetry for SessionRepository {
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
-    async fn increment_ai_usage(
-        &self,
-        session_id: &SessionId,
-        tokens: i32,
-        cost_microdollars: i64,
-    ) -> AnalyticsResult<()> {
-        Self::increment_ai_usage(self, session_id, tokens, cost_microdollars)
-            .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
-    }
     async fn update_behavioral_detection(
         &self,
         session_id: &SessionId,

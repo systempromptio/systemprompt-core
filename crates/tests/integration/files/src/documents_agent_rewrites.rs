@@ -201,7 +201,6 @@ async fn an_agent_restore_or_whole_file_body_needs_its_capability() {
     assert_eq!(text, "line 0\nline 1\n");
 }
 
-
 fn str_replace(old: &str, new: &str) -> CommitBody {
     CommitBody::Ops(vec![EditOp::StrReplace {
         old_str: old.to_owned(),

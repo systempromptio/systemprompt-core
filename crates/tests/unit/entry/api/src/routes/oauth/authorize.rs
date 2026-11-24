@@ -152,7 +152,6 @@ fn test_authorize_query_deserialize_max_age_zero() {
     assert_eq!(query.max_age, Some(0));
 }
 
-
 #[test]
 fn test_authorize_query_field_access() {
     let query = create_valid_authorize_query();
@@ -298,7 +297,6 @@ fn test_authorize_request_consent_none() {
     };
     assert!(request.user_consent.is_none());
 }
-
 
 #[test]
 fn test_query_and_request_share_common_fields() {

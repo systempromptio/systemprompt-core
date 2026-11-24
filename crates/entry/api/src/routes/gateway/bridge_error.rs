@@ -20,8 +20,8 @@ use systemprompt_oauth::OauthError;
 use systemprompt_traits::{AuthUser, BoxedSource};
 use systemprompt_users::UserError;
 
-use super::messages::extract_credential;
 use crate::kernel::{ApiHttpError, JwtContextExtractor, JwtUserContext, unreadable_body};
+use systemprompt_gateway::surface::credential::extract_credential;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BridgeError {

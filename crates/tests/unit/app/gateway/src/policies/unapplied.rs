@@ -14,7 +14,7 @@ use systemprompt_traits::CacheEpochs;
 fn resolver(pool: &DbPool, mode: UnappliedPlaneMode) -> PolicyResolver {
     PolicyResolver::from_repository(
         AiGatewayPolicyRepository::new(pool),
-        CacheEpochs::new(),
+        CacheEpochs::new().view(),
         mode,
     )
 }

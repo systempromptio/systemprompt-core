@@ -18,7 +18,8 @@ systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
 systemprompt = { workspace = true, features = ["full"] }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-api = { workspace = true, features = ["bridge", "collab", "otel"] }
+systemprompt-api = { workspace = true, features = ["bridge", "collab"] }
+systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
 systemprompt-brain-entry = { workspace = true, features = ["http"] }
 systemprompt-gateway = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["engine-loro", "notifications"] }

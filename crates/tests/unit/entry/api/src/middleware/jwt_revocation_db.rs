@@ -17,7 +17,6 @@ use systemprompt_oauth::repository::JtiRevocationChecker;
 use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 use uuid::Uuid;
 
-
 fn checker(pool: &DbPool) -> JtiRevocationChecker {
     checker_with_relay(pool, true)
 }

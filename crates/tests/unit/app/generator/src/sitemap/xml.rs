@@ -18,7 +18,6 @@ fn test_sitemap_url_creation() {
     assert_eq!(url.priority, 0.8);
 }
 
-
 #[test]
 fn test_sitemap_url_debug() {
     let url = SitemapUrl {

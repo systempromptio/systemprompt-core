@@ -23,7 +23,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_manifest::services::catalog::{ModelRequest, ResolvedCatalog};
 
-use super::messages::{GatewayAuthzRequestInput, build_gateway_authz_request};
+use systemprompt_gateway::surface::authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 
 /// The caller a profile is being built for.
 #[derive(Debug, Clone)]

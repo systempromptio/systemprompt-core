@@ -216,7 +216,6 @@ fn test_content_file_struct_fields() {
     assert_eq!(file.display_order, 5);
 }
 
-
 #[test]
 fn test_content_file_serialization() {
     let file = create_test_content_file(FileRole::Inline);

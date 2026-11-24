@@ -293,7 +293,6 @@ fn native_host_readback_failure_keeps_foreign_files_and_retry_records_only_verif
     }
 }
 
-
 fn plugin_entry_for_capture() -> systemprompt_bridge::gateway::manifest::PluginEntry {
     systemprompt_bridge::gateway::manifest::PluginEntry {
         id: systemprompt_bridge::ids::PluginId::try_new("capture-plugin").unwrap(),

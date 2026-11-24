@@ -148,7 +148,6 @@ impl Fixture {
     }
 }
 
-
 #[path = "publication_admission.rs"]
 mod admission;
 #[path = "inventory_baseline.rs"]

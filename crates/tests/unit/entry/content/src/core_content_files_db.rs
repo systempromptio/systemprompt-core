@@ -16,7 +16,6 @@ use systemprompt_identifiers::{ContentId, FileId, SourceId};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
 }

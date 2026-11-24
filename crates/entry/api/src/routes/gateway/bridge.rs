@@ -19,7 +19,6 @@ use systemprompt_manifest::bridge_profile;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_oauth::repository::HostPrefWrite;
 
-
 pub use systemprompt_manifest::bridge_profile::provider_health;
 pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHealth};
 

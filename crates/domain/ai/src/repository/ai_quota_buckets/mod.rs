@@ -99,7 +99,6 @@ impl AiQuotaBucketRepository {
         Ok(result.rows_affected())
     }
 
-
     pub fn new(db: &DbPool) -> Self {
         let write_pool = db.write_pool();
         Self { write_pool }

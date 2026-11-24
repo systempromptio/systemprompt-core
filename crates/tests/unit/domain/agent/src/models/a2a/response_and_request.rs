@@ -65,7 +65,6 @@ fn test_jsonrpc_response_serialize_error() {
     assert!(!json.contains("result"));
 }
 
-
 #[test]
 fn test_request_serialize() {
     let request: Request<serde_json::Value> = Request {
@@ -81,7 +80,6 @@ fn test_request_serialize() {
     assert!(json.contains("key"));
     assert!(json.contains("value"));
 }
-
 
 #[test]
 fn test_json_rpc_version_constant() {

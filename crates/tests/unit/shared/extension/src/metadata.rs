@@ -24,7 +24,6 @@ fn extension_metadata_debug_format() {
     assert!(debug.contains("debug-ext"));
 }
 
-
 #[test]
 fn extension_metadata_serde_roundtrip() {
     let meta = ExtensionMetadata {

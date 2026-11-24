@@ -3,13 +3,11 @@
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::orchestrator::{EventBus, McpEvent};
 
-
 #[test]
 #[should_panic(expected = "broadcast channel capacity cannot be zero")]
 fn test_event_bus_new_with_zero_capacity_panics() {
     let _event_bus = EventBus::new(0);
 }
-
 
 #[tokio::test]
 async fn test_event_bus_publish() {

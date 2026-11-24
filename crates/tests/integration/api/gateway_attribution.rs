@@ -5,12 +5,12 @@
 //! persisted on the audit row (`ai_request_attributions`, `api_key_id`).
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
-use systemprompt_api::routes::gateway::messages::extract::RejectionPartial;
-use systemprompt_api::routes::gateway::messages::extract::scope::{
+use systemprompt_gateway::service::GatewayService;
+use systemprompt_gateway_entry::http::messages::extract::RejectionPartial;
+use systemprompt_gateway_entry::http::messages::extract::scope::{
     ScopeHeaders, ScopeResolution, resolve_scope_attribution,
 };
-use systemprompt_api::routes::gateway::messages::rejection::persist_rejection;
-use systemprompt_gateway::service::GatewayService;
+use systemprompt_gateway_entry::http::messages::rejection::persist_rejection;
 use systemprompt_governance::authz::{
     RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
 };
@@ -109,8 +109,7 @@ struct Case<'a> {
 async fn resolve(
     case: Case<'_>,
     partial: &mut RejectionPartial,
-) -> Result<RequestAttribution, systemprompt_api::routes::gateway::messages::error::RejectionError>
-{
+) -> Result<RequestAttribution, systemprompt_gateway_entry::http::messages::error::RejectionError> {
     let scope_headers = ScopeHeaders::capture(&headers(case.header))?;
     let api_key_id = ApiKeyId::new("key-attribution");
     resolve_scope_attribution(

@@ -46,7 +46,6 @@ fn call_source_as_str_ephemeral() {
     assert_eq!(CallSource::Ephemeral.as_str(), "ephemeral");
 }
 
-
 #[test]
 fn call_source_serde_roundtrip() {
     let source = CallSource::Direct;

@@ -30,7 +30,6 @@ fn create_error_result(text: &str) -> CallToolResult {
 mod fallback_reason_tests {
     use super::*;
 
-
     #[test]
     fn synthesis_failed_is_debug() {
         let reason = FallbackReason::SynthesisFailed("test error".to_string());

@@ -192,7 +192,6 @@ fn test_insert_file_request_partial_builder() {
     assert!(request.trace_id.is_none());
 }
 
-
 #[test]
 fn test_insert_file_request_debug() {
     let file_id = FileId::generate();

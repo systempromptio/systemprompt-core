@@ -34,7 +34,6 @@ fn create_empty_result() -> CallToolResult {
 mod fallback_generator_extended_tests {
     use super::*;
 
-
     #[test]
     fn generate_mixed_success_and_error_only_shows_success() {
         let tool_calls = vec![create_tool_call("good_tool"), create_tool_call("bad_tool")];
@@ -157,7 +156,6 @@ mod synthesis_prompt_builder_extended_tests {
 
 mod response_synthesizer_construction_tests {
     use super::*;
-
 
     #[test]
     fn is_copy() {

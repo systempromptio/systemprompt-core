@@ -19,6 +19,8 @@
 
 mod base_ref;
 #[cfg(feature = "router")]
+mod body;
+#[cfg(feature = "router")]
 mod capability;
 #[cfg(feature = "router")]
 mod http_error;
@@ -33,6 +35,8 @@ mod shape;
 mod sse;
 
 pub use base_ref::{BaseRef, GatewayPath};
+#[cfg(feature = "router")]
+pub use body::{BodyReadError, read_body_bounded, read_request_bounded};
 #[cfg(feature = "router")]
 pub use capability::{IntoApiError, capability_response};
 #[cfg(feature = "router")]

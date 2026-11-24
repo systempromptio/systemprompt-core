@@ -234,7 +234,6 @@ impl ServiceStateVerifier {
         rows.iter().map(decode_db_service).collect()
     }
 
-
     pub async fn get_services_needing_action(
         &self,
         configs: &[ServiceConfig],

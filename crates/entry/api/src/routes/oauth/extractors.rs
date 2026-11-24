@@ -9,7 +9,6 @@ use http::request::Parts;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 
-
 #[derive(Debug)]
 pub struct OAuthRepo(pub OAuthRepository);
 

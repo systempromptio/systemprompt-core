@@ -5,7 +5,6 @@
 //! gateway decode), the `x-context-id`-without-auth forbidden-header guard, and
 //! the A2A body context-id sources (direct `contextId` and `tasks/*`).
 
-
 use anyhow::Result;
 use axum::body::Body;
 use axum::extract::Request;

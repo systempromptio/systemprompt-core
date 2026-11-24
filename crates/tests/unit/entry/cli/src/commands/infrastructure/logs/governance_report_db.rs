@@ -42,7 +42,6 @@ fn parse(args: &[&str]) -> LogsCommands {
     .cmd
 }
 
-
 fn kernel(pool: &DbPool, ai: bool) -> Arc<systemprompt_runtime::Kernel> {
     let mut state = systemprompt_extension::prelude::Dependencies::new();
     if ai {

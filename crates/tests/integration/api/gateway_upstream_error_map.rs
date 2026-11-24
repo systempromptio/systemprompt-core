@@ -3,9 +3,9 @@
 //! the HTTP status and client-facing message it returns.
 
 use http::StatusCode;
-use systemprompt_api::routes::gateway::messages::error::RejectionError;
-use systemprompt_api::routes::gateway::messages::map_upstream_error;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway_entry::http::messages::error::RejectionError;
+use systemprompt_gateway_entry::http::messages::map_upstream_error;
 
 fn status_error(status: u16, message: &str) -> UpstreamError {
     UpstreamError::Status {

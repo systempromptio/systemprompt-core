@@ -151,7 +151,6 @@ fn test_mcp_connection_result_health_status_unknown() {
     assert_eq!(result.health_status(), "unknown");
 }
 
-
 #[test]
 fn test_mcp_connection_result_serialize() {
     let result = McpConnectionResult {

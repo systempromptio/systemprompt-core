@@ -77,7 +77,6 @@ fn test_image_metadata_builder_chain() {
         .expect("generation should be present");
 }
 
-
 #[test]
 fn test_image_metadata_serialize_with_dimensions() {
     let meta = ImageMetadata::new().with_dimensions(800, 600);
@@ -170,7 +169,6 @@ fn test_image_generation_info_builder_chain() {
     assert_eq!(gen_info.cost_estimate, Some(0.01));
     assert_eq!(gen_info.request_id, Some(AiRequestId::new("req_xyz789")));
 }
-
 
 #[test]
 fn test_image_generation_info_serialize_minimal() {

@@ -11,7 +11,6 @@
 //! the access-token `jti` recording path, and the refusals: an unsigned token
 //! or another user's token is answered with 200 but never recorded.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};

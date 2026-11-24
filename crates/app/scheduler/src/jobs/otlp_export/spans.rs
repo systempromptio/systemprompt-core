@@ -51,7 +51,6 @@ impl TraceBatch {
     }
 }
 
-
 #[must_use]
 pub(super) fn to_export_request(
     batch: &TraceBatch,

@@ -63,7 +63,6 @@ fn test_grant_type_default_grant_types() {
     assert!(defaults.contains(&"refresh_token"));
 }
 
-
 #[test]
 fn test_pkce_method_s256_as_str() {
     assert_eq!(PkceMethod::S256.as_str(), "S256");
@@ -91,7 +90,6 @@ fn test_pkce_method_display() {
     assert_eq!(format!("{}", PkceMethod::S256), "S256");
 }
 
-
 #[test]
 fn test_response_type_code_as_str() {
     assert_eq!(ResponseType::Code.as_str(), "code");
@@ -113,7 +111,6 @@ fn test_response_type_from_str_invalid() {
 fn test_response_type_display() {
     assert_eq!(format!("{}", ResponseType::Code), "code");
 }
-
 
 #[test]
 fn test_response_mode_query_as_str() {

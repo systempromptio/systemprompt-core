@@ -21,7 +21,6 @@ use serde::de::DeserializeOwned;
 use systemprompt_models::artifacts::dashboard::{DashboardSection, LayoutWidth, SectionType};
 use tables::render_table;
 
-
 pub(super) fn render_section(section: &DashboardSection) -> McpDomainResult<String> {
     let content = match section.section_type {
         SectionType::MetricsCards => render_metrics(section)?,

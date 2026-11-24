@@ -30,7 +30,6 @@ fn retry_config_default_jitter_enabled() {
     assert!(RetryConfig::default().jitter);
 }
 
-
 #[test]
 fn breaker_config_default_failure_threshold() {
     assert_eq!(BreakerConfig::default().failure_threshold, 5);
@@ -49,12 +48,10 @@ fn breaker_config_default_half_open_probes() {
     assert_eq!(BreakerConfig::default().half_open_max_probes, 1);
 }
 
-
 #[test]
 fn bulkhead_config_default_max_concurrent() {
     assert_eq!(BulkheadConfig::default().max_concurrent, 16);
 }
-
 
 #[test]
 fn resilience_config_default_request_timeout() {
@@ -89,7 +86,6 @@ fn resilience_config_default_bulkhead_nested() {
     let cfg = ResilienceConfig::default();
     assert_eq!(cfg.bulkhead.max_concurrent, 16);
 }
-
 
 #[test]
 fn resilience_config_copy() {

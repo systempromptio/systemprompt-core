@@ -2,7 +2,6 @@ use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-
 #[tokio::test]
 async fn agent_registry_list_agents_empty_default() {
     ensure_test_bootstrap();

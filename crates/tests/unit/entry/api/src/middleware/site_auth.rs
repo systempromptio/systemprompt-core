@@ -388,7 +388,6 @@ mod gate {
         assert_ne!(resp.status(), StatusCode::OK);
     }
 
-
     #[tokio::test]
     async fn a_token_without_a_jti_is_refused() {
         use systemprompt_models::auth::{

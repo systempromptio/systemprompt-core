@@ -38,7 +38,6 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     .expect("gateway journal opens")
 }
 
-
 // Why: every cell taps the Anthropic surface with the same model, and the
 // render options are one struct so the tap's own signature stays readable.
 pub(super) fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
@@ -62,7 +61,7 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Ga
         materializer(db),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new().view(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),

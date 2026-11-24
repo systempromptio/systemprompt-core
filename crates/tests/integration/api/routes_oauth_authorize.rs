@@ -7,7 +7,6 @@
 //! the missing-state, bad-pkce, unsupported-response-type, unknown-client,
 //! denied-consent, sessionless-allow and cross-origin branches.
 
-
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};

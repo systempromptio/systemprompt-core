@@ -4,11 +4,11 @@
 //! a request quota refuses gives its rate-window charge back.
 
 use axum::body::to_bytes;
-use systemprompt_api::routes::gateway::messages::dispatch::map_dispatch_error;
 use systemprompt_database::DbPool;
 use systemprompt_gateway::GatewayRepositories;
 use systemprompt_gateway::policies::{GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicySpec};
 use systemprompt_gateway::service::{DispatchError, GatewayService};
+use systemprompt_gateway_entry::http::messages::dispatch::map_dispatch_error;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{AuthedFixture, DisposableDb, seed_admin_credential};

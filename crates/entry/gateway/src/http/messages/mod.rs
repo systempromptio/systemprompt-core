@@ -17,10 +17,6 @@ pub mod rejection;
 pub mod session_binding;
 
 pub use dispatch::map_upstream_error;
-pub use extract::{
-    GatewayAuthzRequestInput, build_gateway_authz_request, caller_auth, extract_credential,
-    presented_credential,
-};
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -31,9 +27,8 @@ use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::origin::RequestOrigin;
-use systemprompt_runtime::AppContext;
 
-use crate::kernel::JwtContextExtractor;
+use crate::http::state::GatewayHttpState;
 use systemprompt_gateway::audit::GatewayAccessLog;
 use systemprompt_gateway::protocol::inbound::{InboundAdapter, error_type_for_status};
 
@@ -41,17 +36,8 @@ use dispatch::{RejectionError, build_error_response, dispatch_to_provider};
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
 
-/// The gateway-owned handles every inference route shares: the repositories
-/// and the engine set, built once per router.
-#[derive(Debug, Clone)]
-pub struct GatewayHandles {
-    pub repos: Arc<systemprompt_gateway::GatewayRepositories>,
-    pub engines: Arc<GatewayEngines>,
-}
-
 pub(super) struct RequestContext<'a> {
-    pub jwt_extractor: &'a JwtContextExtractor,
-    pub ctx: &'a AppContext,
+    pub state: &'a GatewayHttpState,
     pub repos: &'a systemprompt_gateway::GatewayRepositories,
     pub engines: &'a Arc<GatewayEngines>,
     pub services: &'a ServicesConfig,
@@ -62,20 +48,18 @@ pub(super) struct RequestContext<'a> {
 
 pub async fn handle(
     inbound: Arc<dyn InboundAdapter>,
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
-    handles: GatewayHandles,
+    state: GatewayHttpState,
     request: Request<Body>,
 ) -> Response<Body> {
-    let GatewayHandles { repos, engines } = handles;
+    let repos = Arc::clone(&state.repos);
+    let engines = Arc::clone(&state.engines);
     let ai_request_id = AiRequestId::generate();
     let (client, attestation) = extract::attribution::entry_origin(request.headers());
     let mut partial =
         RejectionPartial::new(RequestOrigin::gateway(client, inbound.wire(), attestation));
     let inner = HandleInner {
         inbound: Arc::clone(&inbound),
-        jwt_extractor: &jwt_extractor,
-        ctx: &ctx,
+        state: &state,
         repos: &repos,
         engines: &engines,
         ai_request_id: &ai_request_id,
@@ -142,17 +126,18 @@ fn attach_log_identity(response: &mut Response<Body>, partial: &RejectionPartial
     ) else {
         return;
     };
-    response.extensions_mut().insert(super::GatewayLogIdentity {
-        user: user_id.clone(),
-        session: session_id.clone(),
-        trace: trace_id.clone(),
-    });
+    response
+        .extensions_mut()
+        .insert(systemprompt_gateway::surface::GatewayLogIdentity {
+            user: user_id.clone(),
+            session: session_id.clone(),
+            trace: trace_id.clone(),
+        });
 }
 
 struct HandleInner<'a> {
     inbound: Arc<dyn InboundAdapter>,
-    jwt_extractor: &'a JwtContextExtractor,
-    ctx: &'a AppContext,
+    state: &'a GatewayHttpState,
     repos: &'a systemprompt_gateway::GatewayRepositories,
     engines: &'a Arc<GatewayEngines>,
     ai_request_id: &'a AiRequestId,
@@ -161,12 +146,11 @@ struct HandleInner<'a> {
 
 impl HandleInner<'_> {
     async fn run(self, request: Request<Body>) -> Result<Response<Body>, RejectionError> {
-        let services = self.ctx.services_config();
-        let catalog = self.ctx.services_state().catalog();
+        let services = self.state.host.services.config();
+        let catalog = self.state.host.services.catalog();
         let access_log = request.extensions().get::<GatewayAccessLog>().cloned();
         let request_ctx = RequestContext {
-            jwt_extractor: self.jwt_extractor,
-            ctx: self.ctx,
+            state: self.state,
             repos: self.repos,
             engines: self.engines,
             services: &services,

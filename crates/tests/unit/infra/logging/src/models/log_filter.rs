@@ -170,7 +170,6 @@ fn test_log_filter_message_accessor_some() {
     assert_eq!(filter.message(), Some("error occurred"));
 }
 
-
 #[test]
 fn test_log_filter_with_empty_level() {
     let filter = LogFilter::new(1, 10).with_level("");

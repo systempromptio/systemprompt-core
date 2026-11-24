@@ -14,8 +14,9 @@
 
 use axum::http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::{ClientSessionId, SessionId, UserId};
-use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as _, DynGatewaySessionMint, ExtractSignals};
+use systemprompt_traits::ExtractSignals;
+
+use crate::http::state::GatewayHttpState;
 
 use super::error::RejectionError;
 
@@ -34,17 +35,13 @@ pub struct SessionBinding {
 }
 
 pub async fn bind_api_key_session(
-    ctx: &AppContext,
+    state: &GatewayHttpState,
     request: SessionRequest<'_>,
 ) -> Result<SessionBinding, RejectionError> {
-    let mint = ctx
-        .kernel()
-        .state()
-        .get::<DynGatewaySessionMint>()
-        .cloned()
-        .map_err(|e| binding_error("gateway session mint unavailable").with_cause(e))?;
-    let analytics = ctx
-        .analytics_provider()
+    let mint = &state.session_mint;
+    let analytics = state
+        .host
+        .analytics
         .extract_analytics(request.headers, ExtractSignals::default());
     let bound = mint
         .bind_for_api_key(request.presented, request.header_session, &analytics)

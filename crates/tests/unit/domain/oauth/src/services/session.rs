@@ -196,7 +196,6 @@ fn test_anonymous_session_info_fields() {
     assert_eq!(info.fingerprint_hash, TEST_FINGERPRINT_HASH);
 }
 
-
 #[test]
 fn test_anonymous_session_info_debug() {
     let info = create_test_anonymous_session_info();
@@ -259,7 +258,6 @@ fn test_session_creation_error_is_std_error() {
     assert!(std_error.to_string().contains("test"));
 }
 
-
 #[test]
 fn test_session_creation_service_new() {
     let analytics: Arc<dyn SessionProvider> = Arc::new(MockAnalyticsProvider);
@@ -295,7 +293,6 @@ fn test_session_creation_service_with_fingerprint_provider() {
     )
     .with_fingerprint_provider(fingerprint);
 }
-
 
 #[test]
 fn test_verify_client_secret_correct() {

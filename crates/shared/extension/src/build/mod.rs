@@ -135,7 +135,6 @@ impl DiscoveredMigration {
     }
 }
 
-
 // Why: the spans are sorted by start, so an overlap can only be with the
 // immediate predecessor's high-water end. A tombstoned span counts as occupied,
 // which is what turns refilling a spent slot into a build failure.

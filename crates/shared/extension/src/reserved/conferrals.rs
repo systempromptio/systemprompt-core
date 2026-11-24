@@ -21,6 +21,7 @@ use super::CoreId;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ConferralRow {
     GatewayEngines,
+    GatewayAtRest,
     GatewaySessionMint,
     GatewayProviderCredentials,
     IdentityTokenAuthority,
@@ -36,6 +37,7 @@ pub struct SealedConferral {
 
 pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::GatewayEngines.entry(),
+    ConferralRow::GatewayAtRest.entry(),
     ConferralRow::GatewaySessionMint.entry(),
     ConferralRow::GatewayProviderCredentials.entry(),
     ConferralRow::IdentityTokenAuthority.entry(),
@@ -46,6 +48,7 @@ impl ConferralRow {
     pub const fn name(self) -> &'static str {
         match self {
             Self::GatewayEngines => "gateway-engines",
+            Self::GatewayAtRest => "gateway-at-rest",
             Self::GatewaySessionMint => "gateway-session-mint",
             Self::GatewayProviderCredentials => "gateway-provider-credentials",
             Self::IdentityTokenAuthority => "identity-token-authority",
@@ -55,7 +58,7 @@ impl ConferralRow {
     #[must_use]
     pub const fn entry(self) -> SealedConferral {
         let (provider, holder) = match self {
-            Self::GatewayEngines => ("gateway", CoreId::GatewayHttp),
+            Self::GatewayEngines | Self::GatewayAtRest => ("gateway", CoreId::GatewayHttp),
             Self::GatewaySessionMint => ("users", CoreId::GatewayHttp),
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
             Self::IdentityTokenAuthority => (CoreId::Kernel.id(), CoreId::IdentityHttp),

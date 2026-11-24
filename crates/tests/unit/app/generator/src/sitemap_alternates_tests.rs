@@ -27,7 +27,6 @@ fn sitemap_url_debug_format() {
     assert!(dbg.contains("weekly"));
 }
 
-
 #[test]
 fn build_sitemap_xml_no_xhtml_link_when_no_alternates() {
     let urls = vec![SitemapUrl {

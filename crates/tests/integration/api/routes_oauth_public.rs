@@ -2,7 +2,6 @@
 //! exercise the routing and error mappings; happy paths require a full
 //! provisioned client + PKCE flow.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::StatusCode;

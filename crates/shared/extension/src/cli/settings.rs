@@ -13,7 +13,6 @@
 
 use std::io::IsTerminal;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
     Table,

@@ -71,7 +71,6 @@ metrics-exporter-prometheus = { workspace = true }
 # systemprompt.io crates
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-wire = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -108,13 +107,10 @@ nix = { workspace = true }
 # Sync/compression
 
 # OTel ingest (OTLP/HTTP Protobuf)
-prost = { workspace = true, optional = true }
-opentelemetry-proto = { workspace = true, optional = true }
 
 [features]
 default = []
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
-otel = ["dep:opentelemetry-proto", "dep:prost", "systemprompt-scheduler/otel"]
 bridge = []
 
 [lints]

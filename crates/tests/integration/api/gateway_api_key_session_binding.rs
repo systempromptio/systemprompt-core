@@ -9,14 +9,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_api::routes::gateway::messages::auth::{
-    AuthInputs, AuthedPrincipal, authenticate,
-};
-use systemprompt_api::routes::gateway::messages::error::RejectionError;
-use systemprompt_api::routes::gateway::messages::rejection::{
+use systemprompt_gateway_entry::http::messages::auth::{AuthInputs, AuthedPrincipal, authenticate};
+use systemprompt_gateway_entry::http::messages::error::RejectionError;
+use systemprompt_gateway_entry::http::messages::rejection::{
     build_rejection_record, persist_rejection,
 };
-use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{AiRequestId, SessionId};
 use systemprompt_runtime::AppContext;
@@ -26,13 +23,47 @@ use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, NewApiK
 use super::common::setup_ctx;
 use super::gateway_messages_more::{gw_repos, test_partial};
 
-pub(super) fn jwt_extractor(ctx: &AppContext) -> JwtContextExtractor {
-    JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator")
+pub(super) fn jwt_extractor(
+    ctx: &AppContext,
+) -> systemprompt_gateway_entry::http::state::GatewayHttpState {
+    gateway_http_state(ctx)
+}
+
+fn gateway_http_state(
+    ctx: &AppContext,
+) -> systemprompt_gateway_entry::http::state::GatewayHttpState {
+    let state = ctx.kernel().state();
+    systemprompt_gateway_entry::http::state::GatewayHttpState {
+        authenticator: state
+            .get::<systemprompt_models::auth::DynRequestAuthenticator>()
+            .cloned()
+            .expect("request authenticator"),
+        api_keys: systemprompt_gateway_entry::http::state::GatewayApiKeys::new(
+            systemprompt_users::ApiKeyService::new(
+                std::sync::Arc::clone(ctx.user_repository()),
+                systemprompt_users::ApiKeyLifetime::from_max_days(
+                    ctx.config().api_key_max_lifetime_days,
+                ),
+            ),
+        ),
+        session_mint: state
+            .get::<systemprompt_traits::DynGatewaySessionMint>()
+            .cloned()
+            .expect("gateway session mint"),
+        repos: std::sync::Arc::new(
+            systemprompt_api::routes::gateway::gateway_repositories(ctx)
+                .expect("gateway repositories"),
+        ),
+        engines: systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
+            .expect("gateway engines"),
+        host: systemprompt_api::routes::gateway::host_handles(ctx),
+        db: std::sync::Arc::clone(ctx.db_pool()),
+    }
 }
 
 pub(super) async fn sign_in(
-    ctx: &AppContext,
-    extractor: &JwtContextExtractor,
+    _ctx: &AppContext,
+    extractor: &systemprompt_gateway_entry::http::state::GatewayHttpState,
     credential: &str,
     header_session: Option<&SessionId>,
     providers: &SubjectProviderSet,
@@ -42,9 +73,8 @@ pub(super) async fn sign_in(
         AuthInputs {
             header_session,
             headers: &HeaderMap::new(),
-            jwt_extractor: extractor,
             providers,
-            ctx,
+            state: extractor,
         },
     )
     .await

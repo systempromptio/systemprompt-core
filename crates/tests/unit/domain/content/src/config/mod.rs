@@ -38,7 +38,6 @@ fn test_load_stats_with_values() {
     assert_eq!(stats.load_time_ms, 1500);
 }
 
-
 #[test]
 fn test_parsed_content_creation() {
     use chrono::{TimeZone, Utc};
@@ -95,7 +94,6 @@ fn test_parsed_content_without_image() {
 
     assert!(content.image.is_none());
 }
-
 
 #[test]
 fn test_url_pattern_matching_exact() {

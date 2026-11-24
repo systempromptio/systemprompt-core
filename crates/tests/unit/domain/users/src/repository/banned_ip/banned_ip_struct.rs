@@ -36,7 +36,6 @@ mod banned_ip_tests {
         assert!(!banned.is_permanent);
     }
 
-
     #[test]
     fn banned_ip_debug() {
         let banned = create_test_banned_ip();

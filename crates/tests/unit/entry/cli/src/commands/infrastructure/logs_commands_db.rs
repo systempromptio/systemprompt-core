@@ -24,7 +24,6 @@ fn parse(args: &[&str]) -> LogsCommands {
         .cmd
 }
 
-
 fn ctx(pool: &DbPool) -> CommandContext {
     crate::boot_ctx::with_database(
         CliConfig::new().with_interactive(false),

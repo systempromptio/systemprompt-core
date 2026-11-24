@@ -64,7 +64,6 @@ impl CliCommandLeaf for PopularArgs {
     const NAME: &'static str = "popular";
     const ABOUT: &'static str = "Get popular content";
 
-
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         execute(self, host)
             .await

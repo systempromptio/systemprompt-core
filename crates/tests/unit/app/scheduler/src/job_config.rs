@@ -98,7 +98,6 @@ mod job_config_tests {
         assert!(!cfg.enabled);
     }
 
-
     #[test]
     fn serializes_to_json() {
         let cfg = JobConfig::new(JobName::new("serde_job"));

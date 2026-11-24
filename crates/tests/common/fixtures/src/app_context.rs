@@ -171,6 +171,9 @@ pub fn fixture_admitted_of(members: Vec<Box<dyn Extension>>) -> Arc<Admitted> {
 pub fn fixture_core_members() -> Vec<Box<dyn Extension>> {
     let mut members = systemprompt_test_migrate::core_members();
     members.push(Box::new(systemprompt_gateway::extension::GatewayExtension));
+    members.push(Box::new(
+        systemprompt_gateway_entry::extension::GatewayHttpExtension,
+    ));
     members
 }
 

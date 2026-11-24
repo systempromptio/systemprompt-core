@@ -45,7 +45,6 @@ fn test_module_health_all_crashed() {
     assert_eq!(health.crashed, 5);
 }
 
-
 #[test]
 fn test_module_health_add_assign() {
     let mut health = ModuleHealth {
@@ -203,7 +202,6 @@ fn test_health_summary_mixed_health() {
     assert_eq!(summary.total_crashed(), 5);
     assert!(!summary.is_all_healthy());
 }
-
 
 #[test]
 fn test_module_health_large_values() {

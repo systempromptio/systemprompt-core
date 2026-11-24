@@ -166,7 +166,6 @@ impl Condition {
     }
 }
 
-
 pub(super) fn compile(v: &YamlValue) -> Result<Vec<Rule>, PolicyConfigurationError> {
     v.get("patterns")
         .and_then(YamlValue::as_sequence)

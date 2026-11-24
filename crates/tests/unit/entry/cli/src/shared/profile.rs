@@ -27,7 +27,6 @@ fn test_profile_resolution_error_multiple_profiles_display() {
     assert!(msg.contains("Multiple profiles found"));
 }
 
-
 #[test]
 fn test_profile_resolution_error_read_profiles_dir_keeps_its_source() {
     let error = ProfileResolutionError::ReadProfilesDir {
@@ -38,7 +37,6 @@ fn test_profile_resolution_error_read_profiles_dir_keeps_its_source() {
     let source = std::error::Error::source(&error).expect("source kept");
     assert!(source.to_string().contains("Test error"));
 }
-
 
 fn expected_display_name(input: &str) -> String {
     match input.to_lowercase().as_str() {

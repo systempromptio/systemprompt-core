@@ -84,7 +84,6 @@ pub use systemprompt_extension::created_table_names;
 
 use std::fmt;
 
-
 use columns::TableDef;
 use location::LineIndex;
 use passes::{classify_pass, column_ref_pass, foreign_key_pass};
@@ -122,7 +121,6 @@ impl fmt::Display for LintError {
         )
     }
 }
-
 
 pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<Vec<LintError>, Vec<LintError>> {
     lint_declarative_schemas(&[(source, sql)])

@@ -10,7 +10,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use systemprompt_identifiers::{AccessTokenId, PluginId, SessionId, UserId};
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, TokenAuthority, UserJwtRequest,

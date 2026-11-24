@@ -108,7 +108,6 @@ fn mcp_http_config_default_hosts_count() {
     assert_eq!(hosts.len(), 5);
 }
 
-
 #[test]
 fn mcp_http_config_debug_nonempty() {
     let config = McpHttpConfig::default();

@@ -7,7 +7,6 @@
 //! the issuer read from the live `Config` so it matches whichever config the
 //! shared `Once` installed first.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response, header};

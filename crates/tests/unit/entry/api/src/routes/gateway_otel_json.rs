@@ -1,6 +1,6 @@
 use opentelemetry_proto::tonic::common::v1::KeyValue;
 use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
-use systemprompt_api::routes::gateway::otel::json::decode_logs;
+use systemprompt_gateway_entry::http::otel::json::decode_logs;
 
 fn value_of<'a>(attrs: &'a [KeyValue], key: &str) -> Option<&'a AV> {
     attrs

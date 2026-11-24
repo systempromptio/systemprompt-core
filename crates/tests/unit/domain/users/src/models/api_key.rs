@@ -88,7 +88,6 @@ mod api_key_struct_tests {
         assert!(s.contains("my-key"));
     }
 
-
     #[test]
     fn serde_round_trip() {
         let key = make_api_key(false, Some(Utc::now() + Duration::days(1)));

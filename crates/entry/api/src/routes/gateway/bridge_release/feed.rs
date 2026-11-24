@@ -25,7 +25,6 @@ use super::github::{asset_digest, resolve_release, sums_url};
 pub use super::upstream::{ResolvedAsset, ResolvedRelease};
 use super::upstream::{http_client, known_platform, server_version};
 
-
 pub const REFRESH_INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, Copy)]

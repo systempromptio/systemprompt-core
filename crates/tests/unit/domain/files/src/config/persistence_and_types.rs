@@ -26,7 +26,6 @@ fn test_file_persistence_mode_disabled() {
     assert_eq!(mode, FilePersistenceMode::Disabled);
 }
 
-
 #[test]
 fn test_file_persistence_mode_serialize_context_scoped() {
     let mode = FilePersistenceMode::ContextScoped;
@@ -56,7 +55,6 @@ fn test_allowed_file_types_default() {
     assert!(types.audio);
     assert!(!types.video);
 }
-
 
 #[test]
 fn test_allowed_file_types_serialize() {

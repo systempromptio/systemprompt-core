@@ -91,7 +91,6 @@ fn test_build_error_io_from_std_io_error() {
     assert!(build_error.to_string().contains("I/O error"));
 }
 
-
 #[test]
 fn test_build_mode_parse_with_whitespace() {
     assert_eq!(BuildMode::parse(" development"), None);

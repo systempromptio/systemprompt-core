@@ -49,7 +49,6 @@ impl ToolUsageRepository {
         Ok(result.rows_affected())
     }
 
-
     pub async fn start_execution(
         &self,
         mcp_execution_id: &McpExecutionId,

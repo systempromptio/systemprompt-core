@@ -12,7 +12,6 @@ use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use uuid::Uuid;
 
-
 fn services() -> systemprompt_manifest::ServicesConfig {
     systemprompt_test_fixtures::ensure_test_bootstrap()
         .boot

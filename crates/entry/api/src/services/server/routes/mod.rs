@@ -119,10 +119,8 @@ fn build_routes(
     if serves(RouteGroup::InternalLinks) {
         router = documents::mount_internal_links(router, &mount)?;
     }
-    if serves(RouteGroup::Gateway)
-        && let Some(engines) = engines
-    {
-        router = gateway::mount_gateway(router, &mount, engines)?;
+    if serves(RouteGroup::Gateway) && engines.is_some() {
+        router = gateway::mount_gateway(router, &mount)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
     crate::services::messaging::bind_dispatcher(ctx)

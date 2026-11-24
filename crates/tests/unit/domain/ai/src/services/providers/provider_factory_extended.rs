@@ -5,7 +5,6 @@ use systemprompt_manifest::services::ResilienceSettings;
 use mock_http::seed_models;
 use systemprompt_wire::WireProtocol;
 
-
 fn create(
     name: &str,
     wire: WireProtocol,

@@ -41,9 +41,8 @@ use systemprompt_gateway::protocol::inbound::InboundAdapter;
 
 pub use attribution::AttributionHeaders;
 use attribution::classify_client;
-pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
-pub use headers::{caller_auth, extract_credential, memory_preference, presented_credential};
+pub use headers::memory_preference;
 pub use partial::RejectionPartial;
 use scope::{ScopeHeaders, attribute_scopes};
 
@@ -131,7 +130,7 @@ pub(super) async fn extract_request_context(
         gateway_request.model.as_str(),
         &primary.provider,
     );
-    enforce_authz_pre_dispatch(&principal, target, &context_id, rc.ctx.authz_hook()).await?;
+    enforce_authz_pre_dispatch(&principal, target, &context_id, &rc.state.host.authz_hook).await?;
 
     Ok(PreparedRequest {
         origin: partial.origin,
@@ -162,9 +161,8 @@ async fn authenticate_request(
         AuthInputs {
             header_session,
             headers,
-            jwt_extractor: rc.jwt_extractor,
             providers: &rc.repos.subject_providers,
-            ctx: rc.ctx,
+            state: rc.state,
         },
     )
     .await?;

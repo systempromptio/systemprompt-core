@@ -22,7 +22,6 @@ fn run_err(args: &[&str]) {
     cmd.assert().failure();
 }
 
-
 fn unique(name: &str) -> String {
     format!("{name}_{}", std::process::id())
 }

@@ -203,7 +203,6 @@ mod total_actions_tests {
 mod debug_tests {
     use super::*;
 
-
     #[test]
     fn debug_shows_started() {
         let mut result = ReconciliationResult::new();

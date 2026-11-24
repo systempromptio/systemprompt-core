@@ -61,7 +61,6 @@ fn test_file_validation_error_display_category_disabled() {
     );
 }
 
-
 #[test]
 fn test_file_upload_error_display_persistence_disabled() {
     let err = FileUploadError::PersistenceDisabled;
@@ -97,7 +96,6 @@ fn test_file_upload_error_display_path_validation() {
         "Path validation failed: invalid characters"
     );
 }
-
 
 #[test]
 fn test_file_upload_request_builder_build() {
@@ -197,7 +195,6 @@ fn test_file_upload_request_builder_static_method() {
     assert_eq!(request.bytes_base64, "jpegdata==");
 }
 
-
 #[test]
 fn test_file_upload_request_debug() {
     let context_id = ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId");
@@ -223,7 +220,6 @@ fn test_uploaded_file_struct() {
     assert_eq!(uploaded.public_url, "/files/uploads/test.png");
     assert_eq!(uploaded.size_bytes, 4096);
 }
-
 
 #[test]
 fn test_uploaded_file_debug() {

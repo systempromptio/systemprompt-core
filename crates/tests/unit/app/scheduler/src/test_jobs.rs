@@ -290,7 +290,6 @@ impl Job for StampPanicJob {
     }
 }
 
-
 pub(crate) fn contribute(c: &mut Contributions<'_>) {
     c.job(NodeJob)
         .job(StampFailJob)

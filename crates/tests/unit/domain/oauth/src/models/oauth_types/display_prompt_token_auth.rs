@@ -61,7 +61,6 @@ fn test_display_mode_display() {
     assert_eq!(format!("{}", DisplayMode::Wap), "wap");
 }
 
-
 #[test]
 fn test_prompt_none_as_str() {
     assert_eq!(Prompt::None.as_str(), "none");
@@ -119,7 +118,6 @@ fn test_prompt_display() {
     assert_eq!(format!("{}", Prompt::Consent), "consent");
     assert_eq!(format!("{}", Prompt::SelectAccount), "select_account");
 }
-
 
 #[test]
 fn test_token_auth_method_client_secret_post_as_str() {

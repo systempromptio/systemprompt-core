@@ -8,7 +8,6 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-
 use super::super::profile_io::profile_path;
 use super::super::types::{CorsListOutput, CorsModifyOutput};
 use super::{load_profile, save_profile};

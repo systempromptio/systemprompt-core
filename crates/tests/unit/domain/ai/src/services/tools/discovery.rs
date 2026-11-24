@@ -107,7 +107,6 @@ mod tool_discovery_tests {
         )
     }
 
-
     #[tokio::test]
     async fn discover_tools_returns_empty_for_no_tools() {
         let provider = Arc::new(MockToolProvider::new(vec![]));

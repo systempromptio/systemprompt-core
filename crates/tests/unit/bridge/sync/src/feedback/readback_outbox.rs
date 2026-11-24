@@ -202,7 +202,6 @@ fn conflict_and_authentication_rejection_remain_explicit_after_restart() {
     ));
 }
 
-
 #[test]
 fn every_host_upgrade_and_rollback_reverify_active_bytes_and_retain_offline_generation_evidence() {
     for host in [

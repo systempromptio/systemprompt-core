@@ -6,7 +6,6 @@
 //! installed a config whose audiences differ), but every request must resolve
 //! to a structured wire response, never a 500.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, Response, header};

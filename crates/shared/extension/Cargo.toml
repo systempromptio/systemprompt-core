@@ -18,7 +18,7 @@ workspace = true
 
 [features]
 sqlx = ["dep:sqlx"]
-router = ["dep:axum", "dep:futures", "dep:tower"]
+router = ["dep:axum", "dep:futures", "dep:tower", "dep:http-body-util"]
 cli = ["dep:clap"]
 slack = []
 teams = []
@@ -37,6 +37,7 @@ axum = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
+http-body-util = { version = "0.1", optional = true }
 rmcp = { workspace = true, optional = true }
 http = { workspace = true }
 pg_query = { workspace = true }

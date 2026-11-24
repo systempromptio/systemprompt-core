@@ -77,6 +77,7 @@ pub mod context_provider;
 pub mod core_seam;
 pub use core_seam::CoreSeam;
 pub mod coordination;
+pub mod drive_tokens;
 pub mod events;
 pub mod extension_error;
 pub mod gateway_session;
@@ -212,6 +213,9 @@ pub mod session_store;
 pub mod sso;
 pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
+pub use drive_tokens::{
+    DriveTokenError, DriveTokenSubject, DriveTokens, DynDriveTokens, IssuedDriveToken,
+};
 pub use gateway_session::{
     DynGatewaySessionMint, GatewaySessionMint, GatewaySessionMintError, MintedGatewaySession,
 };

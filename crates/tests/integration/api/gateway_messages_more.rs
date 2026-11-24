@@ -8,29 +8,29 @@
 //! router because the fixture profile leaves the gateway unmounted.
 
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::messages::error::RejectionError;
+use systemprompt_gateway_entry::http::messages::error::RejectionError;
 
 use anyhow::Result;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use systemprompt_ai::models::RequestStatus;
-use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
-use systemprompt_api::routes::gateway::messages::extract::authz::{
-    DispatchTarget, enforce_authz_pre_dispatch,
-};
-use systemprompt_api::routes::gateway::messages::extract::headers::{
-    optional_gateway_conversation_id, optional_session_id, read_gateway_body,
-};
-use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
-use systemprompt_api::routes::gateway::messages::rejection::{
-    build_rejection_record, persist_rejection,
-};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
     CanonicalTooling, InboundAdapter, Role,
+};
+use systemprompt_gateway_entry::http::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
+use systemprompt_gateway_entry::http::messages::extract::authz::{
+    DispatchTarget, enforce_authz_pre_dispatch,
+};
+use systemprompt_gateway_entry::http::messages::extract::headers::{
+    optional_gateway_conversation_id, optional_session_id, read_gateway_body,
+};
+use systemprompt_gateway_entry::http::messages::extract::{RejectionPartial, derive_conversation};
+use systemprompt_gateway_entry::http::messages::rejection::{
+    build_rejection_record, persist_rejection,
 };
 use systemprompt_governance::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
@@ -67,7 +67,6 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     .expect("gateway journal opens")
 }
 
-
 pub(super) fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_gateway::GatewayRepositories {
@@ -79,7 +78,7 @@ pub(super) fn gw_repos(
         )),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new().view(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
@@ -361,12 +360,8 @@ async fn enforce_authz_denies_under_deny_all_hook() {
 
 fn jwt_extractor(
     ctx: &systemprompt_runtime::AppContext,
-) -> Result<systemprompt_api::services::middleware::JwtContextExtractor> {
-    Ok(
-        systemprompt_api::services::middleware::JwtContextExtractor::from_kernel(
-            ctx.kernel().state(),
-        )?,
-    )
+) -> Result<systemprompt_gateway_entry::http::state::GatewayHttpState> {
+    Ok(super::gateway_api_key_session_binding::jwt_extractor(ctx))
 }
 
 #[tokio::test]

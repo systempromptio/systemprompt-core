@@ -91,7 +91,6 @@ pub fn execute(args: &ListArgs, host: &dyn KernelHost) -> Result<CommandOutput, 
     .with_title("Extensions"))
 }
 
-
 fn collect_manifest(args: &ListArgs) -> Result<Vec<ExtensionSummary>, CommandError> {
     let project_root = std::env::current_dir().map_err(CommandError::new)?;
 

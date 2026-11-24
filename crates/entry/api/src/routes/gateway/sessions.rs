@@ -21,8 +21,8 @@ use systemprompt_traits::{AppContext as _, DynGatewaySessionMint, ExtractSignals
 use systemprompt_users::API_KEY_PREFIX;
 
 use crate::kernel::ApiHttpError;
-use crate::routes::gateway::messages::extract_credential;
 use crate::services::middleware::client_addr::client_ip_from_request;
+use systemprompt_gateway::surface::credential::extract_credential;
 
 #[derive(Debug, Serialize)]
 pub struct MintedSession {

@@ -22,26 +22,20 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::Response;
-use std::sync::Arc;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_runtime::AppContext;
 
 use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::error::RejectionError;
 use super::messages::extract::headers::body_read_error;
-use super::messages::{GatewayHandles, extract_credential};
-use crate::kernel::{JwtContextExtractor, read_body_bounded};
+use crate::http::state::GatewayHttpState;
+use systemprompt_extension::router::read_body_bounded;
+use systemprompt_gateway::surface::credential::extract_credential;
 
 const CHARS_PER_TOKEN: usize = 4;
 
-pub async fn handle(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
-    handles: GatewayHandles,
-    request: Request<Body>,
-) -> Response<Body> {
-    match count(&jwt_extractor, &ctx, &handles, request).await {
+pub async fn handle(state: GatewayHttpState, request: Request<Body>) -> Response<Body> {
+    match count(&state, request).await {
         Ok(input_tokens) => json_response(
             StatusCode::OK,
             serde_json::json!({ "input_tokens": input_tokens }).to_string(),
@@ -60,14 +54,11 @@ pub async fn handle(
     }
 }
 
-async fn count(
-    jwt_extractor: &JwtContextExtractor,
-    ctx: &AppContext,
-    handles: &GatewayHandles,
-    request: Request<Body>,
-) -> Result<usize, RejectionError> {
-    let enabled = ctx
-        .services_config()
+async fn count(state: &GatewayHttpState, request: Request<Body>) -> Result<usize, RejectionError> {
+    let enabled = state
+        .host
+        .services
+        .config()
         .gateway_config()
         .is_some_and(|g| g.enabled);
     if !enabled {
@@ -87,9 +78,8 @@ async fn count(
         AuthInputs {
             header_session: None,
             headers: request.headers(),
-            jwt_extractor,
-            providers: &handles.repos.subject_providers,
-            ctx,
+            providers: &state.repos.subject_providers,
+            state,
         },
     )
     .await?;

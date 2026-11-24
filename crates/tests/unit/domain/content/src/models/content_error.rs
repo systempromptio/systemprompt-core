@@ -93,7 +93,6 @@ fn test_content_error_display_missing_branding_config() {
     assert!(format!("{}", error).contains("Missing branding config"));
 }
 
-
 #[test]
 fn test_content_error_empty_field_name() {
     let error = ContentValidationError::missing_field("");

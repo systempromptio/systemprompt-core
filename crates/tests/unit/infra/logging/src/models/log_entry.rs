@@ -201,7 +201,6 @@ fn test_log_entry_display_all_levels() {
     );
 }
 
-
 #[test]
 fn test_log_entry_serialize() {
     let entry = make_entry(LogLevel::Info, "module", "message");

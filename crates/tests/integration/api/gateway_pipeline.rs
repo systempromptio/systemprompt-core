@@ -53,7 +53,6 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     .expect("gateway journal opens")
 }
 
-
 pub(super) fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_gateway::GatewayRepositories {
@@ -65,7 +64,7 @@ pub(super) fn gw_repos(
         )),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new().view(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
@@ -1573,7 +1572,7 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
     .await
     .unwrap_err();
     let response =
-        systemprompt_api::routes::gateway::messages::dispatch::errors::map_dispatch_error(error)
+        systemprompt_gateway_entry::http::messages::dispatch::errors::map_dispatch_error(error)
             .unwrap();
     assert_eq!(response.status(), status);
     if status == http::StatusCode::TOO_MANY_REQUESTS {
@@ -1626,7 +1625,7 @@ fn owned_gateway_repos(
         )),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new().view(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(pool),

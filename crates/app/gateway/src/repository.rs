@@ -21,7 +21,7 @@ use systemprompt_manifest::profile::{
     AuditConfig, BrainRecallProfile, QuotaConfig, UnappliedPlaneMode,
 };
 use systemprompt_security::at_rest::AtRestCipher;
-use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
+use systemprompt_traits::{BackgroundTasks, CacheEpochView, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
 use crate::audit::tool_validity::ToolValidityCache;
@@ -32,7 +32,7 @@ use crate::signature_cache::{TTL, ThoughtSignatureCache};
 #[derive(Debug, Clone)]
 pub struct GatewayHandles {
     pub background: BackgroundTasks,
-    pub cache_epochs: CacheEpochs,
+    pub cache_epochs: CacheEpochView,
     pub logging: LoggingRuntime,
     pub services: ServicesView,
     pub subject_providers: SubjectProviderSet,
@@ -53,7 +53,7 @@ pub struct GatewayRepositories {
     pub thought_signatures: Arc<ThoughtSignatureCache>,
     pub context_materializer: DynContextMaterializer,
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
-    pub sessions: Option<systemprompt_traits::DynSessionStore>,
+    pub sessions: Option<systemprompt_traits::DynSessionUsageCounters>,
     pub payload_cap_bytes: usize,
     pub quota_sharding: QuotaConfig,
     pub background: BackgroundTasks,
@@ -150,7 +150,10 @@ impl GatewayRepositories {
     }
 
     #[must_use]
-    pub fn with_session_store(mut self, sessions: systemprompt_traits::DynSessionStore) -> Self {
+    pub fn with_session_usage(
+        mut self,
+        sessions: systemprompt_traits::DynSessionUsageCounters,
+    ) -> Self {
         self.sessions = Some(sessions);
         self
     }

@@ -10,7 +10,6 @@
 //! compared with the hash stored on the client, so a well-formed but foreign
 //! token is refused exactly like a missing one.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};

@@ -27,31 +27,31 @@ use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use prost::Message;
-use std::sync::Arc;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_logging::LoggingRuntime;
-use systemprompt_runtime::AppContext;
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
-use super::bridge_error::BridgeError;
 use super::messages::auth::{AuthInputs, authenticate};
-use super::messages::extract::headers::{extract_credential, optional_session_id};
-use crate::kernel::{ApiHttpError, JwtContextExtractor, read_body_bounded};
+use super::messages::extract::headers::optional_session_id;
+use crate::http::state::GatewayHttpState;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
+use systemprompt_extension::router::{ApiHttpError, read_body_bounded};
+use systemprompt_gateway::surface::credential::extract_credential;
+use systemprompt_models::api::ApiError;
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 
-pub async fn handle(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
-    request: Request<Body>,
-) -> Response<Body> {
+pub async fn handle(state: GatewayHttpState, request: Request<Body>) -> Response<Body> {
     let Some(credential) = extract_credential(request.headers()) else {
-        return ApiHttpError::from(BridgeError::MissingCredential).into_response();
+        return ApiHttpError::from(
+            ApiError::unauthorized("Missing Authorization or x-api-key credential")
+                .with_error_key("missing_credential"),
+        )
+        .into_response();
     };
     let header_session = match optional_session_id(request.headers()) {
         Ok(session) => session,
@@ -63,9 +63,8 @@ pub async fn handle(
         AuthInputs {
             header_session: header_session.as_ref(),
             headers: request.headers(),
-            jwt_extractor: &jwt_extractor,
             providers: &no_subject_dimensions,
-            ctx: &ctx,
+            state: &state,
         },
     )
     .await
@@ -74,7 +73,7 @@ pub async fn handle(
         Err(rejection) => return rejection.into_response(),
     };
     let identity = (principal.user_id().clone(), principal.session_id().clone());
-    ingest_with_identity(ctx.logging(), request, Some(identity)).await
+    ingest_with_identity(&state.host.logging, request, Some(identity)).await
 }
 
 pub async fn ingest_envelope(logging: &LoggingRuntime, request: Request<Body>) -> Response<Body> {
@@ -189,7 +188,6 @@ fn accepted() -> Response<Body> {
         .body(Body::empty())
         .unwrap_or_else(|_| Response::new(Body::empty()))
 }
-
 
 fn bind_identity(
     resource: &mut Option<opentelemetry_proto::tonic::resource::v1::Resource>,

@@ -37,6 +37,7 @@ systemprompt-storage = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-gateway = { workspace = true }
+systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }

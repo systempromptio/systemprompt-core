@@ -6585,8 +6585,6 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "nix",
- "opentelemetry-proto",
- "prost 0.14.5",
  "rand 0.10.3",
  "reqwest",
  "semver",
@@ -6983,6 +6981,7 @@ dependencies = [
  "clap",
  "futures",
  "http",
+ "http-body-util",
  "pg_query",
  "rmcp",
  "schemars 1.2.3",
@@ -7123,7 +7122,29 @@ dependencies = [
 name = "systemprompt-gateway-entry"
 version = "0.86.0"
 dependencies = [
+ "axum",
+ "bytes",
+ "http",
+ "metrics",
+ "opentelemetry-proto",
+ "prost 0.14.5",
+ "serde",
+ "serde_json",
+ "systemprompt-agent",
+ "systemprompt-ai",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-gateway",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-mcp",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "systemprompt-wire",
+ "tracing",
 ]
 
 [[package]]

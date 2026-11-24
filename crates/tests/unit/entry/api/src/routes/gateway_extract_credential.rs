@@ -3,7 +3,7 @@
 //! and trims whitespace.
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_api::routes::gateway::messages::{
+use systemprompt_gateway::surface::credential::{
     caller_auth, extract_credential, presented_credential,
 };
 

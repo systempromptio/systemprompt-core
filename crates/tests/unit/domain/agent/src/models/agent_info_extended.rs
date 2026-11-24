@@ -123,7 +123,6 @@ fn agent_info_serde_roundtrip() {
     assert!(de.enabled);
 }
 
-
 #[test]
 fn agent_info_with_skills_and_mcp_combined() {
     let id = AgentId::new("combined");

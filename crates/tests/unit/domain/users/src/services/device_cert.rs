@@ -33,7 +33,6 @@ mod enroll_params_struct_tests {
         assert_eq!(params.user_id.to_string(), "user-test");
     }
 
-
     #[test]
     fn valid_fingerprint_is_exactly_64_hex_chars() {
         let fp = valid_fp();

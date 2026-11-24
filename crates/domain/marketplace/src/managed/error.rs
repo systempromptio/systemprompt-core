@@ -73,7 +73,6 @@ pub(crate) fn invalid_input(context: &'static str, source: impl Into<BoxedSource
     }
 }
 
-
 // Why: `Integrity` carries no payload by contract, so the cause is retained in
 // the log at the one place it is still known.
 pub(crate) fn integrity(error: impl std::fmt::Display) -> ManagedError {

@@ -113,7 +113,6 @@ mod issue_api_key_params_tests {
         assert!(!trimmed.is_empty());
     }
 
-
     #[test]
     fn name_with_only_whitespace_trims_to_empty() {
         let names = ["", " ", "\t", "   \n  "];

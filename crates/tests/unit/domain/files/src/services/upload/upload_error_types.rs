@@ -8,7 +8,6 @@ fn io_error_variant_display() {
     assert!(s.contains("IO error") || s.contains("disk full"));
 }
 
-
 #[test]
 fn all_string_variants_display_correctly() {
     let cases: &[(&str, FileUploadError)] = &[

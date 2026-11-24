@@ -1,9 +1,9 @@
 //! Whether a resolved chain can reach a Gemini upstream, which decides if
 //! thought signatures are looked up for an inbound request.
 
-use systemprompt_api::routes::gateway::messages::extract::signatures::route_needs_thought_signatures;
 use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_gateway::RouteResolution;
+use systemprompt_gateway_entry::http::messages::extract::signatures::route_needs_thought_signatures;
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::{EndpointConfig, ModelRequest, ProviderConfig};
 use systemprompt_manifest::services::{GatewayRoute, ModelGlobs};

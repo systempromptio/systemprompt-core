@@ -5,7 +5,6 @@
 //! personal data, are bounded the same way, except that an idle fingerprint
 //! flagged for abuse is kept with its IP address and user agent cleared.
 
-
 use systemprompt_scheduler::JobRunReport;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 

@@ -93,7 +93,6 @@ mod error_variants_tests {
 mod error_traits_tests {
     use super::*;
 
-
     #[test]
     fn implements_std_error() {
         let err: Box<dyn std::error::Error> = Box::new(TemplateLoaderError::NoBasePaths);

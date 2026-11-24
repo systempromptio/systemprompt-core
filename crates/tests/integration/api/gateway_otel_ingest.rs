@@ -9,7 +9,7 @@
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;
-use systemprompt_api::routes::gateway::otel::ingest_envelope;
+use systemprompt_gateway_entry::http::otel::ingest_envelope;
 
 fn post(body: Body) -> Request<Body> {
     Request::builder()

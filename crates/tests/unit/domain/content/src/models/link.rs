@@ -134,7 +134,6 @@ fn test_utm_params_to_json() {
     assert!(json.contains("\"campaign\":\"weekly\""));
 }
 
-
 #[test]
 fn test_link_performance_serialization() {
     use systemprompt_content::models::LinkPerformance;

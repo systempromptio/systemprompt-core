@@ -83,7 +83,6 @@ impl CliCommandGroup for AnalyticsCommands {
     const ABOUT: &'static str = "Analytics and metrics reporting";
     const DISPLAY_ORDER: usize = 50;
 
-
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
         execute(self, host).await.map_err(CommandError::new)
     }

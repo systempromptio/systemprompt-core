@@ -11,7 +11,6 @@ fn failure(message: &str) -> ProfileFailure {
     ProfileFailure::Host(HostAppError::Io(std::io::Error::other(message.to_owned())))
 }
 
-
 fn report(display_name: &'static str, outcome: Outcome) -> Report {
     Report {
         host_id: HostKind::OpenCode,

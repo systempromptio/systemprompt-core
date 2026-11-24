@@ -52,7 +52,6 @@ fn content_filter_partial_eq() {
     assert_ne!(a, c);
 }
 
-
 #[test]
 fn content_filter_serde_roundtrip() {
     let f = ContentFilter {
@@ -82,7 +81,6 @@ fn content_summary_fields_accessible() {
     assert_eq!(s.title, "My Post");
     assert_eq!(s.kind, "guide");
 }
-
 
 #[test]
 fn content_summary_serde_roundtrip() {

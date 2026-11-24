@@ -128,7 +128,6 @@ fn test_tag_creation() {
     assert_eq!(tag.slug, "rust");
 }
 
-
 #[test]
 fn test_tag_serialization() {
     use systemprompt_content::models::Tag;

@@ -12,7 +12,6 @@ use systemprompt_models::{ContextEvent, RequestContext};
 
 use crate::http::{AgentHttpError, AgentHttpState, parse_context_id};
 
-
 pub async fn forward_event(
     Extension(request_context): Extension<RequestContext>,
     State(state): State<AgentHttpState>,

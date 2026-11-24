@@ -25,6 +25,5 @@ mod services;
 #[cfg(test)]
 mod repository;
 
-
 #[cfg(test)]
 mod resource_metrics;

@@ -22,7 +22,7 @@ use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_mcp::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
-use systemprompt_traits::{BoxedSource, CacheEpochs};
+use systemprompt_traits::{BoxedSource, CacheEpochView};
 use systemprompt_wire::inspect::ForwardedSurface;
 
 use super::protocol::CanonicalUsage;
@@ -43,7 +43,7 @@ impl GatewayArtifactScanner {
     #[must_use]
     pub fn over_policy_table(
         db: &DbPool,
-        epochs: CacheEpochs,
+        epochs: CacheEpochView,
         unapplied: UnappliedPlaneMode,
         scanners: Arc<SafetyScannerRegistry>,
     ) -> Self {

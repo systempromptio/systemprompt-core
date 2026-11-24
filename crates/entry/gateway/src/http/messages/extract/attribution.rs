@@ -15,7 +15,7 @@ use systemprompt_models::origin::{
 };
 
 use super::RejectionPartial;
-use crate::routes::gateway::messages::error::RejectionError;
+use crate::http::messages::error::RejectionError;
 
 /// Copies of the attribution headers, taken before `read_gateway_body`
 /// consumes the request.

@@ -13,7 +13,7 @@ use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
 use opentelemetry_proto::tonic::metrics::v1::{Metric, ResourceMetrics, ScopeMetrics};
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, Status};
-use systemprompt_api::routes::gateway::otel::ingest::{ingest_logs, ingest_metrics, ingest_traces};
+use systemprompt_gateway_entry::http::otel::ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 fn string_kv(key: &str, value: &str) -> KeyValue {
     KeyValue {

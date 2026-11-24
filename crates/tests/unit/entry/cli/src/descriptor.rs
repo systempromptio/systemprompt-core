@@ -103,7 +103,6 @@ fn test_descriptor_default_all_false() {
     assert!(!desc.skip_validation());
 }
 
-
 #[test]
 fn test_descriptor_with_remote_eligible() {
     let desc = CommandDescriptor::PROFILE_ONLY.with_remote_eligible();

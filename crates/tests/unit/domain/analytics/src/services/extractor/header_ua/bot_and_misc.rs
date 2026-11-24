@@ -147,7 +147,6 @@ fn referrer_source_skips_ip_addresses() {
     assert!(analytics.referrer_source.is_none());
 }
 
-
 #[test]
 fn from_headers_with_geoip_without_reader() {
     let headers = create_full_headers();

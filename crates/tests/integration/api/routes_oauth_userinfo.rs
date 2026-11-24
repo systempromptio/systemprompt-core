@@ -9,7 +9,6 @@
 //! rejects an unparseable `client_id` and an unregistered third-party client,
 //! and issues a session for the first-party default.
 
-
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};

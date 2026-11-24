@@ -84,7 +84,6 @@ fn test_session_key_display_tenant() {
     assert_eq!(display, "tenant:prod-tenant");
 }
 
-
 #[test]
 fn test_session_key_hash() {
     use std::collections::HashSet;

@@ -125,7 +125,6 @@ async fn session_pat_unknown_code_returns_unauthorized() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 #[tokio::test]
 async fn oauth_client_missing_bearer_returns_401() -> anyhow::Result<()> {
     let app = router().await?;

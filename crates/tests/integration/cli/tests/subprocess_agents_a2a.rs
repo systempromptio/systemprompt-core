@@ -125,7 +125,6 @@ fn registry_error_paths() {
     unreachable.assert().failure();
 }
 
-
 #[test]
 fn message_to_a_missing_agent_or_without_text_fails() {
     full_fixture();
@@ -140,7 +139,6 @@ fn message_to_a_missing_agent_or_without_text_fails() {
     no_text.assert().failure();
 }
 
-
 #[test]
 fn task_without_a_task_id_fails() {
     full_fixture();
@@ -148,7 +146,6 @@ fn task_without_a_task_id_fails() {
     let mut missing_task = home_cmd(home.path(), &["admin", "agents", "task", FIXTURE_AGENT]);
     missing_task.assert().failure();
 }
-
 
 #[test]
 fn edit_apply_covers_field_groups() {

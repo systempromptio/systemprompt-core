@@ -94,7 +94,6 @@ fn publication() -> systemprompt_models::bridge::manifest::ManagedPublicationRef
     }
 }
 
-
 mod budget;
 mod opencode_session;
 mod pending;

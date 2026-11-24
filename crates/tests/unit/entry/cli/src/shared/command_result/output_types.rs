@@ -97,7 +97,6 @@ fn test_key_value_output_serialize() {
     assert!(json.contains("\"value\":\"v1\""));
 }
 
-
 #[test]
 fn test_table_output_new() {
     let rows = vec!["row1".to_string(), "row2".to_string()];

@@ -12,7 +12,6 @@ use systemprompt_ai::services::providers::{ServedModel, catalog_pricing};
 use crate::services::providers::mock_http::seed_models;
 use systemprompt_test_fixtures::usage;
 
-
 fn microdollars(models: &[ServedModel], model: &str, input: u32, output: u32) -> i64 {
     catalog_pricing(models, model)
         .expect("model is priced")

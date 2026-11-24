@@ -54,7 +54,6 @@ impl DeploymentService {
             .collect()
     }
 
-
     pub fn is_server_enabled(&self, name: &str) -> McpDomainResult<bool> {
         let config = self.load_config();
         config

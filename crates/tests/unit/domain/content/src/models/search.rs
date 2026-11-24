@@ -159,7 +159,6 @@ fn test_search_result_serialization() {
     assert!(json.contains("\"view_count\":50"));
 }
 
-
 #[test]
 fn test_search_response_empty() {
     let response = SearchResponse {

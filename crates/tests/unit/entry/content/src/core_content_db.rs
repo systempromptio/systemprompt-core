@@ -15,7 +15,6 @@ use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
-
 fn card_title(out: &systemprompt_extension::cli::CommandOutput) -> String {
     serde_json::to_value(out.artifact())
         .ok()

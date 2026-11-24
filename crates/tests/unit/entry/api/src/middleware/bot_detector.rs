@@ -96,7 +96,6 @@ fn test_bot_marker_empty_user_agent() {
     assert!(marker.user_agent.is_empty());
 }
 
-
 #[test]
 fn test_bot_marker_clone_independence() {
     let original = BotMarker {

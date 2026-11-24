@@ -127,7 +127,7 @@ async fn count_tokens_estimates_for_an_authenticated_caller_only() -> anyhow::Re
     .await?;
     assert_eq!(status, StatusCode::OK, "{reply}");
     let value: serde_json::Value = serde_json::from_str(&reply)?;
-    let expected = systemprompt_api::routes::gateway::count_tokens::estimate_input_tokens(
+    let expected = systemprompt_gateway_entry::http::count_tokens::estimate_input_tokens(
         serde_json::json!({
             "system": "abcd",
             "messages": [{"role": "user", "content": [{"type": "text", "text": "abcdefgh"}]}],

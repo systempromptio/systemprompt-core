@@ -3,7 +3,6 @@
 
 use systemprompt_runtime::StartupValidator;
 
-
 #[test]
 fn test_expected_web_domain() {
     let domain = "web";
@@ -220,7 +219,6 @@ fn test_phase_error_pattern() {
     assert!(output.contains("[web]"));
     assert!(output.contains("3 error(s)"));
 }
-
 
 #[test]
 fn test_files_config_validator_domain_id() {

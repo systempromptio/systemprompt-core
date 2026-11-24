@@ -15,7 +15,6 @@ fn test_mcp_protocol_info_creation() {
     assert_eq!(info.protocol_version, "2024-11-05");
 }
 
-
 #[test]
 fn test_mcp_protocol_info_debug() {
     let info = McpProtocolInfo {

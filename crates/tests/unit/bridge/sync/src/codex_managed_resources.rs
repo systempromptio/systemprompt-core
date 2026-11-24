@@ -118,7 +118,6 @@ fn ctx<'a>(
     }
 }
 
-
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -522,7 +521,6 @@ fn empty_manifest_registers_nothing() {
         }
     });
 }
-
 
 #[test]
 fn a_skill_that_already_carries_front_matter_is_passed_through_verbatim() {
