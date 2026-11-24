@@ -683,7 +683,7 @@ mod reconciler_action_arms {
         let t = seeded().await;
         let name = unique_service_name("rec-orphan-proc");
         let (_holder, pid, port) = spawn_port_holder(Some(&name));
-        insert_service(&t.repo, &name, ServiceStatus::Stopped, None, port).await;
+        insert_service(&t.repo, &name, ServiceStatus::Stopped, Some(pid), port).await;
 
         let result = t
             .reconciler
