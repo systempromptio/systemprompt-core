@@ -14,8 +14,7 @@ use systemprompt_agent_entry::messaging::{
     A2aMessagingDispatcher, DispatcherInputs, MessagingError,
 };
 use systemprompt_api::services::agent_dispatch::{DispatcherBindError, bind_dispatchers};
-use systemprompt_governance::authz::AuthzHookCell;
-use systemprompt_governance::authz::DenyAllHook;
+use systemprompt_governance::authz::{AuthzHookCell, DenyAllHook};
 use systemprompt_identifiers::{AgentName, SlackChannelId, SlackUserId, SlackWorkspaceId};
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_runtime::AppContext;
