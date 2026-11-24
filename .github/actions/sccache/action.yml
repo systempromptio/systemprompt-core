@@ -1,0 +1,24 @@
+name: sccache
+description: >-
+  Installs sccache and starts its server against the GitHub Actions cache. When
+  the server cannot start, RUSTC_WRAPPER is cleared for the rest of the job so
+  it builds uncached instead of failing.
+runs:
+  using: composite
+  steps:
+    - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+    - name: Start sccache server
+      shell: bash
+      env:
+        SCCACHE_STARTUP_TIMEOUT: "60"
+      run: |
+        for attempt in 1 2 3; do
+          if sccache --start-server; then
+            sccache --show-stats >/dev/null && exit 0
+          fi
+          sccache --stop-server >/dev/null 2>&1 || true
+          sleep $((attempt * 5))
+        done
+        echo "::warning title=sccache unavailable::sccache server did not start after 3 attempts; this job builds without the compilation cache."
+        echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
+        echo "SCCACHE_GHA_ENABLED=false" >> "$GITHUB_ENV"

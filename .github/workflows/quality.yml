@@ -175,7 +175,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       # The plan's root-workspace scope: `--workspace` in a full plan, the
       # selection's `-p` list in an affected one.
@@ -185,7 +185,8 @@ jobs:
         run: cargo clippy $SCOPE --all-targets --all-features --keep-going --locked -- -D warnings
       - if: ${{ !cancelled() && needs.affected.outputs.bridge == 'true' }}
         run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
-      - run: sccache --show-stats
+      - if: env.RUSTC_WRAPPER == 'sccache'
+        run: sccache --show-stats
 
   lint-tests:
     name: Test workspace all-targets clippy + rustdoc
@@ -220,7 +221,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - name: Migrate disposable database
         env:
           SQLX_OFFLINE: "true"
@@ -237,7 +238,8 @@ jobs:
           RUSTDOCFLAGS: "-D warnings"
           SCOPE: ${{ needs.affected.outputs.tests_args }}
         run: cargo doc --manifest-path crates/tests/Cargo.toml $SCOPE --no-deps --locked
-      - run: sccache --show-stats
+      - if: env.RUSTC_WRAPPER == 'sccache'
+        run: sccache --show-stats
         if: ${{ !cancelled() }}
 
   bridge-native:
@@ -306,14 +308,15 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - if: needs.affected.outputs.clippy_args != ''
         env:
           SCOPE: ${{ needs.affected.outputs.clippy_args }}
         run: cargo doc $SCOPE --no-deps --all-features --locked
       - if: ${{ !cancelled() && needs.affected.outputs.bridge == 'true' }}
         run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps --locked
-      - run: sccache --show-stats
+      - if: env.RUSTC_WRAPPER == 'sccache'
+        run: sccache --show-stats
 
   # The source gates of scripts/check-gates.txt, run by scripts/gate.sh as four
   # parallel jobs; scripts/gate-scopes.txt assigns each gate its job. In a full
@@ -360,7 +363,7 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - if: matrix.group == 'release'
         uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
@@ -422,7 +425,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@d86e0fa8f147d6539442c26a61ebba8becc19489 # 1.96.0
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - name: Assert the toolchain under test really is the MSRV
         run: |
           want="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
@@ -478,7 +481,7 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
@@ -517,7 +520,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - if: needs.affected.outputs.shadow_clippy_args != ''
         env:
           SCOPE: ${{ needs.affected.outputs.shadow_clippy_args }}
