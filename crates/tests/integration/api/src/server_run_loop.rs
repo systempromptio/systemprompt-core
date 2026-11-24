@@ -139,7 +139,7 @@ async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Resu
                 api_url,
                 services,
                 ..
-            } if api_url == &format!("http://{}", format!("{}:{}", ctx.config().host, ctx.config().port)) && services.is_empty()
+            } if api_url == &format!("http://{}:{}", ctx.config().host, ctx.config().port) && services.is_empty()
         )
     });
     assert!(

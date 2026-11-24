@@ -41,8 +41,7 @@ use uuid::Uuid;
 
 pub async fn setup_test_db() -> DbPool {
     ensure_test_secrets_bootstrap();
-    let db = test_db_pool().await;
-    db
+    test_db_pool().await
 }
 
 pub async fn create_test_user(db: &DbPool) -> UserId {
