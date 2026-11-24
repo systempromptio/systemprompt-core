@@ -4,9 +4,9 @@
 //! fans the resulting events out to subscribed context streams. The API mounts
 //! the router [`router`] builds at `/api/v1/webhook` behind the authenticated
 //! gate with a user request context under the `webhook` rate scope. Handlers
-//! read [`AgentHttpState`](super::AgentHttpState): the conversation
+//! read [`super::AgentHttpState`]: the conversation
 //! repositories and the member's
-//! [`ContextEventPublisher`](super::ContextEventPublisher).
+//! [`super::ContextEventPublisher`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

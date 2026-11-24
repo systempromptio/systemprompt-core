@@ -1,6 +1,6 @@
 //! The A2A backend leg of the messaging pipeline.
 //!
-//! Mints a per-user bearer ([`A2aTokenIssuer`]), builds the blocking
+//! Mints a per-user bearer (`A2aTokenIssuer`), builds the blocking
 //! `SendMessage` request the proxy forwards to the agent service, sends it
 //! through the kernel's sealed agent dispatch (the API's agent proxy), and
 //! extracts the agent's reply text.

@@ -12,7 +12,7 @@
 //! it resolves and sends as them. It reads, there, the host's sealed authz
 //! hook cell (decided through [`LateAuthzHook`], which refuses every request
 //! until the host binds the composed hook), the signing keys and issuer it
-//! mints with ([`A2aTokenIssuer`]), the sealed agent dispatch cell, and a user
+//! mints with (`A2aTokenIssuer`), the sealed agent dispatch cell, and a user
 //! repository it builds over the database. The kernel binds the sealed
 //! messaging cell to it while the server builds its routes; with `agent-http`
 //! not admitted the cell stays unbound and every dispatch is refused with
