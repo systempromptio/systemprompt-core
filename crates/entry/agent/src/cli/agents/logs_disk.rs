@@ -52,7 +52,7 @@ pub(super) fn execute_disk_mode(
     })?;
 
     let log_file = find_log_file(logs_path, "agent-", "agent name", &agent)?;
-    let logs = read_log_lines(&log_file, args.lines, |_| true)?;
+    let logs = read_log_lines(log_file, args.lines, |_| true)?;
 
     Ok(CommandOutput::card_value(
         format!("Agent Logs (Disk): {}", agent),
@@ -86,7 +86,7 @@ pub(super) fn execute_follow_mode(
     let log_file = find_log_file(logs_path, "agent-", "agent name", &agent)?;
 
     let mut cmd = Command::new("tail");
-    cmd.arg("-f").arg(&log_file);
+    cmd.arg("-f").arg(log_file.path());
     let status = children.status(cmd).context("Failed to execute tail -f")?;
 
     if !status.success() {

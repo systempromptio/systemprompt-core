@@ -8,7 +8,9 @@
 //!
 //! Every other read beneath a root goes through the same rule:
 //! [`locate_within`] confines a path that may be absent, [`read_within`]
-//! reads a confined file, and [`entries_within`] enumerates a directory.
+//! reads a confined file, [`open_within`] returns a confined file already
+//! open (the handle is checked to be the confined file after the open), and
+//! [`entries_within`] enumerates a directory.
 //! An enumeration refuses, with [`PathConfinementError::Escapes`] (or
 //! [`PathConfinementError::Unresolved`] for a dangling link), when any entry
 //! resolves outside the root: an escaping link is never followed and never
@@ -92,6 +94,48 @@ pub fn locate_within(
             source,
         }),
     }
+}
+
+pub fn open_within(
+    root: &Path,
+    candidate: &Path,
+) -> Result<(PathBuf, std::fs::File), PathConfinementError> {
+    let path = confine_within(root, candidate)?;
+    let file = std::fs::File::open(&path).map_err(|source| PathConfinementError::Read {
+        path: path.clone(),
+        source,
+    })?;
+    let reconfined = confine_within(root, candidate)?;
+    if reconfined != path || !same_file(&file, &path)? {
+        return Err(PathConfinementError::Escapes {
+            path: candidate.to_path_buf(),
+            root: root.to_path_buf(),
+        });
+    }
+    Ok((path, file))
+}
+
+#[cfg(unix)]
+fn same_file(file: &std::fs::File, path: &Path) -> Result<bool, PathConfinementError> {
+    use std::os::unix::fs::MetadataExt;
+    let read = |source| PathConfinementError::Read {
+        path: path.to_path_buf(),
+        source,
+    };
+    let held = file.metadata().map_err(read)?;
+    let named = path.symlink_metadata().map_err(read)?;
+    Ok(held.dev() == named.dev() && held.ino() == named.ino())
+}
+
+#[cfg(not(unix))]
+fn same_file(file: &std::fs::File, path: &Path) -> Result<bool, PathConfinementError> {
+    let read = |source| PathConfinementError::Read {
+        path: path.to_path_buf(),
+        source,
+    };
+    let held = file.metadata().map_err(read)?;
+    let named = path.symlink_metadata().map_err(read)?;
+    Ok(held.len() == named.len() && !named.file_type().is_symlink())
 }
 
 pub fn read_within(root: &Path, candidate: &Path) -> Result<String, PathConfinementError> {

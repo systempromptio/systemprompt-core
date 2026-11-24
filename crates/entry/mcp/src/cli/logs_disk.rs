@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result, anyhow};
@@ -19,7 +19,7 @@ use systemprompt_extension::cli::{
 };
 use systemprompt_models::artifacts::ListItem;
 use systemprompt_models::path_confine::logs::{
-    display_names, find_log_file, list_log_files, read_log_lines,
+    LogFile, display_names, find_log_file, list_log_files, read_log_lines,
 };
 
 const PREFIX: &str = "mcp-";
@@ -42,7 +42,7 @@ pub(super) fn execute_disk_mode(
     }
 
     let (service, log_file) = select_log_file(args, prompter, config, logs_path)?;
-    let logs = read_log_lines(&log_file, args.lines, |line| {
+    let logs = read_log_lines(log_file, args.lines, |line| {
         args.level.is_none_or(|level| level.matches(line))
     })?;
 
@@ -74,7 +74,7 @@ pub(super) fn execute_follow_mode(
     let (service, log_file) = select_log_file(args, prompter, config, logs_path)?;
 
     let mut cmd = Command::new("tail");
-    cmd.arg("-f").arg(&log_file);
+    cmd.arg("-f").arg(log_file.path());
     let status = children.status(cmd).context("Failed to execute tail -f")?;
 
     if !status.success() {
@@ -106,7 +106,7 @@ fn select_log_file(
     prompter: &dyn Prompter,
     config: &CliConfig,
     logs_path: &Path,
-) -> Result<(String, PathBuf)> {
+) -> Result<(String, LogFile)> {
     let service = resolve_required(args.server.clone(), "server", config, || {
         prompt_log_selection(prompter, logs_path)
     })?;

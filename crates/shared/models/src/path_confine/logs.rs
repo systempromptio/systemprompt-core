@@ -8,15 +8,40 @@
 //! match over the discovered set. The name is accepted only as a single path
 //! segment, and every entry is resolved through
 //! [`entries_within`] / [`locate_within`], so neither a name nor a symbolic
-//! link leads a read out of the logs directory.
+//! link leads a read out of the logs directory. A found log is returned as a
+//! [`LogFile`] already opened through [`open_within`], so the
+//! confinement check and the open are one step.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use super::{PathConfinementError, confine_within, entries_within, locate_within, single_segment};
+use super::{
+    PathConfinementError, confine_within, entries_within, locate_within, open_within,
+    single_segment,
+};
+
+/// A log file opened beneath its logs root; reads go through the held handle.
+#[derive(Debug)]
+pub struct LogFile {
+    path: PathBuf,
+    file: File,
+}
+
+impl LogFile {
+    pub fn open_within(logs_dir: &Path, candidate: &Path) -> Result<Self, LogFileError> {
+        let (path, file) = open_within(logs_dir, candidate)?;
+        Ok(Self { path, file })
+    }
+
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
 
 /// Why a log file could not be found or read.
 #[derive(Debug, thiserror::Error)]
@@ -79,35 +104,34 @@ pub fn find_log_file(
     prefix: &str,
     kind: &'static str,
     name: &str,
-) -> Result<PathBuf, LogFileError> {
+) -> Result<LogFile, LogFileError> {
     let name = single_segment(kind, name)?;
     for candidate in [format!("{name}.log"), format!("{prefix}{name}.log")] {
         if let Some(found) = locate_within(logs_dir, &logs_dir.join(candidate))? {
-            return Ok(found);
+            return LogFile::open_within(logs_dir, &found);
         }
     }
 
     let log_files = list_log_files(logs_dir, prefix)?;
-    let found = log_files
-        .iter()
-        .find(|file| file.contains(name))
-        .map(|file| logs_dir.join(file));
-    found.ok_or_else(|| LogFileError::NotFound {
-        name: name.to_owned(),
-        available: log_files,
-    })
+    let Some(found) = log_files.iter().find(|file| file.contains(name)) else {
+        return Err(LogFileError::NotFound {
+            name: name.to_owned(),
+            available: log_files,
+        });
+    };
+    LogFile::open_within(logs_dir, &logs_dir.join(found))
 }
 
 pub fn read_log_lines(
-    log_file: &Path,
+    log_file: LogFile,
     lines: usize,
     filter: impl Fn(&str) -> bool,
 ) -> Result<Vec<String>, LogFileError> {
+    let LogFile { path, file } = log_file;
     let read = |source| LogFileError::Read {
-        path: log_file.to_path_buf(),
+        path: path.clone(),
         source,
     };
-    let file = std::fs::File::open(log_file).map_err(read)?;
     let filtered: Vec<String> = BufReader::new(file)
         .lines()
         .collect::<Result<Vec<_>, _>>()
