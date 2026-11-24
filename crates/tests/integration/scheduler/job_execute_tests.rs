@@ -6,10 +6,17 @@
 
 use std::collections::HashMap;
 
+use std::sync::Arc;
+
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{DatabaseCleanupJob, JobConfig, JobExecutionService, SchedulerConfig};
-use systemprompt_test_fixtures::fixture_actor;
+use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext};
+
+fn make_ctx(pool: &DbPool) -> JobContext {
+    JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
+}
 
 #[tokio::test]
 async fn database_cleanup_job_execute_succeeds() {
