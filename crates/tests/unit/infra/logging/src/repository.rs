@@ -304,30 +304,26 @@ async fn analytics_repository_constructs() {
 }
 
 #[tokio::test]
-async fn a_log_row_with_null_user_id_decodes_to_an_error() {
+async fn a_log_row_without_a_user_id_is_refused_by_the_schema() {
     let disposable = DisposableDb::with_schema("logging_null_user_row").await;
     let db = disposable.test_pool().await;
     let pool = db.write_pool();
-    let repo = LoggingRepository::new(&db);
     let id = LogId::generate();
-    sqlx::query(
+    let refused = sqlx::query(
         "INSERT INTO logs (id, level, module, message, user_id, session_id, trace_id) \
          VALUES ($1, 'INFO', 'null-user-mod', 'row without a user', NULL, 'sess', 'trace')",
     )
     .bind(id.as_str())
     .execute(pool.as_ref())
     .await
-    .unwrap();
-
-    let fetched = repo.get_by_id(&id).await;
-    let deleted = repo.delete_log_entry(&id).await.unwrap();
-
-    assert!(deleted, "the seeded row must be removed");
+    .expect_err("a NULL user_id breaks the logs contract");
     assert!(
-        fetched.is_err(),
-        "a NULL user_id must surface as an error, got {fetched:?}"
+        refused
+            .as_database_error()
+            .and_then(|e| e.constraint())
+            .is_some_and(|c| c == "logs_user_id_not_null"),
+        "got {refused:?}"
     );
-    drop(repo);
     drop(pool);
     drop(db);
     disposable.drop_now().await;

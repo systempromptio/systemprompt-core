@@ -78,7 +78,7 @@ async fn waiting_returns_once_the_instance_is_ready() {
     Mock::given(method("GET"))
         .and(path("/readyz"))
         .respond_with(
-            ResponseTemplate::new(503).set_body_json(serde_json::json!({"status": "starting"})),
+            ResponseTemplate::new(503).set_body_json(serde_json::json!({"status": "unready"})),
         )
         .up_to_n_times(1)
         .mount(&server)
@@ -103,7 +103,7 @@ async fn waiting_returns_once_the_instance_is_ready() {
 
 #[tokio::test]
 async fn waiting_past_the_timeout_reports_the_last_status() {
-    let server = readyz(json(503, serde_json::json!({"status": "starting"}))).await;
+    let server = readyz(json(503, serde_json::json!({"status": "unready"}))).await;
     let error = wait_until_ready(
         &reqwest::Client::new(),
         &server.uri(),
@@ -115,7 +115,7 @@ async fn waiting_past_the_timeout_reports_the_last_status() {
     .await
     .unwrap_err();
     assert!(
-        matches!(&error, CloudError::TenantUnready { last, url, .. } if last == "starting" && *url == server.uri()),
+        matches!(&error, CloudError::TenantUnready { last, url, .. } if last == "unready" && *url == server.uri()),
         "{error:?}"
     );
 }

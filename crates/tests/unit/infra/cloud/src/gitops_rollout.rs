@@ -234,7 +234,7 @@ async fn status_reports_an_unready_tenant_once_the_timeout_cannot_fit_a_poll() {
     Mock::given(method("GET"))
         .and(path("/readyz"))
         .respond_with(
-            ResponseTemplate::new(503).set_body_json(serde_json::json!({"status": "starting"})),
+            ResponseTemplate::new(503).set_body_json(serde_json::json!({"status": "unready"})),
         )
         .expect(1)
         .mount(&server)
@@ -243,7 +243,7 @@ async fn status_reports_an_unready_tenant_once_the_timeout_cannot_fit_a_poll() {
     let (deploy, _) = provider(dir.path(), false, Fail::None, server.uri());
     let err = deploy.wait_until_ready(ONE_POLL).await.unwrap_err();
     assert!(
-        matches!(&err, CloudError::TenantUnready { last, .. } if last == "starting"),
+        matches!(&err, CloudError::TenantUnready { last, .. } if last == "unready"),
         "{err:?}"
     );
 }

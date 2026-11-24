@@ -194,7 +194,7 @@ async fn a_generated_link_has_performance_and_an_unknown_link_does_not() -> Resu
         .to_owned();
 
     let (found, found_body) = body_to_string(
-        public(&ctx)
+        authenticated(&ctx)
             .oneshot(empty_get(&format!("/links/{link_id}/performance")))
             .await?,
     )
@@ -202,7 +202,7 @@ async fn a_generated_link_has_performance_and_an_unknown_link_does_not() -> Resu
     assert_eq!(found.as_u16(), 200, "{found_body}");
 
     let (missing, missing_body) = body_to_string(
-        public(&ctx)
+        authenticated(&ctx)
             .oneshot(empty_get(&format!(
                 "/links/link-{}/performance",
                 Uuid::new_v4().simple()

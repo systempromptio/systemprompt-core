@@ -394,6 +394,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             type_name::<Option<Arc<systemprompt_gateway::surface::views::BridgeEventStream>>>(),
             carrier::<systemprompt_events::AgUiBroadcaster>(),
         ),
+        (
+            type_name::<systemprompt_models::auth::DynTokenRevocations>(),
+            carrier::<systemprompt_oauth::repository::JtiRevocationChecker>(),
+        ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();
     let member_sealed: BTreeSet<&str> = state

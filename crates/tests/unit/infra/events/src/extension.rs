@@ -74,7 +74,8 @@ fn migrations_come_from_the_schema_migrations_directory() {
             "restore_actor_id_nonempty",
             "retire_reporting_capture",
             "outbox_backlog",
-            "outbox_backlog_serialised"
+            "outbox_backlog_serialised",
+            "outbox_aggregate_order",
         ],
         "every file in schema/migrations must be discovered by the build script, \
          in order, under its on-disk stem"

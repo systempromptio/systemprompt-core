@@ -220,31 +220,33 @@ impl Harness {
 
     pub(crate) async fn process_pending(&self) -> Drained {
         let consumer = OutboxConsumer::new(self.pool.write_pool().as_ref().clone());
-        let mut batch = consumer
-            .claim_batch(NOTIFICATIONS_CONSUMER, 100, &[])
-            .await
-            .expect("claim")
-            .expect("a pending notification fact");
-        let facts = batch
-            .facts::<NotificationEvent>()
-            .expect("every fact decodes");
-        let mut ctx = BatchContext::load(batch.connection())
-            .await
-            .expect("batch context");
         let mut ids = Vec::new();
         let mut outcomes = Vec::new();
         let mut pending = Vec::new();
-        for (id, fact) in facts {
-            let outcome = self
-                .pipeline
-                .process(&id, &fact.data, batch.connection(), &mut ctx)
+        while let Some(mut batch) = consumer
+            .claim_batch(NOTIFICATIONS_CONSUMER, 100, &[])
+            .await
+            .expect("claim")
+        {
+            let facts = batch
+                .facts::<NotificationEvent>()
+                .expect("every fact decodes");
+            let mut ctx = BatchContext::load(batch.connection())
                 .await
-                .expect("process");
-            pending.extend(outcome.pending.clone());
-            ids.push(id);
-            outcomes.push(outcome);
+                .expect("batch context");
+            for (id, fact) in facts {
+                let outcome = self
+                    .pipeline
+                    .process(&id, &fact.data, batch.connection(), &mut ctx)
+                    .await
+                    .expect("process");
+                pending.extend(outcome.pending.clone());
+                ids.push(id);
+                outcomes.push(outcome);
+            }
+            batch.acknowledge_all().await.expect("acknowledge");
         }
-        batch.acknowledge_all().await.expect("acknowledge");
+        assert!(!ids.is_empty(), "a pending notification fact");
         Drained {
             ids,
             outcomes,

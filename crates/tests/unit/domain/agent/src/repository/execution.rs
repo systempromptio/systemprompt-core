@@ -247,7 +247,7 @@ async fn list_by_task_empty_for_unknown() {
 }
 
 #[tokio::test]
-async fn get_step_with_corrupt_status_errors() {
+async fn a_step_status_outside_the_known_set_is_refused_by_the_schema() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -258,27 +258,19 @@ async fn get_step_with_corrupt_status_errors() {
     r.execution_steps.create(&step).await.expect("create");
 
     let pg = pool.pool();
-    sqlx::query("UPDATE task_execution_steps SET status = 'bogus_state' WHERE step_id = $1")
+    let refused = sqlx::query("UPDATE task_execution_steps SET status = 'bogus_state' WHERE step_id = $1")
         .bind(step_id.to_string())
         .execute(pg.as_ref())
         .await
-        .expect("corrupt status");
-
-    let err = r
-        .execution_steps
-        .get(&step_id)
-        .await
-        .expect_err("corrupt status must fail parsing");
+        .expect_err("an unknown status breaks the step contract");
     assert!(
-        matches!(
-            &err,
-            systemprompt_traits::RepositoryError::Decode { context, .. }
-                if context == "execution step status"
-        ),
-        "got {err:?}"
+        refused
+            .as_database_error()
+            .and_then(|e| e.constraint())
+            .is_some_and(|c| c == "task_execution_steps_status_check"),
+        "got {refused:?}"
     );
-
-    r.tasks.remove_task(&task_id).await.ok();
+    r.execution_steps.get(&step_id).await.expect("the step still reads");
 }
 
 #[tokio::test]

@@ -7,13 +7,16 @@ use axum::middleware::from_fn;
 use axum::{Extension, Router};
 use systemprompt_api::services::middleware::authz_gate;
 use systemprompt_content_entry::http as content;
+use systemprompt_extension::StandingTag;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{empty_get, request_context, setup_ctx};
+use super::common::{agent_app_context, empty_get, request_context};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 const ANALYTICS_READS: [&str; 5] = [
     "/links",
@@ -26,7 +29,11 @@ const ANALYTICS_READS: [&str; 5] = [
 fn gated(ctx: &AppContext, caller: RequestContext) -> Router {
     let set = content::authenticated_routes();
     let routers = set
-        .materialize(&ctx.kernel().resolved())
+        .materialize(&ctx.kernel().route_scoped(
+            &ExtensionId::new("content-http"),
+            StandingTag::Core,
+            &[],
+        ))
         .expect("the content route state resolves");
     set.defs()
         .iter()
@@ -39,13 +46,17 @@ fn gated(ctx: &AppContext, caller: RequestContext) -> Router {
         .layer(Extension(caller))
 }
 
+async fn reference_ctx() -> std::sync::Arc<AppContext> {
+    agent_app_context(&ensure_test_bootstrap().database_url).await
+}
+
 fn uri(template: &str) -> String {
     template.replace("{link}", &Uuid::new_v4().to_string())
 }
 
 #[tokio::test]
 async fn a_signed_in_user_is_refused_every_link_analytics_read() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let ctx = reference_ctx().await;
     for template in ANALYTICS_READS {
         let caller = request_context("link_reader").with_user_type(UserType::User);
         let resp = gated(&ctx, caller)
@@ -58,7 +69,7 @@ async fn a_signed_in_user_is_refused_every_link_analytics_read() -> anyhow::Resu
 
 #[tokio::test]
 async fn an_anonymous_caller_is_refused_every_link_analytics_read() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let ctx = reference_ctx().await;
     for template in ANALYTICS_READS {
         let caller = request_context("link_anon").with_user_type(UserType::Anon);
         let resp = gated(&ctx, caller)
@@ -75,7 +86,7 @@ async fn an_anonymous_caller_is_refused_every_link_analytics_read() -> anyhow::R
 
 #[tokio::test]
 async fn an_admin_reaches_the_link_analytics_handlers() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let ctx = reference_ctx().await;
     for template in ANALYTICS_READS {
         let caller = request_context("link_admin").with_user_type(UserType::Admin);
         let resp = gated(&ctx, caller)
