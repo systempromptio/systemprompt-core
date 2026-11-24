@@ -1,4 +1,4 @@
-//! [`IssuesMcpTools`]: the issue report tools an install's MCP server
+//! [`IssuesMcpTools`](crate::mcp::IssuesMcpTools): the issue report tools an install's MCP server
 //! serves.
 //!
 //! `report_issue` files a report and records the request's own trace,

@@ -15,7 +15,7 @@
 //! window) and merges it inside the gateway access log.
 //!
 //! Only routes admitted here, and the gateway surface's principal-bound
-//! routes the gateway mount places behind [`verified`], carry a
+//! routes the gateway mount places behind `verified`, carry a
 //! [`GatewayPrincipal`]; nothing else in the server constructs one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

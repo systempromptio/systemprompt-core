@@ -1,4 +1,4 @@
-//! [`IssuesExtension`] (`issues`): the issue report triage commands.
+//! [`IssuesExtension`](crate::extension::IssuesExtension) (`issues`): the issue report triage commands.
 //!
 //! With `cli` it contributes the `admin issues` group under the kernel's
 //! `admin` group, requesting the caller session (the triager a transition

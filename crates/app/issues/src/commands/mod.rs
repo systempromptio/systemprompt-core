@@ -1,7 +1,7 @@
 //! `admin issues` command tree: operator triage of the bug and feedback
 //! reports users and agents file.
 //!
-//! [`IssuesCommands`] lists reports, shows one with the follow-up commands
+//! [`IssuesCommands`](crate::commands::IssuesCommands) lists reports, shows one with the follow-up commands
 //! for the platform records it names, and moves a report through the triage
 //! states as the CLI session user. The `issues` member contributes the group
 //! under the kernel's `admin` group; every command reads the issue service
