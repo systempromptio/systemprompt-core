@@ -197,6 +197,7 @@ scripts/*
 !scripts/lint-serde-aliases.sh
 !scripts/sqlx-allowlist.txt
 !scripts/test-gate-roots.py
+!scripts/test-lint-stringly-errors.py
 !scripts/test-allowlists.py
 !scripts/test-check-test-value.py
 !scripts/lint-native-test-deps.sh
