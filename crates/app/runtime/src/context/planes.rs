@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
-use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_files::FilesConfig;
@@ -18,7 +17,7 @@ use systemprompt_loader::BootContext;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
-use systemprompt_models::{ContentConfigRaw, RouteClassifier};
+use systemprompt_models::RouteClassifier;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
@@ -44,7 +43,6 @@ pub struct DataPlane {
     pub database: DbPool,
     pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
     pub user_service: Option<Arc<UserService>>,
-    pub content_repositories: Arc<ContentRepositories>,
     pub oauth_repositories: Arc<OAuthRepositories>,
     pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
@@ -57,7 +55,6 @@ pub struct ConfigPlane {
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
     pub files_config: Arc<FilesConfig>,
-    pub content_config: Option<Arc<ContentConfigRaw>>,
     pub route_classifier: Arc<RouteClassifier>,
     pub build: systemprompt_models::BuildIdentity,
 }

@@ -126,10 +126,6 @@ impl AppContext {
         &self.cfg.config
     }
 
-    pub fn content_config(&self) -> Option<&ContentConfigRaw> {
-        self.cfg.content_config.as_ref().map(AsRef::as_ref)
-    }
-
     pub const fn db_pool(&self) -> &DbPool {
         &self.data.database
     }

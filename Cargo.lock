@@ -7736,7 +7736,6 @@ dependencies = [
  "systemprompt-agent-runs",
  "systemprompt-analytics",
  "systemprompt-config",
- "systemprompt-content",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",

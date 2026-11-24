@@ -19,7 +19,6 @@ pub(super) fn build_data_plane(
         database,
         fingerprint_repo,
         user_service: Some(user_service),
-        content_repositories: repositories.content,
         oauth_repositories: repositories.oauth,
         user_repository: repositories.users,
         service_repository: repositories.services,
@@ -50,7 +49,6 @@ pub(super) async fn ensure_legacy_context(
 const LEGACY_CONTEXT_NAME: &str = "Legacy (pre-context)";
 
 pub(super) struct RepositoryBundles {
-    content: Arc<systemprompt_content::repository::ContentRepositories>,
     oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
@@ -86,14 +84,8 @@ pub(super) fn seeded_repositories(
     }
 }
 
-pub(super) fn build_repositories(
-    database: &DbPool,
-    seeded: &SeededRepositories,
-) -> RepositoryBundles {
+pub(super) fn build_repositories(seeded: &SeededRepositories) -> RepositoryBundles {
     RepositoryBundles {
-        content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
-            database,
-        )),
         oauth: Arc::clone(&seeded.oauth),
         users: Arc::clone(&seeded.users),
         services: Arc::clone(&seeded.services),
@@ -128,12 +120,11 @@ pub(super) async fn load_identity(
 }
 
 pub(super) async fn build_domain_layer(
-    database: &DbPool,
     seeded: &SeededRepositories,
     system_admin: &systemprompt_manifest::SystemAdmin,
     contexts: Option<systemprompt_traits::DynContextMaterializer>,
 ) -> RuntimeResult<RepositoryBundles> {
-    let repositories = build_repositories(database, seeded);
+    let repositories = build_repositories(seeded);
     ensure_legacy_context(contexts, system_admin).await?;
     Ok(repositories)
 }

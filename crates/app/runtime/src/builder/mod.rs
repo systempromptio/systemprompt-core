@@ -225,7 +225,6 @@ impl AppContextBuilder {
                 .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
         );
         let repositories = build_domain_layer(
-            &database,
             &seeded,
             &system_admin,
             r.optional::<systemprompt_traits::DynContextMaterializer>(),
@@ -265,7 +264,6 @@ impl AppContextBuilder {
                     config,
                     app_paths,
                     files_config,
-                    content_config: content.content_config,
                     route_classifier: content.route_classifier,
                     build: self.build,
                 },
