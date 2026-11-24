@@ -44,6 +44,7 @@ fn make_profile(services: &Path) -> Profile {
             db_type: "postgres".to_string(),
             external_db_access: false,
             migrate_on_boot: true,
+            connection_budget: None,
             pool: None,
         },
         server: ServerConfig {

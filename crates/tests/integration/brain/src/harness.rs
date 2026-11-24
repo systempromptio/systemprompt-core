@@ -237,7 +237,7 @@ impl Harness {
             Arc::clone(&self.repos),
             Arc::new(OutboxConsumer::new(self.pg.clone())),
             Arc::clone(&self.model) as _,
-            self.pg.clone(),
+            systemprompt_test_fixtures::bound_notification_hub(&self.pg),
         )
         .profile(self.profile.clone())
         .seams(self.seams.clone())

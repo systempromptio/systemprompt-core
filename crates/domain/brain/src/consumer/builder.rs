@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use sqlx::PgPool;
+use systemprompt_database::NotificationHub;
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_extension::brain::BrainModelClient;
 use systemprompt_extension::notifications::DynNotificationSink;
@@ -22,7 +22,7 @@ pub struct BrainConsumerBuilder {
     repos: Arc<BrainRepositories>,
     outbox: Arc<OutboxConsumer>,
     model: Arc<dyn BrainModelClient>,
-    listener_pool: PgPool,
+    notifications_hub: NotificationHub,
     profile: BrainProfile,
     seams: PipelineSeams,
     notifications: Option<DynNotificationSink>,
@@ -43,13 +43,13 @@ impl BrainConsumer {
         repos: Arc<BrainRepositories>,
         outbox: Arc<OutboxConsumer>,
         model: Arc<dyn BrainModelClient>,
-        listener_pool: PgPool,
+        notifications_hub: NotificationHub,
     ) -> BrainConsumerBuilder {
         BrainConsumerBuilder {
             repos,
             outbox,
             model,
-            listener_pool,
+            notifications_hub,
             profile: BrainProfile::default(),
             seams: PipelineSeams::default(),
             notifications: None,
@@ -87,7 +87,7 @@ impl BrainConsumerBuilder {
         BrainConsumer {
             pipeline: Arc::new(pipeline.build()),
             outbox: self.outbox,
-            listener_pool: self.listener_pool,
+            notifications_hub: self.notifications_hub,
             settings,
             state: StateCell::default(),
             counters: Arc::new(Counters::default()),

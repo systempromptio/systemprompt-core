@@ -16,7 +16,9 @@ pub mod plane_applied;
 pub mod release_stamp;
 pub mod service;
 
-pub use advisory_lock::{EXTENSION_LOCK_CLASS, SessionAdvisoryLock, SessionAdvisoryLocks};
+pub use advisory_lock::{
+    EXTENSION_LOCK_CLASS, OUTBOX_BACKLOG_LOCK_CLASS, SessionAdvisoryLock, SessionAdvisoryLocks,
+};
 pub use base::PgDbPool;
 pub use change_context::{PgConfigVersion, PlaneTransaction, with_change_context};
 pub use coordination::CoordinationRepositories;

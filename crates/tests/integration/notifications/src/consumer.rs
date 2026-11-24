@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use chrono::Utc;
 use metrics_util::debugging::DebuggingRecorder;
+use systemprompt_database::NotificationHub;
 use systemprompt_identifiers::{Actor, DocumentId, UserId};
 use systemprompt_manifest::profile::ConsumerProfile;
 use systemprompt_models::notifications::DeliveryState;
@@ -81,6 +82,45 @@ async fn the_consumer_wakes_on_the_facts_channel_long_before_its_poll() {
     let backlog = consumer.backlog().await.expect("backlog");
     assert_eq!(backlog.pending, 0);
     assert_eq!(backlog.oldest_seconds, None);
+
+    shutdown.cancel();
+    runner.await.expect("runner");
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn a_consumer_whose_listener_never_opens_still_delivers_within_one_poll() {
+    let h = Harness::new("notif_consumer_poll_guarantee").await;
+    let author = h.user("author", &[]).await;
+    let reader = h.user("reader", &[]).await;
+    let poll = Duration::from_secs(2);
+    let settings = ConsumerProfile {
+        poll_secs: 2,
+        sweep_secs: 3600,
+        ..ConsumerProfile::default()
+    };
+    let consumer = Arc::new(h.consumer_with_hub(settings, NotificationHub::new()));
+    let shutdown = CancellationToken::new();
+    let runner = start(&consumer, &author, &shutdown);
+
+    let deadline = tokio::time::Instant::now() + BOUND;
+    while consumer.backlog().await.expect("backlog").state != ConsumerState::Reconnecting {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the consumer never reached its poll wait"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    let (event, _) = mention(&author, &reader, &DocumentId::generate(), Utc::now());
+    let emitted = tokio::time::Instant::now();
+    h.emit(&event).await;
+    assert!(delivered_row(&h, &reader).await, "the fact was drained");
+    let waited = emitted.elapsed();
+    assert!(
+        waited <= poll + Duration::from_millis(750),
+        "without a listener the fact is delivered within one poll interval, took {waited:?}"
+    );
 
     shutdown.cancel();
     runner.await.expect("runner");

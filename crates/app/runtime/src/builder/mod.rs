@@ -139,10 +139,9 @@ impl AppContextBuilder {
         let seeded =
             seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id);
         let system_admin = load_identity(&self.boot, &seeded.users).await?;
-        let (router, bridge, listener_pool) =
-            event_plane(self.event_router, &database, &config, &cache_epochs);
-        drop(listener_pool);
+        let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let background_tasks = self.background_tasks.unwrap_or_default();
+        database.bind_notifications(&background_tasks);
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
         let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();

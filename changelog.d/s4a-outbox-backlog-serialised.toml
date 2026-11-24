@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Event outbox"
+text = "A backlog recount that ran while a compaction was open no longer leaves the compacted row beside its recount: `refresh_event_outbox_backlog` and `compact_event_outbox_backlog` take one transaction-scoped advisory lock, and the recount deletes and counts on one snapshot, so an append committing during a recount is no longer counted twice."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Fixed"
+text = "Migration 011 serialises the backlog recount and compaction on one transaction-scoped advisory lock (`event_outbox_backlog_lock_class()`) and makes the recount one statement."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`OUTBOX_BACKLOG_LOCK_CLASS`, the advisory-lock class the outbox backlog ledger serialises on."

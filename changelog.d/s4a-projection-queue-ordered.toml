@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Projection queue"
+text = "Concurrent publishes over overlapping owners no longer deadlock (40P01) on the installation-coverage queue. Keys queued through `queue_projection_backlog` are staged and reach `projection_backlog` once, sorted, when the queueing transaction commits, so every transaction takes the queue's key locks in one order and only while it commits; a publish that commits still queues its keys in the same transaction."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Changed"
+text = "Migration 013 adds the unlogged `projection_backlog_staged` table and its deferred flush; `queue_projection_backlog` stages its keys and returns how many distinct keys it queued (previously: how many were not already queued)."

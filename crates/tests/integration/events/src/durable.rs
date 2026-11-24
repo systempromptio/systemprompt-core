@@ -70,6 +70,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         instance,
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     );
     let router = bridge.router();
     let bridge = bridge.start();

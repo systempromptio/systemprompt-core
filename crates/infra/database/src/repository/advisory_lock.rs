@@ -30,6 +30,10 @@ use crate::DbPool;
 // its own keeps extension locks from colliding with job or instance locks.
 pub const EXTENSION_LOCK_CLASS: i32 = 0x5350_0002;
 
+// Why: Postgres — `event_outbox_backlog_lock_class()` in the events schema
+// returns this value; the recount and the compaction serialise on it.
+pub const OUTBOX_BACKLOG_LOCK_CLASS: i32 = 0x5350_0041;
+
 const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 #[derive(Debug, Clone)]

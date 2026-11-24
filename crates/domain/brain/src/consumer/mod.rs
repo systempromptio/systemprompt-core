@@ -47,7 +47,7 @@ use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use sqlx::PgPool;
+use systemprompt_database::NotificationHub;
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_manifest::profile::BrainConsumerProfile;
 use systemprompt_models::brain::BRAIN_CONSUMER;
@@ -133,7 +133,7 @@ impl Counters {
 pub struct BrainConsumer {
     pipeline: Arc<BrainPipeline>,
     outbox: Arc<OutboxConsumer>,
-    listener_pool: PgPool,
+    notifications_hub: NotificationHub,
     settings: BrainConsumerProfile,
     state: StateCell,
     counters: Arc<Counters>,
@@ -204,7 +204,7 @@ impl RunnerService for BrainConsumer {
     async fn run(&self, _ctx: JobContext, shutdown: CancellationToken) {
         let poll = Duration::from_secs(u64::from(self.settings.poll_secs.max(1)));
         let sweep_every = Duration::from_secs(u64::from(self.settings.sweep_secs.max(1)));
-        let mut wake = Wake::new(self.listener_pool.clone(), self.state.clone());
+        let mut wake = Wake::new(&self.notifications_hub, self.state.clone());
         let mut next_sweep = Instant::now();
         while !shutdown.is_cancelled() {
             self.state.set(ConsumerState::Draining);

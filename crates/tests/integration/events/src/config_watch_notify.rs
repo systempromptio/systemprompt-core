@@ -41,6 +41,7 @@ async fn a_trigger_notification_reloads_the_watch_without_polling() {
         unique_instance(),
         epochs.clone(),
         Arc::new(EventBroadcasters::new()),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     assert!(

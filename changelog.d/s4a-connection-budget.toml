@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Database connections"
+text = "`database.connection_budget` declares the most Postgres connections one node may hold, its hosted children included. The runtime divides it: a fifth, in two-connection shares, is reserved for hosted children; a separate session pool takes a tenth (at least 3: the `LISTEN` session, the instance claim and one lock or migration session); the rest is the main pool, split evenly with a separate write pool. A hosted child takes one fixed two-connection share. Boot is refused when a pinned `database.pool` size makes the parts exceed the budget, or the budget is below the minimum parts. Omitted, every pool keeps its own ceiling as before."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Added"
+text = "`DatabaseConfig::connection_budget` (1–10000)."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`ConnectionBudget::divide` with `PoolSeat`, `PoolShape`, `PinnedPools`, `PoolSizes` and `BudgetError`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Added"
+text = "`RuntimeError::ConnectionBudget`: boot refuses a connection budget smaller than its parts."

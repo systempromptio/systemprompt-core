@@ -82,7 +82,8 @@ impl HostKernel {
         let services = ServicesState::from_config(profile, services_config)
             .map_err(|e| HostBootError::Services(Box::new(e)))?;
 
-        let database = connect_database(profile, &config).await?;
+        let database =
+            connect_database(profile, &config, systemprompt_database::PoolSeat::Child).await?;
         let instance_id = config.instance_id.clone();
         let log_sink = systemprompt_logging::init_logging(&database, Some(instance_id.clone()));
         let file_storage = crate::storage::init_file_storage(
@@ -93,9 +94,7 @@ impl HostKernel {
         )
         .await?;
         let cache_epochs = CacheEpochs::new();
-        let (event_router, _bridge, listener_pool) =
-            event_plane(None, &database, &config, &cache_epochs);
-        drop(listener_pool);
+        let (event_router, _bridge) = event_plane(None, &database, &config, &cache_epochs);
         let background_tasks = BackgroundTasks::default();
         let user_repository = Arc::new(UserRepository::new(&database));
         let system_admin = load_system_admin(

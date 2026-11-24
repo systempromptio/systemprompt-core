@@ -8,13 +8,15 @@
 //! migration runner. Pointing `database_session_url` straight at Postgres
 //! lets `database_url`/`database_write_url` go through a transaction-mode
 //! pooler such as `PgBouncer`. Without it, [`Database::session`] is the write
-//! provider.
+//! provider. The node's one `LISTEN` session, the [`NotificationHub`], runs
+//! on the session pool once the composition root binds it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::postgres::PostgresProvider;
 use super::postgres::connection::{PoolConfig, SchemaEpoch};
+use super::postgres::listener::NotificationHub;
 use super::provider::DatabaseProvider;
 use crate::error::DatabaseResult;
 use crate::models::{DatabaseInfo, QueryResult};
@@ -25,6 +27,7 @@ pub struct Database {
     write_provider: Option<Arc<dyn DatabaseProvider>>,
     session_provider: Option<Arc<dyn DatabaseProvider>>,
     schema_epoch: SchemaEpoch,
+    notifications: NotificationHub,
 }
 
 impl std::fmt::Debug for Database {
@@ -45,6 +48,7 @@ impl Database {
             write_provider: None,
             session_provider: None,
             schema_epoch,
+            notifications: NotificationHub::new(),
         })
     }
 
@@ -69,6 +73,7 @@ impl Database {
             write_provider,
             session_provider: None,
             schema_epoch,
+            notifications: NotificationHub::new(),
         })
     }
 
@@ -95,6 +100,7 @@ impl Database {
             write_provider,
             session_provider: None,
             schema_epoch: SchemaEpoch::new(),
+            notifications: NotificationHub::new(),
         }
     }
 
@@ -134,6 +140,16 @@ impl Database {
     #[must_use]
     pub fn session_pool(&self) -> Arc<sqlx::PgPool> {
         self.session().get_postgres_pool()
+    }
+
+    #[must_use]
+    pub const fn notifications(&self) -> &NotificationHub {
+        &self.notifications
+    }
+
+    pub fn bind_notifications(&self, tasks: &systemprompt_traits::BackgroundTasks) {
+        self.notifications
+            .bind(tasks, self.session_pool().as_ref().clone());
     }
 
     #[must_use]

@@ -211,3 +211,64 @@ async fn an_open_append_does_not_block_another_append_for_the_consumer() {
     assert_eq!(counter(&pool, &consumer).await, Some(1));
     scratch.drop_now().await;
 }
+
+#[tokio::test]
+async fn a_recount_racing_an_open_compaction_leaves_one_exact_row() {
+    let scratch = crate::OutboxSchema::create().await;
+    let pool = scratch.pool().clone();
+    let consumer = consumer_name();
+    sqlx::query("INSERT INTO event_outbox_backlog (consumer, delta) VALUES ($1, 90), ($1, 5)")
+        .bind(&consumer)
+        .execute(&pool)
+        .await
+        .expect("seed drifted deltas");
+
+    let mut compaction = pool.begin().await.expect("begin the compaction");
+    sqlx::query("SELECT compact_event_outbox_backlog()")
+        .execute(&mut *compaction)
+        .await
+        .expect("compact inside the open transaction");
+
+    let recount = tokio::spawn({
+        let pool = pool.clone();
+        let consumer = consumer.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>("SELECT refresh_event_outbox_backlog($1)")
+                .bind(vec![consumer])
+                .fetch_one(&pool)
+                .await
+                .expect("recount")
+        }
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+    compaction.commit().await.expect("commit the compaction");
+    assert_eq!(recount.await.expect("recount task"), 1);
+
+    let pending: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL",
+    )
+    .bind(&consumer)
+    .fetch_one(&pool)
+    .await
+    .expect("pending");
+    assert_eq!(
+        (
+            counter(&pool, &consumer).await,
+            rows(&pool, &consumer).await
+        ),
+        (Some(pending), 1),
+        "the recount must replace the compacted row, not sit beside it"
+    );
+    scratch.drop_now().await;
+}
+
+#[tokio::test]
+async fn the_ledger_lock_class_in_sql_is_the_database_crate_constant() {
+    let scratch = crate::OutboxSchema::create().await;
+    let class: i32 = sqlx::query_scalar("SELECT event_outbox_backlog_lock_class()")
+        .fetch_one(scratch.pool())
+        .await
+        .expect("lock class");
+    assert_eq!(class, systemprompt_database::OUTBOX_BACKLOG_LOCK_CLASS);
+    scratch.drop_now().await;
+}

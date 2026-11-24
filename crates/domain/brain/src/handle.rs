@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use sqlx::PgPool;
+use systemprompt_database::NotificationHub;
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_extension::brain::{BrainModelClient, DynBrainSink, MemoryRecall};
 use systemprompt_extension::notifications::DynNotificationSink;
@@ -100,7 +100,7 @@ pub struct BrainHandle {
     notifications: DynNotificationSink,
     pipeline: PipelineSeams,
     outbox: Arc<OutboxConsumer>,
-    listener_pool: PgPool,
+    notifications_hub: NotificationHub,
     profile: Arc<BrainProfile>,
     consumer: LateBound<BrainConsumer>,
     consolidation_model: LateBound<dyn BrainModelClient>,
@@ -115,7 +115,7 @@ pub struct BrainHandleParts {
     pub notifications: DynNotificationSink,
     pub pipeline: PipelineSeams,
     pub outbox: Arc<OutboxConsumer>,
-    pub listener_pool: PgPool,
+    pub notifications_hub: NotificationHub,
     pub profile: Arc<BrainProfile>,
 }
 
@@ -145,7 +145,7 @@ impl BrainHandle {
             notifications: parts.notifications,
             pipeline: parts.pipeline,
             outbox: parts.outbox,
-            listener_pool: parts.listener_pool,
+            notifications_hub: parts.notifications_hub,
             profile: parts.profile,
             consumer: LateBound::default(),
             consolidation_model: LateBound::default(),
@@ -228,7 +228,7 @@ impl BrainHandle {
                 Arc::clone(&self.repos),
                 Arc::clone(&self.outbox),
                 model,
-                self.listener_pool.clone(),
+                self.notifications_hub.clone(),
             )
             .profile((*self.profile).clone())
             .seams(seams)

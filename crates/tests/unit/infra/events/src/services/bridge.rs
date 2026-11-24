@@ -116,6 +116,7 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -171,6 +172,7 @@ async fn agui_fan_out_relays_through_bridge_to_each_recipient() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -221,6 +223,7 @@ async fn a2a_event_relays_through_bridge_to_local_subscriber() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -269,6 +272,7 @@ async fn system_event_relays_through_bridge_to_context_subscriber() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -317,6 +321,7 @@ async fn analytics_event_relays_through_bridge_to_local_subscriber() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -479,6 +484,7 @@ async fn bridge_survives_missing_outbox_row_notification() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -527,6 +533,7 @@ async fn bridge_survives_unknown_channel_row() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -577,6 +584,7 @@ async fn bridge_survives_undecodable_payload() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -631,6 +639,7 @@ async fn bridge_survives_undecodable_payloads_on_every_channel() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -707,6 +716,7 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -776,10 +786,11 @@ async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
     let pool = (*db.pool()).clone();
 
     let handle = PostgresEventBridge::new(
-        pool,
+        pool.clone(),
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     tokio::time::sleep(Duration::from_secs(30)).await;
@@ -846,6 +857,7 @@ async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -912,6 +924,7 @@ async fn bridge_skips_rows_it_originated_and_delivers_peer_rows() {
         self_node.clone(),
         systemprompt_traits::CacheEpochs::new(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
