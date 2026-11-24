@@ -8,11 +8,15 @@ use crate::services::middleware::MountError;
 pub(in crate::services::server::routes) fn mount_stream(
     router: Router,
     mount: &MountCtx<'_>,
+    stream: Option<Router>,
 ) -> Result<Router, MountError> {
+    let Some(stream) = stream else {
+        return Ok(router);
+    };
     mount.mount(
         router,
         declare(
-            crate::routes::stream::stream_router(mount.ctx),
+            stream,
             ApiPaths::STREAM_BASE,
             AuthzPolicy::user(),
             ContextKind::User,

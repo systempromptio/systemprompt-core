@@ -11,7 +11,6 @@
 pub mod agent_dispatch;
 pub mod health;
 pub(crate) mod kernel_seeds;
-pub mod messaging;
 pub mod middleware;
 pub mod proxy;
 pub mod server;

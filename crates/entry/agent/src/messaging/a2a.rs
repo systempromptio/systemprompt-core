@@ -1,8 +1,8 @@
 //! The A2A backend leg of the messaging pipeline.
 //!
-//! Mints a per-user bearer, builds the blocking `SendMessage` request the
-//! proxy forwards to the agent service, sends it through the kernel's sealed
-//! agent dispatch (the API's agent proxy), and
+//! Mints a per-user bearer ([`A2aTokenIssuer`]), builds the blocking
+//! `SendMessage` request the proxy forwards to the agent service, sends it
+//! through the kernel's sealed agent dispatch (the API's agent proxy), and
 //! extracts the agent's reply text.
 //!
 //! This is the only part of dispatch that speaks the A2A wire protocol; the
@@ -24,7 +24,7 @@ use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::a2a::methods;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, JwtAudience, Permission};
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
-use systemprompt_runtime::AppContext;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::MessagingInbound;
 use systemprompt_users::User;
 
@@ -46,36 +46,45 @@ pub(super) fn authenticated_user(user: &User) -> AuthenticatedUser {
     }
 }
 
-pub(super) fn mint_a2a_token(
-    ctx: &AppContext,
-    authed: &AuthenticatedUser,
-    session_id: &SessionId,
-) -> Result<String, MessagingError> {
-    let config = JwtConfig {
-        permissions: authed.permissions.clone(),
-        audience: vec![JwtAudience::A2a, JwtAudience::Mcp],
-        expires_in: chrono::Duration::hours(1),
-        resource: None,
-        plugin_id: None,
-        client_id: None,
-        purpose: None,
-        interaction: None,
-        browser_session: false,
-        ui_session: false,
-        auth_time: None,
-    };
-    let signing = JwtSigningParams {
-        issuer: &ctx.config().jwt_issuer,
-        keys: ctx.signing_keys(),
-    };
-    generate_jwt(
-        authed,
-        config,
-        systemprompt_identifiers::AccessTokenId::generate(),
-        session_id,
-        &signing,
-    )
-    .map_err(MessagingError::Token)
+/// Mints the one-hour A2A and MCP bearer a dispatched message runs under, for
+/// the user the dispatcher resolved, and nothing else.
+pub(super) struct A2aTokenIssuer {
+    pub(super) issuer: String,
+    pub(super) keys: SigningKeys,
+}
+
+impl A2aTokenIssuer {
+    pub(super) fn mint(
+        &self,
+        authed: &AuthenticatedUser,
+        session_id: &SessionId,
+    ) -> Result<String, MessagingError> {
+        let config = JwtConfig {
+            permissions: authed.permissions.clone(),
+            audience: vec![JwtAudience::A2a, JwtAudience::Mcp],
+            expires_in: chrono::Duration::hours(1),
+            resource: None,
+            plugin_id: None,
+            client_id: None,
+            purpose: None,
+            interaction: None,
+            browser_session: false,
+            ui_session: false,
+            auth_time: None,
+        };
+        let signing = JwtSigningParams {
+            issuer: &self.issuer,
+            keys: &self.keys,
+        };
+        generate_jwt(
+            authed,
+            config,
+            systemprompt_identifiers::AccessTokenId::generate(),
+            session_id,
+            &signing,
+        )
+        .map_err(MessagingError::Token)
+    }
 }
 
 pub(super) fn build_a2a_request(

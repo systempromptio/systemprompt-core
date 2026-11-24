@@ -1,48 +1,48 @@
 //! Server-sent event stream routes for live A2A, `AgUI`, and context-state
 //! feeds.
 //!
-//! Each route opens a per-user SSE connection backed by a broadcaster from
-//! `systemprompt_events`. [`create_sse_stream`] registers the connection (with
-//! a per-user cap), wraps the receiver in a [`StreamWithGuard`] so the
-//! [`ConnectionGuard`] deregisters it on drop, and emits keep-alive frames.
+//! Each route opens a per-user SSE connection through the member's
+//! [`StreamFeeds`]: the feed registers the connection (with a per-user cap)
+//! and returns the [`ConnectionGuard`] a [`StreamWithGuard`] holds, so the
+//! connection deregisters on drop; the response emits keep-alive frames. The
+//! API mounts the router at `/api/v1/stream` behind the user gate with a user
+//! request context under the `stream` rate scope.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::convert::Infallible;
+use std::future::Future;
+use std::sync::Arc;
+
 use axum::Router;
 use axum::extract::{Extension, State};
-use axum::response::IntoResponse;
 use axum::response::sse::Sse;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use std::convert::Infallible;
-use std::sync::Arc;
 use systemprompt_agent::services::ContextProviderService;
-use systemprompt_events::{
-    Broadcaster, ConnectionGuard, EventBroadcasters, GenericBroadcaster, ToSse, standard_keep_alive,
-};
+use systemprompt_events::{ConnectionGuard, EventSender, ToSse, standard_keep_alive};
+use systemprompt_extension::router::subscription_refused;
+use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
-use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::kernel::ApiHttpError;
-
 pub mod contexts;
+mod feeds;
 
+pub use feeds::StreamFeeds;
+
+const STREAM_BUFFER: usize = 1024;
+
+/// Router-scoped state of the stream routes.
 #[derive(Clone, Debug)]
 pub struct StreamState {
-    pub context_provider: Arc<ContextProviderService>,
-    pub broadcasters: Arc<EventBroadcasters>,
+    pub contexts: Arc<ContextProviderService>,
+    pub feeds: Arc<StreamFeeds>,
 }
 
-pub fn stream_router(ctx: &AppContext) -> Router {
-    let context_provider = crate::repository::context_provider(ctx.db_pool());
-    let state = StreamState {
-        context_provider: Arc::new(context_provider),
-        broadcasters: Arc::clone(ctx.event_broadcasters()),
-    };
-
+pub fn router(state: StreamState) -> Router {
     Router::new()
         .route("/contexts", get(contexts::stream_context_state))
         .route("/agui", get(stream_agui_events))
@@ -54,18 +54,19 @@ pub async fn stream_a2a_events(
     Extension(request_context): Extension<RequestContext>,
     State(state): State<StreamState>,
 ) -> impl IntoResponse {
-    create_sse_stream(request_context, Arc::clone(&state.broadcasters.a2a), "A2A").await
+    create_sse_stream(request_context, "A2A", |user, conn, tx| async move {
+        state.feeds.open_a2a(&user, &conn, tx).await
+    })
+    .await
 }
 
 pub async fn stream_agui_events(
     Extension(request_context): Extension<RequestContext>,
     State(state): State<StreamState>,
 ) -> impl IntoResponse {
-    create_sse_stream(
-        request_context,
-        Arc::clone(&state.broadcasters.agui),
-        "AgUI",
-    )
+    create_sse_stream(request_context, "AgUI", |user, conn, tx| async move {
+        state.feeds.open_agui(&user, &conn, tx).await
+    })
     .await
 }
 
@@ -98,35 +99,36 @@ impl<E: ToSse + Clone + Send + Sync + 'static> futures_util::Stream for StreamWi
     }
 }
 
-pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
-    request_context: RequestContext,
-    broadcaster: Arc<GenericBroadcaster<E>>,
-    stream_name: &str,
-) -> impl IntoResponse {
-    let user_id = request_context.user_id().clone();
-    let user_id_str = user_id.to_string();
-    let conn_id = systemprompt_identifiers::ConnectionId::generate();
-    let conn_id_str = conn_id.as_str().to_owned();
-
-    tracing::info!(user_id = %user_id_str, conn_id = %conn_id_str, stream = %stream_name, "SSE stream opened");
-
-    let (tx, rx) = mpsc::channel(1024);
-
-    if !broadcaster.register(&user_id, &conn_id, tx.clone()).await {
-        tracing::warn!(user_id = %user_id_str, stream = %stream_name, "SSE stream rejected: per-user connection cap reached");
-        return ApiHttpError::from(ApiError::rate_limited(
-            "Per-user stream connection limit reached",
-        ))
-        .into_response();
-    }
-
-    let cleanup_guard = ConnectionGuard::new(broadcaster, user_id, conn_id);
-    let stream = ReceiverStream::new(rx);
-    let stream_with_guard = StreamWithGuard::<E>::new(stream, cleanup_guard);
-
-    tracing::info!(user_id = %user_id_str, conn_id = %conn_id_str, stream = %stream_name, "SSE stream ready");
-
-    Sse::new(stream_with_guard)
+pub(crate) fn guarded_sse<E: ToSse + Clone + Send + Sync + 'static>(
+    rx: mpsc::Receiver<Result<axum::response::sse::Event, Infallible>>,
+    guard: ConnectionGuard<E>,
+) -> Response {
+    Sse::new(StreamWithGuard::<E>::new(ReceiverStream::new(rx), guard))
         .keep_alive(standard_keep_alive())
         .into_response()
+}
+
+pub async fn create_sse_stream<E, F, Fut>(
+    request_context: RequestContext,
+    stream_name: &'static str,
+    open: F,
+) -> Response
+where
+    E: ToSse + Clone + Send + Sync + 'static,
+    F: FnOnce(UserId, ConnectionId, EventSender) -> Fut,
+    Fut: Future<Output = Option<ConnectionGuard<E>>>,
+{
+    let user_id = request_context.user_id().clone();
+    let conn_id = ConnectionId::generate();
+
+    tracing::info!(user_id = %user_id, conn_id = %conn_id, stream = %stream_name, "SSE stream opened");
+
+    let (tx, rx) = mpsc::channel(STREAM_BUFFER);
+    let Some(guard) = open(user_id.clone(), conn_id.clone(), tx).await else {
+        return subscription_refused(&request_context, stream_name);
+    };
+
+    tracing::info!(user_id = %user_id, conn_id = %conn_id, stream = %stream_name, "SSE stream ready");
+
+    guarded_sse(rx, guard)
 }

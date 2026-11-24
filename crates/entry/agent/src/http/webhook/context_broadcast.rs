@@ -8,16 +8,17 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 
 use super::event_loader::load_event_data;
 use super::types::WebhookRequest;
-use super::{WebhookRepositories, WebhookState};
-use crate::kernel::ApiHttpError;
+use crate::http::AgentHttpState;
+use crate::repository::ConversationRepositories;
 
 async fn authorize_broadcast(
-    repos: &WebhookRepositories,
+    repos: &ConversationRepositories,
     req_ctx: &systemprompt_models::RequestContext,
     request: &WebhookRequest,
 ) -> Result<(), ApiHttpError> {
@@ -38,13 +39,13 @@ async fn authorize_broadcast(
         Err(e) if e.is_not_found() => Err(ApiHttpError::from(
             ApiError::forbidden("User does not own the context").with_source(e),
         )),
-        Err(e) => Err(ApiHttpError::from(e)),
+        Err(e) => Err(ApiHttpError::from(ApiError::from(e))),
     }
 }
 
 pub async fn broadcast_context_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
-    State(state): State<WebhookState>,
+    State(state): State<AgentHttpState>,
     Json(request): Json<WebhookRequest>,
 ) -> Result<Response, ApiHttpError> {
     let start_time = std::time::Instant::now();
@@ -60,11 +61,7 @@ pub async fn broadcast_context_event(
         value: webhook_data.payload,
     }));
 
-    let (agui_count, context_count) = state
-        .events
-        .route_agui(&req_ctx.auth.actor.user_id, event)
-        .await
-        .into_local_logged();
+    let (agui_count, context_count) = state.events.agui(&req_ctx.auth.actor.user_id, event).await;
     let count = agui_count + context_count;
 
     tracing::debug!(event_type = %webhook_data.event_name, connection_count = %count, user_id = %request.user_id, duration_ms = %start_time.elapsed().as_millis(), "Webhook processed");

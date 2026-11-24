@@ -16,6 +16,10 @@
 //! exactly. Every accessor checks ownership against the authenticated caller
 //! before it returns data.
 //!
+//! [`AgentHttpSurface`] builds the routers the API mounts with its own
+//! layering: the webhook broadcasts (`/api/v1/webhook`), the SSE streams
+//! (`/api/v1/stream`) and the well-known agent cards.
+//!
 //! Handlers read [`AgentHttpState`] (repositories built from the database
 //! handle, the [`ContextEventPublisher`] the member provides, and the UI
 //! renderer registry when the `mcp` member provides one) or
@@ -25,23 +29,28 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_cards;
 pub mod artifacts;
 pub mod contexts;
 mod error;
 pub mod events;
 pub mod registry;
 pub mod responses;
+pub mod stream;
 pub mod tasks;
+pub mod webhook;
 
 use std::sync::Arc;
 
 use axum::http::Method;
+use systemprompt_agent::services::ContextProviderService;
 use systemprompt_agent::services::registry::AgentCardSite;
 use systemprompt_database::{DbPool, ServiceRepository};
 
 pub use crate::repository::ConversationRepositories;
 use systemprompt_extension::router::{
-    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+    AgentRouteState, AgentSurface, AgentSurfaceError, AgentSurfaceRoutes, ApiBase, BasePath,
+    BodyLimit, RouteLimits, RouteSet, RouteSpec,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, FromState, MissingDependency, RateBudget, RateLimit, Resolved,
@@ -53,8 +62,10 @@ use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::DynSessionUsageCounters;
 
+use agent_cards::AgentCardsState;
 pub use error::AgentHttpError;
 pub use events::ContextEventPublisher;
+use stream::{StreamFeeds, StreamState};
 
 const DEFAULT_PAGE_LIMIT: u16 = 100;
 const MAX_PAGE_LIMIT: u16 = 500;
@@ -174,6 +185,35 @@ impl FromState for AgentRegistryState {
             crate::repository::service_table(&db, r.get::<InstanceId>()?),
             r.get::<Arc<AgentCardSite>>()?,
         ))
+    }
+}
+
+/// The `agent-http` member's [`AgentSurface`]: the webhook broadcasts over
+/// [`AgentHttpState`], the streams over the member's [`StreamFeeds`] and a
+/// context provider on the same repositories, and the well-known agent cards
+/// over the services view and the open [`AgentCardSite`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AgentHttpSurface;
+
+impl AgentSurface for AgentHttpSurface {
+    fn build(&self, state: AgentRouteState<'_>) -> Result<AgentSurfaceRoutes, AgentSurfaceError> {
+        let r = &state.resolved;
+        let http = AgentHttpState::from_state(r)?;
+        let stream = StreamState {
+            contexts: Arc::new(ContextProviderService::new(
+                http.repositories.contexts.clone(),
+            )),
+            feeds: r.get::<Arc<StreamFeeds>>()?,
+        };
+        let cards = AgentCardsState {
+            services: r.get::<ServicesView>()?,
+            site: r.get::<Arc<AgentCardSite>>()?,
+        };
+        Ok(AgentSurfaceRoutes {
+            webhook: webhook::router(http),
+            stream: stream::router(stream),
+            agent_cards: agent_cards::router(cards),
+        })
     }
 }
 

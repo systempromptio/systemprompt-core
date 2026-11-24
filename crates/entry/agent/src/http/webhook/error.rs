@@ -4,11 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::AgentError;
+use systemprompt_extension::router::{ApiHttpError, IntoApiError};
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::RepositoryError;
 
 use super::validation::PayloadValidationError;
-use crate::kernel::ApiHttpError;
+use crate::http::AgentHttpError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LoadEventError {
@@ -37,8 +38,8 @@ pub enum LoadEventError {
 impl From<LoadEventError> for ApiHttpError {
     fn from(err: LoadEventError) -> Self {
         match err {
-            LoadEventError::Agent(e) => Self::from(e),
-            LoadEventError::Repository(e) => Self::from(e),
+            LoadEventError::Agent(e) => AgentHttpError::Agent(e).into_api_error().into(),
+            LoadEventError::Repository(e) => ApiError::from(e).into(),
             e @ LoadEventError::NotFound { .. } => Self::not_found(e.to_string()),
             e @ (LoadEventError::UnknownEventType(_)
             | LoadEventError::Deserialize { .. }

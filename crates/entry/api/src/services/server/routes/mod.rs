@@ -123,12 +123,25 @@ fn build_routes(
     } else {
         (None, None, None)
     };
+    let (agent_webhook, agent_stream, agent_cards) = match protocol::agent_routes(&mount)? {
+        Some(routes) => (
+            Some(routes.webhook),
+            Some(routes.stream),
+            Some(routes.agent_cards),
+        ),
+        None => (None, None, None),
+    };
     if serves(RouteGroup::Agent) {
-        router = protocol::mount_agent(router, &mount)?;
+        router = protocol::mount_agent(router, &mount, agent_webhook)?;
     }
     if serves(RouteGroup::McpAndStream) {
         router = protocol::mount_mcp(router, &mount)?;
-        router = protocol::mount_stream(router, &mount)?;
+        router = protocol::mount_stream(router, &mount, agent_stream)?;
+    }
+    if serves(RouteGroup::WellKnown)
+        && let Some(cards) = agent_cards
+    {
+        router = protocol::mount_agent_cards(router, &mount, cards)?;
     }
     if serves(RouteGroup::ContentAndMisc) {
         router = mount_content(router, &mount)?;
@@ -143,7 +156,7 @@ fn build_routes(
         router = gateway::mount_gateway(router, &mount)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
-    crate::services::messaging::bind_dispatcher(ctx)
+    crate::services::agent_dispatch::bind_dispatchers(ctx)
         .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;
     router = mount_discovery(router, &mount, identity_wellknown)?;
