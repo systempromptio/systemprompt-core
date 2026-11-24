@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Marketplace"
+text = "The `marketplace-http` consumer routes (`/api/v1/consumer-devices/enrollment`, the consumer bundle, receipt and session-binding routes) are mounted only when `gateway-http` is admitted, because the managed consumer they are built from is the gateway surface's; a profile that disables `gateway-http` but keeps `marketplace-http` answers them 404. Migrate by keeping `gateway-http` admitted wherever devices enrol."

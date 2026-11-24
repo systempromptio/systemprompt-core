@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::surface::IdentityConfigView;
 use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_models::errors::ParseEnumError;
 use systemprompt_oauth::OAuthState;
@@ -97,7 +97,7 @@ pub async fn generate_client_tokens(
     client_id: &ClientId,
     origin: RequestOrigin<'_>,
     state: &OAuthState,
-    global_config: &Config,
+    global_config: &IdentityConfigView,
     options: ClientTokenOptions<'_>,
 ) -> Result<TokenResponse, ClientCredentialsError> {
     let repo = state.oauth_repository();

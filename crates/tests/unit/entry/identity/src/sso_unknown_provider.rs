@@ -31,7 +31,9 @@ async fn app() -> axum::Router {
         &oauth,
         &systemprompt_oauth_issuance::contract::SsoProviders::default(),
     ))
-    .layer(axum::Extension(ctx.config_arc().clone()))
+    .layer(axum::Extension(std::sync::Arc::new(
+        systemprompt_security::http::EdgeConfigView::of(ctx.config()),
+    )))
 }
 
 fn assert_refused_unavailable(resp: &axum::response::Response) {

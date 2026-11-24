@@ -7,20 +7,20 @@
 //! service tokens, so the tier split, the rejection reasons, and the audience
 //! narrowing are pinned here.
 
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_oauth_issuance::ClientCredentialsError;
 use systemprompt_oauth_issuance::client_credentials::{
     authorize_client_grant, resolve_audience, scope_permissions,
 };
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_test_fixtures::fixture_config;
 
 fn scopes(values: &[&str]) -> Vec<String> {
     values.iter().map(|s| (*s).to_owned()).collect()
 }
 
-fn config_with_audiences(allowed: &[&str]) -> Config {
-    let mut config = fixture_config("postgres://unused/unused");
+fn config_with_audiences(allowed: &[&str]) -> IdentityConfigView {
+    let mut config = IdentityConfigView::of(&fixture_config("postgres://unused/unused"));
     config.allowed_resource_audiences = allowed.iter().map(|s| (*s).to_owned()).collect();
     config
 }

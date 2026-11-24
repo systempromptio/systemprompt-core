@@ -9,11 +9,11 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use systemprompt_identifiers::{AccessTokenId, SessionId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{
     AuthenticatedUser, Permission, TokenAuthority, TokenInteraction, UserJwtRequest,
 };
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::subject::{
     jwks_host_allowlist, validate_subject_token,
 };
@@ -25,8 +25,8 @@ const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
 const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 
-fn config() -> Config {
-    fixture_config("postgres://unused/unused")
+fn config() -> IdentityConfigView {
+    IdentityConfigView::of(&fixture_config("postgres://unused/unused"))
 }
 
 fn unsigned_jwt(header: &str, payload: &str) -> String {
@@ -215,7 +215,7 @@ async fn accepts_a_self_issued_token_and_returns_its_scope() {
     );
 }
 
-fn minted_with(config: &Config, interaction: Option<TokenInteraction>) -> String {
+fn minted_with(config: &IdentityConfigView, interaction: Option<TokenInteraction>) -> String {
     let authority = DeploymentTokenAuthority::new(
         systemprompt_test_fixtures::test_signing_keys(),
         &config.jwt_issuer,

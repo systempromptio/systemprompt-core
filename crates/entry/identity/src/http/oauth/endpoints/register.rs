@@ -19,8 +19,8 @@ use bcrypt::hash;
 use chrono::Utc;
 use rand::Rng;
 use std::sync::Arc;
-use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use uuid::Uuid;
 
 use systemprompt_oauth::OauthResult;
@@ -83,7 +83,7 @@ fn validate_registration(
 
 pub async fn register_client(
     Extension(req_ctx): Extension<RequestContext>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     OAuthRepo(repository): OAuthRepo,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> Result<Response, OAuthHttpError> {

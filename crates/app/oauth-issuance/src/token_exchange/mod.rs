@@ -22,9 +22,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::surface::IdentityConfigView;
 use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::{
@@ -57,7 +57,7 @@ pub const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 #[derive(Debug, Clone, Copy)]
 pub struct ExchangeContext<'a> {
     pub jwks: &'a JwksCache,
-    pub config: &'a Arc<Config>,
+    pub config: &'a Arc<IdentityConfigView>,
 }
 
 #[derive(Debug, Default)]
@@ -76,7 +76,7 @@ async fn resolve_subject(
     client_id: &ClientId,
     request: &TokenExchangeRequest<'_>,
     state: &OAuthState,
-    global: &Config,
+    global: &IdentityConfigView,
     jwks: &JwksCache,
 ) -> IssuanceResult<SubjectIdentity> {
     if request.subject_token_type == ID_JAG_TOKEN_TYPE {

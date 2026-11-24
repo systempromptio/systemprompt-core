@@ -20,13 +20,13 @@ use tracing::instrument;
 use crate::http::oauth::extractors::OAuthRepo;
 use crate::http::oauth::{OAuthHttpError, internal};
 use std::sync::Arc;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_security::http::SessionCookie;
 
 #[instrument(skip(repo, req_ctx, config))]
 pub async fn handle_logout(
     Extension(req_ctx): Extension<RequestContext>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     OAuthRepo(repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
     let jti = req_ctx
@@ -43,7 +43,7 @@ pub async fn handle_logout(
     let mut response = (StatusCode::NO_CONTENT).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
-        SessionCookie::from_config(&config).cleared(),
+        SessionCookie::for_external_url(&config.api_external_url).cleared(),
     );
     Ok(response)
 }

@@ -53,12 +53,13 @@ async fn authorize_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    Ok(public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .layer(middleware::from_fn(inject_context))
     .with_state(state)
-    .layer(axum::Extension(ctx.config_arc().clone())))
+    .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
@@ -386,12 +387,13 @@ async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
             .get::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
             .cloned()?,
     );
-    Ok(public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    Ok(public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .layer(middleware::from_fn(inject_context))
     .with_state(state)
-    .layer(axum::Extension(ctx.config_arc().clone())))
+    .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 fn authorize_uri(client_id: &str, resource: Option<&str>) -> String {

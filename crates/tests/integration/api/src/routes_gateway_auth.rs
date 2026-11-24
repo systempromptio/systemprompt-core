@@ -6,7 +6,6 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use axum::response::Response;
-use std::sync::Arc;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_documents::actor::bearer_actor;
 use systemprompt_files::documents::agents::DocumentActor;
@@ -26,7 +25,7 @@ async fn send(
     body: Option<serde_json::Value>,
 ) -> Result<Response> {
     let app = gateway_router(ctx, ctx.admitted(), ctx.kernel())?
-        .layer(axum::Extension(Arc::clone(ctx.config_arc())));
+        .layer(axum::Extension(crate::common::edge_view(&ctx)));
     let mut builder = Request::builder().method(method).uri(path);
     for (name, value) in headers {
         builder = builder.header(*name, value);

@@ -22,11 +22,11 @@
 
 use std::sync::Arc;
 
+use crate::surface::IdentityConfigView;
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_identifiers::{
     AccessTokenId, ClientId, RefreshTokenId, SessionId, SessionSource, UserId,
 };
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, parse_permissions, permissions_to_string,
 };
@@ -73,7 +73,7 @@ pub struct UserTokenParams<'a> {
     pub session_started_at: DateTime<Utc>,
     pub authenticated_at: DateTime<Utc>,
     pub ui_session: bool,
-    pub config: &'a Arc<Config>,
+    pub config: &'a Arc<IdentityConfigView>,
 }
 
 /// A refresh token minted before the grant is redeemed, so the redemption can

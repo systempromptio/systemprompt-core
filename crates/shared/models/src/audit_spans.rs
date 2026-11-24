@@ -15,8 +15,8 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ApiKeyId, ContextId, InstanceId, McpExecutionId, McpServerId,
-    McpToolName, PluginId, SessionId, TraceId, UserId,
+    Actor, AiRequestId, AiToolCallId, ApiKeyId, ContextId, GovernanceDecisionId, InstanceId,
+    McpExecutionId, McpServerId, McpToolName, PluginId, SessionId, ToolUseId, TraceId, UserId,
 };
 use systemprompt_traits::RequestStatus;
 
@@ -29,8 +29,7 @@ pub struct RequestSpanRecord {
     pub status: RequestStatus,
     pub error_message: Option<String>,
     pub user_id: UserId,
-    pub actor_kind: String,
-    pub actor_id: String,
+    pub actor: Actor,
     pub session_id: Option<SessionId>,
     pub context_id: ContextId,
     pub trace_id: Option<TraceId>,
@@ -79,17 +78,16 @@ pub struct ToolCallSpanRecord {
 
 #[derive(Debug, Clone)]
 pub struct GovernanceSpanRecord {
-    pub id: String,
+    pub id: GovernanceDecisionId,
     pub request_id: Option<AiRequestId>,
     pub trace_id: Option<TraceId>,
     pub decision: String,
     pub policy: String,
     pub reason: String,
     pub tool_name: String,
-    pub tool_use_id: Option<String>,
+    pub tool_use_id: Option<ToolUseId>,
     pub plugin_id: Option<PluginId>,
-    pub actor_kind: String,
-    pub actor_id: String,
+    pub actor: Actor,
     pub decided_at: DateTime<Utc>,
 }
 

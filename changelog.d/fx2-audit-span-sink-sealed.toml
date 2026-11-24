@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The audit-span sink is a sealed kernel seed: only core provides (the MCP execution ledger, the governance decision writer) resolve it, and no install provide or route set can emit `ai_request`, `tool_call` or `governance_decision` spans into the OTLP export."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`DynAuditSpanSink` is seeded sealed; an install or member route set that read it now resolves `None`."

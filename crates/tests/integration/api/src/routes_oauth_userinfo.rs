@@ -36,11 +36,12 @@ async fn oauth_state() -> anyhow::Result<OAuthState> {
 }
 
 async fn userinfo_app() -> anyhow::Result<Router> {
-    Ok(public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    Ok(public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::fixture_identity_view(),
+    )
     .with_state(oauth_state().await?)
-    .layer(axum::Extension(systemprompt_test_fixtures::test_config())))
+    .layer(axum::Extension(crate::common::fixture_edge_view())))
 }
 
 fn get_userinfo(auth: Option<&str>) -> Request<Body> {
@@ -74,9 +75,11 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_identity_entry::http::oauth::authenticated_router()
-        .with_state(state)
-        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
+    let app = systemprompt_identity_entry::http::oauth::authenticated_router(
+        &crate::common::fixture_identity_view(),
+    )
+    .with_state(state)
+    .layer(axum::Extension(crate::common::fixture_edge_view()));
     let resp = app.oneshot(get_userinfo(None)).await?;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
     let v = read_json(resp).await?;
@@ -87,9 +90,11 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
 #[tokio::test]
 async fn userinfo_malformed_token_returns_invalid_token() -> anyhow::Result<()> {
     let state = oauth_state().await?;
-    let app = systemprompt_identity_entry::http::oauth::authenticated_router()
-        .with_state(state)
-        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
+    let app = systemprompt_identity_entry::http::oauth::authenticated_router(
+        &crate::common::fixture_identity_view(),
+    )
+    .with_state(state)
+    .layer(axum::Extension(crate::common::fixture_edge_view()));
     let resp = app
         .oneshot(get_userinfo(Some("Bearer not-a-real-token")))
         .await?;
@@ -102,9 +107,11 @@ async fn userinfo_malformed_token_returns_invalid_token() -> anyhow::Result<()> 
 #[tokio::test]
 async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
     let state = oauth_state().await?;
-    let app = systemprompt_identity_entry::http::oauth::authenticated_router()
-        .with_state(state)
-        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
+    let app = systemprompt_identity_entry::http::oauth::authenticated_router(
+        &crate::common::fixture_identity_view(),
+    )
+    .with_state(state)
+    .layer(axum::Extension(crate::common::fixture_edge_view()));
     let user = UserId::new(Uuid::new_v4().to_string());
     let token = mint_admin_jwt(
         &user,

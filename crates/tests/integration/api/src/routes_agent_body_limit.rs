@@ -103,7 +103,7 @@ fn agent_route(ctx: &AppContext) -> Router {
             ),
             AuthzPolicy::authenticated(),
         )
-        .layer(axum::Extension(Arc::clone(ctx.config_arc())))
+        .layer(axum::Extension(crate::common::edge_view(&ctx)))
 }
 
 fn message_with_file_part(file_bytes: usize) -> String {

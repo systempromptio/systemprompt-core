@@ -24,7 +24,7 @@ use axum::Router;
 use ipnet::IpNet;
 use systemprompt_extension::prelude::{MissingDependency, Resolved};
 use systemprompt_manifest::Config;
-use systemprompt_manifest::profile::UiSessionConfig;
+use systemprompt_manifest::profile::{AuthorizeConfig, TrustedIssuer, UiSessionConfig};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_traits::{AnalyticsProvider, UserProvider};
 
@@ -47,18 +47,28 @@ pub struct IdentityRouteState<'a> {
 
 /// The runtime-configuration facts the identity surface reads: the external
 /// URL and site name (`WebAuthn` relying party, SSO redirects, the session
-/// cookie and the bridge token endpoint), the JWT issuer, audiences and
-/// access-token lifetime, the trusted proxies, the discovery switches and the
-/// API-key lifetime cap.
+/// cookie and the bridge token endpoint), the server URL (RFC 7592 client
+/// configuration URIs), the JWT issuer, audiences and token lifetimes, the
+/// resource audiences, trusted issuers and ID-JAG lifetime token exchange
+/// checks, the trusted proxies, the registration and discovery switches, the
+/// login page and authorize policy, and the API-key lifetime cap.
 #[derive(Debug, Clone)]
 pub struct IdentityConfigView {
     pub sitename: String,
     pub api_external_url: String,
+    pub api_server_url: String,
     pub jwt_issuer: String,
     pub jwt_audiences: Vec<JwtAudience>,
     pub jwt_access_token_expiration: i64,
+    pub jwt_refresh_token_expiration: i64,
+    pub allowed_resource_audiences: Vec<String>,
+    pub trusted_issuers: Vec<TrustedIssuer>,
+    pub id_jag_ttl_secs: i64,
     pub trusted_proxies: Vec<IpNet>,
+    pub allow_registration: bool,
     pub allow_dynamic_client_registration: bool,
+    pub login_page_url: Option<String>,
+    pub authorize: AuthorizeConfig,
     pub ui_session: UiSessionConfig,
     pub api_key_max_lifetime_days: Option<u32>,
 }
@@ -69,11 +79,19 @@ impl IdentityConfigView {
         Self {
             sitename: config.sitename.clone(),
             api_external_url: config.api_external_url.clone(),
+            api_server_url: config.api_server_url.clone(),
             jwt_issuer: config.jwt_issuer.clone(),
             jwt_audiences: config.jwt_audiences.clone(),
             jwt_access_token_expiration: config.jwt_access_token_expiration,
+            jwt_refresh_token_expiration: config.jwt_refresh_token_expiration,
+            allowed_resource_audiences: config.allowed_resource_audiences.clone(),
+            trusted_issuers: config.trusted_issuers.clone(),
+            id_jag_ttl_secs: config.id_jag_ttl_secs,
             trusted_proxies: config.trusted_proxies.clone(),
+            allow_registration: config.allow_registration,
             allow_dynamic_client_registration: config.allow_dynamic_client_registration,
+            login_page_url: config.login_page_url.clone(),
+            authorize: config.authorize,
             ui_session: config.ui_session.clone(),
             api_key_max_lifetime_days: config.api_key_max_lifetime_days,
         }

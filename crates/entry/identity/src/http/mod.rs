@@ -116,10 +116,11 @@ impl IdentitySurface for IdentityHttpSurface {
         };
 
         Ok(IdentityRoutes {
-            oauth_public: oauth::public_router(Arc::new(JwksCache::new()))
+            oauth_public: oauth::public_router(Arc::new(JwksCache::new()), &host.config)
                 .with_state(oauth_state.clone()),
-            oauth_authenticated: oauth::authenticated_router().with_state(oauth_state.clone()),
-            oauth_revocation: oauth::revocation_router().with_state(oauth_state),
+            oauth_authenticated: oauth::authenticated_router(&host.config)
+                .with_state(oauth_state.clone()),
+            oauth_revocation: oauth::revocation_router(&host.config).with_state(oauth_state),
             sso: sso::router(sso),
             passkey_link_page: Router::new().route(
                 "/auth/link-passkey",

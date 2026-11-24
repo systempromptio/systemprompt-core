@@ -11,8 +11,8 @@
 mod exchange;
 mod grants;
 
+use crate::surface::IdentityConfigView;
 use std::sync::Arc;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::{GrantType, OAuthState};
 
@@ -24,11 +24,15 @@ use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenRes
 pub struct TokenIssuanceOrchestrator<'a> {
     state: &'a OAuthState,
     jwks: &'a JwksCache,
-    config: &'a Arc<Config>,
+    config: &'a Arc<IdentityConfigView>,
 }
 
 impl<'a> TokenIssuanceOrchestrator<'a> {
-    pub const fn new(state: &'a OAuthState, jwks: &'a JwksCache, config: &'a Arc<Config>) -> Self {
+    pub const fn new(
+        state: &'a OAuthState,
+        jwks: &'a JwksCache,
+        config: &'a Arc<IdentityConfigView>,
+    ) -> Self {
         Self {
             state,
             jwks,

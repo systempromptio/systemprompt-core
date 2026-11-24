@@ -11,8 +11,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use crate::surface::IdentityConfigView;
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
-use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission, TokenInteraction};
 use systemprompt_oauth::services::EnterprisePrincipal;
@@ -40,7 +40,7 @@ pub async fn validate_subject_token(
     keys: &SigningKeys,
     token: &str,
     token_type: &str,
-    global: &Config,
+    global: &IdentityConfigView,
     jwks: &JwksCache,
 ) -> IssuanceResult<SubjectIdentity> {
     if !matches!(
@@ -140,7 +140,7 @@ fn validate_self_issued(
     keys: &SigningKeys,
     token: &str,
     header: &jsonwebtoken::Header,
-    global: &Config,
+    global: &IdentityConfigView,
 ) -> IssuanceResult<SubjectIdentity> {
     if header.alg != Algorithm::RS256 {
         return Err(IssuanceError::InvalidGrant {

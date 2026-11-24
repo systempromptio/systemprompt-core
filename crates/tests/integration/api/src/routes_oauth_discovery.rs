@@ -36,7 +36,7 @@ fn discovery_router_over(ctx: &systemprompt_runtime::AppContext) -> Router {
                 .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
                 .cloned(),
         ))
-        .layer(axum::Extension(ctx.config_arc().clone()))
+        .layer(axum::Extension(crate::common::edge_view(&ctx)))
 }
 
 #[tokio::test]

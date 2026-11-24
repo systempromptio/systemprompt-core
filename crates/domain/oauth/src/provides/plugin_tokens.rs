@@ -29,8 +29,6 @@ struct OauthPluginTokenMinter {
     authority: Arc<dyn TokenAuthority>,
 }
 
-struct UnavailablePluginTokenMinter;
-
 fn failed(e: impl std::error::Error + Send + Sync + 'static) -> PluginTokenMintError {
     PluginTokenMintError::Failed(Box::new(e))
 }
@@ -102,23 +100,13 @@ impl PluginTokenMinter for OauthPluginTokenMinter {
     }
 }
 
-#[async_trait]
-impl PluginTokenMinter for UnavailablePluginTokenMinter {
-    async fn mint(
-        &self,
-        _request: PluginTokenRequest,
-    ) -> Result<MintedPluginToken, PluginTokenMintError> {
-        Err(PluginTokenMintError::Unavailable)
-    }
-}
-
 pub(crate) fn plugin_token_minter(r: &Resolved<'_>) -> Result<DynPluginTokenMinter, ProvideError> {
     let (Some(authority), Some(store), Some(users)) = (
         r.optional::<Arc<dyn TokenAuthority>>(),
         r.optional::<DynSessionStore>(),
         r.optional::<DynUserProvider>(),
     ) else {
-        return Ok(Arc::new(UnavailablePluginTokenMinter));
+        return Err(ProvideError::Withheld);
     };
     let sessions: Arc<dyn SessionProvider> = store;
     let config = r.get::<Arc<Config>>()?;

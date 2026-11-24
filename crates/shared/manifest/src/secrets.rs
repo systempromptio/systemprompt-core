@@ -166,6 +166,11 @@ impl Secrets {
         BuiltInSecret::named(key).is_some()
     }
 
+    #[must_use]
+    pub fn is_provider_key_name(key: &str) -> bool {
+        BuiltInSecret::named(key).is_some_and(BuiltInSecret::is_provider_key)
+    }
+
     pub fn require_custom_ref(
         owner: &str,
         field: &'static str,
@@ -233,6 +238,18 @@ enum BuiltInSecret {
 }
 
 impl BuiltInSecret {
+    const fn is_provider_key(self) -> bool {
+        matches!(
+            self,
+            Self::Gemini
+                | Self::Anthropic
+                | Self::Openai
+                | Self::Github
+                | Self::Moonshot
+                | Self::Qwen
+        )
+    }
+
     fn named(key: &str) -> Option<Self> {
         Some(match key {
             "oauth_at_rest_pepper" | "OAUTH_AT_REST_PEPPER" => Self::OauthAtRestPepper,

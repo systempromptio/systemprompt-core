@@ -66,9 +66,10 @@ async fn webauthn_app() -> anyhow::Result<Router> {
         systemprompt_test_fixtures::test_oauth_signing(),
     )
     .with_webauthn(std::sync::Arc::new(webauthn));
-    let router = public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    let router = public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state);
     Ok(with_config(router, &ctx))
 }

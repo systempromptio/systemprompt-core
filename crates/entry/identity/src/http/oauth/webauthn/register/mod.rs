@@ -13,11 +13,11 @@ pub use finish::finish_register;
 pub use start::start_register;
 
 use axum::http::StatusCode;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 
 use crate::http::oauth::OAuthHttpError;
 
-fn ensure_registration_enabled(config: &Config) -> Result<(), OAuthHttpError> {
+fn ensure_registration_enabled(config: &IdentityConfigView) -> Result<(), OAuthHttpError> {
     if config.allow_registration {
         Ok(())
     } else {

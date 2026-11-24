@@ -17,6 +17,8 @@ mod agent_server_unavailable;
 #[cfg(test)]
 mod app_context_parts;
 #[cfg(test)]
+mod audit_span_seal;
+#[cfg(test)]
 mod boot;
 #[cfg(test)]
 mod brain_composition;
@@ -164,6 +166,8 @@ mod managed_inventory_lifecycle;
 mod mcp_host_serve;
 #[cfg(test)]
 mod mcp_tool_provider;
+#[cfg(test)]
+mod oauth_withheld_provides;
 #[cfg(test)]
 mod plugin_tokens_conferral;
 #[cfg(test)]

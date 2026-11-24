@@ -179,7 +179,9 @@ pub use oauth::{
 };
 pub use path::ValidatedFilePath;
 pub use plugin::PluginId;
-pub use policy::{CallId, PolicyId, PolicyVersion, SecretPatternId};
+pub use policy::{
+    CallId, GovernanceDecisionId, PolicyId, PolicyVersion, SecretPatternId, ToolUseId,
+};
 pub use profile::ProfileName;
 pub use provider_request::ProviderRequestId;
 pub use quota::{InvalidQuotaSubjectKind, QuotaSubjectKind};

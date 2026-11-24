@@ -47,7 +47,8 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use ipnet::IpNet;
-use systemprompt_manifest::Config;
+
+use super::EdgeConfigView;
 
 fn is_trusted(addr: IpAddr, trusted: &[IpNet]) -> bool {
     trusted.iter().any(|net| net.contains(&addr))
@@ -102,7 +103,7 @@ pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: 
 }
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
-#[error("the router carries no Config extension to resolve trusted proxies from")]
+#[error("the router carries no EdgeConfigView extension to resolve trusted proxies from")]
 pub struct ClientIpConfigMissing;
 
 impl IntoResponse for ClientIpConfigMissing {
@@ -124,7 +125,7 @@ impl<S: Sync> FromRequestParts<S> for ClientIp {
     ) -> impl Future<Output = Result<Self, ClientIpConfigMissing>> + Send {
         let resolved = parts
             .extensions
-            .get::<Arc<Config>>()
+            .get::<Arc<EdgeConfigView>>()
             .ok_or(ClientIpConfigMissing)
             .map(|config| {
                 Self(resolve_client_ip(

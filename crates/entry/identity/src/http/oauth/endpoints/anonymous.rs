@@ -9,7 +9,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 
 use systemprompt_security::http::{ClientIp, SameSite, SessionCookie};
 
@@ -96,7 +96,10 @@ async fn issue_anonymous_session(
     Ok(token_response(cookie, body, jwt_token.as_str(), expires_in))
 }
 
-fn build_session_service(state: &OAuthState, config: Arc<Config>) -> SessionCreationService {
+fn build_session_service(
+    state: &OAuthState,
+    config: Arc<IdentityConfigView>,
+) -> SessionCreationService {
     let mut session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
@@ -111,7 +114,7 @@ fn build_session_service(state: &OAuthState, config: Arc<Config>) -> SessionCrea
 
 pub async fn generate_anonymous_token(
     State(state): State<OAuthState>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Json(req): Json<AnonymousTokenRequest>,
@@ -126,7 +129,7 @@ pub async fn generate_anonymous_token(
         .map_err(|e| internal::reclassify(e, OAuthHttpError::invalid_client))?;
     let client_type = validation.client_type();
 
-    let cookie = SessionCookie::from_config(&config);
+    let cookie = SessionCookie::for_external_url(&config.api_external_url);
     let session_service = build_session_service(&state, config);
 
     let analytics = state.analytics_provider().extract_analytics(

@@ -1,7 +1,7 @@
 [root]
 section = "Changed"
 area = "CLI"
-text = "`admin users`, `admin keys` and `admin bridge` are contributed by the `identity-http` member (facade feature `identity`) instead of the CLI kernel; their command lines, output and data-impact classes are unchanged. They reach kernel material only through their rows' grants (`config-plane-writer` for the identity plane, `signing-keys`), the values conferred on `identity-http` (OAuth repositories, owner reassignments) and `IdentityCliSettings`. `admin keys issue-plugin-token` stays a kernel command, attached under the member's `admin keys` group. A binary built without `identity`, or a profile that disables `identity-http`, serves none of the three groups. `admin keys` and `admin bridge` still refuse a bare `--database-url`."
+text = "`admin users`, `admin keys` and `admin bridge` are contributed by the `identity-http` member (facade feature `identity`) instead of the CLI kernel; their command lines, output and data-impact classes are unchanged. They reach kernel material only through their rows' grants (`config-plane-writer` for the identity plane, `signing-keys`), the values conferred on `identity-http` (OAuth repositories, owner reassignments) and `IdentityCliSettings`. A binary built without `identity`, or a profile that disables `identity-http`, serves none of the three groups. `admin keys` and `admin bridge` still refuse a bare `--database-url`."
 
 [[crate]]
 name = "systemprompt-identity-entry"
@@ -11,7 +11,7 @@ text = "A `cli` feature with `cli::{users, keys, bridge}`: the `UsersCommands`, 
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
-text = "`admin::{users, keys, bridge}` and `AdminCommands::{Users, Keys, Bridge}` are removed (now in `systemprompt-identity-entry`'s `cli` feature). `admin keys issue-plugin-token` is `admin::plugin_token`. `kernel::ConfirmArgs` and `shared::ConfirmArgs` are removed: use `systemprompt_extension::cli::ConfirmArgs`. `config::migrate::data::apply_with` takes the bridge host-filter port."
+text = "`admin::{users, keys, bridge}` and `AdminCommands::{Users, Keys, Bridge}` are removed (now in `systemprompt-identity-entry`'s `cli` feature). `kernel::ConfirmArgs` and `shared::ConfirmArgs` are removed: use `systemprompt_extension::cli::ConfirmArgs`. `config::migrate::data::apply_with` takes the bridge host-filter port."
 
 [[crate]]
 name = "systemprompt-extension"

@@ -48,12 +48,13 @@ pub(super) async fn token_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    Ok(public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .layer(middleware::from_fn(inject_context))
     .with_state(state)
-    .layer(axum::Extension(ctx.config_arc().clone())))
+    .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 pub(super) struct SeededGrant {

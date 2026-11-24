@@ -34,9 +34,9 @@ async fn logout_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(authenticated_router()
+    Ok(authenticated_router(&crate::common::identity_view(&ctx))
         .with_state(state)
-        .layer(axum::Extension(ctx.config_arc().clone())))
+        .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 async fn seed_user(user: &UserId) -> anyhow::Result<()> {

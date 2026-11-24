@@ -10,10 +10,10 @@ use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::ClientId;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::validate_client_credentials;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 
 use crate::http::oauth::OAuthHttpError;
 use crate::http::oauth::extractors::OAuthRepo;
@@ -53,7 +53,7 @@ pub struct IntrospectResponse {
 
 pub async fn handle_introspect(
     State(state): State<OAuthState>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<IntrospectRequest>,
 ) -> Result<Response, OAuthHttpError> {
@@ -88,7 +88,7 @@ pub async fn handle_introspect(
 
 fn introspect_token(
     state: &OAuthState,
-    config: &Config,
+    config: &IdentityConfigView,
     token: &str,
 ) -> Option<IntrospectResponse> {
     match validate_jwt_token(

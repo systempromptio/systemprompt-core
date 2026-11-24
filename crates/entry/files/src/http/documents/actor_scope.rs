@@ -27,8 +27,8 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use systemprompt_documents::actor::request_actor;
 use systemprompt_files::documents::agents::act_as;
-use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
+use systemprompt_security::http::EdgeConfigView;
 
 use crate::http::error::ApiHttpError;
 
@@ -44,14 +44,14 @@ pub async fn scope(request: Request, next: Next) -> Response {
         .into_response();
     }
     if ctx.is_browser_session() {
-        let Some(config) = request.extensions().get::<Arc<Config>>() else {
+        let Some(edge) = request.extensions().get::<Arc<EdgeConfigView>>() else {
             return ApiHttpError::internal(
                 "document routes are mounted without the site configuration",
-                "the Config extension is not installed",
+                "the EdgeConfigView extension is not installed",
             )
             .into_response();
         };
-        if !same_origin(request.headers(), &site_origins(config)) {
+        if !same_origin(request.headers(), &site_origins(edge)) {
             return ApiHttpError::forbidden("a browser session acts only from this site's pages")
                 .into_response();
         }
@@ -60,17 +60,14 @@ pub async fn scope(request: Request, next: Next) -> Response {
     act_as(actor, next.run(request)).await
 }
 
-fn site_origins(config: &Config) -> Vec<String> {
-    [
-        Some(&config.api_external_url),
-        config.advertise_url.as_ref(),
-    ]
-    .into_iter()
-    .flatten()
-    .filter_map(|raw| url::Url::parse(raw).ok())
-    .map(|url| url.origin().ascii_serialization())
-    .filter(|origin| origin != "null")
-    .collect()
+fn site_origins(edge: &EdgeConfigView) -> Vec<String> {
+    [Some(&edge.api_external_url), edge.advertise_url.as_ref()]
+        .into_iter()
+        .flatten()
+        .filter_map(|raw| url::Url::parse(raw).ok())
+        .map(|url| url.origin().ascii_serialization())
+        .filter(|origin| origin != "null")
+        .collect()
 }
 
 #[must_use]

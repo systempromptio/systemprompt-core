@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::surface::IdentityConfigView;
 use std::str::FromStr;
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{JwtAudience, Permission, permissions_to_string};
 
 use super::ClientCredentialsError;
@@ -74,7 +74,7 @@ pub fn authorize_client_grant(
 
 pub fn resolve_audience(
     requested: Option<&str>,
-    global_config: &Config,
+    global_config: &IdentityConfigView,
 ) -> Result<Vec<JwtAudience>, ClientCredentialsError> {
     let Some(value) = requested else {
         return Ok(global_config.jwt_audiences.clone());

@@ -14,8 +14,8 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Form, Json};
 use base64::Engine;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::{
     IssuanceError, IssuanceResult, JwksCache, RequestOrigin, TokenIssuanceOrchestrator,
     TokenRequest,
@@ -33,7 +33,7 @@ use systemprompt_security::http::ClientIp;
 pub async fn handle_token(
     State(state): State<OAuthState>,
     Extension(jwks): Extension<Arc<JwksCache>>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Form(mut request): Form<TokenRequest>,

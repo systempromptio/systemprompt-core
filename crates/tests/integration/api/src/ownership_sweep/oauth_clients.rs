@@ -40,10 +40,10 @@ pub(super) fn clients_as(ctx: &AppContext, user: &UserId, user_type: UserType) -
             next.run(request).await
         }
     };
-    authenticated_router()
+    authenticated_router(&crate::common::identity_view(&ctx))
         .layer(middleware::from_fn(inject))
         .with_state(state)
-        .layer(axum::Extension(ctx.config_arc().clone()))
+        .layer(axum::Extension(crate::common::edge_view(&ctx)))
 }
 
 impl Fixture for Clients {

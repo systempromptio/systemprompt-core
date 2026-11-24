@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-templates"
+section = "Breaking"
+text = "`TemplateError::NoLoader` carries a named `name` field, and `TemplateError::NotFound` is removed."

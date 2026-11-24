@@ -8,8 +8,10 @@
 
 use std::collections::HashSet;
 
+use systemprompt_identifiers::SecretName;
 use systemprompt_models::providers::has_context_variant;
 
+use crate::secrets::Secrets;
 use crate::services::gateway::config::{BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig};
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 use crate::services::gateway::route::GatewayRoute;
@@ -81,6 +83,13 @@ fn validate_bridge_instance(instance: &BridgeInstanceSpec) -> GatewayResult<()> 
 }
 
 fn validate_bridge_releases(releases: &BridgeReleasesSpec) -> GatewayResult<()> {
+    if let Some(name) = releases.token_secret.as_deref() {
+        Secrets::require_custom_ref(
+            "gateway.bridge_releases",
+            "token_secret",
+            &SecretName::new(name),
+        )?;
+    }
     for (field, bound) in [
         ("min_version", releases.min_version.as_ref()),
         ("max_version", releases.max_version.as_ref()),

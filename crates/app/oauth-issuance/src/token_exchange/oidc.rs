@@ -5,9 +5,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::surface::IdentityConfigView;
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use serde::Deserialize;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::services::validation::id_jag::bool_or_bool_string;
 use systemprompt_security::jwt::reject_critical_header;
 
@@ -67,7 +67,7 @@ fn check_authorized_party(claims: &OidcIdTokenClaims, client: &str) -> IssuanceR
 
 pub async fn validate_oidc_subject(
     token: &str,
-    global: &Config,
+    global: &IdentityConfigView,
     jwks: &JwksCache,
 ) -> IssuanceResult<OidcSubject> {
     let header = decode_header(token)

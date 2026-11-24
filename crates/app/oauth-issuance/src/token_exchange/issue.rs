@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::surface::IdentityConfigView;
 use systemprompt_identifiers::ClientId;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 use systemprompt_security::keys::SigningKeys;
@@ -23,7 +23,7 @@ pub async fn issue_id_jag(
     keys: &SigningKeys,
     client_id: &ClientId,
     request: &TokenExchangeRequest<'_>,
-    global: &Config,
+    global: &IdentityConfigView,
     jwks: &JwksCache,
 ) -> IssuanceResult<TokenResponse> {
     if !matches!(request.subject_token_type, ID_TOKEN_TYPE | JWT_TOKEN_TYPE) {

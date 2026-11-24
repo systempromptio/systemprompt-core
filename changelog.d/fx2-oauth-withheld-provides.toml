@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "OAuth"
+text = "On a host that seeds no token authority, or without the users member's session store and user directory, the oauth member withholds the session issuer and the plugin-token minter instead of providing a value that refuses every call: `admin keys issue-plugin-token` reports the minter as not available on the host, and the session middleware runs without an issuer."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Changed"
+text = "The `DynSessionIssuer` and `DynPluginTokenMinter` provides return `ProvideError::Withheld` when their seeds are absent; the refusing stand-ins are removed."

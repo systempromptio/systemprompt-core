@@ -11,8 +11,8 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use systemprompt_identifiers::ClientId;
-use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::issue::issue_id_jag;
 use systemprompt_oauth_issuance::token_exchange::oidc::validate_oidc_subject;
 use systemprompt_oauth_issuance::token_exchange::{
@@ -47,8 +47,8 @@ fn trusted_issuer(can_issue_id_jag: bool, typ_allowlist: Vec<String>) -> Trusted
     }
 }
 
-fn config_with(issuer: TrustedIssuer) -> Config {
-    let mut config = fixture_config("postgres://unused/unused");
+fn config_with(issuer: TrustedIssuer) -> IdentityConfigView {
+    let mut config = IdentityConfigView::of(&fixture_config("postgres://unused/unused"));
     config.trusted_issuers = vec![issuer];
     config
 }

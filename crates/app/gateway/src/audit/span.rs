@@ -40,7 +40,6 @@ pub(super) const fn usage_columns(usage: &CanonicalUsage, billable: u32) -> [u32
 impl GatewayAudit {
     pub(super) fn emit_request_span(&self, outcome: &SettledOutcome<'_>) {
         let record = self.build_record();
-        let (actor_kind, actor_id) = record.actor.audit_columns();
         let completed_at = Utc::now();
         let route_match = self.route_match.lock().ok().and_then(|slot| slot.clone());
         let span = RequestSpanRecord {
@@ -49,8 +48,7 @@ impl GatewayAudit {
             status: outcome.status,
             error_message: outcome.error.map(str::to_owned),
             user_id: self.ctx.user_id.clone(),
-            actor_kind: actor_kind.to_owned(),
-            actor_id: actor_id.to_owned(),
+            actor: record.actor.clone(),
             session_id: self.ctx.session_id.clone(),
             context_id: self.ctx.context_id.clone(),
             trace_id: self.ctx.trace_id.clone(),

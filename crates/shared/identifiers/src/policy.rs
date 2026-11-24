@@ -16,6 +16,8 @@ impl SecretPatternId {
     }
 }
 crate::define_id!(CallId, generate, schema);
+crate::define_id!(GovernanceDecisionId);
+crate::define_id!(ToolUseId);
 
 impl PolicyVersion {
     pub fn unversioned() -> Self {
