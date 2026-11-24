@@ -13,24 +13,22 @@ use std::sync::Arc;
 use axum::Json;
 use axum::http::HeaderMap;
 use systemprompt_models::bridge::gateway::{SelfEnrollRequest, SelfEnrollResponse};
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{
     DEVICE_FINGERPRINT_FOREIGN_USER, DeviceCertService, EnrollDeviceCertServiceParams, UserError,
 };
 
-use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
-use crate::routes::managed_state::managed_repository;
+use super::BridgeRouteState;
+use super::error::{BridgeError, authenticate_bridge};
+use systemprompt_extension::router::ApiHttpError;
 
 pub async fn enroll_self(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
+    state: BridgeRouteState,
     headers: HeaderMap,
     Json(payload): Json<SelfEnrollRequest>,
 ) -> Result<Json<SelfEnrollResponse>, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
 
-    let cert = DeviceCertService::new(Arc::clone(ctx.user_repository()))
+    let cert = DeviceCertService::new(Arc::clone(&state.repos.users))
         .enroll_or_reuse(EnrollDeviceCertServiceParams {
             user_id: &claims.user_id,
             fingerprint: &payload.fingerprint,
@@ -39,8 +37,9 @@ pub async fn enroll_self(
         .await
         .map_err(classify_enrolment_error)?;
 
-    let issued = managed_repository(&ctx)
-        .map_err(|e| BridgeError::unavailable("device credential issue failed", e))?
+    let issued = state
+        .marketplace
+        .managed
         .issue_consumer_credential(&cert.id)
         .await
         .map_err(|e| BridgeError::unavailable("device credential issue failed", e))?;

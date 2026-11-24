@@ -1,6 +1,8 @@
-//! Gateway route mount: the inference surface plus its public session
-//! routes. A gateway that cannot be built fails startup; a node that does not
-//! admit the `gateway` member builds no engines and mounts none of it.
+//! Gateway route mount: the `gateway-http` surface, the `identity-http`
+//! bridge credential exchange and the public session routes. A gateway that
+//! cannot be built fails startup; a node that does not admit the `gateway`
+//! member builds no engines and mounts none of it, and a member that is not
+//! admitted contributes nothing (404).
 //!
 //! The inference surface authenticates inside its handlers (its own
 //! credential extraction accepts `x-api-key`), so each of its parts —
@@ -17,6 +19,7 @@
 
 use axum::Router;
 use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
+use systemprompt_marketplace::surface::DynConsumerCatalog;
 use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
@@ -27,15 +30,23 @@ use crate::services::middleware::{gateway_protection, place};
 pub(super) fn mount_gateway(
     mut router: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, RouteMountError> {
+    identity_bridge_auth: Option<Router>,
+) -> Result<(Router, Option<DynConsumerCatalog>), RouteMountError> {
     let ctx = mount.ctx;
     let base = ApiPaths::GATEWAY_BASE;
     let GatewayMountParts {
         traffic,
         bridge_auth,
+        public_sessions,
+        consumer_catalog,
         registered,
-    } = gateway_mount_parts(ctx, mount.composed.admitted, mount.composed.kernel)
-        .map_err(|source| RouteMountError::initialization("gateway", source))?;
+    } = gateway_mount_parts(
+        ctx,
+        mount.composed.admitted,
+        mount.composed.kernel,
+        identity_bridge_auth.unwrap_or_default(),
+    )
+    .map_err(|source| RouteMountError::initialization("gateway", source))?;
     let traffic = mount.protect(
         traffic,
         &gateway_protection("gateway", RateBudget::Gateway),
@@ -50,11 +61,11 @@ pub(super) fn mount_gateway(
     for group in registered {
         surface = surface.merge(mount.protect(group.router, &group.protection, base)?);
     }
-    router = place(router, base, with_access_log(ctx, surface));
+    router = place(router, base, with_access_log(ctx.logging(), surface));
     router = mount.mount(
         router,
         declare(
-            crate::routes::gateway::sessions::public_router(ctx),
+            public_sessions,
             ApiPaths::GATEWAY_PUBLIC_BASE,
             AuthzPolicy::public(),
             ContextKind::Public,
@@ -62,5 +73,5 @@ pub(super) fn mount_gateway(
         )
         .with_rate_limit(RateLimit::new("oauth_public", RateBudget::OauthPublic)),
     )?;
-    Ok(router)
+    Ok((router, consumer_catalog))
 }

@@ -12,21 +12,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::Json;
 use serde::Deserialize;
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::bridge::gateway::DevicePatResponse;
 use systemprompt_oauth::repository::{MintAuthCodeParams, OAuthRepository, StoredUiGrant};
 use systemprompt_oauth::services::{hash_exchange_code, refuse_service_account};
-use systemprompt_runtime::AppContext;
-use systemprompt_users::{
-    ApiKeyKind, ApiKeyLifetime, ApiKeyLimits, ApiKeyService, IssueApiKeyParams,
-};
+use systemprompt_users::{ApiKeyKind, ApiKeyLimits, IssueApiKeyParams};
 
-use super::auth::require_user_provider;
-use crate::kernel::ApiHttpError;
+use super::{BridgeAuthState, oauth_error, users_error};
 
 const DEFAULT_DEVICE_NAME: &str = "bridge device-link";
 const S256: &str = "S256";
@@ -39,7 +34,7 @@ pub struct SessionPatBody {
 }
 
 pub async fn session_pat(
-    ctx: AppContext,
+    state: BridgeAuthState,
     Json(body): Json<SessionPatBody>,
 ) -> Result<Json<DevicePatResponse>, ApiHttpError> {
     let code = body.code.trim();
@@ -53,15 +48,16 @@ pub async fn session_pat(
         .filter(|s| !s.is_empty())
         .unwrap_or(DEFAULT_DEVICE_NAME);
 
-    let repo = &ctx.oauth_repositories().oauth;
+    let repo = &state.oauth;
     let link = repo
         .consume_device_link_code(&hash_exchange_code(code))
-        .await?
+        .await
+        .map_err(oauth_error)?
         .ok_or_else(|| {
             ApiHttpError::unauthorized("exchange code invalid, expired, or already consumed")
         })?;
-    let users = require_user_provider(&ctx)?;
-    let user = users
+    let user = state
+        .users
         .find_by_id(&link.user_id)
         .await
         .map_err(|error| {
@@ -69,12 +65,9 @@ pub async fn session_pat(
             ApiHttpError::internal("user lookup failed", error)
         })?
         .ok_or_else(|| ApiHttpError::unauthorized("exchange code user no longer exists"))?;
-    refuse_service_account(user.is_service_account, &link.user_id)?;
+    refuse_service_account(user.is_service_account, &link.user_id).map_err(oauth_error)?;
 
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
-    );
+    let service = &state.api_keys;
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &link.user_id,
@@ -85,7 +78,8 @@ pub async fn session_pat(
             purpose: None,
             kind: ApiKeyKind::Device,
         })
-        .await?;
+        .await
+        .map_err(users_error)?;
 
     let ui_code = match &link.ui_grant {
         None => None,
@@ -130,6 +124,7 @@ async fn mint_ui_code(
             },
             device_key,
         )
-        .await?;
+        .await
+        .map_err(oauth_error)?;
     Ok(code.as_str().to_owned())
 }

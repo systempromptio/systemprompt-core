@@ -7,7 +7,7 @@
 
 use axum::http::header;
 use serde::Deserialize;
-use systemprompt_manifest::Secrets;
+use systemprompt_gateway::surface::views::BridgeReleaseSource;
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::instance::BridgeVersionWindow;
 
@@ -39,7 +39,7 @@ pub(super) struct GhAsset {
 pub(super) async fn resolve_release(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
-    secrets: &Secrets,
+    secrets: &BridgeReleaseSource,
     ceiling: &semver::Version,
 ) -> Result<GhRelease, ReleaseError> {
     let window = spec.version_window();
@@ -115,7 +115,7 @@ pub(super) fn sums_url(release: &GhRelease) -> Option<&str> {
 pub(super) async fn asset_digest(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
-    secrets: &Secrets,
+    secrets: &BridgeReleaseSource,
     sums_url: &str,
     asset_name: &str,
 ) -> Result<String, ReleaseError> {
@@ -157,7 +157,7 @@ pub fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
 async fn fetch_json<T: serde::de::DeserializeOwned>(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
-    secrets: &Secrets,
+    secrets: &BridgeReleaseSource,
     url: &str,
 ) -> Result<T, ReleaseError> {
     let resp = github(http, spec, secrets, url)?
@@ -186,7 +186,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
 pub(super) fn github(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
-    secrets: &Secrets,
+    secrets: &BridgeReleaseSource,
     url: &str,
 ) -> Result<reqwest::RequestBuilder, ReleaseError> {
     let mut req = http
@@ -195,16 +195,12 @@ pub(super) fn github(
         .header(header::USER_AGENT, "systemprompt-gateway")
         .header("X-GitHub-Api-Version", "2022-11-28");
     if let Some(key) = spec.token_secret.as_deref() {
-        req = req.bearer_auth(release_token(secrets, key)?);
+        let token = secrets
+            .token(spec)
+            .ok_or_else(|| ReleaseError::TokenNotConfigured {
+                key: key.to_owned(),
+            })?;
+        req = req.bearer_auth(token);
     }
     Ok(req)
-}
-
-fn release_token(secrets: &Secrets, key: &str) -> Result<String, ReleaseError> {
-    secrets
-        .get(key)
-        .cloned()
-        .ok_or_else(|| ReleaseError::TokenNotConfigured {
-            key: key.to_owned(),
-        })
 }

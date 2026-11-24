@@ -1,10 +1,9 @@
 //! Typed failures of the bridge routes, their single mapping onto the unified
 //! `ApiError` envelope, and the bridge credential check the routes share.
 //!
-//! `authenticate_principal` is the one place the server stamps a
-//! `GatewayPrincipal`: only from a bearer the gateway verifier has accepted,
-//! for the user that bearer names (`lint-hidden-constructors` refuses the
-//! constructor anywhere else).
+//! [`authenticate_bridge`] verifies the bridge bearer through the request
+//! authenticator; it stamps no `GatewayPrincipal` (the API kernel's gateway
+//! verifier is the only place one is stamped).
 //!
 //! A rejected credential answers 401 with a fixed message; the decoder's cause
 //! travels as the error source, so it reaches the log and never the client.
@@ -21,13 +20,13 @@ use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_oauth::OauthError;
+use systemprompt_oauth::{OauthError, OauthErrorKind};
 use systemprompt_traits::{AuthUser, BoxedSource};
 use systemprompt_users::UserError;
 
-use crate::kernel::{ApiHttpError, JwtContextExtractor, JwtUserContext, unreadable_body};
-use systemprompt_extension::router::GatewayPrincipal;
+use systemprompt_extension::router::{ApiHttpError, unreadable_body};
 use systemprompt_gateway::surface::credential::extract_credential;
+use systemprompt_models::auth::{DynRequestAuthenticator, JwtUserContext};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BridgeError {
@@ -170,29 +169,48 @@ impl From<BridgeError> for ApiHttpError {
                 ApiError::service_unavailable(context).with_source(source)
             },
             BridgeError::Internal { context, source } => ApiError::internal(context, source),
-            BridgeError::Users(inner) => return Self::from(inner),
-            BridgeError::Oauth(inner) => return Self::from(inner),
+            BridgeError::Users(inner) => ApiError::from(inner),
+            BridgeError::Oauth(inner) => oauth_api_error(inner),
         };
         Self::from(api)
     }
 }
 
+pub(crate) fn oauth_api_error(err: OauthError) -> ApiError {
+    if matches!(
+        err,
+        OauthError::CodeNotFound(_)
+            | OauthError::TokenNotFound(_)
+            | OauthError::ClientNotFound(_)
+            | OauthError::UserNotFound(_)
+    ) {
+        return ApiError::not_found(err.to_string());
+    }
+    match err.kind() {
+        OauthErrorKind::InvalidRequest
+        | OauthErrorKind::InvalidClientMetadata
+        | OauthErrorKind::ExpiredChallenge
+        | OauthErrorKind::InvalidCredential => ApiError::bad_request(err.to_string()),
+        OauthErrorKind::UsernameUnavailable | OauthErrorKind::EmailExists => {
+            ApiError::conflict(err.to_string())
+        },
+        OauthErrorKind::InvalidClient => ApiError::unauthorized("Client authentication failed"),
+        OauthErrorKind::AuthenticationFailed => ApiError::unauthorized("Authentication failed"),
+        OauthErrorKind::InvalidGrant
+        | OauthErrorKind::InvalidToken
+        | OauthErrorKind::AccessDenied => ApiError::unauthorized(err.to_string()),
+        OauthErrorKind::NotFound => ApiError::not_found(err.to_string()),
+        OauthErrorKind::ServerError => ApiError::internal("Authorization operation failed", err),
+    }
+}
+
 pub async fn authenticate_bridge(
-    jwt_extractor: &JwtContextExtractor,
+    authenticator: &DynRequestAuthenticator,
     headers: &HeaderMap,
 ) -> Result<(JwtUserContext, AuthUser), BridgeError> {
     let credential = extract_credential(headers).ok_or(BridgeError::MissingCredential)?;
-    jwt_extractor
+    authenticator
         .decode_for_gateway(&JwtToken::new(credential))
         .await
         .map_err(BridgeError::CredentialRejected)
-}
-
-pub(crate) async fn authenticate_principal(
-    jwt_extractor: &JwtContextExtractor,
-    headers: &HeaderMap,
-) -> Result<(JwtUserContext, AuthUser, GatewayPrincipal), BridgeError> {
-    let (claims, user) = authenticate_bridge(jwt_extractor, headers).await?;
-    let principal = GatewayPrincipal::__from_kernel(user.id.clone());
-    Ok((claims, user, principal))
 }

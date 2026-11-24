@@ -7,14 +7,14 @@ use axum::Json;
 use axum::http::HeaderMap;
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_manifest::bridge_profile::{CredentialFacts, is_model_servable};
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::providers::ClientFamily;
-use systemprompt_runtime::AppContext;
 
-use crate::kernel::ApiHttpError;
+use crate::http::bridge::BridgeRouteState;
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -89,11 +89,11 @@ pub struct OpenAiModelsResponse {
 }
 
 pub async fn list(
-    axum::extract::State(ctx): axum::extract::State<AppContext>,
+    state: BridgeRouteState,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, ApiHttpError> {
-    let services_state = ctx.services_state().view();
+    let services_state = state.host.services.view();
     let services = services_state.config();
     let catalog = &services_state.catalog;
 
@@ -101,7 +101,6 @@ pub async fn list(
         .gateway_config()
         .filter(|g| g.enabled)
         .ok_or_else(|| ApiHttpError::not_found("Gateway not enabled"))?;
-    let secrets = ctx.secrets().get();
 
     // Why: the `x-inference-protocol` header is advisory, not a filter. The
     // gateway transcodes every inbound wire to every provider wire, so a client
@@ -110,9 +109,7 @@ pub async fn list(
     // The header is still parsed and validated so an unknown client family is
     // rejected rather than silently accepted.
     let _families = families_from_header(&headers)?;
-    let mut entries = model_entries(catalog, |name| {
-        secrets.get(name).is_some_and(|k| !k.is_empty())
-    });
+    let mut entries = model_entries(catalog, |name| state.settings.credential_configured(name));
     let total = entries.len();
     let has_more = match query.limit {
         Some(limit) if limit < total => {

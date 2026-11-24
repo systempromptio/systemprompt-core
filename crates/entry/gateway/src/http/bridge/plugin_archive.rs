@@ -20,11 +20,11 @@ use axum::http::{HeaderValue, header};
 use axum::response::Response;
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_marketplace::PluginBundle;
-use systemprompt_runtime::AppContext;
 
-use super::bridge_error::BridgeError;
-use super::bridge_plugin_file::resolve_entitled;
-use crate::kernel::ApiHttpError;
+use super::BridgeRouteState;
+use super::error::BridgeError;
+use super::plugin_file::resolve_entitled;
+use systemprompt_extension::router::ApiHttpError;
 
 const ARCHIVE_PREFIX: &str = "archive/";
 
@@ -45,12 +45,12 @@ pub fn archive_sha(relative_path: &str) -> Option<&str> {
 
 pub(super) async fn serve(
     memo: &ArchiveMemo,
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     user_id: &UserId,
     id: &PluginId,
     sha256: &str,
 ) -> Result<Response, ApiHttpError> {
-    let resolved = resolve_entitled(ctx, user_id, id).await?;
+    let resolved = resolve_entitled(state, user_id, id).await?;
     let current = resolved
         .candidate
         .plugins

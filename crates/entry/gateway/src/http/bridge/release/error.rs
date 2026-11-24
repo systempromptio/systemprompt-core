@@ -16,8 +16,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
 
-use super::super::bridge_error::BridgeError;
-use crate::kernel::ApiHttpError;
+use super::super::error::BridgeError;
+use systemprompt_extension::router::ApiHttpError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ReleaseError {

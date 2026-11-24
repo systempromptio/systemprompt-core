@@ -8,11 +8,15 @@ use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_oauth::OauthResult;
 use systemprompt_oauth::repository::{EnabledHostPrefs, HostPrefWrite};
-use systemprompt_runtime::AppContext;
 use systemprompt_users::UserError;
 
-pub async fn load_user(ctx: &AppContext, user_id: &UserId) -> Result<Option<UserInfo>, UserError> {
-    let repo = ctx.user_repository();
+use super::BridgeRouteState;
+
+pub async fn load_user(
+    state: &BridgeRouteState,
+    user_id: &UserId,
+) -> Result<Option<UserInfo>, UserError> {
+    let repo = &state.repos.users;
     let Some(user) = repo.find_by_id(user_id).await? else {
         return Ok(None);
     };
@@ -26,48 +30,48 @@ pub async fn load_user(ctx: &AppContext, user_id: &UserId) -> Result<Option<User
 }
 
 pub async fn load_revocations(
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     user_id: &UserId,
 ) -> Result<Vec<ApiKeyId>, UserError> {
-    let repo = ctx.user_repository();
+    let repo = &state.repos.users;
     let ids = repo.list_revoked_api_key_ids_for_user(user_id).await?;
     Ok(ids.into_iter().map(ApiKeyId::new).collect())
 }
 
 pub async fn load_enabled_hosts(
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     user_id: &UserId,
 ) -> OauthResult<EnabledHostPrefs> {
-    let repo = &ctx.oauth_repositories().bridge_host_prefs;
+    let repo = &state.repos.host_prefs;
     repo.get_enabled_prefs(user_id).await
 }
 
 pub async fn set_host_enabled(
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     user_id: &UserId,
     host: HostKind,
     enabled: bool,
     instance: &InstanceHosts,
 ) -> OauthResult<HostPrefWrite> {
-    let repo = &ctx.oauth_repositories().bridge_host_prefs;
+    let repo = &state.repos.host_prefs;
     repo.set_enabled(user_id, host, enabled, instance).await
 }
 
 pub async fn load_host_model_protocols(
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     user_id: &UserId,
 ) -> OauthResult<Vec<(HostKind, Vec<String>)>> {
-    let repo = &ctx.oauth_repositories().bridge_host_prefs;
+    let repo = &state.repos.host_prefs;
     repo.load_model_protocols(user_id).await
 }
 
 pub async fn set_host_model_protocols(
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     user_id: &UserId,
     host: HostKind,
     protocols: Option<&[String]>,
 ) -> OauthResult<()> {
-    let repo = &ctx.oauth_repositories().bridge_host_prefs;
+    let repo = &state.repos.host_prefs;
     repo.set_model_protocols(user_id, host, protocols).await?;
     Ok(())
 }

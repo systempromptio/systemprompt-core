@@ -7,8 +7,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::Json;
 use axum::http::HeaderMap;
 use chrono::{DateTime, Utc};
@@ -18,10 +16,10 @@ use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::instance::{BridgeState, BridgeVersionWindow, WindowStatus};
 use systemprompt_models::bridge::manifest::{bridge_version_is_supported, min_bridge_version};
 use systemprompt_oauth::repository::UpsertBridgeSession;
-use systemprompt_runtime::AppContext;
 
-use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use super::BridgeRouteState;
+use super::error::{BridgeError, authenticate_bridge};
+use systemprompt_extension::router::ApiHttpError;
 
 #[derive(Debug, Deserialize)]
 pub struct BridgeHeartbeatRequest {
@@ -51,12 +49,11 @@ pub struct BridgeHeartbeatResponse {
 }
 
 pub async fn handle(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
+    state: BridgeRouteState,
     headers: HeaderMap,
     Json(payload): Json<BridgeHeartbeatRequest>,
 ) -> Result<Json<BridgeHeartbeatResponse>, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
 
     // Why: client attestation joins ai_requests.session_id to the bridge
     // session it was reported under; a heartbeat that names another session
@@ -70,7 +67,7 @@ pub async fn handle(
         return Err(BridgeError::SessionMismatch.into());
     }
 
-    let repo = &ctx.oauth_repositories().bridge_sessions;
+    let repo = &state.repos.sessions;
 
     let floor = min_bridge_version();
     let compatible = bridge_version_is_supported(&payload.bridge_version, &floor);
@@ -87,7 +84,7 @@ pub async fn handle(
         .release_version
         .as_deref()
         .map_or(WindowStatus::Unknown, |release| {
-            release_window(&ctx).status(release)
+            release_window(&state).status(release)
         });
 
     repo.upsert(UpsertBridgeSession {
@@ -113,8 +110,12 @@ pub async fn handle(
     }))
 }
 
-fn release_window(ctx: &AppContext) -> BridgeVersionWindow {
-    ctx.services_config()
+fn release_window(state: &BridgeRouteState) -> BridgeVersionWindow {
+    state
+        .host
+        .services
+        .view()
+        .config()
         .gateway_config()
         .and_then(|g| g.bridge_releases.as_ref())
         .map(BridgeReleasesSpec::version_window)

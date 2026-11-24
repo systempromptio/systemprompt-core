@@ -49,7 +49,7 @@ class HiddenConstructors(unittest.TestCase):
 
     def test_owners_and_definitions_pass(self):
         self.write(
-            "crates/entry/api/src/routes/gateway/bridge_error.rs",
+            "crates/entry/api/src/routes/gateway/registered.rs",
             "fn verify(u: UserId) { GatewayPrincipal::__from_kernel(u); }\n",
         )
         self.check([])

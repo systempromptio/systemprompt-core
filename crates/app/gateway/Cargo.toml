@@ -43,6 +43,7 @@ serde_yaml = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+ipnet = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
@@ -50,6 +51,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-events = { workspace = true }
 systemprompt-storage = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx"] }
@@ -57,6 +59,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-manifest = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-security = { workspace = true }

@@ -13,16 +13,30 @@
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::routing::post;
-use axum::{Extension, Json, Router};
+use axum::{Json, Router};
 use serde::Serialize;
+use systemprompt_extension::router::ApiHttpError;
+use systemprompt_gateway::surface::credential::extract_credential;
 use systemprompt_identifiers::SessionId;
-use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as _, DynGatewaySessionMint, ExtractSignals};
+use systemprompt_traits::{DynGatewaySessionMint, ExtractSignals};
 use systemprompt_users::API_KEY_PREFIX;
 
-use crate::kernel::ApiHttpError;
-use crate::services::middleware::client_addr::client_ip_from_request;
-use systemprompt_gateway::surface::credential::extract_credential;
+use crate::http::bridge::BridgeRouteState;
+use crate::http::bridge::client_ip;
+
+/// What the public session route reads: the session mint conferred on
+/// `gateway-http` and the bridge state's settings and analytics extractor.
+#[derive(Clone)]
+pub struct SessionsState {
+    pub mint: DynGatewaySessionMint,
+    pub bridge: BridgeRouteState,
+}
+
+impl std::fmt::Debug for SessionsState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SessionsState").finish_non_exhaustive()
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct MintedSession {
@@ -30,7 +44,7 @@ pub struct MintedSession {
 }
 
 pub async fn create_session(
-    ctx: AppContext,
+    state: SessionsState,
     request: Request,
 ) -> Result<(StatusCode, Json<MintedSession>), ApiHttpError> {
     let presented = extract_credential(request.headers())
@@ -41,15 +55,10 @@ pub async fn create_session(
         ));
     }
 
-    let mint = ctx
-        .kernel()
-        .state()
-        .get::<DynGatewaySessionMint>()
-        .cloned()
-        .map_err(|e| ApiHttpError::internal("Gateway session mint unavailable", e))?;
-    let analytics = ctx.analytics_provider();
+    let mint = &state.mint;
+    let analytics = &state.bridge.host.analytics;
 
-    let caller_ip = client_ip_from_request(&request, ctx.config());
+    let caller_ip = client_ip(&request, &state.bridge.settings);
     let session_analytics = analytics.extract_analytics(
         request.headers(),
         ExtractSignals {
@@ -72,15 +81,12 @@ pub async fn create_session(
     ))
 }
 
-pub fn public_router(ctx: &AppContext) -> Router {
-    let mint_ctx = ctx.clone();
-    Router::new()
-        .route(
-            "/sessions",
-            post(move |request| {
-                let context = mint_ctx.clone();
-                async move { create_session(context, request).await }
-            }),
-        )
-        .layer(Extension(ctx.clone()))
+pub fn public_router(state: SessionsState) -> Router {
+    Router::new().route(
+        "/sessions",
+        post(move |request| {
+            let state = state.clone();
+            async move { create_session(state, request).await }
+        }),
+    )
 }

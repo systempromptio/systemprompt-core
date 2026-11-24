@@ -14,7 +14,7 @@
 
 use std::time::{Duration, Instant};
 
-use systemprompt_manifest::Secrets;
+use systemprompt_gateway::surface::views::BridgeReleaseSource;
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 
@@ -30,7 +30,7 @@ pub const REFRESH_INTERVAL: Duration = Duration::from_secs(30);
 #[derive(Debug, Clone, Copy)]
 struct Upstream<'a> {
     spec: &'a BridgeReleasesSpec,
-    secrets: &'a Secrets,
+    secrets: &'a BridgeReleaseSource,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -92,7 +92,7 @@ impl ReleaseFeed {
     pub async fn resolve(
         &self,
         spec: &BridgeReleasesSpec,
-        secrets: &Secrets,
+        secrets: &BridgeReleaseSource,
         platform: &str,
     ) -> Result<ResolvedRelease, ReleaseError> {
         self.resolve_with(spec, secrets, platform, false).await
@@ -101,7 +101,7 @@ impl ReleaseFeed {
     pub async fn resolve_fresh(
         &self,
         spec: &BridgeReleasesSpec,
-        secrets: &Secrets,
+        secrets: &BridgeReleaseSource,
         platform: &str,
     ) -> Result<ResolvedRelease, ReleaseError> {
         self.resolve_with(spec, secrets, platform, true).await
@@ -110,7 +110,7 @@ impl ReleaseFeed {
     async fn resolve_with(
         &self,
         spec: &BridgeReleasesSpec,
-        secrets: &Secrets,
+        secrets: &BridgeReleaseSource,
         platform: &str,
         refresh_requested: bool,
     ) -> Result<ResolvedRelease, ReleaseError> {
@@ -139,7 +139,7 @@ impl ReleaseFeed {
     pub async fn resolve_asset(
         &self,
         spec: &BridgeReleasesSpec,
-        secrets: &Secrets,
+        secrets: &BridgeReleaseSource,
         platform: &str,
     ) -> Result<ResolvedAsset, ReleaseError> {
         known_platform(spec, platform)?;
@@ -244,7 +244,7 @@ impl ReleaseFeed {
     async fn resolve_asset_upstream(
         &self,
         spec: &BridgeReleasesSpec,
-        secrets: &Secrets,
+        secrets: &BridgeReleaseSource,
         platform: &str,
     ) -> Result<ResolvedAsset, ReleaseError> {
         let asset_name = known_platform(spec, platform)?;

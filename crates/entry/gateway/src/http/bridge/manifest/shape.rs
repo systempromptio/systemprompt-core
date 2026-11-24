@@ -30,7 +30,7 @@ use systemprompt_models::bridge::manifest::{
     SignedManifest, SkillEntry, SkillSource,
 };
 
-use super::super::bridge_error::BridgeError;
+use super::super::error::BridgeError;
 
 const STAMP_FIELDS: [&str; 3] = ["manifest_version", "issued_at", "not_before"];
 

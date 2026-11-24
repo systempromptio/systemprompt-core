@@ -19,11 +19,14 @@ use super::{RouteMountError, protocol};
 pub(super) fn mount_feature_routes(
     mut router: Router,
     mount: &protocol::MountCtx<'_>,
+    consumer_catalog: Option<systemprompt_marketplace::surface::DynConsumerCatalog>,
 ) -> Result<Router, RouteMountError> {
     let serves = mount.serves;
     #[cfg(feature = "bridge")]
-    if serves(systemprompt_extension::RouteGroup::Managed) {
-        router = super::managed::mount(router, mount)?;
+    if serves(systemprompt_extension::RouteGroup::Managed)
+        && let Some(catalog) = consumer_catalog
+    {
+        router = super::managed::mount(router, mount, catalog)?;
     }
     Ok(router)
 }

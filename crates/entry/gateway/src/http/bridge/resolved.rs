@@ -1,8 +1,9 @@
 //! One catalogue resolution per user per sync.
 //!
 //! The disk catalogue with the managed overlay, the filtered candidate and
-//! the plugin bundles, memoised in the application context's
-//! [`MarketplaceCache`](systemprompt_marketplace::MarketplaceCache) and shared
+//! the plugin bundles, memoised in the
+//! [`MarketplaceCache`](systemprompt_marketplace::MarketplaceCache) the
+//! `managed_resources` member provides and shared
 //! by the manifest route and every plugin-file download that follows it.
 //!
 //! A `no-cache` request revalidates only a memo older than
@@ -21,14 +22,12 @@ use axum::http::HeaderMap;
 use axum::http::header::CACHE_CONTROL;
 
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::{
     AssembleRequest, ManifestService, MarketplaceError, NoopTrace, ResolvedCatalog, ResolvedKey,
 };
-use systemprompt_runtime::AppContext;
 
-use crate::routes::managed_state::{managed_repository, marketplace_cache, marketplace_filter};
+use super::BridgeRouteState;
 
 /// Whether a resolution may be served from the per-user memo.
 ///
@@ -63,21 +62,20 @@ impl Freshness {
 pub const FRESH_REVALIDATE_AFTER: std::time::Duration = std::time::Duration::from_secs(30);
 
 pub async fn resolve_for_user(
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     services: &ServicesConfig,
-    profile: &Profile,
     user_id: &UserId,
     freshness: Freshness,
 ) -> Result<Arc<ResolvedCatalog>, MarketplaceError> {
-    let cache = marketplace_cache(ctx)?;
-    let services_root = ctx.app_paths().system().services();
+    let cache = &state.marketplace.cache;
+    let services_root = state.settings.services_root();
     let (fingerprint, disk_catalog) = cache.catalog_with_fingerprint(
         services,
         services_root,
-        &profile.server.api_external_url,
+        state.settings.api_external_url(),
     )?;
-    let owner = ctx.system_admin().id();
-    let managed = managed_repository(ctx)?;
+    let owner = state.settings.system_admin();
+    let managed = &state.marketplace.managed;
     let managed_stamp = managed
         .managed_catalog_stamp(owner, user_id)
         .await
@@ -107,7 +105,7 @@ pub async fn resolve_for_user(
     }
 
     let started = std::time::Instant::now();
-    let filter = marketplace_filter(ctx)?;
+    let filter = state.marketplace.seams.filter();
     let catalog = (*disk_catalog)
         .clone()
         .with_organization_resources(managed.as_ref().clone(), owner, user_id)

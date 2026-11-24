@@ -15,8 +15,6 @@
 //!   [`ClientIp`] extractor;
 //! - the session cookie ([`SessionCookie`], [`SameSite`]) and the request base
 //!   URL ([`RequestBaseUrl`], [`resolve_request_base_url`]);
-//! - server-sent events: [`create_sse_stream`] registers a connection with a
-//!   user's broadcaster and streams its events;
 //! - the shared proxy service: [`ProxyService`], [`ProxyTarget`],
 //!   [`ProxyKind`], [`ProxyError`].
 //!
@@ -30,7 +28,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use crate::error::{ApiHttpError, unreadable_body};
-pub use crate::routes::stream::create_sse_stream;
 pub use crate::services::middleware::{
     JwtContextExtractor, JwtUserContext, RateLimitState, RouterExt, SessionAttestationError,
     SubjectThrottle, attest_session,

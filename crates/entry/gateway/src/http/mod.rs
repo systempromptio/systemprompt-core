@@ -13,6 +13,12 @@
 //! gateway layering; nothing here verifies a principal, limits, confines or
 //! logs access.
 //!
+//! The bridge routes ([`bridge`]: profile, manifest, plugin files, device
+//! enrolment, host preferences, usage, heartbeat, event stream, release feed),
+//! `/models` and `/` join the traffic; the bridge profile is principal-bound;
+//! the API-key session mint ([`sessions`]) is its own part for the public
+//! gateway base.
+//!
 //! The gateway repositories are built per mount from the route-scoped state
 //! ([`gateway_repositories`]), with the at-rest material conferred on
 //! `gateway-http`.
@@ -20,11 +26,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod bridge;
 pub mod count_tokens;
 pub mod messages;
+pub mod models;
 #[cfg(feature = "otel")]
 pub mod otel;
 pub mod provider_credentials;
+pub mod sessions;
 pub mod state;
 
 use std::sync::Arc;
@@ -42,6 +51,7 @@ use systemprompt_gateway::{
 };
 use systemprompt_traits::DynGatewaySessionMint;
 
+use self::bridge::{BridgeMarketplace, BridgeRouteState};
 use self::state::{GatewayHttpRepositories, GatewayHttpState};
 
 /// The `gateway-http` member's [`GatewaySurface`].
@@ -58,17 +68,36 @@ impl GatewaySurface for GatewayHttpSurface {
         let db = resolved.get::<DbPool>()?;
         let repos = gateway_repositories(&resolved, &host, Arc::clone(&own.contexts), &db)?;
         let credentials = resolved.optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>();
-        let state = GatewayHttpState {
+        let bridge = BridgeRouteState {
             authenticator: resolved.get()?,
+            repos: own.bridge.clone(),
+            marketplace: BridgeMarketplace {
+                managed: resolved.get()?,
+                cache: resolved.get()?,
+                seams: resolved.get()?,
+            },
+            signer: resolved.get()?,
+            releases: resolved.get()?,
+            settings: resolved.get()?,
+            events: resolved.get()?,
+            subjects: resolved.get()?,
+            personal_credentials: resolved.optional(),
+            host: host.clone(),
+        };
+        let session_mint = resolved.get::<DynGatewaySessionMint>()?;
+        let state = GatewayHttpState {
+            authenticator: Arc::clone(&bridge.authenticator),
             api_keys: own.api_keys.clone(),
-            session_mint: resolved.get::<DynGatewaySessionMint>()?,
+            session_mint: Arc::clone(&session_mint),
             repos: Arc::new(repos),
             engines: resolved.get::<Arc<GatewayEngines>>()?,
             host,
             db,
         };
-        let traffic = routes(&state);
-        let principal_bound = credentials.map_or_else(Router::new, |credentials| {
+        let traffic = routes(&state).merge(
+            bridge::routes(&bridge).map_err(|e| GatewaySurfaceError::ReleaseFeed(Box::new(e)))?,
+        );
+        let credential_routes = credentials.map_or_else(Router::new, |credentials| {
             provider_credentials::routes(&provider_credentials::ProviderCredentialsState {
                 gateway: state,
                 credentials,
@@ -76,7 +105,12 @@ impl GatewaySurface for GatewayHttpSurface {
         });
         Ok(GatewaySurfaceRoutes {
             traffic,
-            principal_bound,
+            principal_bound: credential_routes.merge(bridge::principal_bound(&bridge)),
+            consumer_catalog: Some(bridge::consumer_catalog(&bridge)),
+            public_sessions: sessions::public_router(sessions::SessionsState {
+                mint: session_mint,
+                bridge,
+            }),
         })
     }
 }

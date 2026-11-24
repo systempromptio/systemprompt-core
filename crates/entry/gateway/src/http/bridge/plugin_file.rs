@@ -5,7 +5,7 @@
 //! byte-identical to its manifest hash. Serving a pre-generated static plugin
 //! tree here would drift from that hash and fail bridge-side verification.
 //! `archive/<sha256>` under a plugin is the whole plugin as one tar.gz
-//! ([`bridge_plugin_archive`]).
+//! ([`plugin_archive`](super::plugin_archive)).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,25 +17,22 @@ use axum::body::Body;
 use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
-use axum::routing::get;
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_marketplace::ResolvedCatalog;
-use systemprompt_runtime::AppContext;
 
-use super::bridge_error::{BridgeError, authenticate_bridge};
-use super::bridge_plugin_archive::ArchiveMemo;
-use super::{bridge_plugin_archive, bridge_resolved};
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
-use crate::routes::managed_state::marketplace_cache;
+use super::BridgeRouteState;
+use super::error::{BridgeError, authenticate_bridge};
+use super::plugin_archive::ArchiveMemo;
+use super::{plugin_archive, resolved};
+use systemprompt_extension::router::ApiHttpError;
 
 pub async fn handle(
     memo: ArchiveMemo,
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
+    state: BridgeRouteState,
     headers: HeaderMap,
     AxumPath((plugin_id, relative_path)): AxumPath<(String, String)>,
 ) -> Result<Response, ApiHttpError> {
-    let (_claims, user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let (_claims, user) = authenticate_bridge(&state.authenticator, &headers).await?;
 
     if !relative_path_is_safe(&relative_path) {
         tracing::warn!(
@@ -51,11 +48,11 @@ pub async fn handle(
         BridgeError::PluginNotFound
     })?;
 
-    if let Some(sha256) = bridge_plugin_archive::archive_sha(&relative_path) {
-        return bridge_plugin_archive::serve(&memo, &ctx, &user.id, &id, sha256).await;
+    if let Some(sha256) = plugin_archive::archive_sha(&relative_path) {
+        return plugin_archive::serve(&memo, &state, &user.id, &id, sha256).await;
     }
 
-    let resolved = resolve_entitled(&ctx, &user.id, &id).await?;
+    let resolved = resolve_entitled(&state, &user.id, &id).await?;
 
     let bundle = resolved
         .bundles
@@ -73,49 +70,26 @@ pub async fn handle(
     Ok(response)
 }
 
-pub(super) fn route(
-    ctx: &AppContext,
-    jwt_extractor: &Arc<JwtContextExtractor>,
-) -> axum::routing::MethodRouter {
-    let ctx = ctx.clone();
-    let jwt = Arc::clone(jwt_extractor);
-    let memo = ArchiveMemo::default();
-    get(move |headers, path| {
-        let extractor = Arc::clone(&jwt);
-        let context = ctx.clone();
-        let memo = memo.clone();
-        async move { handle(memo, extractor, context, headers, path).await }
-    })
-}
-
 // Why: the downloads of one sync follow its manifest, so the user's latest
 // resolution already holds the bytes that manifest hashed; only a cold or
 // expired memo pays for a fingerprinted resolution.
 pub(super) async fn resolve_entitled(
-    ctx: &AppContext,
+    state: &BridgeRouteState,
     user_id: &UserId,
     id: &PluginId,
 ) -> Result<Arc<ResolvedCatalog>, BridgeError> {
     let grants =
         |resolved: &ResolvedCatalog| resolved.candidate.plugins.iter().any(|p| &p.id == id);
-    let cache = marketplace_cache(ctx)
-        .map_err(|e| BridgeError::internal("plugin bundle: catalogue cache unavailable", e))?;
+    let cache = &state.marketplace.cache;
     if let Some(latest) = cache.latest_resolved(user_id)
         && grants(&latest)
     {
         return Ok(latest);
     }
-    let services = ctx.services_config();
-    let profile = ctx.profile();
-    let resolved = bridge_resolved::resolve_for_user(
-        ctx,
-        &services,
-        profile,
-        user_id,
-        bridge_resolved::Freshness::Memo,
-    )
-    .await
-    .map_err(|e| BridgeError::internal("plugin bundle: catalogue resolution failed", e))?;
+    let services = state.host.services.view().config();
+    let resolved = resolved::resolve_for_user(state, &services, user_id, resolved::Freshness::Memo)
+        .await
+        .map_err(|e| BridgeError::internal("plugin bundle: catalogue resolution failed", e))?;
     if !grants(&resolved) {
         tracing::warn!(
             plugin_id = %id,

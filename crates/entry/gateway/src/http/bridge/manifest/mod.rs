@@ -10,53 +10,48 @@
 mod per_user;
 pub mod shape;
 
-use std::sync::Arc;
 use std::time::Instant;
 
 use axum::Json;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
+use systemprompt_gateway::surface::views::GatewayManifestSigner;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::{BridgePolicyConfig, BridgeReleasesSpec};
-use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
+use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_INLINE_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope,
     manifest_min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
-use systemprompt_runtime::AppContext;
-use systemprompt_security::keys::SigningKeys;
 
-use super::bridge_error::{BridgeError, authenticate_bridge};
-use super::bridge_resolved;
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use super::BridgeRouteState;
+use super::error::{BridgeError, authenticate_bridge};
+use super::resolved;
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
+use systemprompt_extension::router::ApiHttpError;
 
 pub async fn manifest(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: AppContext,
+    state: BridgeRouteState,
     headers: HeaderMap,
 ) -> Result<Response, ApiHttpError> {
     let started = Instant::now();
     let schema = shape::requested_schema(&headers);
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let profile = ctx.profile();
-
+    let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
     let stamp = build_version()?;
 
-    let services = ctx.services_config();
+    let services = state.host.services.view().config();
     let instance_hosts = services.instance_hosts();
     let desktop_policy = desktop_policy(&services);
     let (branding, bridge_versions) = instance_presentation(&services);
 
     let (candidate, bridge_policy) = assemble_candidate(
-        &ctx,
-        profile,
+        &state,
         &claims.user_id,
         (*services).clone(),
-        bridge_resolved::Freshness::from_headers(&headers),
+        resolved::Freshness::from_headers(&headers),
     )
     .await?;
     let resolved_at = Instant::now();
@@ -78,7 +73,7 @@ pub async fn manifest(
         revocations,
         enabled_hosts,
         host_model_protocols,
-    } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await?;
+    } = load_per_user_context(&state, &claims.user_id, instance_hosts).await?;
     let per_user_at = Instant::now();
 
     let manifest = SignedManifest {
@@ -88,7 +83,11 @@ pub async fn manifest(
         issued_at: stamp.issued_at,
         not_before: stamp.not_before,
         user_id: claims.user_id,
-        tenant_id: tenant_id(profile),
+        tenant_id: state
+            .host
+            .tenant_id
+            .clone()
+            .filter(|t| !t.as_str().is_empty()),
         user,
         plugins,
         skills,
@@ -111,7 +110,7 @@ pub async fn manifest(
     };
 
     Ok(respond(
-        ctx.signing_keys(),
+        &state.signer,
         manifest,
         schema,
         &headers,
@@ -120,7 +119,7 @@ pub async fn manifest(
 }
 
 fn respond(
-    keys: &SigningKeys,
+    signer: &GatewayManifestSigner,
     mut manifest: SignedManifest,
     schema: u32,
     headers: &HeaderMap,
@@ -137,21 +136,11 @@ fn respond(
     }
 
     let signing_at = Instant::now();
-    let envelope: SignedManifestEnvelope = ManifestService::seal(keys, &manifest)
+    let envelope: SignedManifestEnvelope = signer
+        .seal(&manifest)
         .map_err(|e| BridgeError::internal("manifest signing failed", e))?;
     log_timings(started, resolved_at, per_user_at, Some(signing_at));
     Ok(with_validators(Json(envelope).into_response(), &etag))
-}
-
-fn tenant_id(
-    profile: &systemprompt_manifest::Profile,
-) -> Option<systemprompt_identifiers::TenantId> {
-    profile
-        .cloud
-        .as_ref()
-        .and_then(|cloud| cloud.tenant_id.as_ref())
-        .filter(|t| !t.as_str().is_empty())
-        .cloned()
 }
 
 // Why: `no-cache` is "revalidate before reuse" — the bridge keeps the signed
@@ -212,18 +201,17 @@ fn instance_presentation(
     (branding, window)
 }
 
-pub(crate) async fn assemble_candidate(
-    ctx: &AppContext,
-    profile: &systemprompt_manifest::Profile,
+pub async fn assemble_candidate(
+    state: &BridgeRouteState,
     user_id: &UserId,
     services: systemprompt_manifest::services::ServicesConfig,
-    freshness: bridge_resolved::Freshness,
+    freshness: resolved::Freshness,
 ) -> Result<(MarketplaceCandidate, BridgePolicyConfig), BridgeError> {
     let bridge_policy = services.bridge_policy.unwrap_or_default();
-    let resolved = bridge_resolved::resolve_for_user(ctx, &services, profile, user_id, freshness)
+    let resolved = resolved::resolve_for_user(state, &services, user_id, freshness)
         .await
         .map_err(|e| BridgeError::internal("manifest: catalogue resolution failed", e))?;
-    record_catalog_grants(ctx, user_id, &resolved.candidate).await?;
+    record_catalog_grants(state, user_id, &resolved.candidate).await?;
     Ok(((*resolved.candidate).clone(), bridge_policy))
 }
 

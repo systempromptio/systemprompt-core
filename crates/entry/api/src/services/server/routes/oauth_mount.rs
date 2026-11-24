@@ -71,9 +71,26 @@ const SSO_SLOT_OWNER: &str = "identity";
 pub(super) fn identity_routes(
     mount: &MountCtx<'_>,
 ) -> Result<Option<IdentityRoutes>, RouteMountError> {
+    build_identity_routes(mount.ctx, mount.composed.admitted, mount.composed.kernel)
+}
+
+/// The bridge credential exchange `identity-http` builds, for the gateway
+/// mount; `None` when the member is not admitted.
+pub(crate) fn identity_bridge_auth(
+    ctx: &systemprompt_runtime::AppContext,
+    admitted: &systemprompt_extension::Admitted,
+    kernel: &systemprompt_runtime::Kernel,
+) -> Result<Option<Router>, RouteMountError> {
+    Ok(build_identity_routes(ctx, admitted, kernel)?.map(|routes| routes.bridge_auth))
+}
+
+fn build_identity_routes(
+    ctx: &systemprompt_runtime::AppContext,
+    admitted: &systemprompt_extension::Admitted,
+    kernel: &systemprompt_runtime::Kernel,
+) -> Result<Option<IdentityRoutes>, RouteMountError> {
     let owner = ExtensionId::new(CoreId::IdentityHttp.id());
-    let kernel = mount.composed.kernel;
-    let Some(standing) = mount.composed.admitted.built().standing_of(&owner) else {
+    let Some(standing) = admitted.built().standing_of(&owner) else {
         return Ok(None);
     };
     let refused = |source: IdentityMountError| RouteMountError::initialization("identity", source);
@@ -89,7 +106,6 @@ pub(super) fn identity_routes(
         .map_err(|source| refused(IdentityMountError::MissingSsoSlot(source)))?;
     provided_by::<Arc<SsoProviders>>(kernel, SSO_SLOT_OWNER)
         .map_err(|provider| refused(IdentityMountError::ForeignSsoSlot { provider }))?;
-    let ctx = mount.ctx;
     surface
         .build(IdentityRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),

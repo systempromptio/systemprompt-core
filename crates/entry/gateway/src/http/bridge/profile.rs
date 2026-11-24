@@ -8,7 +8,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
-use std::sync::Arc;
 
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
@@ -22,10 +21,13 @@ use systemprompt_oauth::repository::HostPrefWrite;
 pub use systemprompt_manifest::bridge_profile::provider_health;
 pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHealth};
 
-use super::bridge_admission::{AdmissionPrincipal, ModelAdmission};
-use super::bridge_data;
-use super::bridge_error::{BridgeError, authenticate_bridge, authenticate_principal};
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use super::BridgeRouteState;
+use super::admission::{AdmissionPrincipal, ModelAdmission};
+use super::data;
+use super::error::{BridgeError, authenticate_bridge};
+use systemprompt_extension::router::ApiHttpError;
+use systemprompt_extension::router::GatewayPrincipal;
+use systemprompt_gateway::surface::views::GatewayManifestSigner;
 
 use systemprompt_models::bridge::host::HostKind;
 
@@ -42,24 +44,28 @@ pub struct SetHostPrefResponse {
 }
 
 pub async fn set_enabled_host(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: systemprompt_runtime::AppContext,
+    state: BridgeRouteState,
     headers: HeaderMap,
     body: Result<Json<EnabledHostsRequest>, JsonRejection>,
 ) -> Result<Json<SetHostPrefResponse>, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
-    let services = ctx.services_config();
-    let instance = services.instance_hosts();
+    let services = state.host.services.view();
+    let instance = services.config().instance_hosts();
     if body.enabled && !instance.enabled.contains(&body.host_id) {
         return Err(BridgeError::HostDisabled(body.host_id).into());
     }
 
-    let written =
-        bridge_data::set_host_enabled(&ctx, &claims.user_id, body.host_id, body.enabled, &instance)
-            .await
-            .map_err(BridgeError::from)?;
+    let written = data::set_host_enabled(
+        &state,
+        &claims.user_id,
+        body.host_id,
+        body.enabled,
+        &instance,
+    )
+    .await
+    .map_err(BridgeError::from)?;
     if written == HostPrefWrite::WouldDisableAll {
         return Err(BridgeError::LastHostDisabled(body.host_id).into());
     }
@@ -84,12 +90,11 @@ pub struct HostModelFilterResponse {
 }
 
 pub async fn set_host_model_filter(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: systemprompt_runtime::AppContext,
+    state: BridgeRouteState,
     headers: HeaderMap,
     body: Result<Json<HostModelFilterRequest>, JsonRejection>,
 ) -> Result<Json<HostModelFilterResponse>, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
     let normalized = body
@@ -106,14 +111,9 @@ pub async fn set_host_model_filter(
         })
         .transpose()?;
 
-    bridge_data::set_host_model_protocols(
-        &ctx,
-        &claims.user_id,
-        body.host_id,
-        normalized.as_deref(),
-    )
-    .await
-    .map_err(BridgeError::from)?;
+    data::set_host_model_protocols(&state, &claims.user_id, body.host_id, normalized.as_deref())
+        .await
+        .map_err(BridgeError::from)?;
 
     Ok(Json(HostModelFilterResponse {
         host_id: body.host_id,
@@ -126,39 +126,38 @@ pub struct PubkeyResponse {
     pub pubkey: String,
 }
 
-pub fn pubkey(ctx: &systemprompt_runtime::AppContext) -> Json<PubkeyResponse> {
+pub fn pubkey(signer: &GatewayManifestSigner) -> Json<PubkeyResponse> {
     Json(PubkeyResponse {
-        pubkey: ctx.signing_keys().manifest_pubkey_b64(),
+        pubkey: signer.public_key_b64(),
     })
 }
 
 pub async fn profile(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: systemprompt_runtime::AppContext,
+    state: BridgeRouteState,
+    caller: GatewayPrincipal,
     headers: HeaderMap,
 ) -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
-    let (claims, user, caller) = authenticate_principal(&jwt_extractor, &headers).await?;
-    let profile = ctx.profile();
-    let services = ctx.services_config();
-    let catalog = ctx.services_state().catalog();
+    let (claims, user) = authenticate_bridge(&state.authenticator, &headers).await?;
+    let view = state.host.services.view();
+    let catalog = &view.catalog;
+    let services = view.config();
     let gateway = services
         .gateway_config()
         .filter(|g| g.enabled)
         .ok_or(BridgeError::GatewayDisabled)?;
 
-    let base = profile.server.api_external_url.trim_end_matches('/');
+    let base = state.settings.api_external_url().trim_end_matches('/');
     let prefix = gateway.inference_path_prefix.trim_end_matches('/');
     let inference_gateway_base_url = format!("{base}{prefix}");
 
-    let organization_uuid = profile
-        .cloud
+    let organization_uuid = state
+        .host
+        .tenant_id
         .as_ref()
-        .and_then(|cloud| cloud.tenant_id.as_ref())
         .map(TenantId::organization_uuid);
 
-    let secrets = ctx.secrets().get();
-    let personal_keys = personal_keys(&ctx, &caller).await?;
-    let secret_present = |name: &str| secrets.get(name).is_some_and(|k| !k.is_empty());
+    let personal_keys = personal_keys(&state, &caller).await?;
+    let secret_present = |name: &str| state.settings.credential_configured(name);
     let mut response = bridge_profile::build(
         bridge_profile::BridgeProfileParams {
             inference_gateway_base_url,
@@ -181,7 +180,7 @@ pub async fn profile(
     };
     let admission = ModelAdmission {
         catalog,
-        hook: ctx.authz_hook(),
+        hook: &state.host.authz_hook,
         principal: &principal,
     };
     response.models = admission.retain(std::mem::take(&mut response.models)).await;
@@ -193,14 +192,15 @@ pub async fn profile(
 }
 
 async fn personal_keys(
-    ctx: &systemprompt_runtime::AppContext,
-    caller: &systemprompt_extension::router::GatewayPrincipal,
+    state: &BridgeRouteState,
+    caller: &GatewayPrincipal,
 ) -> Result<BTreeSet<String>, ApiHttpError> {
-    let names = ctx
-        .kernel()
-        .state()
-        .get::<systemprompt_extension::router::DynPersonalCredentialNames>()
-        .map_err(|e| BridgeError::internal("the personal credential names are unavailable", e))?;
+    let names = state.personal_credentials.as_ref().ok_or_else(|| {
+        BridgeError::internal(
+            "the personal credential names are unavailable",
+            "no member provides the personal credential names",
+        )
+    })?;
     Ok(names
         .credential_names(caller)
         .await

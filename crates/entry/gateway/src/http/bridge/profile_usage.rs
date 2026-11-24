@@ -10,27 +10,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::Json;
 use axum::http::HeaderMap;
 use chrono::Utc;
-use systemprompt_extension::HasAnalytics;
 use systemprompt_models::api::cloud::BridgeProfileUsage;
 
-use super::bridge_error::{BridgeError, authenticate_bridge};
-use crate::kernel::{ApiHttpError, JwtContextExtractor};
+use super::BridgeRouteState;
+use super::error::{BridgeError, authenticate_bridge};
+use systemprompt_extension::router::ApiHttpError;
 
 pub async fn handle(
-    jwt_extractor: Arc<JwtContextExtractor>,
-    ctx: systemprompt_runtime::AppContext,
+    state: BridgeRouteState,
     headers: HeaderMap,
 ) -> Result<Json<BridgeProfileUsage>, ApiHttpError> {
-    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
 
-    let usage = ctx
-        .analytics()
-        .profile_usage()
+    let usage = state
+        .repos
+        .profile_usage
         .get_profile_usage(&claims.user_id, Utc::now())
         .await
         .map_err(|e| BridgeError::internal("profile usage lookup failed", e))?;

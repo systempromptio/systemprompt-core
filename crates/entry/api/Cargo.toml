@@ -21,7 +21,6 @@ all-features = true
 http-body-util = "0.1"
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process", "signal"] }
-tokio-stream = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 async-stream = { workspace = true }
@@ -34,7 +33,6 @@ tower = { workspace = true }
 tower-http = { workspace = true, features = ["normalize-path"] }
 http = { workspace = true }
 reqwest = { workspace = true }
-semver = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
 
@@ -52,7 +50,6 @@ uuid = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
 sha2 = { workspace = true }
-hex = { workspace = true }
 ipnet = { workspace = true }
 
 # Error handling
