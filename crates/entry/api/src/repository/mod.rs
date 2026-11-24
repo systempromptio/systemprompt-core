@@ -11,14 +11,6 @@ pub fn session_usage(db: &DbPool) -> DynSessionUsageCounters {
     Arc::new(systemprompt_users::SessionRepository::new(db))
 }
 
-pub fn tool_usage(db: &DbPool) -> Arc<systemprompt_mcp::repository::ToolUsageRepository> {
-    Arc::new(systemprompt_mcp::repository::ToolUsageRepository::new(db))
-}
-
-pub fn proxy_sessions(db: &DbPool) -> Arc<systemprompt_mcp::repository::McpProxySessionRepository> {
-    Arc::new(systemprompt_mcp::repository::McpProxySessionRepository::new(db))
-}
-
 pub fn user_rate_limit_buckets(
     db: &DbPool,
 ) -> Arc<systemprompt_users::UserRateLimitBucketRepository> {
