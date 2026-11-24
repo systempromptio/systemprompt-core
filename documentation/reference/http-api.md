@@ -129,7 +129,7 @@ Base path `/api/v1/core/oauth` (`crates/entry/api/src/routes/oauth/core.rs`). OA
 | Condition | Response |
 |-----------|----------|
 | The client is operator-declared, the person has allowed it the requested scopes, `prompt` does not contain `consent`, and the `redirect_uri` is `https` to a non-loopback host or `security.authorize.silent_native_clients` is `true` | `303` to `redirect_uri` with `code`, `client_id`, `state` and `iss`. No page is rendered. |
-| Otherwise | A consent page naming the client, the scopes, the signed-in account and the redirect host, with Allow and Deny. It is served with `X-Frame-Options: DENY`, `frame-ancestors 'none'` and `Cache-Control: no-store`. |
+| Otherwise | A consent page naming the client, the scopes, the signed-in account and the redirect host, with Allow and Deny. It is served with `X-Frame-Options: DENY`, `frame-ancestors 'none'` and `Cache-Control: no-store`, and declares the `same-origin` referrer policy, so its form is posted with this server's `Origin`. |
 
 The code's sign-in time, and so the `auth_time` of the tokens it is exchanged for, is the browser session's sign-in, not the time of this request. Allow stores the consent for an operator-declared client (a later Allow adds its scopes) and nothing for any other client. Consent is cleared when the client's `person_ui` setting changes or its declaration is removed; `/revoke` and `/logout` leave it.
 
