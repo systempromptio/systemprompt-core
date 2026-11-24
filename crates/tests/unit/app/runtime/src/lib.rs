@@ -17,6 +17,8 @@ mod agent_server_unavailable;
 #[cfg(test)]
 mod app_context_parts;
 #[cfg(test)]
+mod audit_span_seal;
+#[cfg(test)]
 mod boot;
 #[cfg(test)]
 mod brain_composition;
