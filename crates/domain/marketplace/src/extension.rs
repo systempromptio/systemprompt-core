@@ -16,13 +16,10 @@
 //! - after governance, two inventory refreshers, each built from the sealed
 //!   bundle sources, services root and system admin. The sealed
 //!   `DynInventoryPublisher` is the one the kernel's admin services refresh
-//!   route runs with the authenticated request's user as the actor: publish
-//!   the latest configured skills, and nothing else; no member job, runner
-//!   service, config plane, command or route state can resolve it. The open
-//!   `Arc<MemberRefresher>` (a crate-private type) is the
-//!   `managed_inventory_refresh` job's narrow view: it fingerprints the
-//!   configured inventory and publishes it as the configured owner, never
-//!   under a caller-chosen actor, and is not the sealed publisher;
+//!   route runs with the authenticated request's user as the actor, which no
+//!   member job, command or route state can resolve. The open, crate-private
+//!   `Arc<MemberRefresher>` is the `managed_inventory_refresh` job's narrow
+//!   view: it publishes only as the configured owner;
 //! - after governance, two separate values bound to the system admin's managed
 //!   inventory. `Arc<OwnerSkillView>` is open: the `core skills` commands list
 //!   and resolve the owner's own skills through it, with no consumer parameter

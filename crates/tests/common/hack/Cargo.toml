@@ -110,6 +110,9 @@ systemprompt-files-entry = { path = "../../../entry/files", features = ["cli", "
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
 systemprompt-issues = { path = "../../../app/issues", features = ["cli"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli"] }
+systemprompt-marketplace = { path = "../../../domain/marketplace", features = ["http"] }
+systemprompt-marketplace-entry = { path = "../../../entry/marketplace", features = ["cli", "http"] }
+systemprompt-mcp-entry = { path = "../../../entry/mcp", features = ["cli", "http"] }
 systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
 systemprompt-provider-contracts = { path = "../../../shared/provider-contracts", default-features = false, features = ["sqlx"] }
 systemprompt-runtime = { path = "../../../app/runtime", features = ["geolocation", "notifications"] }

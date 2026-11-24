@@ -81,8 +81,6 @@ impl ManagedSurface for ManagedHttpSurface {
     }
 }
 
-/// The consumer router over `state` with its origin guard innermost, and the
-/// contract normaliser to wrap the protected router in.
 pub fn routes(state: ManagedConsumerState) -> ManagedRoutes {
     let router = consumer::router()
         .layer(axum::middleware::from_fn_with_state(

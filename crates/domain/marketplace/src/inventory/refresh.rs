@@ -7,7 +7,8 @@
 //! services view. The member's `managed_inventory_refresh` job resolves the
 //! open [`MemberRefresher`], a type no other crate can name, which can only
 //! fingerprint the configured inventory and publish it as the configured
-//! owner. A kernel route reaches a refresher only as the sealed
+//! owner: it holds its own refresher (sharing the publish guard) and exposes
+//! neither it nor a publish under a caller-chosen actor. A kernel route reaches a refresher only as the sealed
 //! `DynInventoryPublisher` (`publish_latest` with the authenticated
 //! request's user as the actor), a separate instance no member runtime
 //! context resolves. Neither reads the
@@ -134,12 +135,6 @@ impl InventoryPublisher for InventoryRefresher {
     }
 }
 
-/// The member's own refresh view: the configured inventory's fingerprint and
-/// a publish whose actor is always the configured owner.
-///
-/// It holds its own [`InventoryRefresher`] (sharing the publish guard) and
-/// exposes neither it nor a publish under a caller-chosen actor, so the open
-/// value the job resolves cannot act as the sealed `DynInventoryPublisher`.
 #[derive(Debug)]
 pub(crate) struct MemberRefresher {
     refresher: InventoryRefresher,
