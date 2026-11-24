@@ -18,11 +18,10 @@ use std::sync::Arc;
 
 use systemprompt_extension::MissingDependency;
 use systemprompt_identifiers::UserId;
-use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_marketplace::contract::MarketplaceSeams;
 use systemprompt_marketplace::managed::{ManagedError, ManagedRepository};
 use systemprompt_marketplace::surface::{ConsumerCatalog, DynConsumerCatalog};
-use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
+use systemprompt_marketplace::{MarketplaceCache, MarketplaceCandidate, MarketplaceFilter};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::BoxedSource;
 

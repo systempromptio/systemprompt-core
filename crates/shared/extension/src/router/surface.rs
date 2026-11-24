@@ -6,8 +6,8 @@
 //! handlers; the API owns the layering around them. A surface whose member is
 //! not admitted is not found, and its routes are not mounted (404).
 //!
-//! - [`SyncSurface`] (`cloud`): the services-tree manifest and download
-//!   routes under `/api/v1/sync`.
+//! - [`SyncSurface`] (`cloud`): the services-tree manifest and download routes
+//!   under `/api/v1/sync`.
 //! - [`McpSurface`] (`mcp-http`): the MCP tool-execution lookup under
 //!   `/api/v1/mcp`.
 //!

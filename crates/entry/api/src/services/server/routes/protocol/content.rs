@@ -1,7 +1,7 @@
 //! The content-and-misc route group the server mounts itself: the services
 //! tree sync routes the `cloud` member's `SyncSurface` builds (absent when
-//! `cloud` is not admitted) and the admin routes (CLI gateway, services bundle). The
-//! caller's session revocation and API-key management are the
+//! `cloud` is not admitted) and the admin routes (CLI gateway, services
+//! bundle). The caller's session revocation and API-key management are the
 //! `identity-http` member's. The content routes
 //! and the short-link redirect are declared by the `content-http` extension;
 //! the analytics and engagement routes by the `analytics-http` extension; the

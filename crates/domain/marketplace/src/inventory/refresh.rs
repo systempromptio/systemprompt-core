@@ -8,10 +8,10 @@
 //! open [`MemberRefresher`], a type no other crate can name, which can only
 //! fingerprint the configured inventory and publish it as the configured
 //! owner: it holds its own refresher (sharing the publish guard) and exposes
-//! neither it nor a publish under a caller-chosen actor. A kernel route reaches a refresher only as the sealed
-//! `DynInventoryPublisher` (`publish_latest` with the authenticated
-//! request's user as the actor), a separate instance no member runtime
-//! context resolves. Neither reads the
+//! neither it nor a publish under a caller-chosen actor. A kernel route reaches
+//! a refresher only as the sealed `DynInventoryPublisher` (`publish_latest`
+//! with the authenticated request's user as the actor), a separate instance no
+//! member runtime context resolves. Neither reads the
 //! profile, the configuration or a secret: everything a refresh reads from
 //! the profile is the [`BundleSources`] value inside it.
 //!
