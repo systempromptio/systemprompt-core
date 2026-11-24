@@ -2,12 +2,13 @@
 //!
 //! An external MCP server has no local backend port. The engine authorises
 //! the caller against the server's OAuth requirement and the context it
-//! names, then opens the caller's [`ExternalUpstream`] through the MCP
-//! backends: the provider endpoint and the per-user provider headers, minted
-//! server-side so the systemprompt credential and the provider URL never
-//! reach the client. The engine bounds and reads the body, lets the upstream
-//! fix the configured arguments, governs a `tools/call` (see
-//! [`super::external_governance`]), forwards the frames and taps the
+//! names, then opens the caller's
+//! [`ExternalUpstream`](systemprompt_extension::router::ExternalUpstream)
+//! through the MCP backends: the provider endpoint and the per-user provider
+//! headers, minted server-side so the systemprompt credential and the provider
+//! URL never reach the client. The engine bounds and reads the body, lets the
+//! upstream fix the configured arguments, governs a `tools/call` (see the
+//! sibling `external_governance` module), forwards the frames and taps the
 //! response with the call's audit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
