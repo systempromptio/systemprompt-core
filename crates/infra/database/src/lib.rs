@@ -82,6 +82,10 @@ pub use services::{
     PoolConfig, PostgresProvider, SchemaEpoch, SqlExecutor, with_transaction_retry,
 };
 
+pub use services::{
+    HubEvent, HubNotification, HubSubscription, ListenLink, NotificationHub, PollWake, WakeReason,
+};
+
 pub use error::DatabaseResult;
 pub use lifecycle::{
     AbsentMemberTable, AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement,

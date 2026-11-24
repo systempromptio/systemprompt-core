@@ -93,9 +93,7 @@ impl HostKernel {
         )
         .await?;
         let cache_epochs = CacheEpochs::new();
-        let (event_router, _bridge, listener_pool) =
-            event_plane(None, &database, &config, &cache_epochs);
-        drop(listener_pool);
+        let (event_router, _bridge) = event_plane(None, &database, &config, &cache_epochs);
         let background_tasks = BackgroundTasks::default();
         let user_repository = Arc::new(UserRepository::new(&database));
         let system_admin = load_system_admin(

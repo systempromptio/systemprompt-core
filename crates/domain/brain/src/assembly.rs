@@ -84,7 +84,7 @@ pub(crate) fn bind_handle(
         notifications,
         pipeline: seams.pipeline(),
         outbox: Arc::new(OutboxConsumer::new(db.write_pool().as_ref().clone())),
-        listener_pool: db.session_pool().as_ref().clone(),
+        notifications_hub: db.notifications().clone(),
         profile,
     });
     binder

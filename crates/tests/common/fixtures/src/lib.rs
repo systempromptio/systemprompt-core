@@ -59,7 +59,7 @@ pub use app_context::{
     fixture_app_context_with_extensions, fixture_app_context_with_filter,
     fixture_app_context_with_hook, fixture_app_context_with_hook_over,
     fixture_app_context_with_services, fixture_artifact_ingest, fixture_config,
-    fixture_context_builder, fixture_core_members, fixture_event_bridge,
+    bound_notification_hub, fixture_context_builder, fixture_core_members, fixture_event_bridge,
     fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_kernel_seed,
     fixture_secret_store, fixture_services_state, fixture_services_view, fixture_session_store,
     fixture_session_usage, fixture_subject_providers, fixture_upstream_issuer, host_admitted,

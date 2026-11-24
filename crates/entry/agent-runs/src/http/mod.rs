@@ -70,7 +70,7 @@ impl FromState for AgentRunsState {
         Ok(Self {
             runs: r.get::<AgentRunRepository>()?,
             origins: r.get::<AdmittedRunOrigins>()?,
-            notifier: RunEventNotifier::spawn(r.tasks(), db.write_pool().as_ref().clone()),
+            notifier: RunEventNotifier::spawn(r.tasks(), db.notifications()),
             layouts: r.get::<Arc<A2aRunnerConfig>>()?,
         })
     }

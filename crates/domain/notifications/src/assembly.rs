@@ -94,7 +94,7 @@ pub(crate) fn bind_service(
     let consumer = Arc::new(NotificationsConsumer::new(
         pipeline,
         db.write_pool().as_ref().clone(),
-        db.session_pool().as_ref().clone(),
+        db.notifications().clone(),
         profile.consumer,
     ));
     binder.bind(service, consumer).map_err(refused)?;

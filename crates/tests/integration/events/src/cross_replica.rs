@@ -69,6 +69,7 @@ async fn start_peer_replica(pool: &PgPool) -> (EventRouter, EventBridgeHandle) {
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         broadcasters,
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     assert!(
@@ -208,8 +209,8 @@ async fn start_replica_with_named_listener(
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
         broadcasters,
+        systemprompt_test_fixtures::bound_notification_hub(&listener_pool),
     )
-    .with_listener_pool(listener_pool)
     .start();
     assert!(
         bounded("the relay LISTEN", bridge.listening()).await,

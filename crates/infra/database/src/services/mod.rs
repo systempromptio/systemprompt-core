@@ -20,6 +20,9 @@ pub use display::DatabaseCliDisplay;
 pub use executor::SqlExecutor;
 pub use postgres::PostgresProvider;
 pub use postgres::connection::{PoolConfig, SchemaEpoch};
+pub use postgres::listener::{
+    HubEvent, HubNotification, HubSubscription, ListenLink, NotificationHub, PollWake, WakeReason,
+};
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::DatabaseProvider;
 pub use schema_linter::{

@@ -81,6 +81,7 @@ async fn a_notify_on_the_cache_channel_reaches_the_bridge() {
         unique_instance(),
         epochs.clone(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
@@ -112,6 +113,7 @@ async fn writes_to_cached_tables_notify_through_their_triggers() {
         unique_instance(),
         epochs.clone(),
         Arc::clone(&broadcasters),
+        systemprompt_test_fixtures::bound_notification_hub(&pool),
     )
     .start();
     await_listening(&handle).await;
