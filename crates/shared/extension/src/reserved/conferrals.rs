@@ -29,6 +29,7 @@ pub enum ConferralRow {
     DriveTokens,
     IdentitySigningKeys,
     IdentitySignInSessions,
+    IdentityOAuthRepositories,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -49,6 +50,7 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::DriveTokens.entry(),
     ConferralRow::IdentitySigningKeys.entry(),
     ConferralRow::IdentitySignInSessions.entry(),
+    ConferralRow::IdentityOAuthRepositories.entry(),
 ];
 
 impl ConferralRow {
@@ -64,6 +66,7 @@ impl ConferralRow {
             Self::DriveTokens => "drive-tokens",
             Self::IdentitySigningKeys => "identity-signing-keys",
             Self::IdentitySignInSessions => "identity-sign-in-sessions",
+            Self::IdentityOAuthRepositories => "identity-oauth-repositories",
         }
     }
 
@@ -73,7 +76,9 @@ impl ConferralRow {
             Self::GatewayEngines | Self::GatewayAtRest => ("gateway", CoreId::GatewayHttp),
             Self::GatewaySessionMint => ("users", CoreId::GatewayHttp),
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
-            Self::IdentityTokenAuthority | Self::IdentitySigningKeys => {
+            Self::IdentityTokenAuthority
+            | Self::IdentitySigningKeys
+            | Self::IdentityOAuthRepositories => {
                 (CoreId::Kernel.id(), CoreId::IdentityHttp)
             },
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),

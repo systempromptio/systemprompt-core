@@ -17,6 +17,7 @@ use systemprompt_gateway::{GatewayAtRest, GatewayEngines};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_mcp::ArtifactIngest;
+use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations, TokenAuthority};
 use systemprompt_runtime::{AppContext, Kernel};
@@ -384,4 +385,19 @@ async fn identity_http_alone_reads_the_conferred_sign_in_sessions() {
     let ctx = context().await;
     conferred_on_identity_http_alone::<DynSignInSessions>(&ctx);
     assert!(!route_reads::<DynSessionStore>(&ctx, "identity-http"));
+}
+
+#[tokio::test]
+async fn identity_http_alone_reads_the_conferred_oauth_repositories() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    assert!(state.is_sealed::<Arc<OAuthRepositories>>());
+    let conferred = state
+        .conferral_of::<Arc<OAuthRepositories>>()
+        .expect("recorded under its row");
+    assert_eq!(
+        conferred.row,
+        ConferralRow::IdentityOAuthRepositories.name()
+    );
+    conferred_on_identity_http_alone::<Arc<OAuthRepositories>>(&ctx);
 }
