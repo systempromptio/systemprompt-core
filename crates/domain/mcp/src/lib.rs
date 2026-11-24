@@ -47,6 +47,7 @@ pub(crate) mod resources;
 pub(crate) mod response;
 pub mod services;
 pub(crate) mod tool;
+pub(crate) mod user_data;
 
 pub use extension::McpExtension;
 
