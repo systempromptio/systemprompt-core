@@ -1,21 +1,12 @@
 //! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
-//! migrations, the expired-grant cleanup job, and its repositories
-//! (`Arc<OAuthRepositories>`, open), built over the kernel's database and the
-//! sealed `OAuthAtRestPepper` seed the grant tables digest under. The
-//! repositories carry the pepper inside their digest functions and expose
-//! no read of it.
+//! migrations, and the expired-grant cleanup job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_models::auth::OAuthAtRestPepper;
 
 use crate::jobs::OauthCleanupJob;
-use crate::repository::OAuthRepositories;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
@@ -38,13 +29,7 @@ impl Extension for OauthExtension {
         {
             c.schema(schema);
         }
-        c.migrations(extension_migrations!())
-            .job(OauthCleanupJob)
-            .provide(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                let pepper = r.get::<OAuthAtRestPepper>()?;
-                Ok(Arc::new(OAuthRepositories::new(&db, pepper.shared())))
-            });
+        c.migrations(extension_migrations!()).job(OauthCleanupJob);
         c.user_purge(UserPurgeTable {
             table: "oauth_jti_revocations",
             column: "user_id",

@@ -46,9 +46,7 @@
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
 //! conferral row; `AppContext::token_authority` hands out the same value. The
 //! signing keys are recorded under the `identity-signing-keys` row: both are
-//! conferred on `identity-http`, the issuer. The OAuth at-rest pepper
-//! (`OAuthAtRestPepper`) is sealed; the `oauth` member's provide builds its
-//! repositories over it. A child host holds verification keys only, so it
+//! conferred on `identity-http`, the issuer. A child host holds verification keys only, so it
 //! seeds no token authority.
 //!
 //! Every host seeds its verification keyring (`VerificationKeyring`, public
@@ -118,10 +116,10 @@ use systemprompt_models::{ContentConfigRaw, late_pair};
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::auth::{DynTokenRevocations, OAuthAtRestPepper, TokenAuthority};
+use systemprompt_models::auth::{DynTokenRevocations, TokenAuthority};
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::EscalationDelivery;
-use systemprompt_oauth::repository::JtiRevocationChecker;
+use systemprompt_oauth::repository::{JtiRevocationChecker, OAuthRepositories};
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
@@ -169,7 +167,7 @@ pub struct ApiKernelSeed<'a> {
     pub token_authority: &'a Arc<dyn TokenAuthority>,
     pub spawner: &'a Arc<Spawner>,
     pub child_secrets: DynChildSecretEnv,
-    pub oauth_pepper: OAuthAtRestPepper,
+    pub oauth: &'a Arc<OAuthRepositories>,
     pub geoip: Option<&'a GeoIpReader>,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
@@ -274,7 +272,7 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
         .with(seed.signing_keys.verification_keys().clone())
-        .with_sealed(seed.oauth_pepper)
+        .with(Arc::clone(seed.oauth))
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
     match seed.geoip {

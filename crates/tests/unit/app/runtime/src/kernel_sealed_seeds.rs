@@ -295,6 +295,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_users::UsersGatewaySessionMint>(),
         ),
         (
+            type_name::<systemprompt_traits::DynSignInSessions>(),
+            carrier::<systemprompt_users::SessionRepository>(),
+        ),
+        (
             type_name::<Arc<systemprompt_ai::PersonalProviderCredentials>>(),
             carrier::<systemprompt_ai::repository::UserProviderCredentialRepository>(),
         ),
