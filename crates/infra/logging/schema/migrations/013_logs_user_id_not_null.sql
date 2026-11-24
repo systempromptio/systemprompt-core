@@ -1,4 +1,5 @@
 -- @no-transaction
+-- @cost: rows=300000 measured=40ms triggers=live
 -- Every write path sets `logs.user_id` from a non-optional `UserId`
 -- (`LogEntry::user_id`, bound by the single-row insert and the batched
 -- UNNEST insert), so a row without one is a contract breach. The schema now
