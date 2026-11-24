@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_api::routes::gateway::auth::{AuthResponse, capabilities};
+use systemprompt_identity_entry::http::bridge::auth::{AuthResponse, capabilities};
 use systemprompt_oauth::services::BridgeAuthResult;
 
 #[test]

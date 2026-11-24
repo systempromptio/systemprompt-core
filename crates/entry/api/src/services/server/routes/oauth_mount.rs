@@ -74,8 +74,6 @@ pub(super) fn identity_routes(
     build_identity_routes(mount.ctx, mount.composed.admitted, mount.composed.kernel)
 }
 
-/// The bridge credential exchange `identity-http` builds, for the gateway
-/// mount; `None` when the member is not admitted.
 pub(crate) fn identity_bridge_auth(
     ctx: &systemprompt_runtime::AppContext,
     admitted: &systemprompt_extension::Admitted,

@@ -10,9 +10,8 @@ use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_models::bridge::manifest::UserInfo;
 
-use super::super::BridgeRouteState;
-use super::super::data;
 use super::super::error::BridgeError;
+use super::super::{BridgeRouteState, data};
 
 // Why: the recorded grant is the consumer's reach — a manifest whose grants
 // could not be written must not serve the skills it would grant.

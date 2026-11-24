@@ -6,7 +6,7 @@
 //! handlers themselves need an `AppContext` and are out of scope here.
 
 use std::collections::HashMap;
-use systemprompt_api::routes::gateway::auth::{AuthResponse, Capabilities, capabilities};
+use systemprompt_identity_entry::http::bridge::auth::{AuthResponse, Capabilities, capabilities};
 use systemprompt_oauth::services::BridgeAuthResult;
 
 #[tokio::test]

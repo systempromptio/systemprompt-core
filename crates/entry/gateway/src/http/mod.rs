@@ -39,7 +39,7 @@ pub mod state;
 use std::sync::Arc;
 
 use axum::Router;
-use axum::routing::post;
+use axum::routing::{get, post};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
@@ -53,6 +53,9 @@ use systemprompt_traits::DynGatewaySessionMint;
 
 use self::bridge::{BridgeMarketplace, BridgeRouteState};
 use self::state::{GatewayHttpRepositories, GatewayHttpState};
+use systemprompt_gateway::surface::views::{
+    BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsView,
+};
 
 /// The `gateway-http` member's [`GatewaySurface`].
 #[derive(Debug, Clone, Copy, Default)]
@@ -68,25 +71,42 @@ impl GatewaySurface for GatewayHttpSurface {
         let db = resolved.get::<DbPool>()?;
         let repos = gateway_repositories(&resolved, &host, Arc::clone(&own.contexts), &db)?;
         let credentials = resolved.optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>();
-        let bridge = BridgeRouteState {
-            authenticator: resolved.get()?,
-            repos: own.bridge.clone(),
-            marketplace: BridgeMarketplace {
-                managed: resolved.get()?,
-                cache: resolved.get()?,
-                seams: resolved.get()?,
+        let bridge = match (
+            resolved.get::<Option<Arc<GatewayManifestSigner>>>()?,
+            resolved.get::<Option<Arc<BridgeReleaseSource>>>()?,
+            resolved.get::<Option<Arc<GatewaySettingsView>>>()?,
+            resolved.get::<Option<Arc<BridgeEventStream>>>()?,
+        ) {
+            (Some(signer), Some(releases), Some(settings), Some(events)) => {
+                Some(BridgeRouteState {
+                    authenticator: resolved.get()?,
+                    repos: own.bridge.clone(),
+                    marketplace: BridgeMarketplace {
+                        managed: resolved.get()?,
+                        cache: resolved.get()?,
+                        seams: resolved.get()?,
+                    },
+                    signer,
+                    releases,
+                    settings,
+                    events,
+                    subjects: resolved.get()?,
+                    personal_credentials: credentials.clone().map(
+                    |credentials| -> systemprompt_extension::router::DynPersonalCredentialNames {
+                        credentials
+                    },
+                ),
+                    host: host.clone(),
+                })
             },
-            signer: resolved.get()?,
-            releases: resolved.get()?,
-            settings: resolved.get()?,
-            events: resolved.get()?,
-            subjects: resolved.get()?,
-            personal_credentials: resolved.optional(),
-            host: host.clone(),
+            _ => {
+                tracing::info!("this host seeds no bridge views; no bridge route is built");
+                None
+            },
         };
         let session_mint = resolved.get::<DynGatewaySessionMint>()?;
         let state = GatewayHttpState {
-            authenticator: Arc::clone(&bridge.authenticator),
+            authenticator: resolved.get()?,
             api_keys: own.api_keys.clone(),
             session_mint: Arc::clone(&session_mint),
             repos: Arc::new(repos),
@@ -94,22 +114,45 @@ impl GatewaySurface for GatewayHttpSurface {
             host,
             db,
         };
-        let traffic = routes(&state).merge(
-            bridge::routes(&bridge).map_err(|e| GatewaySurfaceError::ReleaseFeed(Box::new(e)))?,
-        );
+        let bridge_routes = match &bridge {
+            Some(bridge) => {
+                bridge::routes(bridge).map_err(|e| GatewaySurfaceError::ReleaseFeed(Box::new(e)))?
+            },
+            None => Router::new(),
+        };
+        let models_state = models::ModelsState {
+            services: state.host.services.clone(),
+            settings: bridge.as_ref().map(|bridge| Arc::clone(&bridge.settings)),
+        };
+        let traffic = routes(&state)
+            .merge(bridge_routes)
+            .route(
+                "/models",
+                get(move |headers, query| {
+                    let state = models_state.clone();
+                    async move { models::list(state, headers, query).await }
+                }),
+            )
+            .route("/", get(models::root));
+        let analytics = Arc::clone(&state.host.analytics);
         let credential_routes = credentials.map_or_else(Router::new, |credentials| {
             provider_credentials::routes(&provider_credentials::ProviderCredentialsState {
                 gateway: state,
                 credentials,
             })
         });
+        let credential_routes = match &bridge {
+            Some(bridge) => credential_routes.merge(bridge::principal_bound(bridge)),
+            None => credential_routes,
+        };
         Ok(GatewaySurfaceRoutes {
             traffic,
-            principal_bound: credential_routes.merge(bridge::principal_bound(&bridge)),
-            consumer_catalog: Some(bridge::consumer_catalog(&bridge)),
+            principal_bound: credential_routes,
+            consumer_catalog: bridge.as_ref().map(bridge::consumer_catalog),
             public_sessions: sessions::public_router(sessions::SessionsState {
                 mint: session_mint,
-                bridge,
+                analytics,
+                settings: bridge.map(|bridge| bridge.settings),
             }),
         })
     }

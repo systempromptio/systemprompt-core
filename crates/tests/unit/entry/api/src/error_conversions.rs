@@ -18,6 +18,10 @@ fn code_of(err: impl Into<ApiHttpError>) -> ApiError {
     err.into().into_inner()
 }
 
+fn marketplace_code(err: MarketplaceError) -> ApiError {
+    ApiError::from(err)
+}
+
 fn repo_not_found() -> RepositoryError {
     RepositoryError::NotFound {
         entity: "widget",
@@ -48,23 +52,23 @@ fn repository_error_classifies_by_variant() {
 #[test]
 fn marketplace_error_maps_every_class() {
     assert_eq!(
-        code_of(MarketplaceError::NotFound(MarketplaceId::new("m"))).code,
+        marketplace_code(MarketplaceError::NotFound(MarketplaceId::new("m"))).code,
         ErrorCode::NotFound
     );
     assert_eq!(
-        code_of(MarketplaceError::NoDefault).code,
+        marketplace_code(MarketplaceError::NoDefault).code,
         ErrorCode::NotFound
     );
     assert_eq!(
-        code_of(MarketplaceError::Managed(ManagedError::Unavailable)).code,
+        marketplace_code(MarketplaceError::Managed(ManagedError::Unavailable)).code,
         ErrorCode::NotFound
     );
     assert_eq!(
-        code_of(MarketplaceError::Managed(ManagedError::Invalid("x".into()))).code,
+        marketplace_code(MarketplaceError::Managed(ManagedError::Invalid("x".into()))).code,
         ErrorCode::BadRequest
     );
     assert_eq!(
-        code_of(MarketplaceError::Managed(ManagedError::InvalidInput {
+        marketplace_code(MarketplaceError::Managed(ManagedError::InvalidInput {
             context: "ctx",
             source: boxed(),
         }))
@@ -72,29 +76,29 @@ fn marketplace_error_maps_every_class() {
         ErrorCode::BadRequest
     );
     assert_eq!(
-        code_of(MarketplaceError::Managed(ManagedError::Conflict(
+        marketplace_code(MarketplaceError::Managed(ManagedError::Conflict(
             "x".into()
         )))
         .code,
         ErrorCode::ConflictError
     );
     assert_eq!(
-        code_of(MarketplaceError::Managed(ManagedError::Repository(
+        marketplace_code(MarketplaceError::Managed(ManagedError::Repository(
             repo_not_found()
         )))
         .code,
         ErrorCode::NotFound
     );
     assert_eq!(
-        code_of(MarketplaceError::Managed(ManagedError::Integrity)).code,
+        marketplace_code(MarketplaceError::Managed(ManagedError::Integrity)).code,
         ErrorCode::InternalError
     );
     assert_eq!(
-        code_of(MarketplaceError::Catalog("x".into())).code,
+        marketplace_code(MarketplaceError::Catalog("x".into())).code,
         ErrorCode::InternalError
     );
     assert_eq!(
-        code_of(MarketplaceError::Import {
+        marketplace_code(MarketplaceError::Import {
             path: "p".into(),
             message: "m".into(),
         })

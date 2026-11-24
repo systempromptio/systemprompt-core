@@ -11,8 +11,6 @@
 use std::sync::{Arc, OnceLock};
 
 use axum::http::{HeaderMap, header};
-use systemprompt_api::routes::gateway::bridge_manifest;
-use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_models::api::ErrorCode;
 use systemprompt_test_fixtures::{
@@ -52,9 +50,6 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
     seed_user_row(&pool, owner, &format!("{owner}@manifest-policy.invalid"))
         .await
         .expect("seed the organisation owner");
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
     let consumer = seed_bridge_credential(&pool, "manifest-policy@example.invalid")
         .await
         .expect("consumer credential");
@@ -71,18 +66,13 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
         .execute(&mut *lock)
         .await
         .expect("lock the revocation table");
-    let served = bridge_manifest::manifest(extractor, (*ctx).clone(), headers).await;
+    let served = super::bridge_support::manifest(&ctx, headers).await;
     lock.rollback().await.expect("release the lock");
 
-    let error = served
-        .expect_err("a manifest whose revocation list cannot be read is not served")
-        .into_inner();
+    let error = served.expect_err("a manifest whose revocation list cannot be read is not served");
     assert_eq!(error.code, ErrorCode::InternalError, "{}", error.message);
-    assert_eq!(error.message, "manifest: revocations unavailable");
-    assert!(
-        error.source().is_some(),
-        "the read failure is kept for the log"
+    assert_eq!(
+        error.message, "Internal server error",
+        "the read failure stays in the log; the wire carries the fixed 5xx text"
     );
-    let wire = serde_json::to_value(&error).expect("serialise the error");
-    assert_eq!(wire["message"], "Internal server error");
 }

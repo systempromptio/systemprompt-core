@@ -7,8 +7,6 @@ use std::sync::{Arc, OnceLock};
 use axum::body::to_bytes;
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::Response;
-use systemprompt_api::routes::gateway::bridge_manifest;
-use systemprompt_api::services::middleware::JwtContextExtractor;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_HEADER, SignedManifestEnvelope};
 use systemprompt_runtime::AppContext;
@@ -25,7 +23,6 @@ fn boot() -> &'static TestBootstrap {
 
 struct Harness {
     ctx: AppContext,
-    extractor: Arc<JwtContextExtractor>,
     jwt: String,
 }
 
@@ -46,15 +43,11 @@ async fn harness(mailbox: &str) -> Harness {
     )
     .await
     .expect("seed the organisation owner");
-    let extractor = Arc::new(
-        JwtContextExtractor::from_kernel(ctx.kernel().state()).expect("request authenticator"),
-    );
     let consumer = seed_bridge_credential(&pool, mailbox)
         .await
         .expect("consumer credential");
     Harness {
         ctx: (*ctx).clone(),
-        extractor,
         jwt: consumer.jwt.as_str().to_owned(),
     }
 }
@@ -70,7 +63,7 @@ async fn fetch(harness: &Harness, extra: &[(&'static str, &str)]) -> Response {
     for (name, value) in extra {
         headers.insert(*name, value.parse().expect("header value"));
     }
-    bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
+    super::bridge_support::manifest(&harness.ctx, headers)
         .await
         .expect("a signed-in consumer receives a manifest")
 }

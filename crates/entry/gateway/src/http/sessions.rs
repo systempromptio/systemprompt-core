@@ -21,15 +21,22 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_traits::{DynGatewaySessionMint, ExtractSignals};
 use systemprompt_users::API_KEY_PREFIX;
 
-use crate::http::bridge::BridgeRouteState;
+use std::sync::Arc;
+
+use systemprompt_gateway::surface::views::GatewaySettingsView;
+use systemprompt_traits::AnalyticsProvider;
+
 use crate::http::bridge::client_ip;
 
 /// What the public session route reads: the session mint conferred on
-/// `gateway-http` and the bridge state's settings and analytics extractor.
+/// `gateway-http`, the analytics extractor, and the settings view whose
+/// trusted proxies resolve the caller's address (absent on a host that seeds
+/// no bridge views, where the address is not resolved).
 #[derive(Clone)]
 pub struct SessionsState {
     pub mint: DynGatewaySessionMint,
-    pub bridge: BridgeRouteState,
+    pub analytics: Arc<dyn AnalyticsProvider>,
+    pub settings: Option<Arc<GatewaySettingsView>>,
 }
 
 impl std::fmt::Debug for SessionsState {
@@ -56,9 +63,12 @@ pub async fn create_session(
     }
 
     let mint = &state.mint;
-    let analytics = &state.bridge.host.analytics;
+    let analytics = &state.analytics;
 
-    let caller_ip = client_ip(&request, &state.bridge.settings);
+    let caller_ip = state
+        .settings
+        .as_ref()
+        .and_then(|settings| client_ip(&request, settings));
     let session_analytics = analytics.extract_analytics(
         request.headers(),
         ExtractSignals {

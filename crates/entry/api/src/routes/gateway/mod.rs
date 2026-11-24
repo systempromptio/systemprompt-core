@@ -157,7 +157,8 @@ pub(crate) fn gateway_mount_parts(
     kernel: &Kernel,
     bridge_auth: Router,
 ) -> anyhow::Result<GatewayMountParts> {
-    let authenticator = kernel
+    let authenticator = ctx
+        .kernel()
         .state()
         .get::<DynRequestAuthenticator>()
         .cloned()
@@ -168,10 +169,9 @@ pub(crate) fn gateway_mount_parts(
         })?;
     let routes = surface_routes(ctx, admitted, kernel)?;
     let registered = registered::admitted_gateway_routes(admitted, kernel, &authenticator)?;
-    let traffic = routes
-        .traffic
-        .merge(registered::verified(routes.principal_bound, &authenticator))
-        .merge(drive_routes(ctx, kernel)?);
+    let principal_bound = registered::verified(routes.principal_bound, &authenticator);
+    let drive = drive_routes(ctx, kernel)?;
+    let traffic = routes.traffic.merge(principal_bound).merge(drive);
     Ok(GatewayMountParts {
         traffic: confined(traffic),
         bridge_auth: confined(bridge_auth),

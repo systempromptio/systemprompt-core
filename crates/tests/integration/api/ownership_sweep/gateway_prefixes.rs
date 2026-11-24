@@ -3,10 +3,11 @@
 //! under a prefix of `BUILTIN_GATEWAY_PREFIXES`, and every prefix covers at
 //! least one such route.
 //!
-//! The surface is every site under `routes/gateway/` except the public
-//! session router (`sessions.rs`, mounted at the public gateway base), every
-//! site under the `gateway-http` member's `gateway/http/`, plus
-//! the bridge drive router (`routes/documents/drive.rs::router`) the gateway
+//! The surface is every site under `routes/gateway/`, every site under the
+//! `gateway-http` member's `gateway/http/` except its public session router
+//! (`sessions.rs`, mounted at the public gateway base), the `identity-http`
+//! member's bridge credential exchange (`identity/http/bridge/`), plus the
+//! bridge drive router (`routes/documents/drive.rs::router`) the gateway
 //! merges. Its routes are every `.route(` call there, read for the path
 //! argument alone, so a route whose method router is built by a function call
 //! is still seen. A path argument is a string literal, an `ApiPaths`
@@ -129,8 +130,9 @@ fn mount_calls(sources: &[Source]) -> Vec<MountCall> {
 }
 
 fn on_builtin_surface(site: &str) -> bool {
-    (site.starts_with("routes/gateway/") && !site.starts_with("routes/gateway/sessions.rs"))
-        || site.starts_with("gateway/http/")
+    site.starts_with("routes/gateway/")
+        || (site.starts_with("gateway/http/") && !site.starts_with("gateway/http/sessions.rs"))
+        || site.starts_with("identity/http/bridge/")
         || site == "routes/documents/drive.rs::router"
 }
 

@@ -27,9 +27,8 @@ use systemprompt_models::bridge::manifest::{
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
-use super::BridgeRouteState;
 use super::error::{BridgeError, authenticate_bridge};
-use super::resolved;
+use super::{BridgeRouteState, resolved};
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 use systemprompt_extension::router::ApiHttpError;
 

@@ -12,8 +12,7 @@ use systemprompt_api::services::server::routes::{Composed, configure_routes_for_
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
 use systemprompt_test_fixtures::{
-    ComposedParts, ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
-    gateway_probe_admitted, offline_resolved_kernel,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config,
 };
 use tower::ServiceExt;
 
@@ -99,19 +98,15 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
     config.rate_limits = RateLimitsConfig::disabled();
     config.role = NodeRole::Api;
     let ctx = fixture_app_context_with_config(config).await?;
-    let admitted = gateway_probe_admitted(ComposedParts::default());
-    let kernel =
-        offline_resolved_kernel(&admitted, systemprompt_test_fixtures::gateway_kernel_seed());
-
     let gateway = configure_routes_for_role(
         &ctx,
         Composed {
-            admitted: &admitted,
-            kernel: &kernel,
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
         },
         NodeRole::Gateway,
         None,
-        &systemprompt_api::routes::gateway::gateway_engines(&kernel)
+        &systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
             .expect("the gateway member provides its engines"),
     )?;
     assert!(is_mounted(&gateway, "/v1/models").await?);

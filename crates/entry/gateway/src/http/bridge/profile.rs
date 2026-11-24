@@ -21,12 +21,10 @@ use systemprompt_oauth::repository::HostPrefWrite;
 pub use systemprompt_manifest::bridge_profile::provider_health;
 pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHealth};
 
-use super::BridgeRouteState;
 use super::admission::{AdmissionPrincipal, ModelAdmission};
-use super::data;
 use super::error::{BridgeError, authenticate_bridge};
-use systemprompt_extension::router::ApiHttpError;
-use systemprompt_extension::router::GatewayPrincipal;
+use super::{BridgeRouteState, data};
+use systemprompt_extension::router::{ApiHttpError, GatewayPrincipal};
 use systemprompt_gateway::surface::views::GatewayManifestSigner;
 
 use systemprompt_models::bridge::host::HostKind;

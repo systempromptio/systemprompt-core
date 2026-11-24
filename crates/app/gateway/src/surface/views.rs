@@ -28,9 +28,8 @@ use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::AgUiEvent;
 use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{SignedManifest, SignedManifestEnvelope};
-use systemprompt_security::ManifestSigningError;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_security::manifest_signing;
+use systemprompt_security::{ManifestSigningError, manifest_signing};
 use systemprompt_traits::SecretLookup;
 use tokio::sync::mpsc;
 

@@ -10,13 +10,16 @@
 use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::sessions::create_session;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_extension::reserved::CoreId;
+use systemprompt_gateway::{GatewayRouteState, GatewaySurface};
+use systemprompt_gateway_entry::http::GatewayHttpSurface;
+use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService, IssueApiKeyParams, UserRepository};
+use tower::ServiceExt;
 use uuid::Uuid;
 
 struct Harness {
@@ -37,6 +40,39 @@ async fn harness() -> Harness {
         ctx: (*ctx).clone(),
         pool,
         user_id,
+    }
+}
+
+async fn create_session(
+    ctx: systemprompt_runtime::AppContext,
+    request: Request,
+) -> Result<(StatusCode, serde_json::Value), String> {
+    let owner = ExtensionId::new(CoreId::GatewayHttp.id());
+    let standing = ctx
+        .admitted()
+        .built()
+        .standing_of(&owner)
+        .expect("gateway-http is admitted");
+    let routes = GatewayHttpSurface
+        .build(GatewayRouteState {
+            resolved: ctx.kernel().route_scoped(&owner, standing, &[]),
+            host: systemprompt_api::routes::gateway::host_handles(&ctx),
+        })
+        .expect("the gateway surface builds");
+    let response = routes
+        .public_sessions
+        .oneshot(request)
+        .await
+        .expect("the session route answers");
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body");
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+    if status.is_success() {
+        Ok((status, body))
+    } else {
+        Err(format!("{status}: {body}"))
     }
 }
 
@@ -81,7 +117,7 @@ async fn valid_api_key_mints_a_session() {
 
     assert_eq!(status, StatusCode::CREATED);
     assert!(
-        !body.0.session_id.as_str().is_empty(),
+        body["session_id"].as_str().is_some_and(|id| !id.is_empty()),
         "a minted session must carry an id"
     );
 }

@@ -20,10 +20,9 @@ use axum::response::Response;
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_marketplace::ResolvedCatalog;
 
-use super::BridgeRouteState;
 use super::error::{BridgeError, authenticate_bridge};
 use super::plugin_archive::ArchiveMemo;
-use super::{plugin_archive, resolved};
+use super::{BridgeRouteState, plugin_archive, resolved};
 use systemprompt_extension::router::ApiHttpError;
 
 pub async fn handle(

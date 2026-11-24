@@ -147,9 +147,7 @@ fn build_routes(
     }
     let mut consumer_catalog = None;
     if serves(RouteGroup::Gateway) && engines.is_some() {
-        let (mounted, catalog) = gateway::mount_gateway(router, &mount, identity_bridge_auth)?;
-        router = mounted;
-        consumer_catalog = catalog;
+        (router, consumer_catalog) = gateway::mount_gateway(router, &mount, identity_bridge_auth)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount, consumer_catalog)?;
     crate::services::agent_dispatch::bind_dispatchers(ctx)

@@ -14,7 +14,24 @@ use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::providers::ClientFamily;
 
-use crate::http::bridge::BridgeRouteState;
+use std::sync::Arc;
+use systemprompt_gateway::surface::views::GatewaySettingsView;
+use systemprompt_loader::ServicesState;
+
+/// What `/models` reads: the reloadable catalog and the settings view that
+/// answers whether a platform credential is configured (absent on a host that
+/// seeds no bridge views, where no platform credential counts as configured).
+#[derive(Clone)]
+pub struct ModelsState {
+    pub services: ServicesState,
+    pub settings: Option<Arc<GatewaySettingsView>>,
+}
+
+impl std::fmt::Debug for ModelsState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModelsState").finish_non_exhaustive()
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -89,11 +106,11 @@ pub struct OpenAiModelsResponse {
 }
 
 pub async fn list(
-    state: BridgeRouteState,
+    state: ModelsState,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, ApiHttpError> {
-    let services_state = state.host.services.view();
+    let services_state = state.services.view();
     let services = services_state.config();
     let catalog = &services_state.catalog;
 
@@ -109,7 +126,12 @@ pub async fn list(
     // The header is still parsed and validated so an unknown client family is
     // rejected rather than silently accepted.
     let _families = families_from_header(&headers)?;
-    let mut entries = model_entries(catalog, |name| state.settings.credential_configured(name));
+    let mut entries = model_entries(catalog, |name| {
+        state
+            .settings
+            .as_ref()
+            .is_some_and(|settings| settings.credential_configured(name))
+    });
     let total = entries.len();
     let has_more = match query.limit {
         Some(limit) if limit < total => {

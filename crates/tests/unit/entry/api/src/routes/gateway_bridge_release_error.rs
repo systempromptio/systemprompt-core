@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_api::routes::gateway::bridge_release::ReleaseError;
+use systemprompt_gateway_entry::http::bridge::release::ReleaseError;
 
 fn upstream_response(status: u16, remaining: Option<&str>) -> reqwest::Response {
     let mut builder = http::Response::builder().status(status);

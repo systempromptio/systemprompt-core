@@ -58,26 +58,28 @@ fn api_http_error_into_inner_round_trips() {
     );
 }
 
+fn marketplace_status(err: MarketplaceError) -> StatusCode {
+    status_of(ApiHttpError::from(
+        systemprompt_models::api::ApiError::from(err),
+    ))
+}
+
 #[test]
 fn marketplace_error_variants_classify() {
     assert_eq!(
-        status_of(
-            MarketplaceError::NotFound(
-                MarketplaceId::try_new("m").expect("a valid marketplace id")
-            )
-            .into()
-        ),
+        marketplace_status(MarketplaceError::NotFound(
+            MarketplaceId::try_new("m").expect("a valid marketplace id")
+        )),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(MarketplaceError::NoDefault.into()),
+        marketplace_status(MarketplaceError::NoDefault),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(
-            MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing)
-                .into()
-        ),
+        marketplace_status(MarketplaceError::Signing(
+            systemprompt_security::ManifestSigningError::KeyMissing
+        )),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }

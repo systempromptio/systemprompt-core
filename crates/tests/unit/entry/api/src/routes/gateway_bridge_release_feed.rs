@@ -3,8 +3,7 @@ use std::time::Duration;
 
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_api::routes::gateway::bridge_release::{ReleaseError, ReleaseFeed};
-use systemprompt_manifest::Secrets;
+use systemprompt_gateway_entry::http::bridge::release::{ReleaseError, ReleaseFeed};
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 use wiremock::matchers::{method, path, query_param};
@@ -13,8 +12,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 const DIGEST: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 const ASSET: &str = "systemprompt-bridge-linux";
 
-fn secrets() -> std::sync::Arc<Secrets> {
-    ensure_test_secrets_bootstrap().get()
+fn secrets() -> systemprompt_gateway::surface::views::BridgeReleaseSource {
+    systemprompt_gateway::surface::views::BridgeReleaseSource::new(ensure_test_secrets_bootstrap())
 }
 
 fn spec(server: &MockServer) -> BridgeReleasesSpec {

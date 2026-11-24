@@ -30,9 +30,12 @@ pub mod resolved;
 pub mod stream;
 pub mod whoami;
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use axum::Router;
+use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use systemprompt_analytics::ProfileUsageService;
 use systemprompt_extension::router::{DynPersonalCredentialNames, GatewayPrincipal};
@@ -107,23 +110,6 @@ impl std::fmt::Debug for BridgeRouteState {
     }
 }
 
-macro_rules! route_with {
-    ($state:expr, $method:ident, $handler:path) => {{
-        let state = $state.clone();
-        $method(move |headers, body| {
-            let state = state.clone();
-            async move { $handler(state, headers, body).await }
-        })
-    }};
-    ($state:expr, $method:ident, $handler:path, headers) => {{
-        let state = $state.clone();
-        $method(move |headers| {
-            let state = state.clone();
-            async move { $handler(state, headers).await }
-        })
-    }};
-}
-
 pub fn client_ip(
     request: &axum::extract::Request,
     settings: &GatewaySettingsView,
@@ -138,31 +124,28 @@ pub fn client_ip(
 }
 
 pub fn routes(state: &BridgeRouteState) -> Result<Router, ReleaseError> {
-    let pubkey = Arc::clone(&state.signer);
-    let memo = ArchiveMemo::default();
-    let file_state = state.clone();
     let feed = Arc::new(ReleaseFeed::new()?);
+    let signer = Arc::clone(&state.signer);
+    let file_state = state.clone();
+    let memo = ArchiveMemo::default();
     let latest_state = (state.clone(), Arc::clone(&feed));
     let download_state = (state.clone(), feed);
     Ok(Router::new()
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PUBKEY),
             get(move || {
-                let signer = Arc::clone(&pubkey);
+                let signer = Arc::clone(&signer);
                 async move { profile::pubkey(&signer) }
             }),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_WHOAMI),
-            route_with!(state, get, whoami::handle, headers),
+            get(with_headers(state, whoami::handle)),
         )
-        .route(ApiPaths::gateway_relative(ApiPaths::BRIDGE_MANIFEST), {
-            let state = state.clone();
-            get(move |headers| {
-                let state = state.clone();
-                Box::pin(manifest::manifest(state, headers))
-            })
-        })
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_MANIFEST),
+            get(with_headers(state, manifest::manifest)),
+        )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PLUGIN_FILE_ROUTE),
             get(move |headers, path| {
@@ -173,36 +156,28 @@ pub fn routes(state: &BridgeRouteState) -> Result<Router, ReleaseError> {
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DEVICE),
-            route_with!(state, post, device::enroll_self),
+            post(with_body(state, device::enroll_self)),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE_ENABLED_HOSTS),
-            route_with!(state, post, profile::set_enabled_host),
+            post(with_body(state, profile::set_enabled_host)),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE_HOST_MODEL_FILTER),
-            route_with!(state, post, profile::set_host_model_filter),
+            post(with_body(state, profile::set_host_model_filter)),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE_USAGE),
-            route_with!(state, get, profile_usage::handle, headers),
+            get(with_headers(state, profile_usage::handle)),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_HEARTBEAT),
-            route_with!(state, post, heartbeat::handle),
+            post(with_body(state, heartbeat::handle)),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_STREAM),
-            route_with!(state, get, stream::handle, headers),
+            get(with_headers(state, stream::handle)),
         )
-        .route("/models", {
-            let state = state.clone();
-            get(move |headers, query| {
-                let state = state.clone();
-                async move { super::models::list(state, headers, query).await }
-            })
-        })
-        .route("/", get(super::models::root))
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_LATEST),
             get(move |headers, query| {
@@ -219,8 +194,39 @@ pub fn routes(state: &BridgeRouteState) -> Result<Router, ReleaseError> {
         ))
 }
 
-/// The bridge profile route: the API mount places it behind the kernel's
-/// gateway verifier, which attaches the caller's `GatewayPrincipal`.
+fn with_headers<F, Fut, R>(
+    state: &BridgeRouteState,
+    handler: F,
+) -> impl Fn(HeaderMap) -> Pin<Box<dyn Future<Output = R> + Send>> + Clone + Send + Sync + 'static
+where
+    F: Fn(BridgeRouteState, HeaderMap) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = R> + Send + 'static,
+{
+    let state = state.clone();
+    move |headers| {
+        let state = state.clone();
+        let handler = handler.clone();
+        Box::pin(async move { handler(state, headers).await })
+    }
+}
+
+fn with_body<F, Fut, B, R>(
+    state: &BridgeRouteState,
+    handler: F,
+) -> impl Fn(HeaderMap, B) -> Pin<Box<dyn Future<Output = R> + Send>> + Clone + Send + Sync + 'static
+where
+    F: Fn(BridgeRouteState, HeaderMap, B) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = R> + Send + 'static,
+    B: Send + 'static,
+{
+    let state = state.clone();
+    move |headers, body| {
+        let state = state.clone();
+        let handler = handler.clone();
+        Box::pin(async move { handler(state, headers, body).await })
+    }
+}
+
 pub fn principal_bound(state: &BridgeRouteState) -> Router {
     let state = state.clone();
     Router::new().route(
@@ -254,8 +260,6 @@ impl ConsumerCatalog for BridgeConsumerCatalog {
     }
 }
 
-/// The marketplace candidate a consumer's bridge manifest resolves to, for the
-/// `marketplace-http` consumer routes.
 #[must_use]
 pub fn consumer_catalog(state: &BridgeRouteState) -> DynConsumerCatalog {
     Arc::new(BridgeConsumerCatalog {

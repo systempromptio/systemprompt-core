@@ -9,12 +9,11 @@
 use std::collections::BTreeSet;
 
 use axum::http::HeaderMap;
-use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge::provider_health;
-use systemprompt_api::routes::gateway::models::{families_from_header, model_entries};
 use systemprompt_catalog_fixtures::{
     CatalogFixture, claude_model, model, personal, platform, priced,
 };
+use systemprompt_gateway_entry::http::bridge::profile::provider_health;
+use systemprompt_gateway_entry::http::models::{families_from_header, model_entries};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{ModelId, TenantId};
 use systemprompt_manifest::bridge_profile::{BridgeProfileParams, CredentialFacts, build};
@@ -193,7 +192,10 @@ fn header_helper_parses_client_families_and_defaults_to_empty() {
 fn header_helper_rejects_garbage() {
     let mut h = HeaderMap::new();
     h.insert(INFERENCE_PROTOCOL, "anthropic".parse().unwrap());
-    let err = ApiHttpError::from(families_from_header(&h).expect_err("not a family")).into_inner();
+    let err = systemprompt_extension::router::ApiHttpError::from(
+        families_from_header(&h).expect_err("not a family"),
+    )
+    .into_inner();
     assert_eq!(err.code, ErrorCode::BadRequest);
 }
 

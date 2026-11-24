@@ -100,9 +100,11 @@ async fn a_disabled_gateway_http_member_mounts_none_of_its_routes() {
     assert_eq!(status(&app, "POST", OTEL, None).await, 404);
     assert_eq!(
         status(&app, "GET", "/bridge/pubkey", None).await,
-        200,
-        "the bridge routes the API serves stay mounted"
+        404,
+        "the bridge routes are the member's and go with it"
     );
+    assert_eq!(status(&app, "GET", "/bridge/profile", None).await, 404);
+    assert_eq!(status(&app, "GET", "/models", None).await, 404);
     assert_eq!(
         status(&app, "GET", DRIVE_MANIFEST, None).await,
         401,
