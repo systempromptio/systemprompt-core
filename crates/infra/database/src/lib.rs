@@ -109,6 +109,7 @@ pub use repository::{
     StampOutcome, UpsertServiceProcessInput, find_config_plane_applied,
     record_config_plane_applied, release_key, with_change_context,
 };
+pub use repository::OUTBOX_BACKLOG_LOCK_CLASS;
 
 pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,

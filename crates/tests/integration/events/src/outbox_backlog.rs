@@ -258,3 +258,14 @@ async fn a_recount_racing_an_open_compaction_leaves_one_exact_row() {
     );
     scratch.drop_now().await;
 }
+
+#[tokio::test]
+async fn the_ledger_lock_class_in_sql_is_the_database_crate_constant() {
+    let scratch = crate::OutboxSchema::create().await;
+    let class: i32 = sqlx::query_scalar("SELECT event_outbox_backlog_lock_class()")
+        .fetch_one(scratch.pool())
+        .await
+        .expect("lock class");
+    assert_eq!(class, systemprompt_database::OUTBOX_BACKLOG_LOCK_CLASS);
+    scratch.drop_now().await;
+}
