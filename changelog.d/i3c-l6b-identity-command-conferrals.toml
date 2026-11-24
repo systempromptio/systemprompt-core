@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "A member's CLI command now resolves state for its owner and admitted standing. A value recorded under a reserved conferral row reaches the commands of that row's core holder as well as its route state; every other sealed value stays withheld, and an install's command reads no conferred value. The admitted owner reassignments are conferred on `identity-http` under the new `identity-owner-reassignments` row, and the identity commands read their configuration scalars as one kernel-built `IdentityCliSettings`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CommandHost` gains `identity_settings`, so every `CommandHost` impl implements it. Added `cli::IdentityCliSettings`, `ConferralRow::IdentityOwnerReassignments` and `Resolved::__member_command_owned`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::insert_sealed_conferred`, the in-place form of `with_sealed_conferred`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`MemberHost::owned_by` and `ResolvedCommand::{core, member_scope}`: the runner resolves a registered command for its owner and standing."

@@ -28,9 +28,17 @@ impl Dependencies {
         value: T,
         conferred: Conferred,
     ) -> Self {
+        self.insert_sealed_conferred(value, conferred);
+        self
+    }
+
+    pub fn insert_sealed_conferred<T: Any + Send + Sync>(
+        &mut self,
+        value: T,
+        conferred: Conferred,
+    ) {
         self.insert_sealed(value);
         Arc::make_mut(&mut self.conferred).insert(TypeId::of::<T>(), conferred);
-        self
     }
 
     pub fn provide_conferred<T: Any + Send + Sync>(

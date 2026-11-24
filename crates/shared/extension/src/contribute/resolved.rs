@@ -18,7 +18,10 @@
 //! install stays scoped to that install whatever it is rescoped to. The
 //! resolver a member's command runs against ([`Resolved::__member_command`])
 //! refuses every sealed value with the same `MissingDependency` an absent
-//! type gets. A value a member provided from a sealed seed is the member's own
+//! type gets; resolved for the command's owner and its admitted standing
+//! ([`Resolved::__member_command_owned`]) it serves the one exception below,
+//! a value recorded under a conferral row whose core holder is that owner, and
+//! nothing else sealed, so an install command reads no conferred value. A value a member provided from a sealed seed is the member's own
 //! and stays readable; a value a member provided sealed is withheld from that
 //! resolver too, and from the state of a route set another member owns
 //! ([`Resolved::__route_scoped`] names the set's owner and its admitted
@@ -68,6 +71,7 @@ pub struct Resolved<'a> {
     conferred: &'a [HandleId],
     withhold_sealed: bool,
     viewer: Option<RouteViewer<'a>>,
+    commander: Option<RouteViewer<'a>>,
     scope: Option<Scope<'a>>,
 }
 
@@ -92,6 +96,7 @@ impl<'a> Resolved<'a> {
             conferred: &[],
             withhold_sealed: false,
             viewer: None,
+            commander: None,
             scope: None,
         }
     }
@@ -109,6 +114,7 @@ impl<'a> Resolved<'a> {
             conferred: &[],
             withhold_sealed: false,
             viewer: None,
+            commander: None,
             scope: Some(Scope {
                 owner: scope.owner(),
                 standing: scope.standing(),
@@ -124,6 +130,25 @@ impl<'a> Resolved<'a> {
             conferred: &[],
             withhold_sealed: true,
             viewer: None,
+            commander: None,
+            scope: None,
+        }
+    }
+
+    #[doc(hidden)]
+    pub const fn __member_command_owned(
+        access: &'a dyn KernelAccess,
+        state: &'a Dependencies,
+        owner: &'a ExtensionId,
+        standing: StandingTag,
+    ) -> Self {
+        Self {
+            access,
+            state,
+            conferred: &[],
+            withhold_sealed: true,
+            viewer: None,
+            commander: Some(RouteViewer { owner, standing }),
             scope: None,
         }
     }
@@ -142,6 +167,7 @@ impl<'a> Resolved<'a> {
             conferred,
             withhold_sealed: false,
             viewer: Some(RouteViewer { owner, standing }),
+            commander: None,
             scope: None,
         }
     }
@@ -164,6 +190,7 @@ impl<'a> Resolved<'a> {
             conferred: self.conferred,
             withhold_sealed: self.withhold_sealed,
             viewer: self.viewer,
+            commander: self.commander,
             scope: Some(scope),
         }
     }
@@ -182,10 +209,13 @@ impl Resolved<'_> {
     }
 
     fn withholds_sealed<T: Send + Sync + 'static>(&self) -> bool {
-        if self.withhold_sealed {
-            return true;
-        }
         let provider = self.state.provider_of::<T>();
+        if self.withhold_sealed {
+            return !self.commander.is_some_and(|commander| {
+                provider_id(provider)
+                    .is_some_and(|provider| self.conferred_on_viewer::<T>(provider, commander))
+            });
+        }
         if let Some(scope) = self.scope
             && scope.standing == StandingTag::Install
             && install_withholds::<T>(provider, scope.owner)
@@ -245,6 +275,14 @@ impl Resolved<'_> {
     }
 }
 
+fn provider_id(provider: Option<&DependencyProvider>) -> Option<&str> {
+    match provider {
+        Some(DependencyProvider::Extension(provider)) => Some(provider.as_str()),
+        Some(DependencyProvider::Host) => Some(CoreId::Kernel.id()),
+        None => None,
+    }
+}
+
 fn install_withholds<T: Send + Sync + 'static>(
     provider: Option<&DependencyProvider>,
     owner: &ExtensionId,
@@ -262,6 +300,7 @@ impl std::fmt::Debug for Resolved<'_> {
             .field("conferred", &self.conferred)
             .field("withhold_sealed", &self.withhold_sealed)
             .field("viewer", &self.viewer)
+            .field("commander", &self.commander)
             .field("scope", &self.scope)
             .finish_non_exhaustive()
     }

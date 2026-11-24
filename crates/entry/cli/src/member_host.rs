@@ -5,17 +5,19 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use systemprompt_identifiers::ContextId;
+use systemprompt_identifiers::{ContextId, ExtensionId};
 
 use systemprompt_config::paths::StoragePaths;
-use systemprompt_extension::Resolved;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandDescriptor,
     CommandError, CommandHost, CommandOutput, DeploymentSigningKeys, DescribedCommand,
-    GrantedPlane, KernelGrant, Prompter, ServicesTree,
+    GrantedPlane, IdentityCliSettings, KernelGrant, Prompter, ServicesTree,
 };
+use systemprompt_extension::reserved::CoreId;
+use systemprompt_extension::{Resolved, StandingTag};
 use systemprompt_loader::load_boot::load_boot_from_path;
 use systemprompt_manifest::profile::PlaneAuthority;
+use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
@@ -46,10 +48,15 @@ use crate::kernel::{KernelHost, KernelSigningKeys, TargetAdmissionError, admit_t
 /// available also resolves the kernel-built `Arc<ConfigApplyService>`; no
 /// member resolves the application context. It serves
 /// [`CommandHost::admitted_views`] only when the command holds
-/// [`KernelGrant::TargetAdmission`].
+/// [`KernelGrant::TargetAdmission`]. Resolved for the command's owner
+/// ([`MemberHost::owned_by`]), its resolver also serves a value recorded under
+/// a conferral row whose core holder is that owner, and it serves
+/// [`CommandHost::identity_settings`] only to a command `identity-http` owns
+/// with core standing.
 pub struct MemberHost<'a> {
     ctx: &'a CommandContext,
     descriptor: CommandDescriptor,
+    owner: Option<(ExtensionId, StandingTag)>,
     granted: OnceCell<Dependencies>,
 }
 
@@ -57,6 +64,7 @@ impl std::fmt::Debug for MemberHost<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MemberHost")
             .field("descriptor", &self.descriptor)
+            .field("owner", &self.owner)
             .finish_non_exhaustive()
     }
 }
@@ -67,8 +75,21 @@ impl<'a> MemberHost<'a> {
         Self {
             ctx,
             descriptor,
+            owner: None,
             granted: OnceCell::const_new(),
         }
+    }
+
+    #[must_use]
+    pub fn owned_by(mut self, owner: ExtensionId, standing: StandingTag) -> Self {
+        self.owner = Some((owner, standing));
+        self
+    }
+
+    fn owned_by_identity(&self) -> bool {
+        self.owner.as_ref().is_some_and(|(owner, standing)| {
+            *standing == StandingTag::Core && owner.as_str() == CoreId::IdentityHttp.id()
+        })
     }
 
     fn serves_app_context(&self) -> bool {
@@ -133,7 +154,12 @@ impl CommandHost for MemberHost<'_> {
             } else {
                 kernel.state()
             };
-            Ok(Resolved::__member_command(&**kernel, state))
+            Ok(match &self.owner {
+                Some((owner, standing)) => {
+                    Resolved::__member_command_owned(&**kernel, state, owner, *standing)
+                },
+                None => Resolved::__member_command(&**kernel, state),
+            })
         })
     }
 
@@ -235,6 +261,37 @@ impl CommandHost for MemberHost<'_> {
         }
         Box::pin(writable_plane(self.ctx, plane))
     }
+
+    fn identity_settings(&self) -> Result<IdentityCliSettings, CommandError> {
+        if !self.owned_by_identity() {
+            return Err(CommandError::new(IdentitySettingsRefused));
+        }
+        identity_settings(self.ctx)
+    }
+}
+
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("only a command identity-http owns reads the identity settings")]
+pub(crate) struct IdentitySettingsRefused;
+
+fn identity_settings(ctx: &CommandContext) -> Result<IdentityCliSettings, CommandError> {
+    let config = KernelHost::config(ctx)?;
+    let bridge_release_window = ctx
+        .services()
+        .and_then(|services| {
+            services
+                .config()
+                .gateway_config()
+                .and_then(|gateway| gateway.bridge_releases.as_ref())
+                .map(BridgeReleasesSpec::version_window)
+        })
+        .unwrap_or_default();
+    Ok(IdentityCliSettings {
+        api_key_max_lifetime_days: config.api_key_max_lifetime_days,
+        archived_users_days: config.retention.archived_users_days,
+        api_external_url: config.api_external_url.clone(),
+        bridge_release_window,
+    })
 }
 
 async fn writable_plane(ctx: &CommandContext, plane: GrantedPlane) -> Result<(), CommandError> {

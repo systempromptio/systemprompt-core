@@ -34,7 +34,7 @@ use super::admitted_views::AdmittedViews;
 use super::child::ChildSupervisor;
 use super::descriptor::{CommandDescriptor, DescribeCommand};
 use super::grant::GrantedPlane;
-use super::granted::{CallerSession, DeploymentSigningKeys, ServicesTree};
+use super::granted::{CallerSession, DeploymentSigningKeys, IdentityCliSettings, ServicesTree};
 use super::output::CommandOutput;
 use super::prompt::Prompter;
 use super::settings::CliConfig;
@@ -212,6 +212,8 @@ pub struct DescribedCommand {
 /// [`CommandHost::require_writable_plane`] needs
 /// [`KernelGrant::ConfigPlaneWriter`](super::KernelGrant::ConfigPlaneWriter)
 /// for that plane and refuses when the profile makes the plane file-managed.
+/// [`CommandHost::identity_settings`] is served only to a command whose owner
+/// is `identity-http` with core standing.
 /// A command without the grant is refused,
 /// and a command whose path lists no grant holds none.
 ///
@@ -246,4 +248,5 @@ pub trait CommandHost: Send + Sync {
         &self,
         plane: GrantedPlane,
     ) -> BoxFuture<'_, Result<(), CommandError>>;
+    fn identity_settings(&self) -> Result<IdentityCliSettings, CommandError>;
 }

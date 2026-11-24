@@ -24,11 +24,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::{ArgMatches, Command};
-use systemprompt_extension::DeclaredCommands;
 use systemprompt_extension::cli::{
     CommandClaim, CommandDecl, KernelGrant, ParsedCommand, REGISTERED_DISPLAY_ORDER,
 };
 use systemprompt_extension::reserved::{CoreId, RESERVED_CLI_PATHS};
+use systemprompt_extension::{DeclaredCommands, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 
 use super::registry_error::{RegistryError, ResolveError};
@@ -96,8 +96,29 @@ pub fn kernel_commands() -> Vec<CommandDecl> {
 #[derive(Debug, Clone)]
 pub struct ResolvedCommand {
     pub owner: CommandOwner,
+    pub core: Option<CoreId>,
     pub path: Vec<&'static str>,
     pub parsed: ParsedCommand,
+}
+
+impl ResolvedCommand {
+    #[must_use]
+    pub fn member_scope(&self) -> Option<(&ExtensionId, StandingTag)> {
+        let CommandOwner::Member(id) = &self.owner else {
+            return None;
+        };
+        let core = self
+            .core
+            .is_some_and(|core| core != CoreId::Kernel && core.id() == id.as_str());
+        Some((
+            id,
+            if core {
+                StandingTag::Core
+            } else {
+                StandingTag::Install
+            },
+        ))
+    }
 }
 
 /// The validated set of contributed commands.
@@ -192,6 +213,7 @@ impl CommandRegistry {
         }
         Ok(Some(ResolvedCommand {
             owner: entry.owner.clone(),
+            core: entry.core,
             path: entry.decl.path(),
             parsed: parsed.granted(entry.decl.grants(), entry.decl.claims()),
         }))

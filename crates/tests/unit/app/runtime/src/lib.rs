@@ -166,6 +166,8 @@ mod mcp_host_serve;
 #[cfg(test)]
 mod mcp_tool_provider;
 #[cfg(test)]
+mod reassignments_conferral;
+#[cfg(test)]
 mod schema_behind_error;
 #[cfg(test)]
 mod schema_currency_boot;
