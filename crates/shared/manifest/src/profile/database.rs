@@ -105,6 +105,13 @@ impl RoleMaxConnections {
     }
 }
 
+/// Database connection and schema-install settings.
+///
+/// A node installs the schema at boot when `migrate_on_boot` is true and,
+/// when `schema_install_roles` is set, its `server.role` is listed there; a
+/// node that does not install verifies the schema instead. Omitting
+/// `schema_install_roles` lets every role install, so a single-node
+/// deployment keeps migrating on boot.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DatabaseConfig {
@@ -119,6 +126,19 @@ pub struct DatabaseConfig {
 
     #[serde(default = "default_migrate_on_boot")]
     pub migrate_on_boot: bool,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema_install_roles: Option<Vec<NodeRole>>,
+}
+
+impl DatabaseConfig {
+    pub fn installs_on_boot(&self, role: NodeRole) -> bool {
+        self.migrate_on_boot
+            && self
+                .schema_install_roles
+                .as_ref()
+                .is_none_or(|roles| roles.contains(&role))
+    }
 }
 
 const fn default_migrate_on_boot() -> bool {

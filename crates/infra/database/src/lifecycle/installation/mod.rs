@@ -36,7 +36,9 @@ pub use migration_owners::{
     migration_ownership_findings,
 };
 pub use migration_refs::check_migration_references;
-pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport};
+pub(crate) use extension::release_order::refuse_superseded;
+pub use extension::release_order::{SCHEMA_INSTALL_RELEASE, SCHEMA_INSTALL_STAMP};
+pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport, SupersededInstall};
 pub use routine_refs::check_trigger_routines;
 pub use undeclared::{
     AbsentMemberTable, OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue,

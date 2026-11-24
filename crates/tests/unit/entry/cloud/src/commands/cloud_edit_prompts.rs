@@ -41,6 +41,7 @@ fn make_profile() -> Profile {
             db_type: "postgres".to_string(),
             external_db_access: false,
             migrate_on_boot: true,
+            schema_install_roles: None,
             pool: None,
         },
         server: ServerConfig {

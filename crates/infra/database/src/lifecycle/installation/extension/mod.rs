@@ -24,7 +24,9 @@
 //! of this binary (see [`current`]): a newer release owns an ahead extension's
 //! schema, so this binary applies nothing to that extension — no declarative
 //! DDL, no migrations — while every other extension installs as usual, and
-//! the report carries the ahead migrations.
+//! the report carries the ahead migrations. Before any of that the install
+//! reads the release that last completed it ([`release_order`]): a binary
+//! older than that release applies nothing at all.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,6 +40,7 @@ mod object_owners;
 pub(crate) mod ownership;
 mod phase;
 mod purge_records;
+pub(crate) mod release_order;
 mod retire;
 mod routine_prepass;
 mod settled;
@@ -99,37 +102,51 @@ pub async fn install_schema_members(
     );
 
     let guard = BootstrapLockGuard::acquire(db).await?;
-
-    let result = match current::members_currency(db, schema_extensions).await {
-        Ok(currency) => {
-            let (held_back, active): (Vec<_>, Vec<_>) =
-                schema_extensions.iter().cloned().partition(|ext| {
-                    currency
-                        .ahead
-                        .iter()
-                        .any(|m| m.extension_id.as_str() == ext.id())
-                });
-            settled::install_unless_settled(
-                db,
-                settled::InstallSets::new(schema_extensions, &active, &held_back),
-                &currency,
-                migration_config,
-            )
-            .await
-            .map(|report| SchemaInstallReport {
-                ahead: super::report::SchemaAhead::from_currency(&currency),
-                ..report
-            })
-        },
-        Err(e) => Err(e),
-    };
-
+    let result = install_in_release_order(db, schema_extensions, migration_config).await;
     guard.release().await;
 
     let report = result?;
 
     report.log_outcome();
     Ok(report)
+}
+
+async fn install_in_release_order(
+    db: &dyn DatabaseProvider,
+    schema_extensions: &ExtensionSet,
+    migration_config: MigrationConfig,
+) -> Result<SchemaInstallReport, LoaderError> {
+    if let Some(superseded) = release_order::newer_recorded(db).await? {
+        let currency = current::members_currency(db, schema_extensions).await?;
+        release_order::judge_superseded(&superseded, &currency)?;
+        return Ok(SchemaInstallReport {
+            ahead: super::report::SchemaAhead::from_currency(&currency),
+            superseded: Some(superseded),
+            ..SchemaInstallReport::default()
+        });
+    }
+    let currency = current::members_currency(db, schema_extensions).await?;
+    let (held_back, active): (Vec<_>, Vec<_>) =
+        schema_extensions.iter().cloned().partition(|ext| {
+            currency
+                .ahead
+                .iter()
+                .any(|m| m.extension_id.as_str() == ext.id())
+        });
+    let report = settled::install_unless_settled(
+        db,
+        settled::InstallSets::new(schema_extensions, &active, &held_back),
+        &currency,
+        migration_config,
+    )
+    .await?;
+    if held_back.is_empty() {
+        release_order::record(db).await?;
+    }
+    Ok(SchemaInstallReport {
+        ahead: super::report::SchemaAhead::from_currency(&currency),
+        ..report
+    })
 }
 
 async fn fresh_extension_ids(

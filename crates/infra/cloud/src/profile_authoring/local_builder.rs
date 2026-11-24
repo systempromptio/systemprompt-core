@@ -73,6 +73,7 @@ impl LocalProfileBuilder {
                 db_type: consts::DEFAULT_DB_TYPE.to_owned(),
                 external_db_access: false,
                 migrate_on_boot: true,
+                schema_install_roles: None,
                 pool: None,
             },
             security: security_config(Vec::new(), true),

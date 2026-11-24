@@ -126,7 +126,8 @@ pub async fn execute(
     flags: ServeFlags,
     host: &dyn KernelHost,
 ) -> Result<()> {
-    let migrate_on_boot = host.profile()?.database.migrate_on_boot;
+    let profile = host.profile()?;
+    let migrate_on_boot = profile.database.installs_on_boot(profile.server.role);
     execute_with_events(
         prompter,
         ServeOptions {

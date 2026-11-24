@@ -212,6 +212,16 @@ pub enum LoaderError {
     },
 
     #[error(
+        "Schema install refused: release {release} is older than release {recorded}, which \
+         installed this database, and the schema this release reads is not present ({unmet:?})"
+    )]
+    SchemaInstallSuperseded {
+        release: String,
+        recorded: String,
+        unmet: Vec<String>,
+    },
+
+    #[error(
         "Install member '{owner}' claims {kind} '{name}', recorded to the core member of that id; \
          an install never takes over a core member's records"
     )]
