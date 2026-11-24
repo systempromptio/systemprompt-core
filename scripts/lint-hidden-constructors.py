@@ -4,7 +4,9 @@
 `Admitted::__from_facade` and `DeclaredCommands::__from_facade` build the
 handoff the kernel mounts and dispatches from; only the facade
 (`systemprompt/`) calls them. `GatewayPrincipal::__from_kernel` stamps a
-verified gateway caller; only the API kernel (`crates/entry/api/`) calls it.
+verified gateway caller; only the API kernel's bridge credential check
+(`crates/entry/api/src/routes/gateway/bridge_error.rs`) calls it, after the
+gateway verifier accepted the bearer.
 A call anywhere else in the root workspace's production source fails.
 
 The facade also must not re-export a `systemprompt_api` or
@@ -30,7 +32,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from rust_tokens import located, rust_files  # noqa: E402
 
 FACADE = "systemprompt"
-ALLOWED = {"__from_facade": (FACADE,), "__from_kernel": ("crates/entry/api",)}
+ALLOWED = {
+    "__from_facade": (FACADE,),
+    "__from_kernel": ("crates/entry/api/src/routes/gateway/bridge_error.rs",),
+}
 SCANNED = ("crates", FACADE)
 EXCLUDED = ("crates/tests",)
 KERNEL_CRATES = {"systemprompt_api": "crates/entry/api/src", "systemprompt_cli": "crates/entry/cli/src"}
@@ -51,7 +56,7 @@ def constructor_calls(root):
             if i > 0 and tokens[i - 1][:2] == ("id", "fn"):
                 continue
             if i + 1 < len(tokens) and tokens[i + 1][:2] == ("p", "(") and not under(rel, ALLOWED[value]):
-                found.append(f"  {rel}:{line}: calls {value} outside {', '.join(ALLOWED[value])}/")
+                found.append(f"  {rel}:{line}: calls {value} outside {', '.join(ALLOWED[value])}")
     return found
 
 

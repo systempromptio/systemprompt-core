@@ -8,7 +8,9 @@
 //! ([`gateway_routes`]). What this module adds is the gateway's own
 //! verification: every admitted route is placed behind the gateway
 //! credential check, which authenticates the bridge bearer and attaches the
-//! caller's [`GatewayPrincipal`] to the request before the handler runs; a
+//! caller's
+//! [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal) to
+//! the request before the handler runs; a
 //! request whose credential is missing or rejected never reaches it. The
 //! server protects each route with its admitted spec (handler-verified by the
 //! gateway credential, its own rate-limit scope and budget with the bearer
@@ -16,7 +18,9 @@
 //!
 //! Only routes admitted here, and the gateway surface's principal-bound
 //! routes the gateway mount places behind `verified`, carry a
-//! [`GatewayPrincipal`]; nothing else in the server constructs one.
+//! [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal),
+//! stamped by `bridge_error::authenticate_principal`; nothing else in the
+//! server constructs one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,11 +31,10 @@ use axum::Router;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::IntoResponse;
-use systemprompt_extension::router::GatewayPrincipal;
 use systemprompt_extension::{Admitted, RouteProtection};
 use systemprompt_runtime::Kernel;
 
-use super::bridge_error::authenticate_bridge;
+use super::bridge_error::authenticate_principal;
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
 use crate::services::middleware::{MountError, gateway_routes};
 
@@ -61,11 +64,9 @@ pub(super) fn verified(router: Router, jwt: &Arc<JwtContextExtractor>) -> Router
         move |mut request: Request, next: Next| {
             let jwt = Arc::clone(&jwt);
             async move {
-                match authenticate_bridge(&jwt, request.headers()).await {
-                    Ok((_claims, user)) => {
-                        request
-                            .extensions_mut()
-                            .insert(GatewayPrincipal::__from_kernel(user.id));
+                match authenticate_principal(&jwt, request.headers()).await {
+                    Ok((_claims, _user, principal)) => {
+                        request.extensions_mut().insert(principal);
                         next.run(request).await
                     },
                     Err(error) => ApiHttpError::from(error).into_response(),
