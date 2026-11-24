@@ -37,10 +37,6 @@
 //! its `provide` fn or factory. [`Dependencies::sealed_types`] enumerates
 //! the sealed set; [`Dependencies::host_types`] names the host's seeds.
 //!
-//! A [`StateRequirement`] names a type a member, job or runner service
-//! cannot run without; [`StateRequirement::is_met_by`] checks it against a
-//! built map, so the host refuses boot instead of failing a run.
-//!
 //! The map is copy-on-write: a clone shares every entry, and inserting into a
 //! clone never changes the original, so the state the host owns after boot
 //! is immutable while a job or prerender context can extend its own copy.
@@ -64,23 +60,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 
 use crate::conferred::Conferred;
-use crate::dependency_error::{DuplicateDependency, MissingDependency};
-
-/// Who put an entry into a [`Dependencies`] map.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DependencyProvider {
-    Host,
-    Extension(ExtensionId),
-}
-
-impl fmt::Display for DependencyProvider {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Host => f.write_str("the host"),
-            Self::Extension(id) => write!(f, "extension '{id}'"),
-        }
-    }
-}
+use crate::dependency_error::{DependencyProvider, DuplicateDependency, MissingDependency};
 
 #[derive(Clone)]
 struct Entry {
@@ -282,39 +262,6 @@ impl Dependencies {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
-    }
-}
-
-/// A type a member, job or runner service declares it cannot run without,
-/// checked against the built state before anything serves.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StateRequirement {
-    type_id: TypeId,
-    type_name: &'static str,
-}
-
-impl StateRequirement {
-    #[must_use]
-    pub fn of<T: Any + Send + Sync>() -> Self {
-        Self {
-            type_id: TypeId::of::<T>(),
-            type_name: type_name::<T>(),
-        }
-    }
-
-    #[must_use]
-    pub const fn type_name(&self) -> &'static str {
-        self.type_name
-    }
-
-    #[must_use]
-    pub const fn type_id(&self) -> TypeId {
-        self.type_id
-    }
-
-    #[must_use]
-    pub fn is_met_by(&self, state: &Dependencies) -> bool {
-        state.contains_type(self.type_id)
     }
 }
 
