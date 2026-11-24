@@ -123,7 +123,7 @@ jobs:
           path: ladder-tools
           sparse-checkout: scripts
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: ./.github/actions/sccache
       - name: Fetch the current migrator
         if: ${{ inputs.migrator-artifact != '' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -152,5 +152,5 @@ jobs:
         run: |
           bash ladder-tools/scripts/schema-ladder.sh "${{ matrix.rung }}" \
               target-ladder/debug/systemprompt-test-migrate
-      - run: sccache --show-stats
-        if: ${{ !cancelled() }}
+      - if: ${{ !cancelled() && env.RUSTC_WRAPPER == 'sccache' }}
+        run: sccache --show-stats
