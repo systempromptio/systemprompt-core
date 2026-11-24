@@ -525,3 +525,41 @@ fn a_self_managed_tenant_reads_its_database_url_not_the_internal_one() {
     assert!(tenant.has_database_url());
     assert!(!tenant.has_missing_credentials());
 }
+
+#[test]
+fn a_store_holding_a_tenant_with_an_empty_name_is_not_saved() {
+    use systemprompt_cloud::CloudError;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("tenants.json");
+    let store = TenantStore::new(vec![
+        StoredTenant::new(TenantId::new("t1"), "First".to_string()),
+        StoredTenant::new(TenantId::new("t2"), String::new()),
+    ]);
+
+    let err = store.save_to_path(&path).unwrap_err();
+
+    assert!(matches!(err, CloudError::TenantsStoreInvalid { .. }));
+    assert!(err.to_string().contains("Tenant name cannot be empty"));
+    assert!(!path.exists());
+}
+
+#[test]
+fn a_stored_tenant_with_an_empty_name_is_refused_on_load() {
+    use systemprompt_cloud::CloudError;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("tenants.json");
+    TenantStore::new(vec![StoredTenant::new(
+        TenantId::new("t1"),
+        "First".to_string(),
+    )])
+    .save_to_path(&path)
+    .unwrap();
+    let stored = std::fs::read_to_string(&path).unwrap();
+    std::fs::write(&path, stored.replace("\"First\"", "\"\"")).unwrap();
+
+    let err = TenantStore::load_from_path(&path).unwrap_err();
+
+    assert!(matches!(err, CloudError::TenantsStoreInvalid { .. }));
+}

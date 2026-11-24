@@ -366,3 +366,51 @@ async fn test_validate_with_api_false_on_unauthorized() {
 
     assert!(!creds.validate_with_api().await.unwrap());
 }
+
+#[test]
+fn credentials_with_an_unparseable_api_url_are_not_saved() {
+    use std::error::Error;
+    use systemprompt_cloud::{CloudError, CloudStoreValidationError};
+
+    let temp_dir = TempDir::new().unwrap();
+    let creds_path = temp_dir.path().join("credentials.json");
+    let creds = CloudCredentials::new(
+        CloudAuthToken::new(create_valid_token(3600)),
+        "not a url".to_string(),
+        Email::new("user@example.com".to_string()),
+    );
+
+    let err = creds.save_to_path(&creds_path).unwrap_err();
+
+    assert!(matches!(err, CloudError::CredentialsCorrupted { .. }));
+    let cause = err.source().unwrap();
+    assert!(matches!(
+        cause.downcast_ref::<CloudStoreValidationError>(),
+        Some(CloudStoreValidationError::InvalidApiUrl(_))
+    ));
+    assert!(!creds_path.exists());
+}
+
+#[test]
+fn stored_credentials_with_an_unparseable_api_url_are_refused_on_load() {
+    use systemprompt_cloud::CloudError;
+
+    let temp_dir = TempDir::new().unwrap();
+    let creds_path = temp_dir.path().join("credentials.json");
+    let good = CloudCredentials::new(
+        CloudAuthToken::new(create_valid_token(3600)),
+        "https://api.systemprompt.io".to_string(),
+        Email::new("user@example.com".to_string()),
+    );
+    good.save_to_path(&creds_path).unwrap();
+    let stored = std::fs::read_to_string(&creds_path).unwrap();
+    std::fs::write(
+        &creds_path,
+        stored.replace("https://api.systemprompt.io", "not a url"),
+    )
+    .unwrap();
+
+    let err = CloudCredentials::load_from_path(&creds_path).unwrap_err();
+
+    assert!(matches!(err, CloudError::CredentialsCorrupted { .. }));
+}

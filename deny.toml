@@ -104,7 +104,9 @@ highlight = "all"
 workspace-default-features = "allow"
 external-default-features = "allow"
 allow = []
-deny = []
+deny = [
+    { crate = "validator", reason = "Removed in favour of hand-written checks; a field rule is a few lines next to the type it guards, and the derive carried seven crates." },
+]
 skip = []
 skip-tree = []
 

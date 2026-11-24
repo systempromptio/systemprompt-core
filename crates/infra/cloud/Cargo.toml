@@ -34,9 +34,6 @@ serde_json = { workspace = true }
 chrono = { workspace = true }
 ipnet = { workspace = true }
 
-# Validation
-validator = { workspace = true }
-
 # Security
 base64 = { workspace = true }
 sha2 = { workspace = true }
@@ -44,6 +41,7 @@ sha2 = { workspace = true }
 # Utilities
 tokio = { workspace = true }
 open = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }

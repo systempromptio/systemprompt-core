@@ -106,7 +106,6 @@ systemprompt-teams = { workspace = true, optional = true }
 
 # Authentication
 bcrypt = { workspace = true }
-validator = { workspace = true }
 webauthn-rs = { workspace = true }
 
 # System

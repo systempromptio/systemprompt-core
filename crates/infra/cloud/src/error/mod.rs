@@ -15,6 +15,9 @@
 use thiserror::Error;
 
 mod messages;
+mod validation;
+
+pub use validation::CloudStoreValidationError;
 
 pub type CloudResult<T> = Result<T, CloudError>;
 
