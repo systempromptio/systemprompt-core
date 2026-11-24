@@ -223,7 +223,7 @@ fn the_plane_refuses_an_invalid_or_unreadable_declaration() {
 fn rendered_declarations_parse_back_to_the_same_entities() {
     let entities = declared_entities(CHAIN).expect("entities");
     let rendered = GovernancePlane
-        .render_declarations(&entities)
+        .render_declarations(&entities.clone().into())
         .expect("renders");
     assert_eq!(declared_entities(&rendered).expect("reparses"), entities);
 }

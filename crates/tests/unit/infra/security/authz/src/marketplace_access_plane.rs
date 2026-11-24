@@ -201,5 +201,9 @@ fn the_retired_roles_file_is_refused_with_the_migrate_hint() {
 fn render_refuses_a_value_that_is_not_a_canonical_entity() {
     let mut entries = std::collections::BTreeMap::new();
     entries.insert("marketplace/x".to_owned(), "not json".to_owned());
-    assert!(AccessControlPlane.render_declarations(&entries).is_err());
+    assert!(
+        AccessControlPlane
+            .render_declarations(&entries.into())
+            .is_err()
+    );
 }
