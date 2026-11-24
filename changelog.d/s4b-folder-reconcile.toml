@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Documents"
+text = "Folder access-entity reconcile at worker start reads every live folder reachable from the root in one recursive query and inserts the missing `access_control_entities` rows in batches of at most 5,000, instead of one query per folder and one upsert per missing row; registering one folder is a single `INSERT … ON CONFLICT DO NOTHING`."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Added"
+text = "`AccessControlRepository::insert_missing_entities` inserts entities that do not yet exist, in bounded batches, and returns how many it inserted."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Added"
+text = "`DocumentFolderRepository::list_live_folder_ids` returns every live folder reachable from the root."
