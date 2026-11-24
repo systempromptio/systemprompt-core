@@ -15,10 +15,11 @@ use systemprompt_extension::reserved::CoreId;
 use systemprompt_gateway::{GatewayRouteState, GatewaySurface};
 use systemprompt_gateway_entry::http::GatewayHttpSurface;
 use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_models::auth::API_KEY_PREFIX;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
-use systemprompt_users::{API_KEY_PREFIX, ApiKeyService, IssueApiKeyParams, UserRepository};
+use systemprompt_users::{ApiKeyService, IssueApiKeyParams, UserRepository};
 use tower::ServiceExt;
 use uuid::Uuid;
 

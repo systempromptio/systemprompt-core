@@ -27,9 +27,11 @@ use systemprompt_identifiers::{
     Actor, ApiKeyId, ClientId, ClientSessionId, JwtToken, SessionId, TraceId, UserId,
 };
 use systemprompt_models::attribution::ScopeBinding;
-use systemprompt_models::auth::{JwtUserContext, RequestActor, agent_name, bearer_actor};
+use systemprompt_models::auth::{
+    API_KEY_PREFIX, JwtUserContext, RequestActor, agent_name, bearer_actor,
+};
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits};
+use systemprompt_users::ApiKeyLimits;
 
 use super::error::RejectionError;
 use super::session_binding::{SessionRequest, bind_api_key_session};

@@ -49,7 +49,6 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
-sha2 = { workspace = true }
 ipnet = { workspace = true }
 
 # Error handling

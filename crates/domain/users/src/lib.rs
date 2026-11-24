@@ -65,7 +65,6 @@ pub use services::{
     UpdateUserParams, UserAdminService, UserRoleAudienceResolver, UserService,
 };
 
-pub use systemprompt_models::auth::API_KEY_PREFIX;
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};
 
 pub(crate) mod sessions;
