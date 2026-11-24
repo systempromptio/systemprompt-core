@@ -13,7 +13,7 @@ async fn test_provider() -> PostgresProvider {
 }
 
 async fn scratch_provider() -> (ScratchSchema, PostgresProvider) {
-    let (scratch, db) = scratch_pool("pg_provider").await;
+    let (scratch, db) = scratch_pool("postgres_provider").await;
     let pg = db.write_pool();
     (scratch, PostgresProvider::from_pool(pg))
 }
