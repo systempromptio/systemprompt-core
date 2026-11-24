@@ -258,11 +258,12 @@ async fn a_step_status_outside_the_known_set_is_refused_by_the_schema() {
     r.execution_steps.create(&step).await.expect("create");
 
     let pg = pool.pool();
-    let refused = sqlx::query("UPDATE task_execution_steps SET status = 'bogus_state' WHERE step_id = $1")
-        .bind(step_id.to_string())
-        .execute(pg.as_ref())
-        .await
-        .expect_err("an unknown status breaks the step contract");
+    let refused =
+        sqlx::query("UPDATE task_execution_steps SET status = 'bogus_state' WHERE step_id = $1")
+            .bind(step_id.to_string())
+            .execute(pg.as_ref())
+            .await
+            .expect_err("an unknown status breaks the step contract");
     assert!(
         refused
             .as_database_error()
@@ -270,7 +271,10 @@ async fn a_step_status_outside_the_known_set_is_refused_by_the_schema() {
             .is_some_and(|c| c == "task_execution_steps_status_check"),
         "got {refused:?}"
     );
-    r.execution_steps.get(&step_id).await.expect("the step still reads");
+    r.execution_steps
+        .get(&step_id)
+        .await
+        .expect("the step still reads");
 }
 
 #[tokio::test]
