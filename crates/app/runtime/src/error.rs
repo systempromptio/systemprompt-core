@@ -120,6 +120,9 @@ pub enum RuntimeError {
     #[error("signing key init: {0}")]
     Signing(#[from] SigningKeysError),
 
+    #[error("the legacy conversation context could not be ensured")]
+    LegacyContext(#[source] systemprompt_traits::ContextProviderError),
+
     #[error("authz bootstrap: {0}")]
     Authz(#[from] AuthzError),
 

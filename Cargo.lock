@@ -7730,7 +7730,6 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sqlx",
- "systemprompt-agent",
  "systemprompt-agent-runs",
  "systemprompt-analytics",
  "systemprompt-config",
