@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.87.0] - 2026-11-24
+
+### Breaking
+
+- `services::proxy::ProxyError` gains `ProviderReauthRequired { service }`. Migrate an exhaustive `match` by adding the arm.
+- `ServicesRefreshResponse` gains `provenance` and `refused`, and `ServicesStatusResponse` gains `refused`. Migrate a struct literal by setting them.
+
+### Added
+
+- `/readyz` and `/health` carry held-back sources under `services_source`; `GET /admin/services/status` reports a fallback or recovery that happened after boot (`served_provenance`). An unreadable record of held-back sources is reported as `"serving": "unknown"` (`held_back_block`).
+
+### Fixed
+
+- An external MCP server whose token accessor answers `401` is `409` `needs_reauth` naming the server, instead of `503` `service_not_running`.
+
 ## [0.86.0] - 2026-11-23
 
 ### Breaking

@@ -183,6 +183,9 @@ pub fn map_resolve_error(service_name: &ServiceName, error: McpDomainError) -> P
         McpDomainError::ExternalAccountNotConnected { .. } => ProxyError::ProviderNotConnected {
             service: service_name.to_string(),
         },
+        McpDomainError::ExternalReauthRequired { .. } => ProxyError::ProviderReauthRequired {
+            service: service_name.to_string(),
+        },
         McpDomainError::ExternalAuthUnavailable { message, .. } => ProxyError::ServiceNotRunning {
             service: service_name.to_string(),
             status: message,

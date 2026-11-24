@@ -10,6 +10,7 @@ use systemprompt_identifiers::{
     McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::attribution::TrafficClass;
+use systemprompt_models::text::without_nul;
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
@@ -23,6 +24,7 @@ impl AiRequestRepository {
         status: RequestStatus,
         error_message: &str,
     ) -> Result<AiRequest, RepositoryError> {
+        let error_message = without_nul(error_message);
         sqlx::query_as!(
             AiRequestRow,
             r#"
@@ -50,7 +52,7 @@ impl AiRequestRepository {
                       error_message, created_at, updated_at, completed_at
             "#,
             status.as_str(),
-            error_message,
+            error_message.as_ref(),
             id.as_str()
         )
         .fetch_one(self.write_pool())
@@ -162,6 +164,7 @@ pub(super) async fn insert_request_row(
     let (actor_kind, actor_id) = record.actor.audit_columns();
     let api_key_id = record.attribution.api_key_id.as_ref().map(ApiKeyId::as_str);
     let traffic = traffic_of(record)?;
+    let error_message = record.error_message.as_deref().map(without_nul);
 
     let inserted = sqlx::query!(
             r#"
@@ -210,7 +213,7 @@ pub(super) async fn insert_request_row(
             record.cost_microdollars,
             record.latency_ms,
             record.status.as_str(),
-            record.error_message.as_deref(),
+            error_message.as_deref(),
             actor_kind,
             actor_id,
             record.requested_model.as_deref(),

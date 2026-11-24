@@ -56,6 +56,7 @@ pub struct ActiveReport {
     pub last_reconciled_hash: Option<String>,
     pub sources: String,
     pub detail: Option<String>,
+    pub held_back: Option<String>,
 }
 
 pub fn execute(args: &InspectArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -145,7 +146,15 @@ fn describe_active(boot: &BootContext) -> Result<ActiveReport> {
     let root = boot
         .services_root()
         .context("The services root has not been resolved in this process")?;
-    let state = BundleCache::new(cache_root(profile)).read_state();
+    let cache = BundleCache::new(cache_root(profile));
+    let state = cache.read_state();
+    let held_back = cache
+        .read_refusals()
+        .context("The record of held-back sources cannot be read")?
+        .iter()
+        .map(|r| format!("{} on {}: {}", r.source, r.serving_version, r.reason))
+        .collect::<Vec<_>>()
+        .join("; ");
     let sources = state
         .sources
         .iter()
@@ -181,5 +190,6 @@ fn describe_active(boot: &BootContext) -> Result<ActiveReport> {
         last_reconciled_hash: state.last_reconciled_hash,
         sources,
         detail,
+        held_back: (!held_back.is_empty()).then_some(held_back),
     })
 }

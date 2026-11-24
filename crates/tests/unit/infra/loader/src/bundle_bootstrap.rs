@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use systemprompt_loader::bundle::{BundleCache, ServicesSourceBootstrap};
+use systemprompt_loader::bundle::{BundleCache, RefusalKind, ServicesSourceBootstrap};
 use systemprompt_manifest::profile::{FetchFailurePolicy, NodeRole};
 use systemprompt_manifest::services::root::ServicesProvenance;
 use wiremock::matchers::{method, path};
@@ -146,7 +146,7 @@ async fn two_sources_are_fetched_composed_and_then_reused_unchanged() {
 }
 
 #[tokio::test]
-async fn a_failing_refresh_falls_back_to_the_last_good_composition() {
+async fn an_unreachable_source_is_held_back_on_its_cached_bundle() {
     let work = tempfile::tempdir().expect("tempdir");
     let services = tempfile::tempdir().expect("tempdir");
     let cache = tempfile::tempdir().expect("tempdir");
@@ -193,20 +193,27 @@ async fn a_failing_refresh_falls_back_to_the_last_good_composition() {
         .await
         .expect("an unavailable origin must not stop the boot");
 
-    match after.provenance {
-        ServicesProvenance::LastGood {
-            composed_hash,
-            error,
-        } => {
-            assert!(!error.is_empty(), "the fallback records why it happened");
-            assert!(matches!(
-                good.provenance,
-                ServicesProvenance::Fetched { composed_hash: ref h, .. } if *h == composed_hash
-            ));
-        },
-        other => panic!("expected last-good, got {other:?}"),
-    }
+    assert_eq!(
+        after.provenance, good.provenance,
+        "the cached bundle composes to the tree already served"
+    );
     assert!(after.path.join("config/config.yaml").is_file());
+    let refusals = BundleCache::new(cache.path())
+        .read_refusals()
+        .expect("refusals");
+    assert_eq!(
+        refusals.len(),
+        1,
+        "the held-back source is recorded: {refusals:?}"
+    );
+    assert_eq!(refusals[0].source, "base");
+    assert_eq!(refusals[0].kind, RefusalKind::Fetch);
+    assert_eq!(refusals[0].serving_version, "1.0.0");
+    assert!(!refusals[0].reason.is_empty(), "the record says why");
+    assert!(
+        BundleCache::new(cache.path()).read_degraded().is_none(),
+        "a composition that loads is not a whole-composition fallback"
+    );
 }
 
 #[tokio::test]

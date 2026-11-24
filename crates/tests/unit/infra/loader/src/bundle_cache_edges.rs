@@ -111,7 +111,7 @@ fn pruning_keeps_the_two_newest_versions_of_each_bundle() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
-    cache.gc("nothing").expect("gc");
+    cache.gc(&ServicesBundleState::default()).expect("gc");
 
     assert!(
         !cache.bundle_dir("base", &ContentHash::new("v1")).exists(),
@@ -119,6 +119,49 @@ fn pruning_keeps_the_two_newest_versions_of_each_bundle() {
     );
     assert!(cache.bundle_dir("base", &ContentHash::new("v2")).exists());
     assert!(cache.bundle_dir("base", &ContentHash::new("v3")).exists());
+}
+
+#[test]
+fn pruning_never_removes_the_bundle_a_source_is_held_on() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(root.path());
+    cache.prepare().expect("prepare");
+    for hash in ["held", "v2", "v3", "v4"] {
+        fs::create_dir_all(cache.bundle_dir("base", &ContentHash::new(hash))).expect("mkdir");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
+    cache.gc(&state("held")).expect("gc");
+
+    assert!(
+        cache.bundle_dir("base", &ContentHash::new("held")).exists(),
+        "the bundle the state records survives newer ones that were never served"
+    );
+    assert!(cache.bundle_dir("base", &ContentHash::new("v4")).exists());
+    assert!(!cache.bundle_dir("base", &ContentHash::new("v2")).exists());
+}
+
+#[test]
+fn a_refusal_record_that_cannot_be_read_is_an_error() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(root.path());
+    assert!(
+        cache.read_refusals().expect("no record").is_empty(),
+        "an absent record means nothing was held back"
+    );
+
+    fs::write(root.path().join("refusals.json"), "[{\"source\":").expect("write");
+    assert!(cache.read_refusals().is_err(), "a truncated record");
+
+    fs::write(
+        root.path().join("refusals.json"),
+        r#"[{"source":"kit","kind":"a_later_kind","reason":"r","serving_version":"1.0.0","serving_digest":"sha256:aa","recorded_at":"2026-11-24T00:00:00Z"}]"#,
+    )
+    .expect("write");
+    assert!(
+        cache.read_refusals().is_err(),
+        "a record a later core wrote is not read as empty"
+    );
 }
 
 #[test]
@@ -131,7 +174,7 @@ fn pruning_never_removes_the_composition_currently_in_use() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
-    cache.gc("pinned").expect("gc");
+    cache.gc(&state("pinned")).expect("gc");
 
     assert!(
         cache.composed_dir("pinned").exists(),
@@ -147,7 +190,9 @@ fn pruning_an_empty_cache_is_a_no_op() {
     let root = tempfile::tempdir().expect("tempdir");
     let cache = BundleCache::new(root.path());
 
-    cache.gc("anything").expect("gc on an unprepared cache");
+    cache
+        .gc(&state("anything"))
+        .expect("gc on an unprepared cache");
 
     assert!(!root.path().join("bundles").exists());
 }

@@ -21,6 +21,11 @@
 //! bearer. It comes only from `RequestContext::caller_purpose()`; an inbound
 //! `x-systemprompt-caller` header is stripped at the API edge and never read.
 //!
+//! The accessor's status says who can act on a refusal. `404` is an account
+//! never connected and `401` one whose grant no longer stands, both of which
+//! the user answers by connecting; any other refusal (`403` for a rejected
+//! broker or caller purpose, `5xx` for an outage) is not theirs to fix.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -197,33 +202,39 @@ pub async fn fetch_external_bearer(
         reqwest::StatusCode::NOT_FOUND => Err(McpDomainError::ExternalAccountNotConnected {
             server: server.to_owned(),
         }),
-        status => {
-            let reason = response
-                .json::<AccessorError>()
-                .await
-                .ok()
-                .map(|body| body.error)
-                .filter(|reason| !reason.trim().is_empty())
-                .map_or_else(String::new, |reason| {
-                    format!(
-                        ": {}",
-                        reason
-                            .chars()
-                            .take(ACCESSOR_ERROR_MAX_CHARS)
-                            .collect::<String>()
-                    )
-                });
-            tracing::warn!(
-                server,
-                status = status.as_u16(),
-                reason = reason.trim_start_matches(": "),
-                "token accessor refused the user's provider bearer"
-            );
-            Err(McpDomainError::ExternalAuthUnavailable {
-                server: server.to_owned(),
-                message: format!("token accessor returned status {status}{reason}"),
-            })
-        },
+        _ => Err(accessor_refusal(server, response).await),
+    }
+}
+
+async fn accessor_refusal(server: &str, response: reqwest::Response) -> McpDomainError {
+    let status = response.status();
+    let reason = response
+        .json::<AccessorError>()
+        .await
+        .ok()
+        .map(|body| body.error)
+        .filter(|reason| !reason.trim().is_empty())
+        .map_or_else(String::new, |reason| {
+            format!(
+                ": {}",
+                reason
+                    .chars()
+                    .take(ACCESSOR_ERROR_MAX_CHARS)
+                    .collect::<String>()
+            )
+        });
+    tracing::warn!(
+        server,
+        status = status.as_u16(),
+        reason = reason.trim_start_matches(": "),
+        "token accessor refused the user's provider bearer"
+    );
+    let server = server.to_owned();
+    let message = format!("token accessor returned status {status}{reason}");
+    if status == reqwest::StatusCode::UNAUTHORIZED {
+        McpDomainError::ExternalReauthRequired { server, message }
+    } else {
+        McpDomainError::ExternalAuthUnavailable { server, message }
     }
 }
 

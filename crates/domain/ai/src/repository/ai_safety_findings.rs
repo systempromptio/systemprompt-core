@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, AiSafetyFindingId};
+use systemprompt_models::text::without_nul;
 use systemprompt_traits::RepositoryError;
 
 #[must_use]
@@ -58,6 +59,7 @@ impl AiSafetyFindingRepository {
         params: InsertSafetyFinding<'_>,
     ) -> Result<AiSafetyFindingId, RepositoryError> {
         let id = AiSafetyFindingId::generate();
+        let excerpt = params.excerpt.map(without_nul);
         sqlx::query!(
             r#"
             INSERT INTO ai_safety_findings (
@@ -71,7 +73,7 @@ impl AiSafetyFindingRepository {
             params.severity,
             params.category,
             params.scanner,
-            params.excerpt,
+            excerpt.as_deref(),
             params.blocked
         )
         .execute(self.write_pool.as_ref())
@@ -138,7 +140,7 @@ where
         severities.push(f.severity.to_owned());
         categories.push(f.category.to_owned());
         scanners.push(f.scanner.to_owned());
-        excerpts.push(f.excerpt.map(str::to_owned));
+        excerpts.push(f.excerpt.map(|text| without_nul(text).into_owned()));
         blocked.push(f.blocked);
     }
     let result = sqlx::query!(

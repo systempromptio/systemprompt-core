@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.87.0] - 2026-11-24
+
+### Breaking
+
+- **Breaking:** **Loader:** with `on_fetch_failure: use_last_good`, one failing source no longer turns the whole resolve into `LastGood`. The source is held back on the bundle already cached for it, the others advance, and the resolve returns `Fetched` with the hold recorded. Migrate by reading `BundleCache::read_refusals()`. A source with nothing cached, `fail_closed` and `use_bundled` still fall back (or refuse to boot) for the whole composition.
+- **Breaking:** **Loader:** a cached bundle is checked against its `requires_core` before it is reused. An instance whose cached bundle does not accept this core falls back by its policy, and refuses to boot under `fail_closed`; the bundle was served unchecked. Migrate by publishing the source packed for this core before upgrading.
+- **Breaking:** **Loader:** `BundleCache::gc` takes the `ServicesBundleState` in place of the composed hash and keeps the bundle each source is recorded on, so a source held back on an older bundle does not lose it to two newer ones that were never served. Migrate by passing the state just written.
+- **Breaking:** **MCP, API:** `McpDomainError` gains `ExternalReauthRequired { server, message }` and `services::proxy::ProxyError` gains `ProviderReauthRequired { service }`. Migrate an exhaustive `match` by adding the arms.
+- **Breaking:** **API:** `ServicesRefreshResponse` gains `provenance` and `refused`, and `ServicesStatusResponse` gains `refused`. Migrate a struct literal by setting them.
+- **Breaking:** **CLI:** `BundleArgs` gains `requires_core`, and `ActiveReport` gains `held_back`. Migrate a struct literal by setting them to `None`. `services refresh` exits 1 when a source was held back or the composition fell back, including when other sources changed (it exited `0`, or `3` after a change). Migrate a supervisor that restarts on `3` by reading the printed table of changed sources on exit 1.
+
+### Added
+
+- **CLI:** `services bundle --requires-core <range>` declares the core versions a bundle loads on; the default is still the packing binary's minor. `services inspect --active` and `cloud doctor` report held-back sources.
+- **API:** `/readyz` and `/health` carry held-back sources under `services_source`, and `GET /admin/services/status` reports a fallback or recovery that happened after boot.
+- **Loader:** `BundleCache::read_refusals` and `write_refusals` read and write the record of held-back sources. A record that cannot be read is an error, which `/readyz` and `/health` report as `"serving": "unknown"` and `cloud doctor` as a warning.
+
+### Fixed
+
+- **API:** an external MCP server whose token accessor answers `401` (the provider refused the refresh, or the grant was revoked) is `409` `needs_reauth` naming the server, instead of `503` `service_not_running`. A `403` from the accessor refuses the caller rather than the person's grant and stays `503`, as does an outage.
+- **OAuth:** Allow and Deny on the `/oauth/authorize` consent page are accepted from a browser. The page declared the `no-referrer` policy, under which a browser posts its form with `Origin: null`, and the endpoint answered `403` (since 0.85.0). The consent page and the passkey page now declare `same-origin`, whatever the profile's `referrer_policy`. The endpoint's `Origin` check is unchanged.
+- **AI:** text and JSON carrying a NUL are stored with U+FFFD in its place. PostgreSQL refuses a NUL in `text` and `jsonb`, so a prompt, response, tool call, tool catalog, safety excerpt or error message that carried one failed the write that recorded it, the settlement of a completed request included.
+
 ## [0.86.1] - 2026-11-23
 
 ### Fixed

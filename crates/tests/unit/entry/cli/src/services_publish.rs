@@ -49,6 +49,7 @@ fn bundle(dir: &Path) -> PathBuf {
             source_commit: None,
             workflow_run: None,
             marketplace_only: false,
+            requires_core: None,
         },
         None,
     )
