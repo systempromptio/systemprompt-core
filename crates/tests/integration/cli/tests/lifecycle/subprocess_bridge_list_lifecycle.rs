@@ -69,7 +69,7 @@ fn projected_row(row: &systemprompt_oauth::repository::BridgeSessionRow) -> Valu
         "hostname": row.hostname,
         "bridge_version": row.bridge_version,
         "release_version": row.release_version,
-        "state": row.state,
+        "state": row.state.map(|state| state.as_str()),
         "window_status": "unknown",
         "os": row.os,
         "last_heartbeat_at": row.last_heartbeat_at.to_rfc3339(),

@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{LogId, McpServerId, McpToolName, TraceId};
 use systemprompt_logging::LogLevel;
 
+use super::ai_trace::parse_state;
 use super::{Result, TraceRepository};
 use crate::trace::models::{LogSearchItem, ToolExecutionItem};
 
@@ -98,16 +99,17 @@ impl TraceRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| ToolExecutionItem {
-                timestamp: r.timestamp,
-                trace_id: r.trace_id,
-                tool_name: McpToolName::new(r.tool_name),
-                server_name: Some(McpServerId::new(r.server_name)),
-                status: r.status,
-                execution_time_ms: r.execution_time_ms,
+        rows.into_iter()
+            .map(|r| -> Result<ToolExecutionItem> {
+                Ok(ToolExecutionItem {
+                    timestamp: r.timestamp,
+                    trace_id: r.trace_id,
+                    tool_name: McpToolName::new(r.tool_name),
+                    server_name: Some(McpServerId::new(r.server_name)),
+                    status: parse_state("mcp_tool_executions.status", r.status)?,
+                    execution_time_ms: r.execution_time_ms,
+                })
             })
-            .collect())
+            .collect()
     }
 }

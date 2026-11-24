@@ -102,8 +102,8 @@ impl ManagedRepository {
     ) -> Result<ManagedResourceId> {
         let id = sqlx::query_scalar!(
             "SELECT resource_id FROM managed_revisions WHERE owner_id=$1 AND id=$2",
-            owner.as_str(),
-            revision.as_str()
+            owner as _,
+            revision as _
         )
         .fetch_optional(&self.pool)
         .await?

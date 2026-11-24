@@ -89,8 +89,7 @@ impl SessionRepository {
         behavioral::mark_ghost_sessions_as_bots(&self.write_pool).await
     }
     pub async fn mark_no_js_sessions_as_bots(&self, engaged: &[SessionId]) -> Result<u64> {
-        let engaged: Vec<String> = engaged.iter().map(ToString::to_string).collect();
-        behavioral::mark_no_js_sessions_as_bots(&self.write_pool, &engaged).await
+        behavioral::mark_no_js_sessions_as_bots(&self.write_pool, engaged).await
     }
     pub async fn check_and_mark_behavioral_bot(
         &self,

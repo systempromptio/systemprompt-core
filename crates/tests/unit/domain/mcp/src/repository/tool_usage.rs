@@ -72,7 +72,7 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
     let result = ToolExecutionResult {
         output: Some(json!({"ok": true})),
         output_schema: None,
-        status: McpToolExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at,
         completed_at: Some(Utc::now()),
@@ -143,7 +143,7 @@ async fn start_and_complete_execution_roundtrip() {
     let result = ToolExecutionResult {
         output: Some(json!({"ok":true})),
         output_schema: None,
-        status: McpToolExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at,
         completed_at: Some(completed_at),
@@ -159,7 +159,7 @@ async fn start_and_complete_execution_roundtrip() {
         .unwrap();
 
     let final_row = repo.find_by_id(&exec_id).await.unwrap().unwrap();
-    assert_eq!(final_row.status, "success");
+    assert_eq!(final_row.status, McpToolExecutionStatus::Success);
 
     let (actor_kind, actor_id, request_method, request_source): (
         Option<String>,
@@ -215,7 +215,7 @@ async fn log_execution_sync_writes_row() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: McpToolExecutionStatus::Failed.as_str().to_owned(),
+        status: McpToolExecutionStatus::Failed,
         error_message: Some("boom".to_owned()),
         started_at,
         completed_at: Some(Utc::now()),

@@ -245,6 +245,8 @@ mod source_sync_native_capture;
 mod source_sync_regressions;
 
 #[cfg(test)]
+mod inventory_vocabularies;
+#[cfg(test)]
 mod managed_authoring_lifecycle;
 #[cfg(test)]
 mod managed_withdrawal_lifecycle;

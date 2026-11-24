@@ -4,18 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::TaskRow;
-use crate::models::a2a::{Message, MessageRole, Part, TaskState};
+use crate::models::a2a::{Message, Part};
 use crate::models::database_rows::TaskMessage;
 use crate::repository::parts::metadata_object;
 use systemprompt_models::a2a::TaskMetadata;
-use systemprompt_models::errors::ParseEnumError;
 use systemprompt_traits::RepositoryError;
-
-pub(super) fn parse_task_state(row: &TaskRow) -> Result<TaskState, RepositoryError> {
-    row.status
-        .parse()
-        .map_err(|e: ParseEnumError| RepositoryError::decode("stored task state", e))
-}
 
 pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
     let reference_task_ids = row.reference_task_ids.map(|ids| {
@@ -32,13 +25,8 @@ pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
         );
     }
 
-    let role = match row.role.as_str() {
-        "user" | "ROLE_USER" => MessageRole::User,
-        _ => MessageRole::Agent,
-    };
-
     Message {
-        role,
+        role: row.role,
         parts,
         message_id: row.message_id,
         task_id: Some(row.task_id),

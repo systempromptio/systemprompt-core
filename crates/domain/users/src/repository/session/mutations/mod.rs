@@ -17,7 +17,6 @@ pub(super) use super::geo::count_sessions_missing_geo;
 use systemprompt_traits::session_store::CreateSessionParams;
 
 pub(super) async fn increment_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         r#"
         UPDATE user_sessions
@@ -26,7 +25,7 @@ pub(super) async fn increment_request_count(pool: &PgPool, session_id: &SessionI
             duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
         WHERE session_id = $1
         "#,
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -34,11 +33,10 @@ pub(super) async fn increment_request_count(pool: &PgPool, session_id: &SessionI
 }
 
 pub(super) async fn increment_task_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET task_count = task_count + 1, last_activity_at = \
          CURRENT_TIMESTAMP WHERE session_id = $1",
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -46,11 +44,10 @@ pub(super) async fn increment_task_count(pool: &PgPool, session_id: &SessionId) 
 }
 
 pub(super) async fn increment_message_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET message_count = message_count + 1, last_activity_at = \
          CURRENT_TIMESTAMP WHERE session_id = $1",
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -58,7 +55,6 @@ pub(super) async fn increment_message_count(pool: &PgPool, session_id: &SessionI
 }
 
 pub(super) async fn end_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         r#"
         UPDATE user_sessions
@@ -66,7 +62,7 @@ pub(super) async fn end_session(pool: &PgPool, session_id: &SessionId) -> Result
             duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
         WHERE session_id = $1
         "#,
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -74,10 +70,9 @@ pub(super) async fn end_session(pool: &PgPool, session_id: &SessionId) -> Result
 }
 
 pub(super) async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET is_scanner = true WHERE session_id = $1",
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -85,11 +80,10 @@ pub(super) async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Re
 }
 
 pub(super) async fn revoke_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE session_id = $1 AND \
          revoked_at IS NULL",
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -97,11 +91,10 @@ pub(super) async fn revoke_session(pool: &PgPool, session_id: &SessionId) -> Res
 }
 
 pub(super) async fn revoke_all_for_user(pool: &PgPool, user_id: &UserId) -> Result<u64> {
-    let uid = user_id.as_str();
     let result = sqlx::query!(
         "UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND \
          revoked_at IS NULL",
-        uid
+        user_id as _
     )
     .execute(pool)
     .await?;
@@ -109,11 +102,10 @@ pub(super) async fn revoke_all_for_user(pool: &PgPool, user_id: &UserId) -> Resu
 }
 
 pub(super) async fn mark_converted(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET converted_at = CURRENT_TIMESTAMP WHERE session_id = $1 AND \
          converted_at IS NULL",
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -140,12 +132,10 @@ pub(super) async fn migrate_user_sessions(
     old_user_id: &UserId,
     new_user_id: &UserId,
 ) -> Result<u64> {
-    let old_id = old_user_id.as_str();
-    let new_id = new_user_id.as_str();
     let result = sqlx::query!(
         "UPDATE user_sessions SET user_id = $1 WHERE user_id = $2",
-        new_id,
-        old_id
+        new_user_id as _,
+        old_user_id as _
     )
     .execute(pool)
     .await?;
@@ -153,8 +143,6 @@ pub(super) async fn migrate_user_sessions(
 }
 
 pub(super) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> Result<()> {
-    let session_id = params.identity.session_id.as_str();
-    let user_id = params.identity.user_id.map(UserId::as_str);
     let session_source = params.identity.session_source.as_str();
     let network = &params.network;
     let attribution = &params.attribution;
@@ -173,8 +161,8 @@ pub(super) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'
             last_activity_at = CURRENT_TIMESTAMP,
             expires_at = EXCLUDED.expires_at
         "#,
-        session_id,
-        user_id,
+        params.identity.session_id as _,
+        params.identity.user_id as _,
         session_source,
         params.identity.fingerprint_hash,
         network.ip_address,
@@ -210,7 +198,6 @@ pub(super) async fn increment_ai_usage(
     tokens: i32,
     cost_microdollars: i64,
 ) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         r#"
         UPDATE user_sessions
@@ -222,7 +209,7 @@ pub(super) async fn increment_ai_usage(
         "#,
         tokens,
         cost_microdollars,
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;

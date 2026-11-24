@@ -5,7 +5,7 @@
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
+use systemprompt_mcp::services::client::{McpConnectionResult, McpHealthStatus, McpProtocolInfo};
 use systemprompt_mcp_entry::cli::validate::{
     FailureDetail, failure_output, run_connection_validation, success_output,
 };
@@ -15,7 +15,7 @@ fn failure_output_maps_detail_fields() {
     let out = failure_output(
         &ServiceName::new("svc"),
         FailureDetail {
-            health_status: "stopped",
+            health_status: McpHealthStatus::Stopped,
             validation_type: "not_running",
             latency_ms: 42,
             issue: "Service is not currently running".to_owned(),
@@ -25,7 +25,7 @@ fn failure_output_maps_detail_fields() {
 
     assert_eq!(out.server, "svc");
     assert!(!out.valid);
-    assert_eq!(out.health_status, "stopped");
+    assert_eq!(out.health_status, McpHealthStatus::Stopped);
     assert_eq!(out.validation_type, "not_running");
     assert_eq!(out.latency_ms, 42);
     assert!(out.tools_count.is_none());
@@ -116,7 +116,7 @@ async fn run_connection_validation_accepts_a_listening_hosted_service() {
 
     assert!(peer.ip().is_loopback());
     assert!(out.valid);
-    assert_eq!(out.health_status, "auth_required");
+    assert_eq!(out.health_status, McpHealthStatus::AuthRequired);
     assert_eq!(out.validation_type, "auth_required");
     assert_eq!(out.server, "oauth-svc");
     assert_eq!(out.server_info.unwrap().name, "oauth-svc");
@@ -129,7 +129,7 @@ async fn run_connection_validation_reports_an_unavailable_port() {
     let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1).await;
 
     assert!(!out.valid);
-    assert_eq!(out.health_status, "unhealthy");
+    assert_eq!(out.health_status, McpHealthStatus::Unhealthy);
     assert_eq!(out.validation_type, "port_unavailable");
     assert!(out.issues[0].contains("Port not responding"));
 }

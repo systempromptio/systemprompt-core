@@ -69,7 +69,6 @@ impl ToolUsageRepository {
         request: &ToolExecutionRequest,
         correlation: Correlation,
     ) -> McpDomainResult<()> {
-        let id = mcp_execution_id.as_str();
         let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
@@ -88,9 +87,9 @@ impl ToolUsageRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             "#,
-            id,
-            request.tool_name.as_str(),
-            request.server_name.as_str(),
+            mcp_execution_id as _,
+            request.tool_name as _,
+            request.server_name as _,
             context_id,
             ai_tool_call_id,
             user_id,
@@ -119,7 +118,6 @@ impl ToolUsageRepository {
         subject: ToolCallSubject<'_>,
         result: &ToolExecutionResult,
     ) -> McpDomainResult<()> {
-        let id = mcp_execution_id.as_str();
         let completed_at = result.completed_at.unwrap_or_else(Utc::now);
         let duration_ms = (completed_at - result.started_at).num_milliseconds() as i32;
         let output_str = result
@@ -134,12 +132,12 @@ impl ToolUsageRepository {
             SET status = $1, output = $2, error_message = $3, execution_time_ms = $4, completed_at = $5
             WHERE mcp_execution_id = $6
             "#,
-            result.status,
+            result.status.as_str(),
             output_str,
             result.error_message,
             duration_ms,
             completed_at,
-            id
+            mcp_execution_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -199,9 +197,9 @@ impl ToolUsageRepository {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
                     $18, $19, $20, $21, $22)
             "#,
-            mcp_execution_id.as_str(),
-            request.tool_name.as_str(),
-            request.server_name.as_str(),
+            mcp_execution_id as _,
+            request.tool_name as _,
+            request.server_name as _,
             context_id,
             user_id,
             task_id,
@@ -251,8 +249,8 @@ impl ToolUsageRepository {
                 payload_sha256 = COALESCE($4, payload_sha256)
             WHERE mcp_execution_id = $1
             "#,
-            mcp_execution_id.as_str(),
-            ai_tool_call_id.map(AiToolCallId::as_str),
+            mcp_execution_id as _,
+            ai_tool_call_id as _,
             correlation.as_str(),
             payload_sha256
         )

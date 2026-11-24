@@ -27,7 +27,12 @@ pub(super) async fn store_messages(
 ) {
     for message in messages {
         if let Err(e) = repo
-            .insert_message(db_id, &message.role, &message.content, message.sequence)
+            .insert_message(
+                db_id,
+                message.role.as_str(),
+                &message.content,
+                message.sequence,
+            )
             .await
         {
             error!(

@@ -5,6 +5,8 @@
 
 use systemprompt_identifiers::{ContextId, McpToolName, TaskId};
 use systemprompt_logging::LogLevel;
+use systemprompt_models::ai::StoredMessageRole;
+use systemprompt_models::mcp::McpToolExecutionStatus;
 use systemprompt_runtime::{AiRequestInfo, AiTraceService, McpToolExecution, ToolLogEntry};
 
 use super::ai_display::{Transcript, truncate};
@@ -20,7 +22,7 @@ pub(super) async fn mcp_executions(
     out.info(mcp_tool_calls_table(executions));
 
     for exec in executions {
-        if exec.status == "failed"
+        if exec.status == McpToolExecutionStatus::Failed
             && let Some(ref error) = exec.error_message
         {
             out.error(format!("  {} failed:", exec.tool_name));
@@ -118,7 +120,7 @@ async fn mcp_linked_ai_requests(
         for msg in previews {
             let preview = if msg.content.len() >= 500 {
                 format!("{}...", truncate(&msg.content, 200))
-            } else if msg.role == "system" && msg.content.len() > 100 {
+            } else if msg.role == StoredMessageRole::System && msg.content.len() > 100 {
                 format!("[System: {} chars]", msg.content.len())
             } else {
                 truncate(&msg.content, 200)
@@ -127,7 +129,7 @@ async fn mcp_linked_ai_requests(
             out.info(format!(
                 "      #{} [{}] {preview}",
                 msg.sequence_number,
-                msg.role.to_uppercase()
+                msg.role.as_str().to_uppercase()
             ));
         }
     }

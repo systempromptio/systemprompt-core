@@ -127,7 +127,7 @@ async fn a_run_cancelled_before_start_finishes_without_executing() {
         .expect("run");
 
     let row = finished(&r, &id).await;
-    assert_eq!(row.status, "cancelled");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Cancelled);
     assert_eq!(row.error.as_deref(), Some("cancelled before start"));
     assert!(!r.workspace.path().join("spawned").exists());
 }
@@ -146,8 +146,11 @@ async fn a_harness_without_a_source_is_unavailable() {
         .expect("run");
 
     let row = finished(&r, &id).await;
-    assert_eq!(row.status, "failed");
-    assert_eq!(row.error_class.as_deref(), Some("harness_unavailable"));
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Failed);
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::HarnessUnavailable)
+    );
     assert_eq!(
         row.error.as_deref(),
         Some("no harness source is configured for this runner")
@@ -169,7 +172,10 @@ async fn a_harness_that_fails_to_load_is_unavailable() {
         .expect("run");
 
     let row = finished(&r, &id).await;
-    assert_eq!(row.error_class.as_deref(), Some("harness_unavailable"));
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::HarnessUnavailable)
+    );
     assert_eq!(
         row.error.as_deref(),
         Some("harness path AGENTS.md has no bytes in the bundle")
@@ -192,7 +198,7 @@ async fn a_loaded_harness_records_its_digest_and_runs() {
         .expect("run");
 
     let row = finished(&r, &id).await;
-    assert_eq!(row.status, "succeeded");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Succeeded);
     assert_eq!(row.harness_digest.as_deref(), Some(digest.as_str()));
     assert!(r.workspace.path().join("AGENTS.md").exists());
 }
@@ -211,8 +217,11 @@ async fn an_undecodable_request_finishes_as_host_crashed() {
         .expect("run");
 
     let row = finished(&r, &id).await;
-    assert_eq!(row.status, "failed");
-    assert_eq!(row.error_class.as_deref(), Some("host_crashed"));
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Failed);
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::HostCrashed)
+    );
     assert!(row.error.is_some());
 }
 
@@ -249,6 +258,6 @@ async fn a_cancel_requested_mid_run_stops_the_host() {
     canceller.await.expect("canceller");
 
     let row = finished(&r, &id).await;
-    assert_eq!(row.status, "cancelled");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Cancelled);
     assert!(row.duration_ms.is_some_and(|d| d < 20_000));
 }

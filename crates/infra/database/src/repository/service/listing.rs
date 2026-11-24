@@ -14,7 +14,7 @@ impl ServiceRepository {
     pub async fn list_all_agent_service_names(&self) -> DatabaseResult<Vec<ServiceName>> {
         let rows = sqlx::query!(
             r#"SELECT name FROM services WHERE instance_id = $1 AND module_name = 'agent'"#,
-            self.instance_id.as_str()
+            self.instance_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -37,7 +37,7 @@ impl ServiceRepository {
             WHERE instance_id = $1 AND status = $2
             ORDER BY name
             "#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             ServiceStatus::Running.as_str()
         )
         .fetch_all(&*self.pool)
@@ -60,7 +60,7 @@ impl ServiceRepository {
             WHERE instance_id = $1 AND module_name = $2 AND status = $3
             ORDER BY name
             "#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             module_name.as_str(),
             ServiceStatus::Running.as_str()
         )
@@ -76,7 +76,7 @@ impl ServiceRepository {
         let row = sqlx::query!(
             r#"SELECT COUNT(*) as "count!" FROM services
                WHERE instance_id = $1 AND module_name = $2 AND status = $3"#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             module_name.as_str(),
             ServiceStatus::Running.as_str()
         )
@@ -104,7 +104,7 @@ impl ServiceRepository {
             WHERE instance_id = $1 AND module_name = $2
             ORDER BY name
             "#,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             module_name.as_str()
         )
         .fetch_all(&*self.pool)

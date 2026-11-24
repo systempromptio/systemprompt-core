@@ -33,10 +33,10 @@ pub struct AgentAiStatsRow {
     pub total_cost_microdollars: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct AgentTaskRow {
     pub started_at: DateTime<Utc>,
-    pub status: Option<String>,
+    pub status: Option<systemprompt_models::a2a::TaskState>,
     pub execution_time_ms: Option<i32>,
 }
 

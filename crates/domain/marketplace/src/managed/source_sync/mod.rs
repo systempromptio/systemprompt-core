@@ -66,15 +66,6 @@ pub enum WithdrawalStatus {
     Rejected,
 }
 
-impl WithdrawalStatus {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Approved => "approved",
-            Self::Rejected => "rejected",
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithdrawalProposal {

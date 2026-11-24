@@ -131,11 +131,7 @@ impl McpToolExecutor {
         ToolExecutionResult {
             output: response.as_ref().ok().and(output_value),
             output_schema: None,
-            status: if response.is_ok() {
-                McpToolExecutionStatus::Success.as_str().to_owned()
-            } else {
-                McpToolExecutionStatus::Failed.as_str().to_owned()
-            },
+            status: McpToolExecutionStatus::from_error(response.is_err()),
             error_message: response.as_ref().err().map(|e| e.message.to_string()),
             started_at,
             completed_at: Some(completed_at),

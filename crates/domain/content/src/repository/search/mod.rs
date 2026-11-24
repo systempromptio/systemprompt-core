@@ -42,7 +42,7 @@ impl SearchRepository {
             ORDER BY m.total_views DESC NULLS LAST
             LIMIT $2
             "#,
-            category_id.as_str(),
+            category_id as _,
             limit
         )
         .fetch_all(&*self.pool)

@@ -45,7 +45,7 @@ impl InstanceRegistry for ServiceRepository {
             ) AS "alive!"
             "#,
             INSTANCE_CLAIM_CLASS,
-            instance.as_str(),
+            instance as _,
             INSTANCE_DEAD_AFTER_SECS as f64
         )
         .fetch_one(&*self.write_pool)

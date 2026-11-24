@@ -17,7 +17,6 @@ use systemprompt_models::a2a::TaskState;
 use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates};
 
 use crate::a2a::{TaskUpdate, final_status, task_events};
-use crate::outcome::RunStatus;
 use crate::repository::{AgentRunRepository, NewAgentRun};
 use crate::request::RunRequest;
 
@@ -95,10 +94,7 @@ impl AgentRunLauncher for RepositoryRunLauncher {
             .await
             .map_err(AgentRunLaunchError::unavailable)?
             .ok_or_else(|| AgentRunLaunchError::NotFound(run_id.clone()))?;
-        let status = row
-            .status
-            .parse::<RunStatus>()
-            .map_err(AgentRunLaunchError::unavailable)?;
+        let status = row.status;
         let events = self
             .repo
             .list_events_after(run_id, after_seq, UPDATE_PAGE)

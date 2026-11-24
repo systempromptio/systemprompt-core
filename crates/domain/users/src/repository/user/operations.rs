@@ -42,10 +42,10 @@ impl UserRepository {
                 created_at, updated_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, false, ARRAY[$7]::TEXT[], false, $8, $8)
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
-            id.as_str(),
+            id as _,
             name,
             email,
             full_name,
@@ -86,10 +86,10 @@ impl UserRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, false, ARRAY[$7]::TEXT[], false, $8, $8)
             ON CONFLICT DO NOTHING
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
-            id.as_str(),
+            id as _,
             name,
             email,
             full_name,
@@ -112,7 +112,7 @@ impl UserRepository {
         if let Some(existing) = sqlx::query_as!(
             UserRow,
             r#"
-            SELECT id, name, email, full_name, display_name, status, email_verified,
+            SELECT id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE email = $1
@@ -142,10 +142,10 @@ impl UserRepository {
             )
             VALUES ($1, $2, $3, $4, false, ARRAY[$5]::TEXT[], false, $6, $6)
             ON CONFLICT (email) DO UPDATE SET updated_at = $6
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
-            id.as_str(),
+            id as _,
             name,
             email,
             status,

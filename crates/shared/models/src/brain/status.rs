@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 /// Where a fact stands: only `Confirmed` facts are recalled; `Stale` ones
 /// only when the profile allows a marked injection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "text", rename_all = "snake_case"))]
 #[serde(rename_all = "snake_case")]
 pub enum FactStatus {
     Candidate,

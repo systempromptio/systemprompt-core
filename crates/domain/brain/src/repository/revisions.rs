@@ -8,7 +8,7 @@
 use sqlx::types::Json;
 use sqlx::{PgConnection, PgExecutor};
 use systemprompt_identifiers::{BrainFactId, BrainFactRevisionId, UserId};
-use systemprompt_models::brain::FactRevision;
+use systemprompt_models::brain::{FactRevision, FactStatus};
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
@@ -35,13 +35,14 @@ impl FactRevisionRepository {
                    (id, fact_id, revision, change, actor_user_id, status, statement, fields)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                RETURNING id AS "id: BrainFactRevisionId", fact_id AS "fact_id: BrainFactId",
-                         revision, change, actor_user_id AS "actor_user_id: UserId", status,
+                         revision, change, actor_user_id AS "actor_user_id: UserId",
+                         status AS "status: FactStatus",
                          statement, fields AS "fields: Json<FieldMap>", recorded_at"#,
-            id.as_str(),
-            revision.fact_id.as_str(),
+            id as _,
+            revision.fact_id as _,
             revision.revision,
             revision.change.as_str(),
-            revision.actor.as_ref().map(UserId::as_str),
+            revision.actor as _,
             revision.status.as_str(),
             revision.statement,
             serde_json::Value::Object(revision.fields.clone()),
@@ -62,10 +63,11 @@ impl FactRevisionRepository {
         sqlx::query_as!(
             RevisionRow,
             r#"SELECT id AS "id: BrainFactRevisionId", fact_id AS "fact_id: BrainFactId",
-                      revision, change, actor_user_id AS "actor_user_id: UserId", status,
+                      revision, change, actor_user_id AS "actor_user_id: UserId",
+                         status AS "status: FactStatus",
                       statement, fields AS "fields: Json<FieldMap>", recorded_at
                FROM brain_fact_revisions WHERE fact_id = $1 ORDER BY revision"#,
-            fact_id.as_str(),
+            fact_id as _,
         )
         .fetch_all(executor)
         .await?

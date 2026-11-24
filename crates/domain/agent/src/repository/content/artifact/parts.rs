@@ -15,8 +15,6 @@ pub async fn get_artifact_parts(
     artifact_id: &ArtifactId,
     context_id: &ContextId,
 ) -> Result<Vec<Part>, RepositoryError> {
-    let artifact_id_str = artifact_id.as_str();
-    let context_id_str = context_id.as_str();
     let part_rows = sqlx::query_as!(
         ArtifactPartRow,
         r#"SELECT
@@ -35,8 +33,8 @@ pub async fn get_artifact_parts(
         FROM artifact_parts
         WHERE artifact_id = $1 AND context_id = $2
         ORDER BY sequence_number ASC"#,
-        artifact_id_str,
-        context_id_str
+        artifact_id as _,
+        context_id as _
     )
     .fetch_all(pool)
     .await?;
@@ -51,14 +49,12 @@ pub async fn persist_artifact_part(
     context_id: &ContextId,
     sequence_number: i32,
 ) -> Result<(), RepositoryError> {
-    let artifact_id_str = artifact_id.as_str();
-    let context_id_str = context_id.as_str();
     let values = row_values(part);
     sqlx::query!(
         r#"INSERT INTO artifact_parts (artifact_id, context_id, part_kind, sequence_number, text_content, file_name, file_mime_type, file_uri, file_bytes, data_content, metadata)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, '{}'::jsonb))"#,
-        artifact_id_str,
-        context_id_str,
+        artifact_id as _,
+        context_id as _,
         values.part_kind,
         sequence_number,
         values.text_content,

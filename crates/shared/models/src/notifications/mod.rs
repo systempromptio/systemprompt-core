@@ -5,15 +5,15 @@
 //! [`RecipientDecision`]s at an [`Attention`] level, and each recipient
 //! receives one [`Notification`]. Streams, subscriptions and rules are
 //! declared in YAML ([`declarations`]) and checked by [`validate`].
-//! [`AttentionReason`], [`AudienceSubject`], [`NotificationKind`] and
-//! [`KeysetCursor`] travel as single strings.
+//! [`AttentionReason`], [`AudienceSubject`] and [`NotificationKind`] travel
+//! as single strings; a feed page resumes at a
+//! [`KeysetCursor`](crate::api::KeysetCursor).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod action;
 pub mod attention;
-pub mod cursor;
 pub mod declarations;
 pub mod event;
 pub mod kind;
@@ -27,7 +27,6 @@ pub mod subject;
 
 pub use action::ActionPrompt;
 pub use attention::{Attention, AttentionReason, UnknownNotificationValue};
-pub use cursor::{KeysetCursor, KeysetCursorError};
 pub use declarations::{
     DeclError, DigestWindow, NotificationsDoc, QuietHours, RuleAction, RuleDecl, RuleMatch,
     StreamAttention, StreamDecl, SubscriptionDecl, SubscriptionTarget, SubscriptionTargetError,

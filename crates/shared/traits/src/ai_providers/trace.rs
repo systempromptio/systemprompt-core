@@ -125,6 +125,8 @@ pub struct TraceSample {
 /// Lifecycle status of a persisted AI request, the `ai_requests.status`
 /// vocabulary.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "text", rename_all = "snake_case"))]
 #[serde(rename_all = "snake_case")]
 pub enum RequestStatus {
     #[default]

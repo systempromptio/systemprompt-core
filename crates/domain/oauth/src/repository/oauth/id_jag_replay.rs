@@ -19,7 +19,7 @@ impl OAuthRepository {
             "INSERT INTO id_jag_replay (jti, expires_at)
              VALUES ($1, $2)
              ON CONFLICT (jti) DO NOTHING",
-            jti.as_str(),
+            jti as _,
             expires_at,
         )
         .execute(self.write_pool_ref())

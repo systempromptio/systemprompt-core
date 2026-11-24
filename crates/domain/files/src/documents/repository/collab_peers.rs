@@ -124,9 +124,9 @@ impl DocumentCollabRepository {
         sqlx::query!(
             "INSERT INTO document_collab_peers (session_id, peer_id, user_id)
              VALUES ($1::text::uuid, $2, $3)",
-            session.as_str(),
+            session as _,
             peer,
-            user.as_str(),
+            user as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -141,8 +141,8 @@ impl DocumentCollabRepository {
         Ok(sqlx::query_scalar!(
             "SELECT peer_id FROM document_collab_peers
              WHERE session_id = $1::text::uuid AND user_id = $2",
-            session.as_str(),
-            user.as_str(),
+            session as _,
+            user as _,
         )
         .fetch_all(&*self.pools.write)
         .await?)
@@ -152,7 +152,7 @@ impl DocumentCollabRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT next_seq - 1 AS "seq!" FROM document_edit_sessions
                WHERE id = $1::text::uuid AND closed_at IS NULL"#,
-            session.as_str(),
+            session as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?)
@@ -180,7 +180,7 @@ impl DocumentCollabRepository {
             "SELECT next_seq FROM document_edit_sessions
              WHERE id = $1::text::uuid AND closed_at IS NULL
              FOR UPDATE",
-            session.as_str(),
+            session as _,
         )
         .fetch_optional(&mut *tx)
         .await?
@@ -193,7 +193,7 @@ impl DocumentCollabRepository {
         sqlx::query!(
             "UPDATE document_edit_sessions SET next_seq = next_seq + 1, updated_at = now()
              WHERE id = $1::text::uuid",
-            session.as_str(),
+            session as _,
         )
         .execute(&mut *tx)
         .await?;
@@ -203,10 +203,10 @@ impl DocumentCollabRepository {
                  (session_id, seq, payload, author_user_id, actor_kind, actor_name,
                   actor_attended, edit_level)
              VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8)",
-            session.as_str(),
+            session as _,
             seq,
             update,
-            author.user.as_str(),
+            author.user as _,
             columns.kind,
             columns.name,
             columns.attended,
@@ -229,7 +229,7 @@ impl DocumentCollabRepository {
                JOIN document_edit_sessions s ON s.id = u.session_id
                WHERE u.session_id = $1::text::uuid AND u.seq > s.checkpoint_seq
                ORDER BY u.seq"#,
-            session.as_str(),
+            session as _,
         )
         .fetch_all(&*self.pools.write)
         .await?;
@@ -259,8 +259,8 @@ impl DocumentCollabRepository {
              SET expires_at = now() + $3::float8 * interval '1 second', updated_at = now()
              WHERE document_id = $1::text::uuid AND user_id = $2 AND source = 'web'
                AND state = 'editing' AND expires_at > now()",
-            document_id.as_str(),
-            user.as_str(),
+            document_id as _,
+            user as _,
             ttl.as_secs_f64(),
         )
         .execute(&*self.pools.write)
@@ -285,8 +285,8 @@ impl DocumentCollabRepository {
                      cursor = EXCLUDED.cursor,
                      updated_at = now(),
                      expires_at = EXCLUDED.expires_at",
-            presence.document_id.as_str(),
-            presence.user_id.as_str(),
+            presence.document_id as _,
+            presence.user_id as _,
             presence_source_str(presence.source),
             presence_state_str(presence.state),
             presence.cursor,

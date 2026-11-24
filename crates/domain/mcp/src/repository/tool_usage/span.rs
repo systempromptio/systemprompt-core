@@ -48,7 +48,7 @@ pub(super) fn emit(
         tool_name: Some(subject.tool_name.clone()),
         server_name: Some(subject.server_name.clone()),
         source: Some(subject.source.as_str().to_owned()),
-        execution_status: Some(result.status.clone()),
+        execution_status: Some(result.status.as_str().to_owned()),
         execution_time_ms: result
             .completed_at
             .map(|done| (done - result.started_at).num_milliseconds() as i32),

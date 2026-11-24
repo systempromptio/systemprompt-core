@@ -6,8 +6,8 @@
 use crate::models::rows::AiRequestRow;
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus, ServedHop};
 use systemprompt_identifiers::{
-    AiRequestId, ApiKeyId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
-    McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
+    AiRequestId, ContextId, GatewayConversationId, ProviderRequestId, SessionId, TaskId, TraceId,
+    UserId,
 };
 use systemprompt_models::attribution::TrafficClass;
 use systemprompt_models::text::without_nul;
@@ -48,12 +48,13 @@ impl AiRequestRepository {
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, reasoning_tokens,
-                      is_streaming, status, client_kind, wire_protocol, client_attestation,
+                      is_streaming, status AS "status: systemprompt_traits::RequestStatus",
+                      client_kind, wire_protocol, client_attestation,
                       error_message, created_at, updated_at, completed_at
             "#,
             status.as_str(),
             error_message.as_ref(),
-            id.as_str()
+            id as _
         )
         .fetch_one(self.write_pool())
         .await
@@ -66,7 +67,7 @@ impl AiRequestRepository {
         sqlx::query!(
             r#"UPDATE ai_requests SET model = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
             model,
-            id.as_str()
+            id as _
         )
         .execute(self.write_pool())
         .await?;
@@ -100,7 +101,7 @@ impl AiRequestRepository {
         sqlx::query!(
             r#"UPDATE ai_requests SET billing_source = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
             billing_source,
-            id.as_str()
+            id as _
         )
         .execute(self.write_pool())
         .await?;
@@ -162,7 +163,6 @@ pub(super) async fn insert_request_row(
 ) -> Result<bool, RepositoryError> {
     let use_completed_at = is_terminal(record.status);
     let (actor_kind, actor_id) = record.actor.audit_columns();
-    let api_key_id = record.attribution.api_key_id.as_ref().map(ApiKeyId::as_str);
     let traffic = traffic_of(record)?;
     let error_message = record.error_message.as_deref().map(without_nul);
 
@@ -190,16 +190,16 @@ pub(super) async fn insert_request_row(
             ON CONFLICT (id) DO NOTHING
             RETURNING id
             "#,
-            id.as_str(),
-            record.request_id.as_str(),
-            record.user_id.as_str(),
-            record.session_id.as_ref().map(SessionId::as_str),
-            record.task_id.as_ref().map(TaskId::as_str),
-            record.context_id.as_str(),
-            record.gateway_conversation_id.as_ref().map(GatewayConversationId::as_str),
-            record.provider_request_id.as_ref().map(ProviderRequestId::as_str),
-            record.trace_id.as_ref().map(TraceId::as_str),
-            record.mcp_execution_id.as_ref().map(McpExecutionId::as_str),
+            id as _,
+            record.request_id as _,
+            record.user_id as _,
+            record.session_id as _,
+            record.task_id as _,
+            record.context_id as _,
+            record.gateway_conversation_id as _,
+            record.provider_request_id as _,
+            record.trace_id as _,
+            record.mcp_execution_id as _,
             record.provider,
             record.model,
             record.max_tokens,
@@ -217,18 +217,18 @@ pub(super) async fn insert_request_row(
             actor_kind,
             actor_id,
             record.requested_model.as_deref(),
-            record.instance_id.as_ref().map(InstanceId::as_str),
+            record.instance_id as _,
             record.tokens.reasoning_tokens,
             use_completed_at,
-            record.client_session_id.as_ref().map(ClientSessionId::as_str),
+            record.client_session_id as _,
             record.request_kind.as_str(),
             record.origin.client.as_str(),
             record.origin.wire.as_str(),
             record.origin.attestation.as_str(),
-            api_key_id,
+            record.attribution.api_key_id as _,
             has_offered_tools,
-            record.hop.as_ref().map(|h| h.credential.as_str()),
-            record.hop.as_ref().map(|h| h.endpoint.as_str()),
+            record.hop.as_ref().map(|h| &h.credential),
+            record.hop.as_ref().map(|h| &h.endpoint),
             traffic.as_str()
         )
         .fetch_optional(&mut **tx)
@@ -251,7 +251,7 @@ where
         hop.provider,
         hop.credential,
         hop.endpoint,
-        id.as_str()
+        id as _
     )
     .execute(executor)
     .await?;
@@ -269,7 +269,7 @@ where
     sqlx::query!(
         r#"UPDATE ai_requests SET route_match = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
         descriptor,
-        id.as_str()
+        id as _
     )
     .execute(executor)
     .await?;
@@ -287,7 +287,7 @@ where
     sqlx::query!(
             r#"UPDATE ai_requests SET system_prompt_override = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
             descriptor,
-            id.as_str()
+            id as _
         )
         .execute(executor)
         .await?;

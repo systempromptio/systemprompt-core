@@ -67,7 +67,7 @@ impl DocumentFolderRepository {
                       created_by AS "created_by: UserId",
                       created_at, updated_at, deleted_at, agent_edit_policy
                FROM document_folders WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(self.pools.authz())
         .await?
@@ -89,7 +89,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
                       created_by AS "created_by: UserId",
                       created_at, updated_at, deleted_at, agent_edit_policy
                FROM document_folders WHERE parent_id IS NOT DISTINCT FROM $1::text::uuid AND deleted_at IS NULL ORDER BY name, id"#,
-            parent.map(DocumentFolderId::as_str)
+            parent as _
         )
         .fetch_all(&*self.pools.read)
         .await?
@@ -136,7 +136,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
                      AND a.deleted_at IS NULL
                      AND a.agent_edit_policy = 'propose'
                ) AS "proposes!""#,
-            id.as_str(),
+            id as _,
         )
         .fetch_one(self.pools.authz())
         .await?;
@@ -151,7 +151,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
         let result = sqlx::query!(
             "UPDATE document_folders SET deleted_at = now(), updated_at = now()
              WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
+            id as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -162,7 +162,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
         let row = sqlx::query_scalar!(
             r#"SELECT ancestor_ids::text[] AS "ancestor_ids!: Vec<DocumentFolderId>"
                FROM document_folders WHERE id = $1::text::uuid"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_optional(self.pools.authz())
         .await?;
@@ -176,7 +176,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
                CROSS JOIN LATERAL unnest(f.ancestor_ids || f.id) WITH ORDINALITY AS u(folder_id, ord)
                JOIN document_folders a ON a.id = u.folder_id
                WHERE f.id = $1::text::uuid"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_one(&*self.pools.read)
         .await?;
@@ -195,7 +195,7 @@ where
     let result = sqlx::query!(
         "UPDATE document_folders SET agent_edit_policy = $2, updated_at = now()
              WHERE id = $1::text::uuid AND deleted_at IS NULL",
-        id.as_str(),
+        id as _,
         policy.as_str(),
     )
     .execute(executor)

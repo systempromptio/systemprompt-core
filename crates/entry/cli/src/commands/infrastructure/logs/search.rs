@@ -187,7 +187,7 @@ pub fn map_tool_rows(rows: Vec<ToolExecutionItem>) -> Vec<ToolSearchResult> {
             trace_id: r.trace_id,
             tool_name: r.tool_name,
             server: r.server_name,
-            status: r.status,
+            status: r.status.as_str().to_owned(),
             duration_ms: r.execution_time_ms.map(i64::from),
         })
         .collect()

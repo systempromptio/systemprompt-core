@@ -28,7 +28,7 @@ async fn releases_up_to_the_bound_requeue_and_the_next_fails_the_run() {
             Released::Requeued
         );
         let row = f.repo.find_run(&id).await.expect("find").expect("row");
-        assert_eq!(row.status, "queued");
+        assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Queued);
         assert_eq!(row.attempt, 1);
         assert_eq!(row.request["releases"], round);
     }
@@ -39,8 +39,11 @@ async fn releases_up_to_the_bound_requeue_and_the_next_fails_the_run() {
         Released::Exhausted
     );
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "failed");
-    assert_eq!(row.error_class.as_deref(), Some("release_cap_exceeded"));
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Failed);
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::ReleaseCapExceeded)
+    );
     assert!(row.finished_at.is_some());
     assert!(row.claimed_by.is_none());
     assert!(row.lease_until.is_none());
@@ -70,7 +73,10 @@ async fn an_exhausted_release_fails_the_linked_task() {
     );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_FAILED");
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.error_class.as_deref(), Some("release_cap_exceeded"));
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::ReleaseCapExceeded)
+    );
 }
 
 #[tokio::test]
@@ -92,8 +98,11 @@ async fn a_shutdown_past_the_release_bound_fails_the_run() {
         .expect("loop joined");
 
     let row = r.f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "failed");
-    assert_eq!(row.error_class.as_deref(), Some("release_cap_exceeded"));
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Failed);
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::ReleaseCapExceeded)
+    );
     assert!(row.finished_at.is_some());
     assert_eq!(row.attempt, 1);
 }

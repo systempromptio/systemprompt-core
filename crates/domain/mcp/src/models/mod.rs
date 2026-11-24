@@ -75,7 +75,7 @@ pub struct ToolExecutionResult {
     // JSON: MCP tool result — structured content is schema-less per the spec.
     pub output: Option<serde_json::Value>,
     pub output_schema: Option<serde_json::Value>,
-    pub status: String,
+    pub status: McpToolExecutionStatus,
     pub error_message: Option<String>,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
@@ -89,7 +89,7 @@ pub struct ToolExecution {
     pub context_id: Option<ContextId>,
     pub ai_tool_call_id: Option<AiToolCallId>,
     pub user_id: UserId,
-    pub status: String,
+    pub status: McpToolExecutionStatus,
     pub input: String,
     pub output: Option<String>,
     pub error_message: Option<String>,

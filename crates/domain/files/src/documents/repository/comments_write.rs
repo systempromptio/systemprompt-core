@@ -32,9 +32,9 @@ impl DocumentCommentRepository {
              SET resolved_at = COALESCE(resolved_at, now()),
                  resolved_by = COALESCE(resolved_by, $3), updated_at = now()
              WHERE id = $1::text::uuid AND document_id = $2::text::uuid",
-            comment.as_str(),
-            document.as_str(),
-            by.as_str(),
+            comment as _,
+            document as _,
+            by as _,
         )
         .execute(&mut *conn)
         .await?;
@@ -53,9 +53,9 @@ impl DocumentCommentRepository {
                  reopened_at = now(), reopened_by = $3, updated_at = now()
              WHERE id = $1::text::uuid AND document_id = $2::text::uuid
                AND resolved_at IS NOT NULL",
-            comment.as_str(),
-            document.as_str(),
-            by.as_str(),
+            comment as _,
+            document as _,
+            by as _,
         )
         .execute(&mut *conn)
         .await?;
@@ -72,9 +72,9 @@ impl DocumentCommentRepository {
             "UPDATE document_comments
              SET answering_revision_id = $3::text::uuid, updated_at = now()
              WHERE id = $1::text::uuid AND document_id = $2::text::uuid",
-            comment.as_str(),
-            document.as_str(),
-            revision.as_str(),
+            comment as _,
+            document as _,
+            revision as _,
         )
         .execute(&mut *conn)
         .await?;
@@ -86,13 +86,12 @@ impl DocumentCommentRepository {
         document: &DocumentId,
         comments: &[DocumentCommentId],
     ) -> RepoResult<u64> {
-        let ids: Vec<String> = comments.iter().map(|id| id.as_str().to_owned()).collect();
         let result = sqlx::query!(
             "UPDATE document_comments
              SET anchor_find = NULL, anchor_nth = NULL, anchor_cells = NULL, updated_at = now()
              WHERE document_id = $1::text::uuid AND id = ANY($2::text[]::uuid[])",
-            document.as_str(),
-            &ids,
+            document as _,
+            comments as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -111,20 +110,16 @@ impl DocumentCommentRepository {
             body,
             mentions,
         } = edit;
-        let mentions: Vec<String> = mentions
-            .iter()
-            .map(|user| user.as_str().to_owned())
-            .collect();
         let result = sqlx::query!(
             "UPDATE document_comments
              SET body = $4, mentions = $5, edited_at = now(), updated_at = now()
              WHERE id = $1::text::uuid AND document_id = $2::text::uuid
                AND author_user_id = $3 AND deleted_at IS NULL",
-            comment.as_str(),
-            document.as_str(),
-            author.as_str(),
+            comment as _,
+            document as _,
+            author as _,
             body,
-            &mentions,
+            mentions as _,
         )
         .execute(&mut *conn)
         .await?;
@@ -140,8 +135,8 @@ impl DocumentCommentRepository {
             "UPDATE document_comments
              SET deleted_at = now(), updated_at = now()
              WHERE id = $1::text::uuid AND document_id = $2::text::uuid AND deleted_at IS NULL",
-            comment.as_str(),
-            document.as_str(),
+            comment as _,
+            document as _,
         )
         .execute(&*self.pools.write)
         .await?;

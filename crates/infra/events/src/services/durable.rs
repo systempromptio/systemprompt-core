@@ -10,13 +10,18 @@
 //! stored on the `fact` channel with a null payload, and the bridge skips it
 //! on the origin and on every replica, so only its durable consumer sees it.
 //!
+//! [`DurableOutbox::append_in_order_on`] names the aggregate a fact belongs
+//! to: its rows are numbered in the appending transaction and a claim hands
+//! out a row only when no earlier row of the same aggregate is pending or
+//! claimed. Rows without an aggregate keep `created_at, id` order.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, PgPool, Postgres, Transaction};
-use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
+use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, OutboxAggregateKey};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
 pub use super::durable_batch::DeliveryBatch;
@@ -137,6 +142,28 @@ impl DurableOutbox {
         event: SseEvent<'_>,
         fact: &ReportingFact<T>,
     ) -> Result<EventOutboxId, DurableEventError> {
+        self.insert(conn, actor, event, fact, None).await
+    }
+
+    pub async fn append_in_order_on<T: Serialize + Sync>(
+        &self,
+        conn: &mut PgConnection,
+        actor: &Actor,
+        event: SseEvent<'_>,
+        fact: &ReportingFact<T>,
+        aggregate: &OutboxAggregateKey,
+    ) -> Result<EventOutboxId, DurableEventError> {
+        self.insert(conn, actor, event, fact, Some(aggregate)).await
+    }
+
+    async fn insert<T: Serialize + Sync>(
+        &self,
+        conn: &mut PgConnection,
+        actor: &Actor,
+        event: SseEvent<'_>,
+        fact: &ReportingFact<T>,
+        aggregate: Option<&OutboxAggregateKey>,
+    ) -> Result<EventOutboxId, DurableEventError> {
         if fact.consumer.trim().is_empty() || fact.kind.trim().is_empty() || fact.version == 0 {
             return Err(DurableEventError::InvalidContract);
         }
@@ -152,6 +179,7 @@ impl DurableOutbox {
                 consumer: &fact.consumer,
                 payload,
                 fact: serde_json::to_value(fact)?,
+                aggregate,
             },
         )
         .await?;

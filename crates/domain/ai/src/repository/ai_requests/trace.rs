@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SessionId, UserId};
+use systemprompt_models::ai::StoredMessageRole;
 use systemprompt_traits::{
     AiProviderError, AiProviderResult, AiRequestTrace, RequestStatus, TraceMessage,
     TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
@@ -79,10 +80,10 @@ async fn sample_requests(
         "#,
         filter.since,
         filter.until,
-        filter.provider.as_ref().map(ProviderId::as_str),
-        filter.model.as_ref().map(ModelId::as_str),
+        filter.provider as _,
+        filter.model as _,
         ids.as_deref(),
-        filter.context_id.as_ref().map(ContextId::as_str),
+        filter.context_id as _,
         filter.limit,
         RequestStatus::Completed.as_str()
     )
@@ -133,10 +134,10 @@ async fn sample_conversations(
         "#,
         filter.since,
         filter.until,
-        filter.provider.as_ref().map(ProviderId::as_str),
-        filter.model.as_ref().map(ModelId::as_str),
+        filter.provider as _,
+        filter.model as _,
         ids.as_deref(),
-        filter.context_id.as_ref().map(ContextId::as_str),
+        filter.context_id as _,
         filter.limit,
         RequestStatus::Completed.as_str()
     )
@@ -151,23 +152,35 @@ async fn load_messages(
 ) -> AiProviderResult<(Vec<TraceMessage>, Option<String>)> {
     let rows = sqlx::query!(
         "SELECT role, content FROM ai_request_messages WHERE request_id = $1 ORDER BY sequence_number",
-        id.as_str()
+        id as _
     )
     .fetch_all(pool)
     .await
     .map_err(internal)?;
-    let mut messages: Vec<TraceMessage> = rows
+    let mut messages = rows
         .into_iter()
-        .map(|row| TraceMessage {
-            role: row.role,
-            content: row.content,
+        .map(|row| {
+            let role: StoredMessageRole = row
+                .role
+                .parse()
+                .map_err(|error| AiProviderError::Internal(Box::new(error)))?;
+            Ok((
+                role,
+                TraceMessage {
+                    role: row.role,
+                    content: row.content,
+                },
+            ))
         })
-        .collect();
+        .collect::<AiProviderResult<Vec<(StoredMessageRole, TraceMessage)>>>()?;
     let response_text = match messages.last() {
-        Some(last) if last.role == "assistant" => messages.pop().map(|m| m.content),
+        Some((StoredMessageRole::Assistant, _)) => messages.pop().map(|(_, m)| m.content),
         _ => None,
     };
-    Ok((messages, response_text))
+    Ok((
+        messages.into_iter().map(|(_, message)| message).collect(),
+        response_text,
+    ))
 }
 
 fn usage_from_row(row: UsageRow) -> AiProviderResult<TraceRequestUsage> {
@@ -235,7 +248,6 @@ impl AiRequestTrace for AiRequestRepository {
         if requests.is_empty() {
             return Ok(Vec::new());
         }
-        let ids: Vec<String> = requests.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query_as!(
             UsageRow,
             r#"
@@ -246,8 +258,8 @@ impl AiRequestTrace for AiRequestRepository {
             WHERE r.user_id = $1 AND r.id = ANY($2)
             ORDER BY r.created_at
             "#,
-            owner.as_str(),
-            &ids
+            owner as _,
+            requests as _
         )
         .fetch_all(self.write_pool())
         .await

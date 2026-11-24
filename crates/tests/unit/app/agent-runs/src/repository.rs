@@ -122,7 +122,10 @@ async fn concurrent_claimers_never_share_a_run() {
                 .await
                 .expect("claim")
             {
-                assert_eq!(claimed.row.status, "preparing");
+                assert_eq!(
+                    claimed.row.status,
+                    systemprompt_agent_runs::RunStatus::Preparing
+                );
                 assert_eq!(claimed.lease.claimed_by(), format!("claimer-{n}"));
                 got.push(claimed.row.id);
             }
@@ -189,7 +192,7 @@ async fn stale_reclaim_requeues_with_resume_then_fails() {
     );
 
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "queued");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Queued);
     assert_eq!(row.attempt, 2);
     assert!(row.claimed_by.is_none());
     let req: RunRequest = serde_json::from_value(row.request).expect("request");
@@ -203,8 +206,11 @@ async fn stale_reclaim_requeues_with_resume_then_fails() {
         .await
         .expect("reclaim");
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "failed");
-    assert_eq!(row.error_class.as_deref(), Some("host_crashed"));
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Failed);
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::HostCrashed)
+    );
     assert!(row.finished_at.is_some());
 }
 

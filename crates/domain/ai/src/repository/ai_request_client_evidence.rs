@@ -60,7 +60,7 @@ impl AiRequestClientEvidenceRepository {
             FROM ai_request_client_evidence
             WHERE ai_request_id = $1
             "#,
-            ai_request_id.as_str()
+            ai_request_id as _
         )
         .fetch_optional(self.pool.as_ref())
         .await?;
@@ -132,7 +132,7 @@ where
                 sdk_os = EXCLUDED.sdk_os,
                 sdk_arch = EXCLUDED.sdk_arch
             "#,
-        ai_request_id.as_str(),
+        ai_request_id as _,
         evidence.kind_source.as_str(),
         evidence.attested_host.map(ClientKind::as_str),
         evidence.declared_client.as_deref(),

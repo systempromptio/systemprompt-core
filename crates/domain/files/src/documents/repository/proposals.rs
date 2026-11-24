@@ -98,10 +98,10 @@ impl DocumentProposalRepository {
                          reviewed_at, note,
                          landed_revision_id::text AS "landed_revision_id: DocumentRevisionId",
                          created_at, updated_at"#,
-            request.document_id.as_str(),
-            request.base_revision_id.as_str(),
-            request.proposed_revision_id.as_str(),
-            request.proposer_user_id.as_str(),
+            request.document_id as _,
+            request.base_revision_id as _,
+            request.proposed_revision_id as _,
+            request.proposer_user_id as _,
             request.actor_kind.as_str(),
             request.origin.kind().as_str(),
             request.origin.id_str(),
@@ -126,7 +126,7 @@ impl DocumentProposalRepository {
                       landed_revision_id::text AS "landed_revision_id: DocumentRevisionId",
                       created_at, updated_at
                FROM document_proposals WHERE id = $1::text::uuid"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_optional(&*self.pools.read)
         .await?
@@ -157,7 +157,7 @@ impl DocumentProposalRepository {
                  AND ($2::text IS NULL OR status = $2)
                ORDER BY created_at DESC, id DESC
                LIMIT $3"#,
-            document.as_str(),
+            document as _,
             status.map(ProposalStatus::as_str),
             limit,
         )
@@ -189,7 +189,7 @@ impl DocumentProposalRepository {
                  AND (d.owner_user_id = $1 OR p.proposer_user_id = $1)
                ORDER BY p.created_at DESC, p.id DESC
                LIMIT $2"#,
-            user.as_str(),
+            user as _,
             limit,
         )
         .fetch_all(&*self.pools.read)
@@ -218,14 +218,12 @@ impl DocumentProposalRepository {
                          reviewed_at, note,
                          landed_revision_id::text AS "landed_revision_id: DocumentRevisionId",
                          created_at, updated_at"#,
-            id.as_str(),
+            id as _,
             review.status.as_str(),
-            review.reviewer_user_id.as_ref().map(UserId::as_str),
+            review.reviewer_user_id as _,
             review.note,
             review
-                .landed_revision_id
-                .as_ref()
-                .map(DocumentRevisionId::as_str),
+                .landed_revision_id as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?
@@ -256,10 +254,10 @@ impl DocumentProposalRepository {
                          reviewed_at, note,
                          landed_revision_id::text AS "landed_revision_id: DocumentRevisionId",
                          created_at, updated_at"#,
-            document.as_str(),
-            proposer.map(UserId::as_str),
+            document as _,
+            proposer as _,
             review.status.as_str(),
-            review.reviewer_user_id.as_ref().map(UserId::as_str),
+            review.reviewer_user_id as _,
             review.note,
         )
         .fetch_all(&*self.pools.write)
@@ -280,8 +278,8 @@ impl DocumentProposalRepository {
                  note = CASE WHEN $2::text IS NULL THEN NULL ELSE note END,
                  landed_revision_id = $2::text::uuid, updated_at = now()
              WHERE id = $1::text::uuid AND status = 'accepted'",
-            id.as_str(),
-            landed.map(DocumentRevisionId::as_str),
+            id as _,
+            landed as _,
         )
         .execute(&*self.pools.write)
         .await?;

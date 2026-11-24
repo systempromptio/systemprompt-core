@@ -64,12 +64,15 @@ mod agent_row_tests {
         let now = Utc::now();
         let row = AgentTaskRow {
             started_at: now,
-            status: Some("completed".to_string()),
+            status: Some(systemprompt_models::a2a::TaskState::Completed),
             execution_time_ms: Some(1500),
         };
 
         assert_eq!(row.started_at, now);
-        assert_eq!(row.status, Some("completed".to_string()));
+        assert_eq!(
+            row.status,
+            Some(systemprompt_models::a2a::TaskState::Completed)
+        );
         assert_eq!(row.execution_time_ms, Some(1500));
     }
 

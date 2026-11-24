@@ -41,10 +41,6 @@ impl FileRepository {
         let id_uuid = parse_file_uuid(&request.id)?;
         let now = Utc::now();
 
-        let user_id_str = request.user_id.as_ref().map(UserId::as_str);
-        let session_id_str = request.session_id.as_ref().map(SessionId::as_str);
-        let trace_id_str = request.trace_id.as_ref().map(TraceId::as_str);
-        let context_id_str = request.context_id.as_ref().map(ContextId::as_str);
 
         sqlx::query_as!(
             FileRow,
@@ -67,10 +63,10 @@ impl FileRepository {
             request.size_bytes,
             request.ai_content,
             sqlx::types::Json(&request.metadata) as _,
-            user_id_str,
-            session_id_str,
-            trace_id_str,
-            context_id_str,
+            request.user_id as _,
+            request.session_id as _,
+            request.trace_id as _,
+            request.context_id as _,
             now
         )
         .fetch_one(&*self.write_pool)
@@ -154,7 +150,6 @@ impl FileRepository {
         limit: i64,
         offset: i64,
     ) -> FilesResult<Vec<File>> {
-        let user_id_str = user_id.as_str();
         let result = sqlx::query_as!(
             FileRow,
             r#"
@@ -164,7 +159,7 @@ impl FileRepository {
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
             "#,
-            user_id_str,
+            user_id as _,
             limit,
             offset
         )

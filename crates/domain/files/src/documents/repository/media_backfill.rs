@@ -18,7 +18,7 @@ impl DocumentMediaRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT EXISTS (SELECT 1 FROM document_media_backfill
                               WHERE document_id = $1::text::uuid) AS "queued!""#,
-            document.as_str(),
+            document as _,
         )
         .fetch_one(&*self.pools.write)
         .await?)
@@ -43,7 +43,7 @@ impl DocumentMediaRepository {
                       (array_agg(author_user_id ORDER BY created_at, id))[1] AS "author!"
                FROM document_revisions WHERE document_id = $1::text::uuid
                GROUP BY content_sha256 ORDER BY MIN(created_at), content_sha256"#,
-            document.as_str(),
+            document as _,
         )
         .fetch_all(&*self.pools.write)
         .await?;
@@ -76,7 +76,7 @@ impl DocumentMediaRepository {
                FROM unnest($2::text[], $3::text[]) AS a(hash, admitted_by)
                JOIN document_blobs b ON b.content_sha256 = a.hash
              ON CONFLICT (document_id, content_sha256) DO NOTHING",
-            document.as_str(),
+            document as _,
             hashes,
             admitted_by,
         )
@@ -84,7 +84,7 @@ impl DocumentMediaRepository {
         .await?;
         sqlx::query!(
             "DELETE FROM document_media_backfill WHERE document_id = $1::text::uuid",
-            document.as_str(),
+            document as _,
         )
         .execute(&mut *tx)
         .await?;

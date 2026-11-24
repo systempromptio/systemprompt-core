@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS config_plane_state (
     declared_hash TEXT,
     drift_rows INTEGER NOT NULL DEFAULT 0 CHECK (drift_rows >= 0),
     outcome TEXT NOT NULL
-        CHECK (outcome IN ('in_sync', 'corrected', 'seeded', 'drift_reported', 'undeclared', 'failed')),
+        CHECK (outcome IN ('in_sync', 'corrected', 'seeded', 'drift_reported', 'undeclared', 'unavailable', 'failed')),
     last_error TEXT,
     reconciled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     corrected_at TIMESTAMPTZ,

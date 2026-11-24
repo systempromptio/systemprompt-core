@@ -37,7 +37,7 @@ async fn a_declared_user_is_upserted_by_email_and_released() -> Result<()> {
     let stored = row(&mut conn, &email).await?.expect("declared row");
     assert_eq!(stored.account_kind, "person");
     assert_eq!(stored.roles, roles);
-    assert_eq!(stored.status, "active");
+    assert_eq!(stored.status, systemprompt_users::UserStatus::Active);
     assert_eq!(
         UserRepository::find_id_by_email_on(&mut conn, &email).await?,
         Some(id.clone())

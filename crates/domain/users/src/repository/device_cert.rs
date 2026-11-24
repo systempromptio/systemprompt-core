@@ -29,8 +29,8 @@ impl UserRepository {
             VALUES ($1, $2, $3, $4)
             RETURNING id, user_id as "user_id: UserId", fingerprint, label, enrolled_at, revoked_at
             "#,
-            params.id.as_str(),
-            params.user_id.as_str(),
+            params.id as _,
+            params.user_id as _,
             params.fingerprint,
             params.label,
         )
@@ -69,7 +69,7 @@ impl UserRepository {
             WHERE user_id = $1
             ORDER BY enrolled_at DESC
             "#,
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(&*self.write_pool)
         .await?;
@@ -83,8 +83,8 @@ impl UserRepository {
             SET revoked_at = CURRENT_TIMESTAMP
             WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL
             "#,
-            id.as_str(),
-            user_id.as_str(),
+            id as _,
+            user_id as _,
         )
         .execute(&*self.write_pool)
         .await?;

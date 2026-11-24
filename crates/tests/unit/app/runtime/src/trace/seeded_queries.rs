@@ -309,7 +309,10 @@ async fn mcp_trace_queries_map_seeded_rows() {
     assert_eq!(executions.len(), 1);
     assert_eq!(executions[0].tool_name.as_str(), seed.tool_name);
     assert_eq!(executions[0].server_name, "srv");
-    assert_eq!(executions[0].status, "success");
+    assert_eq!(
+        executions[0].status,
+        systemprompt_models::mcp::McpToolExecutionStatus::Success
+    );
     assert_eq!(executions[0].execution_time_ms, Some(11));
 
     let linked = svc
@@ -365,7 +368,10 @@ async fn filtered_lists_surface_seeded_rows() {
         executions[0].server_name.as_ref().map(McpServerId::as_str),
         Some("srv")
     );
-    assert_eq!(executions[0].status, "success");
+    assert_eq!(
+        executions[0].status,
+        systemprompt_models::mcp::McpToolExecutionStatus::Success
+    );
     assert_eq!(executions[0].execution_time_ms, Some(21));
 
     let mismatched = ToolExecutionFilter::new(10)

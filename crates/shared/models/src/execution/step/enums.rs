@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::errors::ParseEnumError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(transparent))]
 pub struct StepId(pub String);
 
 impl StepId {
@@ -41,6 +43,8 @@ impl std::fmt::Display for StepId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "text", rename_all = "snake_case"))]
 #[serde(rename_all = "snake_case")]
 pub enum StepStatus {
     #[default]

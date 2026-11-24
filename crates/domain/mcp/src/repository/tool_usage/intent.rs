@@ -36,8 +36,8 @@ impl ToolUsageRepository {
                   SELECT 1 FROM mcp_tool_executions o WHERE o.ai_tool_call_id = $2
               )
             "#,
-            mcp_execution_id.as_str(),
-            ai_tool_call_id.as_str(),
+            mcp_execution_id as _,
+            ai_tool_call_id as _,
             Correlation::Inferred.as_str()
         )
         .execute(&*self.write_pool)
@@ -50,7 +50,7 @@ impl ToolUsageRepository {
         }
         let holder = sqlx::query_scalar!(
             r#"SELECT mcp_execution_id AS "mcp_execution_id!" FROM mcp_tool_executions WHERE ai_tool_call_id = $1"#,
-            ai_tool_call_id.as_str()
+            ai_tool_call_id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?;

@@ -20,12 +20,12 @@ impl UserRepository {
             UPDATE users
             SET email = $1, email_verified = false, updated_at = $2
             WHERE id = $3
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             email,
             Utc::now(),
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?
@@ -43,12 +43,12 @@ impl UserRepository {
             UPDATE users
             SET full_name = $1, updated_at = $2
             WHERE id = $3
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             full_name,
             Utc::now(),
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?
@@ -66,12 +66,12 @@ impl UserRepository {
             UPDATE users
             SET status = $1, updated_at = $2
             WHERE id = $3
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             status.as_str(),
             Utc::now(),
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?
@@ -88,12 +88,12 @@ impl UserRepository {
             UPDATE users
             SET email_verified = $1, updated_at = $2
             WHERE id = $3
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             verified,
             Utc::now(),
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?
@@ -111,12 +111,12 @@ impl UserRepository {
             UPDATE users
             SET display_name = $1, updated_at = $2
             WHERE id = $3
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             display_name,
             Utc::now(),
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?
@@ -138,7 +138,7 @@ impl UserRepository {
             UPDATE users
             SET email = $1, full_name = $2, display_name = $3, status = $4, updated_at = $5
             WHERE id = $6
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             params.email,
@@ -146,7 +146,7 @@ impl UserRepository {
             params.display_name,
             params.status.as_str(),
             Utc::now(),
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?
@@ -163,12 +163,12 @@ impl UserRepository {
             UPDATE users
             SET roles = $1, updated_at = $2
             WHERE id = $3
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
+            RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                       roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             roles,
             Utc::now(),
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?
@@ -188,7 +188,7 @@ impl UserRepository {
         if !Self::lock_unless_held(&mut tx, id).await? {
             return Err(UserError::NotFound(id.clone()));
         }
-        let sessions = sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", id.as_str())
+        let sessions = sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", id as _)
             .execute(&mut *tx)
             .await?;
         let mut removed = Self::purge_user_rows(&mut tx, id, plan).await?;
@@ -201,7 +201,7 @@ impl UserRepository {
                 absent: false,
             },
         );
-        let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id.as_str())
+        let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id as _)
             .execute(&mut *tx)
             .await?;
 
@@ -220,7 +220,7 @@ impl UserRepository {
     ) -> Result<bool> {
         let held = sqlx::query_scalar!(
             "SELECT legal_hold FROM users WHERE id = $1 FOR UPDATE",
-            id.as_str()
+            id as _
         )
         .fetch_optional(&mut **tx)
         .await?;

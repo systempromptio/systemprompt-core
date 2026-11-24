@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
     AgentName, ContextId, ExecutionStepId, SessionId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::{StepStatus, TaskState};
 
 #[derive(Debug, Clone)]
 pub struct TraceListFilter {
@@ -111,7 +112,7 @@ pub struct TaskInfo {
     pub task_id: TaskId,
     pub context_id: ContextId,
     pub agent_name: Option<AgentName>,
-    pub status: String,
+    pub status: TaskState,
     pub created_at: DateTime<Utc>,
     pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
@@ -124,7 +125,7 @@ pub struct ExecutionStep {
     pub step_id: ExecutionStepId,
     pub step_type: Option<String>,
     pub title: Option<String>,
-    pub status: String,
+    pub status: StepStatus,
     pub duration_ms: Option<i32>,
     pub error_message: Option<String>,
 }

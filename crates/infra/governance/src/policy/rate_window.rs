@@ -112,7 +112,7 @@ impl RateWindowRepository {
             SELECT COALESCE((SELECT position FROM existing), (SELECT hits FROM bumped))
                 AS "position!"
             "#,
-            charge.call_id.as_str(),
+            charge.call_id as _,
             charge.bucket_key(),
             window_secs,
         )
@@ -134,7 +134,7 @@ impl RateWindowRepository {
             FROM removed r
             WHERE w.bucket_key = $2 AND w.expires_at = r.expires_at
             "#,
-            charge.call_id.as_str(),
+            charge.call_id as _,
             charge.bucket_key(),
         )
         .execute(&self.pool)

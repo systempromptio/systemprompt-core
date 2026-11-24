@@ -99,6 +99,10 @@ impl ConfigPlane for GatewayPoliciesPlane {
         GATEWAY_POLICIES_FILE
     }
 
+    fn requires(&self) -> Vec<systemprompt_extension::StateRequirement> {
+        Vec::new()
+    }
+
     fn supports_scoped_apply(&self) -> bool {
         true
     }

@@ -157,7 +157,6 @@ impl RequestAnalyticsRepository {
         filter: &RequestListFilter,
     ) -> Result<Vec<RequestListRow>> {
         let pattern = filter.model.as_deref().map(|model| format!("%{model}%"));
-        let user = filter.user.as_ref().map(UserId::as_str);
         sqlx::query_as!(
             RequestListRow,
             r#"
@@ -171,7 +170,7 @@ impl RequestAnalyticsRepository {
                 latency_ms,
                 cache_hit,
                 created_at as "created_at!",
-                status as "status!",
+                status as "status!: systemprompt_traits::RequestStatus",
                 error_message,
                 user_id as "user_id!: UserId"
             FROM report_ai_requests
@@ -184,7 +183,7 @@ impl RequestAnalyticsRepository {
             start,
             end,
             pattern,
-            user,
+            filter.user as _,
             filter.limit,
             filter.offset
         )

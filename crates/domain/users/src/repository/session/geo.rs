@@ -30,11 +30,11 @@ impl SessionRepository {
             r#"
             SELECT session_id, ip_address as "ip_address!"
             FROM user_sessions
-            WHERE country IS NULL AND ip_address IS NOT NULL AND session_id > $1
+            WHERE country IS NULL AND ip_address IS NOT NULL AND session_id > COALESCE($1::text, '')
             ORDER BY session_id
             LIMIT $2
             "#,
-            after.map_or("", SessionId::as_str),
+            after as _,
             limit
         )
         .fetch_all(&*self.write_pool)
@@ -58,7 +58,7 @@ impl SessionRepository {
                 SET country = $2, region = $3, city = $4
                 WHERE session_id = $1 AND country IS NULL
                 "#,
-            session_id.as_str(),
+            session_id as _,
             country,
             region,
             city

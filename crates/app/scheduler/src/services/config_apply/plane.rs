@@ -36,6 +36,7 @@ impl ConfigApplyService {
         plane: &dyn ConfigPlane,
         options: &ApplyOptions<'_>,
     ) -> SchedulerResult<PlaneMerge> {
+        self.reconcile.require(plane)?;
         let set = self.reconcile.planes();
         let mut result = PlaneMerge {
             plane: plane.name().to_owned(),

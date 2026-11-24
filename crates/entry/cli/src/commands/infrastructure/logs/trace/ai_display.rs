@@ -9,6 +9,7 @@
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_logging::LogLevel;
 use systemprompt_models::artifacts::NoticeLine;
+use systemprompt_models::{StepStatus, TaskState};
 use systemprompt_runtime::{AiRequestInfo, ExecutionStep, TaskInfo};
 
 use crate::commands::infrastructure::logs::shared::level_notice;
@@ -53,7 +54,7 @@ pub(super) fn task_info(out: &mut Transcript, task_info: &TaskInfo) {
     out.section("TASK");
     out.info(task_info_table(task_info));
 
-    if task_info.status == "failed"
+    if task_info.status == TaskState::Failed
         && let Some(ref error) = task_info.error_message
         && !error.is_empty()
     {
@@ -85,7 +86,7 @@ pub(super) fn execution_steps(out: &mut Transcript, steps: &[ExecutionStep]) {
     out.info(execution_steps_table(steps));
 
     for step in steps {
-        if step.status == "failed"
+        if step.status == StepStatus::Failed
             && let Some(ref error) = step.error_message
             && !error.is_empty()
         {

@@ -19,7 +19,6 @@ pub(super) async fn mark_as_behavioral_bot(
     session_id: &SessionId,
     reason: BehavioralBotReason,
 ) -> Result<()> {
-    let id = session_id.as_str();
     sqlx::query!(
         r#"
         UPDATE user_sessions
@@ -30,7 +29,7 @@ pub(super) async fn mark_as_behavioral_bot(
         "#,
         reason.as_str(),
         reason.score(),
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -42,7 +41,6 @@ pub(super) async fn check_and_mark_behavioral_bot(
     session_id: &SessionId,
     request_count_threshold: i32,
 ) -> Result<bool> {
-    let id = session_id.as_str();
     let reason = BehavioralBotReason::RequestCountExceeded;
     let result = sqlx::query!(
         r#"
@@ -57,7 +55,7 @@ pub(super) async fn check_and_mark_behavioral_bot(
         "#,
         reason.as_str(),
         reason.score(),
-        id,
+        session_id as _,
         request_count_threshold
     )
     .fetch_optional(pool)
@@ -72,8 +70,6 @@ pub(super) async fn update_behavioral_detection(
     is_behavioral_bot: bool,
     reason: Option<&str>,
 ) -> Result<()> {
-    let id = session_id.as_str();
-
     sqlx::query!(
         r#"
         UPDATE user_sessions
@@ -86,7 +82,7 @@ pub(super) async fn update_behavioral_detection(
         score,
         is_behavioral_bot,
         reason,
-        id
+        session_id as _
     )
     .execute(pool)
     .await?;
@@ -131,7 +127,7 @@ pub(super) async fn mark_ghost_sessions_as_bots(pool: &PgPool) -> Result<u64> {
 // the sessions that did report time on page and this statement excludes them.
 pub(super) async fn mark_no_js_sessions_as_bots(
     pool: &PgPool,
-    engaged_session_ids: &[String],
+    engaged_session_ids: &[SessionId],
 ) -> Result<u64> {
     let reason = BehavioralBotReason::NoJavascript;
     let marked = sqlx::query_scalar!(
@@ -154,7 +150,7 @@ pub(super) async fn mark_no_js_sessions_as_bots(
         reason.as_str(),
         reason.score(),
         SessionSource::Web.as_str(),
-        engaged_session_ids
+        engaged_session_ids as _
     )
     .fetch_one(pool)
     .await?;

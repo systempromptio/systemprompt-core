@@ -55,8 +55,8 @@ impl DocumentTextIndexRepository {
                      SELECT 1 FROM documents d
                      WHERE d.id = EXCLUDED.document_id
                        AND d.head_revision_id = EXCLUDED.revision_id)",
-            document_id.as_str(),
-            revision_id.as_str(),
+            document_id as _,
+            revision_id as _,
             text,
         )
         .execute(&*self.pools.write)
@@ -99,7 +99,7 @@ impl DocumentTextIndexRepository {
                ORDER BY ts_rank(t.body, q) DESC, t.document_id
                LIMIT $5 OFFSET $6"#,
             query,
-            owner.as_str(),
+            owner as _,
             &subjects.kinds,
             &subjects.values,
             page.limit.max(1),

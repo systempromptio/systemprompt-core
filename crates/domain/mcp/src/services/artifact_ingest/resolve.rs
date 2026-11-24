@@ -234,7 +234,7 @@ fn new_execution(
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: McpToolExecutionStatus::from_error(error_message.is_some()).to_string(),
+        status: McpToolExecutionStatus::from_error(error_message.is_some()),
         error_message,
         started_at,
         completed_at: request.source.is_server_observed().then(Utc::now),

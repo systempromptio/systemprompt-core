@@ -111,7 +111,7 @@ impl WorkingSetRepository {
     ) -> Result<Vec<String>, RepositoryError> {
         Ok(sqlx::query_scalar!(
             "SELECT scope_key FROM brain_working_set WHERE fact_id = $1 ORDER BY scope_key",
-            id.as_str()
+            id as _
         )
         .fetch_all(executor)
         .await?)
@@ -123,7 +123,7 @@ impl WorkingSetRepository {
     ) -> Result<i64, RepositoryError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT count(*) AS "count!" FROM brain_working_set WHERE fact_id = $1"#,
-            id.as_str()
+            id as _
         )
         .fetch_one(executor)
         .await?)

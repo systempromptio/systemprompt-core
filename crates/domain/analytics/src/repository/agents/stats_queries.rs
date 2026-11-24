@@ -100,7 +100,7 @@ impl AgentAnalyticsRepository {
                 r#"
                 SELECT
                     started_at as "started_at!",
-                    status,
+                    status as "status: systemprompt_models::a2a::TaskState",
                     execution_time_ms
                 FROM report_agent_tasks
                 WHERE started_at >= $1 AND started_at < $2
@@ -120,7 +120,7 @@ impl AgentAnalyticsRepository {
                 r#"
                 SELECT
                     started_at as "started_at!",
-                    status,
+                    status as "status: systemprompt_models::a2a::TaskState",
                     execution_time_ms
                 FROM report_agent_tasks
                 WHERE started_at >= $1 AND started_at < $2

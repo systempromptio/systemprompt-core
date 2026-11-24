@@ -17,8 +17,7 @@ use axum::{Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_extension::router::ApiHttpError;
-use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
-use systemprompt_mcp::models::ToolExecution;
+use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName, UserId};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::modules::ApiPaths;
@@ -49,11 +48,10 @@ pub fn executions_router(repo: Arc<ToolUsageRepository>) -> Router {
         .with_state(ExecutionsState { repo })
 }
 
-fn caller_may_read(req_ctx: &RequestContext, execution: &ToolExecution) -> bool {
+fn reader_scope(req_ctx: &RequestContext) -> Option<&UserId> {
     match req_ctx.user_type() {
-        UserType::Admin => true,
-        UserType::Anon => false,
-        _ => execution.user_id == *req_ctx.user_id(),
+        UserType::Admin => None,
+        _ => Some(req_ctx.user_id()),
     }
 }
 
@@ -70,9 +68,16 @@ async fn handle_get_execution(
         Ok(id) => id,
         Err(error) => return ApiHttpError::from(ApiError::from(error)).into_response(),
     };
-    let execution = match state.repo.find_by_id(&execution_id).await {
-        Ok(Some(execution)) if caller_may_read(&req_ctx, &execution) => execution,
-        Ok(_) => return not_found(),
+    if req_ctx.user_type() == UserType::Anon {
+        return not_found();
+    }
+    let execution = match state
+        .repo
+        .find_visible(&execution_id, reader_scope(&req_ctx))
+        .await
+    {
+        Ok(Some(execution)) => execution,
+        Ok(None) => return not_found(),
         Err(e) => {
             tracing::error!(execution_id = %execution_id, error = %e, "Failed to get execution");
             return ApiHttpError::internal("Failed to get execution", e).into_response();
@@ -108,7 +113,7 @@ async fn handle_get_execution(
         server_name: execution.server_name,
         input,
         output,
-        status: execution.status,
+        status: execution.status.as_str().to_owned(),
     })
     .into_response()
 }

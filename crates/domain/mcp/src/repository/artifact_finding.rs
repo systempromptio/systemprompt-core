@@ -63,7 +63,7 @@ impl ArtifactFindingRepository {
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 "#,
-                artifact_id.as_str(),
+                artifact_id as _,
                 finding.phase,
                 finding.severity,
                 finding.category,
@@ -92,7 +92,7 @@ impl ArtifactFindingRepository {
             WHERE artifact_id = $1
             ORDER BY created_at
             "#,
-            artifact_id.as_str()
+            artifact_id as _
         )
         .fetch_all(&*self.pool)
         .await?)

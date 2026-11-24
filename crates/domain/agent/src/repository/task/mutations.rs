@@ -38,8 +38,6 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
     };
 
     let status = task.status.state.as_str();
-    let task_id_str = task.id.as_str();
-    let context_id_str = task.context_id.as_str();
     let user_id_str = user_id.as_ref();
     let session_id_str = session_id.as_ref();
     let trace_id_str = trace_id.as_ref();
@@ -49,15 +47,15 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
         SELECT $1, c.context_id, $3, $4, $5, $6, $7, $8, $9
         FROM user_contexts c
         WHERE c.context_id = $2 AND c.user_id = $5"#,
-        task_id_str,
-        context_id_str,
+        task.id as _,
+        task.context_id as _,
         status,
         task.status.timestamp,
         user_id_str,
         session_id_str,
         trace_id_str,
         metadata_json,
-        agent_name.as_str()
+        agent_name as _
     )
     .execute(pool.as_ref())
     .await?;
@@ -77,12 +75,11 @@ pub async fn track_agent_in_context(
     context_id: &systemprompt_identifiers::ContextId,
     agent_name: &AgentName,
 ) -> Result<(), RepositoryError> {
-    let context_id_str = context_id.as_str();
     sqlx::query!(
         r#"INSERT INTO context_agents (context_id, agent_name) VALUES ($1, $2)
         ON CONFLICT (context_id, agent_name) DO NOTHING"#,
-        context_id_str,
-        agent_name.as_str()
+        context_id as _,
+        agent_name as _
     )
     .execute(pool.as_ref())
     .await?;

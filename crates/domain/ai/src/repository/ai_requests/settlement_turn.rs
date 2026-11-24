@@ -26,7 +26,7 @@ pub(super) async fn turn_recorded(
             )
         ) AS "recorded!"
         "#,
-        request_id.as_str(),
+        request_id as _,
         completion.next_message_sequence,
     )
     .fetch_one(&mut **tx)
@@ -55,8 +55,8 @@ pub(super) async fn insert_turn(
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
-            request_id.as_str(),
-            tool.id.as_str(),
+            request_id as _,
+            tool.id as _,
             name.as_ref(),
             input.as_ref(),
             tokens(u32::try_from(index + 1).unwrap_or(u32::MAX))?,
@@ -74,7 +74,7 @@ pub(super) async fn insert_turn(
                 INSERT INTO ai_request_messages (request_id, role, content, sequence_number)
                 VALUES ($1, 'assistant', $2, $3)
                 "#,
-                request_id.as_str(),
+                request_id as _,
                 text.as_ref(),
                 sequence
             )

@@ -54,12 +54,12 @@ impl EngagementRepository {
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
             )
             "#,
-            id.as_str(),
-            session_id.as_str(),
-            user_id.as_str(),
+            id as _,
+            session_id as _,
+            user_id as _,
             input.page_url,
-            content_id.map(ContentId::as_str),
-            input.event_type.as_str(),
+            content_id as _,
+            input.event_type,
             input.time_on_page_ms,
             input.max_scroll_depth,
             input.click_count,
@@ -107,7 +107,7 @@ impl EngagementRepository {
             FROM engagement_events
             WHERE id = $1
             "#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -138,7 +138,7 @@ impl EngagementRepository {
             ORDER BY created_at DESC
             LIMIT $2
             "#,
-            user_id.as_str(),
+            user_id as _,
             limit
         )
         .fetch_all(&*self.pool)

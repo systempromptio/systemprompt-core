@@ -5,13 +5,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_mcp::services::client::McpConnectionResult;
+use systemprompt_mcp::services::client::{McpConnectionResult, McpHealthStatus};
 
 use super::types::{McpServerInfo, McpValidateOutput};
 
 #[derive(Debug)]
 pub struct FailureDetail {
-    pub health_status: &'static str,
+    pub health_status: McpHealthStatus,
     pub validation_type: &'static str,
     pub latency_ms: u32,
     pub issue: String,
@@ -22,7 +22,7 @@ pub fn failure_output(service_name: &ServiceName, detail: FailureDetail) -> McpV
     McpValidateOutput {
         server: service_name.clone(),
         valid: false,
-        health_status: detail.health_status.to_owned(),
+        health_status: detail.health_status,
         validation_type: detail.validation_type.to_owned(),
         tools_count: None,
         latency_ms: detail.latency_ms,
@@ -36,7 +36,7 @@ pub fn success_output(
     service_name: &ServiceName,
     validation_result: McpConnectionResult,
 ) -> McpValidateOutput {
-    let health_status = validation_result.health_status().to_owned();
+    let health_status = validation_result.health_status();
     let message = validation_result.status_description();
 
     let server_info = validation_result.server_info.map(|info| McpServerInfo {

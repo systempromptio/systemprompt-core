@@ -148,7 +148,7 @@ pub use documents::{
 };
 pub use email::Email;
 pub use engagement::{AnalyticsEventId, EngagementEventId};
-pub use events::EventOutboxId;
+pub use events::{EventOutboxId, OutboxAggregateKey};
 pub use execution::{ArtifactElementId, ArtifactId, ExecutionStepId, LogId, TokenId};
 pub use extension::ExtensionId;
 pub use gateway_boot::{

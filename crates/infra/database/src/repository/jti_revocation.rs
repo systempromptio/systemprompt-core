@@ -31,7 +31,7 @@ pub async fn jti_revoked(pool: &PgPool, jti: &AccessTokenId) -> Result<bool, sql
                  SELECT 1 FROM oauth_jti_revocations
                   WHERE jti = $1 AND exp > now()
                ) AS "exists!""#,
-        jti.as_str(),
+        jti as _,
     )
     .fetch_one(pool)
     .await

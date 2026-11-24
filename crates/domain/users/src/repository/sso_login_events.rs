@@ -71,7 +71,7 @@ impl SsoLoginEventRepository {
             event.issuer,
             event.outcome,
             event.reason,
-            event.user_id.map(UserId::as_str),
+            event.user_id as _,
             event.email,
             event.external_sub,
             event.ip.map(|ip| ip.to_string()),

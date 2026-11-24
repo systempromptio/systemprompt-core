@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "Data access"
+text = "A user route reads an agent run, an upload session, an issue report or a tool execution through the caller: `find_owned_run`, `DocumentUploadRepository::find_owned`, `IssueReportRepository::find_reported_by` and `ToolUsageRepository::find_visible` put the owner predicate in SQL, so another user's id answers exactly as an unknown one. `TaskRepository::list_tasks` pages by keyset (`created_at DESC, task_id DESC`) and returns a `KeysetPage`; A2A `ListTasks` page tokens are opaque keyset cursors, so a page read after new tasks were created neither repeats nor skips a row. `KeysetCursor` moves from `systemprompt_models::notifications` to `systemprompt_models::api` and is generic over its id type (default `Uuid`, today's notification wire form). The new `lint-owner-witness` gate refuses an id-only read named from a user-policy handler."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`KeysetCursor` and `KeysetCursorError` move to `api`; `KeysetCursor<K = Uuid>` is generic over its id and `KeysetCursorError::Id` carries the id parser's error boxed. `KeysetPage` is added."
+
+[[crate]]
+name = "systemprompt-identifiers"
+section = "Added"
+text = "Unvalidated (plain and `schema`) identifiers implement `FromStr` through their non-empty `try_new`."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`TaskRepository::list_tasks` takes an optional keyset cursor and returns `KeysetPage<Task, TaskId>`; `get_tasks_by_user_id` and `PageToken` are removed."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Added"
+text = "`AgentRunRepository::find_owned_run` reads a run through its owner."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Added"
+text = "`DocumentUploadRepository::find_owned` and `IssueReportRepository::find_reported_by` read through the caller."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Added"
+text = "`ToolUsageRepository::find_visible` reads an execution through its owner, or unscoped for an admin."

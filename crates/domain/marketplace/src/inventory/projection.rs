@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::catalog::invalid;
-use super::types::managed_identity;
+use super::types::{ManagedSourceKind, managed_identity};
 use super::{ConfiguredInventoryEntry, InventoryEntry, configured_identity};
 use crate::managed::Result;
 use std::collections::BTreeMap;
@@ -86,7 +86,7 @@ pub(super) fn merge_resource(
             entry_id: canonical.clone(),
             kind: resource.kind.clone(),
             resource_key: resource.resource_key.clone(),
-            origin: if resource.source_kind == "managed" {
+            origin: if resource.source_kind == ManagedSourceKind::Managed {
                 Origin::Managed
             } else {
                 Origin::Imported

@@ -70,8 +70,8 @@ impl UserProviderCredentialRepository {
                 last_used_at = NULL
             RETURNING credential, label, created_at, verified_at, last_used_at
             "#,
-            user_id.as_str(),
-            credential.as_str(),
+            user_id as _,
+            credential as _,
             sealed,
             nonce,
             label,
@@ -93,8 +93,8 @@ impl UserProviderCredentialRepository {
             WHERE user_id = $1 AND credential = $2
             RETURNING ciphertext
             "#,
-            user_id.as_str(),
-            credential.as_str(),
+            user_id as _,
+            credential as _,
         )
         .fetch_optional(&*self.write_pool)
         .await?;
@@ -127,7 +127,7 @@ impl UserProviderCredentialRepository {
             WHERE user_id = $1
             ORDER BY credential
             "#,
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(&*self.write_pool)
         .await?;
@@ -141,8 +141,8 @@ impl UserProviderCredentialRepository {
     ) -> Result<bool, RepositoryError> {
         let result = sqlx::query!(
             r#"DELETE FROM user_provider_credentials WHERE user_id = $1 AND credential = $2"#,
-            user_id.as_str(),
-            credential.as_str(),
+            user_id as _,
+            credential as _,
         )
         .execute(&*self.write_pool)
         .await?;

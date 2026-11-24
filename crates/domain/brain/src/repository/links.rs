@@ -104,7 +104,7 @@ impl FactLinkRepository {
         let rows = sqlx::query!(
             "SELECT subject_kind, subject_id, via_field FROM brain_fact_links
              WHERE fact_id = $1 ORDER BY via_field, subject_kind, subject_id",
-            id.as_str()
+            id as _
         )
         .fetch_all(executor)
         .await?;

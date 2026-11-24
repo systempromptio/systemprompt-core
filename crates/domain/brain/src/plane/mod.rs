@@ -85,6 +85,10 @@ impl ConfigPlane for BrainPlane {
         BRAIN_DIR
     }
 
+    fn requires(&self) -> Vec<systemprompt_extension::StateRequirement> {
+        Vec::new()
+    }
+
     fn load_declared(&self, services_root: &Path) -> ConfigPlaneResult<Option<DeclaredState>> {
         Ok(files::declared(services_root)?.map(|entities| {
             DeclaredState::from_entries(entities.into_iter().map(|(k, (v, _))| (k, v)).collect())

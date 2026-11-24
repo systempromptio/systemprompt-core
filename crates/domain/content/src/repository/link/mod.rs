@@ -68,13 +68,13 @@ impl LinkRepository {
                       click_count, unique_click_count, conversion_count,
                       is_active, expires_at, created_at, updated_at
             "#,
-            id.as_str(),
+            id as _,
             params.short_code,
             params.target_url,
             params.link_type,
-            params.source_content_id.as_ref().map(ContentId::as_str),
+            params.source_content_id as _,
             params.source_page,
-            params.campaign_id.as_ref().map(CampaignId::as_str),
+            params.campaign_id as _,
             params.campaign_name,
             params.utm_params,
             params.link_text,
@@ -127,7 +127,7 @@ impl LinkRepository {
             WHERE campaign_id = $1
             ORDER BY created_at DESC
             "#,
-            campaign_id.as_str()
+            campaign_id as _
         )
         .fetch_all(&*self.pool)
         .await
@@ -150,7 +150,7 @@ impl LinkRepository {
             WHERE source_content_id = $1
             ORDER BY created_at DESC
             "#,
-            content_id.as_str()
+            content_id as _
         )
         .fetch_all(&*self.pool)
         .await
@@ -169,7 +169,7 @@ impl LinkRepository {
             FROM campaign_links
             WHERE id = $1
             "#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(&*self.pool)
         .await
@@ -202,7 +202,7 @@ impl LinkRepository {
     }
 
     pub async fn delete_link(&self, id: &LinkId) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query!("DELETE FROM campaign_links WHERE id = $1", id.as_str())
+        let result = sqlx::query!("DELETE FROM campaign_links WHERE id = $1", id as _)
             .execute(&*self.write_pool)
             .await?;
         Ok(result.rows_affected() > 0)

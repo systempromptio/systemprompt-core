@@ -18,8 +18,7 @@
 use systemprompt_extension::capability_error_response;
 use systemprompt_extension::router::IntoApiError;
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_models::api::ApiError;
-use systemprompt_models::notifications::KeysetCursorError;
+use systemprompt_models::api::{ApiError, KeysetCursorError};
 use systemprompt_notifications::NotificationsError;
 use systemprompt_traits::RepositoryError;
 

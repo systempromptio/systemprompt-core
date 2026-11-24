@@ -59,7 +59,7 @@ impl DocumentRepository {
         let mut facts = AgentFacts::default();
         let row = sqlx::query!(
             r#"SELECT agent_cap, created_by_agent FROM documents WHERE id = $1::text::uuid"#,
-            document.as_str(),
+            document as _,
         )
         .fetch_optional(self.pools.authz())
         .await?;
@@ -75,12 +75,11 @@ impl DocumentRepository {
         if folders.is_empty() {
             return Ok(facts);
         }
-        let folder_ids: Vec<String> = folders.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT id::text AS "id!: DocumentFolderId", agent_cap AS "agent_cap!"
                FROM document_folders
                WHERE id = ANY($1::text[]::uuid[]) AND agent_cap IS NOT NULL"#,
-            &folder_ids,
+            folders as _,
         )
         .fetch_all(self.pools.authz())
         .await?;
@@ -100,8 +99,8 @@ impl DocumentRepository {
     ) -> RepoResult<()> {
         sqlx::query!(
             r#"UPDATE documents SET created_by_agent = $2 WHERE id = $1::text::uuid"#,
-            document.as_str(),
-            agent.as_str(),
+            document as _,
+            agent as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -116,7 +115,7 @@ impl DocumentRepository {
         let result = sqlx::query!(
             r#"UPDATE documents SET agent_cap = $2, updated_at = now()
                WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
-            document.as_str(),
+            document as _,
             cap.map(AgentCap::as_str),
         )
         .execute(&*self.pools.write)
@@ -132,7 +131,7 @@ impl DocumentRepository {
         let result = sqlx::query!(
             r#"UPDATE document_folders SET agent_cap = $2, updated_at = now()
                WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
-            folder.as_str(),
+            folder as _,
             cap.map(AgentCap::as_str),
         )
         .execute(&*self.pools.write)
@@ -152,14 +151,14 @@ impl DocumentRepository {
                DO UPDATE SET reads = document_agent_reads.reads + 1,
                              last_read_at = now(),
                              last_trace_id = EXCLUDED.trace_id"#,
-            record.document_id.as_str(),
-            record.user_id.as_str(),
-            record.agent.as_str(),
+            record.document_id as _,
+            record.user_id as _,
+            record.agent as _,
             record.attended,
             record.action,
             record.cap.as_str(),
             record.cap_source,
-            record.trace_id.as_str(),
+            record.trace_id as _,
         )
         .execute(&*self.pools.write)
         .await?;

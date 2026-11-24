@@ -9,6 +9,7 @@ use std::str::FromStr;
 /// A notification kind: `.`-separated segments of `[a-z0-9_]`, e.g.
 /// `document.comment.mentioned` or an extension kind `deal.stage_changed`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
 pub struct NotificationKind(String);
 
 /// A string that is not a valid [`NotificationKind`].

@@ -47,14 +47,14 @@ pub async fn persist_message_sqlx(
 
     sqlx::query!(
         "DELETE FROM message_parts WHERE message_id = $1",
-        message.message_id.as_str()
+        message.message_id as _
     )
     .execute(&mut **tx)
     .await?;
 
     sqlx::query!(
         "DELETE FROM task_messages WHERE message_id = $1",
-        message.message_id.as_str()
+        message.message_id as _
     )
     .execute(&mut **tx)
     .await?;
@@ -74,14 +74,14 @@ pub async fn persist_message_sqlx(
         r#"INSERT INTO task_messages (task_id, message_id, client_message_id, role, context_id,
         user_id, session_id, trace_id, sequence_number, metadata, reference_task_ids)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"#,
-        task_id.as_str(),
-        message.message_id.as_str(),
+        task_id as _,
+        message.message_id as _,
         client_message_id,
         role_to_str(&message.role),
-        context_id.as_str(),
-        user_id.map(UserId::as_str),
-        session_id.as_str(),
-        trace_id.as_str(),
+        context_id as _,
+        user_id as _,
+        session_id as _,
+        trace_id as _,
         sequence_number,
         metadata_json,
         reference_task_ids.as_deref()

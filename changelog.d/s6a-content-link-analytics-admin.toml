@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Content link analytics"
+text = "The link analytics routes (`GET /api/v1/content/links`, `/links/{link_id}/performance`, `/links/{link_id}/clicks`, `/links/campaigns/{campaign_id}/performance`, `/links/journey`) require an admin; they were public and returned click rows carrying user, session, IP address and user agent."

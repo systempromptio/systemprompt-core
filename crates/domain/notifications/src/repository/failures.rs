@@ -64,8 +64,8 @@ impl NotificationFailureRepository {
         sqlx::query!(
             "INSERT INTO notification_delivery_failures (outbox_id, recipient_user_id, stage, reason)
              VALUES ($1, $2, $3, $4)",
-            failure.outbox_id.map(EventOutboxId::as_str),
-            failure.recipient.map(UserId::as_str),
+            failure.outbox_id as _,
+            failure.recipient as _,
             stage,
             failure.reason,
         )
@@ -96,7 +96,7 @@ impl NotificationFailureRepository {
             "INSERT INTO notification_delivery_failures (outbox_id, recipient_user_id, stage, reason)
              SELECT $1, f.recipient, f.stage, f.reason
              FROM UNNEST($2::text[], $3::text[], $4::text[]) AS f(recipient, stage, reason)",
-            outbox_id.map(EventOutboxId::as_str),
+            outbox_id as _,
             &recipients as _,
             &stages,
             &reasons,
@@ -143,14 +143,13 @@ impl NotificationFailureRepository {
         executor: impl PgExecutor<'_>,
         ids: &[NotificationId],
     ) -> Result<HashMap<NotificationId, DeliveryHistory>, RepositoryError> {
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT notification_id::text AS "id!: NotificationId", stage,
                       COUNT(*) AS "count!"
                FROM notification_delivery_failures
                WHERE notification_id = ANY($1::text[]::uuid[]) AND stage LIKE 'deliver%'
                GROUP BY notification_id, stage"#,
-            &ids,
+            ids as _,
         )
         .fetch_all(executor)
         .await?;
@@ -182,7 +181,7 @@ impl NotificationFailureRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM notification_delivery_failures
                WHERE outbox_id = $1 AND stage = $2"#,
-            outbox_id.as_str(),
+            outbox_id as _,
             stage,
         )
         .fetch_one(executor)

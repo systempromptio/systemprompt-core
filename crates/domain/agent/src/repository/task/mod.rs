@@ -23,7 +23,7 @@ pub use constructor::TaskConstructor;
 pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
 pub(crate) use queries::find_task;
 use queries::list_tasks_by_context;
-pub use queries::{ListTasksFilter, get_tasks_by_user_id, list_tasks};
+pub use queries::{ListTasksFilter, list_tasks};
 pub(crate) use state::apply_notification_status;
 pub use state::transition_task_in_tx;
 use state::{update_task_failed_with_error, update_task_state};
@@ -34,7 +34,8 @@ use crate::repository::{OwnedContext, RuntimeTask, TaskHandle};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, SessionId, TaskId, TraceId, UserId};
+use systemprompt_models::api::{KeysetCursor, KeysetPage};
 use systemprompt_traits::{DynSessionUsageCounters, RepositoryError};
 
 #[derive(Debug)]
@@ -101,7 +102,7 @@ impl TaskRepository {
 
     pub(crate) async fn find_task(
         &self,
-        task_id: &systemprompt_identifiers::TaskId,
+        task_id: &TaskId,
     ) -> Result<Option<Task>, RepositoryError> {
         find_task(&self.constructor, task_id).await
     }
@@ -111,15 +112,6 @@ impl TaskRepository {
         owned: &OwnedContext,
     ) -> Result<Vec<Task>, RepositoryError> {
         list_tasks_by_context(&self.pool, &self.constructor, owned.context_id()).await
-    }
-
-    pub async fn get_tasks_by_user_id(
-        &self,
-        user_id: &UserId,
-        limit: Option<i32>,
-        offset: Option<i32>,
-    ) -> Result<Vec<Task>, RepositoryError> {
-        get_tasks_by_user_id(&self.pool, &self.constructor, user_id, limit, offset).await
     }
 
     pub async fn track_agent_in_context(
@@ -161,9 +153,9 @@ impl TaskRepository {
     pub async fn list_tasks(
         &self,
         filter: ListTasksFilter<'_>,
-        limit: i64,
-        offset: i64,
-    ) -> Result<Vec<Task>, RepositoryError> {
-        list_tasks(&self.pool, &self.constructor, filter, limit, offset).await
+        after: Option<&KeysetCursor<TaskId>>,
+        limit: usize,
+    ) -> Result<KeysetPage<Task, TaskId>, RepositoryError> {
+        list_tasks(&self.pool, &self.constructor, filter, after, limit).await
     }
 }

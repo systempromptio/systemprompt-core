@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS task_execution_steps (
     task_id TEXT NOT NULL,
     step_type TEXT NOT NULL,
     title TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'in_progress', 'completed', 'failed')),
     content JSONB NOT NULL DEFAULT '{}',
     started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ,

@@ -125,7 +125,7 @@ impl AiRequestPayloadRepository {
             LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.prepared_tools_sha256
             WHERE p.ai_request_id = $1
             "#,
-            ai_request_id.as_str()
+            ai_request_id as _
         )
         .fetch_optional(self.pool.as_ref())
         .await?;
@@ -169,7 +169,7 @@ where
                 request_body_sha256 = EXCLUDED.request_body_sha256,
                 updated_at = CURRENT_TIMESTAMP
             "#,
-        ai_request_id.as_str(),
+        ai_request_id as _,
         body.as_deref(),
         excerpt.as_deref(),
         params.truncated,
@@ -211,7 +211,7 @@ where
             SET offered_tools_sha256 = EXCLUDED.offered_tools_sha256,
                 updated_at = CURRENT_TIMESTAMP
             "#,
-        ai_request_id.as_str(),
+        ai_request_id as _,
         offered_tools.as_ref()
     )
     .execute(executor)
@@ -249,7 +249,7 @@ where
                 prepared_tools_sha256 = EXCLUDED.prepared_tools_sha256,
                 updated_at = CURRENT_TIMESTAMP
             "#,
-        ai_request_id.as_str(),
+        ai_request_id as _,
         sha256,
         tools.as_deref()
     )

@@ -100,7 +100,7 @@ impl DocumentCollabRepository {
             "SELECT next_seq FROM document_edit_sessions
              WHERE id = $1::text::uuid AND closed_at IS NULL
              FOR UPDATE",
-            session.as_str(),
+            session as _,
         )
         .fetch_optional(&mut *tx)
         .await?
@@ -110,7 +110,7 @@ impl DocumentCollabRepository {
         sqlx::query!(
             "UPDATE document_edit_sessions SET next_seq = next_seq + 1, updated_at = now()
              WHERE id = $1::text::uuid",
-            session.as_str(),
+            session as _,
         )
         .execute(&mut *tx)
         .await?;
@@ -120,10 +120,10 @@ impl DocumentCollabRepository {
                  (session_id, seq, payload, author_user_id, actor_kind, actor_name,
                   actor_attended, edit_level)
              VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8)",
-            session.as_str(),
+            session as _,
             seq,
             update,
-            author.user.as_str(),
+            author.user as _,
             columns.kind,
             columns.name,
             columns.attended,
@@ -146,7 +146,7 @@ impl DocumentCollabRepository {
                FROM document_collab_updates
                WHERE session_id = $1::text::uuid AND seq > $2
                ORDER BY seq"#,
-            session.as_str(),
+            session as _,
             after_seq,
         )
         .fetch_all(&*self.pools.write)
@@ -186,7 +186,7 @@ impl DocumentCollabRepository {
                  ON u.session_id = s.id AND u.seq > GREATEST($2, s.snapshot_seq)
                WHERE s.id = $1::text::uuid
                ORDER BY u.seq"#,
-            session.as_str(),
+            session as _,
             after_seq,
         )
         .fetch_all(&*self.pools.write)
@@ -226,7 +226,7 @@ impl DocumentCollabRepository {
             r#"SELECT snapshot_sha256 AS "hash!: ContentHash", snapshot_seq AS seq
                FROM document_edit_sessions
                WHERE id = $1::text::uuid AND snapshot_sha256 IS NOT NULL"#,
-            session.as_str(),
+            session as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?)
@@ -242,8 +242,8 @@ impl DocumentCollabRepository {
             "UPDATE document_edit_sessions
              SET snapshot_sha256 = $2, snapshot_vv = $3, updated_at = now()
              WHERE id = $1::text::uuid AND snapshot_sha256 IS NULL AND snapshot_seq = 0",
-            session.as_str(),
-            hash.as_str(),
+            session as _,
+            hash as _,
             version,
         )
         .execute(&*self.pools.write)
@@ -254,7 +254,7 @@ impl DocumentCollabRepository {
     pub async fn snapshot_seq(&self, session: &DocumentEditSessionId) -> RepoResult<Option<i64>> {
         Ok(sqlx::query_scalar!(
             "SELECT snapshot_seq FROM document_edit_sessions WHERE id = $1::text::uuid",
-            session.as_str(),
+            session as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?)

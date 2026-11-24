@@ -43,8 +43,8 @@ impl DocumentUploadRepository {
             "INSERT INTO document_upload_objects (storage_id, upload_id)
              VALUES ($1, $2::text::uuid)
              ON CONFLICT (storage_id) DO NOTHING",
-            object.as_str(),
-            upload.as_str(),
+            object as _,
+            upload as _,
         )
         .execute(&*self.write)
         .await?;
@@ -54,7 +54,7 @@ impl DocumentUploadRepository {
     pub async fn untrack_object(&self, object: &StoredFileId) -> RepoResult<()> {
         sqlx::query!(
             "DELETE FROM document_upload_objects WHERE storage_id = $1",
-            object.as_str(),
+            object as _,
         )
         .execute(&*self.write)
         .await?;

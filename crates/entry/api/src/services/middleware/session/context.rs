@@ -40,7 +40,8 @@ impl SessionMiddleware {
         let establish = async {
             if should_skip {
                 Ok((
-                    Self::anonymous_context(issuer, "untracked", trace_id.clone(), meta).await?,
+                    Self::anonymous_context(issuer, SessionId::untracked(), trace_id.clone(), meta)
+                        .await?,
                     None,
                 ))
             } else {
@@ -91,7 +92,7 @@ impl SessionMiddleware {
 
     async fn anonymous_context(
         issuer: &DynSessionIssuer,
-        session_prefix: &str,
+        session_id: SessionId,
         trace_id: systemprompt_identifiers::TraceId,
         meta: &RequestMeta<'_>,
     ) -> Result<RequestContext, ApiHttpError> {
@@ -100,7 +101,6 @@ impl SessionMiddleware {
             .await
             .map_err(|e| ApiHttpError::internal("Service temporarily unavailable", e))?;
 
-        let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
         Ok(RequestContext::new(
             session_id,
@@ -129,7 +129,7 @@ impl SessionMiddleware {
 
         if meta.analytics.skip_tracking {
             return Ok((
-                Self::anonymous_context(issuer, "bot", trace_id, meta).await?,
+                Self::anonymous_context(issuer, SessionId::bot(), trace_id, meta).await?,
                 None,
             ));
         }

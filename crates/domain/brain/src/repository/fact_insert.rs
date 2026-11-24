@@ -8,9 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgConnection;
-use systemprompt_identifiers::{
-    BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, FactKindId, UserId,
-};
+use systemprompt_identifiers::{BrainFactId, FactKindId};
 use systemprompt_models::brain::{FactCandidate, RevisionChange};
 use systemprompt_traits::RepositoryError;
 
@@ -67,8 +65,8 @@ impl FactRepository {
                        clock_timestamp(), clock_timestamp())
                ON CONFLICT (kind, identity_hash) DO NOTHING
                RETURNING id AS "id: BrainFactId""#,
-            fact.id.as_str(),
-            candidate.kind.as_str(),
+            fact.id as _,
+            candidate.kind as _,
             candidate.subject.kind,
             candidate.subject.id,
             fact.scope.level().as_str(),
@@ -77,9 +75,9 @@ impl FactRepository {
             fields,
             source,
             columns.kind,
-            columns.document_id.map(DocumentId::as_str),
-            columns.revision_id.map(DocumentRevisionId::as_str),
-            columns.comment_id.map(DocumentCommentId::as_str),
+            columns.document_id as _,
+            columns.revision_id as _,
+            columns.comment_id as _,
             &topics,
             fact.status.as_str(),
             fact.importance_base,
@@ -89,10 +87,8 @@ impl FactRepository {
             fact.retention_until,
             fact.identity_hash,
             fact.statement_hash,
-            fact.owner_user_id.as_ref().map(UserId::as_str),
-            fact.pipeline_version
-                .as_ref()
-                .map(systemprompt_identifiers::PipelineVersion::as_str),
+            fact.owner_user_id as _,
+            fact.pipeline_version as _,
             fact.observed_at,
         )
         .fetch_optional(&mut *conn)

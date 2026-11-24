@@ -32,8 +32,8 @@ pub(super) async fn persist_part_sqlx(
     sqlx::query!(
         r#"INSERT INTO message_parts (message_id, task_id, part_kind, sequence_number, text_content, file_name, file_mime_type, file_uri, file_bytes, data_content, metadata)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, '{}'::jsonb))"#,
-        message_id.as_str(),
-        task_id.as_str(),
+        message_id as _,
+        task_id as _,
         values.part_kind,
         sequence_number,
         values.text_content,

@@ -37,8 +37,8 @@ impl EventResultRepository {
              VALUES ($1, $2, $3)
              ON CONFLICT (outbox_id, pipeline_version) DO NOTHING
              RETURNING outbox_id",
-            outbox_id.as_str(),
-            pipeline_version.as_str(),
+            outbox_id as _,
+            pipeline_version as _,
             event_kind,
         )
         .fetch_optional(conn)
@@ -54,8 +54,8 @@ impl EventResultRepository {
             "UPDATE brain_event_results
              SET outcome = $3, filter = $4, facts_written = $5, finished_at = now()
              WHERE outbox_id = $1 AND pipeline_version = $2",
-            result.outbox_id.as_str(),
-            result.pipeline_version.as_str(),
+            result.outbox_id as _,
+            result.pipeline_version as _,
             result.outcome.as_str(),
             result.filter,
             saturating_i32(result.facts_written),
@@ -83,7 +83,7 @@ impl EventResultRepository {
                SELECT e.id, $1, e.kind FROM unnest($2::text[], $3::text[]) AS e(id, kind)
                ON CONFLICT (outbox_id, pipeline_version) DO NOTHING
                RETURNING outbox_id AS "outbox_id: EventOutboxId""#,
-            pipeline_version.as_str(),
+            pipeline_version as _,
             &ids,
             &kinds,
         )
@@ -116,7 +116,7 @@ impl EventResultRepository {
              FROM unnest($2::text[], $3::text[], $4::text[], $5::int4[])
                   AS x(id, outcome, filter, written)
              WHERE r.outbox_id = x.id AND r.pipeline_version = $1",
-            pipeline_version.as_str(),
+            pipeline_version as _,
             &ids,
             &outcomes,
             &filters,
@@ -132,12 +132,11 @@ impl EventResultRepository {
         pipeline_version: &PipelineVersion,
         ids: &[EventOutboxId],
     ) -> Result<u64, RepositoryError> {
-        let ids: Vec<String> = ids.iter().map(ToString::to_string).collect();
         let deleted = sqlx::query!(
             "DELETE FROM brain_event_results
              WHERE pipeline_version = $1 AND outbox_id = ANY($2::text[]) AND finished_at IS NULL",
-            pipeline_version.as_str(),
-            &ids,
+            pipeline_version as _,
+            ids as _,
         )
         .execute(conn)
         .await?;
@@ -152,8 +151,8 @@ impl EventResultRepository {
         Ok(sqlx::query_scalar!(
             "SELECT outcome FROM brain_event_results
              WHERE outbox_id = $1 AND pipeline_version = $2",
-            outbox_id.as_str(),
-            pipeline_version.as_str(),
+            outbox_id as _,
+            pipeline_version as _,
         )
         .fetch_optional(&*self.pools.read)
         .await?

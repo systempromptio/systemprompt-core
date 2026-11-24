@@ -16,7 +16,6 @@ use super::parse::{ParseStepParams, parse_step};
 
 impl ExecutionStepRepository {
     pub async fn create(&self, step: &ExecutionStep) -> Result<(), AgentError> {
-        let step_id_str = step.step_id.as_str();
         let task_id = &step.task_id;
         let status_str = step.status.to_string();
         let step_type_str = step.content.step_type().to_string();
@@ -27,8 +26,8 @@ impl ExecutionStepRepository {
             r#"INSERT INTO task_execution_steps (
                 step_id, task_id, step_type, title, status, content, started_at, completed_at, duration_ms, error_message
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
-            step_id_str,
-            task_id.as_str(),
+            step.step_id as _,
+            task_id as _,
             step_type_str,
             title,
             status_str,
@@ -53,7 +52,6 @@ impl ExecutionStepRepository {
     ) -> Result<(), AgentError> {
         let completed_at = Utc::now();
         let duration_ms = (completed_at - started_at).num_milliseconds() as i32;
-        let step_id_str = step_id.as_str();
         let status_str = StepStatus::Completed.to_string();
 
         if let Some(result) = tool_result {
@@ -64,7 +62,7 @@ impl ExecutionStepRepository {
                     duration_ms = $4,
                     content = jsonb_set(content, '{tool_result}', $5)
                 WHERE step_id = $1"#,
-                step_id_str,
+                step_id as _,
                 status_str,
                 completed_at,
                 duration_ms,
@@ -80,7 +78,7 @@ impl ExecutionStepRepository {
                     completed_at = $3,
                     duration_ms = $4
                 WHERE step_id = $1"#,
-                step_id_str,
+                step_id as _,
                 status_str,
                 completed_at,
                 duration_ms
@@ -101,7 +99,6 @@ impl ExecutionStepRepository {
     ) -> Result<(), AgentError> {
         let completed_at = Utc::now();
         let duration_ms = (completed_at - started_at).num_milliseconds() as i32;
-        let step_id_str = step_id.as_str();
         let status_str = StepStatus::Failed.to_string();
 
         sqlx::query!(
@@ -111,7 +108,7 @@ impl ExecutionStepRepository {
                 duration_ms = $4,
                 error_message = $5
             WHERE step_id = $1"#,
-            step_id_str,
+            step_id as _,
             status_str,
             completed_at,
             duration_ms,
@@ -132,7 +129,6 @@ impl ExecutionStepRepository {
         let completed_at = Utc::now();
         let in_progress_str = StepStatus::InProgress.to_string();
         let failed_str = StepStatus::Failed.to_string();
-        let task_id_str = task_id.as_str();
 
         let result = sqlx::query!(
             r#"UPDATE task_execution_steps SET
@@ -140,7 +136,7 @@ impl ExecutionStepRepository {
                 completed_at = $4,
                 error_message = $5
             WHERE task_id = $1 AND status = $2"#,
-            task_id_str,
+            task_id as _,
             in_progress_str,
             failed_str,
             completed_at,
@@ -162,7 +158,6 @@ impl ExecutionStepRepository {
     ) -> Result<ExecutionStep, AgentError> {
         let completed_at = Utc::now();
         let duration_ms = (completed_at - started_at).num_milliseconds() as i32;
-        let step_id_str = step_id.as_str();
         let status_str = StepStatus::Completed.to_string();
 
         let content = StepContent::planning(reasoning, planned_tools);
@@ -176,9 +171,9 @@ impl ExecutionStepRepository {
                 duration_ms = $4,
                 content = $5
             WHERE step_id = $1
-            RETURNING step_id, task_id as "task_id!: TaskId", status, content,
+            RETURNING step_id, task_id as "task_id!: TaskId", status as "status: StepStatus", content,
                     started_at as "started_at!", completed_at, duration_ms, error_message"#,
-            step_id_str,
+            step_id as _,
             status_str,
             completed_at,
             duration_ms,

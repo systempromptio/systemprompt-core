@@ -87,31 +87,36 @@ impl TaskRepository {
     }
 
     pub async fn delete_task(&self, owned: &OwnedTask) -> Result<(), RepositoryError> {
-        let task_id_str = owned.task_id().as_str();
         let mut tx = self.write_pool.begin().await?;
 
         sqlx::query!(
             "DELETE FROM message_parts WHERE message_id IN (SELECT message_id FROM task_messages \
              WHERE task_id = $1)",
-            task_id_str
+            owned.task_id() as _
         )
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query!("DELETE FROM task_messages WHERE task_id = $1", task_id_str)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query!(
+            "DELETE FROM task_messages WHERE task_id = $1",
+            owned.task_id() as _
+        )
+        .execute(&mut *tx)
+        .await?;
 
         sqlx::query!(
             "DELETE FROM task_execution_steps WHERE task_id = $1",
-            task_id_str
+            owned.task_id() as _
         )
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query!("DELETE FROM agent_tasks WHERE task_id = $1", task_id_str)
-            .execute(&mut *tx)
-            .await?;
+        sqlx::query!(
+            "DELETE FROM agent_tasks WHERE task_id = $1",
+            owned.task_id() as _
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await.map_err(RepositoryError::database)
     }
@@ -153,7 +158,7 @@ async fn update_task_metadata(
     let result = sqlx::query!(
         r#"UPDATE agent_tasks SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE task_id = $2"#,
         metadata_json,
-        task_id.as_str()
+        task_id as _
     )
     .execute(&mut **tx)
     .await?;

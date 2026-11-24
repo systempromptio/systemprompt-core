@@ -65,21 +65,26 @@ impl NotificationSink for OutboxNotificationSink {
             version: NOTIFICATION_EVENT_VERSION,
             data: event,
         };
-        self.outbox
-            .append_on(
-                conn,
-                &Actor::user(event.actor.clone()),
-                SseEvent::FactOnly,
-                &fact,
-            )
-            .await
-            .map_err(|error| match error {
-                DurableEventError::Database(e) => NotificationSinkError::Database(e),
-                DurableEventError::Serialization(e) => NotificationSinkError::Encode(e),
-                DurableEventError::InvalidContract => NotificationSinkError::Repository(
-                    RepositoryError::invalid_argument("fact", "outbox contract rejected the fact"),
-                ),
-            })?;
+        let actor = Actor::user(event.actor.clone());
+        let appended = match event.aggregate_key() {
+            Some(aggregate) => {
+                self.outbox
+                    .append_in_order_on(conn, &actor, SseEvent::FactOnly, &fact, &aggregate)
+                    .await
+            },
+            None => {
+                self.outbox
+                    .append_on(conn, &actor, SseEvent::FactOnly, &fact)
+                    .await
+            },
+        };
+        appended.map_err(|error| match error {
+            DurableEventError::Database(e) => NotificationSinkError::Database(e),
+            DurableEventError::Serialization(e) => NotificationSinkError::Encode(e),
+            DurableEventError::InvalidContract => NotificationSinkError::Repository(
+                RepositoryError::invalid_argument("fact", "outbox contract rejected the fact"),
+            ),
+        })?;
         Ok(())
     }
 }

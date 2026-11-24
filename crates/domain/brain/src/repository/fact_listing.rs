@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{BrainFactId, FactKindId};
+use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::BrainFact;
 use systemprompt_traits::RepositoryError;
 
@@ -41,15 +41,15 @@ impl FactRepository {
                      AND (f.valid_to IS NULL OR f.valid_to > $6)))
                  AND ($8::timestamptz IS NULL OR (f.updated_at, f.id) < ($8, $9::text))
                ORDER BY f.updated_at DESC, f.id DESC LIMIT $5"#,
-            filter.kind.as_ref().map(FactKindId::as_str),
-            filter.subject.as_ref().map(|s| s.kind.as_str()),
-            filter.subject.as_ref().map(|s| s.id.as_str()),
+            filter.kind as _,
+            filter.subject.as_ref().map(|s| &s.kind),
+            filter.subject.as_ref().map(|s| &s.id),
             &statuses,
             filter.limit,
             filter.as_of,
             keys,
             after.map(|c| c.updated_at),
-            after.map(|c| c.id.as_str()),
+            after.map(|c| &c.id) as _,
         )
         .fetch_all(&mut *conn)
         .await?;

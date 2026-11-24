@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, origin_instance_id, consumer, fact, deliver_to_origin, aggregate_key, aggregate_seq) SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10::text, CASE WHEN $10::text = '' THEN 0 ELSE COALESCE( (SELECT max(e.aggregate_seq) FROM event_outbox e WHERE e.consumer = $8 AND e.aggregate_key = $10::text), 0) + 1 END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8f6d9af934464e658c59a151877079d5cc6338d7921409d83b40ddfdfb5c10f5"
+}

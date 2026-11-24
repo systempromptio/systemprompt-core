@@ -3,17 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::ai::{AiRequest, AiResponse, MessageRole};
+use crate::models::ai::{AiRequest, AiResponse};
 use crate::models::{
     AiRequestRecord, AiRequestRecordBuilder, ArgsCheck, RequestKind, RequestOrigin, RequestStatus,
 };
 use crate::services::tools::ToolArgsValidator;
 use systemprompt_identifiers::{ActorKind, AiToolCallId, McpToolName};
 use systemprompt_models::RequestContext;
+use systemprompt_models::ai::StoredMessageRole;
 use systemprompt_wire::canonical::CanonicalUsage;
 
 pub(super) struct MessageData {
-    pub role: String,
+    pub role: StoredMessageRole,
     pub content: String,
     pub sequence: i32,
 }
@@ -133,10 +134,8 @@ pub(super) fn extract_messages(
     let mut sequence = 0;
 
     for message in &request.messages {
-        let role = message_role_to_str(message.role);
-
         messages.push(MessageData {
-            role: role.to_owned(),
+            role: StoredMessageRole::from(message.role),
             content: message.content.clone(),
             sequence,
         });
@@ -145,21 +144,13 @@ pub(super) fn extract_messages(
 
     if status == RequestStatus::Completed && !response.content.is_empty() {
         messages.push(MessageData {
-            role: message_role_to_str(MessageRole::Assistant).to_owned(),
+            role: StoredMessageRole::Assistant,
             content: response.content.clone(),
             sequence,
         });
     }
 
     messages
-}
-
-const fn message_role_to_str(role: MessageRole) -> &'static str {
-    match role {
-        MessageRole::System => "system",
-        MessageRole::User => "user",
-        MessageRole::Assistant => "assistant",
-    }
 }
 
 pub(super) fn extract_tool_calls(

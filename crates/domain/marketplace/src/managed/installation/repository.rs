@@ -16,7 +16,7 @@ impl ManagedRepository {
         owner: &UserId,
     ) -> Result<Vec<DistributionStatus>> {
         Ok(sqlx::query_as!(DistributionStatus, r#"SELECT id AS "id: DistributionId",publication_id AS "publication_id: PublicationId",generation,status AS "status: DistributionState",claimed_at,delivered_at,error FROM managed_distribution_deliveries WHERE owner_id=$1 ORDER BY claimed_at DESC LIMIT 100"#,
-            owner.as_str()).fetch_all(&self.pool).await?)
+            owner as _).fetch_all(&self.pool).await?)
     }
 
     pub async fn list_installation_receipts(
@@ -25,7 +25,7 @@ impl ManagedRepository {
         resource: Option<&ManagedResourceId>,
     ) -> Result<Vec<InstallationReceipt>> {
         let rows = sqlx::query!("SELECT id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence,consumer_id,device_id,host,consumer_evidence,fully_verified,verified_at FROM managed_installation_receipts WHERE owner_id=$1 AND ($2::TEXT IS NULL OR resource_id=$2) ORDER BY verified_at DESC LIMIT 100",
-            owner.as_str(), resource.map(ManagedResourceId::as_str)).fetch_all(&self.pool).await?;
+            owner as _, resource as _).fetch_all(&self.pool).await?;
         rows.into_iter()
             .map(|row| {
                 let receipt_id = InstallationReceiptId::new(row.id);
@@ -77,11 +77,11 @@ impl ManagedRepository {
         }
         let mut tx = self.pool.begin().await?;
         if let Some(row) = sqlx::query!("SELECT d.id,d.outbox_id,d.publication_id,d.generation,o.payload,d.claim_token FROM managed_distribution_deliveries d JOIN managed_distribution_outbox o ON o.id=d.outbox_id WHERE d.owner_id=$1 AND d.claim_token=$2",
-            owner.as_str(), claim_token).fetch_optional(&mut *tx).await? {
+            owner as _, claim_token).fetch_optional(&mut *tx).await? {
             let claim = DistributionClaim { id: DistributionId::new(row.id), outbox_id: EventOutboxId::new(row.outbox_id), publication_id: PublicationId::new(row.publication_id), generation: row.generation, payload: serde_json::from_value(row.payload)?, claim_token: row.claim_token }; tx.commit().await?; return Ok(Some(claim));
         }
         let row = sqlx::query!("SELECT id,publication_id,generation,payload FROM managed_distribution_outbox WHERE owner_id=$1 AND delivered_at IS NULL ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
-            owner.as_str()).fetch_optional(&mut *tx).await?;
+            owner as _).fetch_optional(&mut *tx).await?;
         let Some(row) = row else {
             tx.commit().await?;
             return Ok(None);
@@ -91,7 +91,7 @@ impl ManagedRepository {
         let publication_id = row.publication_id;
         let generation = row.generation;
         sqlx::query!("INSERT INTO managed_distribution_deliveries(id,owner_id,outbox_id,publication_id,generation,status,claim_token) VALUES($1,$2,$3,$4,$5,'claimed',$6)",
-            id.as_str(), owner.as_str(), &outbox_id, &publication_id, generation, claim_token).execute(&mut *tx).await?;
+            id as _, owner as _, &outbox_id, &publication_id, generation, claim_token).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(Some(DistributionClaim {
             id,
@@ -117,7 +117,7 @@ impl ManagedRepository {
             DistributionState::Failed
         };
         let existing = sqlx::query!(r#"SELECT status AS "status: DistributionState",error,outbox_id,publication_id,generation FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE"#,
-            claim.id.as_str(), owner.as_str(), &claim.claim_token).fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict { reason: "Distribution claim is stale or unavailable" })?;
+            claim.id as _, owner as _, &claim.claim_token).fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict { reason: "Distribution claim is stale or unavailable" })?;
         if existing.outbox_id != claim.outbox_id.as_str()
             || existing.publication_id != claim.publication_id.as_str()
             || existing.generation != claim.generation
@@ -131,7 +131,7 @@ impl ManagedRepository {
             return Ok(());
         }
         let changed = sqlx::query!("UPDATE managed_distribution_deliveries SET status=$4,delivered_at=CASE WHEN $5 THEN NOW() ELSE NULL END,error=$6 WHERE id=$1 AND owner_id=$2 AND claim_token=$3 AND status IN ('claimed','failed')",
-            claim.id.as_str(), owner.as_str(), &claim.claim_token, status.as_str(), delivered, error).execute(&mut *tx).await?;
+            claim.id as _, owner as _, &claim.claim_token, status as _, delivered, error).execute(&mut *tx).await?;
         if changed.rows_affected() != 1 {
             return Err(ManagedError::Conflict {
                 reason: "Distribution claim is stale or already completed",
@@ -139,7 +139,7 @@ impl ManagedRepository {
         }
         if delivered {
             sqlx::query!("UPDATE managed_distribution_outbox SET delivered_at=NOW() WHERE id=$1 AND owner_id=$2 AND delivered_at IS NULL",
-                claim.outbox_id.as_str(), owner.as_str()).execute(&mut *tx).await?;
+                claim.outbox_id as _, owner as _).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         Ok(())
@@ -172,7 +172,7 @@ impl ManagedRepository {
             )
             .await?;
         let publication = sqlx::query_scalar!("SELECT p.id FROM managed_publications p JOIN managed_distribution_outbox o ON o.publication_id=p.id AND o.owner_id=p.owner_id JOIN managed_distribution_deliveries d ON d.outbox_id=o.id AND d.owner_id=p.owner_id AND d.status='distributed' WHERE p.owner_id=$1 AND p.resource_id=$2 AND p.generation=$3",
-            owner.as_str(), request.resource_id.as_str(), request.generation).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
+            owner as _, request.resource_id as _, request.generation).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
         if publication != request.publication_id.as_str() {
             return Err(ManagedError::Integrity);
         }
@@ -200,9 +200,9 @@ impl ManagedRepository {
         }
         let id = InstallationReceiptId::generate();
         sqlx::query!("INSERT INTO managed_installation_receipts(id,owner_id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_id,installation_id,resource_id,generation) DO NOTHING",
-            id.as_str(), owner.as_str(), request.installation_id.as_str(), request.publication_id.as_str(), request.resource_id.as_str(), request.generation, request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &client_evidence).execute(&self.pool).await?;
+            id as _, owner as _, request.installation_id as _, request.publication_id as _, request.resource_id as _, request.generation, request.bundle_digest as _, serde_json::to_value(&request.files)?, &client_evidence).execute(&self.pool).await?;
         let row = sqlx::query!("SELECT id,verified_at FROM managed_installation_receipts WHERE owner_id=$1 AND installation_id=$2 AND resource_id=$3 AND generation=$4 AND publication_id=$5 AND bundle_digest=$6 AND installed_manifest=$7 AND client_evidence=$8",
-            owner.as_str(), request.installation_id.as_str(), request.resource_id.as_str(), request.generation, request.publication_id.as_str(), request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &client_evidence).fetch_optional(&self.pool).await?.ok_or_else(|| ManagedError::Conflict { reason: "Installation receipt conflicts with existing immutable evidence" })?;
+            owner as _, request.installation_id as _, request.resource_id as _, request.generation, request.publication_id as _, request.bundle_digest as _, serde_json::to_value(&request.files)?, &client_evidence).fetch_optional(&self.pool).await?.ok_or_else(|| ManagedError::Conflict { reason: "Installation receipt conflicts with existing immutable evidence" })?;
         Ok(InstallationReceipt {
             id: InstallationReceiptId::new(row.id),
             installation_id: request.installation_id.clone(),

@@ -90,7 +90,7 @@ fn summary(row: BridgeSessionRow, window: &BridgeVersionWindow) -> BridgeSession
         hostname: row.hostname,
         bridge_version: row.bridge_version,
         release_version: row.release_version,
-        state: row.state,
+        state: row.state.map(|state| state.as_str().to_owned()),
         window_status,
         os: row.os,
         last_heartbeat_at: row.last_heartbeat_at.to_rfc3339(),

@@ -21,7 +21,7 @@ impl ManagedRepository {
         let mut tx = self.pool.begin().await?;
         let record = sqlx::query!(
             "SELECT consumer_id AS \"user_id!\" FROM public.active_device_identity($1)",
-            cert.as_str()
+            cert as _
         )
         .fetch_optional(&mut *tx)
         .await?
@@ -32,7 +32,7 @@ impl ManagedRepository {
             InstallationReceiptId::generate()
         );
         let digest = ContentDigest::of(credential.as_bytes());
-        sqlx::query!("INSERT INTO managed_consumer_credentials(device_id,credential_digest) VALUES($1,$2) ON CONFLICT(device_id) DO UPDATE SET credential_digest=EXCLUDED.credential_digest,revoked_at=NULL,created_at=now()", cert.as_str(), digest.as_str())
+        sqlx::query!("INSERT INTO managed_consumer_credentials(device_id,credential_digest) VALUES($1,$2) ON CONFLICT(device_id) DO UPDATE SET credential_digest=EXCLUDED.credential_digest,revoked_at=NULL,created_at=now()", cert as _, digest as _)
             .execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(IssuedConsumerCredential {
@@ -43,7 +43,7 @@ impl ManagedRepository {
     }
 
     pub async fn revoke_consumer_credential(&self, cert: &DeviceCertId) -> Result<()> {
-        sqlx::query!("UPDATE managed_consumer_credentials SET revoked_at=COALESCE(revoked_at,now()) WHERE device_id=$1", cert.as_str())
+        sqlx::query!("UPDATE managed_consumer_credentials SET revoked_at=COALESCE(revoked_at,now()) WHERE device_id=$1", cert as _)
             .execute(&self.pool).await?;
         Ok(())
     }
@@ -56,7 +56,7 @@ impl ManagedRepository {
         enabled: bool,
     ) -> Result<()> {
         let revoked_at: Option<DateTime<Utc>> = if enabled { None } else { Some(Utc::now()) };
-        sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id,revoked_at) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,resource_id,consumer_id) DO UPDATE SET revoked_at=EXCLUDED.revoked_at", owner.as_str(), resource.as_str(), consumer.as_str(), revoked_at)
+        sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id,revoked_at) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,resource_id,consumer_id) DO UPDATE SET revoked_at=EXCLUDED.revoked_at", owner as _, resource as _, consumer as _, revoked_at)
             .execute(&self.pool).await?;
         Ok(())
     }
@@ -80,7 +80,7 @@ pub(in crate::managed::consumer) async fn authenticate(
         return Err(ManagedError::Unavailable);
     }
     let digest = ContentDigest::of(token.as_bytes());
-    let row = sqlx::query!("SELECT c.device_id,d.consumer_id AS \"user_id!\" FROM managed_consumer_credentials c CROSS JOIN LATERAL public.active_device_identity(c.device_id) d WHERE c.credential_digest=$1 AND c.revoked_at IS NULL FOR SHARE OF c", digest.as_str())
+    let row = sqlx::query!("SELECT c.device_id,d.consumer_id AS \"user_id!\" FROM managed_consumer_credentials c CROSS JOIN LATERAL public.active_device_identity(c.device_id) d WHERE c.credential_digest=$1 AND c.revoked_at IS NULL FOR SHARE OF c", digest as _)
         .fetch_optional(&mut **tx).await?.ok_or(ManagedError::Unavailable)?;
     Ok(AuthenticatedConsumerDevice {
         consumer_id: UserId::new(row.user_id),
@@ -94,7 +94,7 @@ pub(in crate::managed::consumer) async fn require_grant(
     resource: &systemprompt_identifiers::ManagedResourceId,
     consumer: &UserId,
 ) -> Result<()> {
-    sqlx::query!("SELECT consumer_id FROM managed_consumer_grants WHERE owner_id=$1 AND resource_id=$2 AND consumer_id=$3 AND revoked_at IS NULL FOR SHARE", owner.as_str(), resource.as_str(), consumer.as_str())
+    sqlx::query!("SELECT consumer_id FROM managed_consumer_grants WHERE owner_id=$1 AND resource_id=$2 AND consumer_id=$3 AND revoked_at IS NULL FOR SHARE", owner as _, resource as _, consumer as _)
         .fetch_optional(&mut **tx).await?.ok_or(ManagedError::Unavailable)?;
     Ok(())
 }
@@ -106,7 +106,7 @@ impl ManagedRepository {
         resource: &systemprompt_identifiers::ManagedResourceId,
         consumer: &UserId,
     ) -> Result<()> {
-        sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", owner.as_str(), resource.as_str(), consumer.as_str()).execute(&self.pool).await?;
+        sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", owner as _, resource as _, consumer as _).execute(&self.pool).await?;
         Ok(())
     }
 
@@ -119,8 +119,7 @@ impl ManagedRepository {
         if resources.is_empty() {
             return Ok(());
         }
-        let resources: Vec<String> = resources.iter().map(|id| id.as_str().to_owned()).collect();
-        sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id) SELECT $1, resource, $3 FROM UNNEST($2::text[]) AS resource ON CONFLICT DO NOTHING", owner.as_str(), &resources, consumer.as_str()).execute(&self.pool).await?;
+        sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id) SELECT $1, resource, $3 FROM UNNEST($2::text[]) AS resource ON CONFLICT DO NOTHING", owner as _, resources as _, consumer as _).execute(&self.pool).await?;
         Ok(())
     }
 }
@@ -132,7 +131,7 @@ impl ManagedRepository {
     ) -> Result<UserId> {
         let owner = sqlx::query_scalar!(
             "SELECT owner_id FROM managed_resources WHERE id=$1",
-            resource.as_str()
+            resource as _
         )
         .fetch_optional(&self.pool)
         .await?
@@ -148,6 +147,6 @@ impl ManagedRepository {
         consumer: &UserId,
         key: &str,
     ) -> Result<bool> {
-        Ok(sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_consumer_grants g JOIN managed_resources r ON r.id=g.resource_id AND r.owner_id=g.owner_id WHERE g.owner_id=$1 AND g.consumer_id=$2 AND r.kind='skill' AND r.resource_key=$3 AND g.revoked_at IS NULL) AS \"granted!\"", owner.as_str(), consumer.as_str(), key).fetch_one(&self.pool).await?)
+        Ok(sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_consumer_grants g JOIN managed_resources r ON r.id=g.resource_id AND r.owner_id=g.owner_id WHERE g.owner_id=$1 AND g.consumer_id=$2 AND r.kind='skill' AND r.resource_key=$3 AND g.revoked_at IS NULL) AS \"granted!\"", owner as _, consumer as _, key).fetch_one(&self.pool).await?)
     }
 }

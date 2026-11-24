@@ -107,16 +107,16 @@ impl AgentRunRepository {
                  task_id, context_id)
             VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, $10)
             "#,
-            run.id.as_str(),
+            run.id as _,
             run.origin_kind,
             run.origin_id,
-            run.user_id.as_str(),
+            run.user_id as _,
             run.request.host.as_str(),
             request,
             i32::try_from(run.request.attempt).unwrap_or(i32::MAX),
             run.not_before,
-            run.task_id.map(TaskId::as_str),
-            run.context_id.map(ContextId::as_str),
+            run.task_id as _,
+            run.context_id as _,
         )
         .execute(&mut **tx)
         .await?;
@@ -135,10 +135,10 @@ impl AgentRunRepository {
             WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $5
               AND status IN ('preparing', 'running')
             "#,
-            id.as_str(),
+            id as _,
             lease.claimed_by(),
             lease.attempt(),
-            digest.as_str(),
+            digest as _,
             lease.claimed_at(),
         )
         .execute(&*self.write_pool)
@@ -163,13 +163,13 @@ impl AgentRunRepository {
               AND status IN ('preparing', 'running')
             RETURNING task_id AS "task_id: TaskId"
             "#,
-            id.as_str(),
+            id as _,
             lease.claimed_by(),
             lease.attempt(),
             run_dir.as_ref(),
             started.pid,
-            started.gateway_session_id.map(SessionId::as_str),
-            started.api_key_id.map(ApiKeyId::as_str),
+            started.gateway_session_id as _,
+            started.api_key_id as _,
             lease.claimed_at(),
         )
         .fetch_optional(&mut *tx)
@@ -196,10 +196,10 @@ impl AgentRunRepository {
             WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $5
               AND status IN ('preparing', 'running')
             "#,
-            id.as_str(),
+            id as _,
             lease.claimed_by(),
             lease.attempt(),
-            host_session_id.as_str(),
+            host_session_id as _,
             lease.claimed_at(),
         )
         .execute(self.write_pool.as_ref())
@@ -213,7 +213,7 @@ impl AgentRunRepository {
             UPDATE agent_runs SET cancel_requested_at = COALESCE(cancel_requested_at, NOW())
             WHERE id = $1
             "#,
-            id.as_str(),
+            id as _,
         )
         .execute(self.write_pool.as_ref())
         .await?;
@@ -223,7 +223,7 @@ impl AgentRunRepository {
     pub async fn find_cancel_requested(&self, id: &AgentRunId) -> AgentRunsResult<bool> {
         let requested = sqlx::query_scalar!(
             r#"SELECT cancel_requested_at IS NOT NULL AS "requested!" FROM agent_runs WHERE id = $1"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_optional(self.write_pool.as_ref())
         .await?;
@@ -251,7 +251,7 @@ impl AgentRunRepository {
               AND status IN ('preparing', 'running')
             RETURNING task_id AS "task_id: TaskId"
             "#,
-            id.as_str(),
+            id as _,
             lease.claimed_by(),
             lease.attempt(),
             outcome.status.as_str(),
@@ -265,7 +265,7 @@ impl AgentRunRepository {
             outcome.exit_code,
             outcome.error.as_deref(),
             diff_summary,
-            outcome.session_id.as_ref().map(HostSessionId::as_str),
+            outcome.session_id as _,
             lease.claimed_at(),
         )
         .fetch_optional(&mut *tx)

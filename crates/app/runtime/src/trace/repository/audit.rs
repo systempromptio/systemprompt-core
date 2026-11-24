@@ -5,6 +5,7 @@
 
 use systemprompt_identifiers::{AiRequestId, McpServerId, McpToolName, TaskId, TraceId};
 
+use super::ai_trace::parse_state;
 use super::{Result, TraceRepository};
 use crate::trace::models::{
     AuditLookupResult, AuditPage, AuditToolCallRow, ConversationMessage, LinkedMcpCall,
@@ -35,8 +36,8 @@ struct MsgRow {
     sequence_number: i32,
 }
 
-fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
-    AuditLookupResult {
+fn audit_row_to_result(r: AuditRow) -> Result<AuditLookupResult> {
+    Ok(AuditLookupResult {
         id: r.id,
         provider: r.provider,
         model: r.model,
@@ -48,12 +49,12 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
         reasoning_tokens: r.reasoning_tokens,
         cost_microdollars: r.cost_microdollars,
         latency_ms: r.latency_ms,
-        status: r.status,
+        status: parse_state("ai_requests.status", r.status)?,
         finish_reason: r.finish_reason,
         error_message: r.error_message,
         task_id: r.task_id,
         trace_id: r.trace_id,
-    }
+    })
 }
 
 impl TraceRepository {
@@ -96,7 +97,7 @@ impl TraceRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(row.map(audit_row_to_result))
+        row.map(audit_row_to_result).transpose()
     }
 
     async fn find_audit_by_task_id(
@@ -127,7 +128,7 @@ impl TraceRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(row.map(audit_row_to_result))
+        row.map(audit_row_to_result).transpose()
     }
 
     async fn find_audit_by_trace_id(
@@ -158,13 +159,13 @@ impl TraceRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(row.map(audit_row_to_result))
+        row.map(audit_row_to_result).transpose()
     }
 
     pub async fn count_audit_messages(&self, request_id: &AiRequestId) -> Result<i64> {
         let count = sqlx::query_scalar!(
             r#"SELECT COUNT(*) as "count!" FROM ai_request_messages WHERE request_id = $1"#,
-            request_id.as_str()
+            request_id as _
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -174,7 +175,7 @@ impl TraceRepository {
     pub async fn count_audit_tool_calls(&self, request_id: &AiRequestId) -> Result<i64> {
         let count = sqlx::query_scalar!(
             r#"SELECT COUNT(*) as "count!" FROM ai_request_tool_calls WHERE request_id = $1"#,
-            request_id.as_str()
+            request_id as _
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -193,21 +194,22 @@ impl TraceRepository {
         FROM ai_request_messages WHERE request_id = $1 ORDER BY sequence_number
         OFFSET $2 LIMIT $3
         "#,
-            request_id.as_str(),
+            request_id as _,
             page.offset,
             page.sql_limit()
         )
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|m| ConversationMessage {
-                role: m.role,
-                content: m.content,
-                sequence_number: m.sequence_number,
+        rows.into_iter()
+            .map(|m| -> Result<ConversationMessage> {
+                Ok(ConversationMessage {
+                    role: parse_state("ai_request_messages.role", m.role)?,
+                    content: m.content,
+                    sequence_number: m.sequence_number,
+                })
             })
-            .collect())
+            .collect()
     }
 
     pub async fn list_audit_tool_calls(
@@ -222,7 +224,7 @@ impl TraceRepository {
         FROM ai_request_tool_calls WHERE request_id = $1 ORDER BY sequence_number
         OFFSET $2 LIMIT $3
         "#,
-            request_id.as_str(),
+            request_id as _,
             page.offset,
             page.sql_limit()
         )
@@ -254,19 +256,20 @@ impl TraceRepository {
         JOIN ai_request_tool_calls artc ON artc.mcp_execution_id = mte.mcp_execution_id
         WHERE artc.request_id = $1
         "#,
-            request_id.as_str()
+            request_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| LinkedMcpCall {
-                tool_name: McpToolName::new(r.tool_name),
-                server_name: McpServerId::new(r.server_name),
-                status: r.status,
-                execution_time_ms: r.execution_time_ms,
+        rows.into_iter()
+            .map(|r| -> Result<LinkedMcpCall> {
+                Ok(LinkedMcpCall {
+                    tool_name: McpToolName::new(r.tool_name),
+                    server_name: McpServerId::new(r.server_name),
+                    status: parse_state("mcp_tool_executions.status", r.status)?,
+                    execution_time_ms: r.execution_time_ms,
+                })
             })
-            .collect())
+            .collect()
     }
 }

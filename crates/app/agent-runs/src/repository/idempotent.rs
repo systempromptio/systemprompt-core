@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::{AgentRunId, ContextId, TaskId};
+use systemprompt_identifiers::AgentRunId;
 
 use super::{AgentRunRepository, NewAgentRun};
 use crate::error::AgentRunsResult;
@@ -49,16 +49,16 @@ impl AgentRunRepository {
             DO NOTHING
             RETURNING id AS "id: AgentRunId"
             "#,
-            run.id.as_str(),
+            run.id as _,
             run.origin_kind,
             run.origin_id,
-            run.user_id.as_str(),
+            run.user_id as _,
             run.request.host.as_str(),
             request,
             i32::try_from(run.request.attempt).unwrap_or(i32::MAX),
             run.not_before,
-            run.task_id.map(TaskId::as_str),
-            run.context_id.map(ContextId::as_str),
+            run.task_id as _,
+            run.context_id as _,
             idempotency_key,
             digest,
         )
@@ -75,7 +75,7 @@ impl AgentRunRepository {
             "#,
             run.origin_kind,
             idempotency_key,
-            run.user_id.as_str(),
+            run.user_id as _,
         )
         .fetch_optional(self.write_pool())
         .await?;

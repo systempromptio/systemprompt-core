@@ -116,7 +116,7 @@ pub struct AiRequestOrigin {
 /// Status, error and timestamps of an [`AiRequest`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestLifecycle {
-    pub status: String,
+    pub status: RequestStatus,
     pub error_message: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -127,7 +127,7 @@ pub struct AiRequestLifecycle {
 pub struct AiRequestMessage {
     pub id: String,
     pub request_id: AiRequestId,
-    pub role: String,
+    pub role: systemprompt_models::ai::StoredMessageRole,
     pub content: String,
     pub sequence_number: i32,
     pub name: Option<String>,

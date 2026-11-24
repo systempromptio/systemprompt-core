@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_models::StepStatus;
 use systemprompt_runtime::{AiTraceService, TraceEvent};
 
 use super::ai_artifacts::artifacts as artifacts_section;
@@ -126,16 +127,22 @@ fn build_trace_output(
         },
         step_summary: StepSummaryRow {
             total: steps.len() as i64,
-            completed: steps.iter().filter(|s| s.status == "completed").count() as i64,
-            failed: steps.iter().filter(|s| s.status == "failed").count() as i64,
+            completed: steps
+                .iter()
+                .filter(|s| s.status == StepStatus::Completed)
+                .count() as i64,
+            failed: steps
+                .iter()
+                .filter(|s| s.status == StepStatus::Failed)
+                .count() as i64,
             pending: steps
                 .iter()
-                .filter(|s| s.status == "pending" || s.status == "in_progress")
+                .filter(|s| matches!(s.status, StepStatus::Pending | StepStatus::InProgress))
                 .count() as i64,
         },
         task: Some(task_id.as_str().to_owned()),
         duration_ms,
-        status: task_info.status.clone(),
+        status: task_info.status.as_str().to_owned(),
     }
 }
 

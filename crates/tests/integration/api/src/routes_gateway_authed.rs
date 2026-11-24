@@ -132,7 +132,10 @@ async fn heartbeat_records_the_release_version_and_state_and_reports_the_window_
         .find(|session| session.session_id == credential.session_id)
         .expect("heartbeat recorded");
     assert_eq!(persisted.release_version.as_deref(), Some("0.75.1"));
-    assert_eq!(persisted.state.as_deref(), Some("disabled"));
+    assert_eq!(
+        persisted.state,
+        Some(systemprompt_models::bridge::instance::BridgeState::Disabled)
+    );
     Ok(())
 }
 

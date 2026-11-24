@@ -78,14 +78,13 @@ fn to_chrono(duration: Duration) -> Result<chrono::Duration> {
 impl crate::repository::OAuthRepository {
     pub async fn store_webauthn_challenge(&self, params: StoreChallengeParams<'_>) -> Result<()> {
         let expires_at = Utc::now() + to_chrono(params.ttl)?;
-        let user_id = params.user_id.map(UserId::as_str);
 
         sqlx::query!(
             "INSERT INTO webauthn_challenges
              (challenge, user_id, challenge_type, session_state, oauth_state, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6)",
             params.challenge,
-            user_id,
+            params.user_id as _,
             params.kind.as_str(),
             params.state,
             params.oauth_state,
@@ -109,14 +108,13 @@ impl crate::repository::OAuthRepository {
         let now = Utc::now();
         let usable_until = now + to_chrono(params.min_remaining)?;
         let expires_at = now + to_chrono(params.ttl)?;
-        let user_id = params.user_id.as_str();
         let kind = WebAuthnChallengeKind::Link.as_str();
 
         let mut tx = self.write_pool_ref().begin().await?;
 
         sqlx::query!(
             "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
-            user_id
+            params.user_id as _
         )
         .execute(&mut *tx)
         .await?;
@@ -125,9 +123,9 @@ impl crate::repository::OAuthRepository {
             "SELECT challenge, session_state FROM webauthn_challenges
              WHERE user_id = $1 AND challenge_type = $2
                AND session_state->>'token_id' = $3 AND expires_at > $4",
-            user_id,
+            params.user_id as _,
             kind,
-            params.token_id.as_str(),
+            params.token_id as _,
             usable_until
         )
         .fetch_optional(&mut *tx)
@@ -144,7 +142,7 @@ impl crate::repository::OAuthRepository {
 
         sqlx::query!(
             "DELETE FROM webauthn_challenges WHERE user_id = $1 AND challenge_type = $2",
-            user_id,
+            params.user_id as _,
             kind
         )
         .execute(&mut *tx)
@@ -157,8 +155,8 @@ impl crate::repository::OAuthRepository {
             "INSERT INTO webauthn_challenges
              (challenge, user_id, challenge_type, session_state, expires_at)
              VALUES ($1, $2, $3, $4, $5)",
-            challenge_id.as_str(),
-            user_id,
+            challenge_id as _,
+            params.user_id as _,
             kind,
             state,
             expires_at

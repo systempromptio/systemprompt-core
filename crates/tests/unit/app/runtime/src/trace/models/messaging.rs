@@ -5,17 +5,18 @@ use chrono::Utc;
 use serde_json::json;
 use systemprompt_identifiers::McpToolName;
 use systemprompt_logging::LogLevel;
+use systemprompt_models::ai::StoredMessageRole;
 use systemprompt_runtime::{ConversationMessage, TaskArtifact, ToolLogEntry};
 
 #[test]
 fn test_conversation_message_creation() {
     let msg = ConversationMessage {
-        role: "user".to_string(),
+        role: StoredMessageRole::User,
         content: "Hello, how can you help me?".to_string(),
         sequence_number: 1,
     };
 
-    assert_eq!(msg.role, "user");
+    assert_eq!(msg.role, StoredMessageRole::User);
     assert_eq!(msg.content, "Hello, how can you help me?");
     assert_eq!(msg.sequence_number, 1);
 }
@@ -23,31 +24,31 @@ fn test_conversation_message_creation() {
 #[test]
 fn test_conversation_message_assistant_role() {
     let msg = ConversationMessage {
-        role: "assistant".to_string(),
+        role: StoredMessageRole::Assistant,
         content: "I can help you with many tasks.".to_string(),
         sequence_number: 2,
     };
 
-    assert_eq!(msg.role, "assistant");
+    assert_eq!(msg.role, StoredMessageRole::Assistant);
     assert_eq!(msg.sequence_number, 2);
 }
 
 #[test]
 fn test_conversation_message_system_role() {
     let msg = ConversationMessage {
-        role: "system".to_string(),
+        role: StoredMessageRole::System,
         content: "You are a helpful assistant.".to_string(),
         sequence_number: 0,
     };
 
-    assert_eq!(msg.role, "system");
+    assert_eq!(msg.role, StoredMessageRole::System);
     assert_eq!(msg.sequence_number, 0);
 }
 
 #[test]
 fn test_conversation_message_serialize() {
     let msg = ConversationMessage {
-        role: "user".to_string(),
+        role: StoredMessageRole::User,
         content: "Serialize test".to_string(),
         sequence_number: 1,
     };
@@ -184,7 +185,7 @@ fn test_task_artifact_serialize() {
 #[test]
 fn test_conversation_message_roundtrip() {
     let msg = ConversationMessage {
-        role: "user".to_string(),
+        role: StoredMessageRole::User,
         content: "Roundtrip test".to_string(),
         sequence_number: 42,
     };
@@ -192,7 +193,7 @@ fn test_conversation_message_roundtrip() {
     let json = serde_json::to_string(&msg).unwrap();
     let parsed: ConversationMessage = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(parsed.role, "user");
+    assert_eq!(parsed.role, StoredMessageRole::User);
     assert_eq!(parsed.content, "Roundtrip test");
     assert_eq!(parsed.sequence_number, 42);
 }

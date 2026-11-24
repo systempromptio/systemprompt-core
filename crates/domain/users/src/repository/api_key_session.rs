@@ -12,7 +12,7 @@ impl UserRepository {
     pub async fn find_api_key_session(&self, api_key_id: &ApiKeyId) -> Result<Option<SessionId>> {
         let row = sqlx::query_scalar!(
             "SELECT session_id FROM api_key_sessions WHERE api_key_id = $1",
-            api_key_id.as_str(),
+            api_key_id as _,
         )
         .fetch_optional(&*self.write_pool)
         .await?;
@@ -31,8 +31,8 @@ impl UserRepository {
             ON CONFLICT (api_key_id)
             DO UPDATE SET session_id = EXCLUDED.session_id, bound_at = CURRENT_TIMESTAMP
             "#,
-            api_key_id.as_str(),
-            session_id.as_str(),
+            api_key_id as _,
+            session_id as _,
         )
         .execute(&*self.write_pool)
         .await?;

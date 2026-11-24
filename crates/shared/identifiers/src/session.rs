@@ -15,7 +15,21 @@ impl SessionId {
     pub fn system() -> Self {
         Self("system".to_owned())
     }
+
+    pub fn bot() -> Self {
+        Self(format!("{BOT_SESSION_PREFIX}{}", uuid::Uuid::new_v4()))
+    }
+
+    pub fn untracked() -> Self {
+        Self(format!("untracked_{}", uuid::Uuid::new_v4()))
+    }
+
+    pub fn is_bot(&self) -> bool {
+        self.0.starts_with(BOT_SESSION_PREFIX)
+    }
 }
+
+const BOT_SESSION_PREFIX: &str = "bot_";
 
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,

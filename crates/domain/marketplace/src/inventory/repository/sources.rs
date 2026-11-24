@@ -6,7 +6,7 @@
 
 use crate::inventory::InventoryEntry;
 use crate::inventory::catalog::invalid;
-use crate::inventory::types::InventoryResource;
+use crate::inventory::types::{InventoryResource, ManagedSourceKind};
 use crate::managed::{ManagedRepository, Result};
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
@@ -21,7 +21,7 @@ impl ManagedRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
     ) -> Result<Vec<InventoryResource>> {
-        let resources=sqlx::query!(r#"SELECT r.id,r.source_id,r.kind,r.resource_key,s.kind AS source_kind,p.state AS "publication_state?",p.revision_id AS published_revision,
+        let resources=sqlx::query!(r#"SELECT r.id,r.source_id,r.kind,r.resource_key,s.kind AS "source_kind: ManagedSourceKind",p.state AS "publication_state?",p.revision_id AS published_revision,
             (SELECT v.id FROM managed_revisions v WHERE v.owner_id=r.owner_id AND v.resource_id=r.id ORDER BY v.created_at DESC,v.id DESC LIMIT 1) AS "latest_revision?",
             b.entry_id AS "bound_entry?",e.configured_key AS bound_path,
             EXISTS(SELECT 1 FROM managed_reconciliations x WHERE x.owner_id=r.owner_id AND x.resource_id=r.id AND x.status='open') AS "open_reconciliation!",
@@ -30,7 +30,7 @@ impl ManagedRepository {
             LEFT JOIN managed_publication_selections p ON p.owner_id=r.owner_id AND p.resource_id=r.id
             LEFT JOIN managed_inventory_bindings b ON b.owner_id=r.owner_id AND b.resource_id=r.id
             LEFT JOIN managed_inventory_entries e ON e.owner_id=b.owner_id AND e.entry_id=b.entry_id
-            WHERE r.owner_id=$1 ORDER BY r.id LIMIT 10001"#,owner.as_str()).fetch_all(&mut **tx).await?;
+            WHERE r.owner_id=$1 ORDER BY r.id LIMIT 10001"#,owner as _).fetch_all(&mut **tx).await?;
         if resources.len() > 10_000 {
             return Err(invalid("Inventory exceeds 10000 managed entries"));
         }
@@ -57,7 +57,7 @@ impl ManagedRepository {
         owner: &UserId,
         entries: &mut BTreeMap<InventoryEntryId, InventoryEntry>,
     ) -> Result<BTreeMap<InventoryEntryId, InventoryEntry>> {
-        let rows=sqlx::query!("SELECT entry_id,record FROM managed_inventory_membership WHERE owner_id=$1 AND effective_until IS NULL",owner.as_str()).fetch_all(&mut **tx).await?;
+        let rows=sqlx::query!("SELECT entry_id,record FROM managed_inventory_membership WHERE owner_id=$1 AND effective_until IS NULL",owner as _).fetch_all(&mut **tx).await?;
         let mut previous = BTreeMap::new();
         for row in rows {
             let id = InventoryEntryId::new(row.entry_id);

@@ -86,8 +86,8 @@ impl DocumentLockRepository {
                RETURNING document_id::text AS "document_id!: DocumentId",
                          holder_user_id AS "holder_user_id: UserId",
                          holder_kind, holder_id, acquired_at, expires_at"#,
-            request.document_id.as_str(),
-            request.holder_user_id.as_str(),
+            request.document_id as _,
+            request.holder_user_id as _,
             request.holder.kind().as_str(),
             request.holder.id_str(),
             request.ttl.as_secs_f64(),
@@ -101,7 +101,7 @@ impl DocumentLockRepository {
     pub async fn release(&self, document_id: &DocumentId, holder: &LockHolder) -> RepoResult<bool> {
         let result = sqlx::query!(
             "DELETE FROM document_locks WHERE document_id = $1::text::uuid AND holder_id = $2",
-            document_id.as_str(),
+            document_id as _,
             holder.id_str(),
         )
         .execute(&*self.pools.write)
@@ -110,10 +110,9 @@ impl DocumentLockRepository {
     }
 
     pub async fn release_all_for(&self, documents: &[DocumentId]) -> RepoResult<u64> {
-        let ids: Vec<String> = documents.iter().map(|id| id.as_str().to_owned()).collect();
         let result = sqlx::query!(
             "DELETE FROM document_locks WHERE document_id = ANY($1::text[]::uuid[])",
-            &ids,
+            documents as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -128,7 +127,7 @@ impl DocumentLockRepository {
                       holder_kind, holder_id, acquired_at, expires_at
                FROM document_locks
                WHERE document_id = $1::text::uuid AND expires_at > now()"#,
-            document_id.as_str(),
+            document_id as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?

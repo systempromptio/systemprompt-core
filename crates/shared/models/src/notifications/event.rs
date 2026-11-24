@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AgentName, NotificationStreamId, UserId};
+use systemprompt_identifiers::{AgentName, NotificationStreamId, OutboxAggregateKey, UserId};
 
 use super::attention::Attention;
 use super::kind::NotificationKind;
@@ -94,6 +94,13 @@ impl NotificationEvent {
     pub fn with_subjects(mut self, subjects: impl IntoIterator<Item = SubjectRef>) -> Self {
         self.subjects.extend(subjects);
         self
+    }
+
+    #[must_use]
+    pub fn aggregate_key(&self) -> Option<OutboxAggregateKey> {
+        self.subjects
+            .first()
+            .map(|subject| OutboxAggregateKey::new(format!("{}:{}", subject.kind, subject.id)))
     }
 
     #[must_use]

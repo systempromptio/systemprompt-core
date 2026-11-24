@@ -15,6 +15,7 @@ type Result<T> = std::result::Result<T, RevisionBundleError>;
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
 )]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
 #[serde(try_from = "String", into = "String")]
 pub struct AssetDigest(String);
 

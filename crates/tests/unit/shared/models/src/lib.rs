@@ -454,3 +454,9 @@ mod subprocess_grants;
 
 #[cfg(test)]
 mod path_confine;
+
+#[cfg(test)]
+mod stored_vocabularies;
+
+#[cfg(test)]
+mod keyset_page;

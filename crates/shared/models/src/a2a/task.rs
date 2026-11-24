@@ -65,22 +65,32 @@ impl Default for TaskStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "text"))]
 pub enum TaskState {
     #[serde(rename = "TASK_STATE_SUBMITTED")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_SUBMITTED"))]
     Submitted,
     #[serde(rename = "TASK_STATE_WORKING")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_WORKING"))]
     Working,
     #[serde(rename = "TASK_STATE_COMPLETED")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_COMPLETED"))]
     Completed,
     #[serde(rename = "TASK_STATE_FAILED")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_FAILED"))]
     Failed,
     #[serde(rename = "TASK_STATE_CANCELED")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_CANCELED"))]
     Canceled,
     #[serde(rename = "TASK_STATE_REJECTED")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_REJECTED"))]
     Rejected,
     #[serde(rename = "TASK_STATE_INPUT_REQUIRED")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_INPUT_REQUIRED"))]
     InputRequired,
     #[serde(rename = "TASK_STATE_AUTH_REQUIRED")]
+    #[cfg_attr(feature = "sqlx", sqlx(rename = "TASK_STATE_AUTH_REQUIRED"))]
     AuthRequired,
 }
 

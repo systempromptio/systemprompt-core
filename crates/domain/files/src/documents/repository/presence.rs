@@ -65,8 +65,8 @@ impl DocumentPresenceRepository {
                      cursor = EXCLUDED.cursor,
                      updated_at = now(),
                      expires_at = EXCLUDED.expires_at",
-            presence.document_id.as_str(),
-            presence.user_id.as_str(),
+            presence.document_id as _,
+            presence.user_id as _,
             presence_source_str(presence.source),
             presence_state_str(presence.state),
             presence.cursor,
@@ -89,7 +89,7 @@ impl DocumentPresenceRepository {
                FROM document_presence
                WHERE document_id = $1::text::uuid AND expires_at > now()
                ORDER BY updated_at DESC, user_id, source"#,
-            document_id.as_str(),
+            document_id as _,
         )
         .fetch_all(&*self.pools.read)
         .await?
@@ -104,17 +104,16 @@ impl DocumentPresenceRepository {
                FROM document_presence
                WHERE document_id = $1::text::uuid AND expires_at > now()
                ORDER BY 1"#,
-            document_id.as_str(),
+            document_id as _,
         )
         .fetch_all(&*self.pools.read)
         .await?)
     }
 
     pub async fn clear_for(&self, documents: &[DocumentId]) -> RepoResult<u64> {
-        let ids: Vec<String> = documents.iter().map(|id| id.as_str().to_owned()).collect();
         let result = sqlx::query!(
             "DELETE FROM document_presence WHERE document_id = ANY($1::text[]::uuid[])",
-            &ids,
+            documents as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -140,12 +139,11 @@ impl DocumentPresenceRepository {
         document_id: &DocumentId,
         users: &[UserId],
     ) -> RepoResult<u64> {
-        let users: Vec<String> = users.iter().map(|u| u.as_str().to_owned()).collect();
         let result = sqlx::query!(
             "DELETE FROM document_presence
              WHERE document_id = $1::text::uuid AND user_id = ANY($2::text[])",
-            document_id.as_str(),
-            &users,
+            document_id as _,
+            users as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -157,15 +155,14 @@ impl DocumentPresenceRepository {
         folder_id: &DocumentFolderId,
         users: &[UserId],
     ) -> RepoResult<u64> {
-        let users: Vec<String> = users.iter().map(|u| u.as_str().to_owned()).collect();
         let result = sqlx::query!(
             "DELETE FROM document_presence p
              USING documents d, document_folders f
              WHERE p.document_id = d.id AND d.folder_id = f.id
                AND (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))
                AND p.user_id = ANY($2::text[])",
-            folder_id.as_str(),
-            &users,
+            folder_id as _,
+            users as _,
         )
         .execute(&*self.pools.write)
         .await?;

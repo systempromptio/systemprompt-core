@@ -146,9 +146,13 @@ mod interactive_host_tests {
     }
 
     #[test]
-    fn an_unknown_stored_kind_claims_nothing() {
-        assert_eq!(ApiKeyKind::from_stored("device"), ApiKeyKind::Device);
-        assert_eq!(ApiKeyKind::from_stored("user"), ApiKeyKind::User);
-        assert_eq!(ApiKeyKind::from_stored("robot"), ApiKeyKind::User);
+    fn an_unknown_stored_kind_is_refused() {
+        for kind in [ApiKeyKind::User, ApiKeyKind::Device] {
+            let json = serde_json::to_string(&kind).expect("serialize");
+            assert_eq!(json, format!("\"{}\"", kind.as_str()));
+            let decoded: ApiKeyKind = serde_json::from_str(&json).expect("deserialize");
+            assert_eq!(decoded, kind);
+        }
+        assert!(serde_json::from_str::<ApiKeyKind>("\"robot\"").is_err());
     }
 }

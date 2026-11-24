@@ -25,7 +25,7 @@ use systemprompt_extension::cli::{
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{
-    AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache,
+    AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache, TraceKind,
 };
 
 #[derive(Debug, Subcommand)]
@@ -51,7 +51,7 @@ pub struct ExplainArgs {
 
 #[derive(Debug, Serialize)]
 struct ExplainRow {
-    kind: String,
+    kind: TraceKind,
     id: String,
     delivered: bool,
     dropped_at: String,
@@ -99,12 +99,12 @@ pub async fn explain(args: &ExplainArgs, host: &dyn CommandHost) -> Result<Comma
     let mut rows = build_rows(&trace, &candidate);
 
     if let Some(skill) = &args.skill {
-        rows.retain(|r| r.kind == "skill" && &r.id == skill);
+        rows.retain(|r| r.kind == TraceKind::Skill && &r.id == skill);
     }
     if let Some(plugin) = &args.plugin {
-        rows.retain(|r| r.kind == "plugin" && &r.id == plugin);
+        rows.retain(|r| r.kind == TraceKind::Plugin && &r.id == plugin);
     }
-    rows.sort_by(|a, b| (&a.kind, &a.id).cmp(&(&b.kind, &b.id)));
+    rows.sort_by(|a, b| (a.kind.to_string(), &a.id).cmp(&(b.kind.to_string(), &b.id)));
 
     Ok(CommandOutput::table_of(
         vec!["kind", "id", "delivered", "dropped_at", "reason"],
@@ -148,15 +148,15 @@ fn build_rows(
         .events
         .iter()
         .map(|event| ExplainRow {
-            kind: event.kind.to_string(),
+            kind: event.kind,
             id: event.id.clone(),
             delivered: false,
             dropped_at: event.stage.to_string(),
             reason: event.reason.clone(),
         })
         .collect();
-    let delivered = |kind: &str, id: String| ExplainRow {
-        kind: kind.to_owned(),
+    let delivered = |kind: TraceKind, id: String| ExplainRow {
+        kind,
         id,
         delivered: true,
         dropped_at: String::new(),
@@ -166,31 +166,31 @@ fn build_rows(
         candidate
             .skills
             .iter()
-            .map(|s| delivered("skill", s.id.as_str().to_owned())),
+            .map(|s| delivered(TraceKind::Skill, s.id.as_str().to_owned())),
     );
     rows.extend(
         candidate
             .plugins
             .iter()
-            .map(|p| delivered("plugin", p.id.as_str().to_owned())),
+            .map(|p| delivered(TraceKind::Plugin, p.id.as_str().to_owned())),
     );
     rows.extend(
         candidate
             .agents
             .iter()
-            .map(|a| delivered("agent", a.id.as_str().to_owned())),
+            .map(|a| delivered(TraceKind::Agent, a.id.as_str().to_owned())),
     );
     rows.extend(
         candidate
             .managed_mcp_servers
             .iter()
-            .map(|m| delivered("mcp-server", m.name.as_str().to_owned())),
+            .map(|m| delivered(TraceKind::McpServer, m.name.as_str().to_owned())),
     );
     rows.extend(
         candidate
             .artifacts
             .iter()
-            .map(|a| delivered("artifact", a.id.as_str().to_owned())),
+            .map(|a| delivered(TraceKind::Artifact, a.id.as_str().to_owned())),
     );
     rows
 }

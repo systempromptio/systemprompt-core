@@ -168,6 +168,8 @@ mod file_ingestion;
 #[cfg(test)]
 mod issues;
 #[cfg(test)]
+mod owner_scoped_reads;
+#[cfg(test)]
 mod repository;
 #[cfg(test)]
 mod services;

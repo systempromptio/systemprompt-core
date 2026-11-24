@@ -43,9 +43,29 @@ impl ReadinessWait {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ReadyzStatus {
+    Ready,
+    Unready,
+    Draining,
+    Saturated,
+}
+
+impl ReadyzStatus {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::Unready => "unready",
+            Self::Draining => "draining",
+            Self::Saturated => "saturated",
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct ReadyzBody {
-    status: String,
+    status: ReadyzStatus,
     #[serde(default)]
     version: Option<String>,
 }
@@ -80,8 +100,8 @@ pub async fn probe_tenant(client: &reqwest::Client, base_url: &str) -> TenantHea
         Ok(body) => TenantHealth {
             url: base_url.to_owned(),
             http_status: Some(http_status.as_u16()),
-            ready: http_status.is_success() && body.status == "ready",
-            status: body.status,
+            ready: http_status.is_success() && body.status == ReadyzStatus::Ready,
+            status: body.status.as_str().to_owned(),
             version: body.version,
             release_confirmed: false,
         },

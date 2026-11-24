@@ -77,13 +77,13 @@ impl EventOutboxRepository {
         sqlx::query!(
             "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \
              origin_instance_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            id.as_str(),
+            id as _,
             channel.as_str(),
-            actor.user_id.as_str(),
+            actor.user_id as _,
             payload,
             actor_kind,
             actor_id,
-            self.instance_id.as_str(),
+            self.instance_id as _,
         )
         .execute(&mut *conn)
         .await
@@ -94,7 +94,7 @@ impl EventOutboxRepository {
         conn: &mut PgConnection,
         id: &EventOutboxId,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, id.as_str())
+        sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, id as _)
             .execute(&mut *conn)
             .await
             .map(|_| ())
@@ -115,7 +115,7 @@ impl EventOutboxRepository {
             FROM event_outbox
             WHERE id = $1
             "#,
-            id.as_str(),
+            id as _,
         )
         .fetch_optional(&self.pool)
         .await
@@ -143,7 +143,7 @@ impl EventOutboxRepository {
             LIMIT $3
             "#,
             since,
-            self.instance_id.as_str(),
+            self.instance_id as _,
             limit,
         )
         .fetch_all(&self.pool)

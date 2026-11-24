@@ -50,8 +50,8 @@ impl AiSafetyFindingRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
             "#,
-            id.as_str(),
-            params.ai_request_id.as_str(),
+            id as _,
+            params.ai_request_id as _,
             params.phase,
             params.severity,
             params.category,

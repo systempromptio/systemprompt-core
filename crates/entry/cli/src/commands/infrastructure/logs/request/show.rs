@@ -65,7 +65,7 @@ async fn execute_with_pool_inner(
             .map(|r| ToolCallRow {
                 tool_name: r.tool_name,
                 server: r.server_name,
-                status: r.status,
+                status: r.status.as_str().to_owned(),
                 duration_ms: r.execution_time_ms.map(i64::from),
             })
             .collect()
@@ -86,7 +86,7 @@ async fn execute_with_pool_inner(
         output_tokens: row.output_tokens.unwrap_or(0),
         cost_dollars,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
-        status: row.status,
+        status: row.status.as_str().to_owned(),
         error_message: row.error_message,
         messages,
         linked_mcp_calls,
@@ -112,7 +112,7 @@ pub(super) async fn fetch_messages(
                 msgs.into_iter()
                     .map(|m| MessageRow {
                         sequence: m.sequence_number,
-                        role: m.role,
+                        role: m.role.as_str().to_owned(),
                         content: m.content,
                     })
                     .collect()

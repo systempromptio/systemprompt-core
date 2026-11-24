@@ -89,7 +89,7 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
     shutdown.cancel();
     looping.await.expect("loop joined");
 
-    assert_eq!(row.status, "succeeded");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Succeeded);
     assert!(row.api_key_id.is_some());
     let state: String = sqlx::query_scalar("SELECT status FROM agent_tasks WHERE task_id = $1")
         .bind(task_id.as_str())

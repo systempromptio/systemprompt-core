@@ -67,12 +67,10 @@ impl SearchIndexRepository {
         id: &BrainFactId,
     ) -> Result<(), RepositoryError> {
         let synonyms = SynonymsRepository::load(&mut *conn).await?;
-        let statement = sqlx::query_scalar!(
-            "SELECT statement FROM brain_facts WHERE id = $1",
-            id.as_str()
-        )
-        .fetch_optional(&mut *conn)
-        .await?;
+        let statement =
+            sqlx::query_scalar!("SELECT statement FROM brain_facts WHERE id = $1", id as _)
+                .fetch_optional(&mut *conn)
+                .await?;
         let Some(statement) = statement else {
             return Ok(());
         };
@@ -124,7 +122,7 @@ impl SearchIndexRepository {
     ) -> Result<Option<String>, RepositoryError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT search_weighted::text AS "vector!" FROM brain_facts WHERE id = $1"#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(executor)
         .await?)

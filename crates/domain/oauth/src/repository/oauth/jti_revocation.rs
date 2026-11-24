@@ -24,8 +24,8 @@ impl OAuthRepository {
             "INSERT INTO oauth_jti_revocations (jti, user_id, exp)
              VALUES ($1, $2, $3)
              ON CONFLICT (jti) DO NOTHING",
-            jti.as_str(),
-            user_id.as_str(),
+            jti as _,
+            user_id as _,
             exp,
         )
         .execute(self.write_pool_ref())
@@ -49,8 +49,8 @@ impl OAuthRepository {
                 "INSERT INTO oauth_jti_revocations (jti, user_id, exp)
                  VALUES ($1, $2, $3)
                  ON CONFLICT (jti) DO NOTHING",
-                jti.as_str(),
-                user_id.as_str(),
+                jti as _,
+                user_id as _,
                 exp_floor,
             )
             .execute(self.write_pool_ref())

@@ -7,6 +7,9 @@ use serde_json::json;
 
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 
+use systemprompt_models::mcp::McpToolExecutionStatus;
+
+use super::ai_trace::parse_state;
 use super::{Result, TraceRepository};
 use crate::trace::models::{ExecutionStepSummary, McpExecutionSummary, TraceEvent};
 
@@ -23,7 +26,7 @@ impl TraceRepository {
         FROM mcp_tool_executions
         WHERE trace_id = $1
         "#,
-            trace_id.as_str()
+            trace_id as _
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -52,14 +55,16 @@ impl TraceRepository {
         WHERE trace_id = $1
         ORDER BY started_at ASC
         "#,
-            trace_id.as_str()
+            trace_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
+        rows
         .into_iter()
-        .map(|row| {
+        .map(|row| -> Result<TraceEvent> {
+            let status: McpToolExecutionStatus =
+                parse_state("mcp_tool_executions.status", row.status.clone())?;
             let base_details = format!(
                 "{}/{}: {} ({}ms)",
                 row.server_name,
@@ -68,7 +73,7 @@ impl TraceRepository {
                 row.execution_time_ms.unwrap_or(0)
             );
 
-            let details = if row.status == "failed" {
+            let details = if status == McpToolExecutionStatus::Failed {
                 if let Some(ref error) = row.error_message {
                     let truncated_error = if error.len() > 80 {
                         format!("{}...", &error[..80])
@@ -90,7 +95,7 @@ impl TraceRepository {
                 "error_message": row.error_message
             });
 
-            TraceEvent {
+            Ok(TraceEvent {
                 event_type: "MCP".to_owned(),
                 timestamp: row.timestamp,
                 details,
@@ -106,15 +111,15 @@ impl TraceRepository {
                         .ok()
                 }),
                 metadata: Some(metadata.to_string()),
-            }
+            })
         })
-        .collect())
+        .collect()
     }
 
     pub async fn fetch_task_id_for_trace(&self, trace_id: &TraceId) -> Result<Option<String>> {
         let row = sqlx::query!(
             "SELECT task_id FROM agent_tasks WHERE trace_id = $1 LIMIT 1",
-            trace_id.as_str()
+            trace_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -137,7 +142,7 @@ impl TraceRepository {
         JOIN agent_tasks t ON s.task_id = t.task_id
         WHERE t.trace_id = $1
         "#,
-        trace_id.as_str()
+        trace_id as _
     )
     .fetch_one(&*self.pool)
     .await?;
@@ -167,7 +172,7 @@ impl TraceRepository {
         WHERE t.trace_id = $1
         ORDER BY s.started_at ASC
         "#,
-            trace_id.as_str()
+            trace_id as _
         )
         .fetch_all(&*self.pool)
         .await?;

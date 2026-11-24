@@ -56,10 +56,22 @@ pub(super) struct ToolPart {
     pub(super) state: ToolState,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum ToolStatus {
+    Pending,
+    Running,
+    Completed,
+    Error,
+    #[default]
+    #[serde(other)]
+    Other,
+}
+
 #[derive(Debug, Deserialize)]
 pub(super) struct ToolState {
     #[serde(default)]
-    pub(super) status: String,
+    pub(super) status: ToolStatus,
     // JSON: the tool's own input, relayed verbatim into `ToolUse::input`.
     #[serde(default)]
     pub(super) input: serde_json::Value,

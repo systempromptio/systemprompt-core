@@ -78,7 +78,7 @@ pub(crate) async fn recorded_release(
 ) -> Result<Option<String>, RepositoryError> {
     let version = sqlx::query_scalar!(
         "SELECT version FROM release_stamps WHERE name = $1",
-        name.as_str()
+        name as _
     )
     .fetch_optional(pool)
     .await?;
@@ -95,7 +95,7 @@ pub(crate) async fn stamp_release(
              VALUES ($1, $2, CURRENT_TIMESTAMP)
              ON CONFLICT (name) DO UPDATE SET version = EXCLUDED.version,
                                               stamped_at = EXCLUDED.stamped_at",
-        name.as_str(),
+        name as _,
         release
     )
     .execute(pool)

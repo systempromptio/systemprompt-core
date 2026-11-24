@@ -11,10 +11,11 @@ use systemprompt_identifiers::{
 
 use super::AgentRunRepository;
 use crate::error::AgentRunsResult;
+use crate::outcome::{ErrorClass, RunStatus};
 
-/// One `agent_runs` row. `host`, `status` and `error_class` stay
-/// their column text here; [`crate::HostKind`], [`crate::RunStatus`] and
-/// [`crate::ErrorClass`] parse them.
+/// One `agent_runs` row. `status` and `error_class` decode as
+/// [`RunStatus`] and [`ErrorClass`]; `host` stays its column text and
+/// [`crate::HostKind`] parses it.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct AgentRunRow {
     pub id: AgentRunId,
@@ -22,7 +23,7 @@ pub struct AgentRunRow {
     pub origin_id: String,
     pub user_id: UserId,
     pub host: String,
-    pub status: String,
+    pub status: RunStatus,
     // JSON: the stored `RunRequest`, decoded by the claim path.
     pub request: serde_json::Value,
     pub attempt: i32,
@@ -38,7 +39,7 @@ pub struct AgentRunRow {
     pub started_at: Option<DateTime<Utc>>,
     pub finished_at: Option<DateTime<Utc>>,
     pub duration_ms: Option<i64>,
-    pub error_class: Option<String>,
+    pub error_class: Option<ErrorClass>,
     pub turns: Option<i32>,
     pub input_tokens: Option<i64>,
     pub output_tokens: Option<i64>,
@@ -59,24 +60,42 @@ pub struct AgentRunRow {
 
 impl AgentRunRepository {
     pub async fn find_run(&self, id: &AgentRunId) -> AgentRunsResult<Option<AgentRunRow>> {
+        self.run_row(id, None).await
+    }
+
+    pub async fn find_owned_run(
+        &self,
+        id: &AgentRunId,
+        owner: &UserId,
+    ) -> AgentRunsResult<Option<AgentRunRow>> {
+        self.run_row(id, Some(owner)).await
+    }
+
+    async fn run_row(
+        &self,
+        id: &AgentRunId,
+        owner: Option<&UserId>,
+    ) -> AgentRunsResult<Option<AgentRunRow>> {
         let row = sqlx::query_as!(
             AgentRunRow,
             r#"
             SELECT id AS "id: AgentRunId", origin_kind, origin_id,
-                   user_id AS "user_id: UserId", host, status, request, attempt,
+                   user_id AS "user_id: UserId", host, status AS "status: RunStatus", request, attempt,
                    not_before, claimed_by, lease_until, claimed_at, run_dir,
                    gateway_session_id AS "gateway_session_id: SessionId",
                    api_key_id AS "api_key_id: ApiKeyId",
                    host_session_id AS "host_session_id: HostSessionId",
-                   pid, started_at, finished_at, duration_ms, error_class, turns,
+                   pid, started_at, finished_at, duration_ms,
+                   error_class AS "error_class: ErrorClass", turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
                    exit_code, error, diff_summary, harness_digest, cancel_requested_at,
                    task_id AS "task_id: TaskId", context_id AS "context_id: ContextId",
                    created_at, updated_at
             FROM agent_runs
-            WHERE id = $1
+            WHERE id = $1 AND ($2::text IS NULL OR user_id = $2)
             "#,
-            id.as_str(),
+            id as _,
+            owner as _,
         )
         .fetch_optional(self.write_pool())
         .await?;
@@ -92,12 +111,13 @@ impl AgentRunRepository {
             AgentRunRow,
             r#"
             SELECT id AS "id: AgentRunId", origin_kind, origin_id,
-                   user_id AS "user_id: UserId", host, status, request, attempt,
+                   user_id AS "user_id: UserId", host, status AS "status: RunStatus", request, attempt,
                    not_before, claimed_by, lease_until, claimed_at, run_dir,
                    gateway_session_id AS "gateway_session_id: SessionId",
                    api_key_id AS "api_key_id: ApiKeyId",
                    host_session_id AS "host_session_id: HostSessionId",
-                   pid, started_at, finished_at, duration_ms, error_class, turns,
+                   pid, started_at, finished_at, duration_ms,
+                   error_class AS "error_class: ErrorClass", turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
                    exit_code, error, diff_summary, harness_digest, cancel_requested_at,
                    task_id AS "task_id: TaskId", context_id AS "context_id: ContextId",

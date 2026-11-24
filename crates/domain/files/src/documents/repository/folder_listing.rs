@@ -53,13 +53,13 @@ impl DocumentFolderRepository {
                        AND (g.valid_until IS NULL OR g.valid_until > now())))
                ORDER BY f.name, f.id
                LIMIT $8"#,
-            page.parent.map(DocumentFolderId::as_str),
-            page.caller.as_str(),
+            page.parent as _,
+            page.caller as _,
             &page.subjects.kinds,
             &page.subjects.values,
             page.pattern,
-            page.after.map(|folder| folder.name.as_str()),
-            page.after.map(|folder| folder.id.as_str()),
+            page.after.map(|folder| &folder.name),
+            page.after.map(|folder| &folder.id) as _,
             page.limit,
         )
         .fetch_all(self.pools.authz())

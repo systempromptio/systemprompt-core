@@ -30,8 +30,8 @@ impl DocumentCollabRepository {
             "UPDATE document_edit_sessions
              SET snapshot_sha256 = $2, snapshot_seq = $3, snapshot_vv = $4, updated_at = now()
              WHERE id = $1::text::uuid AND closed_at IS NULL AND snapshot_seq < $3",
-            session.as_str(),
-            hash.as_str(),
+            session as _,
+            hash as _,
             seq,
             version,
         )
@@ -45,7 +45,7 @@ impl DocumentCollabRepository {
                  USING document_edit_sessions s
                  WHERE u.session_id = $1::text::uuid AND s.id = u.session_id
                    AND u.seq <= LEAST($2, s.checkpoint_seq)",
-                session.as_str(),
+                session as _,
                 seq,
             )
             .execute(&mut *tx)

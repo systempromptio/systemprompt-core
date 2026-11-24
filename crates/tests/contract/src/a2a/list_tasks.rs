@@ -3,10 +3,11 @@ use systemprompt_agent::models::a2a::protocol::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, ListTasksParams, ListTasksResult,
 };
 use systemprompt_agent::services::a2a_server::handlers::request::list_tasks::{
-    DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, PageToken, clamp_page_size, trim_history,
+    DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, clamp_page_size, trim_history,
 };
-use systemprompt_identifiers::{ContextId, MessageId};
+use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TaskState};
+use systemprompt_models::api::KeysetCursor;
 
 use super::schema::assert_valid;
 
@@ -42,19 +43,27 @@ fn page_size_defaults_to_50_and_clamps_to_1_100() {
     assert_eq!(clamp_page_size(Some(1000)), 100);
 }
 
+fn page_token() -> String {
+    let at = chrono::DateTime::parse_from_rfc3339("2026-10-01T00:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+    KeysetCursor::new(at, TaskId::new("task-10")).to_string()
+}
+
 #[test]
 fn page_token_round_trips_and_is_opaque() {
-    for offset in [0, 1, 50, 4_000_000] {
-        let token = PageToken::from_offset(offset).encode();
-        assert_eq!(PageToken::decode(&token).unwrap().offset(), offset);
-    }
+    let token = page_token();
+    assert!(!token.contains("task-10"), "the token is opaque: {token}");
+    let decoded: KeysetCursor<TaskId> = token.parse().unwrap();
+    assert_eq!(decoded.id, TaskId::new("task-10"));
+    assert_eq!(decoded.to_string(), token);
 }
 
 #[test]
 fn malformed_page_tokens_are_rejected() {
-    for token in ["!!!", "bm90LWEtbnVtYmVy", "LTE"] {
+    for token in ["!!!", "bm90LWEtY3Vyc29y", "LTE", "fDE"] {
         assert!(
-            PageToken::decode(token).is_err(),
+            token.parse::<KeysetCursor<TaskId>>().is_err(),
             "{token} must be rejected"
         );
     }
@@ -93,7 +102,7 @@ fn list_tasks_request_parses_every_filter() {
             "contextId": CTX,
             "status": "TASK_STATE_WORKING",
             "pageSize": 10,
-            "pageToken": PageToken::from_offset(10).encode(),
+            "pageToken": page_token(),
             "historyLength": 2,
             "statusTimestampAfter": "2026-10-01T00:00:00Z",
             "includeArtifacts": true
@@ -122,7 +131,7 @@ fn empty_list_tasks_params_are_valid() {
 fn list_tasks_result_validates_against_the_schema() {
     let result = ListTasksResult {
         tasks: vec![task_with_history(1)],
-        next_page_token: PageToken::from_offset(1).encode(),
+        next_page_token: page_token(),
         page_size: 1,
         total_size: None,
     };

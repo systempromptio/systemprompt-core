@@ -7,6 +7,7 @@ use crate::models::rows::AiRequestToolCallRow;
 use crate::models::{AiRequestMessage, AiRequestToolCall, ArgsCheck};
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpToolName};
+use systemprompt_models::ai::StoredMessageRole;
 use systemprompt_models::text::without_nul;
 use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
@@ -54,7 +55,6 @@ impl AiRequestRepository {
         sequence_number: i32,
     ) -> Result<AiRequestMessage, RepositoryError> {
         let id = Uuid::new_v4().to_string();
-        let request_id_str = request_id.as_str();
         let content = without_nul(content);
 
         sqlx::query_as!(
@@ -62,10 +62,10 @@ impl AiRequestRepository {
             r#"
             INSERT INTO ai_request_messages (id, request_id, role, content, sequence_number, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            RETURNING id, request_id as "request_id!: AiRequestId", role, content, sequence_number, name, tool_call_id as "tool_call_id: AiToolCallId", created_at, updated_at
+            RETURNING id, request_id as "request_id!: AiRequestId", role as "role: StoredMessageRole", content, sequence_number, name, tool_call_id as "tool_call_id: AiToolCallId", created_at, updated_at
             "#,
             id,
-            request_id_str,
+            request_id as _,
             role,
             content.as_ref(),
             sequence_number
@@ -87,17 +87,15 @@ impl AiRequestRepository {
         &self,
         request_id: &AiRequestId,
     ) -> Result<Vec<AiRequestMessage>, RepositoryError> {
-        let request_id_str = request_id.as_str();
-
         sqlx::query_as!(
             AiRequestMessage,
             r#"
-            SELECT id, request_id as "request_id!: AiRequestId", role, content, sequence_number, name, tool_call_id as "tool_call_id: AiToolCallId", created_at, updated_at
+            SELECT id, request_id as "request_id!: AiRequestId", role as "role: StoredMessageRole", content, sequence_number, name, tool_call_id as "tool_call_id: AiToolCallId", created_at, updated_at
             FROM ai_request_messages
             WHERE request_id = $1
             ORDER BY sequence_number ASC
             "#,
-            request_id_str
+            request_id as _
         )
         .fetch_all(self.pool())
         .await
@@ -109,7 +107,6 @@ impl AiRequestRepository {
         params: InsertToolCallParams<'_>,
     ) -> Result<AiRequestToolCall, RepositoryError> {
         let id = Uuid::new_v4().to_string();
-        let request_id_str = params.request_id.as_str();
         let tool_input = without_nul(params.tool_input);
         let error_path = params
             .args
@@ -124,9 +121,9 @@ impl AiRequestRepository {
             RETURNING id, request_id as "request_id!: AiRequestId", tool_name, tool_input, mcp_execution_id as "mcp_execution_id: McpExecutionId", sequence_number, ai_tool_call_id as "ai_tool_call_id: AiToolCallId", created_at, updated_at
             "#,
             id,
-            request_id_str,
-            params.ai_tool_call_id.as_str(),
-            params.tool_name.as_str(),
+            params.request_id as _,
+            params.ai_tool_call_id as _,
+            params.tool_name as _,
             tool_input.as_ref(),
             params.sequence_number,
             params.args.map(|args| args.validity.as_str()),
@@ -142,8 +139,6 @@ impl AiRequestRepository {
         &self,
         request_id: &AiRequestId,
     ) -> Result<Vec<AiRequestToolCall>, RepositoryError> {
-        let request_id_str = request_id.as_str();
-
         sqlx::query_as!(
             AiRequestToolCallRow,
             r#"
@@ -152,7 +147,7 @@ impl AiRequestRepository {
             WHERE request_id = $1
             ORDER BY sequence_number ASC
             "#,
-            request_id_str
+            request_id as _
         )
         .fetch_all(self.pool())
         .await
@@ -173,7 +168,7 @@ impl AiRequestRepository {
             ORDER BY created_at DESC
             LIMIT 1
             "#,
-            ai_tool_call_id.as_str()
+            ai_tool_call_id as _
         )
         .fetch_optional(self.pool())
         .await
@@ -209,7 +204,7 @@ where
             SELECT t.id, $1, t.role, t.content, t.sequence_number, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             FROM UNNEST($2::text[], $3::text[], $4::text[], $5::int4[]) AS t(id, role, content, sequence_number)
             "#,
-            request_id.as_str(),
+            request_id as _,
             &ids,
             &roles,
             &contents,

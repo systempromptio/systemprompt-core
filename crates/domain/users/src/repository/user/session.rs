@@ -21,7 +21,7 @@ impl UserRepository {
             WHERE user_id = $1
             ORDER BY last_activity_at DESC
             "#,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -39,7 +39,7 @@ impl UserRepository {
             WHERE user_id = $1 AND ended_at IS NULL
             ORDER BY last_activity_at DESC
             "#,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_all(&*self.write_pool)
         .await?;
@@ -63,7 +63,7 @@ impl UserRepository {
             ORDER BY last_activity_at DESC
             LIMIT $2
             "#,
-            user_id.as_str(),
+            user_id as _,
             safe_limit
         )
         .fetch_all(&*self.pool)
@@ -75,7 +75,7 @@ impl UserRepository {
     pub async fn session_exists(&self, session_id: &SessionId) -> Result<bool> {
         let exists = sqlx::query_scalar!(
             r#"SELECT EXISTS(SELECT 1 FROM user_sessions WHERE session_id = $1 AND ended_at IS NULL) as "exists!""#,
-            session_id.as_str()
+            session_id as _
         )
         .fetch_one(&*self.write_pool)
         .await?;
@@ -91,7 +91,7 @@ impl UserRepository {
             WHERE session_id = $2 AND ended_at IS NULL
             "#,
             Utc::now(),
-            session_id.as_str()
+            session_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -107,7 +107,7 @@ impl UserRepository {
             WHERE user_id = $2 AND ended_at IS NULL
             "#,
             Utc::now(),
-            user_id.as_str()
+            user_id as _
         )
         .execute(&*self.write_pool)
         .await?;

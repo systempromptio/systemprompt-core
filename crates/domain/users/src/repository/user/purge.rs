@@ -203,7 +203,7 @@ impl UserRepository {
         let mut conn = self.pool.acquire().await?;
         let sessions: i64 = sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM user_sessions WHERE user_id = $1"#,
-            id.as_str()
+            id as _
         )
         .fetch_one(&mut *conn)
         .await?;
