@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Marketplace"
+text = "`ManifestService::seal` is removed; manifests are sealed by the gateway's manifest signer."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`ManifestService::seal` is removed (no caller remained); seal through the gateway manifest signer."
