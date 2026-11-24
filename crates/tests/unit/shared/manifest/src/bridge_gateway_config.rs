@@ -135,3 +135,23 @@ fn a_pin_that_is_not_semver_is_refused() {
         "{error:?}"
     );
 }
+
+#[test]
+fn a_release_token_naming_a_built_in_secret_is_refused() {
+    for name in ["signing_key_pem", "database_url", "github"] {
+        let error = releases(&format!("  token_secret: {name}\n"))
+            .validate()
+            .expect_err("a built-in token secret");
+        assert!(
+            matches!(error, GatewayProfileError::BuiltInSecretRef(_)),
+            "{name}: {error:?}"
+        );
+    }
+}
+
+#[test]
+fn a_release_token_naming_a_custom_secret_validates() {
+    releases("  token_secret: bridge_release_token\n")
+        .validate()
+        .expect("a custom token secret validates");
+}

@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::RouteId;
+use systemprompt_models::errors::ServicesValidationError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -84,6 +85,9 @@ pub enum GatewayProfileError {
          [`min_version`, `max_version`]"
     )]
     BridgePinnedVersionOutsideWindow { pinned: semver::Version },
+
+    #[error(transparent)]
+    BuiltInSecretRef(#[from] ServicesValidationError),
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;

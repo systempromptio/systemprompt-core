@@ -7,8 +7,8 @@
 //! | view | built from | can do | cannot do |
 //! |---|---|---|---|
 //! | [`GatewayManifestSigner`] | `SigningKeys` | seal a bridge manifest (canonical payload signed with the manifest key); publish that key's public half | mint or verify a JWT, read the RSA signing key, rotate a key |
-//! | [`BridgeReleaseSource`] | the secret lookup | read the one secret a bridge release spec names as its token | read any secret by a name it chooses |
-//! | [`GatewaySettingsView`] | `Config`, the system admin, the services root, the secret lookup | answer the external URL, the API-key lifetime, the trusted proxies, the organisation owner, the services root, and whether a named credential is configured | return a secret value, change any setting |
+//! | [`BridgeReleaseSource`] | the secret lookup | read the one custom secret a bridge release spec names as its token | read a built-in secret (signing keys, pepper, database URLs, provider keys), or any secret by a name it chooses |
+//! | [`GatewaySettingsView`] | `Config`, the system admin, the services root, the secret lookup | answer the external URL, the API-key lifetime, the trusted proxies, the organisation owner, the services root, and whether a named custom secret or provider key is configured | return a secret value, answer for a signing key, the pepper or a database URL, change any setting |
 //! | [`BridgeEventStream`] | the kernel's `EventRouter` | open a per-user `AgUI` subscription with its connection guard | publish an event, reach another broadcaster |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,7 +23,7 @@ use std::task::{Context, Poll};
 use axum::response::sse::Event;
 use systemprompt_events::{AgUiBroadcaster, Broadcaster, ConnectionGuard, EventRouter};
 use systemprompt_identifiers::{ConnectionId, UserId};
-use systemprompt_manifest::Config;
+use systemprompt_manifest::{Config, Secrets};
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::AgUiEvent;
 use systemprompt_models::bridge::ids::ManifestSignature;
@@ -82,7 +82,10 @@ impl BridgeReleaseSource {
 
     #[must_use]
     pub fn token(&self, spec: &BridgeReleasesSpec) -> Option<String> {
-        let name = spec.token_secret.as_deref()?;
+        let name = spec
+            .token_secret
+            .as_deref()
+            .filter(|name| !Secrets::is_built_in_name(name))?;
         self.0
             .lookup(name)
             .map(|secret| secret.expose().to_owned())
@@ -157,9 +160,11 @@ impl GatewaySettingsView {
 
     #[must_use]
     pub fn credential_configured(&self, name: &str) -> bool {
-        self.secrets
-            .lookup(name)
-            .is_some_and(|secret| !secret.expose().is_empty())
+        (!Secrets::is_built_in_name(name) || Secrets::is_provider_key_name(name))
+            && self
+                .secrets
+                .lookup(name)
+                .is_some_and(|secret| !secret.expose().is_empty())
     }
 }
 
