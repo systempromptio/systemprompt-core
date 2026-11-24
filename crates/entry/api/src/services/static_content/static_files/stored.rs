@@ -32,7 +32,6 @@ pub(super) struct FilesRequest<'a> {
     pub headers: &'a HeaderMap,
 }
 
-/// The writable files root and the configured cache policy of `/files/*`.
 pub(super) struct StoredFiles<'a> {
     pub root: PathBuf,
     pub cache_control: Option<&'a str>,
