@@ -28,7 +28,7 @@ use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
 
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
-pub struct ApiAgentDispatch {
+pub(crate) struct ApiAgentDispatch {
     ctx: AppContext,
 }
 
@@ -40,7 +40,7 @@ impl std::fmt::Debug for ApiAgentDispatch {
 
 impl ApiAgentDispatch {
     #[must_use]
-    pub const fn new(ctx: AppContext) -> Self {
+    pub(crate) const fn new(ctx: AppContext) -> Self {
         Self { ctx }
     }
 }

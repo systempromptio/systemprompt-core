@@ -22,7 +22,7 @@ fn indent_of(line: &str) -> usize {
     line.len() - line.trim_start().len()
 }
 
-pub fn rewrite_hooks_key(text: &str) -> Option<String> {
+pub(crate) fn rewrite_hooks_key(text: &str) -> Option<String> {
     let mut hooks_indent: Option<usize> = None;
     let mut changed = false;
     let mut out = Vec::new();

@@ -80,7 +80,7 @@ fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
     notes
 }
 
-pub fn show_discovery(
+pub(crate) fn show_discovery(
     services: Option<&systemprompt_loader::ServicesState>,
 ) -> anyhow::Result<CommandOutput> {
     let report = services
@@ -97,7 +97,7 @@ pub fn discovery(report: &DiscoveryReport) -> anyhow::Result<DiscoveryOutput> {
     })
 }
 
-pub fn discovery_output(report: Option<&DiscoveryReport>) -> anyhow::Result<CommandOutput> {
+pub(crate) fn discovery_output(report: Option<&DiscoveryReport>) -> anyhow::Result<CommandOutput> {
     let Some(report) = report else {
         return Ok(CommandOutput::message(vec![NoticeLine::new(
             "info",

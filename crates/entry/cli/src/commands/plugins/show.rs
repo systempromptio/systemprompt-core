@@ -38,7 +38,7 @@ pub fn execute(args: &ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> 
     ))
 }
 
-pub fn build_detail_output(member: &AdmittedMember) -> ExtensionDetailOutput {
+pub(crate) fn build_detail_output(member: &AdmittedMember) -> ExtensionDetailOutput {
     ExtensionDetailOutput {
         id: member.owner.clone(),
         name: member.metadata.name.to_owned(),

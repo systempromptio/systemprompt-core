@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use super::fold::Folded;
 
-pub const LEGACY_MAP_FILE: &str = "legacy_map.yaml";
+pub(crate) const LEGACY_MAP_FILE: &str = "legacy_map.yaml";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

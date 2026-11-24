@@ -27,7 +27,7 @@ use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
 use systemprompt_extension::cli::CommandOutput;
 
-pub const DATABASE_URL_ALIASES: &[&str] = &["database_url", "internal_database_url"];
+pub(crate) const DATABASE_URL_ALIASES: &[&str] = &["database_url", "internal_database_url"];
 
 #[derive(Debug, Serialize)]
 pub struct SecretCheckReport {

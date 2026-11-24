@@ -134,7 +134,7 @@ pub struct LogEntryRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LogFilters {
+pub(crate) struct LogFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(with = "Option<String>")]
     pub level: Option<LogLevel>,
@@ -148,20 +148,20 @@ pub struct LogFilters {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LogViewOutput {
+pub(crate) struct LogViewOutput {
     pub logs: Vec<LogEntryRow>,
     pub total: u64,
     pub filters: LogFilters,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct LogDeleteOutput {
+pub(crate) struct LogDeleteOutput {
     pub deleted_count: u64,
     pub vacuum_performed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LogCleanupOutput {
+pub(crate) struct LogCleanupOutput {
     pub deleted_count: u64,
     pub dry_run: bool,
     pub cutoff_date: String,
@@ -169,7 +169,7 @@ pub struct LogCleanupOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LogExportOutput {
+pub(crate) struct LogExportOutput {
     pub exported_count: u64,
     pub format: String,
     #[serde(skip_serializing_if = "Option::is_none")]

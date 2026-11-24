@@ -109,7 +109,7 @@ pub struct ServicesRefreshResponse {
     pub restarting: bool,
 }
 
-pub fn source_views(state: &ServicesBundleState) -> Vec<SourceView> {
+pub(crate) fn source_views(state: &ServicesBundleState) -> Vec<SourceView> {
     state
         .sources
         .iter()
@@ -123,7 +123,7 @@ pub fn source_views(state: &ServicesBundleState) -> Vec<SourceView> {
         .collect()
 }
 
-pub fn provenance_view(provenance: &ServicesProvenance) -> ProvenanceView {
+pub(crate) fn provenance_view(provenance: &ServicesProvenance) -> ProvenanceView {
     match provenance {
         ServicesProvenance::Bundled => ProvenanceView {
             kind: "bundled".to_owned(),
@@ -151,7 +151,7 @@ pub fn provenance_view(provenance: &ServicesProvenance) -> ProvenanceView {
     }
 }
 
-pub const fn composed_hash_of(active: &ActiveServicesRoot) -> Option<&str> {
+pub(crate) const fn composed_hash_of(active: &ActiveServicesRoot) -> Option<&str> {
     match &active.provenance {
         ServicesProvenance::Fetched { composed_hash, .. }
         | ServicesProvenance::LastGood { composed_hash, .. } => Some(composed_hash.as_str()),

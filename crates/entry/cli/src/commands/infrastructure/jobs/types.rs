@@ -20,13 +20,13 @@ pub struct JobInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct JobListOutput {
+pub(crate) struct JobListOutput {
     pub jobs: Vec<JobInfo>,
     pub total: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct JobRunOutput {
+pub(crate) struct JobRunOutput {
     pub job_name: JobName,
     pub status: String,
     pub duration_ms: u64,
@@ -34,7 +34,7 @@ pub struct JobRunOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct JobRunResult {
+pub(crate) struct JobRunResult {
     pub success: bool,
     pub message: Option<String>,
     pub items_processed: Option<u64>,
@@ -42,7 +42,7 @@ pub struct JobRunResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct JobShowOutput {
+pub(crate) struct JobShowOutput {
     pub name: String,
     pub owner: String,
     pub description: String,
@@ -58,7 +58,7 @@ pub struct JobShowOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct JobHistoryEntry {
+pub(crate) struct JobHistoryEntry {
     pub job_name: JobName,
     pub status: String,
     pub run_at: DateTime<Utc>,
@@ -66,20 +66,20 @@ pub struct JobHistoryEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct JobHistoryOutput {
+pub(crate) struct JobHistoryOutput {
     pub entries: Vec<JobHistoryEntry>,
     pub total: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct JobEnableOutput {
+pub(crate) struct JobEnableOutput {
     pub job_name: JobName,
     pub enabled: bool,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BatchJobRunOutput {
+pub(crate) struct BatchJobRunOutput {
     pub jobs_run: Vec<JobRunOutput>,
     pub total: usize,
     pub succeeded: usize,
@@ -87,7 +87,7 @@ pub struct BatchJobRunOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PrunedJob {
+pub(crate) struct PrunedJob {
     pub job_name: JobName,
     pub schedule: String,
     pub enabled: bool,

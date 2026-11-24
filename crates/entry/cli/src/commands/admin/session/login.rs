@@ -94,7 +94,7 @@ async fn connect_profile_database(
     )?)
 }
 
-pub async fn login_for_profile(
+pub(crate) async fn login_for_profile(
     boot: &BootContext,
     args: &LoginArgs,
     host: &dyn KernelHost,

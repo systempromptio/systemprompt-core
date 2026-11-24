@@ -26,9 +26,9 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use tokio::sync::Semaphore;
 
-pub const HTTP_LOAD_SHED_TOTAL: &str = "http_load_shed_total";
-pub const HTTP_IN_FLIGHT_LIMIT: &str = "http_in_flight_limit";
-pub const HTTP_IN_FLIGHT_SATURATION: &str = "http_in_flight_saturation";
+pub(crate) const HTTP_LOAD_SHED_TOTAL: &str = "http_load_shed_total";
+pub(crate) const HTTP_IN_FLIGHT_LIMIT: &str = "http_in_flight_limit";
+pub(crate) const HTTP_IN_FLIGHT_SATURATION: &str = "http_in_flight_saturation";
 
 const EXEMPT_PATHS: [&str; 5] = [
     ApiPaths::LIVEZ,

@@ -32,7 +32,7 @@ pub struct DataReport {
     pub route_rules_moved_to_models: u64,
 }
 
-pub fn read_map(services: &Path) -> Result<LegacyMap> {
+pub(crate) fn read_map(services: &Path) -> Result<LegacyMap> {
     let path = services.join("ai").join(LEGACY_MAP_FILE);
     let text = std::fs::read_to_string(&path).with_context(|| {
         format!(

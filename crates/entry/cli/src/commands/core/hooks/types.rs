@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::HookId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct HookListOutput {
+pub(crate) struct HookListOutput {
     pub hooks: Vec<HookEntry>,
 }
 
@@ -23,7 +23,7 @@ pub struct HookEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct HookValidateOutput {
+pub(crate) struct HookValidateOutput {
     pub results: Vec<HookValidateEntry>,
 }
 

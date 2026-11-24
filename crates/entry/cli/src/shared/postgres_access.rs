@@ -60,7 +60,7 @@ impl PostgresConfig {
     }
 }
 
-pub fn postgres_url(
+pub(crate) fn postgres_url(
     user: &str,
     password: &str,
     host: &str,

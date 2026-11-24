@@ -40,7 +40,7 @@ pub struct ToolExecutionRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ToolsListOutput {
+pub(crate) struct ToolsListOutput {
     pub executions: Vec<ToolExecutionRow>,
     pub total: u64,
 }

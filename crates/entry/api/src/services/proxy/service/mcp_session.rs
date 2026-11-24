@@ -16,7 +16,7 @@ use super::super::backend::ProxyError;
 
 pub const SESSION_HEADER: &str = systemprompt_identifiers::headers::MCP_SESSION_ID;
 
-pub fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
+pub(crate) fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
     headers
         .get(SESSION_HEADER)
         .and_then(|v| v.to_str().ok())
@@ -24,7 +24,7 @@ pub fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
         .map(SessionId::new)
 }
 
-pub async fn ensure_bound(
+pub(crate) async fn ensure_bound(
     backends: &dyn ProxyBackendResolver,
     request_headers: &HeaderMap,
     service_name: &ServiceName,
@@ -62,7 +62,7 @@ pub struct IssuedSession<'a> {
     pub method_str: &'a str,
 }
 
-pub async fn bind_issued_session(issued: IssuedSession<'_>) -> Result<(), ProxyError> {
+pub(crate) async fn bind_issued_session(issued: IssuedSession<'_>) -> Result<(), ProxyError> {
     let IssuedSession {
         backends,
         response,

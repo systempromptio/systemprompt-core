@@ -24,7 +24,7 @@ pub trait FileSwap {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct StdFileSwap;
+pub(crate) struct StdFileSwap;
 
 impl FileSwap for StdFileSwap {
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {

@@ -30,7 +30,7 @@ pub struct KeygenArgs {
 }
 
 #[derive(Debug, Serialize)]
-pub struct KeygenOutcome {
+pub(crate) struct KeygenOutcome {
     pub public_key: String,
     pub key_id: String,
     pub seed: Option<String>,

@@ -142,7 +142,7 @@ fn describe(
     }
 }
 
-pub fn declared_requires_core(declared: Option<&str>) -> Result<String> {
+pub(crate) fn declared_requires_core(declared: Option<&str>) -> Result<String> {
     let Some(range) = declared else {
         return requires_core(env!("CARGO_PKG_VERSION"));
     };

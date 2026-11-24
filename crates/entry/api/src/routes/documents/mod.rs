@@ -21,7 +21,7 @@ use systemprompt_traits::AppContext as _;
 use crate::kernel::{ApiHttpError, resolve_client_ip};
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
-pub enum DocumentsMountError {
+pub(crate) enum DocumentsMountError {
     #[error("document routes need the document store enabled")]
     Disabled,
     #[error("document routes need the documents member's link token view")]

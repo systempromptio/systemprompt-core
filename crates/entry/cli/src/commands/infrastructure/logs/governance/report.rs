@@ -74,7 +74,7 @@ pub struct ReportArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct WarningGroupRow {
+pub(crate) struct WarningGroupRow {
     pub group: String,
     pub warnings: i64,
     pub tools: i64,
@@ -84,7 +84,7 @@ pub struct WarningGroupRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SafetyFindingGroupRow {
+pub(crate) struct SafetyFindingGroupRow {
     pub category: String,
     pub scanner: String,
     pub severity: String,
@@ -95,7 +95,7 @@ pub struct SafetyFindingGroupRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct GovernanceReportOutput {
+pub(crate) struct GovernanceReportOutput {
     pub since: String,
     pub group_by: GroupBy,
     pub total_warnings: i64,

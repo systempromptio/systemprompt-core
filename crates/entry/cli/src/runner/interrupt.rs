@@ -174,7 +174,7 @@ fn hard_exit() {
     std::process::exit(i32::from(INTERRUPTED_EXIT_CODE));
 }
 
-pub fn restore_terminal() {
+pub(crate) fn restore_terminal() {
     for term in [console::Term::stdout(), console::Term::stderr()] {
         if let Err(e) = term.show_cursor() {
             tracing::debug!(error = %e, "terminal cursor not restored");

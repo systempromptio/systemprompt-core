@@ -23,13 +23,13 @@ pub use super::rate_limit_types::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ConfigMutationOutput {
+pub(crate) struct ConfigMutationOutput {
     pub field: String,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ConfigOverviewOutput {
+pub(crate) struct ConfigOverviewOutput {
     #[schemars(with = "String")]
     pub profile_name: ProfileName,
     pub profile_path: String,
@@ -41,7 +41,7 @@ pub struct ConfigOverviewOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ServerOverview {
+pub(crate) struct ServerOverview {
     pub host: String,
     pub port: u16,
     pub use_https: bool,
@@ -49,7 +49,7 @@ pub struct ServerOverview {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RuntimeOverview {
+pub(crate) struct RuntimeOverview {
     pub environment: String,
     pub log_level: String,
     pub output_format: String,
@@ -57,7 +57,7 @@ pub struct RuntimeOverview {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SecurityOverview {
+pub(crate) struct SecurityOverview {
     pub jwt_issuer: String,
     pub access_token_expiry_seconds: i64,
     pub refresh_token_expiry_seconds: i64,
@@ -65,7 +65,7 @@ pub struct SecurityOverview {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PathsOverview {
+pub(crate) struct PathsOverview {
     pub system: String,
     pub services: String,
     pub bin: String,
@@ -74,14 +74,14 @@ pub struct PathsOverview {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct RateLimitsSummary {
+pub(crate) struct RateLimitsSummary {
     pub enabled: bool,
     pub burst_multiplier: u64,
     pub tier_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ServerConfigOutput {
+pub(crate) struct ServerConfigOutput {
     pub host: String,
     pub port: u16,
     pub external_url: String,
@@ -93,7 +93,7 @@ pub struct ServerConfigOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ServerSetOutput {
+pub(crate) struct ServerSetOutput {
     pub field: String,
     pub old_value: String,
     pub new_value: String,
@@ -101,20 +101,20 @@ pub struct ServerSetOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CorsListOutput {
+pub(crate) struct CorsListOutput {
     pub origins: Vec<String>,
     pub count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CorsModifyOutput {
+pub(crate) struct CorsModifyOutput {
     pub action: String,
     pub origin: String,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RuntimeConfigOutput {
+pub(crate) struct RuntimeConfigOutput {
     pub environment: String,
     pub log_level: String,
     pub output_format: String,
@@ -123,7 +123,7 @@ pub struct RuntimeConfigOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RuntimeSetOutput {
+pub(crate) struct RuntimeSetOutput {
     pub field: String,
     pub old_value: String,
     pub new_value: String,
@@ -131,12 +131,12 @@ pub struct RuntimeSetOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct ServicesConfigOutput {
+pub(crate) struct ServicesConfigOutput {
     pub port_offset: u16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ServicesSetOutput {
+pub(crate) struct ServicesSetOutput {
     pub field: String,
     pub old_value: String,
     pub new_value: String,
@@ -144,7 +144,7 @@ pub struct ServicesSetOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SecurityConfigOutput {
+pub(crate) struct SecurityConfigOutput {
     pub jwt_issuer: String,
     pub access_token_expiry_seconds: i64,
     pub refresh_token_expiry_seconds: i64,
@@ -152,7 +152,7 @@ pub struct SecurityConfigOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SecuritySetOutput {
+pub(crate) struct SecuritySetOutput {
     pub field: String,
     pub old_value: String,
     pub new_value: String,
@@ -160,7 +160,7 @@ pub struct SecuritySetOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PathsConfigOutput {
+pub(crate) struct PathsConfigOutput {
     pub system: PathInfo,
     pub services: PathInfo,
     pub bin: PathInfo,
@@ -170,13 +170,13 @@ pub struct PathsConfigOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PathInfo {
+pub(crate) struct PathInfo {
     pub path: String,
     pub exists: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PathsValidateOutput {
+pub(crate) struct PathsValidateOutput {
     pub valid: bool,
     pub paths: Vec<PathValidation>,
 }

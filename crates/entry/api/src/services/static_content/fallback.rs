@@ -13,7 +13,7 @@ use systemprompt_models::modules::ApiPaths;
 use super::static_files::StaticContentState;
 use crate::error::ApiHttpError;
 
-pub async fn smart_fallback_handler(
+pub(crate) async fn smart_fallback_handler(
     State(state): State<StaticContentState>,
     uri: Uri,
     method: Method,

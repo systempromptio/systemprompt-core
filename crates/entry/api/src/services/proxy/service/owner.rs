@@ -59,10 +59,10 @@ pub fn owner_url(advertise_url: &str, path_and_query: &str) -> String {
     }
 }
 
-pub const FORWARDED_TO_OWNER: HeaderName =
+pub(crate) const FORWARDED_TO_OWNER: HeaderName =
     HeaderName::from_static(systemprompt_identifiers::headers::OWNER_HOP);
 
-pub const OWNER_CACHE_TTL: Duration = Duration::from_secs(2);
+pub(crate) const OWNER_CACHE_TTL: Duration = Duration::from_secs(2);
 pub const OWNER_HANDOVER_WAIT: Duration = Duration::from_secs(10);
 pub const OWNER_HANDOVER_POLL: Duration = Duration::from_millis(200);
 
@@ -270,7 +270,7 @@ impl ProxyService {
     }
 }
 
-pub fn forwarded_by_replica(
+pub(crate) fn forwarded_by_replica(
     headers: &HeaderMap,
     service_name: &ServiceName,
     ctx: &AppContext,

@@ -29,7 +29,7 @@ pub struct ProvisionOutcome {
     pub database_created: bool,
 }
 
-pub async fn provision_role_and_db(
+pub(crate) async fn provision_role_and_db(
     pool: &PgPool,
     config: &PostgresConfig,
     reset_role_password: bool,

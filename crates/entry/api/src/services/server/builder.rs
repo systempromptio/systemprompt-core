@@ -57,7 +57,7 @@ pub fn setup_api_server(
     assemble_api_server(ctx, composed, events, readiness, engines.as_ref())
 }
 
-pub fn admitted_gateway_engines(
+pub(crate) fn admitted_gateway_engines(
     composed: &super::routes::Composed<'_>,
 ) -> Option<Arc<GatewayEngines>> {
     let Some(engines) = crate::routes::gateway::gateway_engines(composed.kernel) else {
@@ -70,7 +70,7 @@ pub fn admitted_gateway_engines(
     Some(engines)
 }
 
-pub fn assemble_api_server(
+pub(crate) fn assemble_api_server(
     ctx: &AppContext,
     composed: super::routes::Composed<'_>,
     events: Option<&StartupEventSender>,

@@ -26,8 +26,8 @@ use systemprompt_traits::OwnedTask;
 const METRICS_CONTENT_TYPE: &str = "text/plain; version=0.0.4; charset=utf-8";
 
 const HTTP_REQUESTS_TOTAL: &str = "http_requests_total";
-pub const HTTP_REQUEST_DURATION_SECONDS: &str = "http_request_duration_seconds";
-pub const HTTP_BUCKETS: [f64; 11] = [
+pub(crate) const HTTP_REQUEST_DURATION_SECONDS: &str = "http_request_duration_seconds";
+pub(crate) const HTTP_BUCKETS: [f64; 11] = [
     0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
 ];
 const HTTP_REQUESTS_IN_FLIGHT: &str = "http_requests_in_flight";

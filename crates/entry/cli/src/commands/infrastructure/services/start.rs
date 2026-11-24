@@ -63,7 +63,7 @@ impl ServiceTarget {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct StartupOptions {
+pub(crate) struct StartupOptions {
     pub skip_migrate: bool,
     pub kill_port_process: bool,
 }
