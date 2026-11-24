@@ -14,9 +14,8 @@
 //! [`systemprompt_traits::Job::requires`] checked against the context it will
 //! run with; an unmet requirement refuses the start with
 //! [`SchedulerError::UnmetRequirement`]. A job whose `configured()` is false
-//! is not scheduled and not checked. Once the loop runs, each job's
-//! [`systemprompt_traits::MissedRunPolicy`] is applied from the last instant
-//! recorded for it in `scheduled_job_runs`, on a background task.
+//! is not scheduled and not checked. Once the loop runs, each job's missed
+//! instants are applied on a background task.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,6 +25,7 @@ mod claim;
 mod dispatch;
 mod instants;
 mod job_context;
+mod missed;
 mod owners;
 mod registration;
 mod unlisted;
@@ -40,7 +40,7 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{JobName, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Job as JobTrait, MissedRunPolicy};
+use systemprompt_traits::Job as JobTrait;
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
@@ -273,55 +273,6 @@ impl SchedulerService {
             }
         }
         Ok(())
-    }
-
-    async fn apply_missed_runs(&self, tickers: &[registration::Ticker]) {
-        let now = self.clock.now();
-        let mut due = Vec::new();
-        for ticker in tickers {
-            let limit = match ticker.dispatch.job.missed_runs() {
-                MissedRunPolicy::Skip => continue,
-                MissedRunPolicy::RunOnce => 1,
-                MissedRunPolicy::CatchUp { max } => usize::try_from(max).unwrap_or(usize::MAX),
-            };
-            let Some(key) = ticker.dispatch.claim_policy.run_key() else {
-                continue;
-            };
-            let job_name = &ticker.dispatch.job_name;
-            let last = match self
-                .repository
-                .runs()
-                .last_scheduled_at(job_name, &key)
-                .await
-            {
-                Ok(Some(last)) => last,
-                Ok(None) => continue,
-                Err(e) => {
-                    warn!(job_name = %job_name, error = %e, "cannot read the job's last recorded instant; no missed run is applied");
-                    continue;
-                },
-            };
-            let missed = ticker.instants.missed(last, now, limit);
-            if !missed.is_empty() {
-                info!(job_name = %job_name, count = missed.len(), "running missed instants");
-                due.push((ticker.clone(), missed));
-            }
-        }
-        if due.is_empty() {
-            return;
-        }
-        self.app_context
-            .background_tasks()
-            .spawn("scheduler_missed_runs", async move {
-                for (ticker, missed) in due {
-                    for instant in missed {
-                        ticker
-                            .clone()
-                            .run(dispatch::Trigger::Scheduled(instant))
-                            .await;
-                    }
-                }
-            });
     }
 
     async fn verify_lock_keys(&self, registered_jobs: &JobMap) -> SchedulerResult<()> {
