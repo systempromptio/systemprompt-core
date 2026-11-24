@@ -5,7 +5,9 @@
 //! over 64 independently locked shards so concurrent callers rarely
 //! contend. Each shard holds one counter per `(user, scope)` — a counter from
 //! an earlier window is reset when its caller is next charged — in a
-//! least-recently-charged order bounded at 4096 callers. A new
+//! least-recently-charged order bounded at the profile's
+//! `rate_limits.memory_capacity` divided evenly over the shards, rounded up
+//! (the default 262 144 gives 4096 per shard). A new
 //! caller in a full shard evicts that shard's least recently charged counter
 //! only when it belongs to an earlier window; when every counter in the shard
 //! is still in the current window the charge fails, and the limiter answers
@@ -17,7 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::hash::{BuildHasher, Hash, Hasher};
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU64, NonZeroUsize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
 
@@ -28,7 +30,6 @@ use systemprompt_identifiers::UserId;
 use systemprompt_traits::{RateLimitBuckets, RepositoryError};
 
 const SHARDS: usize = 64;
-const SHARD_CAPACITY: NonZeroUsize = NonZeroUsize::new(4096).expect("non-zero");
 const RATE_LIMIT_MEMORY_EVICTIONS_TOTAL: &str = "rate_limit_memory_evictions_total";
 const RATE_LIMIT_MEMORY_REFUSALS_TOTAL: &str = "rate_limit_memory_refusals_total";
 
@@ -48,14 +49,18 @@ pub struct MemoryRateLimitBuckets {
     refusals: AtomicU64,
 }
 
-impl Default for MemoryRateLimitBuckets {
-    fn default() -> Self {
-        Self::with_shard_capacity(SHARD_CAPACITY)
-    }
-}
-
 impl MemoryRateLimitBuckets {
     pub const SHARDS: usize = SHARDS;
+
+    #[must_use]
+    pub fn with_capacity(callers: NonZeroU64) -> Self {
+        let per_shard = callers.get().div_ceil(SHARDS as u64);
+        let per_shard = usize::try_from(per_shard)
+            .ok()
+            .and_then(NonZeroUsize::new)
+            .unwrap_or(NonZeroUsize::MAX);
+        Self::with_shard_capacity(per_shard)
+    }
 
     #[must_use]
     pub fn with_shard_capacity(capacity: NonZeroUsize) -> Self {

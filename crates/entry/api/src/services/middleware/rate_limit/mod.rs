@@ -58,6 +58,9 @@ use ipnet::IpNet;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_extension::LoaderError;
+use systemprompt_extension::reserved::CoreId;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_provider_contracts::{Dependencies, DependencyProvider};
@@ -91,13 +94,20 @@ impl RateLimitState {
         }
     }
 
-    pub fn from_context(ctx: &AppContext) -> Self {
-        Self::from_kernel(ctx.config(), ctx.kernel().state())
+    pub fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
+        let state = ctx.kernel().state();
+        let config = state
+            .get::<Arc<Config>>()
+            .map_err(|source| LoaderError::MissingProvider {
+                extension: ExtensionId::new(CoreId::Kernel.id()),
+                source,
+            })?;
+        Ok(Self::from_kernel(config, state))
     }
 
     #[must_use]
     pub fn from_kernel(config: &Config, state: &Dependencies) -> Self {
-        Self::new(config, replica_shared_buckets(state))
+        Self::new(config, replica_shared_buckets(state, &config.rate_limits))
     }
 
     #[must_use]
@@ -149,7 +159,7 @@ impl RateLimitState {
 
 const USERS_EXTENSION: &str = "users";
 
-fn replica_shared_buckets(state: &Dependencies) -> DynRateLimitBuckets {
+fn replica_shared_buckets(state: &Dependencies, limits: &RateLimitsConfig) -> DynRateLimitBuckets {
     let from_users = matches!(
         state.provider_of::<DynRateLimitBuckets>(),
         Some(DependencyProvider::Extension(id)) if id.as_str() == USERS_EXTENSION
@@ -158,7 +168,11 @@ fn replica_shared_buckets(state: &Dependencies) -> DynRateLimitBuckets {
         .find::<DynRateLimitBuckets>()
         .filter(|_| from_users)
         .cloned()
-        .unwrap_or_else(|| Arc::new(MemoryRateLimitBuckets::default()))
+        .unwrap_or_else(|| {
+            let callers =
+                std::num::NonZeroU64::new(limits.memory_capacity).unwrap_or(std::num::NonZeroU64::MIN);
+            Arc::new(MemoryRateLimitBuckets::with_capacity(callers))
+        })
 }
 
 pub trait ContextLayer: Clone + Send + Sync + 'static {
