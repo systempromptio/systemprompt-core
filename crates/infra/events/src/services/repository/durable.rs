@@ -64,13 +64,17 @@ impl DurableOutboxRepository {
     ) -> Result<(), sqlx::Error> {
         let (actor_kind, actor_id) = row.actor.audit_columns();
         sqlx::query!(
-            "INSERT INTO event_outbox \
+            "WITH next AS ( \
+                 INSERT INTO event_outbox_aggregate_seq (consumer, aggregate_key, seq) \
+                 SELECT $8, $10::text, 1 WHERE $10::text <> '' \
+                 ON CONFLICT (consumer, aggregate_key) \
+                 DO UPDATE SET seq = event_outbox_aggregate_seq.seq + 1 \
+                 RETURNING seq) \
+             INSERT INTO event_outbox \
              (id, channel, user_id, payload, actor_kind, actor_id, origin_instance_id, \
               consumer, fact, deliver_to_origin, aggregate_key, aggregate_seq) \
              SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10::text, \
-                    CASE WHEN $10::text = '' THEN 0 ELSE COALESCE( \
-                        (SELECT max(e.aggregate_seq) FROM event_outbox e \
-                         WHERE e.consumer = $8 AND e.aggregate_key = $10::text), 0) + 1 END",
+                    COALESCE((SELECT seq FROM next), 0)",
             row.id as _,
             row.channel.as_str(),
             row.actor.user_id as _,

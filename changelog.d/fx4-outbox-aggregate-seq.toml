@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "events"
+text = "An outbox append takes its aggregate sequence from a per-aggregate counter row (`event_outbox_aggregate_seq`) instead of the outbox's current maximum, so concurrent appends to one aggregate never share a sequence and no append scans the outbox."

@@ -62,5 +62,14 @@ fn schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/event_outbox_backlog.sql"),
         )
         .with_required_columns(vec!["consumer".into(), "delta".into()]),
+        SchemaDefinition::new(
+            "event_outbox_aggregate_seq",
+            include_str!("../schema/event_outbox_aggregate_seq.sql"),
+        )
+        .with_required_columns(vec![
+            "consumer".into(),
+            "aggregate_key".into(),
+            "seq".into(),
+        ]),
     ]
 }

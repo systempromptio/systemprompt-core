@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH next AS ( INSERT INTO event_outbox_aggregate_seq (consumer, aggregate_key, seq) SELECT $8, $10::text, 1 WHERE $10::text <> '' ON CONFLICT (consumer, aggregate_key) DO UPDATE SET seq = event_outbox_aggregate_seq.seq + 1 RETURNING seq) INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, origin_instance_id, consumer, fact, deliver_to_origin, aggregate_key, aggregate_seq) SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10::text, COALESCE((SELECT seq FROM next), 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8f8b00934ace92bad39d6890bc50993d2dbf5fc929844b3d435aae42a9cda603"
+}
