@@ -299,6 +299,18 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_users::UsersGatewaySessionMint>(),
         ),
         (
+            type_name::<systemprompt_traits::DynServiceAccounts>(),
+            carrier::<systemprompt_users::UsersServiceAccounts>(),
+        ),
+        (
+            type_name::<Arc<systemprompt_oauth::repository::OAuthRepositories>>(),
+            carrier::<systemprompt_oauth::repository::OAuthRepositories>(),
+        ),
+        (
+            type_name::<Arc<systemprompt_marketplace::inventory::InventoryRefresher>>(),
+            carrier::<systemprompt_marketplace::inventory::InventoryRefresher>(),
+        ),
+        (
             type_name::<Arc<systemprompt_gateway::GatewayAtRest>>(),
             carrier::<systemprompt_gateway::audit::journal::GatewayJournal>(),
         ),
@@ -395,7 +407,8 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         "every member-sealed provide names the implementors no open value may carry"
     );
 
-    let open_names = format!("{runtime:?}");
+    let debug = format!("{runtime:?}");
+    let open_names = debug.split("reserved:").next().unwrap_or(&debug);
     for (sealed, implementors) in &probes {
         for (id, name) in implementors {
             assert!(

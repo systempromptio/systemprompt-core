@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_identifiers::{Actor, ExtensionId, UserId};
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
@@ -134,9 +134,10 @@ async fn the_inventory_refresh_job_runs_twice_from_its_member_state() {
         .await
         .expect("seed the system admin");
     let ctx = test_app_context_on(&boot).await;
-    let context = JobContext::new(
+    let context = JobContext::for_member(
         Actor::job(UserId::new("inventory-job-admin"), "test".to_owned()),
-        ctx.kernel().runtime_state().with(Arc::clone(&pool)),
+        ctx.kernel().state().clone().with(Arc::clone(&pool)),
+        &ExtensionId::new("managed_resources"),
     );
     let job = InventoryRefreshJob::default();
     assert_eq!(job.name(), "managed_inventory_refresh");

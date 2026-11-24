@@ -177,15 +177,14 @@ fn the_admitted_projections_view() {
 }
 
 const API_ONLY_SEEDS: &[&str] = &[
+    "systemprompt_traits::secret::AtRestPepper",
     "systemprompt_security::keys::signing_keys::SigningKeys",
     "alloc::sync::Arc<systemprompt_loader::subprocess::spawn::Spawner>",
     "alloc::sync::Arc<dyn systemprompt_config::bootstrap::secrets::child::ChildSecretEnv>",
     "systemprompt_security::keys::verification::TokenVerificationKeys",
-    "alloc::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>",
     "alloc::sync::Arc<dyn systemprompt_models::auth::token_authority::TokenAuthority>",
     "systemprompt_models::late_bound::LateRead<dyn systemprompt_traits::messaging::MessagingDispatcher>",
     "systemprompt_models::late_bound::LateRead<dyn systemprompt_models::a2a::dispatch::AgentDispatch>",
-    "alloc::sync::Arc<maxminddb::reader::Reader<alloc::vec::Vec<u8>>>",
     "alloc::sync::Arc<systemprompt_models::content_config::ContentConfigRaw>",
 ];
 
