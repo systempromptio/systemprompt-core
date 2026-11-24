@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT status AS \"status: FactStatus\", count(*) AS \"count!\"\n               FROM brain_facts GROUP BY status ORDER BY status",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status: FactStatus",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "3fb2f35a2f94a13817e5effee8d5e048c428fd7f16ae090b7824b550705505a2"
+}
