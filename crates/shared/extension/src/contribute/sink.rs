@@ -211,42 +211,8 @@ impl ContributionSink {
     }
 
     #[must_use]
-    pub fn subject_providers(&self) -> &[SubjectProviderFactory] {
-        &self.subject_providers
-    }
-
-    pub fn audience_resolvers(&self) -> &[AudienceResolverFactory] {
-        &self.audience_resolvers
-    }
-
-    #[must_use]
-    pub fn policies(&self) -> &[PolicyFactory] {
-        &self.policies
-    }
-
-    #[must_use]
-    pub fn runner_services(&self) -> &[RunnerServiceFactory] {
-        &self.runner_services
-    }
-
-    #[must_use]
-    pub fn readiness(&self) -> &[ReadinessFactory] {
-        &self.readiness
-    }
-
-    #[must_use]
-    pub fn diagnostics(&self) -> &[DiagnosticFactory] {
-        &self.diagnostics
-    }
-
-    #[must_use]
     pub fn metrics(&self) -> &[MetricDescriptor] {
         &self.metrics
-    }
-
-    #[must_use]
-    pub fn gateway_guards(&self) -> &[GatewayGuardFactory] {
-        &self.gateway_guards
     }
 
     #[must_use]

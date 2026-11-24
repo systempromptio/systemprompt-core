@@ -10,6 +10,7 @@
 pub mod config;
 pub mod core;
 pub mod personal_credentials;
+mod personal_key_probe;
 pub mod personal_keys;
 pub mod providers;
 pub mod schema;

@@ -24,7 +24,7 @@ use systemprompt_runtime::AppContext;
 
 use super::contributed::admitted_factories;
 use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
-use super::probes::ExtensionReadiness;
+use super::extension_readiness::ExtensionReadiness;
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, SlotError};
 use systemprompt_identifiers::ExtensionId;

@@ -43,6 +43,7 @@ mod retention;
 mod runtime;
 mod secrets;
 mod security;
+mod security_headers;
 mod server;
 mod services;
 mod shutdown;
@@ -100,9 +101,10 @@ pub use security::{
     GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer, UiSessionConfig,
     UiSessionDiscovery, default_resource_audiences,
 };
+pub use security_headers::{ReferrerPolicy, SecurityHeadersConfig};
 pub use server::{
     AnalyticsQueueConfig, ContentNegotiationConfig, DEFAULT_MAX_IN_FLIGHT, FrameOptions,
-    ReferrerPolicy, SecurityHeadersConfig, ServerConfig,
+    ServerConfig,
 };
 pub use services::{
     BundleVerification, FetchFailurePolicy, HttpsServicesSource, OciServicesSource,

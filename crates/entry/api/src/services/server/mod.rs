@@ -15,6 +15,7 @@ mod boot_steps;
 mod brain;
 pub mod builder;
 mod discovery;
+mod extension_readiness;
 pub mod health;
 mod health_stats;
 
