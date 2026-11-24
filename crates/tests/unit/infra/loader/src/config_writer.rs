@@ -9,17 +9,17 @@
 
 use std::collections::HashMap;
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::{CheckError, ConfigWriteError, ConfigWriter};
+use systemprompt_loader::{CheckError, ConfigWriteError, ConfigWriter, StagedAgentFile};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
 use tempfile::TempDir;
 
-fn accept() -> Result<(), CheckError> {
+fn accept(_staged: &StagedAgentFile<'_>) -> Result<(), CheckError> {
     Ok(())
 }
 
-fn refuse() -> Result<(), CheckError> {
+fn refuse(_staged: &StagedAgentFile<'_>) -> Result<(), CheckError> {
     Err("the configuration would be invalid".into())
 }
 
@@ -426,15 +426,67 @@ fn a_refused_create_leaves_no_file_behind() {
 }
 
 #[test]
-fn the_check_sees_the_change_on_disk() {
+fn the_check_sees_the_staged_bytes_before_the_live_file_changes() {
     let temp_dir = TempDir::new().expect("temp dir");
     std::fs::create_dir_all(temp_dir.path().join("agents")).expect("agents dir");
     let path = temp_dir.path().join("agents/seen.yaml");
     let probe = path.clone();
-    ConfigWriter::create_agent(&create_test_agent("seen"), temp_dir.path(), move || {
-        assert!(probe.exists(), "the check runs against the written tree");
+    ConfigWriter::create_agent(&create_test_agent("seen"), temp_dir.path(), move |staged| {
+        assert!(!probe.exists(), "the live file is untouched while the check runs");
+        assert_eq!(staged.live_path(), probe.as_path());
+        let staged_bytes = std::fs::read(staged.staged_path()).expect("staged file is readable");
+        assert_eq!(staged_bytes.as_slice(), staged.contents());
         Ok(())
     })
     .expect("an accepted create is kept");
     assert!(path.exists());
+}
+
+#[test]
+fn a_refusing_check_never_exposes_unvalidated_bytes_and_leaves_no_staged_file() {
+    let temp_dir = TempDir::new().expect("temp dir");
+    let agents_dir = temp_dir.path().join("agents");
+    std::fs::create_dir_all(&agents_dir).expect("agents dir");
+    let live = agents_dir.join("guarded.yaml");
+    std::fs::write(&live, create_agent_yaml_content("guarded")).expect("agent file");
+    let before = std::fs::read(&live).expect("live bytes");
+
+    let mut agent = create_test_agent("guarded");
+    agent.port = 4998;
+    let live_probe = live.clone();
+    let expected = before.clone();
+    let mut staged_seen = None;
+    let error = ConfigWriter::update_agent(
+        &AgentName::new("guarded"),
+        &agent,
+        temp_dir.path(),
+        |staged| {
+            assert_eq!(
+                std::fs::read(&live_probe).expect("live bytes during check"),
+                expected,
+                "the live file never shows unvalidated content"
+            );
+            let name = staged
+                .staged_path()
+                .file_name()
+                .expect("staged name")
+                .to_string_lossy()
+                .into_owned();
+            assert_ne!(name, ".guarded.yaml.staged", "the staged name is not predictable");
+            assert_eq!(staged.staged_path().parent(), live_probe.parent());
+            staged_seen = Some(staged.staged_path().to_path_buf());
+            Err("refused".into())
+        },
+    )
+    .expect_err("a refused check refuses the update");
+
+    assert!(matches!(error, ConfigWriteError::Rejected(_)), "{error}");
+    assert_eq!(std::fs::read(&live).expect("live bytes after"), before);
+    let staged = staged_seen.expect("the check ran");
+    assert!(!staged.exists(), "no staged file is left behind");
+    let names: Vec<_> = std::fs::read_dir(&agents_dir)
+        .expect("agents dir")
+        .map(|entry| entry.expect("entry").file_name())
+        .collect();
+    assert_eq!(names, vec![std::ffi::OsString::from("guarded.yaml")]);
 }

@@ -219,7 +219,7 @@ fn create_respects_explicit_overrides() {
     request.capabilities.streaming = Some(false);
     request.mcp_servers = vec!["tools".to_owned()];
 
-    let path = service.create(request, || Ok(())).expect("create agent");
+    let path = service.create(request, |_| Ok(())).expect("create agent");
     let agent = load_agent(&path, "custom_agent");
 
     assert_eq!(agent.endpoint, "/custom/endpoint");
@@ -241,7 +241,7 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
     request.model.model = None;
 
     let err = service
-        .create(request, || Ok(()))
+        .create(request, |_| Ok(()))
         .expect_err("no provider and no services config to default from");
     assert!(
         matches!(
@@ -268,7 +268,7 @@ fn a_model_default_comes_from_the_provider_catalogue() {
     let mut request = create_request("catalogue_model_agent", 8108);
     request.model.model = None;
 
-    let path = service.create(request, || Ok(())).expect("create agent");
+    let path = service.create(request, |_| Ok(())).expect("create agent");
     let agent = load_agent(&path, "catalogue_model_agent");
     assert_eq!(agent.metadata.provider.as_deref(), Some("anthropic"));
     assert!(
