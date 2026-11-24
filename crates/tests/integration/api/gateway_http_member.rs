@@ -11,8 +11,11 @@ use axum::http::{Method, Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_admitted, fixture_admitted_without,
-    fixture_app_context_with_extensions, fixture_config,
+    Probe, ensure_test_bootstrap, fixture_admitted, fixture_admitted_of, fixture_admitted_without,
+    fixture_app_context_with_extensions, fixture_config, fixture_core_members,
+};
+use systemprompt_traits::{
+    DriveSyncGrant, DriveSyncPrincipal, DriveTokenError, DriveTokens, DynDriveTokens,
 };
 use tower::ServiceExt;
 
@@ -122,4 +125,48 @@ async fn a_disabled_ai_member_withholds_only_the_personal_credential_routes() {
     let app = router(fixture_admitted_without(&[ExtensionId::new("ai")])).await;
     assert_eq!(status(&app, "GET", CREDENTIALS, None).await, 404);
     assert_eq!(status(&app, "POST", OTEL, None).await, 401);
+}
+
+#[derive(Debug)]
+struct ForeignDriveTokens;
+
+#[async_trait::async_trait]
+impl DriveTokens for ForeignDriveTokens {
+    async fn trade(&self, _device_token: &str) -> Result<DriveSyncGrant, DriveTokenError> {
+        Err(DriveTokenError::NotDeviceToken)
+    }
+
+    async fn verify(&self, _drive_token: &str) -> Result<DriveSyncPrincipal, DriveTokenError> {
+        Err(DriveTokenError::NotDeviceToken)
+    }
+}
+
+#[tokio::test]
+async fn a_drive_token_view_from_a_member_other_than_documents_is_refused() {
+    let members = fixture_core_members()
+        .into_iter()
+        .filter(|member| member.metadata().id != "documents")
+        .chain(std::iter::once(Box::new(Probe::new("acme-drive", |c| {
+            c.provide(
+                    |_r: &systemprompt_extension::prelude::Resolved<'_>| -> Result<
+                        DynDriveTokens,
+                        systemprompt_extension::prelude::ProvideError,
+                    > { Ok(std::sync::Arc::new(ForeignDriveTokens)) },
+                );
+        }))
+            as Box<dyn systemprompt_extension::Extension>))
+        .collect();
+    let boot = ensure_test_bootstrap();
+    let ctx = fixture_app_context_with_extensions(
+        fixture_config(&boot.database_url),
+        fixture_admitted_of(members),
+    )
+    .await
+    .expect("context builds");
+    let app = gateway_router(&ctx, ctx.admitted(), ctx.kernel()).expect("gateway router builds");
+    assert_eq!(
+        status(&app, "GET", DRIVE_MANIFEST, None).await,
+        404,
+        "a Drive token view the documents member did not provide never serves the Drive routes"
+    );
 }

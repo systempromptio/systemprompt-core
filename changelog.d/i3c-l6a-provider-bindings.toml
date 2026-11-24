@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The API mount checks who provided the identity surface, the SSO providers and the Drive token view it reads by type from the kernel state: a surface not provided by `identity-http`, SSO providers not built by `identity`, or a Drive token view not provided by `documents` refuses boot instead of being mounted."

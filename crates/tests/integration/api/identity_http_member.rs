@@ -189,3 +189,37 @@ async fn an_admitted_identity_http_without_the_sso_slot_is_refused_by_its_requir
         "{chain}"
     );
 }
+
+#[tokio::test]
+async fn an_identity_surface_provided_by_another_member_refuses_boot() {
+    let members = fixture_core_members()
+        .into_iter()
+        .map(|member| -> Box<dyn systemprompt_extension::Extension> {
+            if member.metadata().id == "identity-http" {
+                Box::new(Probe::new("identity-http", |_| {}))
+            } else {
+                member
+            }
+        })
+        .chain(std::iter::once(Box::new(Probe::new("acme-identity", |c| {
+            c.provide(
+                |_r: &systemprompt_extension::prelude::Resolved<'_>| -> Result<
+                    systemprompt_oauth_issuance::surface::DynIdentitySurface,
+                    systemprompt_extension::prelude::ProvideError,
+                > {
+                    Ok(Arc::new(
+                        systemprompt_identity_entry::http::IdentityHttpSurface,
+                    ))
+                },
+            );
+        }))
+            as Box<dyn systemprompt_extension::Extension>))
+        .collect();
+    let chain = refusal(fixture_admitted_of(members)).await;
+    assert!(
+        chain.contains(
+            "the identity surface is provided by extension 'acme-identity', not identity-http"
+        ),
+        "{chain}"
+    );
+}

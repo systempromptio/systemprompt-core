@@ -20,8 +20,11 @@
 //!
 //! Every route the surface builds is absent (404) when `identity-http` is not
 //! admitted. When it is admitted, boot is refused with a typed
-//! `IdentityMountError` if the member provides no identity surface or the
-//! SSO slot was never built.
+//! `IdentityMountError` if the identity surface is absent or was provided by
+//! any member other than `identity-http`, or if the SSO providers are absent or
+//! were built by any member other than `identity`, the slot's opener. Both are
+//! read by type from the unscoped kernel state, so their provider is checked
+//! rather than assumed: an install member cannot stand in for either.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,10 +43,12 @@ use systemprompt_oauth_issuance::contract::SsoProviders;
 use systemprompt_oauth_issuance::surface::{
     DynIdentitySurface, IdentityHostHandles, IdentityRouteState, IdentityRoutes,
 };
+use systemprompt_provider_contracts::DependencyProvider;
 use systemprompt_traits::AppContext as _;
 
 use super::RouteMountError;
 use super::protocol::{MountCtx, declare};
+use crate::routes::gateway::provided_by;
 use crate::services::middleware::place;
 
 const OAUTH_PUBLIC: RateLimit = RateLimit::new("oauth_public", RateBudget::OauthPublic);
@@ -53,9 +58,15 @@ const OAUTH_AUTH: RateLimit = RateLimit::new("oauth_auth", RateBudget::OauthAuth
 pub(crate) enum IdentityMountError {
     #[error("identity-http is admitted but provides no identity surface")]
     MissingSurface,
+    #[error("the identity surface is provided by {provider}, not identity-http")]
+    ForeignSurface { provider: DependencyProvider },
     #[error("identity-http is admitted but the SSO slot was never built")]
     MissingSsoSlot(#[source] MissingDependency),
+    #[error("the SSO providers are built by {provider}, not the identity member")]
+    ForeignSsoSlot { provider: DependencyProvider },
 }
+
+const SSO_SLOT_OWNER: &str = "identity";
 
 pub(super) fn identity_routes(
     mount: &MountCtx<'_>,
@@ -70,10 +81,14 @@ pub(super) fn identity_routes(
         .state()
         .find::<DynIdentitySurface>()
         .ok_or_else(|| refused(IdentityMountError::MissingSurface))?;
+    provided_by::<DynIdentitySurface>(kernel, CoreId::IdentityHttp.id())
+        .map_err(|provider| refused(IdentityMountError::ForeignSurface { provider }))?;
     let sso: Arc<SsoProviders> = kernel
         .resolved()
         .get()
         .map_err(|source| refused(IdentityMountError::MissingSsoSlot(source)))?;
+    provided_by::<Arc<SsoProviders>>(kernel, SSO_SLOT_OWNER)
+        .map_err(|provider| refused(IdentityMountError::ForeignSsoSlot { provider }))?;
     let ctx = mount.ctx;
     surface
         .build(IdentityRouteState {

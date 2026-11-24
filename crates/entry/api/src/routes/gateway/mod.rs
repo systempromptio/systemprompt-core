@@ -28,7 +28,9 @@
 //! The bridge Drive routes are mounted whenever the `documents` member is
 //! admitted and the document store is enabled; they hold the sealed
 //! `DynDriveTokens` view the kernel reads, never the token authority, and do
-//! not depend on `gateway-http`'s standing.
+//! not depend on `gateway-http`'s standing. The view is read by type, so the
+//! mount checks that the `documents` member provided it and refuses boot with
+//! [`GatewayBindingError::ForeignDriveTokens`] when any other member did.
 //!
 //! The gateway repositories are built from the unscoped kernel resolution
 //! only for the boot paths inside this crate (settlement recovery, the brain
@@ -73,12 +75,14 @@ mod routers;
 use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
+use systemprompt_documents::extension::DOCUMENTS_EXTENSION;
 use systemprompt_extension::Admitted;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_gateway::{
     DynGatewaySurface, GatewayEngines, GatewayHostHandles, GatewayRouteState, GatewaySurfaceError,
 };
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_provider_contracts::DependencyProvider;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_traits::{AppContext as _, DynDriveTokens};
 
@@ -136,16 +140,37 @@ pub(crate) fn gateway_repositories(
     )
 }
 
-fn drive_routes(ctx: &AppContext, kernel: &Kernel) -> Router {
+fn drive_routes(ctx: &AppContext, kernel: &Kernel) -> Result<Router, GatewayBindingError> {
     let (Some(service), Ok(tokens)) = (
         crate::routes::documents::document_service(ctx),
         kernel.resolved().get::<DynDriveTokens>(),
     ) else {
-        return Router::new();
+        return Ok(Router::new());
     };
-    crate::routes::documents::drive::router(crate::routes::documents::drive::DriveState::new(
-        service, tokens,
+    provided_by::<DynDriveTokens>(kernel, DOCUMENTS_EXTENSION)
+        .map_err(|provider| GatewayBindingError::ForeignDriveTokens { provider })?;
+    Ok(crate::routes::documents::drive::router(
+        crate::routes::documents::drive::DriveState::new(service, tokens),
     ))
+}
+
+/// A value the gateway mount reads by type from the unscoped kernel state was
+/// provided by a member other than its owner.
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayBindingError {
+    #[error("the Drive token view is provided by {provider}, not the documents member")]
+    ForeignDriveTokens { provider: DependencyProvider },
+}
+
+pub(crate) fn provided_by<T: Send + Sync + 'static>(
+    kernel: &Kernel,
+    owner: &str,
+) -> Result<(), DependencyProvider> {
+    match kernel.state().provider_of::<T>() {
+        Some(DependencyProvider::Extension(id)) if id.as_str() == owner => Ok(()),
+        Some(other) => Err(other.clone()),
+        None => Err(DependencyProvider::Host),
+    }
 }
 
 pub(crate) fn gateway_mount_parts(
@@ -161,7 +186,7 @@ pub(crate) fn gateway_mount_parts(
         .merge(bridge_session_routes(ctx, &jwt_extractor));
     let registered = registered::admitted_gateway_routes(admitted, kernel, &jwt_extractor)?;
     let traffic = traffic
-        .merge(drive_routes(ctx, kernel))
+        .merge(drive_routes(ctx, kernel)?)
         .merge(bridge_release::routes(ctx, &jwt_extractor)?)
         .route("/models", get(models::list).with_state(ctx.clone()))
         .route("/", get(models::root));
