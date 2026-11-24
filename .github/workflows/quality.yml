@@ -238,9 +238,8 @@ jobs:
           RUSTDOCFLAGS: "-D warnings"
           SCOPE: ${{ needs.affected.outputs.tests_args }}
         run: cargo doc --manifest-path crates/tests/Cargo.toml $SCOPE --no-deps --locked
-      - if: env.RUSTC_WRAPPER == 'sccache'
+      - if: ${{ !cancelled() && env.RUSTC_WRAPPER == 'sccache' }}
         run: sccache --show-stats
-        if: ${{ !cancelled() }}
 
   bridge-native:
     # The bridge's GUI, winproc, and keystore backends are cfg-gated to
