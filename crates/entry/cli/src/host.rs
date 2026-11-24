@@ -11,7 +11,8 @@ use anyhow::Context;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandError, CommandHost,
-    CommandOutput, DescribedCommand, KernelGrant, Prompter, ServicesTree,
+    CommandOutput, DeploymentSigningKeys, DescribedCommand, GrantedPlane, KernelGrant, Prompter,
+    ServicesTree,
 };
 use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_loader::BootContext;
@@ -169,6 +170,17 @@ impl CommandHost for CommandContext {
 
     fn use_session_context(&self, _context: ContextId) -> BoxFuture<'_, Result<(), CommandError>> {
         Box::pin(async move { Err(grant_refused(KernelGrant::SessionContext)) })
+    }
+
+    fn signing_keys(&self) -> Result<Arc<dyn DeploymentSigningKeys>, CommandError> {
+        Err(grant_refused(KernelGrant::SigningKeys))
+    }
+
+    fn require_writable_plane(
+        &self,
+        plane: GrantedPlane,
+    ) -> BoxFuture<'_, Result<(), CommandError>> {
+        Box::pin(async move { Err(grant_refused(KernelGrant::ConfigPlaneWriter(plane))) })
     }
 }
 

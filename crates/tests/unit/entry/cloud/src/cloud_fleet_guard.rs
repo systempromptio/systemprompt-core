@@ -13,7 +13,7 @@ use systemprompt_cloud_entry::cli::fleet::ensure_read_only;
 use systemprompt_extension::Resolved;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandError, CommandHost,
-    CommandOutput, DescribedCommand, Prompter, ServicesTree,
+    CommandOutput, DeploymentSigningKeys, DescribedCommand, GrantedPlane, Prompter, ServicesTree,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::subprocess::ForegroundChildren;
@@ -122,6 +122,17 @@ impl CommandHost for ClassifyingHost {
     fn use_session_context(
         &self,
         _context: systemprompt_identifiers::ContextId,
+    ) -> BoxFuture<'_, Result<(), CommandError>> {
+        Box::pin(async { Err(unavailable()) })
+    }
+
+    fn signing_keys(&self) -> Result<Arc<dyn DeploymentSigningKeys>, CommandError> {
+        Err(unavailable())
+    }
+
+    fn require_writable_plane(
+        &self,
+        _plane: GrantedPlane,
     ) -> BoxFuture<'_, Result<(), CommandError>> {
         Box::pin(async { Err(unavailable()) })
     }

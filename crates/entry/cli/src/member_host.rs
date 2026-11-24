@@ -11,10 +11,11 @@ use systemprompt_config::paths::StoragePaths;
 use systemprompt_extension::Resolved;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandDescriptor,
-    CommandError, CommandHost, CommandOutput, DescribedCommand, KernelGrant, Prompter,
-    ServicesTree,
+    CommandError, CommandHost, CommandOutput, DeploymentSigningKeys, DescribedCommand,
+    GrantedPlane, KernelGrant, Prompter, ServicesTree,
 };
 use systemprompt_loader::load_boot::load_boot_from_path;
+use systemprompt_manifest::profile::PlaneAuthority;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::Kernel;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
@@ -23,7 +24,7 @@ use systemprompt_traits::{DatabaseHandle, Dependencies};
 use tokio::sync::OnceCell;
 
 use crate::context::CommandContext;
-use crate::kernel::{KernelHost, TargetAdmissionError, admit_target};
+use crate::kernel::{KernelHost, KernelSigningKeys, TargetAdmissionError, admit_target};
 
 /// The host a member's registered command runs against.
 ///
@@ -35,10 +36,13 @@ use crate::kernel::{KernelHost, TargetAdmissionError, admit_target};
 /// and [`CommandHost::caller_session`] only under
 /// [`KernelGrant::CallerSession`], [`CommandHost::use_session_context`]
 /// only under [`KernelGrant::SessionContext`], and [`CommandHost::export_dir`]
-/// only under [`KernelGrant::LocalExport`]. Its [`CommandHost::resolved`] is
-/// the one member-command resolver: it reads the command kernel's state but
-/// refuses every sealed seed as missing. A command holding
-/// [`KernelGrant::ConfigReconcile`] run where an application context is
+/// only under [`KernelGrant::LocalExport`], [`CommandHost::signing_keys`]
+/// only under [`KernelGrant::SigningKeys`] and
+/// [`CommandHost::require_writable_plane`] only under
+/// [`KernelGrant::ConfigPlaneWriter`] for that plane. Its
+/// [`CommandHost::resolved`] is the one member-command resolver: it reads the
+/// command kernel's state but refuses every sealed seed as missing. A command
+/// holding [`KernelGrant::ConfigReconcile`] run where an application context is
 /// available also resolves the kernel-built `Arc<ConfigApplyService>`; no
 /// member resolves the application context. It serves
 /// [`CommandHost::admitted_views`] only when the command holds
@@ -205,6 +209,43 @@ impl CommandHost for MemberHost<'_> {
                 .map_err(CommandError::new)
         })
     }
+
+    fn signing_keys(&self) -> Result<Arc<dyn DeploymentSigningKeys>, CommandError> {
+        if !self.descriptor.holds(KernelGrant::SigningKeys) {
+            return Err(grant_refused(KernelGrant::SigningKeys));
+        }
+        let boot = KernelHost::boot(self.ctx)?;
+        let security = self
+            .ctx
+            .profile()
+            .map_err(CommandError::new)?
+            .security
+            .clone();
+        Ok(Arc::new(KernelSigningKeys::new(boot, security)))
+    }
+
+    fn require_writable_plane(
+        &self,
+        plane: GrantedPlane,
+    ) -> BoxFuture<'_, Result<(), CommandError>> {
+        if !self.descriptor.holds(KernelGrant::ConfigPlaneWriter(plane)) {
+            return Box::pin(
+                async move { Err(grant_refused(KernelGrant::ConfigPlaneWriter(plane))) },
+            );
+        }
+        Box::pin(writable_plane(self.ctx, plane))
+    }
+}
+
+async fn writable_plane(ctx: &CommandContext, plane: GrantedPlane) -> Result<(), CommandError> {
+    let profile = ctx.profile().map_err(CommandError::new)?;
+    if profile.config_planes.authority_for(plane.name()) != PlaneAuthority::File {
+        return Ok(());
+    }
+    let app = ctx.app_context().await.map_err(CommandError::new)?;
+    let planes = app.config_planes().map_err(CommandError::new)?;
+    planes.writer(plane.name()).map_err(CommandError::new)?;
+    Ok(())
 }
 
 fn granted_services_tree(ctx: &CommandContext) -> Result<ServicesTree, CommandError> {

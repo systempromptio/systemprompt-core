@@ -22,6 +22,7 @@
 mod describe;
 mod registry;
 mod registry_error;
+mod signing_keys;
 mod target_admission;
 
 pub use describe::{classify_command_line, command_line_path, describe_command_line};
@@ -29,6 +30,7 @@ pub use registry::{
     CommandOwner, CommandRegistry, RegistryEntry, ResolvedCommand, kernel_commands,
 };
 pub use registry_error::{RegistryError, ResolveError};
+pub use signing_keys::KernelSigningKeys;
 pub(crate) use target_admission::admit_target;
 pub use target_admission::{TargetAdmissionError, read_disabled};
 

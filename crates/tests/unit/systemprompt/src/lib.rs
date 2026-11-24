@@ -64,6 +64,8 @@ mod governance_slots;
 #[cfg(test)]
 mod handed;
 #[cfg(test)]
+mod identity_grants;
+#[cfg(test)]
 mod install_refusals;
 #[cfg(test)]
 mod install_reserved;
