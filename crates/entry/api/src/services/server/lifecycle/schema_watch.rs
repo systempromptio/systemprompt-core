@@ -33,6 +33,7 @@ pub(in crate::services::server) fn start_schema_watch(ctx: &AppContext) {
                 if let Err(error) = systemprompt_runtime::schema_currency::recheck(
                     watched.admitted().built(),
                     watched.db_pool().write(),
+                    &systemprompt_database::SchemaName::public(),
                     watched.schema_state(),
                 )
                 .await

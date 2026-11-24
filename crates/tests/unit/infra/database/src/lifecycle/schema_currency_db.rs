@@ -6,9 +6,7 @@
 use systemprompt_database::schema_currency;
 use systemprompt_extension::{Migration, SchemaDefinition};
 
-use super::installation::{
-    StubExtension, drop_table, leak, provider_and_db, registry_with, unique_id,
-};
+use super::installation::{StubExtension, leak, provider_and_db, registry_with, unique_id};
 use super::members::install;
 
 fn stub(ext_id: &'static str, table: &'static str, migration_sql: &'static str) -> StubExtension {
@@ -31,33 +29,43 @@ fn migration_sql(table: &str) -> &'static str {
 
 #[tokio::test]
 async fn an_uninstalled_extension_is_reported_fresh() {
-    let (provider, _db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("currency").await;
     let ext_id = unique_id("currency_fresh");
     let table = unique_id("currency_fresh_t");
     let registry = registry_with(stub(ext_id, table, migration_sql(table)));
 
-    let currency = schema_currency(&provider, registry.built())
+    let currency = schema_currency(&provider, registry.built(), &scratch.schema_name())
         .await
         .expect("currency");
 
     assert!(!currency.is_current());
     assert_eq!(currency.fresh_extensions.len(), 1);
     assert_eq!(currency.fresh_extensions[0].as_str(), ext_id);
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn an_installed_extension_is_current_until_a_ledger_row_goes_missing() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("currency").await;
     let ext_id = unique_id("currency_pending");
     let table = unique_id("currency_pending_t");
     let sql = migration_sql(table);
 
-    install(&registry_with(stub(ext_id, table, sql)), &provider)
-        .await
-        .expect("install");
-    let currency = schema_currency(&provider, registry_with(stub(ext_id, table, sql)).built())
-        .await
-        .expect("currency");
+    install(
+        &registry_with(stub(ext_id, table, sql)),
+        &provider,
+        &scratch.schema_name(),
+    )
+    .await
+    .expect("install");
+    let target = scratch.schema_name();
+    let currency = schema_currency(
+        &provider,
+        registry_with(stub(ext_id, table, sql)).built(),
+        &target,
+    )
+    .await
+    .expect("currency");
     assert!(currency.is_current(), "{currency:?}");
 
     sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1 AND version = 1")
@@ -66,32 +74,32 @@ async fn an_installed_extension_is_current_until_a_ledger_row_goes_missing() {
         .await
         .expect("drop ledger row");
 
-    let currency = schema_currency(&provider, registry_with(stub(ext_id, table, sql)).built())
-        .await
-        .expect("currency");
+    let currency = schema_currency(
+        &provider,
+        registry_with(stub(ext_id, table, sql)).built(),
+        &target,
+    )
+    .await
+    .expect("currency");
     assert!(!currency.is_current());
     assert!(currency.fresh_extensions.is_empty());
     assert_eq!(currency.pending.len(), 1, "{currency:?}");
     assert_eq!(currency.pending[0].version, 1);
     assert_eq!(currency.pending[0].name, "add_note");
 
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&*db.write_pool())
-        .await
-        .expect("drop ledger rows");
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn an_edited_applied_migration_is_reported_as_drift() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("currency").await;
     let ext_id = unique_id("currency_drift");
     let table = unique_id("currency_drift_t");
 
     install(
         &registry_with(stub(ext_id, table, migration_sql(table))),
         &provider,
+        &scratch.schema_name(),
     )
     .await
     .expect("install");
@@ -102,6 +110,7 @@ async fn an_edited_applied_migration_is_reported_as_drift() {
     let currency = schema_currency(
         &provider,
         registry_with(stub(ext_id, table, edited)).built(),
+        &scratch.schema_name(),
     )
     .await
     .expect("currency");
@@ -109,10 +118,5 @@ async fn an_edited_applied_migration_is_reported_as_drift() {
     assert!(currency.pending.is_empty());
     assert_eq!(currency.drift.len(), 1, "{currency:?}");
 
-    sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&*db.write_pool())
-        .await
-        .expect("drop ledger rows");
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }

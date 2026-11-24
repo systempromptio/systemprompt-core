@@ -24,6 +24,7 @@
 use std::hash::Hasher;
 
 use crate::lifecycle::schema_member::SchemaMember;
+use crate::lifecycle::schema_name::SchemaName;
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use tracing::info;
@@ -67,6 +68,7 @@ pub(super) async fn install_unless_settled(
         held_back,
     }: InstallSets<'_>,
     currency: &super::current::SchemaCurrency,
+    target: &SchemaName,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     let members = MigrationMembers::new(composition, held_back);
@@ -87,13 +89,13 @@ pub(super) async fn install_unless_settled(
         super::purge_records::check_recorded_purges(db, active).await?;
         if is_settled(db, &prepared, &fingerprint).await? {
             info!("Schema is settled at this release; applying no DDL");
-            return run_settled(db, members, active, held_back, &prepared).await;
+            return run_settled(db, members, active, held_back, &prepared, target).await;
         }
     }
     if migration_config.force_full_install {
         info!("Full schema install forced");
     }
-    let report = super::run_install(db, members, active, migration_config).await?;
+    let report = super::run_install(db, members, active, target, migration_config).await?;
     if held_back.is_empty() && report.foreign_key_drift.is_empty() {
         record(db, &fingerprint).await?;
     }
@@ -106,10 +108,11 @@ async fn run_settled(
     active: &ExtensionSet,
     held_back: &ExtensionSet,
     prepared: &[PreparedSchema],
+    target: &SchemaName,
 ) -> Result<SchemaInstallReport, LoaderError> {
     for p in prepared {
         for cols in &p.columns_to_validate {
-            super::validate_extension_columns(db, cols, &p.extension_id).await?;
+            super::validate_extension_columns(db, cols, target, &p.extension_id).await?;
         }
     }
     super::check_trigger_routines_held(db).await?;
@@ -120,7 +123,7 @@ async fn run_settled(
     super::reassignment_targets::check_catalog_targets(db, active).await?;
     super::purge_records::record_purges(db, active).await?;
     Ok(SchemaInstallReport {
-        residue: super::residue_including(db, prepared, held_back).await?,
+        residue: super::residue_including(db, prepared, held_back, target).await?,
         ..SchemaInstallReport::default()
     })
 }

@@ -16,7 +16,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use systemprompt_database::{Database, MigrationService, validate_table_exists};
+use systemprompt_database::{Database, MigrationService, SchemaName, validate_table_exists};
 use systemprompt_extension::AdmittedMigrations;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
@@ -94,7 +94,7 @@ pub(super) async fn check_schema_not_ahead(
             );
         },
     };
-    match validate_table_exists(&db, "extension_migrations").await {
+    match validate_table_exists(&db, &SchemaName::public(), "extension_migrations").await {
         Ok(true) => {},
         Ok(false) => return CheckResult::pass(SCHEMA, "fresh database; no migrations recorded"),
         Err(error) => {

@@ -6,7 +6,7 @@
 
 use std::time::Duration;
 
-use systemprompt_database::{DbPool, MigrationConfig, install_admitted_schemas};
+use systemprompt_database::{DbPool, MigrationConfig, SchemaName, install_admitted_schemas};
 use systemprompt_test_fixtures::{DisposableDb, schema_admitted};
 
 async fn full_install(pool: DbPool) -> Result<(), String> {
@@ -17,6 +17,7 @@ async fn full_install(pool: DbPool) -> Result<(), String> {
     install_admitted_schemas(
         schema_admitted().expect("core members").built(),
         pool.write(),
+        &SchemaName::public(),
         MigrationConfig::default(),
     )
     .await

@@ -2,7 +2,7 @@
 //! behind it: the older binary keeps booting, applies nothing, and leaves the
 //! newer release's checksums alone.
 use super::*;
-use systemprompt_database::{install_admitted_schemas, schema_currency};
+use systemprompt_database::{SchemaName, install_admitted_schemas, schema_currency};
 
 use crate::composition::member;
 use systemprompt_extension::Admitted;
@@ -57,7 +57,7 @@ async fn an_older_binary_reports_the_newer_migration_as_ahead_and_stays_current(
     migrate_as_newer(&f).await;
 
     let admitted = admitted_of(older(&f, f.create_sql));
-    let currency = schema_currency(f.db.write(), admitted.built())
+    let currency = schema_currency(f.db.write(), admitted.built(), &SchemaName::public())
         .await
         .expect("currency check");
 
@@ -77,7 +77,7 @@ async fn checksum_drift_in_an_ahead_extension_is_left_to_the_newer_release() {
 
     let drifted = member(older(&f, "SELECT 7;"));
     let admitted = admitted_of(older(&f, "SELECT 7;"));
-    let currency = schema_currency(f.db.write(), admitted.built())
+    let currency = schema_currency(f.db.write(), admitted.built(), &SchemaName::public())
         .await
         .expect("currency check");
     assert!(currency.drift.is_empty());
@@ -103,10 +103,14 @@ async fn an_older_install_against_an_ahead_database_applies_nothing_and_reports_
     migrate_as_newer(&f).await;
 
     let admitted = admitted_of(older(&f, "SELECT 7;"));
-    let report =
-        install_admitted_schemas(admitted.built(), f.db.as_ref(), MigrationConfig::default())
-            .await
-            .expect("install defers to the newer release");
+    let report = install_admitted_schemas(
+        admitted.built(),
+        f.db.as_ref(),
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await
+    .expect("install defers to the newer release");
 
     assert!(report.is_ahead());
     assert_eq!(report.ahead[0].version, 8);
@@ -137,17 +141,21 @@ async fn an_ahead_breaking_migration_refuses_the_older_binary() {
         .expect("newer release migrates");
 
     let admitted = admitted_of(older(&f, f.create_sql));
-    let currency = schema_currency(f.db.write(), admitted.built())
+    let currency = schema_currency(f.db.write(), admitted.built(), &SchemaName::public())
         .await
         .expect("currency check");
     assert!(currency.is_ahead());
     assert!(currency.breaks_this_release());
     assert_eq!(currency.breaking[0].version, 8);
 
-    let report =
-        install_admitted_schemas(admitted.built(), f.db.as_ref(), MigrationConfig::default())
-            .await
-            .expect("install reports rather than fails");
+    let report = install_admitted_schemas(
+        admitted.built(),
+        f.db.as_ref(),
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await
+    .expect("install reports rather than fails");
     assert!(report.breaks_this_release());
     f.finish().await;
 }
@@ -157,7 +165,7 @@ async fn an_ahead_additive_migration_is_not_breaking() {
     let f = fixture().await;
     migrate_as_newer(&f).await;
     let admitted = admitted_of(older(&f, f.create_sql));
-    let currency = schema_currency(f.db.write(), admitted.built())
+    let currency = schema_currency(f.db.write(), admitted.built(), &SchemaName::public())
         .await
         .expect("currency check");
     assert!(currency.is_ahead());
@@ -171,7 +179,7 @@ async fn drift_without_a_newer_migration_still_fails_currency() {
     apply_original(&f).await;
 
     let admitted = admitted_of(older(&f, "SELECT 7;"));
-    let currency = schema_currency(f.db.write(), admitted.built())
+    let currency = schema_currency(f.db.write(), admitted.built(), &SchemaName::public())
         .await
         .expect("currency check");
 

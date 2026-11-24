@@ -12,7 +12,8 @@ use systemprompt_database::lifecycle::{
     check_migration_ownership, migration_ownership_findings,
 };
 use systemprompt_database::{
-    DbPool, MigrationConfig, SchemaMember, SchemaUnit, install_schema_members, schema_members,
+    DbPool, MigrationConfig, SchemaMember, SchemaName, SchemaUnit, install_schema_members,
+    schema_members,
 };
 use systemprompt_extension::{
     ExtensionMetadata, LoaderError, Migration, SchemaDefinition, StandingTag,
@@ -297,9 +298,14 @@ pub(super) async fn install(
     pool: &DbPool,
     members: Vec<Arc<dyn SchemaMember>>,
 ) -> Result<(), LoaderError> {
-    install_schema_members(&members, pool.write(), MigrationConfig::default())
-        .await
-        .map(drop)
+    install_schema_members(
+        &members,
+        pool.write(),
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await
+    .map(drop)
 }
 
 pub(super) async fn present(pool: &DbPool, table: &str) -> bool {

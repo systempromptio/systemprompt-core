@@ -13,7 +13,7 @@ use systemprompt_extension::{
 };
 use systemprompt_test_fixtures::error_chain;
 
-use super::installation::{drop_table, provider_and_db, unique_id};
+use super::installation::{provider_and_db, unique_id};
 
 struct RetiringExtension {
     id: &'static str,
@@ -103,7 +103,7 @@ fn retire_all(prefix: &str) -> Vec<String> {
 
 #[tokio::test]
 async fn retirements_drop_their_objects_and_are_a_no_op_on_the_next_boot() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("retirements").await;
     let prefix = unique_id("ret_ok");
     let table = unique_id("ret_ok_table");
     legacy_objects(&provider, prefix).await;
@@ -115,7 +115,7 @@ async fn retirements_drop_their_objects_and_are_a_no_op_on_the_next_boot() {
     };
 
     for _ in 0..2 {
-        install(&registry(vec![build()]), &provider)
+        install(&registry(vec![build()]), &provider, &scratch.schema_name())
             .await
             .expect("retirements applied");
     }
@@ -149,12 +149,11 @@ async fn retirements_drop_their_objects_and_are_a_no_op_on_the_next_boot() {
         .await,
         "a table retirement is declared, never executed"
     );
-    drop_table(&db, &format!("{prefix}_legacy")).await;
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 async fn refused(statement: &str) -> (LoaderError, bool) {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("retirements").await;
     let prefix = unique_id("ret_refused");
     legacy_objects(&provider, prefix).await;
     let valid = RetiringExtension {
@@ -168,15 +167,19 @@ async fn refused(statement: &str) -> (LoaderError, bool) {
         retirements: vec![statement.replace("{prefix}", prefix)],
     };
 
-    let error = install(&registry(vec![valid, invalid]), &provider)
-        .await
-        .expect_err("retirement refused");
+    let error = install(
+        &registry(vec![valid, invalid]),
+        &provider,
+        &scratch.schema_name(),
+    )
+    .await
+    .expect_err("retirement refused");
     let untouched = exists(
         &provider,
         &format!("to_regclass('{prefix}_view') IS NOT NULL"),
     )
     .await;
-    drop_table(&db, &format!("{prefix}_legacy")).await;
+    scratch.drop_now().await;
     (error, untouched)
 }
 

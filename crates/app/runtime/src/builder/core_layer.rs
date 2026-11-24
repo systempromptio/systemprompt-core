@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{
-    Database, MigrationConfig, SchemaInstallReport, install_admitted_schemas,
+    Database, MigrationConfig, SchemaInstallReport, SchemaName, install_admitted_schemas,
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::Admitted;
@@ -209,9 +209,13 @@ pub(super) async fn install_schemas(
     database: &Arc<Database>,
 ) -> RuntimeResult<SchemaInstallReport> {
     if schema.install {
-        let report =
-            install_admitted_schemas(admitted.built(), database.session(), migration_config)
-                .await?;
+        let report = install_admitted_schemas(
+            admitted.built(),
+            database.session(),
+            &SchemaName::public(),
+            migration_config,
+        )
+        .await?;
         crate::schema_currency::refuse_breaking(&report.ahead, profile)?;
         crate::schema_currency::warn_ahead(&report.ahead);
         database.mark_schema_changed();
@@ -221,6 +225,7 @@ pub(super) async fn install_schemas(
         let ahead = crate::schema_currency::assert_schema_current(
             admitted.built(),
             database.write(),
+            &SchemaName::public(),
             profile,
         )
         .await?;

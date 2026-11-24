@@ -4,14 +4,14 @@
 //! refuses a trigger whose routine writes a relation that is gone.
 
 use super::members::unit;
-use crate::services::db_helper::test_pool;
+use crate::services::db_helper::scratch_pool;
 use systemprompt_database::{
     DatabaseProvider, MigrationService, PostgresProvider, check_trigger_routines,
 };
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
 };
-use systemprompt_test_fixtures::error_chain;
+use systemprompt_test_fixtures::{ScratchSchema, error_chain};
 
 struct StubExtension {
     id: &'static str,
@@ -39,24 +39,17 @@ impl Extension for StubExtension {
     }
 }
 
-async fn test_provider() -> PostgresProvider {
-    let db = test_pool().await;
-    let pg = db.write_pool();
-    PostgresProvider::from_pool(pg)
+async fn test_provider() -> (ScratchSchema, PostgresProvider) {
+    let (scratch, db) = scratch_pool("migration_triggers").await;
+    (scratch, PostgresProvider::from_pool(db.write_pool()))
 }
 
 // Why: the "foreign" trigger stands in for another extension's stale one —
 // it fails every row it sees, so any firing fails the migration.
-async fn reset(provider: &PostgresProvider, extension: &str, table: &str) {
-    let _ = provider
-        .execute_raw(&format!(
-            "DELETE FROM extension_migrations WHERE extension_id = '{extension}'"
-        ))
-        .await;
+async fn reset(provider: &PostgresProvider, table: &str) {
     provider
         .execute_batch(&format!(
-            "DROP TABLE IF EXISTS {table} CASCADE;
-             CREATE TABLE {table} (id BIGINT PRIMARY KEY, v INT NOT NULL DEFAULT 0);
+            "CREATE TABLE {table} (id BIGINT PRIMARY KEY, v INT NOT NULL DEFAULT 0);
              INSERT INTO {table} (id) SELECT g FROM generate_series(1, 50) g;
              CREATE OR REPLACE FUNCTION {table}_refuse() RETURNS trigger LANGUAGE plpgsql AS $$
              BEGIN RAISE EXCEPTION 'stale trigger fired'; END $$;
@@ -91,8 +84,8 @@ async fn trigger_state(provider: &PostgresProvider, table: &str) -> Vec<(String,
 
 #[tokio::test]
 async fn a_backfill_does_not_fire_row_triggers_and_restores_them() {
-    let provider = test_provider().await;
-    reset(&provider, "trg_suspend", "trg_suspend_t").await;
+    let (scratch, provider) = test_provider().await;
+    reset(&provider, "trg_suspend_t").await;
     let ext = StubExtension {
         id: "trg_suspend",
         migrations: vec![Migration::new(
@@ -115,12 +108,13 @@ async fn a_backfill_does_not_fire_row_triggers_and_restores_them() {
         ],
         "the suspended trigger is re-enabled; the one already disabled stays disabled"
     );
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_no_transaction_backfill_suspends_and_restores_too() {
-    let provider = test_provider().await;
-    reset(&provider, "trg_notx", "trg_notx_t").await;
+    let (scratch, provider) = test_provider().await;
+    reset(&provider, "trg_notx_t").await;
     let ext = StubExtension {
         id: "trg_notx",
         migrations: vec![Migration::new_no_transaction(
@@ -135,12 +129,13 @@ async fn a_no_transaction_backfill_suspends_and_restores_too() {
         .expect("the stale trigger must not fire during the backfill");
     let state = trigger_state(&provider, "trg_notx_t").await;
     assert!(state.contains(&("trg_notx_t_foreign".to_owned(), "O".to_owned())));
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_migration_declaring_live_triggers_fires_them() {
-    let provider = test_provider().await;
-    reset(&provider, "trg_live", "trg_live_t").await;
+    let (scratch, provider) = test_provider().await;
+    reset(&provider, "trg_live_t").await;
     let ext = StubExtension {
         id: "trg_live",
         migrations: vec![Migration::new(
@@ -154,16 +149,15 @@ async fn a_migration_declaring_live_triggers_fires_them() {
         .await
         .expect_err("triggers=live keeps the trigger on");
     assert!(error_chain(&err).contains("stale trigger fired"), "{err}");
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_trigger_writing_a_dropped_relation_refuses_the_boot() {
-    let provider = test_provider().await;
+    let (scratch, provider) = test_provider().await;
     provider
         .execute_batch(
-            "DROP TABLE IF EXISTS trg_dangling_t CASCADE;
-             DROP TABLE IF EXISTS trg_dangling_target;
-             CREATE TABLE trg_dangling_target (id BIGINT);
+            "CREATE TABLE trg_dangling_target (id BIGINT);
              CREATE TABLE trg_dangling_t (id BIGINT PRIMARY KEY);
              CREATE OR REPLACE FUNCTION trg_dangling_write() RETURNS trigger LANGUAGE plpgsql AS $$
              BEGIN INSERT INTO trg_dangling_target (id) VALUES (NEW.id); RETURN NEW; END $$;
@@ -193,17 +187,13 @@ async fn a_trigger_writing_a_dropped_relation_refuses_the_boot() {
         },
         other => panic!("expected DanglingTriggerRoutine, got {other:?}"),
     }
-
-    provider
-        .execute_batch("DROP TABLE trg_dangling_t CASCADE; DROP FUNCTION trg_dangling_write()")
-        .await
-        .expect("cleanup");
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_migration_dropping_a_suspended_trigger_skips_its_restore() {
-    let provider = test_provider().await;
-    reset(&provider, "trg_dropped", "trg_dropped_t").await;
+    let (scratch, provider) = test_provider().await;
+    reset(&provider, "trg_dropped_t").await;
     let ext = StubExtension {
         id: "trg_dropped",
         migrations: vec![Migration::new(
@@ -222,18 +212,22 @@ async fn a_migration_dropping_a_suspended_trigger_skips_its_restore() {
         state,
         vec![("trg_dropped_t_disabled".to_owned(), "D".to_owned())]
     );
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_schema_qualified_write_suspends_and_restores_its_triggers() {
-    let provider = test_provider().await;
-    reset(&provider, "trg_qualified", "trg_qualified_t").await;
+    let (scratch, provider) = test_provider().await;
+    reset(&provider, "trg_qualified_t").await;
     let ext = StubExtension {
         id: "trg_qualified",
         migrations: vec![Migration::new(
             1,
             "backfill",
-            "UPDATE public.trg_qualified_t SET v = 2;",
+            leak(format!(
+                "UPDATE {}.trg_qualified_t SET v = 2;",
+                scratch.name()
+            )),
         )],
     };
     MigrationService::new(&provider)
@@ -243,12 +237,13 @@ async fn a_schema_qualified_write_suspends_and_restores_its_triggers() {
 
     let state = trigger_state(&provider, "trg_qualified_t").await;
     assert!(state.contains(&("trg_qualified_t_foreign".to_owned(), "O".to_owned())));
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_failed_no_transaction_migration_still_restores_its_triggers() {
-    let provider = test_provider().await;
-    reset(&provider, "trg_notx_fail", "trg_notx_fail_t").await;
+    let (scratch, provider) = test_provider().await;
+    reset(&provider, "trg_notx_fail_t").await;
     let ext = StubExtension {
         id: "trg_notx_fail",
         migrations: vec![Migration::new_no_transaction(
@@ -268,4 +263,9 @@ async fn a_failed_no_transaction_migration_still_restores_its_triggers() {
         "{state:?}"
     );
     assert!(state.contains(&("trg_notx_fail_t_disabled".to_owned(), "D".to_owned())));
+    scratch.drop_now().await;
+}
+
+fn leak(s: String) -> &'static str {
+    Box::leak(s.into_boxed_str())
 }

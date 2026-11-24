@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::schema_name::SchemaName;
 use crate::error::{DatabaseResult, RepositoryError};
 use crate::services::{Database, DatabaseProvider};
 
@@ -78,13 +79,14 @@ pub async fn replica_status(db: &dyn DatabaseProvider) -> DatabaseResult<Replica
 
 pub async fn validate_table_exists(
     db: &dyn DatabaseProvider,
+    schema: &SchemaName,
     table_name: &str,
 ) -> DatabaseResult<bool> {
     let result = db
         .query_raw_with(
-            &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = \
-              'public' AND table_name = $1) as exists",
-            &[&table_name],
+            &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = $1 \
+              AND table_name = $2) as exists",
+            &[&schema.as_str(), &table_name],
         )
         .await?;
 
@@ -102,14 +104,15 @@ pub async fn validate_table_exists(
 
 pub async fn validate_column_exists(
     db: &dyn DatabaseProvider,
+    schema: &SchemaName,
     table_name: &str,
     column_name: &str,
 ) -> DatabaseResult<bool> {
     let result = db
         .query_raw_with(
-            &"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = \
-              'public' AND table_name = $1 AND column_name = $2) as exists",
-            &[&table_name, &column_name],
+            &"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = $1 \
+              AND table_name = $2 AND column_name = $3) as exists",
+            &[&schema.as_str(), &table_name, &column_name],
         )
         .await?;
 

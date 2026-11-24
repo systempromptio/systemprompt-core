@@ -4,12 +4,13 @@
 //! compatibility ledger before it runs.
 
 use super::members::unit;
-use crate::services::db_helper::test_pool;
+use crate::services::db_helper::scratch_pool;
 use systemprompt_database::{DatabaseProvider, MigrationService, PostgresProvider};
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration,
 };
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_test_fixtures::ScratchSchema;
 
 struct StubExtension {
     id: &'static str,
@@ -37,8 +38,9 @@ impl Extension for StubExtension {
     }
 }
 
-async fn provider() -> PostgresProvider {
-    PostgresProvider::from_pool(test_pool().await.write_pool())
+async fn provider() -> (ScratchSchema, PostgresProvider) {
+    let (scratch, db) = scratch_pool("migration_run").await;
+    (scratch, PostgresProvider::from_pool(db.write_pool()))
 }
 
 fn leak(s: String) -> &'static str {
@@ -52,16 +54,10 @@ fn unique(prefix: &str) -> String {
     )
 }
 
-async fn reset(provider: &PostgresProvider, extension: &str, table: &str) {
-    let _ = provider
-        .execute_raw(&format!(
-            "DELETE FROM extension_migrations WHERE extension_id = '{extension}'"
-        ))
-        .await;
+async fn reset(provider: &PostgresProvider, table: &str) {
     provider
         .execute_batch(&format!(
-            "DROP TABLE IF EXISTS {table} CASCADE;
-             CREATE TABLE {table} (id BIGINT PRIMARY KEY, v INT NOT NULL DEFAULT 0);
+            "CREATE TABLE {table} (id BIGINT PRIMARY KEY, v INT NOT NULL DEFAULT 0);
              INSERT INTO {table} (id) SELECT g FROM generate_series(1, 5) g;
              CREATE OR REPLACE FUNCTION {table}_noop() RETURNS trigger LANGUAGE plpgsql AS $$
              BEGIN RETURN NEW; END $$;
@@ -88,10 +84,10 @@ async fn trigger_enabled(provider: &PostgresProvider, table: &str) -> String {
 
 #[tokio::test]
 async fn a_failing_no_transaction_migration_restores_triggers_and_is_not_recorded() {
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = leak(unique("notx_fail"));
     let table = leak(unique("notx_fail_t"));
-    reset(&provider, ext_id, table).await;
+    reset(&provider, table).await;
     let ext = StubExtension {
         id: ext_id,
         migrations: vec![Migration::new_no_transaction(
@@ -122,17 +118,15 @@ async fn a_failing_no_transaction_migration_restores_triggers_and_is_not_recorde
         .await
         .expect("applied");
     assert!(applied.is_empty(), "a failed migration is never recorded");
-    let _ = provider
-        .execute_raw(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_successful_no_transaction_migration_is_recorded_once() {
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = leak(unique("notx_ok"));
     let table = leak(unique("notx_ok_t"));
-    reset(&provider, ext_id, table).await;
+    reset(&provider, table).await;
     let ext = StubExtension {
         id: ext_id,
         migrations: vec![Migration::new_no_transaction(
@@ -161,17 +155,15 @@ async fn a_successful_no_transaction_migration_is_recorded_once() {
         .await
         .expect("applied");
     assert_eq!(applied.len(), 1);
-    let _ = provider
-        .execute_raw(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_breaking_migration_is_written_to_the_compat_ledger() {
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = leak(unique("compat_brk"));
     let table = leak(unique("compat_brk_t"));
-    reset(&provider, ext_id, table).await;
+    reset(&provider, table).await;
     let ext = StubExtension {
         id: ext_id,
         migrations: vec![
@@ -197,12 +189,5 @@ async fn a_breaking_migration_is_written_to_the_compat_ledger() {
             .expect("ledger")
             .is_empty()
     );
-    let _ = provider
-        .execute_raw(&format!(
-            "DELETE FROM extension_migration_compat WHERE extension_id = '{ext_id}'"
-        ))
-        .await;
-    let _ = provider
-        .execute_raw(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .await;
+    scratch.drop_now().await;
 }

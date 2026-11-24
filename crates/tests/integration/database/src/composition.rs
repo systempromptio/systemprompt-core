@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use systemprompt_database::{
-    DatabaseProvider, MigrationConfig, SchemaInstallReport, SchemaMember, install_admitted_schemas,
-    schema_members,
+    DatabaseProvider, MigrationConfig, SchemaInstallReport, SchemaMember, SchemaName,
+    install_admitted_schemas, schema_members,
 };
 use systemprompt_extension::{Extension, LoaderError};
 use systemprompt_test_fixtures::fixture_admitted_of;
@@ -20,6 +20,7 @@ pub async fn install(
     install_admitted_schemas(
         fixture_admitted_of(members).built(),
         db,
+        &SchemaName::public(),
         MigrationConfig::default(),
     )
     .await

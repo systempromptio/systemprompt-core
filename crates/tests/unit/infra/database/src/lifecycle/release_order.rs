@@ -3,7 +3,7 @@
 //! a view or a trigger a newer release wrote is left exactly as it wrote it —
 //! and refuses when the schema it reads is not present.
 
-use systemprompt_database::{DbPool, MigrationConfig, install_admitted_schemas};
+use systemprompt_database::{DbPool, MigrationConfig, SchemaName, install_admitted_schemas};
 use systemprompt_extension::LoaderError;
 use systemprompt_test_fixtures::{DisposableDb, schema_admitted};
 
@@ -13,6 +13,7 @@ async fn install(pool: &DbPool) -> Result<(), LoaderError> {
     install_admitted_schemas(
         schema_admitted().expect("core members").built(),
         pool.write(),
+        &SchemaName::public(),
         MigrationConfig::default(),
     )
     .await
