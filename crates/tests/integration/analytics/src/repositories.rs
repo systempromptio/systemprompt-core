@@ -453,7 +453,7 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
     assert!(
         listed
             .iter()
-            .any(|r| r.status == "rejected" && r.model.is_none()),
+            .any(|r| r.status == systemprompt_traits::RequestStatus::Rejected && r.model.is_none()),
         "the rejection must still be visible in the request list"
     );
 

@@ -42,6 +42,7 @@ mod server_declared_groups;
 #[cfg(test)]
 mod gateway_overhead_metrics;
 
+#[cfg(test)]
 mod load_shed_outermost;
 #[cfg(test)]
 mod server_load_shed;
@@ -566,3 +567,6 @@ mod documents_import_export;
 
 #[cfg(test)]
 mod ownership_sweep;
+
+#[cfg(test)]
+mod content_link_analytics_admin;
