@@ -3,7 +3,9 @@
 //! served (an anonymous caller is refused where a session is required) and the
 //! API-key routes share the admin router's one per-caller throttle; with it
 //! disabled none of them is mounted (404). Admitted with no identity surface,
-//! or with no SSO slot built, boot is refused naming the cause.
+//! boot is refused at mount naming the cause; admitted with no member opening
+//! the SSO slot, the kernel refuses the composition because `identity-http`
+//! requires the slot's built providers.
 
 use std::sync::Arc;
 
@@ -180,10 +182,10 @@ async fn an_admitted_identity_http_without_its_surface_refuses_boot() {
 }
 
 #[tokio::test]
-async fn an_admitted_identity_http_without_the_sso_slot_refuses_boot() {
+async fn an_admitted_identity_http_without_the_sso_slot_is_refused_by_its_requirement() {
     let chain = refusal(fixture_admitted_without(&[ExtensionId::new("identity")])).await;
     assert!(
-        chain.contains("identity-http is admitted but the SSO slot was never built"),
+        chain.contains("identity-http requires") && chain.contains("SsoProviders"),
         "{chain}"
     );
 }

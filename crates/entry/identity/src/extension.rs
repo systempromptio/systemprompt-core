@@ -23,7 +23,7 @@
 //! | profile disables | identity routes |
 //! |---|---|
 //! | `identity-http` | 404 (not mounted) |
-//! | `identity` (with `identity-http` admitted) | boot refused: no SSO slot is built |
+//! | `identity` | refused at admission unless `identity-http` is disabled with it: the member requires the SSO slot's built providers |
 //! | `users` | boot refused (`users` is a required member) |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -66,6 +66,7 @@ mod surface {
 
     use systemprompt_database::DbPool;
     use systemprompt_extension::prelude::*;
+    use systemprompt_oauth_issuance::contract::SsoProviders;
     use systemprompt_oauth_issuance::surface::DynIdentitySurface;
     use systemprompt_users::UserRepository;
 
@@ -77,7 +78,8 @@ mod surface {
                 Ok(Arc::new(IdentityHttpSurface))
             },
         )
-        .provide_sealed(repositories);
+        .provide_sealed(repositories)
+        .requires::<Arc<SsoProviders>>();
     }
 
     fn repositories(r: &Resolved<'_>) -> Result<Arc<IdentityHttpRepositories>, ProvideError> {
