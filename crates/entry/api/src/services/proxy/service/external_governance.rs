@@ -57,6 +57,7 @@ async fn enforce(
     request: &RequestContext,
     service: &ServiceName,
     tool: &str,
+    // JSON: the tool's arguments, whose schema the external server owns.
     arguments: serde_json::Value,
 ) -> Result<(), ProxyBackendError> {
     let denied = || ProxyBackendError::Forbidden;

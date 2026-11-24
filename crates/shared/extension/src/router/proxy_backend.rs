@@ -86,6 +86,8 @@ pub trait ProxyBackendResolver: Send + Sync + std::fmt::Debug {
 pub type DynProxyBackendResolver = Arc<dyn ProxyBackendResolver>;
 
 /// One caller's view of an external MCP server for one request.
+///
+/// `#[async_trait]` because the engine holds it as `Box<dyn ExternalUpstream>`.
 #[async_trait]
 pub trait ExternalUpstream: Send + Sync {
     fn url(&self) -> &str;
@@ -111,6 +113,7 @@ pub trait ExternalUpstream: Send + Sync {
 pub enum GovernedToolCall<'a> {
     Valid {
         tool: &'a str,
+        // JSON: the tool's arguments, whose schema the external server owns.
         arguments: serde_json::Value,
     },
     InvalidName {
