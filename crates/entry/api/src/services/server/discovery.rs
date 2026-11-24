@@ -26,7 +26,7 @@ pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
     let base = &ctx.config().api_external_url;
-    let documents = DocumentsDiscovery::new(ctx.files_config().documents_config(), base);
+    let documents = DocumentsDiscovery::of_state(ctx.kernel().state(), base);
     let data = json!({
         "name": format!("{} API", ctx.config().sitename),
         "version": env!("CARGO_PKG_VERSION"),

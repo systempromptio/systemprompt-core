@@ -44,6 +44,19 @@ struct DocumentsLimits {
 }
 
 impl DocumentsDiscovery {
+    #[must_use]
+    pub fn of_state(state: &systemprompt_provider_contracts::Dependencies, base: &str) -> Self {
+        state
+            .find::<std::sync::Arc<systemprompt_files::FilesConfig>>()
+            .map_or(
+                Self {
+                    enabled: false,
+                    surface: None,
+                },
+                |config| Self::new(config.documents_config(), base),
+            )
+    }
+
     pub fn new(config: &DocumentsConfig, base: &str) -> Self {
         if !config.is_enabled() {
             return Self {

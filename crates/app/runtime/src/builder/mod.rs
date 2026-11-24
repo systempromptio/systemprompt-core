@@ -1,7 +1,7 @@
 //! Builder that assembles an [`AppContext`] from profile + config state over
 //! the admitted composition.
 //!
-//! The builder owns the bootstrap order: profile -> paths -> files -> database
+//! The builder owns the bootstrap order: profile -> paths -> database
 //! -> logging -> schema install over the admitted members -> kernel seeds ->
 //! [`Kernel::resolve`] -> the stages that read the resolved state (authz,
 //! governance, repositories) -> the context. The kernel is seeded with plain
@@ -12,10 +12,7 @@
 //! seeds the read half of the authz hook cell (`AuthzHookCell`) and binds it,
 //! through the binder it kept out of the state, as soon as the hook exists, so
 //! a member service that decides through the cell denies until then and decides
-//! through the one hook from then on. The host seeds the read half of the
-//! document store cell (`DocumentsHandlesSlot`) too and binds it, through its
-//! binder, to the handles the `documents` member provides sealed, right after
-//! the kernel resolves. A failing step propagates as
+//! through the one hook from then on. A failing step propagates as
 //! [`RuntimeError`](crate::error::RuntimeError); helpers are in [`assembly`].
 //!
 //! [`Kernel::resolve`]: crate::Kernel::resolve
@@ -44,7 +41,6 @@ use std::sync::Arc;
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::Admitted;
-use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -106,7 +102,6 @@ impl AppContextBuilder {
         let CoreLayer {
             config,
             app_paths,
-            files_config,
             database,
             authz_hook_override,
             signing_keys,
@@ -136,7 +131,6 @@ impl AppContextBuilder {
         let background_tasks = self.background_tasks.unwrap_or_default();
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
-        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let spawner = new_spawner()?;
         let token_authority: Arc<dyn systemprompt_models::auth::TokenAuthority> =
             Arc::new(systemprompt_security::DeploymentTokenAuthority::new(
@@ -147,7 +141,6 @@ impl AppContextBuilder {
             base: KernelSeed {
                 database: &database,
                 app_paths: &app_paths,
-                files_config: &files_config,
                 profile,
                 config: &config,
                 cache_epochs: &cache_epochs,
@@ -167,7 +160,6 @@ impl AppContextBuilder {
                 coordination: KernelCoordination::over(&seeded.services, &seeded.coordination),
                 system_admin: &system_admin,
                 event_router: &router,
-                documents: documents_slot,
                 catalog_roles: composition::catalog_roles(&self.admitted),
                 escalation: systemprompt_traits::EscalationDelivery::InProcess,
             },
@@ -192,9 +184,6 @@ impl AppContextBuilder {
         );
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
-        if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
-            documents_binder.bind(documents)?;
-        }
         if let Some(dispatcher) = r.optional::<Arc<dyn systemprompt_traits::MessagingDispatcher>>()
         {
             binders.messaging.bind(dispatcher)?;
@@ -253,7 +242,6 @@ impl AppContextBuilder {
                     boot: self.boot,
                     config,
                     app_paths,
-                    files_config,
                     route_classifier: content.route_classifier,
                     build: self.build,
                 },

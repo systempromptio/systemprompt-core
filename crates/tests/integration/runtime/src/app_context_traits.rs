@@ -85,7 +85,8 @@ async fn files_config_validator_refuses_to_validate_before_load() {
     let v = FilesConfigValidator::new(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
-            .clone(),
+            .system()
+            .services(),
     );
     assert!(
         v.validate().is_err(),

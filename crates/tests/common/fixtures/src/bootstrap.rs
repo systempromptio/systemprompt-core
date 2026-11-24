@@ -79,8 +79,7 @@ impl TestBootstrap {
     }
 
     pub fn files_config(&self) -> FilesConfig {
-        FilesConfig::from_profile(self.boot.profile(), &self.app_paths)
-            .expect("files config from the fixture profile")
+        FilesConfig::from_app_paths(&self.app_paths).expect("files config from the fixture profile")
     }
 }
 

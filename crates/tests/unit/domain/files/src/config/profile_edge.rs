@@ -105,7 +105,7 @@ fn ensure_storage_structure_reports_uncreatable_root() {
         None,
     )
     .expect("app paths");
-    let cfg = FilesConfig::from_profile(profile.profile(), &paths).expect("from_profile");
+    let cfg = FilesConfig::from_app_paths(&paths).expect("from_profile");
 
     let err = cfg
         .ensure_storage_structure()

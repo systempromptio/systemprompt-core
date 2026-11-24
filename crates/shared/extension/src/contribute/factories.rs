@@ -23,6 +23,10 @@ use crate::health::{DiagnosticProbe, ReadinessCheck};
 use crate::notifications::NotificationAudienceResolver;
 
 pub type AssetFn = Arc<dyn Fn(&dyn AssetPaths) -> Vec<AssetDefinition> + Send + Sync>;
+/// A member's startup configuration validator, built over the services
+/// directory the host resolved.
+pub type DomainConfigFn =
+    fn(&std::path::Path) -> Box<dyn systemprompt_manifest::validators::DomainConfig>;
 /// The users member's pre-kernel admin-bootstrap constructor: an open
 /// database handle in, the
 /// [`DynAdminBootstrap`](systemprompt_traits::DynAdminBootstrap) view out. The

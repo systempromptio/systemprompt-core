@@ -67,7 +67,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
-use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
+use systemprompt_extension::contribute::{PendingBind, SlotBuildInput, build_slot};
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedOwnerReassignments,
     AdmittedProjections, AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId,
@@ -140,6 +140,7 @@ impl Kernel {
         self.state.insert(AdmittedAssets::of(admitted.built()));
         refuse_kernel_types(admitted.built())?;
         refuse_unlisted_conferrals(admitted.built())?;
+        let pending = self.seed_late_cells(admitted)?;
         let declarations =
             secrets::declarations(admitted.built(), &Resolved::__new(&*self, &self.state))?;
         self.state.insert_sealed(Arc::new(declarations));
@@ -152,7 +153,27 @@ impl Kernel {
         self.build_governance(admitted.built())?;
         self.provide_all(admitted, ProvidePhase::AfterGovernance)?;
         self.build_slots(admitted, true)?;
-        self.check_requirements(admitted)
+        self.check_requirements(admitted)?;
+        for bind in pending {
+            bind(&self.state)?;
+        }
+        Ok(())
+    }
+
+    fn seed_late_cells(&mut self, admitted: &Admitted) -> Result<Vec<PendingBind>, KernelError> {
+        let mut pending = Vec::new();
+        for member in admitted.built().members() {
+            for cell in member.sink.late_cells() {
+                if member.standing != StandingTag::Core {
+                    return Err(KernelError::InstallLateCell {
+                        owner: member.owner.clone(),
+                        ty: cell.type_name(),
+                    });
+                }
+                pending.push(cell.seed_into(&mut self.state));
+            }
+        }
+        Ok(pending)
     }
 
     #[must_use]

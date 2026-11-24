@@ -39,7 +39,6 @@ impl std::fmt::Debug for ConfigPlane {
             .field("boot", &self.boot)
             .field("config", &"Config")
             .field("app_paths", &"AppPaths")
-            .field("files_config", &self.files_config)
             .field("route_classifier", &"RouteClassifier")
             .field("build", &self.build)
             .finish()

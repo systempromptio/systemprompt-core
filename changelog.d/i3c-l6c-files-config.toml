@@ -1,0 +1,29 @@
+[root]
+section = "Changed"
+area = "Files"
+text = "The files member loads, validates and provides its configuration and declares the document store late cell; the runtime no longer depends on `systemprompt-files`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`LateCell` and `Contributions::late_cell`: a core member declares a cell the kernel seeds before any member provides and binds to the provided value once the composition resolves; `Contributions::domain_config` contributes a startup configuration validator."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`FilesConfigView`: the files URL prefix, files root, stored-file cache policy and document-store switch the API host reads."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "`FilesConfig::from_profile` is replaced by `FilesConfig::from_app_paths`; `FilesConfigValidator::new` takes the services directory. `FilesExtension` provides `Arc<FilesConfig>` and `Arc<FilesConfigView>` and declares the `DocumentsHandlesSlot` late cell."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "`DocumentsDiscovery::of_state` builds the discovery block from the kernel state; disabled when the files member is absent."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::files_config`, `ConfigPlane::files_config`, `HostParts::files_config`, `KernelSeed::{files_config, documents}` and `RuntimeError::Files` are removed."

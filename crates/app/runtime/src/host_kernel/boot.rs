@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, LoadedProfile};
-use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -22,7 +21,6 @@ use systemprompt_traits::{BackgroundTasks, CacheEpochs, DatabaseHandle, SecretSt
 use crate::builder::assembly::load_system_admin;
 use crate::builder::authz::{AuthzBuilt, authz_stage};
 use crate::builder::composition::bind_secret_scanner;
-use crate::builder::core_layer::init_files_config;
 use crate::builder::database::connect_database;
 use crate::builder::events::event_plane;
 use crate::builder::governance::load_governance;
@@ -74,7 +72,6 @@ impl HostKernel {
             )
             .map_err(|e| HostBootError::Config(Box::new(e)))?,
         );
-        let files_config = init_files_config(profile, &app_paths)?;
         let services_config = ConfigLoader::for_profile(profile, &services_root.path)
             .load()
             .map_err(|e| HostBootError::Services(Box::new(e)))?;
@@ -105,11 +102,9 @@ impl HostKernel {
         let system_owner = system_admin.id().clone();
 
         let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
-        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let (seed, binders) = crate::base_kernel_state(KernelSeed {
             database: &database,
             app_paths: &app_paths,
-            files_config: &files_config,
             profile,
             config: &config,
             cache_epochs: &cache_epochs,
@@ -131,7 +126,6 @@ impl HostKernel {
             },
             system_admin: &system_admin,
             event_router: &event_router,
-            documents: documents_slot,
             catalog_roles: crate::builder::composition::catalog_roles(&admitted),
             escalation: systemprompt_traits::EscalationDelivery::Consumer,
         });
@@ -140,11 +134,6 @@ impl HostKernel {
         let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);
         kernel.resolve(&admitted).map_err(RuntimeError::from)?;
         let r = kernel.resolved();
-        if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
-            documents_binder
-                .bind(documents)
-                .map_err(RuntimeError::from)?;
-        }
 
         let (authz_hook, market) = authz_stage(
             profile,
@@ -183,7 +172,6 @@ impl HostKernel {
             services_root,
             config,
             app_paths,
-            files_config,
             database,
             services,
             secrets,

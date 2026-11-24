@@ -2,12 +2,10 @@
 //!
 //! Resolves the profile-driven foundation an
 //! [`AppContext`](crate::context::AppContext) is assembled on — config, paths,
-//! files, database pool, signing key and logging — plus schema installation
-//! over the admitted composition. The files configuration is built here
-//! from the resolved paths and owned by the context; the profile and config
-//! inits are idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can
-//! build a context self-sufficiently while a CLI that already ran them sees a
-//! no-op.
+//! database pool, signing key and logging — plus schema installation over the
+//! admitted composition. The profile and config inits are idempotent `OnceLock`
+//! guards, so a non-CLI entry (API, tests) can build a context
+//! self-sufficiently while a CLI that already ran them sees a no-op.
 //!
 //! Upstreams publish and retire models without an operator edit, so the
 //! catalog is augmented at boot from their live listings
@@ -28,7 +26,6 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::Admitted;
-use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::services::root::ActiveServicesRoot;
@@ -43,7 +40,6 @@ use crate::error::RuntimeResult;
 pub(super) struct CoreLayer {
     pub(super) config: Arc<Config>,
     pub(super) app_paths: Arc<AppPaths>,
-    pub(super) files_config: Arc<FilesConfig>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook_override: Option<SharedAuthzHook>,
     pub(super) signing_keys: SigningKeys,
@@ -96,16 +92,6 @@ async fn resolve_services_root(
     Ok((active_root, app_paths))
 }
 
-pub(crate) fn init_files_config(
-    profile: &Profile,
-    app_paths: &AppPaths,
-) -> RuntimeResult<Arc<FilesConfig>> {
-    let files_config = FilesConfig::from_profile(profile, app_paths)?;
-    files_config.validate()?;
-    files_config.ensure_storage_structure()?;
-    Ok(Arc::new(files_config))
-}
-
 #[derive(Default)]
 pub(super) struct CoreOverrides {
     pub authz_hook: Option<SharedAuthzHook>,
@@ -127,7 +113,6 @@ pub(super) async fn init_core(
     let profile = boot.profile();
     let secrets = boot.secrets().get();
     let (active_root, app_paths) = resolve_services_root(boot).await?;
-    let files_config = init_files_config(profile, &app_paths)?;
     let services = init_services(boot, services_provided).await?;
     let services_config = services.config();
     let config = match database_url_override {
@@ -179,7 +164,6 @@ pub(super) async fn init_core(
     Ok(CoreLayer {
         config,
         app_paths,
-        files_config,
         database,
         authz_hook_override,
         signing_keys,

@@ -37,6 +37,13 @@ pub enum KernelError {
         owner: ExtensionId,
         row: &'static str,
     },
+    #[error("{owner} declares late cell {ty}, which only a core member may declare")]
+    InstallLateCell {
+        owner: ExtensionId,
+        ty: &'static str,
+    },
+    #[error("a late cell was bound twice")]
+    LateCellBound(#[from] systemprompt_models::AlreadyBound),
     #[error("{owner} provides {ty}, which only the kernel inserts")]
     ReservedType {
         owner: ExtensionId,

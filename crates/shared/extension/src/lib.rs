@@ -138,7 +138,7 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use contribute::{
     AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory,
-    FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle, MemberResolved,
+    FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle, LateCell, MemberResolved,
     MemberScope, MemberSecrets, ProvideError, ProvideFn, ProvidePhase, Resolved,
     SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
     handles,

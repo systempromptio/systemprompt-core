@@ -149,7 +149,7 @@ pub(super) fn mount_internal_links(
     router: Router,
     mount: &MountCtx<'_>,
 ) -> Result<Router, RouteMountError> {
-    if !mount.ctx.files_config().documents_config().is_enabled() {
+    if !crate::services::server::boot_steps::documents_enabled(mount.ctx) {
         return Ok(router);
     }
     let handles = systemprompt_documents::bound_handles(mount.ctx.kernel().state())

@@ -40,6 +40,7 @@ pub use mcp_validator::{collect_manifest_errors, merge_mcp_errors};
 #[derive(Debug)]
 pub struct StartupValidator {
     boot: BootContext,
+    services: std::path::PathBuf,
     registry: DomainConfigRegistry,
 }
 
@@ -53,9 +54,6 @@ impl StartupValidator {
             profile.path_resolution(),
             boot.services_root().map(|root| root.path.as_path()),
         )?;
-        registry.register(Box::new(systemprompt_files::FilesConfigValidator::new(
-            app_paths,
-        )));
         registry.register(Box::new(RateLimitsConfigValidator::new()));
         registry.register(Box::new(WebConfigValidator::new()));
         registry.register(Box::new(ContentConfigValidator::new()));
@@ -64,7 +62,11 @@ impl StartupValidator {
         registry.register(Box::new(McpConfigValidator::new()));
         registry.register(Box::new(AiConfigValidator::new()));
 
-        Ok(Self { boot, registry })
+        Ok(Self {
+            boot,
+            services: app_paths.system().services().to_path_buf(),
+            registry,
+        })
     }
 
     pub fn validate(&mut self, config: &Config, built: &BuiltState) -> StartupValidationReport {
@@ -72,6 +74,11 @@ impl StartupValidator {
         let verbose = OutputState::current().is_startup_mode();
 
         report = report.with_profile_path(self.boot.profile_path());
+        for member in built.members() {
+            for validator in member.sink.domain_configs() {
+                self.registry.register(validator(&self.services));
+            }
+        }
 
         if verbose {
             CliService::section("Validating configuration");

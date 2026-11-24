@@ -9,15 +9,14 @@
 //! `EscalationDelivery::Consumer`), resolves it, and then runs the stages
 //! that read the resolved state — authz, governance — over that
 //! narrower input, so a child enforces the API's authorization by
-//! construction. It never reads the profile's secrets source and builds no
-//! OAuth repository.
+//! construction. It never reads the profile's secrets source and seeds no
+//! OAuth at-rest pepper, so the oauth member withholds its repositories.
 //!
 //! [`HostKernel::boot`] returns the composed handles in [`HostParts`],
 //! including the resolved [`Kernel`] whose state the child's extension
 //! context reads. The notifications member binds its own service slot while
-//! the kernel resolves; the child binds the document store cell to the
-//! handles the `documents` member provides and the authz hook cell to the
-//! hook it builds.
+//! the kernel resolves, and the kernel binds the files member's document
+//! store cell; the child binds the authz hook cell to the hook it builds.
 //!
 //! [`base_kernel_state`]: crate::base_kernel_state
 //!
@@ -32,7 +31,6 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, GrantedSecretsError, LoadedProfile};
 use systemprompt_database::DbPool;
 use systemprompt_extension::Admitted;
-use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ServicesState;
@@ -92,7 +90,6 @@ pub struct HostParts {
     pub services_root: ActiveServicesRoot,
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
-    pub files_config: Arc<FilesConfig>,
     pub database: DbPool,
     pub services: ServicesState,
     pub secrets: Arc<GrantedSecrets>,

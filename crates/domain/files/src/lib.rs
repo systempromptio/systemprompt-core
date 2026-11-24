@@ -42,6 +42,7 @@ pub(crate) mod extension;
 pub mod issues;
 pub(crate) mod jobs;
 pub(crate) mod models;
+mod provides;
 pub(crate) mod repository;
 pub(crate) mod services;
 pub mod uploads;

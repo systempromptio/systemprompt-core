@@ -16,10 +16,10 @@
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
 //! child host, which delivers through the serving host's consumer), and the
 //! names of the roles the admitted members declare (`CatalogRoleNames`).
-//! The authz hook and the document store are built from the resolved state,
-//! so neither is seeded; the read half of each cell is (`AuthzHookCell`
-//! sealed, `DocumentsHandlesSlot` open); the host keeps each bind half and
-//! binds it once the value is built (the store from the `documents` member).
+//! The authz hook is built from the resolved state, so it is not seeded; the
+//! read half of its cell is (`AuthzHookCell`, sealed), and the host keeps the
+//! bind half and binds it once the hook is built. The document store cell is
+//! the files member's declared late cell, which the kernel seeds and binds.
 //!
 //! The provider-key lookup (`Arc<dyn SecretLookup>`: the whole secrets
 //! document on the API, the granted set on a child host) and the connector
@@ -132,7 +132,6 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with(revocations)
         .with(Arc::clone(seed.database))
         .with(Arc::clone(seed.app_paths))
-        .with(Arc::clone(seed.files_config))
         .with(Arc::new(seed.profile.notifications))
         .with(Arc::new(seed.profile.brain.clone()))
         .with(seed.profile.unapplied_plane_mode())
@@ -158,7 +157,6 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(Arc::new(seed.event_router.clone()))
         .with_sealed(authz_cell)
         .with(Arc::new(seed.catalog_roles))
-        .with(seed.documents)
         .with(seed.escalation);
     (
         state,

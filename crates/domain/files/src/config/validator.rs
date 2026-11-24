@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_config::paths::AppPaths;
+use std::path::{Path, PathBuf};
 use systemprompt_manifest::validators::validation_report::{
     ValidationIssue, ValidationReport, ValidationWarning,
 };
@@ -26,16 +26,22 @@ fn is_valid_header_value(value: &str) -> bool {
 
 #[derive(Debug)]
 pub struct FilesConfigValidator {
-    paths: AppPaths,
+    services: PathBuf,
     config: Option<FilesConfigYaml>,
 }
 
 impl FilesConfigValidator {
-    pub const fn new(paths: AppPaths) -> Self {
+    #[must_use]
+    pub fn new(services: &Path) -> Self {
         Self {
-            paths,
+            services: services.to_path_buf(),
             config: None,
         }
+    }
+
+    #[must_use]
+    pub fn boxed(services: &Path) -> Box<dyn DomainConfig> {
+        Box::new(Self::new(services))
     }
 }
 
@@ -49,7 +55,7 @@ impl DomainConfig for FilesConfigValidator {
     }
 
     fn load(&mut self, _config: &dyn ConfigProvider) -> Result<(), DomainConfigError> {
-        let yaml_config = FilesConfig::load_yaml_config(&self.paths)
+        let yaml_config = FilesConfig::load_yaml_config(&self.services)
             .map_err(|e| DomainConfigError::load("files.yaml", e))?;
         self.config = Some(yaml_config);
         Ok(())

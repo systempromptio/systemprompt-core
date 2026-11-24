@@ -20,7 +20,6 @@ use systemprompt_config::{
     ConfigError as ProfileConfigError, ProfileBootstrapError, SecretsBootstrapError,
 };
 use systemprompt_extension::LoaderError;
-use systemprompt_files::FilesError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_governance::policy::GovernanceEngineError;
 use systemprompt_identifiers::SecretName;
@@ -48,9 +47,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Paths(#[from] PathError),
-
-    #[error(transparent)]
-    Files(#[from] FilesError),
 
     #[error(transparent)]
     AdminBootstrap(#[from] crate::admin_bootstrap::AdminBootstrapUnavailable),

@@ -1,18 +1,18 @@
-//! The document store handles a host binds after its kernel resolves.
+//! The document store handles the kernel binds after it resolves.
 //!
 //! The document store is built from slot outputs of the same resolve the
 //! files member provides into, so the store cannot exist while the files
-//! member provides. The host creates the cell instead, with
-//! [`DocumentsHandlesSlot::unbound`]: it seeds the read half,
-//! [`DocumentsHandlesSlot`], into its kernel state before any member
-//! provides, and keeps the bind half, [`DocumentsHandlesBinder`], outside the
-//! state. The `documents` member builds the store after governance and
-//! provides its handles sealed; the host binds the cell to them once the
-//! kernel has resolved. The files member's core seams, the document jobs, the
+//! member provides. The files member declares the cell instead
+//! (`Contributions::late_cell`): the kernel seeds the read half,
+//! [`DocumentsHandlesSlot`], into its state before any member provides, and
+//! keeps the bind half, [`DocumentsHandlesBinder`], outside the state. The
+//! `documents` member builds the store after governance and provides its
+//! handles sealed; the kernel binds the cell to them once the composition has
+//! resolved. The files member's core seams, the document jobs, the
 //! routes and the commands hold the read half and read it when they are
 //! called. No member can bind it: the binder is never in the state, a binder
 //! from another `unbound` call binds only its own cell, and a member cannot
-//! provide the slot type the kernel already holds. A call before the host
+//! provide the slot type the kernel already holds. A call before the kernel
 //! binds the slot fails with [`DocumentsUnbound`], never with a default
 //! verdict.
 //!
@@ -26,7 +26,7 @@ use systemprompt_extension::brain::{
     SourceAccess, SourceAccessError, SourceContent, SourceContentError, SourceVerdict,
 };
 use systemprompt_extension::{
-    NotificationAudienceResolver, ResourceVisibility, Visibility, VisibilityError,
+    LateCell, NotificationAudienceResolver, ResourceVisibility, Visibility, VisibilityError,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::RequestActor;
@@ -89,6 +89,19 @@ impl DocumentsHandlesSlot {
 impl DocumentsHandlesBinder {
     pub fn bind(&self, handles: Arc<DocumentsHandles>) -> Result<(), AlreadyBound> {
         self.0.bind(handles)
+    }
+}
+
+impl LateCell for DocumentsHandlesSlot {
+    type Value = DocumentsHandles;
+    type Binder = DocumentsHandlesBinder;
+
+    fn unbound() -> (Self, Self::Binder) {
+        Self::unbound()
+    }
+
+    fn bind(binder: Self::Binder, value: Arc<Self::Value>) -> Result<(), AlreadyBound> {
+        binder.bind(value)
     }
 }
 

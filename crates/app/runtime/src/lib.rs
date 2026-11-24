@@ -7,7 +7,7 @@
 //!
 //! Public APIs return [`RuntimeResult<T>`]. [`RuntimeError`] composes
 //! upstream typed errors (`ConfigError`, `RepositoryError`,
-//! `FilesError`, `LoaderError`,
+//! `LoaderError`,
 //! `ProfileBootstrapError`, `PathError`) via `#[from]`; every variant
 //! built from another error keeps it as its source.
 //!

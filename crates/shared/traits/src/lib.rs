@@ -100,6 +100,7 @@ pub use admin_bootstrap::{
     AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion,
     DynAdminBootstrap,
 };
+pub mod files_config;
 pub mod registry;
 pub mod repository;
 pub mod request_analytics;
@@ -108,6 +109,7 @@ pub mod run_origin;
 pub mod runner_service;
 pub mod secret;
 pub mod secret_pattern;
+pub use files_config::FilesConfigView;
 pub mod service_accounts;
 pub use process_liveness::ProcessLiveness;
 pub use run_origin::RunOrigin;

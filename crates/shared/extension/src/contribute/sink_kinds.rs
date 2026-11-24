@@ -63,6 +63,8 @@ impl ContributionSink {
             declared_secrets: _,
             secret_references,
             slots: _,
+            late_cells: _,
+            domain_configs: _,
             #[cfg(feature = "router")]
                 routes: _,
             #[cfg(feature = "router")]

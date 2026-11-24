@@ -57,6 +57,15 @@ pub fn oauth_repositories(
         .expect("the oauth member provides its repositories on the API host")
 }
 
+pub fn files_config(ctx: &AppContext) -> Arc<systemprompt_files::FilesConfig> {
+    Arc::clone(
+        ctx.kernel()
+            .state()
+            .get::<Arc<systemprompt_files::FilesConfig>>()
+            .expect("the files member provides its configuration"),
+    )
+}
+
 pub fn user_repository(ctx: &AppContext) -> Arc<systemprompt_users::UserRepository> {
     Arc::new(systemprompt_users::UserRepository::new(ctx.db_pool()))
 }
@@ -550,11 +559,10 @@ pub fn fixture_kernel_seed(
     parts: FixtureSeedParts,
 ) -> systemprompt_extension::prelude::Dependencies {
     let bootstrap = ensure_test_bootstrap();
-    let (seed, _binders) =
+    let (mut seed, _binders) =
         systemprompt_runtime::base_kernel_state(systemprompt_runtime::KernelSeed {
             database: pool,
             app_paths: &Arc::new(bootstrap.app_paths.clone()),
-            files_config: &Arc::new(bootstrap.files_config()),
             profile: bootstrap.boot.profile(),
             config: bootstrap.boot_config(),
             cache_epochs: &systemprompt_traits::CacheEpochs::new(),
@@ -580,10 +588,10 @@ pub fn fixture_kernel_seed(
                 crate::credential::FIXTURE_SYSTEM_ADMIN_USERNAME,
             ),
             event_router: &parts.event_router,
-            documents: parts.documents,
             catalog_roles: systemprompt_models::authz::CatalogRoleNames::default(),
             escalation: systemprompt_traits::EscalationDelivery::InProcess,
         });
+    seed.insert(parts.documents);
     seed
 }
 

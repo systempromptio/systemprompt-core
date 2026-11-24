@@ -108,7 +108,7 @@ fn files_config_validator_load_and_validate() {
 
     let env = test_env();
 
-    let v = FilesConfigValidator::new(env.app_paths.clone());
+    let v = FilesConfigValidator::new(env.app_paths.system().services());
     let err = v
         .validate()
         .expect_err("validator with no config should error");

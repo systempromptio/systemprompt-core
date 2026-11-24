@@ -661,7 +661,7 @@ async fn the_files_server_cannot_reach_document_blobs() -> Result<()> {
         matcher: Arc::new(StaticContentMatcher::empty()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
     };
-    let prefix = ctx.files_config().url_prefix().to_owned();
+    let prefix = systemprompt_test_fixtures::files_config(&ctx).url_prefix().to_owned();
     for path in [
         format!("{prefix}/documents/blobs/{}/{sha}", &sha[..2]),
         format!("{prefix}/../documents/blobs/{}/{sha}", &sha[..2]),

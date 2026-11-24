@@ -11,8 +11,6 @@ use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_files::FilesConfig;
-use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
@@ -39,7 +37,6 @@ pub struct KernelCoordination {
 pub struct KernelSeed<'a> {
     pub database: &'a DbPool,
     pub app_paths: &'a Arc<AppPaths>,
-    pub files_config: &'a Arc<FilesConfig>,
     pub profile: &'a Profile,
     pub config: &'a Arc<Config>,
     pub cache_epochs: &'a CacheEpochs,
@@ -55,7 +52,6 @@ pub struct KernelSeed<'a> {
     pub coordination: KernelCoordination,
     pub system_admin: &'a SystemAdmin,
     pub event_router: &'a EventRouter,
-    pub documents: DocumentsHandlesSlot,
     pub catalog_roles: CatalogRoleNames,
     pub escalation: EscalationDelivery,
 }

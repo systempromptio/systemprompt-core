@@ -6,7 +6,7 @@ use systemprompt_test_fixtures::ensure_test_bootstrap;
 #[test]
 fn path_and_url_accessors_derive_from_storage_and_prefix() {
     let b = ensure_test_bootstrap();
-    let cfg = FilesConfig::from_profile(b.boot.profile(), &b.app_paths).expect("from_profile");
+    let cfg = FilesConfig::from_app_paths(&b.app_paths).expect("from_profile");
     let root = &b.storage_path;
 
     assert_eq!(cfg.generated_images(), root.join("files/images/generated"));

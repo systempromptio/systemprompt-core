@@ -9,7 +9,6 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
-use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_loader::BootContext;
@@ -44,7 +43,6 @@ pub struct ConfigPlane {
     pub boot: BootContext,
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
-    pub files_config: Arc<FilesConfig>,
     pub route_classifier: Arc<RouteClassifier>,
     pub build: systemprompt_models::BuildIdentity,
 }
