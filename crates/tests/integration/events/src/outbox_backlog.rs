@@ -5,9 +5,9 @@
 //! `pending()` answers from the sum plus the oldest row's age. An open
 //! transaction that appended never blocks another append for the consumer.
 //!
-//! Compaction folds every consumer's rows, so a recount racing it keeps the
-//! folded row beside its own; the compaction test holds the backlog guard
-//! exclusively and the recount test shares it, across test processes.
+//! Compaction folds every consumer's rows in its schema, so each test owns an
+//! [`crate::OutboxSchema`] and no compaction or recount from another process
+//! reaches its ledger.
 
 use systemprompt_events::services::durable::{
     DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
@@ -51,26 +51,6 @@ async fn append_n(
     ids
 }
 
-const COMPACTION_LOCK: i64 = 0x6f75_7462_6163_6b6c;
-
-async fn compaction_guard(
-    pool: &sqlx::PgPool,
-    exclusive: bool,
-) -> sqlx::Transaction<'static, sqlx::Postgres> {
-    let mut tx = pool.begin().await.expect("begin guard");
-    let sql = if exclusive {
-        "SELECT pg_advisory_xact_lock($1)"
-    } else {
-        "SELECT pg_advisory_xact_lock_shared($1)"
-    };
-    sqlx::query(sql)
-        .bind(COMPACTION_LOCK)
-        .execute(&mut *tx)
-        .await
-        .expect("compaction guard");
-    tx
-}
-
 async fn counter(pool: &sqlx::PgPool, consumer: &str) -> Option<i64> {
     sqlx::query_scalar("SELECT SUM(delta)::BIGINT FROM event_outbox_backlog WHERE consumer = $1")
         .bind(consumer)
@@ -89,8 +69,8 @@ async fn rows(pool: &sqlx::PgPool, consumer: &str) -> i64 {
 
 #[tokio::test]
 async fn the_counter_follows_insert_acknowledge_and_delete() {
-    let pool = crate::setup_test_pool().await;
-    let pool = pool.as_ref().clone();
+    let scratch = crate::OutboxSchema::create().await;
+    let pool = scratch.pool().clone();
     let consumer = consumer_name();
     let outbox = DurableOutbox::new(pool.clone(), unique_instance());
     let reader = OutboxConsumer::new(pool.clone());
@@ -133,13 +113,13 @@ async fn the_counter_follows_insert_acknowledge_and_delete() {
     rest.acknowledge().await.expect("ack");
     assert_eq!(counter(&pool, &consumer).await, Some(0));
     assert_eq!(reader.pending(&consumer).await.expect("pending"), (0, None));
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn the_projector_recounts_a_drifted_consumer() {
-    let pool = crate::setup_test_pool().await;
-    let pool = pool.as_ref().clone();
-    let _guard = compaction_guard(&pool, false).await;
+    let scratch = crate::OutboxSchema::create().await;
+    let pool = scratch.pool().clone();
     let consumer = consumer_name();
     let outbox = DurableOutbox::new(pool.clone(), unique_instance());
     let reader = OutboxConsumer::new(pool.clone());
@@ -169,13 +149,13 @@ async fn the_projector_recounts_a_drifted_consumer() {
         .expect("refresh");
     assert_eq!(written, 1);
     assert_eq!(counter(&pool, &unknown).await, Some(0));
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn compaction_folds_the_deltas_and_keeps_the_sum() {
-    let pool = crate::setup_test_pool().await;
-    let pool = pool.as_ref().clone();
-    let _guard = compaction_guard(&pool, true).await;
+    let scratch = crate::OutboxSchema::create().await;
+    let pool = scratch.pool().clone();
     let consumer = consumer_name();
     let outbox = DurableOutbox::new(pool.clone(), unique_instance());
     let reader = OutboxConsumer::new(pool.clone());
@@ -196,12 +176,13 @@ async fn compaction_folds_the_deltas_and_keeps_the_sum() {
     assert_eq!(rows(&pool, &consumer).await, 1);
     assert_eq!(counter(&pool, &consumer).await, Some(3));
     assert_eq!(reader.pending(&consumer).await.expect("pending").0, 3);
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn an_open_append_does_not_block_another_append_for_the_consumer() {
-    let pool = crate::setup_test_pool().await;
-    let pool = pool.as_ref().clone();
+    let scratch = crate::OutboxSchema::create().await;
+    let pool = scratch.pool().clone();
     let consumer = consumer_name();
     let outbox = DurableOutbox::new(pool.clone(), unique_instance());
     let actor = Actor::user(UserId::new(format!("user_{consumer}")));
@@ -228,4 +209,5 @@ async fn an_open_append_does_not_block_another_append_for_the_consumer() {
     other.commit().await.expect("commit");
     open.rollback().await.expect("rollback");
     assert_eq!(counter(&pool, &consumer).await, Some(1));
+    scratch.drop_now().await;
 }
