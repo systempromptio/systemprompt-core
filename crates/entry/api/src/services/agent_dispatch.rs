@@ -17,7 +17,6 @@ use axum::extract::Request;
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use systemprompt_agent::models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 use systemprompt_identifiers::{AgentName, ServiceName};
-use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::dispatch::{AgentDispatch, AgentDispatchBinder, AgentDispatchError};
 use systemprompt_models::late_bound::AlreadyBound;
@@ -29,7 +28,6 @@ const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
 pub struct ApiAgentDispatch {
     ctx: AppContext,
-    sessions: Arc<McpProxySessionRepository>,
 }
 
 impl std::fmt::Debug for ApiAgentDispatch {
@@ -40,9 +38,8 @@ impl std::fmt::Debug for ApiAgentDispatch {
 
 impl ApiAgentDispatch {
     #[must_use]
-    pub fn new(ctx: AppContext) -> Self {
-        let sessions = crate::repository::proxy_sessions(ctx.db_pool());
-        Self { ctx, sessions }
+    pub const fn new(ctx: AppContext) -> Self {
+        Self { ctx }
     }
 }
 
@@ -74,15 +71,16 @@ impl AgentDispatch for ApiAgentDispatch {
             path: "",
             kind: ProxyKind::Agent,
         };
-        let tokens = crate::services::kernel_seeds::connector_tokens(&self.ctx)
-            .map_err(|e| AgentDispatchError::Proxy(Box::new(e)))?;
-        let response = ProxyService::new(
-            Arc::clone(&self.sessions),
-            tokens,
-            &self.ctx.services_state().view(),
-            Arc::clone(self.ctx.config_arc()),
-            Arc::clone(self.ctx.secrets()),
-        )
+        let engine = self
+            .ctx
+            .kernel()
+            .state()
+            .find::<systemprompt_extension::router::DynProxyBackendResolver>()
+            .cloned()
+            .map_or_else(ProxyService::new, |backends| {
+                ProxyService::new().with_mcp_backends(backends)
+            });
+        let response = engine
         .proxy_request(target, request, self.ctx.clone())
         .await
         .map_err(|e| AgentDispatchError::Proxy(Box::new(e)))?;

@@ -4,29 +4,27 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
+use std::sync::Arc;
 
-use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use axum::http::{HeaderMap, HeaderValue};
 use sha2::{Digest, Sha256};
+use systemprompt_extension::router::ProxyBackendError;
 use systemprompt_identifiers::{ServiceName, SessionId, UserId};
 use systemprompt_mcp::repository::{ExternalSessionBinding, McpProxySessionRepository};
-use systemprompt_models::RequestContext;
 
-use super::super::backend::ProxyError;
-
-pub(super) struct SessionGuard<'a> {
-    repository: &'a McpProxySessionRepository,
-    server: &'a ServiceName,
-    user_id: &'a UserId,
+pub(super) struct SessionGuard {
+    repository: Arc<McpProxySessionRepository>,
+    server: ServiceName,
+    user_id: UserId,
     credential_hash: [u8; 32],
 }
 
-impl<'a> SessionGuard<'a> {
+impl SessionGuard {
     pub(super) fn new(
-        repository: &'a McpProxySessionRepository,
-        server: &'a ServiceName,
-        context: &'a RequestContext,
-        headers: &HashMap<HeaderName, HeaderValue>,
+        repository: Arc<McpProxySessionRepository>,
+        server: ServiceName,
+        user_id: UserId,
+        headers: &HeaderMap,
     ) -> Self {
         let mut headers: Vec<_> = headers.iter().collect();
         headers.sort_unstable_by_key(|(name, _)| name.as_str());
@@ -40,7 +38,7 @@ impl<'a> SessionGuard<'a> {
         Self {
             repository,
             server,
-            user_id: context.user_id(),
+            user_id,
             credential_hash: hash.finalize().into(),
         }
     }
@@ -49,19 +47,17 @@ impl<'a> SessionGuard<'a> {
         ExternalSessionBinding {
             server: self.server.as_str(),
             session_id,
-            user_id: self.user_id,
+            user_id: &self.user_id,
             credential_hash: &self.credential_hash,
         }
     }
 
-    fn failed(&self, error: &systemprompt_mcp::McpDomainError) -> ProxyError {
+    fn failed(&self, error: &systemprompt_mcp::McpDomainError) -> ProxyBackendError {
         tracing::warn!(%error, server = %self.server, "External MCP session persistence failed");
-        ProxyError::Forbidden {
-            service: self.server.to_string(),
-        }
+        ProxyBackendError::Forbidden
     }
 
-    pub(super) async fn accepts(&self, session: &HeaderValue) -> Result<bool, ProxyError> {
+    pub(super) async fn accepts(&self, session: &HeaderValue) -> Result<bool, ProxyBackendError> {
         let Some(session) = session
             .to_str()
             .ok()
@@ -75,7 +71,7 @@ impl<'a> SessionGuard<'a> {
             .map_err(|error| self.failed(&error))
     }
 
-    pub(super) async fn remember(&self, headers: &HeaderMap) -> Result<(), ProxyError> {
+    pub(super) async fn remember(&self, headers: &HeaderMap) -> Result<(), ProxyBackendError> {
         if let Some(session) = headers.get(systemprompt_identifiers::headers::MCP_SESSION_ID) {
             let session = session
                 .to_str()
@@ -83,9 +79,7 @@ impl<'a> SessionGuard<'a> {
                 .and_then(|value| SessionId::try_new(value).ok())
                 .ok_or_else(|| {
                     tracing::warn!(server = %self.server, "Invalid external MCP session header");
-                    ProxyError::Forbidden {
-                        service: self.server.to_string(),
-                    }
+                    ProxyBackendError::Forbidden
                 })?;
             let remembered = self
                 .repository
@@ -93,17 +87,15 @@ impl<'a> SessionGuard<'a> {
                 .await
                 .map_err(|error| self.failed(&error))?;
             if !remembered {
-                return Err(ProxyError::Forbidden {
-                    service: self.server.to_string(),
-                });
+                return Err(ProxyBackendError::Forbidden);
             }
         }
         Ok(())
     }
 
-    pub(super) async fn forget(&self, headers: &HeaderMap) -> Result<(), ProxyError> {
+    pub(super) async fn forget(&self, headers: &HeaderMap) -> Result<(), ProxyBackendError> {
         if let Some(session) = headers
-            .get("mcp-session-id")
+            .get(systemprompt_identifiers::headers::MCP_SESSION_ID)
             .and_then(|value| value.to_str().ok())
             .and_then(|value| SessionId::try_new(value).ok())
         {

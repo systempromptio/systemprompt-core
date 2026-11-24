@@ -1,205 +1,149 @@
-//! MCP-over-HTTP forwarding for external servers.
-//!
-//! An external MCP server has no local backend port; instead the gateway mints
-//! a per-user provider bearer server-side and forwards the MCP frames to the
-//! provider endpoint, withholding the systemprompt credential and the provider
-//! URL from the client. A client-mediated `tools/call` is audited under the
-//! calling user via the response tap.
+//! The external MCP upstream: an external MCP server has no local backend
+//! port; the `mcp-http` member mints a per-user provider bearer server-side
+//! and names the provider endpoint, so the proxy engine forwards the MCP
+//! frames there while withholding the systemprompt credential and the
+//! provider URL from the client. Before a frame is forwarded the upstream
+//! fixes the configured tool arguments, has the kernel govern a
+//! `tools/call`, and builds the per-call audit the engine taps the response
+//! with.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use axum::body::Body;
-use axum::extract::Request;
-use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
-use axum::response::{IntoResponse, Response};
+use async_trait::async_trait;
+use axum::http::{HeaderMap, HeaderValue};
+use systemprompt_extension::router::{
+    CallAudit, ExternalUpstream, GovernedToolCall, ProxiedCallGovernor, ProxyBackendError,
+};
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_mcp::{McpDomainError, McpServerConfig};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::AppContext;
 
-use super::super::audit::{self, AuditSinks, McpAudit, parse_tool_call};
-use super::super::auth::{AccessValidator, mcp_oauth_requirement};
-use super::super::backend::{MCP_REQUEST_BODY_LIMIT, ProxyError, RequestBuilder, ResponseHandler};
-use super::ProxyService;
-use super::outbound::MCP_PASSTHROUGH_HEADERS;
+use super::audit::{AuditSinks, McpAudit, ToolCallFrame, classify_tool_call, parse_tool_call};
+use super::external_sessions::SessionGuard;
 
-// Why: takes the headers and the context rather than the request — a
-// `Body` is not `Sync`, so holding `&Request` across the await would make
-// the proxy future `!Send` and the router refuse it.
-async fn authorised_context(
-    ctx: &AppContext,
-    service_name: &ServiceName,
-    headers: &HeaderMap,
-    req_ctx: Option<RequestContext>,
-) -> Result<RequestContext, ProxyError> {
-    let req_ctx = req_ctx.ok_or_else(|| ProxyError::MissingContext {
-        message: "external MCP proxy requires an authenticated request context".to_owned(),
-    })?;
-    let requirement = mcp_oauth_requirement(ctx, service_name).await?;
-    let user = AccessValidator::validate_with_requirement(
-        headers,
-        service_name,
-        &requirement,
-        ctx,
-        Some(&req_ctx),
-    )?;
-    super::context_owner::ensure_owned(ctx, service_name, headers, user.as_ref(), Some(&req_ctx))
-        .await?;
-    Ok(req_ctx)
+pub(super) struct McpExternalUpstream {
+    pub(super) server: McpServerConfig,
+    pub(super) service: ServiceName,
+    pub(super) caller: RequestContext,
+    pub(super) url: String,
+    pub(super) headers: HeaderMap,
+    pub(super) sessions: SessionGuard,
+    pub(super) audit: AuditSinks,
 }
 
-impl ProxyService {
-    pub(super) async fn proxy_external_mcp(
+#[async_trait]
+impl ExternalUpstream for McpExternalUpstream {
+    fn url(&self) -> &str {
+        &self.url
+    }
+
+    fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+
+    async fn accepts(&self, session: &HeaderValue) -> Result<bool, ProxyBackendError> {
+        self.sessions.accepts(session).await
+    }
+
+    async fn remember(&self, response_headers: &HeaderMap) -> Result<(), ProxyBackendError> {
+        self.sessions.remember(response_headers).await
+    }
+
+    async fn forget(&self, request_headers: &HeaderMap) -> Result<(), ProxyBackendError> {
+        self.sessions.forget(request_headers).await
+    }
+
+    async fn prepare(
         &self,
-        service_name: &ServiceName,
-        request: Request<Body>,
-        ctx: AppContext,
-        server_config: McpServerConfig,
-    ) -> Result<Response<Body>, ProxyError> {
-        let req_ctx = authorised_context(
-            &ctx,
-            service_name,
-            request.headers(),
-            request.extensions().get::<RequestContext>().cloned(),
-        )
-        .await?;
-
-        let target = self
-            .mcp_client
-            .resolve_external_proxy_target(&server_config, &req_ctx)
-            .await
-            .map_err(|e| map_resolve_error(service_name, e))?;
-
-        let method_str = request.method().to_string();
-        let incoming_headers = request.headers().clone();
-        let sessions = super::external_sessions::SessionGuard::new(
-            &self.sessions,
-            service_name,
-            &req_ctx,
-            &target.headers,
-        );
-        if let Some(session) =
-            incoming_headers.get(systemprompt_identifiers::headers::MCP_SESSION_ID)
-            && !sessions.accepts(session).await?
-        {
-            return Ok((
-                StatusCode::NOT_FOUND,
-                "MCP session expired; initialize again",
-            )
-                .into_response());
+        body: &mut Vec<u8>,
+        governor: &dyn ProxiedCallGovernor,
+    ) -> Result<Option<Box<dyn CallAudit>>, ProxyBackendError> {
+        super::fixed_arguments::apply(&self.server.tools, body);
+        match governed_call(&self.service, body)? {
+            GovernedFrame::None => {},
+            GovernedFrame::Valid(value) => {
+                let tool = value
+                    .pointer("/params/name")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or(ProxyBackendError::Forbidden)?;
+                let arguments = value
+                    .pointer("/params/arguments")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
+                governor
+                    .enforce(
+                        &self.caller,
+                        &self.service,
+                        GovernedToolCall::Valid { tool, arguments },
+                    )
+                    .await?;
+            },
+            GovernedFrame::InvalidName { raw_name } => {
+                governor
+                    .enforce(
+                        &self.caller,
+                        &self.service,
+                        GovernedToolCall::InvalidName {
+                            raw_name: raw_name.as_deref(),
+                        },
+                    )
+                    .await?;
+                return Err(ProxyBackendError::Forbidden);
+            },
         }
-        RequestBuilder::ensure_declared_length(&incoming_headers, MCP_REQUEST_BODY_LIMIT)?;
-        let mut body =
-            RequestBuilder::read_body(request.into_body(), MCP_REQUEST_BODY_LIMIT).await?;
-        super::fixed_arguments::apply(&server_config.tools, &mut body);
-
-        super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
-        let audit = build_audit(self.audit_sinks(&ctx), &req_ctx, service_name, &body)?;
-        let outbound = outbound_headers(&incoming_headers, target.headers);
-
-        let method = RequestBuilder::parse_method(&method_str)?;
-        let client = self.client_pool.get_default_client();
-        let response = RequestBuilder::build_request(
-            &client,
-            method,
-            &target.url,
-            &outbound,
-            (!body.is_empty()).then(|| reqwest::Body::from(body)),
-        )
-        .send()
-        .await
-        .map_err(|source| ProxyError::ConnectionFailed {
-            service: service_name.to_string(),
-            url: target.url.clone(),
-            source,
-        })?;
-
-        if method_str == "DELETE" {
-            if response.status().is_success() || response.status() == StatusCode::NOT_FOUND {
-                sessions.forget(&incoming_headers).await?;
-            }
-        } else if response.status().is_success() {
-            sessions.remember(response.headers()).await?;
-        }
-        let to_invalid = |source| ProxyError::InvalidResponse {
-            service: service_name.to_string(),
-            source,
-        };
-        match audit {
-            Some(audit) => audit::record(response, audit).await.map_err(to_invalid),
-            None => ResponseHandler::build_response(response).map_err(to_invalid),
-        }
+        Ok(parse_tool_call(body).map(|invocation| -> Box<dyn CallAudit> {
+            Box::new(McpAudit::new(
+                self.audit.clone(),
+                self.caller.clone(),
+                McpServerId::new(self.service.as_str()),
+                invocation,
+            ))
+        }))
     }
 }
 
-impl ProxyService {
-    fn audit_sinks(&self, ctx: &AppContext) -> Option<AuditSinks> {
-        self.audit.clone().map(|audit| AuditSinks {
-            intent_claims: audit.intent_claims.map(|intents| {
-                systemprompt_mcp::IntentClaimService::new(intents, Arc::clone(&audit.executions))
-            }),
-            executions: audit.executions,
-            ingest: audit.ingest,
-            background: ctx.background_tasks().clone(),
-        })
-    }
+enum GovernedFrame {
+    None,
+    // JSON: MCP JSON-RPC request frame — forwarded verbatim to the external MCP
+    // server.
+    Valid(serde_json::Value),
+    InvalidName { raw_name: Option<String> },
 }
 
-pub fn outbound_headers<S: std::hash::BuildHasher>(
-    incoming: &HeaderMap,
-    provider: HashMap<HeaderName, HeaderValue, S>,
-) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    for name in MCP_PASSTHROUGH_HEADERS {
-        if let Some(value) = incoming.get(name) {
-            headers.insert(HeaderName::from_static(name), value.clone());
-        }
+fn governed_call(service: &ServiceName, body: &[u8]) -> Result<GovernedFrame, ProxyBackendError> {
+    if body.is_empty() {
+        return Ok(GovernedFrame::None);
     }
-    for (name, value) in provider {
-        headers.insert(name, value);
-    }
-    headers
-}
-
-fn build_audit(
-    sinks: Option<AuditSinks>,
-    req_ctx: &RequestContext,
-    service_name: &ServiceName,
-    body: &[u8],
-) -> Result<Option<McpAudit>, ProxyError> {
-    let Some(invocation) = parse_tool_call(body) else {
-        return Ok(None);
-    };
-    let sinks = sinks.ok_or_else(|| ProxyError::AuditUnavailable {
-        service: service_name.to_string(),
+    let value: serde_json::Value = serde_json::from_slice(body).map_err(|error| {
+        tracing::debug!(%error, %service, "Invalid external MCP request");
+        ProxyBackendError::Forbidden
     })?;
-    Ok(Some(McpAudit::new(
-        sinks,
-        req_ctx.clone(),
-        McpServerId::new(service_name.as_str()),
-        invocation,
-    )))
+    if !value.is_object() {
+        return Err(ProxyBackendError::Forbidden);
+    }
+    match classify_tool_call(body) {
+        ToolCallFrame::Call(_) => Ok(GovernedFrame::Valid(value)),
+        ToolCallFrame::InvalidName { raw_name } => Ok(GovernedFrame::InvalidName { raw_name }),
+        ToolCallFrame::NotToolCall
+            if value.get("method").and_then(serde_json::Value::as_str) == Some("tools/call") =>
+        {
+            Ok(GovernedFrame::InvalidName { raw_name: None })
+        },
+        ToolCallFrame::NotToolCall => Ok(GovernedFrame::None),
+    }
 }
 
-pub fn map_resolve_error(service_name: &ServiceName, error: McpDomainError) -> ProxyError {
+#[must_use]
+pub fn map_resolve_error(error: McpDomainError) -> ProxyBackendError {
     match error {
-        McpDomainError::AuthRequired(_) => ProxyError::AuthenticationRequired {
-            service: service_name.to_string(),
+        McpDomainError::AuthRequired(_) => ProxyBackendError::AuthenticationRequired,
+        McpDomainError::ExternalAccountNotConnected { .. } => {
+            ProxyBackendError::ProviderNotConnected
         },
-        McpDomainError::ExternalAccountNotConnected { .. } => ProxyError::ProviderNotConnected {
-            service: service_name.to_string(),
+        McpDomainError::ExternalAuthUnavailable { message, .. } => {
+            ProxyBackendError::Unavailable { status: message }
         },
-        McpDomainError::ExternalAuthUnavailable { message, .. } => ProxyError::ServiceNotRunning {
-            service: service_name.to_string(),
-            status: message,
-        },
-        other => ProxyError::ExternalResolveFailed {
-            service: service_name.to_string(),
-            source: other,
-        },
+        other => ProxyBackendError::ResolveFailed(Box::new(other)),
     }
 }

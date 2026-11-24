@@ -3,27 +3,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use crate::kernel::ProxyService;
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;
-use systemprompt_provider_contracts::MissingDependency;
+use systemprompt_extension::router::DynProxyBackendResolver;
 use systemprompt_runtime::AppContext;
 
-pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
-    let sessions = crate::repository::proxy_sessions(ctx.db_pool());
-    let engine = ProxyService::new(
-        sessions,
-        crate::services::kernel_seeds::connector_tokens(ctx)?,
-        &ctx.services_state().view(),
-        Arc::clone(ctx.config_arc()),
-        Arc::clone(ctx.secrets()),
-    );
+pub fn router(ctx: &AppContext) -> Router {
+    let engine = ctx
+        .kernel()
+        .state()
+        .find::<DynProxyBackendResolver>()
+        .cloned()
+        .map_or_else(ProxyService::new, |backends| {
+            ProxyService::new().with_mcp_backends(backends)
+        });
     let engine_with_path = engine.clone();
 
-    Ok(Router::new()
+    Router::new()
         .route(
             "/{service_name}",
             any(move |Path(service_name): Path<String>, state, request| {
@@ -50,5 +48,5 @@ pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
                 },
             ),
         )
-        .with_state(ctx.clone()))
+        .with_state(ctx.clone())
 }

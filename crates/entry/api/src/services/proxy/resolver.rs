@@ -1,16 +1,22 @@
-//! Service resolution for the MCP proxy, with restart-on-dead-backend.
+//! Service resolution for the proxy, with restart-on-dead-backend.
+//!
+//! A crashed service is restarted through the process set the supervising
+//! member provides for its kind; a managed MCP service's recorded port is
+//! reconciled to the port this instance spawns it on, read through the MCP
+//! backends.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_database::ServiceConfig;
+use systemprompt_database::{ServiceConfig, ServiceModule};
+use systemprompt_extension::router::ProxyBackendResolver;
+use systemprompt_extension::service_process::ServiceProcessSets;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::services::ServiceStatus;
-use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_mcp::services::spawn_target::SpawnTarget;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::{ServiceProcessError, ServiceProcessKind};
 
 use super::backend::ProxyError;
 
@@ -29,6 +35,7 @@ impl ServiceResolver {
     pub async fn resolve(
         service_name: &ServiceName,
         ctx: &AppContext,
+        backends: Option<&dyn ProxyBackendResolver>,
     ) -> Result<ServiceConfig, ProxyError> {
         let service_repo = ctx.service_repository();
 
@@ -54,7 +61,7 @@ impl ServiceResolver {
             if service.status == ServiceStatus::Error {
                 tracing::info!(service = %service_name, "Service crashed, attempting restart");
 
-                let restart = Self::attempt_restart(service_name, ctx).await;
+                let restart = Self::attempt_restart(service_name, service.module_name, ctx).await;
                 if let Err(error) = &restart {
                     tracing::error!(service = %service_name, error = ?error, "Failed to restart service");
                 }
@@ -88,26 +95,21 @@ impl ServiceResolver {
             });
         }
 
-        Ok(Self::reconcile_internal_port(service_name, service, ctx).await)
+        Ok(match backends {
+            Some(backends) if service.module_name == ServiceModule::Mcp => {
+                Self::reconcile_internal_port(service_name, service, ctx, backends).await
+            },
+            _ => service,
+        })
     }
 
     async fn reconcile_internal_port(
         service_name: &ServiceName,
         mut service: ServiceConfig,
         ctx: &AppContext,
+        backends: &dyn ProxyBackendResolver,
     ) -> ServiceConfig {
-        let config = match crate::services::server::runner::mcp_registry(ctx)
-            .find_server(service_name.as_str())
-        {
-            Ok(Some(config)) => config,
-            Ok(None) => return service,
-            Err(e) => {
-                tracing::debug!(service = %service_name, error = %e, "Registry lookup failed while reconciling service port");
-                return service;
-            },
-        };
-
-        let Ok(config_port) = config.spawn_port() else {
+        let Some(config_port) = backends.spawn_port(service_name) else {
             return service;
         };
 
@@ -133,26 +135,28 @@ impl ServiceResolver {
 
     async fn attempt_restart(
         service_name: &ServiceName,
+        module: ServiceModule,
         ctx: &AppContext,
     ) -> Result<(), ProxyError> {
-        let orchestrator = McpOrchestrator::new(
-            (**ctx.service_repository()).clone(),
-            Arc::clone(ctx.app_paths_arc()),
-            crate::services::server::runner::mcp_registry(ctx),
-            crate::services::server::runner::mcp_spawn(ctx),
-        )
-        .map_err(|source| ProxyError::RestartFailed {
+        let kind = match module {
+            ServiceModule::Mcp => ServiceProcessKind::McpServer,
+            ServiceModule::Agent => ServiceProcessKind::Agent,
+        };
+        let failed = |source| ProxyError::RestartFailed {
             service: service_name.to_string(),
             source,
-        })?;
-
-        orchestrator
-            .start_services(Some(service_name.clone()))
-            .await
-            .map_err(|source| ProxyError::RestartFailed {
-                service: service_name.to_string(),
-                source,
-            })?;
+        };
+        let sets = ctx
+            .kernel()
+            .state()
+            .find::<Arc<ServiceProcessSets>>()
+            .cloned()
+            .unwrap_or_default();
+        let set = sets
+            .of_kind(kind)
+            .ok_or(ServiceProcessError::Unavailable { kind })
+            .map_err(failed)?;
+        set.start(Some(service_name)).await.map_err(failed)?;
 
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         Ok(())

@@ -7,7 +7,8 @@
 use axum::body::Body;
 use axum::extract::Request;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_mcp::McpServerConfig;
+use systemprompt_extension::router::DynProxyBackendResolver;
+use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
@@ -39,16 +40,15 @@ pub(super) fn unknown_service_error(
 pub(super) fn external_server(
     proxy_kind: ProxyKind,
     service_name: &ServiceName,
-    ctx: &AppContext,
+    backends: Option<&DynProxyBackendResolver>,
 ) -> Result<Option<McpServerConfig>, ProxyError> {
     if !matches!(proxy_kind, ProxyKind::Mcp) {
         return Ok(None);
     }
-    let found = crate::services::server::runner::mcp_registry(ctx)
-        .find_server(service_name.as_str())
-        .map_err(|source| ProxyError::RegistryUnavailable {
-            service: service_name.to_string(),
-            source: Box::new(source),
-        })?;
-    Ok(found.filter(McpServerConfig::is_external))
+    let backends = backends.ok_or_else(|| ProxyError::McpBackendsUnavailable {
+        service: service_name.to_string(),
+    })?;
+    backends
+        .external_server(service_name)
+        .map_err(|error| ProxyError::from_backend(service_name, error))
 }

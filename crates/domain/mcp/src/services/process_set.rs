@@ -24,6 +24,7 @@ use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_models::mcp::McpServerType;
 use systemprompt_security::keys::{SigningKeys, TokenVerificationKeys};
 use systemprompt_traits::{
+    StartupEventSender,
     RestartMode, ServiceDetail, ServiceHealth, ServiceProcessError, ServiceProcessKind,
     ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
 };
@@ -233,5 +234,20 @@ impl ServiceProcessSet for McpProcessSet {
                 outcome: outcome.result.map_err(failed),
             })
             .collect())
+    }
+
+    async fn reconcile(
+        &self,
+        events: Option<&StartupEventSender>,
+    ) -> Result<(), ServiceProcessError> {
+        let inputs = self.inputs()?;
+        super::reconcile::reconcile(
+            &self.orchestrator()?,
+            &inputs.registry,
+            &inputs.services,
+            events,
+        )
+        .await
+        .map_err(failed)
     }
 }

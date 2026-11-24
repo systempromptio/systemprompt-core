@@ -29,6 +29,8 @@ mod negotiation;
 mod overlap;
 mod principal;
 #[cfg(feature = "router")]
+mod proxy_backend;
+#[cfg(feature = "router")]
 mod set;
 mod shape;
 #[cfg(feature = "router")]
@@ -52,6 +54,11 @@ pub use overlap::{
     refused_reservation, reserved_below,
 };
 pub use principal::{DynPersonalCredentialNames, GatewayPrincipal, PersonalCredentialNames};
+#[cfg(feature = "router")]
+pub use proxy_backend::{
+    CallAudit, DynProxyBackendResolver, ExternalUpstream, GovernedToolCall, ProxiedCallGovernor,
+    ProxyBackendError, ProxyBackendResolver, ProxyBodyStream,
+};
 #[cfg(feature = "router")]
 pub use set::{GatewayRouteDecl, RouteSet, RouteSetBuilder};
 pub use shape::{

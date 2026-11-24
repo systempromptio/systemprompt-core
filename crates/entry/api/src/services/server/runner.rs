@@ -126,8 +126,7 @@ async fn start_role_phases(
         ProcessOwnership::None => {},
         ProcessOwnership::Local => {
             if plan.reconcile_mcp {
-                let mcp_orchestrator = create_mcp_orchestrator(ctx)?;
-                reconcile_system_services(ctx, &mcp_orchestrator, events).await?;
+                reconcile_system_services(ctx, events).await?;
             }
             if plan.reconcile_agents {
                 run_agents_phase(ctx, events).await?;

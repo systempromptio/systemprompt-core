@@ -26,6 +26,13 @@ default = []
 http = [
     "systemprompt-extension/router",
     "dep:systemprompt-database",
+    "dep:systemprompt-manifest",
+    "dep:systemprompt-security",
+    "dep:async-trait",
+    "dep:bytes",
+    "dep:chrono",
+    "dep:futures-util",
+    "dep:sha2",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-mcp",
     "dep:systemprompt-models",
@@ -66,15 +73,20 @@ systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
 systemprompt-mcp = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
+systemprompt-security = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 rmcp = { workspace = true, optional = true, features = ["client", "transport-streamable-http-client"] }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["time", "rt", "net"] }
 tracing = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }

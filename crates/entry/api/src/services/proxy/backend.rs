@@ -14,10 +14,11 @@ use axum::body::{Body, to_bytes};
 use axum::http::header::CONTENT_LENGTH;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
-use futures_util::TryStreamExt;
+use futures_util::{StreamExt, TryStreamExt};
 use http_body_util::{BodyExt, LengthLimitError, Limited};
 use reqwest::Method;
 use std::str::FromStr;
+use systemprompt_extension::router::CallAudit;
 
 pub(super) use super::errors::ProxyError;
 use super::errors::ResponseBuildError;
@@ -193,6 +194,28 @@ impl ResponseHandler {
             Body::from_stream(stream)
         };
 
+        Self::assemble(axum_status, &response_headers, is_sse, body)
+    }
+
+    pub(super) fn build_audited_response(
+        response: reqwest::Response,
+        audit: Option<Box<dyn CallAudit>>,
+    ) -> Result<Response<Body>, ResponseBuildError> {
+        let Some(audit) = audit else {
+            return Self::build_response(response);
+        };
+        let axum_status = upstream_status(&response)?;
+        let response_headers = response.headers().clone();
+        let is_sse = Self::is_event_stream(&response_headers);
+        let tapped = audit.tap(
+            response.bytes_stream().map_err(std::io::Error::other).boxed(),
+            is_sse,
+        );
+        let body = if is_sse {
+            Body::from_stream(SseKeepaliveStream::new(tapped, SSE_KEEPALIVE_INTERVAL))
+        } else {
+            Body::from_stream(tapped)
+        };
         Self::assemble(axum_status, &response_headers, is_sse, body)
     }
 

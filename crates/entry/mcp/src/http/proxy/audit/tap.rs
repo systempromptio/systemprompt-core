@@ -5,7 +5,8 @@
 //! for the JSON-RPC frame matching the request id and rewriting that one
 //! frame's `_meta` before it goes out; for a single JSON response it buffers,
 //! parses, stamps, and forwards. Either way it finalizes the [`McpAudit`]
-//! exactly once, on stream EOF or drop.
+//! exactly once, on stream EOF or drop. The proxy engine assembles the
+//! response around the tapped body and keeps the SSE heartbeat.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,65 +16,53 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use axum::body::Body;
-use axum::response::Response;
 use bytes::Bytes;
-use futures_util::{Stream, TryStreamExt};
+use futures_util::{Stream, StreamExt, TryStreamExt};
 use serde_json::Value;
+use systemprompt_extension::router::{CallAudit, ProxyBodyStream};
 use systemprompt_identifiers::McpExecutionId;
 
-use super::super::backend::{
-    ResponseHandler, SSE_KEEPALIVE_INTERVAL, SseKeepaliveStream, upstream_status,
-};
-use super::super::errors::ResponseBuildError;
 use super::McpAudit;
 use super::jsonrpc::{
     ToolCallOutcome, extract_sse_data, frame_matches, parse_response_frame, replace_sse_data,
     stamp_execution,
 };
 
-pub async fn record(
-    response: reqwest::Response,
-    audit: McpAudit,
-) -> Result<Response<Body>, ResponseBuildError> {
-    let status = upstream_status(&response)?;
-    let headers = response.headers().clone();
-    let is_sse = ResponseHandler::is_event_stream(&headers);
-
-    if is_sse {
-        let accumulator =
-            SseAccumulator::new(audit.request_id().clone(), audit.mcp_execution_id().clone());
-        let stream = response.bytes_stream().map_err(io::Error::other);
-        let tapped = McpAuditTapStream {
-            inner: stream,
-            accumulator,
-            ready: VecDeque::new(),
-            audit: Some(audit),
-        };
-        let body = Body::from_stream(SseKeepaliveStream::new(tapped, SSE_KEEPALIVE_INTERVAL));
-        ResponseHandler::assemble(status, &headers, true, body)
-    } else {
-        let bytes = response.bytes().await.map_err(ResponseBuildError::Body)?;
-        let (outcome, body) = match std::str::from_utf8(&bytes) {
-            Ok(text) => {
-                let outcome = parse_response_frame(text, audit.request_id());
-                let body = if outcome.is_some() {
-                    stamp_execution(text, audit.mcp_execution_id())
-                        .map_or_else(|| Body::from(bytes.clone()), Body::from)
-                } else {
-                    Body::from(bytes.clone())
-                };
-                (outcome, body)
-            },
-            Err(e) => {
-                tracing::warn!(error = %e, "external MCP response body was not valid UTF-8; not audited");
-                (None, Body::from(bytes.clone()))
-            },
-        };
-        audit.finalize(outcome);
-        // Why: headers are reassembled by the handler, so a rewritten body
-        // never ships with the upstream content-length.
-        ResponseHandler::assemble(status, &headers, false, body)
+impl CallAudit for McpAudit {
+    fn tap(self: Box<Self>, body: ProxyBodyStream, event_stream: bool) -> ProxyBodyStream {
+        let audit = *self;
+        if event_stream {
+            let accumulator =
+                SseAccumulator::new(audit.request_id().clone(), audit.mcp_execution_id().clone());
+            return McpAuditTapStream {
+                inner: body,
+                accumulator,
+                ready: VecDeque::new(),
+                audit: Some(audit),
+            }
+            .boxed();
+        }
+        futures_util::stream::once(async move {
+            let chunks: Vec<Bytes> = body.try_collect().await?;
+            let bytes = Bytes::from(chunks.concat());
+            let (outcome, body) = match std::str::from_utf8(&bytes) {
+                Ok(text) => {
+                    let outcome = parse_response_frame(text, audit.request_id());
+                    let body = outcome
+                        .as_ref()
+                        .and_then(|_| stamp_execution(text, audit.mcp_execution_id()))
+                        .map_or_else(|| bytes.clone(), Bytes::from);
+                    (outcome, body)
+                },
+                Err(e) => {
+                    tracing::warn!(error = %e, "external MCP response body was not valid UTF-8; not audited");
+                    (None, bytes.clone())
+                },
+            };
+            audit.finalize(outcome);
+            Ok(body)
+        })
+        .boxed()
     }
 }
 
