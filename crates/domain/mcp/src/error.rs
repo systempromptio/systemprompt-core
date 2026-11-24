@@ -86,6 +86,9 @@ domain_error! {
         #[error("External MCP auth unavailable for {server}: {message}")]
         ExternalAuthUnavailable { server: String, message: String },
 
+        #[error("the provider account for {server} must be reconnected: {message}")]
+        ExternalReauthRequired { server: String, message: String },
+
         #[error("no provider account connected for {server}")]
         ExternalAccountNotConnected { server: String },
 

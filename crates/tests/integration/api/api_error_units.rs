@@ -556,6 +556,12 @@ fn the_remaining_proxy_error_variants_classify_and_render() {
             StatusCode::FORBIDDEN,
         ),
         (
+            ProxyError::ProviderReauthRequired {
+                service: "s".to_owned(),
+            },
+            StatusCode::CONFLICT,
+        ),
+        (
             ProxyError::ProviderNotConnected {
                 service: "s".to_owned(),
             },
