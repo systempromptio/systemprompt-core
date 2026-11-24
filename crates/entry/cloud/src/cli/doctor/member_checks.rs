@@ -7,9 +7,9 @@
 //! the admitted core probe source (`DoctorProbeSource`) opens over one
 //! short-lived pool opened from the checked profile's secrets with
 //! `default_transaction_read_only` on; no check receives the pool, and with
-//! no source or no reachable database the core probes answer `Unreachable`. An install
-//! member's check reads [`WithheldProbes`]: the tenant's Git source list
-//! (repository URLs included) is not a fact an install check is told, so
+//! no source or no reachable database the core probes answer `Unreachable`. An
+//! install member's check reads [`WithheldProbes`]: the tenant's Git source
+//! list (repository URLs included) is not a fact an install check is told, so
 //! every probe answers `Unreachable`. With no admitted composition the member
 //! checks are not evaluated.
 //!

@@ -1,0 +1,4 @@
+# the cloud doctor's probe source builds the managed repository over the
+# short-lived read-only pool the doctor opens before any boot; there is no
+# AppContext and no kernel state in that process to inject it from.
+src/managed/doctor.rs

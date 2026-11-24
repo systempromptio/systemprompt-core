@@ -44,7 +44,8 @@ fn services_dir_with_slack(slack_yaml: &str) -> TempDir {
 }
 
 fn slack_error(dir: &std::path::Path) -> Option<String> {
-    let outcomes = systemprompt_extension::AdmittedConfigs::of(slack_admitted().built()).validate(dir);
+    let outcomes =
+        systemprompt_extension::AdmittedConfigs::of(slack_admitted().built()).validate(dir);
     let slack = outcomes
         .iter()
         .find(|o| o.extension_id == "slack")

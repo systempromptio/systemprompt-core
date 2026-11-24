@@ -2,9 +2,9 @@
 //! materialized over a fixture context's kernel state — the catalogue
 //! renders, the confined manifest read, the plugin-file misses and the
 //! services-watch reads — and the `core marketplace`, `core plugins` and
-//! `core skills` commands and the `core services validate` leaf served through a member host holding the
-//! services-tree grant, including the refusal without it and the managed
-//! skills the owner-bound organization resolver serves.
+//! `core skills` commands and the `core services validate` leaf served through
+//! a member host holding the services-tree grant, including the refusal without
+//! it and the managed skills the owner-bound organization resolver serves.
 
 #[cfg(test)]
 mod common;

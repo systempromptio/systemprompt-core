@@ -24,6 +24,7 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 use systemprompt_database::Database;
 use systemprompt_extension::DoctorProbeSource;
+use systemprompt_extension::prelude::Contributions;
 use systemprompt_traits::{
     DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, GitCredentialSource,
     SecretPresence,
@@ -53,6 +54,13 @@ impl DoctorCheck for GitCredentialCheck {
                 DoctorOutcome::warn("Git sources could not be listed")
             },
         }
+    }
+}
+
+impl GitCredentialCheck {
+    pub(crate) fn contribute(c: &mut Contributions<'_>) {
+        c.doctor_check(Arc::new(Self))
+            .doctor_probe_source(Arc::new(GitSourceProbes));
     }
 }
 

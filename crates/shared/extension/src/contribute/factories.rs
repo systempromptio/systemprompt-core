@@ -32,6 +32,8 @@ pub type PolicyFactory = Box<dyn Factory<Arc<dyn GovernancePolicy>>>;
 pub type AudienceResolverFactory = Box<dyn Factory<Arc<dyn NotificationAudienceResolver>>>;
 pub type SecretReferenceFactory = Box<dyn Factory<Arc<dyn SecretReferences>>>;
 pub type DoctorCheckRef = Arc<dyn DoctorCheck>;
+#[cfg(feature = "sqlx")]
+pub(crate) type DoctorProbeSourceRef = Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>;
 
 /// Every factory kind a member's sink stores.
 ///

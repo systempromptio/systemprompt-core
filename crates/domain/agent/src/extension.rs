@@ -2,12 +2,12 @@
 //! provides the conversation-context seams other members and the kernel read
 //! by type: `DynContextDirectory`, `DynContextMaterializer` and
 //! `DynSessionContextIssuer`, each open (database-only), the open
-//! live `Arc<dyn AgentRegistryProvider>` (the proxy's agent OAuth lookup), the open
-//! status-only `Arc<AgentStatusView>`, the sealed `DynAgentServer` a child host
-//! serves one agent through (after governance: it reads the AI provider), and
-//! the open `Arc<AgentCardSite>` (the public URL and skills directory, narrowed
-//! from the configuration). It contributes its supervised process set to the
-//! sealed `ServiceProcessSlot`.
+//! live `Arc<dyn AgentRegistryProvider>` (the proxy's agent OAuth lookup), the
+//! open status-only `Arc<AgentStatusView>`, the sealed `DynAgentServer` a child
+//! host serves one agent through (after governance: it reads the AI provider),
+//! and the open `Arc<AgentCardSite>` (the public URL and skills directory,
+//! narrowed from the configuration). It contributes its supervised process set
+//! to the sealed `ServiceProcessSlot`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

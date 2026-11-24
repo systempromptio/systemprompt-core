@@ -4,7 +4,8 @@
 //! whenever this member is admitted.
 //!
 //! It contributes the `git-credentials` `cloud doctor` check
-//! ([`GitCredentialCheck`]) with the probe source it reads ([`GitSourceProbes`]) and provides the marketplace's runtime state:
+//! ([`GitCredentialCheck`]) with its probe source, the open
+//! `DynGitCredentialDirectory`, and the marketplace's runtime state:
 //!
 //! - after governance, the `Arc<ManagedRepository>` with its publication
 //!   policy, assembled from the services marketplace configuration, the
@@ -20,9 +21,6 @@
 //!   member job, command or route state can resolve. The open, crate-private
 //!   `Arc<MemberRefresher>` is the `managed_inventory_refresh` job's narrow
 //!   view: it publishes only as the configured owner;
-//! - after governance, the open `DynGitCredentialDirectory` (the registered
-//!   Git sources with a credential label and the secret name each resolves
-//!   to) the kernel's `admin config secret migrate-git-credentials` reads;
 //! - after governance, two separate values bound to the system admin's managed
 //!   inventory. `Arc<OwnerSkillView>` is open: the `core skills` commands list
 //!   and resolve the owner's own skills through it, with no consumer parameter
@@ -43,9 +41,7 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
-use systemprompt_traits::{
-    DynGitCredentialDirectory, DynInventoryPublisher, DynManagedSkillResolver,
-};
+use systemprompt_traits::{DynInventoryPublisher, DynManagedSkillResolver};
 use tokio::sync::Mutex;
 
 use crate::catalog::MarketplaceCache;
@@ -55,8 +51,8 @@ use crate::inventory::{
 };
 use crate::managed::git_sources::GitCredentialReferences;
 use crate::managed::{
-    GitCredentialCheck, GitSourceDirectory, GitSourceProbes, ManagedRepository,
-    OrganizationSkillResolver, OwnerSkillView, PublicationPolicy,
+    GitCredentialCheck, GitSourceDirectory, ManagedRepository, OrganizationSkillResolver,
+    OwnerSkillView, PublicationPolicy,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -91,9 +87,8 @@ impl Extension for ManagedResourcesExtension {
         });
         provide_state(c);
         c.slot::<MarketplaceSlot>();
+        GitCredentialCheck::contribute(c);
         c.job(InventoryRefreshJob::default())
-            .doctor_check(Arc::new(GitCredentialCheck))
-            .doctor_probe_source(Arc::new(GitSourceProbes))
             .secret_references(|_: &Resolved<'_>| {
                 Ok::<_, FactoryError>(GitCredentialReferences::shared())
             });
@@ -140,14 +135,7 @@ fn provide_state(c: &mut Contributions<'_>) {
                 Ok(Arc::new(InventoryRefresher::new(refresher_parts(r)?)))
             },
         )
-        .provide_after_governance(
-            |r: &Resolved<'_>| -> Result<DynGitCredentialDirectory, ProvideError> {
-                let repository = r.get::<Arc<ManagedRepository>>()?;
-                Ok(Arc::new(GitSourceDirectory::new(
-                    repository.as_ref().clone(),
-                )))
-            },
-        )
+        .provide_after_governance(GitSourceDirectory::provide)
         .provide_after_governance(|r: &Resolved<'_>| {
             let repository = r.get::<Arc<ManagedRepository>>()?;
             let owner = r.get::<SystemAdmin>()?;

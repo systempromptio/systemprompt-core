@@ -6,8 +6,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
-use systemprompt_traits::{GitCredentialDirectory, GitCredentialReadError, GitCredentialSource};
+use systemprompt_extension::prelude::{ProvideError, Resolved};
+use systemprompt_traits::{
+    DynGitCredentialDirectory, GitCredentialDirectory, GitCredentialReadError, GitCredentialSource,
+};
 
 use super::ManagedRepository;
 use super::git_sources::git_credential_key;
@@ -22,6 +27,11 @@ impl GitSourceDirectory {
     #[must_use]
     pub const fn new(repository: ManagedRepository) -> Self {
         Self { repository }
+    }
+
+    pub(crate) fn provide(r: &Resolved<'_>) -> Result<DynGitCredentialDirectory, ProvideError> {
+        let repository = r.get::<Arc<ManagedRepository>>()?;
+        Ok(Arc::new(Self::new(repository.as_ref().clone())))
     }
 }
 

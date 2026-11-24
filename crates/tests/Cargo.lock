@@ -12503,7 +12503,6 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-runtime",
  "systemprompt-slack-entry",
  "systemprompt-test-hack",
  "tempfile",

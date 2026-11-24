@@ -30,6 +30,8 @@ use crate::retention::RetentionDecl;
 use crate::seed::Seed;
 use crate::state::StateRequirement;
 
+#[cfg(feature = "sqlx")]
+use super::factories::DoctorProbeSourceRef;
 use super::factories::SecretReferenceFactory;
 pub use super::factories::{
     AssetFn, AudienceResolverFactory, DiagnosticFactory, DoctorCheckRef, GatewayGuardFactory,
@@ -49,8 +51,7 @@ pub struct ContributionSink {
     pub(crate) owner_reassignments: Vec<OwnerReassignment>,
     pub(crate) doctor_checks: Vec<DoctorCheckRef>,
     #[cfg(feature = "sqlx")]
-    pub(crate) doctor_probe_sources:
-        Vec<Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>>,
+    pub(crate) doctor_probe_sources: Vec<DoctorProbeSourceRef>,
     pub(crate) roles: Vec<ExtensionRole>,
     pub(crate) assets: Vec<AssetFn>,
     pub(crate) configs: Vec<ConfigDecl>,
@@ -123,19 +124,6 @@ impl ContributionSink {
     #[must_use]
     pub fn owner_reassignments(&self) -> &[OwnerReassignment] {
         &self.owner_reassignments
-    }
-
-    #[must_use]
-    pub fn doctor_checks(&self) -> &[DoctorCheckRef] {
-        &self.doctor_checks
-    }
-
-    #[cfg(feature = "sqlx")]
-    #[must_use]
-    pub fn doctor_probe_sources(
-        &self,
-    ) -> &[Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>] {
-        &self.doctor_probe_sources
     }
 
     #[must_use]
