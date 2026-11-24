@@ -127,7 +127,8 @@ fn build_routes(
         router = protocol::mount_agent(router, &mount)?;
     }
     if serves(RouteGroup::McpAndStream) {
-        router = protocol::mount_mcp_and_stream(router, &mount)?;
+        router = protocol::mount_mcp(router, &mount)?;
+        router = protocol::mount_stream(router, &mount)?;
     }
     if serves(RouteGroup::ContentAndMisc) {
         router = mount_content(router, &mount)?;

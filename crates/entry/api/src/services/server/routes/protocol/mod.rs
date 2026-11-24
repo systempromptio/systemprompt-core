@@ -11,17 +11,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup, RouteProtection,
-};
-use systemprompt_models::modules::ApiPaths;
+use systemprompt_extension::{AuthzPolicy, ContextKind, RouteGroup, RouteProtection};
 use systemprompt_runtime::AppContext;
 
-use crate::services::middleware::{KernelRoutes, MountError, MountLayers, mount, place, protect};
+use crate::services::middleware::{KernelRoutes, MountError, MountLayers, mount, protect};
 
+mod agent;
 mod content;
+mod mcp;
+mod stream;
 
+pub(super) use agent::mount_agent;
 pub(super) use content::mount_content_and_misc;
+pub(super) use mcp::mount_mcp;
+pub(super) use stream::mount_stream;
 
 pub(super) struct MountCtx<'a> {
     pub ctx: &'a AppContext,
@@ -60,70 +63,4 @@ pub(super) const fn declare(
     group: RouteGroup,
 ) -> KernelRoutes {
     KernelRoutes::new(router, base_path, policy, context).in_group(group)
-}
-
-pub(super) fn mount_agent(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
-    let ctx = mount.ctx;
-    let group = RouteGroup::Agent;
-
-    router = mount.mount(
-        router,
-        declare(
-            crate::routes::webhook::router(crate::routes::webhook::WebhookState::from_context(
-                ctx,
-            )?),
-            ApiPaths::WEBHOOK,
-            AuthzPolicy::authenticated(),
-            ContextKind::User,
-            group,
-        ),
-    )?;
-
-    mount.mount(
-        router,
-        declare(
-            crate::routes::proxy::agents::router(ctx)?,
-            ApiPaths::AGENTS_BASE,
-            AuthzPolicy::authenticated(),
-            ContextKind::A2a,
-            group,
-        )
-        .with_body_limit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES)
-        .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)),
-    )
-}
-
-pub(super) fn mount_mcp_and_stream(
-    mut router: Router,
-    mount: &MountCtx<'_>,
-) -> Result<Router, MountError> {
-    let ctx = mount.ctx;
-    let group = RouteGroup::McpAndStream;
-
-    let mcp_rate = RateLimit::new("mcp", RateBudget::Mcp);
-    let executions = mount.protect(
-        crate::routes::proxy::mcp::executions_router(ctx),
-        &RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
-            .with_rate_limit(mcp_rate),
-        ApiPaths::MCP_BASE,
-    )?;
-    let proxy = mount.protect(
-        crate::routes::proxy::mcp::router(ctx)?,
-        &RouteProtection::new(AuthzPolicy::deferred_to_handler(), ContextKind::Mcp)
-            .with_rate_limit(mcp_rate),
-        ApiPaths::MCP_BASE,
-    )?;
-    router = place(router, ApiPaths::MCP_BASE, executions.merge(proxy));
-
-    mount.mount(
-        router,
-        declare(
-            crate::routes::stream::stream_router(ctx),
-            ApiPaths::STREAM_BASE,
-            AuthzPolicy::user(),
-            ContextKind::User,
-            group,
-        )
-        .with_rate_limit(RateLimit::new("stream", RateBudget::Stream)),
-    )
 }
