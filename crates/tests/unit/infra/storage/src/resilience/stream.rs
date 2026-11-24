@@ -4,8 +4,8 @@ use std::io::{Error, ErrorKind};
 use std::time::Duration;
 
 use futures_util::stream::{self, StreamExt};
-use systemprompt_database::resilience::bulkhead::Bulkhead;
-use systemprompt_database::resilience::stream::guarded_stream;
+use systemprompt_storage::resilience::bulkhead::Bulkhead;
+use systemprompt_storage::resilience::stream::guarded_stream;
 
 fn idle_error(_: Duration) -> Error {
     Error::new(ErrorKind::TimedOut, "stream idle timeout")

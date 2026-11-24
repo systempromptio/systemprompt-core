@@ -24,5 +24,6 @@ url = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 futures = { workspace = true }
+futures-util = { workspace = true }
 bytes = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }

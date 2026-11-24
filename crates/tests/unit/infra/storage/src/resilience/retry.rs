@@ -4,9 +4,9 @@ use std::io::{Error, ErrorKind};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
-use systemprompt_database::resilience::classify::Outcome;
-use systemprompt_database::resilience::config::RetryConfig;
-use systemprompt_database::resilience::retry::retry_async;
+use systemprompt_storage::resilience::classify::Outcome;
+use systemprompt_storage::resilience::config::RetryConfig;
+use systemprompt_storage::resilience::retry::retry_async;
 
 fn transient() -> Error {
     Error::new(ErrorKind::TimedOut, "transient")

@@ -6,13 +6,13 @@
 
 use crate::error::RepositoryError;
 use crate::repository::PgDbPool;
-use crate::resilience::classify::Outcome;
-use crate::resilience::config::RetryConfig;
-use crate::resilience::retry::retry_async;
 use sqlx::{Postgres, Transaction};
 use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
+use systemprompt_storage::resilience::classify::Outcome;
+use systemprompt_storage::resilience::config::RetryConfig;
+use systemprompt_storage::resilience::retry::retry_async;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 

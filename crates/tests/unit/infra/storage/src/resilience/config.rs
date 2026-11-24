@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use systemprompt_database::resilience::config::{
+use systemprompt_storage::resilience::config::{
     BreakerConfig, BulkheadConfig, ResilienceConfig, RetryConfig,
 };
 

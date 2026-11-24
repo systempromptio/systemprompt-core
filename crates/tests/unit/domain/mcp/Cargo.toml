@@ -23,6 +23,7 @@ systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }

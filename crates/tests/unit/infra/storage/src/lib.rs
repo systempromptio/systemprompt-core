@@ -22,6 +22,8 @@ mod local_storage_symlinks;
 #[cfg(test)]
 mod ranged_reads;
 #[cfg(test)]
+mod resilience;
+#[cfg(test)]
 mod s3_multipart;
 #[cfg(test)]
 mod s3_storage;

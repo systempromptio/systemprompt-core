@@ -19,6 +19,10 @@
 //! - [`s3`] — [`S3FileStorage`], signed with AWS Signature Version 4.
 //! - [`probe`] — [`probe_shared_mount`], the boot-time check that a
 //!   `storage.shared` root really is shared between replicas.
+//! - [`resilience`] — domain-agnostic resilience primitives
+//!   ([`resilience::ResilienceGuard`], [`resilience::CircuitBreaker`],
+//!   [`resilience::Bulkhead`], [`resilience::retry_async`]) wrapping outbound
+//!   calls, the storage backends' and the database's retries included.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,6 +34,7 @@ pub mod local;
 mod object_id;
 pub mod probe;
 mod remote_read;
+pub mod resilience;
 pub mod s3;
 
 use std::path::PathBuf;

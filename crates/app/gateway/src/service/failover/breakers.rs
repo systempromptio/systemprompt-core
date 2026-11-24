@@ -17,10 +17,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use systemprompt_database::resilience::{CircuitBreaker, Probe, ResilienceConfig};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_manifest::services::catalog::ResolvedHop;
+use systemprompt_storage::resilience::{CircuitBreaker, Probe, ResilienceConfig};
 
 /// Circuit breakers owned by one gateway, one per provider name, sharing the
 /// provider's `resilience:` settings with the internal `ResilientProvider`.

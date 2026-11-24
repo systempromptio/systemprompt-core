@@ -2,8 +2,8 @@
 
 use std::time::Duration;
 
-use systemprompt_database::resilience::breaker::CircuitBreaker;
-use systemprompt_database::resilience::config::BreakerConfig;
+use systemprompt_storage::resilience::breaker::CircuitBreaker;
+use systemprompt_storage::resilience::config::BreakerConfig;
 
 fn config() -> BreakerConfig {
     BreakerConfig {

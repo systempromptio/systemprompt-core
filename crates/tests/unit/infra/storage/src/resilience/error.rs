@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use systemprompt_database::resilience::error::ResilienceError;
+use systemprompt_storage::resilience::error::ResilienceError;
 
 type SampleError = std::io::Error;
 

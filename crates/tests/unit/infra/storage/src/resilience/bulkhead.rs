@@ -1,6 +1,6 @@
 //! Tests for `Bulkhead`.
 
-use systemprompt_database::resilience::bulkhead::Bulkhead;
+use systemprompt_storage::resilience::bulkhead::Bulkhead;
 
 #[test]
 fn admits_up_to_the_limit() {

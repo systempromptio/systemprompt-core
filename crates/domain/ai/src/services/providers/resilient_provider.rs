@@ -14,10 +14,10 @@ use std::future::Future;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_database::resilience::{
+use systemprompt_manifest::services::ResilienceSettings;
+use systemprompt_storage::resilience::{
     Admission, ResilienceConfig, ResilienceError, ResilienceGuard, guarded_stream,
 };
-use systemprompt_manifest::services::ResilienceSettings;
 
 use crate::error::{AiError, ProviderError, Result};
 use crate::models::ai::{

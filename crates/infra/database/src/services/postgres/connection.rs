@@ -5,7 +5,7 @@
 //! the TCP listener) recover without surfacing as user-visible failures.
 //! The retry loop intentionally targets a narrow set of error shapes so
 //! permanent failures (auth, missing database, bad URL) fail fast. The
-//! backoff itself runs on [`crate::resilience::retry::retry_async`].
+//! backoff itself runs on [`systemprompt_storage::resilience::retry::retry_async`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,9 +19,9 @@ use std::time::{Duration, Instant};
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
 
 use crate::error::DatabaseResult;
-use crate::resilience::classify::Outcome;
-use crate::resilience::config::RetryConfig;
-use crate::resilience::retry::retry_async;
+use systemprompt_storage::resilience::classify::Outcome;
+use systemprompt_storage::resilience::config::RetryConfig;
+use systemprompt_storage::resilience::retry::retry_async;
 
 const RETRY_DELAYS_MS: &[u64] = &[100, 200, 400, 800, 1600];
 const MAX_ATTEMPTS: u32 = 5;

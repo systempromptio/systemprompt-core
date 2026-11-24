@@ -4,12 +4,12 @@ use std::io::{Error, ErrorKind};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
-use systemprompt_database::resilience::classify::Outcome;
-use systemprompt_database::resilience::config::{
+use systemprompt_storage::resilience::classify::Outcome;
+use systemprompt_storage::resilience::config::{
     BreakerConfig, BulkheadConfig, ResilienceConfig, RetryConfig,
 };
-use systemprompt_database::resilience::error::ResilienceError;
-use systemprompt_database::resilience::guard::ResilienceGuard;
+use systemprompt_storage::resilience::error::ResilienceError;
+use systemprompt_storage::resilience::guard::ResilienceGuard;
 
 fn classify(err: &Error) -> Outcome {
     if err.kind() == ErrorKind::TimedOut {

@@ -1,7 +1,7 @@
 //! Unit tests for `McpDomainError::classify` resilience classification.
 
-use systemprompt_database::resilience::Outcome;
 use systemprompt_mcp::McpDomainError;
+use systemprompt_storage::resilience::Outcome;
 
 fn is_transient(outcome: &Outcome) -> bool {
     matches!(outcome, Outcome::Transient { .. })

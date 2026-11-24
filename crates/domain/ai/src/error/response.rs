@@ -6,7 +6,7 @@
 
 use std::time::Duration;
 
-use systemprompt_database::resilience::Outcome;
+use systemprompt_storage::resilience::Outcome;
 
 use systemprompt_identifiers::ProviderId;
 

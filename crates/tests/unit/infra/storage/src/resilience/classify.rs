@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use systemprompt_database::resilience::classify::Outcome;
+use systemprompt_storage::resilience::classify::Outcome;
 
 #[test]
 fn success_is_not_transient() {

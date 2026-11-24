@@ -45,6 +45,7 @@ metrics = { workspace = true }
 
 # Internal dependencies
 systemprompt-database = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }

@@ -106,7 +106,7 @@ fn test_from_rmcp_service_error_is_transient() {
     assert!(err.to_string().contains("Transport closed"));
     assert!(matches!(
         err.classify(),
-        systemprompt_database::resilience::Outcome::Transient { retry_after: None }
+        systemprompt_storage::resilience::Outcome::Transient { retry_after: None }
     ));
 }
 
@@ -120,6 +120,6 @@ fn test_from_config_validation_error() {
     assert!(err.to_string().contains("database.url is required"));
     assert!(matches!(
         err.classify(),
-        systemprompt_database::resilience::Outcome::Permanent
+        systemprompt_storage::resilience::Outcome::Permanent
     ));
 }
