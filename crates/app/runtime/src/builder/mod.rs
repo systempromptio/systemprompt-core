@@ -32,6 +32,7 @@ mod debug_impl;
 pub(crate) mod events;
 pub(crate) mod governance;
 pub(crate) mod kernel_binders;
+pub(crate) mod kernel_seed;
 pub(crate) mod kernel_state;
 mod options;
 use composition::{
