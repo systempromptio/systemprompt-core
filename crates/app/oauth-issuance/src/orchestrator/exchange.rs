@@ -155,15 +155,17 @@ fn map_client_credentials_error(
         ClientCredentialsError::ClientNotFound
         | ClientCredentialsError::OwnerNotFound
         | ClientCredentialsError::OwnerInactive => IssuanceError::InvalidClient,
-        ClientCredentialsError::InvalidScope(message) => IssuanceError::InvalidScope { message },
+        ClientCredentialsError::InvalidScope { reason } => {
+            IssuanceError::InvalidScope { message: reason }
+        },
         ClientCredentialsError::UnparseableScope(_) => IssuanceError::InvalidScope {
             message: "scope contains an unknown permission".to_owned(),
         },
         ClientCredentialsError::HookScopeRequiresHookAudience => IssuanceError::InvalidScope {
             message: "hook scopes require audience=hook on the token request".to_owned(),
         },
-        ClientCredentialsError::InvalidAudience(message) => {
-            IssuanceError::InvalidTarget { message }
+        ClientCredentialsError::InvalidAudience { audience } => IssuanceError::InvalidTarget {
+            message: format!("'{audience}' not in allowed audiences"),
         },
         ClientCredentialsError::UnknownAudience { audience, .. } => IssuanceError::InvalidTarget {
             message: format!("'{audience}' is not a known audience"),

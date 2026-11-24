@@ -7,13 +7,17 @@ use chrono::Utc;
 use systemprompt_identifiers::{ApiKeyId, ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
 
 use super::{ConsumedRefreshToken, RefreshTokenHolder, RefreshTokenLineage, RefreshTokenParams};
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 use crate::repository::oauth::OAuthRepository;
 
 impl OAuthRepository {
     pub async fn store_refresh_token(&self, params: RefreshTokenParams<'_>) -> OauthResult<()> {
         let expires_at_dt = chrono::DateTime::<Utc>::from_timestamp(params.expires_at, 0)
-            .ok_or_else(|| OauthError::Validation("Invalid timestamp for expires_at".to_owned()))?;
+            .ok_or_else(|| {
+                OauthError::Validation(ValidationError::Rejected {
+                    reason: "Invalid timestamp for expires_at",
+                })
+            })?;
         let now = Utc::now();
         let token_id_hash = self.hash_at_rest(params.token_id.as_str())?;
         let client_id = params.client_id.as_str();
@@ -66,9 +70,9 @@ impl OAuthRepository {
                 .execute(self.write_pool_ref())
                 .await?;
                 if inserted.rows_affected() == 0 {
-                    return Err(OauthError::Validation(
-                        "Invalid authorization code".to_owned(),
-                    ));
+                    return Err(OauthError::Validation(ValidationError::Rejected {
+                        reason: "Invalid authorization code",
+                    }));
                 }
             },
         }
@@ -171,7 +175,9 @@ impl OAuthRepository {
         .await?;
 
         let Some(row) = row else {
-            return Err(OauthError::TokenInvalid("Invalid refresh token".to_owned()));
+            return Err(OauthError::TokenInvalid {
+                reason: "Invalid refresh token",
+            });
         };
 
         if row.consumed_at.is_some() {
@@ -188,14 +194,20 @@ impl OAuthRepository {
                 revoked_count = result.rows_affected(),
                 "Revoked refresh-token family after refresh-token replay"
             );
-            return Err(OauthError::TokenInvalid("Invalid refresh token".to_owned()));
+            return Err(OauthError::TokenInvalid {
+                reason: "Invalid refresh token",
+            });
         }
 
         if row.expires_at < Utc::now() {
-            return Err(OauthError::Expired("Refresh token expired".to_owned()));
+            return Err(OauthError::Expired {
+                reason: "Refresh token expired",
+            });
         }
 
-        Err(OauthError::TokenInvalid("Invalid refresh token".to_owned()))
+        Err(OauthError::TokenInvalid {
+            reason: "Invalid refresh token",
+        })
     }
 
     pub async fn revoke_refresh_token(&self, token_id: &RefreshTokenId) -> OauthResult<bool> {

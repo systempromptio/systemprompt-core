@@ -493,6 +493,7 @@ fn render_profile_yaml(paths: &ProfilePaths<'_>, api_base_url: &str) -> String {
     } = *paths;
     let pool_max = crate::db::FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS;
     let pool_idle = crate::db::FIXTURE_POOL_IDLE_TIMEOUT.as_secs();
+    let pool_acquire = crate::db::FIXTURE_POOL_ACQUIRE_TIMEOUT.as_secs();
     format!(
         r#"name: test
 display_name: Bootstrap Fixture Profile
@@ -505,6 +506,7 @@ database:
   external_db_access: false
   pool:
     max_connections: {pool_max}
+    acquire_timeout_secs: {pool_acquire}
     idle_timeout_secs: {pool_idle}
 server:
   host: 127.0.0.1

@@ -258,8 +258,8 @@ async fn upload_rejects_user_id_with_traversal() {
 
     let err = service.upload_file(request).await.expect_err("traversal");
     match err {
-        FileUploadError::PathValidation(message) => {
-            assert_eq!(message, "Invalid user_id: contains path traversal sequence");
+        FileUploadError::PathValidation { reason } => {
+            assert_eq!(reason, "Invalid user_id: contains path traversal sequence");
         },
         other => panic!("expected PathValidation, got {other:?}"),
     }

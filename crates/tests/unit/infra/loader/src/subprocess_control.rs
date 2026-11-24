@@ -222,7 +222,7 @@ async fn stop_owned_leaves_a_child_marked_for_another_service_running() {
 #[tokio::test]
 async fn stop_owned_reports_a_reaped_pid_as_not_running() {
     let mut child = Command::new("true").spawn().expect("spawn true");
-    child.wait().expect("reap true");
+    assert!(child.wait().expect("reap true").success());
 
     assert!(matches!(
         subprocess::stop_owned(

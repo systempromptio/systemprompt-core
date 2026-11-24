@@ -17,18 +17,12 @@ async fn held_port() -> (TcpListener, u16) {
     (listener, port)
 }
 
-async fn free_port() -> u16 {
-    let (listener, port) = held_port().await;
-    drop(listener);
-    port
-}
-
 #[tokio::test]
 async fn cleanup_port_if_needed_free_port_is_ok() {
     let service = PortService::new(Duration::from_secs(5));
     service
         .cleanup_port_if_needed(
-            free_port().await,
+            systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(),
             &AgentName::new("cleanup_free"),
             &SpawnStamp::Unrecorded,
         )
@@ -62,7 +56,10 @@ async fn cleanup_port_if_needed_non_agent_holder_is_refused() {
 async fn wait_for_port_available_free_port_returns_immediately() {
     let service = PortService::new(Duration::from_secs(5));
     service
-        .wait_for_port_available(free_port().await, 1)
+        .wait_for_port_available(
+            systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(),
+            1,
+        )
         .await
         .expect("free port");
 }

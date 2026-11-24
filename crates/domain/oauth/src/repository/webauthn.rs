@@ -178,9 +178,9 @@ impl crate::repository::OAuthRepository {
         .await?;
 
         if result.rows_affected() == 0 {
-            return Err(OauthError::WebAuthnVerificationFailed(
-                "stored passkey changed during authentication".to_owned(),
-            ));
+            return Err(OauthError::WebAuthnVerificationFailed {
+                reason: "stored passkey changed during authentication",
+            });
         }
         Ok(())
     }
@@ -196,9 +196,9 @@ impl crate::repository::OAuthRepository {
         .await?;
 
         if result.rows_affected() == 0 {
-            return Err(OauthError::WebAuthnVerificationFailed(
-                "credential not found".to_owned(),
-            ));
+            return Err(OauthError::WebAuthnVerificationFailed {
+                reason: "credential not found",
+            });
         }
         Ok(())
     }

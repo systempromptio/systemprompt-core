@@ -33,8 +33,8 @@ use crate::env_overrides::EnvOverrides;
 use crate::session::contexts::SessionContexts;
 pub use context_resolver::extract_profile_name;
 use context_resolver::{
-    create_new_session, resolve_profile_path_from_session, resolve_profile_path_without_session,
-    try_session_from_env, try_validate_context,
+    ContextCheck, create_new_session, resolve_profile_path_from_session,
+    resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::ProfileSource;
@@ -116,7 +116,9 @@ async fn get_session_for_loaded_profile(
         session.touch();
 
         let contexts = SessionContexts::for_profile(ctx.host, profile_path).await;
-        if let Some(refreshed) = try_validate_context(&mut session, &profile_name, contexts).await {
+        if let ContextCheck::Recovered(refreshed) =
+            try_validate_context(&mut session, &profile_name, contexts).await
+        {
             session = refreshed;
         }
 

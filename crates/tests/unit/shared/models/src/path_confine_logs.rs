@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use systemprompt_models::path_confine::logs::{
-    confined_logs_dir, display_names, find_log_file, list_log_files, read_log_lines,
+    LogFile, confined_logs_dir, display_names, find_log_file, list_log_files, read_log_lines,
 };
 use tempfile::TempDir;
 
@@ -57,7 +57,7 @@ fn find_log_file_prefers_exact_name() {
 
     let found = find_log_file(dir.path(), "agent-", "agent name", "alpha").unwrap();
     assert_eq!(
-        found.canonicalize().unwrap(),
+        found.path().canonicalize().unwrap(),
         canonical(dir.path()).join("alpha.log")
     );
 }
@@ -69,7 +69,7 @@ fn find_log_file_falls_back_to_prefixed_name() {
 
     let found = find_log_file(dir.path(), "agent-", "agent name", "alpha").unwrap();
     assert_eq!(
-        found.canonicalize().unwrap(),
+        found.path().canonicalize().unwrap(),
         canonical(dir.path()).join("agent-alpha.log")
     );
 }
@@ -81,7 +81,7 @@ fn find_log_file_falls_back_to_substring_match() {
 
     let found = find_log_file(dir.path(), "agent-", "agent name", "alpha").unwrap();
     assert_eq!(
-        found.canonicalize().unwrap(),
+        found.path().canonicalize().unwrap(),
         canonical(dir.path()).join("agent-alpha-worker.log")
     );
 }
@@ -102,7 +102,7 @@ fn read_log_lines_returns_last_n_lines() {
     let dir = TempDir::new().unwrap();
     write(dir.path(), "a.log", "one\ntwo\nthree\nfour\n");
 
-    let lines = read_log_lines(&dir.path().join("a.log"), 2, |_| true).unwrap();
+    let lines = read_log_lines(open(dir.path(), "a.log"), 2, |_| true).unwrap();
     assert_eq!(lines, vec!["three", "four"]);
 }
 
@@ -111,7 +111,7 @@ fn read_log_lines_handles_short_files() {
     let dir = TempDir::new().unwrap();
     write(dir.path(), "a.log", "only\n");
 
-    let lines = read_log_lines(&dir.path().join("a.log"), 10, |_| true).unwrap();
+    let lines = read_log_lines(open(dir.path(), "a.log"), 10, |_| true).unwrap();
     assert_eq!(lines, vec!["only"]);
 }
 
@@ -124,14 +124,61 @@ fn read_log_lines_applies_filter_before_tailing() {
         "ERROR one\nINFO two\nERROR three\nINFO four\nERROR five\n",
     );
 
-    let lines = read_log_lines(&dir.path().join("a.log"), 2, |l| l.starts_with("ERROR")).unwrap();
+    let lines = read_log_lines(open(dir.path(), "a.log"), 2, |l| l.starts_with("ERROR")).unwrap();
     assert_eq!(lines, vec!["ERROR three", "ERROR five"]);
 }
 
 #[test]
-fn read_log_lines_errors_on_missing_file() {
+fn opening_a_missing_log_file_errors() {
     let dir = TempDir::new().unwrap();
-    assert!(read_log_lines(&dir.path().join("missing.log"), 5, |_| true).is_err());
+    assert!(LogFile::open_within(dir.path(), &dir.path().join("missing.log")).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_found_log_reads_through_its_held_handle_after_the_path_is_swapped() {
+    let dir = TempDir::new().unwrap();
+    let outside = TempDir::new().unwrap();
+    write(
+        dir.path(),
+        "agent-swap.log",
+        "inside
+",
+    );
+    write(
+        outside.path(),
+        "secret.log",
+        "secret
+",
+    );
+
+    let found = find_log_file(dir.path(), "agent-", "agent name", "swap").unwrap();
+    fs::remove_file(dir.path().join("agent-swap.log")).unwrap();
+    std::os::unix::fs::symlink(
+        outside.path().join("secret.log"),
+        dir.path().join("agent-swap.log"),
+    )
+    .unwrap();
+
+    let lines = read_log_lines(found, 10, |_| true).unwrap();
+    assert_eq!(lines, vec!["inside"], "check and open are one step");
+}
+
+#[cfg(unix)]
+#[test]
+fn opening_a_log_linked_out_of_the_logs_dir_is_refused() {
+    let dir = TempDir::new().unwrap();
+    let outside = TempDir::new().unwrap();
+    write(outside.path(), "secret.log", "secret");
+    std::os::unix::fs::symlink(outside.path().join("secret.log"), dir.path().join("a.log"))
+        .unwrap();
+
+    let err = LogFile::open_within(dir.path(), &dir.path().join("a.log")).unwrap_err();
+    assert!(err.to_string().contains("resolves outside"), "{err}");
+}
+
+fn open(dir: &std::path::Path, name: &str) -> LogFile {
+    LogFile::open_within(dir, &dir.join(name)).unwrap()
 }
 
 #[test]

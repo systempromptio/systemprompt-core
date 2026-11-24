@@ -68,7 +68,7 @@ pub mod repository;
 pub mod services;
 pub(crate) mod state;
 
-pub use error::{OauthError, OauthErrorKind, OauthResult};
+pub use error::{ClientMetadataError, OauthError, OauthErrorKind, OauthResult, ValidationError};
 pub use extension::OauthExtension;
 
 pub use models::{

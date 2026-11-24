@@ -231,7 +231,7 @@ fn decode_rejects_unknown_kid() {
     )
     .unwrap_err();
     assert!(
-        matches!(err, AuthError::UnknownKid(_)),
+        matches!(err, AuthError::UnknownKid { .. }),
         "expected UnknownKid, got {err:?}"
     );
 }

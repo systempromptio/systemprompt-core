@@ -18,7 +18,9 @@ impl ManagedRepository {
         request: &SessionBindingRequest,
     ) -> Result<ConsumerSessionBinding> {
         if request.session_id.as_str().is_empty() || request.session_id.as_str().len() > 512 {
-            return Err(ManagedError::Invalid("Invalid native session".to_owned()));
+            return Err(ManagedError::Invalid {
+                reason: "Invalid native session",
+            });
         }
         let mut tx = self.pool.begin().await?;
         let identity = credentials::authenticate(&mut tx, credential).await?;
@@ -47,9 +49,9 @@ impl ManagedRepository {
             request.session_id.as_str(), receipt.resource_id, request.receipt_id.as_str()
         ).fetch_one(&mut *tx).await?.unwrap_or(false);
         if conflicting {
-            return Err(ManagedError::Conflict(
-                "Native session already has a retained binding for this resource; start a new native session to use another installation".to_owned(),
-            ));
+            return Err(ManagedError::Conflict {
+                reason: "Native session already has a retained binding for this resource; start a new native session to use another installation",
+            });
         }
         let id = InstallationSessionBindingId::generate();
         sqlx::query!("INSERT INTO managed_consumer_session_bindings(id,receipt_id,consumer_id,device_id,host,native_session_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING", id.as_str(), request.receipt_id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.session_id.as_str())

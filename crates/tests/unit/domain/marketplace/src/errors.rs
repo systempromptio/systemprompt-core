@@ -1,4 +1,4 @@
-use systemprompt_identifiers::MarketplaceId;
+use systemprompt_identifiers::{MarketplaceId, PluginId};
 use systemprompt_marketplace::{MarketplaceError, MarketplaceFilterError};
 use systemprompt_security::ManifestSigningError;
 
@@ -22,8 +22,10 @@ fn marketplace_error_no_default_display() {
 
 #[test]
 fn marketplace_error_catalog_display() {
-    let e = MarketplaceError::Catalog("read failed".into());
-    assert!(e.to_string().contains("read failed"));
+    let e = MarketplaceError::PluginUnconfigured {
+        plugin: PluginId::new("read-failed"),
+    };
+    assert!(e.to_string().contains("plugin read-failed missing"));
 }
 
 #[test]

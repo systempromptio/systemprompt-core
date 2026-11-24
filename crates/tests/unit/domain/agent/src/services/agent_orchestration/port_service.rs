@@ -30,12 +30,6 @@ fn listener_helper() {
     std::thread::sleep(Duration::from_secs(120));
 }
 
-fn reserve_port() -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind ephemeral");
-    let port = listener.local_addr().expect("addr").port();
-    drop(listener);
-    port
-}
 
 fn unique_agent(prefix: &str) -> AgentName {
     AgentName::new(format!("{prefix}_{}", uuid::Uuid::new_v4().simple()))
@@ -74,7 +68,7 @@ async fn reap(child: Child) {
 #[tokio::test(flavor = "multi_thread")]
 async fn cleanup_port_if_needed_stops_a_stale_copy_of_this_agent() {
     let agent = unique_agent("reclaim");
-    let port = reserve_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let nonce = SpawnNonce::generate();
     let child = spawn_marked_listener(&agent, port, &nonce);
     let pid = child.id();
@@ -96,7 +90,7 @@ async fn cleanup_port_if_needed_stops_a_stale_copy_of_this_agent() {
 #[tokio::test(flavor = "multi_thread")]
 async fn cleanup_port_if_needed_refuses_a_copy_of_this_agent_from_another_boot() {
     let agent = unique_agent("otherboot");
-    let port = reserve_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let child = spawn_marked_listener(&agent, port, &SpawnNonce::generate());
     let pid = child.id();
 
@@ -118,7 +112,7 @@ async fn cleanup_port_if_needed_refuses_a_copy_of_this_agent_from_another_boot()
 
 #[tokio::test(flavor = "multi_thread")]
 async fn cleanup_port_if_needed_refuses_a_holder_marked_for_another_agent() {
-    let port = reserve_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let nonce = SpawnNonce::generate();
     let child = spawn_marked_listener(&unique_agent("owner"), port, &nonce);
     let pid = child.id();

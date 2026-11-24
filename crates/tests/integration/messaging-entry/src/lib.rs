@@ -6,37 +6,28 @@
 mod common;
 
 #[cfg(test)]
-#[path = "declared_groups.rs"]
 mod declared_groups;
 
 #[cfg(test)]
-#[path = "dispatch_seal.rs"]
 mod dispatch_seal;
 
 #[cfg(test)]
-#[path = "route_state_seeds.rs"]
 mod route_state_seeds;
 
 #[cfg(test)]
-#[path = "routes_slack.rs"]
 mod routes_slack;
 
 #[cfg(test)]
-#[path = "routes_slack_edges.rs"]
 mod routes_slack_edges;
 
 #[cfg(test)]
-#[path = "routes_slack_more.rs"]
 mod routes_slack_more;
 
 #[cfg(test)]
-#[path = "routes_slack_payload_edges.rs"]
 mod routes_slack_payload_edges;
 
 #[cfg(test)]
-#[path = "routes_teams.rs"]
 mod routes_teams;
 
 #[cfg(test)]
-#[path = "secret_refs.rs"]
 mod secret_refs;

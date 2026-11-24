@@ -13,7 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::{ConfigurationIssue, McpDomainError, McpDomainResult};
 use systemprompt_models::mcp::{McpServerConfig, McpServerType};
 
 pub const HOSTED_SERVE_ARGS: [&str; 3] = ["admin", "mcp", "serve"];
@@ -60,9 +60,9 @@ pub fn hosted_serve_args(server: &McpServerConfig) -> Vec<String> {
         .collect()
 }
 
-fn not_spawnable(name: &str, field: &str) -> McpDomainError {
-    McpDomainError::Configuration(format!(
-        "{name}: server declares no {field}; external MCP servers are proxied to their \
-         endpoint and are never spawned locally"
-    ))
+fn not_spawnable(name: &str, field: &'static str) -> McpDomainError {
+    McpDomainError::Configuration(ConfigurationIssue::NotSpawnable {
+        server: name.to_owned(),
+        field,
+    })
 }

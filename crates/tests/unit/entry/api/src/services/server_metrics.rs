@@ -18,7 +18,7 @@ use systemprompt_api::services::server::metrics::{
 use systemprompt_api::services::server::readiness::ReadinessState;
 use systemprompt_events::EventBroadcasters;
 use systemprompt_identifiers::InstanceId;
-use systemprompt_test_fixtures::free_port_in_range;
+use systemprompt_test_fixtures::ReservedPort;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -87,7 +87,9 @@ async fn the_metrics_route_renders_the_prometheus_exposition_format() {
 async fn the_metrics_listener_binds_and_serves_its_own_address() {
     let handle =
         install_recorder(&InstanceId::new("fixture-instance"), &[]).expect("recorder installs");
-    let port = free_port_in_range(19_400..19_500).expect("a free port");
+    let port = ReservedPort::in_range(19_400..19_500)
+        .expect("a free port")
+        .release_for_child();
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
 
     let readiness = ReadinessState::new();

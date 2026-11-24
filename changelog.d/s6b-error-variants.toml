@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Error types"
+text = "Error enums in the domain, app and infra crates no longer carry a bare `String` payload: a rendered cause is a `#[source]` and a message is typed fields or a typed id (`OauthError::{Validation, InvalidClientMetadata}` wrap `ValidationError`/`ClientMetadataError`; `McpError` gains `SchemaViolation`, `RegistryViolation`, `ConfigurationIssue`, `AuthRequirement`). Variants no production code built are removed (`OauthError::{TokenNotFound, CodeNotFound, PkceMismatch, Unauthorized}`, `McpError::Manifest`, `ContentError::{ContentNotFound, LinkNotFound, InvalidRequest}`, `UserError::{InvalidStatus, InvalidRole}`, `TemplateError::NotFound`). Migrate by updating constructions and exhaustive matches; Display texts are unchanged except `McpRegistry`'s not-found message, which now names the server alone."

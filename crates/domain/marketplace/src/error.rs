@@ -9,7 +9,9 @@
 
 use std::path::Path;
 
-use systemprompt_identifiers::MarketplaceId;
+use systemprompt_identifiers::{
+    LibraryArtifactId, MarketplaceId, MarketplaceRuleId, PluginId, SkillId,
+};
 use systemprompt_models::api::ApiError;
 use systemprompt_security::ManifestSigningError;
 use systemprompt_traits::BoxedSource;
@@ -29,8 +31,57 @@ pub enum MarketplaceError {
     #[error("no default marketplace configured")]
     NoDefault,
 
-    #[error("catalogue load failed: {0}")]
-    Catalog(String),
+    #[error(
+        "catalogue load failed: skill id '{declared}' does not match its directory name '{dir_name}'"
+    )]
+    SkillIdMismatch { declared: SkillId, dir_name: String },
+
+    #[error(
+        "catalogue load failed: rule id '{declared}' does not match its directory name '{dir_name}'"
+    )]
+    RuleIdMismatch {
+        declared: MarketplaceRuleId,
+        dir_name: String,
+    },
+
+    #[error(
+        "catalogue load failed: rule '{rule}' names content file '{content_file}' which does not exist"
+    )]
+    RuleContentMissing { rule: String, content_file: String },
+
+    #[error(
+        "catalogue load failed: artifact '{artifact}': mcp_tools entry '{tool}' is not of the form mcp__<server>__<tool>"
+    )]
+    ArtifactToolMalformed {
+        artifact: LibraryArtifactId,
+        tool: String,
+    },
+
+    #[error(
+        "catalogue load failed: artifact '{artifact}': mcp_tools entry '{tool}' names unknown mcp_server '{server}'"
+    )]
+    ArtifactServerUnknown {
+        artifact: LibraryArtifactId,
+        tool: String,
+        server: String,
+    },
+
+    #[error(
+        "catalogue load failed: artifact '{artifact}' is enabled but depends on disabled mcp_server '{server}' — enable the server or disable the artifact"
+    )]
+    ArtifactServerDisabled {
+        artifact: LibraryArtifactId,
+        server: String,
+    },
+
+    #[error("catalogue load failed: plugin {plugin} missing from services config")]
+    PluginUnconfigured { plugin: PluginId },
+
+    #[error("catalogue load failed: managed {} {resource_key} lost its resource binding", .kind.as_str())]
+    ManagedBindingLost {
+        kind: crate::managed::ResourceKind,
+        resource_key: String,
+    },
 
     #[error("catalogue load failed: {context}: {source}")]
     CatalogSource {
@@ -87,13 +138,22 @@ impl From<MarketplaceError> for ApiError {
             | MarketplaceError::Managed(ManagedError::Unavailable)) => {
                 Self::not_found(e.to_string())
             },
-            e @ MarketplaceError::Managed(
-                ManagedError::Invalid(_) | ManagedError::InvalidInput { .. },
-            ) => Self::bad_request(e.to_string()),
-            e @ MarketplaceError::Managed(ManagedError::Conflict(_)) => {
-                Self::conflict(e.to_string())
+            MarketplaceError::Managed(managed)
+                if managed.is_invalid() || matches!(managed, ManagedError::InvalidInput { .. }) =>
+            {
+                Self::bad_request(MarketplaceError::Managed(managed).to_string())
             },
-            e @ (MarketplaceError::Catalog(_)
+            MarketplaceError::Managed(managed) if managed.is_conflict() => {
+                Self::conflict(MarketplaceError::Managed(managed).to_string())
+            },
+            e @ (MarketplaceError::SkillIdMismatch { .. }
+            | MarketplaceError::RuleIdMismatch { .. }
+            | MarketplaceError::RuleContentMissing { .. }
+            | MarketplaceError::ArtifactToolMalformed { .. }
+            | MarketplaceError::ArtifactServerUnknown { .. }
+            | MarketplaceError::ArtifactServerDisabled { .. }
+            | MarketplaceError::PluginUnconfigured { .. }
+            | MarketplaceError::ManagedBindingLost { .. }
             | MarketplaceError::CatalogSource { .. }
             | MarketplaceError::Managed(_)
             | MarketplaceError::Import { .. }

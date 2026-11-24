@@ -1,1 +1,2 @@
+# owner: domain/mcp; reason: stated on the entry line
 src/services/process/spawner.rs  # env lookup closure passing the operator-named `env_vars` of an MCP service config into the child after env_clear

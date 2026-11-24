@@ -23,7 +23,9 @@ fn test_agent_service_error_tool_failed_names_tool_and_cause() {
 
 #[test]
 fn test_agent_service_error_tool_execution() {
-    let error = AgentServiceError::ToolExecution("tool x timed out".to_string());
+    let error = AgentServiceError::ToolExecution {
+        message: "tool x timed out".to_string(),
+    };
     assert!(error.to_string().contains("Tool execution failed"));
     assert!(error.to_string().contains("tool x timed out"));
 }
@@ -89,11 +91,13 @@ fn from_repository_errors_map_to_repository() {
 
 #[test]
 fn from_agent_error_maps_to_agent() {
-    let err: AgentServiceError =
-        systemprompt_agent::AgentError::NotFound("ghost".to_owned()).into();
+    let err: AgentServiceError = systemprompt_agent::AgentError::NotFound {
+        name: "ghost".to_owned(),
+    }
+    .into();
     assert!(matches!(
         err,
-        AgentServiceError::Agent(systemprompt_agent::AgentError::NotFound(_))
+        AgentServiceError::Agent(systemprompt_agent::AgentError::NotFound { .. })
     ));
     assert!(err.to_string().contains("ghost"));
 }

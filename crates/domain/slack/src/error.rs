@@ -31,8 +31,8 @@ domain_error! {
         #[error("request timestamp outside tolerance window")]
         StaleTimestamp,
 
-        #[error("outbound Slack API error: {0}")]
-        Outbound(String),
+        #[error("outbound Slack API error: {code}")]
+        Outbound { code: String },
 
         #[error("invalid outbound URL: {0}")]
         OutboundUrl(#[from] OutboundUrlError),

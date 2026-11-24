@@ -20,8 +20,7 @@ use systemprompt_database::DbPool;
 use systemprompt_mcp_entry::cli as mcp;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, free_port_in_range, init_services_bootstrap, seed_fixture_system_admin,
-    test_db_pool,
+    ReservedPort, TestBootstrap, init_services_bootstrap, seed_fixture_system_admin, test_db_pool,
 };
 
 use crate::common::{json_cli, marked_json, member, parse, rendered, with_app};
@@ -34,7 +33,9 @@ fn services_yaml() -> String {
     // as a compiled extension, and the status probe fails outright when no
     // `extensions/<name>/manifest.yaml` exists — which is every checkout of
     // this repository, so the whole suite would fail before reaching a command.
-    let port = free_port_in_range(5900..6000).expect("a free port in the mcp range");
+    let port = ReservedPort::in_range(5900..6000)
+        .expect("a free port in the mcp range")
+        .release_for_child();
     format!(
         "mcp_servers:\n  \
          {ENABLED}:\n    server_type: external\n    \

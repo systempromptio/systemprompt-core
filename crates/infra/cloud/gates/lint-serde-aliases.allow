@@ -1,1 +1,2 @@
+# owner: infra/cloud; reason: stated on the entry line
 src/tenants/mod.rs:provider — stored tenant records written before 0.75 carry `tenant_type`; the record is rewritten with `provider` on its next save

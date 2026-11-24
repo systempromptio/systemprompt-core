@@ -85,9 +85,9 @@ pub fn normalise(
     event: BrainEvent,
     received_at: DateTime<Utc>,
 ) -> BrainResult<Normalised> {
-    let kind = event.kind.to_string();
+    let kind = event.kind.clone();
     let envelope = BrainEnvelope::new(outbox_id, event, received_at)
-        .ok_or_else(|| BrainError::UnknownEvent(kind))?;
+        .ok_or_else(|| BrainError::UnknownEvent { kind })?;
     let payload = envelope.event.payload.clone();
     let payload = match envelope.pathway {
         Pathway::DocumentRevision => EventPayload::Revision(serde_json::from_value(payload)?),

@@ -14,7 +14,7 @@ use systemprompt_extension::brain::{
 };
 use systemprompt_extension::notifications::NotificationSinkError;
 use systemprompt_identifiers::{BrainFactId, BrainProposalId, FactKindId};
-use systemprompt_models::brain::{StatementError, SubjectKeyError};
+use systemprompt_models::brain::{BrainEventKind, StatementError, SubjectKeyError};
 use systemprompt_models::notifications::NotificationKindError;
 use systemprompt_traits::RepositoryError;
 
@@ -35,8 +35,8 @@ pub enum BrainError {
     Statement(#[from] StatementError),
     #[error("invalid fact subject")]
     Subject(#[from] SubjectKeyError),
-    #[error("fact fields are invalid: {0}")]
-    InvalidFields(String),
+    #[error("fact fields are invalid: {reason}")]
+    InvalidFields { kind: FactKindId, reason: String },
     #[error("fact kind {0} is not declared")]
     UnknownKind(FactKindId),
     #[error("the fact identity was erased and may not be recorded again")]
@@ -47,8 +47,8 @@ pub enum BrainError {
     NotFound(BrainFactId),
     #[error("proposal {0} not found")]
     ProposalNotFound(BrainProposalId),
-    #[error("brain event kind {0} is not one the pipeline reads")]
-    UnknownEvent(String),
+    #[error("brain event kind {kind} is not one the pipeline reads")]
+    UnknownEvent { kind: BrainEventKind },
     #[error("brain extraction failed")]
     Extract(#[from] BrainExtractError),
     #[error("brain validator failed")]

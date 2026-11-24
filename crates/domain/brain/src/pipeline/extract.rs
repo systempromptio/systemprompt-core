@@ -47,8 +47,8 @@ pub struct Extracted {
 pub enum Unreadable {
     #[error("no source content reads {0}")]
     NoReader(&'static str),
-    #[error("source {0} is gone or unreadable")]
-    Gone(String),
+    #[error("source {} is gone or unreadable", origin.label())]
+    Gone { origin: FactSource },
 }
 
 #[must_use]
@@ -177,7 +177,9 @@ impl BrainPipeline {
             Err(_elapsed) => Err(BrainError::SourceTimeout),
             Ok(Err(error)) => Err(error),
             Ok(Ok(Some(text))) => Ok(Ok(text)),
-            Ok(Ok(None)) => Ok(Err(Unreadable::Gone(source.label()))),
+            Ok(Ok(None)) => Ok(Err(Unreadable::Gone {
+                origin: source.clone(),
+            })),
         }
     }
 

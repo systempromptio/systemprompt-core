@@ -153,6 +153,8 @@ impl TemplateRegistry {
                 });
             }
         }
-        Err(TemplateError::NoLoader(definition.name.clone()))
+        Err(TemplateError::NoLoader {
+            name: definition.name.clone(),
+        })
     }
 }

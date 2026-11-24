@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Log files"
+text = "`find_log_file` returns a `LogFile` already opened beneath the logs root (`path_confine::open_within` checks the held handle is the confined file), and `read_log_lines` reads through it, so locating and opening a log are one step."

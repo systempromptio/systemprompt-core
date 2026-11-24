@@ -22,9 +22,10 @@ use systemprompt_test_fixtures::{unique_instance, unique_name};
 
 // Internal MCP servers are validated against the 5000-5999 range, so an
 // ephemeral port would be rejected by config validation before any spawn.
-fn free_port() -> u16 {
-    systemprompt_test_fixtures::free_port_in_range(5000..6000)
+fn mcp_range_port() -> u16 {
+    systemprompt_test_fixtures::ReservedPort::in_range(5000..6000)
         .expect("no free port in the internal MCP range 5000-5999")
+        .release_for_child()
 }
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
@@ -59,7 +60,7 @@ async fn live_server(prefix: &str) -> LiveServer {
     let db = test_db_pool().await;
     let bootstrap = bootstrap_with_services(&config_with_servers(&[internal_server_block(
         &name,
-        free_port(),
+        mcp_range_port(),
     )]));
     register_internal_extension(bootstrap, &name);
     install_stub_binary(bootstrap, &name);

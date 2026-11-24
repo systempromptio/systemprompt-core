@@ -1,7 +1,7 @@
 use serde_json::{Map, Value};
 use std::sync::OnceLock;
 
-const SCHEMA: &str = include_str!("../../../../../contract/src/a2a/fixtures/a2a-1.0.1.schema.json");
+const SCHEMA: &str = include_str!("a2a-1.0.1.schema.json");
 const OPAQUE: [&str; 3] = ["Struct", "Value", "Timestamp"];
 
 fn definitions() -> &'static Map<String, Value> {
@@ -49,10 +49,10 @@ fn check(schema: &Value, value: &Value, path: &str, errors: &mut Vec<String>) {
         }
         return;
     }
-    if let Some(options) = schema["enum"].as_array()
-        && !options.contains(value)
-    {
-        errors.push(format!("{path}: {value} is not one of {options:?}"));
+    if let Some(options) = schema["enum"].as_array() {
+        if !options.contains(value) {
+            errors.push(format!("{path}: {value} is not one of {options:?}"));
+        }
     }
     let Some(kind) = schema["type"].as_str() else {
         return;

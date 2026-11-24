@@ -65,7 +65,7 @@ async fn post_message_surfaces_ok_false_as_outbound_error() {
         .await
         .expect_err("ok:false is an error");
     assert!(
-        matches!(err, SlackError::Outbound(ref e) if e == "channel_not_found"),
+        matches!(err, SlackError::Outbound { ref code } if code == "channel_not_found"),
         "expected Outbound(channel_not_found), got {err:?}"
     );
 }
@@ -182,7 +182,7 @@ async fn non_json_5xx_body_surfaces_as_unknown_outbound_error() {
     .await
     .expect_err("non-JSON 5xx is an error");
     assert!(
-        matches!(err, SlackError::Outbound(ref e) if e == "unknown"),
+        matches!(err, SlackError::Outbound { ref code } if code == "unknown"),
         "expected Outbound(unknown), got {err:?}"
     );
 }
@@ -279,7 +279,7 @@ async fn user_info_surfaces_ok_false_as_outbound_error() {
         .await
         .expect_err("ok:false is an error");
     assert!(
-        matches!(err, SlackError::Outbound(ref e) if e == "missing_scope"),
+        matches!(err, SlackError::Outbound { ref code } if code == "missing_scope"),
         "expected Outbound(missing_scope), got {err:?}"
     );
 }

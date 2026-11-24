@@ -28,7 +28,9 @@ macro_rules! impl_str_enum {
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 match s {
                     $($str => Ok(Self::$variant)),+,
-                    _ => Err(OAuthParseError::$error_variant(s.to_string())),
+                    _ => Err(OAuthParseError::$error_variant {
+                        value: s.to_owned(),
+                    }),
                 }
             }
         }
@@ -43,25 +45,25 @@ macro_rules! impl_str_enum {
 
 #[derive(Debug, Clone)]
 pub enum OAuthParseError {
-    GrantType(String),
-    PkceMethod(String),
-    ResponseType(String),
-    ResponseMode(String),
-    DisplayMode(String),
-    Prompt(String),
-    TokenAuthMethod(String),
+    GrantType { value: String },
+    PkceMethod { value: String },
+    ResponseType { value: String },
+    ResponseMode { value: String },
+    DisplayMode { value: String },
+    Prompt { value: String },
+    TokenAuthMethod { value: String },
 }
 
 impl fmt::Display for OAuthParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::GrantType(s) => write!(f, "unknown grant type: '{s}'"),
-            Self::PkceMethod(s) => write!(f, "unknown PKCE method: '{s}'"),
-            Self::ResponseType(s) => write!(f, "unknown response type: '{s}'"),
-            Self::ResponseMode(s) => write!(f, "unknown response mode: '{s}'"),
-            Self::DisplayMode(s) => write!(f, "unknown display mode: '{s}'"),
-            Self::Prompt(s) => write!(f, "unknown prompt type: '{s}'"),
-            Self::TokenAuthMethod(s) => write!(f, "unknown token auth method: '{s}'"),
+            Self::GrantType { value } => write!(f, "unknown grant type: '{value}'"),
+            Self::PkceMethod { value } => write!(f, "unknown PKCE method: '{value}'"),
+            Self::ResponseType { value } => write!(f, "unknown response type: '{value}'"),
+            Self::ResponseMode { value } => write!(f, "unknown response mode: '{value}'"),
+            Self::DisplayMode { value } => write!(f, "unknown display mode: '{value}'"),
+            Self::Prompt { value } => write!(f, "unknown prompt type: '{value}'"),
+            Self::TokenAuthMethod { value } => write!(f, "unknown token auth method: '{value}'"),
         }
     }
 }

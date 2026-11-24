@@ -34,7 +34,7 @@ fn create_request(name: &str, port: u16) -> AgentCreateRequest {
 fn create_and_load(services_dir: &Path, name: &str, port: u16) -> AgentConfig {
     let service = AgentConfigAuthoringService::new(services_dir);
     let path = service
-        .create(create_request(name, port), || Ok(()))
+        .create(create_request(name, port), |_| Ok(()))
         .expect("create agent");
     load_agent(&path, name)
 }
@@ -219,7 +219,7 @@ fn create_respects_explicit_overrides() {
     request.capabilities.streaming = Some(false);
     request.mcp_servers = vec!["tools".to_owned()];
 
-    let path = service.create(request, || Ok(())).expect("create agent");
+    let path = service.create(request, |_| Ok(())).expect("create agent");
     let agent = load_agent(&path, "custom_agent");
 
     assert_eq!(agent.endpoint, "/custom/endpoint");
@@ -241,7 +241,7 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
     request.model.model = None;
 
     let err = service
-        .create(request, || Ok(()))
+        .create(request, |_| Ok(()))
         .expect_err("no provider and no services config to default from");
     assert!(
         matches!(
@@ -268,7 +268,7 @@ fn a_model_default_comes_from_the_provider_catalogue() {
     let mut request = create_request("catalogue_model_agent", 8108);
     request.model.model = None;
 
-    let path = service.create(request, || Ok(())).expect("create agent");
+    let path = service.create(request, |_| Ok(())).expect("create agent");
     let agent = load_agent(&path, "catalogue_model_agent");
     assert_eq!(agent.metadata.provider.as_deref(), Some("anthropic"));
     assert!(
@@ -284,10 +284,10 @@ fn a_model_default_comes_from_the_provider_catalogue() {
     unknown.model.provider = Some("no-such-provider".to_owned());
     unknown.model.model = None;
     let err = service
-        .create(unknown, || Ok(()))
+        .create(unknown, |_| Ok(()))
         .expect_err("a provider the catalogue does not list has no default model");
     assert!(
-        matches!(err, ConfigAuthoringError::NoModelForProvider(_)),
+        matches!(err, ConfigAuthoringError::NoModelForProvider { .. }),
         "{err}"
     );
 }
@@ -298,12 +298,12 @@ fn create_rejects_invalid_name_and_port() {
     let service = AgentConfigAuthoringService::new(dir.path());
 
     let bad_name = service
-        .create(create_request("ab", 8103), || Ok(()))
+        .create(create_request("ab", 8103), |_| Ok(()))
         .expect_err("name too short");
     assert!(matches!(bad_name, ConfigAuthoringError::NameLength));
 
     let bad_port = service
-        .create(create_request("demo_agent", 0), || Ok(()))
+        .create(create_request("demo_agent", 0), |_| Ok(()))
         .expect_err("port zero");
     assert!(matches!(bad_port, ConfigAuthoringError::PortZero));
 }
@@ -314,10 +314,10 @@ fn create_rejects_duplicate_agent_file() {
     let service = AgentConfigAuthoringService::new(dir.path());
 
     service
-        .create(create_request("dup_agent", 8104), || Ok(()))
+        .create(create_request("dup_agent", 8104), |_| Ok(()))
         .expect("first create");
     let err = service
-        .create(create_request("dup_agent", 8104), || Ok(()))
+        .create(create_request("dup_agent", 8104), |_| Ok(()))
         .expect_err("duplicate create");
 
     assert!(err.to_string().contains("already exists"));
@@ -336,7 +336,7 @@ fn delete_removes_agent_file_and_include_entry() {
 
     let service = AgentConfigAuthoringService::new(dir.path());
     let path = service
-        .create(create_request("gone_agent", 8105), || Ok(()))
+        .create(create_request("gone_agent", 8105), |_| Ok(()))
         .expect("create agent");
     assert!(path.exists());
 
@@ -687,7 +687,7 @@ fn the_registry_name_is_reserved_for_the_agent_registry() {
     let err = AgentConfigAuthoringService::validate_agent_name("registry")
         .expect_err("registry is the agent registry's path segment");
     assert!(
-        matches!(&err, ConfigAuthoringError::NameReserved(name) if name == "registry"),
+        matches!(&err, ConfigAuthoringError::NameReserved { name } if name == "registry"),
         "{err:?}"
     );
 }
@@ -710,10 +710,10 @@ fn an_agent_config_named_registry_does_not_validate() {
 fn creating_an_agent_named_registry_is_refused() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let err = AgentConfigAuthoringService::new(tmp.path())
-        .create(create_request("registry", 9472), || Ok(()))
+        .create(create_request("registry", 9472), |_| Ok(()))
         .expect_err("registry cannot be created");
     assert!(
-        matches!(err, ConfigAuthoringError::NameReserved(_)),
+        matches!(err, ConfigAuthoringError::NameReserved { .. }),
         "{err:?}"
     );
     assert!(!tmp.path().join("agents/registry.yaml").exists());
@@ -723,7 +723,7 @@ fn creating_an_agent_named_registry_is_refused() {
 fn a_create_the_check_refuses_leaves_no_agent_file() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let err = AgentConfigAuthoringService::new(tmp.path())
-        .create(create_request("refused_agent", 8106), || {
+        .create(create_request("refused_agent", 8106), |_| {
             Err("services configuration invalid".into())
         })
         .expect_err("a refused check fails the create");

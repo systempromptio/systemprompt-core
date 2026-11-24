@@ -107,7 +107,8 @@ impl Ctx {
 
 fn assert_refused(result: Result<impl std::fmt::Debug, OauthError>, expected: &str) {
     match result {
-        Err(OauthError::InvalidGrant(reason)) => {
+        Err(err @ OauthError::FederatedLinkRefused { .. }) => {
+            let reason = err.to_string();
             assert!(reason.contains(expected), "unexpected reason: {reason}");
         },
         other => panic!("expected an invalid_grant refusal, got {other:?}"),

@@ -1,1 +1,2 @@
+# owner: shared/wire; reason: stated on the entry line
 src/openai_chat/response.rs:reasoning_content — vendor: DeepSeek, Qwen and Moonshot emit `reasoning_content`; some OpenAI-compatible servers spell it `reasoning`

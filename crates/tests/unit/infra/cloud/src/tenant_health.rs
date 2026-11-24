@@ -58,9 +58,10 @@ async fn an_unreadable_body_is_unready_and_says_so() {
 
 #[tokio::test]
 async fn an_unreachable_instance_is_unready_without_a_status() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    drop(listener);
+    let base = format!(
+        "http://{}",
+        systemprompt_test_fixtures::ReservedPort::loopback().addr()
+    );
     let health = probe_tenant(&reqwest::Client::new(), &base).await;
     assert!(!health.ready);
     assert_eq!(health.http_status, None);

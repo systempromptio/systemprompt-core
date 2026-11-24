@@ -103,7 +103,7 @@ async fn dcr_client_resolves_when_registered_and_errors_when_absent() {
         .validate_client(&missing, None)
         .await
         .expect_err("unregistered dcr client");
-    assert!(matches!(err, OauthError::ClientNotFound(_)));
+    assert!(matches!(err, OauthError::DcrClientNotFound { .. }));
 }
 
 async fn seed_unknown_user(pool: &systemprompt_database::DbPool) -> UserId {

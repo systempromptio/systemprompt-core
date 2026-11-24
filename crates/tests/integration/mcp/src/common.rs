@@ -40,7 +40,11 @@ pub fn spawn_with_orphan_child(seconds: u64) -> (u32, u32) {
     let stdout = parent.stdout.take().expect("parent stdout must be piped");
     let grandchild_pid = read_first_line_pid(stdout);
 
-    let _ = parent.wait();
+    let status = parent.wait().expect("reap the shell parent");
+    assert!(
+        status.success(),
+        "the shell parent failed to launch the grandchild: {status}"
+    );
 
     (parent_pid, grandchild_pid)
 }

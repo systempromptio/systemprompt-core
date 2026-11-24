@@ -17,7 +17,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::McpServerConfig;
 
 use super::McpClient;
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::{ConfigurationIssue, McpDomainError, McpDomainResult};
 
 /// Forward target for an external MCP request.
 ///
@@ -36,10 +36,9 @@ impl McpClient {
         context: &RequestContext,
     ) -> McpDomainResult<ExternalProxyTarget> {
         let ext = server_config.external_auth.as_ref().ok_or_else(|| {
-            McpDomainError::Configuration(format!(
-                "MCP server '{}' has no external_auth accessor to mint a per-user bearer",
-                server_config.name
-            ))
+            McpDomainError::Configuration(ConfigurationIssue::NoExternalAuthAccessor {
+                server: server_config.name.clone(),
+            })
         })?;
 
         let bearer =

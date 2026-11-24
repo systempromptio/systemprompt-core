@@ -74,7 +74,7 @@ pub const fn refusal_of(error: &BrainError) -> Option<BrainRefusalCode> {
         BrainError::Statement(_)
         | BrainError::Subject(_)
         | BrainError::Validate(_)
-        | BrainError::InvalidFields(_)
+        | BrainError::InvalidFields { .. }
         | BrainError::Cursor(_) => Some(BrainRefusalCode::InvalidInput),
         BrainError::Database(_)
         | BrainError::Repository(_)
@@ -82,7 +82,7 @@ pub const fn refusal_of(error: &BrainError) -> Option<BrainRefusalCode> {
         | BrainError::Sink(_)
         | BrainError::Notify(_)
         | BrainError::NotifyKind(_)
-        | BrainError::UnknownEvent(_)
+        | BrainError::UnknownEvent { .. }
         | BrainError::Extract(_)
         | BrainError::Source(_)
         | BrainError::SourceTimeout

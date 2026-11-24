@@ -88,7 +88,9 @@ pub async fn validate_authorization_code(
 
 pub(crate) fn authorization_code_error(error: OauthError) -> IssuanceError {
     match error {
-        OauthError::Validation(reason) => IssuanceError::InvalidGrant { reason },
+        OauthError::Validation(reason) => IssuanceError::InvalidGrant {
+            reason: reason.to_string(),
+        },
         other => IssuanceError::Oauth(other),
     }
 }

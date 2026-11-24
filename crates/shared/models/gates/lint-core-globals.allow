@@ -1,2 +1,2 @@
-# Immutable data: compiled once, never mutated.
+# owner: shared/models; reason: stated on the entry line
 src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data: the compiled form of a literal pattern

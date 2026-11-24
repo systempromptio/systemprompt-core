@@ -18,25 +18,29 @@ pub(super) fn merge_into(
     declares_ai: bool,
 ) -> ConfigLoadResult<()> {
     merge_no_dup(&mut target.agents, include.agents, |k| {
-        ConfigLoadError::DuplicateAgent(k)
+        ConfigLoadError::DuplicateAgent { name: k }
     })?;
     merge_no_dup(&mut target.mcp_servers, include.mcp_servers, |k| {
-        ConfigLoadError::DuplicateMcpServer(k)
+        ConfigLoadError::DuplicateMcpServer { name: k }
     })?;
     merge_no_dup(&mut target.plugins, include.plugins, |k| {
-        ConfigLoadError::DuplicatePlugin(k)
+        ConfigLoadError::DuplicatePlugin { name: k }
     })?;
     merge_no_dup(&mut target.marketplaces, include.marketplaces, |k| {
-        ConfigLoadError::DuplicateMarketplace(k.as_str().to_owned())
+        ConfigLoadError::DuplicateMarketplace {
+            name: k.as_str().to_owned(),
+        }
     })?;
     merge_no_dup(&mut target.external_agents, include.external_agents, |k| {
-        ConfigLoadError::DuplicateExternalAgent(k.as_str().to_owned())
+        ConfigLoadError::DuplicateExternalAgent {
+            name: k.as_str().to_owned(),
+        }
     })?;
     merge_no_dup(&mut target.slack_apps, include.slack_apps, |k| {
-        ConfigLoadError::DuplicateSlackApp(k)
+        ConfigLoadError::DuplicateSlackApp { name: k }
     })?;
     merge_no_dup(&mut target.teams_apps, include.teams_apps, |k| {
-        ConfigLoadError::DuplicateTeamsApp(k)
+        ConfigLoadError::DuplicateTeamsApp { name: k }
     })?;
 
     if include.scheduler.is_some() && target.scheduler.is_none() {
@@ -87,7 +91,7 @@ fn merge_skills(target: &mut SkillsConfig, partial: SkillsConfig) -> ConfigLoadR
     }
     for (id, skill) in partial.skills {
         if target.skills.contains_key(&id) {
-            return Err(ConfigLoadError::DuplicateSkill(id));
+            return Err(ConfigLoadError::DuplicateSkill { name: id });
         }
         target.skills.insert(id, skill);
     }

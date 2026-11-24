@@ -45,7 +45,7 @@ async fn source_registration_and_resource_binding_reject_conflicting_identity() 
     };
     assert!(matches!(
         repository.register_source(&owner, "catalog", &changed).await,
-        Err(ManagedError::Conflict(message)) if message.contains("different specification")
+        Err(ManagedError::Conflict { reason }) if reason.contains("different specification")
     ));
     assert!(matches!(
         repository
@@ -78,7 +78,7 @@ async fn source_registration_and_resource_binding_reject_conflicting_identity() 
     };
     assert!(matches!(
         repository.bind_resource(&owner, &changed).await,
-        Err(ManagedError::Conflict(message)) if message.contains("different binding")
+        Err(ManagedError::Conflict { reason }) if reason.contains("different binding")
     ));
 
     drop(repository);
@@ -138,7 +138,7 @@ async fn revision_creation_rejects_invalid_lineage_and_dependency_digest() {
                 },
             )
             .await,
-        Err(ManagedError::Invalid(_))
+        Err(e) if e.is_invalid()
     ));
     let revision = repository
         .create_revision(

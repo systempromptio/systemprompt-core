@@ -29,9 +29,9 @@ impl AgentLifecycle {
             let current_status = self.db_service.get_status(agent_name).await?;
             match current_status {
                 AgentStatus::Running { .. } => {
-                    return Err(OrchestrationError::AgentAlreadyRunning(
-                        agent_name.to_string(),
-                    ));
+                    return Err(OrchestrationError::AgentAlreadyRunning {
+                        agent: agent_name.clone(),
+                    });
                 },
                 AgentStatus::Failed { .. } => {
                     tracing::debug!(agent_name = %agent_name, "Agent previously failed, attempting restart");

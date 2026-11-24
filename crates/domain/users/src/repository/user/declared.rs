@@ -91,7 +91,7 @@ impl UserRepository {
         .await?;
         written
             .map(UserId::new)
-            .ok_or(UserError::AccountKindMismatch(email))
+            .ok_or(UserError::AccountKindMismatch { email })
     }
 
     pub async fn release_declared_on(conn: &mut PgConnection, email: &str) -> Result<()> {

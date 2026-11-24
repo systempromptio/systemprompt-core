@@ -5,12 +5,7 @@ use systemprompt_agent_entry::http::agent_cards::{self, AgentCardsState};
 use systemprompt_test_fixtures::{fixture_app_context_on_bootstrap, init_isolated_bootstrap};
 use tower::ServiceExt;
 
-#[path = "../../../../../contract/src/a2a/schema.rs"]
-#[expect(
-    dead_code,
-    reason = "shared with the contract crate; this test uses only assert_valid"
-)]
-mod a2a_schema;
+use systemprompt_test_fixtures::a2a_schema;
 
 fn cards_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
     let resolved = ctx.kernel().resolved();

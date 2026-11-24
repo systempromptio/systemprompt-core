@@ -87,7 +87,7 @@ pub(super) fn discover_skills(
 
         let key = id.as_str().to_owned();
         if !discovered.insert(key.clone()) {
-            return Err(ConfigLoadError::DuplicateSkill(key));
+            return Err(ConfigLoadError::DuplicateSkill { name: key });
         }
         if merged.skills.skills.contains_key(&key) {
             tracing::debug!(
@@ -136,7 +136,7 @@ pub(super) fn discover_plugins(
 
         let id = file.plugin.id.as_str().to_owned();
         if !discovered.insert(id.clone()) {
-            return Err(ConfigLoadError::DuplicatePlugin(id));
+            return Err(ConfigLoadError::DuplicatePlugin { name: id });
         }
         if merged.plugins.contains_key(&id) {
             tracing::debug!(
@@ -170,9 +170,9 @@ pub(super) fn discover_marketplaces(
 
         let id = file.marketplace.id.clone();
         if merged.marketplaces.contains_key(&id) {
-            return Err(ConfigLoadError::DuplicateMarketplace(
-                id.as_str().to_owned(),
-            ));
+            return Err(ConfigLoadError::DuplicateMarketplace {
+                name: id.as_str().to_owned(),
+            });
         }
         merged.marketplaces.insert(id, file.marketplace);
     }

@@ -118,7 +118,10 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
 
 fn registry_error(error: AgentError) -> RegistryError {
     match error {
-        AgentError::NotFound(name) => RegistryError::NotFound(name),
+        AgentError::NotFound { name } => RegistryError::NotFound(name),
+        AgentError::DefaultAgentNotConfigured => {
+            RegistryError::NotFound("default agent not configured".to_owned())
+        },
         AgentError::EmptyCorsAllowlist
         | AgentError::InvalidConfig { .. }
         | AgentError::ServicesConfig(_) => RegistryError::Configuration(error.into()),

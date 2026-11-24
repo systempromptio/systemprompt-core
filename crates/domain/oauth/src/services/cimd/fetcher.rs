@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{OauthError, OauthResult as Result};
+use crate::error::{ClientMetadataError, OauthError, OauthResult as Result};
 use crate::models::cimd::CimdMetadata;
 use systemprompt_client::{GuardedClient, GuardedClientConfig};
 use systemprompt_identifiers::ClientId;
@@ -28,7 +28,9 @@ impl CimdFetcher {
         let client_id_str = client_id.as_str();
         if !client_id_str.starts_with("https://") {
             return Err(OauthError::InvalidClientMetadata(
-                "CIMD client_id must be HTTPS URL".to_owned(),
+                ClientMetadataError::Rejected {
+                    reason: "CIMD client_id must be HTTPS URL",
+                },
             ));
         }
         let response = self
@@ -63,10 +65,12 @@ impl CimdFetcher {
                 })?;
 
         if metadata.client_id.as_str() != client_id_str {
-            return Err(OauthError::InvalidClientMetadata(format!(
-                "CIMD metadata client_id mismatch: expected '{}', got '{}'",
-                client_id_str, metadata.client_id
-            )));
+            return Err(OauthError::InvalidClientMetadata(
+                ClientMetadataError::ClientIdMismatch {
+                    expected: client_id.clone(),
+                    got: metadata.client_id.clone(),
+                },
+            ));
         }
 
         metadata.validate()?;

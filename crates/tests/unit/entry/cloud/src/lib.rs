@@ -7,9 +7,7 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
-#[allow(dead_code)]
-#[path = "../../cli/src/boot_ctx.rs"]
-mod boot_ctx;
+use systemprompt_test_fixtures::cli::boot_ctx;
 #[cfg(test)]
 mod cloud_deploy_progress;
 #[cfg(test)]
@@ -35,18 +33,13 @@ mod deploy_vault_secrets;
 #[cfg(test)]
 mod doctor_vault_checks;
 #[cfg(all(test, unix))]
-#[path = "../../cli/src/process_sandbox.rs"]
-mod process_sandbox;
+use systemprompt_test_fixtures::cli::process_sandbox;
 #[cfg(test)]
 mod registration;
 #[cfg(test)]
-#[allow(dead_code)]
-#[path = "../../cli/src/services_profile_fixture.rs"]
-mod services_profile_fixture;
+use systemprompt_test_fixtures::cli::services_profile_fixture;
 #[cfg(test)]
-#[allow(dead_code)]
-#[path = "../../cli/src/session_project_fixture.rs"]
-mod session_project_fixture;
+use systemprompt_test_fixtures::cli::session_project_fixture;
 #[cfg(test)]
 mod target_admission;
 #[cfg(test)]

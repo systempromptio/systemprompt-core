@@ -317,7 +317,9 @@ async fn process_events_streams_each_artifact_as_a_last_chunk_before_the_termina
 async fn process_events_error_path_fails_task_and_broadcasts() {
     let mut ctx = spawn_loop().await;
 
-    let error = AgentServiceError::ToolExecution("model exploded".to_owned());
+    let error = AgentServiceError::ToolExecution {
+        message: "model exploded".to_owned(),
+    };
     let expected = error.to_string();
     ctx.event_tx
         .send(StreamEvent::Error(Arc::new(error)))

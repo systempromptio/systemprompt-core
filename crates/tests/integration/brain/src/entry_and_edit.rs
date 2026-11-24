@@ -172,7 +172,7 @@ async fn a_field_edit_merges_onto_the_stored_fields() {
             .await
             .expect_err("a merged map that does not fit the kind");
         assert!(
-            matches!(refused, BrainError::InvalidFields(_)),
+            matches!(refused, BrainError::InvalidFields { .. }),
             "{bad:?}: {refused:?}"
         );
     }

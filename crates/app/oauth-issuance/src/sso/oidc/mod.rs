@@ -267,7 +267,10 @@ impl SsoProvider for OidcProvider {
     ) -> Result<ExternalIdentity, SsoError> {
         let state = state.ok_or(SsoError::StateLost)?;
         if let Some(code) = ret.param("error") {
-            return Err(OidcProviderError::IdpError(code.to_owned()).into());
+            return Err(OidcProviderError::IdpError {
+                code: code.to_owned(),
+            }
+            .into());
         }
         let code = ret.param("code").ok_or(OidcProviderError::NoCode)?;
         let (Some(nonce), Some(verifier)) = (state.nonce, state.pkce_verifier) else {

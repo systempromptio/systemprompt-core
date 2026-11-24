@@ -485,8 +485,8 @@ fn docker_non_interactive_refuses_occupied_port() {
         // skip-ok: Docker and docker compose are not installed on this host.
         return;
     }
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().expect("addr").port();
+    let held = systemprompt_test_fixtures::ReservedPort::loopback();
+    let port = held.port();
     let dir = systemprompt_test_fixtures::canonical_tempdir();
     std::env::set_current_dir(dir.path()).expect("chdir");
 

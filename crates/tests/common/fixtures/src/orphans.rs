@@ -97,6 +97,39 @@ pub async fn sweep_databases(admin: &PgPool) {
     }
 }
 
+pub async fn sweep_schemas(admin: &PgPool) {
+    let pattern = format!("{DATABASE_OWNER_MARK}[0-9]+_[0-9a-f]{{{DATABASE_SUFFIX_HEX}}}$");
+    let names = match sqlx::query_scalar::<_, String>(
+        "SELECT nspname::text FROM pg_namespace WHERE nspname ~ $1",
+    )
+    .bind(&pattern)
+    .fetch_all(admin)
+    .await
+    {
+        Ok(names) => names,
+        Err(e) => {
+            eprintln!("could not list scratch schemas to sweep: {e}");
+            return;
+        },
+    };
+    for name in names {
+        let Some(owner) = database_owner(&name) else {
+            continue;
+        };
+        if !owner_is_gone(owner) {
+            continue;
+        }
+        if let Err(e) = sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DROP SCHEMA IF EXISTS \"{name}\" CASCADE"
+        )))
+        .execute(admin)
+        .await
+        {
+            eprintln!("could not drop orphaned scratch schema {name}: {e}");
+        }
+    }
+}
+
 const TEMPLATE_RETENTION_SECS: i64 = 24 * 60 * 60;
 
 // Why: a template carries no owner PID -- every process with the same

@@ -96,7 +96,7 @@ async fn a_completion_refused_past_authentication_still_proves_the_key() {
 async fn a_completion_answered_401_rejects_the_key() {
     let err = probed(404, 401).await.unwrap_err();
     assert!(
-        matches!(err, PersonalKeyError::Rejected(ref l) if l == "Go"),
+        matches!(err, PersonalKeyError::Rejected { credential: ref l } if l == "Go"),
         "{err:?}"
     );
 }
@@ -126,7 +126,7 @@ async fn a_models_listing_answered_403_rejects_the_key() {
     let server = MockServer::start().await;
     mount_models(&server, 403).await;
     let err = verify(&catalog(&server.uri(), true)).await.unwrap_err();
-    assert!(matches!(err, PersonalKeyError::Rejected(_)), "{err:?}");
+    assert!(matches!(err, PersonalKeyError::Rejected { .. }), "{err:?}");
 }
 
 #[tokio::test]
@@ -142,9 +142,10 @@ async fn an_endpoint_with_no_deployed_model_cannot_be_probed() {
 
 #[tokio::test]
 async fn an_unreachable_endpoint_is_unverified() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    drop(listener);
+    let base = format!(
+        "http://{}",
+        systemprompt_test_fixtures::ReservedPort::loopback().addr()
+    );
     let err = verify(&catalog(&base, true)).await.unwrap_err();
     assert!(
         matches!(err, PersonalKeyError::Unverified { ref status, .. } if status == "no response"),

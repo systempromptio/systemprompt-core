@@ -170,7 +170,7 @@ pub fn spawn_server(
 
     let profile_path = secrets.env.profile_path().to_str().ok_or_else(|| {
         crate::error::McpDomainError::Configuration(
-            "profile path is not valid UTF-8 - cannot spawn MCP server".to_owned(),
+            crate::error::ConfigurationIssue::ProfilePathNotUtf8,
         )
     })?;
     let env = spawn_environment(

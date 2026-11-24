@@ -5,7 +5,10 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cli::session::resolution::context_resolver::revalidate_context;
+use systemprompt_cli::session::SessionContextError;
+use systemprompt_cli::session::resolution::context_resolver::{
+    ContextCheck, revalidate_context, try_validate_context,
+};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
@@ -52,9 +55,9 @@ async fn revalidate_context_keeps_a_context_owned_by_the_user() {
         .unwrap();
 
     let mut session = session_for(&user_id, session_id, context_id.clone());
-    let refreshed = revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb")).await;
+    let outcome = revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb")).await;
 
-    assert!(refreshed.is_none());
+    assert!(matches!(outcome, ContextCheck::Owned), "{outcome:?}");
     assert_eq!(session.context_id, context_id);
 }
 
@@ -65,9 +68,11 @@ async fn revalidate_context_recovers_a_stale_context() {
 
     let stale = ContextId::generate();
     let mut session = session_for(&user_id, session_id, stale.clone());
-    let refreshed = revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb"))
-        .await
-        .expect("stale context should be recovered");
+    let ContextCheck::Recovered(refreshed) =
+        revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb")).await
+    else {
+        panic!("stale context should be recovered");
+    };
 
     assert_ne!(session.context_id, stale);
     assert_eq!(refreshed.context_id, session.context_id);
@@ -89,11 +94,34 @@ async fn revalidate_context_adopts_the_existing_cli_context_by_name() {
         .unwrap();
 
     let mut session = session_for(&user_id, session_id, ContextId::generate());
-    revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb"))
-        .await
-        .expect("stale context should be recovered");
+    let outcome = revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb")).await;
+    assert!(matches!(outcome, ContextCheck::Recovered(_)), "{outcome:?}");
 
     assert_eq!(session.context_id, existing);
+}
+
+#[tokio::test]
+async fn an_unavailable_context_provider_is_reported_not_treated_as_valid() {
+    let user_id = unique_user_id("ctxunavail");
+    let original = ContextId::generate();
+    let mut session = session_for(&user_id, SessionId::generate(), original.clone());
+
+    let outcome = try_validate_context(
+        &mut session,
+        &pname("ctxdb"),
+        Err(SessionContextError::Unprovided("the context directory")),
+    )
+    .await;
+
+    assert!(
+        matches!(
+            outcome,
+            ContextCheck::Unverified(SessionContextError::Unprovided(_))
+        ),
+        "{outcome:?}"
+    );
+    assert!(!outcome.is_verified());
+    assert_eq!(session.context_id, original);
 }
 
 fn contexts(pool: &DbPool) -> systemprompt_cli::session::SessionContexts {

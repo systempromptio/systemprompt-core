@@ -10,8 +10,10 @@
 use axum::body::to_bytes;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
+use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_identity_entry::http::oauth::{OAuthErrorCode, OAuthHttpError};
-use systemprompt_oauth::OauthError;
+use systemprompt_oauth::{OauthError, ValidationError};
+use systemprompt_traits::FederatedRefusal;
 use systemprompt_traits::auth::AuthProviderError;
 
 async fn rendered(err: OAuthHttpError) -> (StatusCode, serde_json::Value) {
@@ -201,47 +203,49 @@ async fn a_redirecting_error_without_state_omits_the_parameter() {
 fn oauth_domain_errors_map_onto_their_protocol_codes() {
     let cases: Vec<(OauthError, OAuthErrorCode)> = vec![
         (
-            OauthError::InvalidClient("c".to_owned()),
+            OauthError::InvalidClient { reason: "c" },
             OAuthErrorCode::InvalidClient,
         ),
         (
-            OauthError::ClientNotFound("c".to_owned()),
+            OauthError::ClientNotFound {
+                client_id: ClientId::new("c"),
+            },
             OAuthErrorCode::InvalidClient,
         ),
         (
-            OauthError::InvalidGrant("g".to_owned()),
+            OauthError::FederatedLinkRefused {
+                refusal: FederatedRefusal::TargetIneligible,
+            },
             OAuthErrorCode::InvalidGrant,
         ),
         (
-            OauthError::CodeNotFound("c".to_owned()),
+            OauthError::Expired { reason: "e" },
             OAuthErrorCode::InvalidGrant,
         ),
         (
-            OauthError::PkceMismatch("p".to_owned()),
-            OAuthErrorCode::InvalidGrant,
-        ),
-        (
-            OauthError::Expired("e".to_owned()),
-            OAuthErrorCode::InvalidGrant,
-        ),
-        (
-            OauthError::Validation("v".to_owned()),
+            OauthError::Validation(ValidationError::Rejected { reason: "v" }),
             OAuthErrorCode::InvalidRequest,
         ),
         (
-            OauthError::Unauthorized("u".to_owned()),
+            OauthError::ServiceAccountInteractive,
             OAuthErrorCode::AccessDenied,
         ),
         (
-            OauthError::UsernameTaken("n".to_owned()),
+            OauthError::UsernameTaken {
+                username: "n".to_owned(),
+            },
             OAuthErrorCode::UsernameUnavailable,
         ),
         (
-            OauthError::EmailRegistered("e".to_owned()),
+            OauthError::EmailRegistered {
+                email: "e".to_owned(),
+            },
             OAuthErrorCode::EmailExists,
         ),
         (
-            OauthError::UserNotFound("u".to_owned()),
+            OauthError::UserNotFound {
+                user_id: UserId::new("u"),
+            },
             OAuthErrorCode::NotFound,
         ),
         (
@@ -249,7 +253,7 @@ fn oauth_domain_errors_map_onto_their_protocol_codes() {
             OAuthErrorCode::ExpiredChallenge,
         ),
         (
-            OauthError::WebAuthnVerificationFailed("w".to_owned()),
+            OauthError::WebAuthnVerificationFailed { reason: "w" },
             OAuthErrorCode::InvalidCredential,
         ),
         (OauthError::Internal("i"), OAuthErrorCode::ServerError),
@@ -267,7 +271,10 @@ fn oauth_domain_errors_map_onto_their_protocol_codes() {
 fn a_taken_username_does_not_echo_the_internal_error_text() {
     // The description is client-facing; leaking the repository's wording here
     // would expose which account names exist beyond the code itself.
-    let http: OAuthHttpError = OauthError::UsernameTaken("dbuser42".to_owned()).into();
+    let http: OAuthHttpError = OauthError::UsernameTaken {
+        username: "dbuser42".to_owned(),
+    }
+    .into();
 
     assert_eq!(http.code(), OAuthErrorCode::UsernameUnavailable);
     assert!(

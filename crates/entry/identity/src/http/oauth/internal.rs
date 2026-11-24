@@ -26,9 +26,8 @@ pub fn classify_validation(
     as_client_error: fn(String) -> OAuthHttpError,
 ) -> OAuthHttpError {
     match error {
-        OauthError::Validation(message) | OauthError::InvalidClientMetadata(message) => {
-            as_client_error(message)
-        },
+        OauthError::Validation(detail) => as_client_error(detail.to_string()),
+        OauthError::InvalidClientMetadata(detail) => as_client_error(detail.to_string()),
         other => OAuthHttpError::from(other),
     }
 }

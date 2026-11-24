@@ -4,7 +4,7 @@
 //! - ContentError enum variants and Display impl
 //! - Error type conversions (From implementations)
 
-use systemprompt_content::ContentError;
+use systemprompt_content::{ContentError, ContentParseError};
 
 #[test]
 fn test_content_error_from_sqlx_error_maps_to_repository() {
@@ -22,30 +22,6 @@ fn test_content_error_database_not_postgres() {
 }
 
 #[test]
-fn test_content_error_content_not_found() {
-    let error = ContentError::ContentNotFound("article-123".to_string());
-    let msg = error.to_string();
-    assert!(msg.contains("content not found"));
-    assert!(msg.contains("article-123"));
-}
-
-#[test]
-fn test_content_error_link_not_found() {
-    let error = ContentError::LinkNotFound("link-456".to_string());
-    let msg = error.to_string();
-    assert!(msg.contains("link not found"));
-    assert!(msg.contains("link-456"));
-}
-
-#[test]
-fn test_content_error_invalid_request() {
-    let error = ContentError::InvalidRequest("Missing required field".to_string());
-    let msg = error.to_string();
-    assert!(msg.contains("invalid request"));
-    assert!(msg.contains("Missing required field"));
-}
-
-#[test]
 fn test_content_error_validation() {
     let error = ContentError::Validation("Title must not be empty".to_string());
     let msg = error.to_string();
@@ -55,10 +31,9 @@ fn test_content_error_validation() {
 
 #[test]
 fn test_content_error_parse() {
-    let error = ContentError::Parse("Invalid date format".to_string());
+    let error = ContentError::Parse(ContentParseError::AmbiguousTimezone);
     let msg = error.to_string();
-    assert!(msg.contains("parse error"));
-    assert!(msg.contains("Invalid date format"));
+    assert_eq!(msg, "parse error: Ambiguous timezone conversion");
 }
 
 #[test]
@@ -100,24 +75,10 @@ fn test_content_error_empty_message() {
 #[test]
 fn test_content_error_long_message() {
     let long_msg = "x".repeat(10000);
-    let error = ContentError::Parse(long_msg.clone());
+    let error = ContentError::Validation(long_msg.clone());
     let msg = error.to_string();
     assert!(msg.len() > 10000);
     assert!(msg.contains(&long_msg));
-}
-
-#[test]
-fn test_content_error_special_characters() {
-    let error = ContentError::ContentNotFound("article-with-special-chars-!@#$%".to_string());
-    let msg = error.to_string();
-    assert!(msg.contains("!@#$%"));
-}
-
-#[test]
-fn test_content_error_unicode() {
-    let error = ContentError::InvalidRequest("Unicode: ".to_string());
-    let msg = error.to_string();
-    assert!(msg.contains(""));
 }
 
 #[test]
@@ -128,28 +89,11 @@ fn test_content_error_newlines() {
 }
 
 #[test]
-fn test_content_error_matching() {
-    let error = ContentError::ContentNotFound("test".to_string());
+fn test_content_error_parse_keeps_its_kind() {
+    let error = ContentError::Parse(ContentParseError::MissingFrontmatterDelimiters);
 
     match error {
-        ContentError::ContentNotFound(id) => assert_eq!(id, "test"),
-        _ => panic!("Expected ContentNotFound variant"),
+        ContentError::Parse(ContentParseError::MissingFrontmatterDelimiters) => {},
+        other => panic!("Expected a frontmatter parse error, got {other:?}"),
     }
-}
-
-#[test]
-fn test_content_error_is_not_found() {
-    fn is_not_found(error: &ContentError) -> bool {
-        matches!(
-            error,
-            ContentError::ContentNotFound(_) | ContentError::LinkNotFound(_)
-        )
-    }
-
-    assert!(is_not_found(&ContentError::ContentNotFound(
-        "a".to_string()
-    )));
-    assert!(is_not_found(&ContentError::LinkNotFound("b".to_string())));
-    assert!(!is_not_found(&ContentError::DatabaseNotPostgres));
-    assert!(!is_not_found(&ContentError::Validation("c".to_string())));
 }

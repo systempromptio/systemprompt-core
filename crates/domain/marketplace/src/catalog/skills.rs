@@ -112,9 +112,10 @@ fn build_skill_entry(
     }
 
     if let Some(declared) = config.id.as_ref().filter(|id| id.as_str() != dir_name) {
-        return Err(MarketplaceError::Catalog(format!(
-            "skill id '{declared}' does not match its directory name '{dir_name}'"
-        )));
+        return Err(MarketplaceError::SkillIdMismatch {
+            declared: declared.clone(),
+            dir_name: dir_name.to_owned(),
+        });
     }
     let id = SkillId::try_new(dir_name).map_err(|e| MarketplaceError::catalog("skill id", e))?;
     let display_name = if config.name.is_empty() {

@@ -1,5 +1,2 @@
-# The user purge walks the `user_purge_tables!` inventory: table and
-# column names come from each owning crate's registration at runtime,
-# pass SafeIdentifier and are interpolated under AssertSqlSafe. The user
-# id is always a bind.
+# owner: domain/users; reason: the user purge walks the user_purge_tables! inventory: table and column names come from each owning crate at runtime, pass SafeIdentifier and are interpolated under AssertSqlSafe; the user id is always a bind
 src/repository/user/purge.rs

@@ -15,7 +15,9 @@ fn status_of(err: AgentError) -> StatusCode {
 #[test]
 fn agent_error_not_found_and_validation_are_distinguished_from_the_catch_all() {
     assert_eq!(
-        status_of(AgentError::NotFound("a".to_owned())),
+        status_of(AgentError::NotFound {
+            name: "a".to_owned(),
+        }),
         StatusCode::NOT_FOUND
     );
     assert_eq!(

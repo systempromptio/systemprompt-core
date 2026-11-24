@@ -15,8 +15,10 @@ impl From<ManagedError> for ConsumerHttpError {
     fn from(error: ManagedError) -> Self {
         Self(match error {
             ManagedError::Unavailable => StatusCode::FORBIDDEN,
-            ManagedError::Invalid(_) | ManagedError::InvalidInput { .. } => StatusCode::BAD_REQUEST,
-            ManagedError::Integrity | ManagedError::Conflict(_) => StatusCode::CONFLICT,
+            _ if error.is_invalid() => StatusCode::BAD_REQUEST,
+            ManagedError::InvalidInput { .. } => StatusCode::BAD_REQUEST,
+            _ if error.is_conflict() => StatusCode::CONFLICT,
+            ManagedError::Integrity => StatusCode::CONFLICT,
             _ => {
                 tracing::error!(%error, "Consumer evidence operation failed");
                 StatusCode::INTERNAL_SERVER_ERROR

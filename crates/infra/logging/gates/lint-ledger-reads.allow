@@ -1,3 +1,6 @@
+# owner: infra/logging; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/operations/mutations.rs#3d51033bf2
+# owner: infra/logging; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/operations/mutations.rs#7073281001
+# owner: infra/logging; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/operations/queries.rs#daf8d7bfb0

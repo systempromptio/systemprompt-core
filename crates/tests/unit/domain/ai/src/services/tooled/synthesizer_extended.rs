@@ -1,11 +1,16 @@
 use rmcp::model::ContentBlock;
 use serde_json::json;
 use systemprompt_ai::MessageRole;
+use systemprompt_ai::error::AiError;
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::tooled::{
     FallbackGenerator, FallbackReason, ResponseSynthesizer, SynthesisPromptBuilder,
 };
 use systemprompt_identifiers::AiToolCallId;
+
+fn synthesis_error(message: impl Into<String>) -> AiError {
+    AiError::Io(std::io::Error::other(message.into()))
+}
 
 fn create_tool_call(name: &str) -> ToolCall {
     ToolCall {
@@ -68,7 +73,7 @@ mod fallback_generator_extended_tests {
         let output = FallbackGenerator::generate(
             &tool_calls,
             &tool_results,
-            FallbackReason::SynthesisFailed("Rate limit exceeded".to_string()),
+            FallbackReason::SynthesisFailed(synthesis_error("Rate limit exceeded")),
         );
 
         assert!(output.contains("Rate limit exceeded"));
@@ -83,7 +88,7 @@ mod fallback_generator_extended_tests {
         let output = FallbackGenerator::generate(
             &tool_calls,
             &tool_results,
-            FallbackReason::SynthesisFailed(String::new()),
+            FallbackReason::SynthesisFailed(synthesis_error(String::new())),
         );
 
         assert!(output.contains("Synthesis error"));
@@ -178,7 +183,7 @@ mod fallback_reason_tests {
 
     #[test]
     fn synthesis_failed_debug_contains_message() {
-        let reason = FallbackReason::SynthesisFailed("timeout after 30s".to_string());
+        let reason = FallbackReason::SynthesisFailed(synthesis_error("timeout after 30s"));
         let debug = format!("{:?}", reason);
         assert!(debug.contains("timeout after 30s"));
     }
@@ -186,7 +191,7 @@ mod fallback_reason_tests {
     #[test]
     fn synthesis_failed_with_long_error() {
         let long_error = "x".repeat(1000);
-        let reason = FallbackReason::SynthesisFailed(long_error.clone());
+        let reason = FallbackReason::SynthesisFailed(synthesis_error(long_error.clone()));
         let debug = format!("{:?}", reason);
         assert!(debug.contains(&long_error));
     }

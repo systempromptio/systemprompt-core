@@ -106,8 +106,8 @@ pub enum SchedulerError {
     #[error("Job context: {0}")]
     MissingContext(#[from] MissingDependency),
 
-    #[error("Job panicked: {0}")]
-    Panic(String),
+    #[error("Job panicked: {payload}")]
+    Panic { payload: String },
 
     #[error("Distributed lock error: {0}")]
     DistributedLock(#[source] RepositoryError),
@@ -141,7 +141,9 @@ impl SchedulerError {
     }
 
     pub fn panic(message: impl Into<String>) -> Self {
-        Self::Panic(message.into())
+        Self::Panic {
+            payload: message.into(),
+        }
     }
 }
 

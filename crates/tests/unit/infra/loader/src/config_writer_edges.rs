@@ -46,7 +46,7 @@ fn created_agent_round_trips_through_loader() {
     let temp = TempDir::new().expect("tempdir");
     let agent = test_agent("round_trip");
 
-    let file = ConfigWriter::create_agent(&agent, temp.path(), || Ok(())).expect("create");
+    let file = ConfigWriter::create_agent(&agent, temp.path(), |_| Ok(())).expect("create");
 
     let found = ConfigWriter::find_agent_file(&AgentName::new("round_trip"), temp.path())
         .expect("find ok")
@@ -101,7 +101,7 @@ fn find_agent_file_falls_back_to_scan_when_expected_file_wrong_agent() {
     std::fs::create_dir_all(&agents_dir).expect("agents dir");
 
     let other = test_agent("other");
-    ConfigWriter::create_agent(&other, temp.path(), || Ok(())).expect("create other");
+    ConfigWriter::create_agent(&other, temp.path(), |_| Ok(())).expect("create other");
     std::fs::rename(
         agents_dir.join("other.yaml"),
         agents_dir.join("target.yaml"),
@@ -172,7 +172,7 @@ fn create_agent_errors_when_agents_path_is_a_file() {
         .expect("write blocking file");
 
     let agent = test_agent("blocked");
-    let err = ConfigWriter::create_agent(&agent, temp.path(), || Ok(()))
+    let err = ConfigWriter::create_agent(&agent, temp.path(), |_| Ok(()))
         .expect_err("create_dir_all must fail when the agents path is an existing file");
     assert!(
         !err.to_string().is_empty(),
@@ -192,8 +192,13 @@ fn update_agent_writes_through_content_scan_when_filename_differs() {
 
     let mut updated = test_agent("scanned");
     updated.card.description = "updated via scan".to_string();
-    ConfigWriter::update_agent(&AgentName::new("scanned"), &updated, temp.path(), || Ok(()))
-        .expect("update must locate the file via the content scan and rewrite it");
+    ConfigWriter::update_agent(
+        &AgentName::new("scanned"),
+        &updated,
+        temp.path(),
+        |_| Ok(()),
+    )
+    .expect("update must locate the file via the content scan and rewrite it");
 
     let content = std::fs::read_to_string(&mismatched_file).expect("read rewritten file");
     assert!(

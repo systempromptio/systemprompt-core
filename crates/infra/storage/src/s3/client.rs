@@ -46,7 +46,9 @@ impl S3FileStorage {
         let endpoint = &self.params.endpoint;
         let host = endpoint
             .host_str()
-            .ok_or_else(|| S3Error::EndpointHost(endpoint.to_string()))?
+            .ok_or_else(|| S3Error::EndpointHost {
+                endpoint: endpoint.to_string(),
+            })?
             .to_owned();
         let base_path = endpoint.path().trim_end_matches('/');
         let key = encode_key(name);

@@ -66,7 +66,7 @@ pub use config::{
     ContentConfigValidated, ContentReady, ContentSourceConfigValidated, LoadStats, ParsedContent,
     ValidationResult,
 };
-pub use error::{ContentError, ContentResult};
+pub use error::{ContentError, ContentParseError, ContentResult};
 pub use services::validate_content_metadata;
 
 pub use models::{

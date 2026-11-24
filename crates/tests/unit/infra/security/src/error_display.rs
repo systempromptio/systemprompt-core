@@ -66,14 +66,18 @@ fn auth_error_missing_kid_display() {
 
 #[test]
 fn auth_error_unknown_kid_display() {
-    let e = AuthError::UnknownKid("kid-xyz".to_owned());
+    let e = AuthError::UnknownKid {
+        kid: "kid-xyz".to_owned(),
+    };
     let s = e.to_string();
     assert!(s.contains("kid-xyz"), "got: {s}");
 }
 
 #[test]
 fn auth_error_untrusted_issuer_display() {
-    let e = AuthError::UntrustedIssuer("evil.com".to_owned());
+    let e = AuthError::UntrustedIssuer {
+        issuer: "evil.com".to_owned(),
+    };
     let s = e.to_string();
     assert!(s.contains("evil.com"), "got: {s}");
 }

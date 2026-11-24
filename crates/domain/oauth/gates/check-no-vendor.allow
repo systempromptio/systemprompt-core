@@ -1,2 +1,2 @@
-# OAuth authorization and passkey pages served by the issuer.
+# owner: domain/oauth; reason: OAuth authorization and passkey pages served by the issuer
 templates/*.html

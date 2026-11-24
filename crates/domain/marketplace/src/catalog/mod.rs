@@ -5,7 +5,9 @@
 //! services-root [`std::path::Path`], the `ServicesConfig`, and the API
 //! external URL where endpoints must be resolved — never an `AppContext` or a
 //! database handle. Disk and parse failures surface as
-//! [`MarketplaceError::Catalog`](crate::error::MarketplaceError).
+//! [`MarketplaceError::CatalogSource`](crate::error::MarketplaceError) or a
+//! named catalogue variant such as
+//! [`MarketplaceError::SkillIdMismatch`](crate::error::MarketplaceError).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

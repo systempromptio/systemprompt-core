@@ -27,7 +27,7 @@ fn config_with_audiences(allowed: &[&str]) -> Config {
 
 fn invalid_scope_reason(error: ClientCredentialsError) -> String {
     match error {
-        ClientCredentialsError::InvalidScope(reason) => reason,
+        ClientCredentialsError::InvalidScope { reason } => reason,
         other => panic!("expected InvalidScope, got {other:?}"),
     }
 }
@@ -159,10 +159,7 @@ fn an_audience_outside_the_allowlist_is_an_invalid_audience_error() {
         .expect_err("an unlisted audience must not be minted into a token");
 
     match error {
-        ClientCredentialsError::InvalidAudience(message) => {
-            assert!(message.contains("'mcp'"), "{message}");
-            assert!(message.contains("not in allowed audiences"), "{message}");
-        },
+        ClientCredentialsError::InvalidAudience { audience } => assert_eq!(audience, "mcp"),
         other => panic!("expected InvalidAudience, got {other:?}"),
     }
 }

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 use crate::models::PkceMethod;
 use base64::Engine;
 use subtle::ConstantTimeEq;
@@ -15,14 +15,16 @@ pub(super) fn verify_pkce(
 ) -> OauthResult<()> {
     if verifier.is_empty() {
         tracing::warn!("Missing code_verifier for PKCE challenge");
-        return Err(OauthError::Validation(
-            "Invalid authorization code".to_owned(),
-        ));
+        return Err(OauthError::Validation(ValidationError::Rejected {
+            reason: "Invalid authorization code",
+        }));
     }
 
     let method = method.ok_or_else(|| {
         tracing::warn!("Missing code_challenge_method for PKCE challenge");
-        OauthError::Validation("Invalid authorization code".to_owned())
+        OauthError::Validation(ValidationError::Rejected {
+            reason: "Invalid authorization code",
+        })
     })?;
 
     let computed_challenge = match method.parse::<PkceMethod>() {
@@ -34,9 +36,9 @@ pub(super) fn verify_pkce(
         },
         Err(e) => {
             tracing::warn!(method = %method, error = %e, "Unsupported code_challenge_method");
-            return Err(OauthError::Validation(
-                "Invalid authorization code".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "Invalid authorization code",
+            }));
         },
     };
 
@@ -48,8 +50,8 @@ pub(super) fn verify_pkce(
         Ok(())
     } else {
         tracing::warn!("PKCE validation failed");
-        Err(OauthError::Validation(
-            "Invalid authorization code".to_owned(),
-        ))
+        Err(OauthError::Validation(ValidationError::Rejected {
+            reason: "Invalid authorization code",
+        }))
     }
 }

@@ -7,7 +7,7 @@
 
 use systemprompt_database::{DatabaseProvider, PostgresProvider};
 
-use crate::services::db_helper::test_pool;
+use crate::services::db_helper::{scratch_pool, test_pool};
 use systemprompt_test_fixtures::unique_name;
 
 async fn test_provider() -> (PostgresProvider, sqlx::PgPool) {
@@ -201,7 +201,7 @@ async fn the_database_handle_reports_its_pools_and_liveness() {
 
 #[tokio::test]
 async fn the_database_handle_runs_a_batch_and_opens_a_plain_transaction() {
-    let db = test_pool().await;
+    let (scratch, db) = scratch_pool("pgtx_batch").await;
     let table = unique_name("batch_tbl");
     let pg = db.write_pool();
 
@@ -231,9 +231,5 @@ async fn the_database_handle_runs_a_batch_and_opens_a_plain_transaction() {
         "the batch-created table must hold the committed row"
     );
 
-    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP TABLE IF EXISTS \"{table}\""
-    )))
-    .execute(&*pg)
-    .await;
+    scratch.drop_now().await;
 }

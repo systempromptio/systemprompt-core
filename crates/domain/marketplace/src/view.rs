@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_manifest::services::MarketplaceConfig;
+use systemprompt_manifest::services::{MarketplaceConfig, MarketplaceVisibility};
 
 #[must_use]
 // JSON: outgoing marketplace listing with a fixed, client-facing shape
@@ -46,25 +46,39 @@ pub fn render_marketplace_json(
     body
 }
 
+/// The marketplace catalogue listing body.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MarketplaceListView<'a> {
+    pub marketplaces: Vec<MarketplaceListEntry<'a>>,
+}
+
+/// One marketplace in [`MarketplaceListView`].
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MarketplaceListEntry<'a> {
+    pub id: &'a str,
+    pub name: &'a str,
+    pub description: &'a str,
+    pub version: &'a str,
+    pub visibility: &'a MarketplaceVisibility,
+    pub enabled: bool,
+}
+
 #[must_use]
-// JSON: outgoing marketplace listing with a fixed, client-facing shape
-pub fn render_marketplace_list<'a, I>(marketplaces: I) -> serde_json::Value
+pub fn render_marketplace_list<'a, I>(marketplaces: I) -> MarketplaceListView<'a>
 where
     I: IntoIterator<Item = (&'a MarketplaceId, &'a MarketplaceConfig)>,
 {
-    let entries: Vec<serde_json::Value> = marketplaces
-        .into_iter()
-        .map(|(id, m)| {
-            serde_json::json!({
-                "id": id.as_str(),
-                "name": m.name,
-                "description": m.description,
-                "version": m.version,
-                "visibility": m.visibility,
-                "enabled": m.enabled,
+    MarketplaceListView {
+        marketplaces: marketplaces
+            .into_iter()
+            .map(|(id, m)| MarketplaceListEntry {
+                id: id.as_str(),
+                name: &m.name,
+                description: &m.description,
+                version: &m.version,
+                visibility: &m.visibility,
+                enabled: m.enabled,
             })
-        })
-        .collect();
-
-    serde_json::json!({ "marketplaces": entries })
+            .collect(),
+    }
 }

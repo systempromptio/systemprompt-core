@@ -116,17 +116,17 @@ fn extra_keys_are_refused() {
         serde_json::json!({ "facts": [{ "subject": "acme", "owner": "b", "invented": 1 }] });
     assert!(matches!(
         parse(extra_fact_key),
-        Err(ModelOutputError::Schema(_))
+        Err(ModelOutputError::UnexpectedKey { .. })
     ));
     let extra_root_key = serde_json::json!({ "facts": [], "notes": "x" });
     assert!(matches!(
         parse(extra_root_key),
-        Err(ModelOutputError::Schema(_))
+        Err(ModelOutputError::Schema { .. })
     ));
     let no_subject = serde_json::json!({ "facts": [{ "owner": "b" }] });
     assert!(matches!(
         parse(no_subject),
-        Err(ModelOutputError::Schema(_))
+        Err(ModelOutputError::Schema { .. })
     ));
     assert_eq!(parse(serde_json::json!({ "facts": [] })).ok(), Some(0));
 }

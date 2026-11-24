@@ -4,9 +4,11 @@ use systemprompt_brain::BrainError;
 use systemprompt_brain_entry::http::BrainHttpError;
 use systemprompt_extension::brain::RecallError;
 use systemprompt_governance::authz::AuthzError;
-use systemprompt_identifiers::BrainProposalId;
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_models::brain::{StatementError, SubjectKeyError, UnknownFactStatus};
+use systemprompt_identifiers::{BrainProposalId, FactKindId};
+use systemprompt_models::brain::{
+    BrainEventKind, StatementError, SubjectKeyError, UnknownFactStatus,
+};
 use systemprompt_traits::RepositoryError;
 
 fn key_of(error: BrainHttpError) -> (Option<String>, String) {
@@ -28,9 +30,10 @@ fn invalid_subject_and_statement_are_422_with_their_keys() {
     )));
     assert_eq!(key.as_deref(), Some("invalid_statement"));
 
-    let (key, _) = key_of(BrainHttpError::from(BrainError::InvalidFields(
-        "field price is not declared".to_owned(),
-    )));
+    let (key, _) = key_of(BrainHttpError::from(BrainError::InvalidFields {
+        kind: FactKindId::try_new("decision").unwrap(),
+        reason: "field price is not declared".to_owned(),
+    }));
     assert_eq!(key.as_deref(), Some("invalid_fields"));
 }
 
@@ -67,13 +70,15 @@ fn invalid_repository_data_is_422() {
 
 #[test]
 fn a_non_transient_failure_is_a_fixed_500() {
-    let error = BrainError::UnknownEvent("brain.mystery".to_owned());
+    let error = BrainError::UnknownEvent {
+        kind: BrainEventKind::new("brain.mystery").unwrap(),
+    };
     let status = BrainHttpError::from(error).into_response().status();
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-    let (_, message) = key_of(BrainHttpError::from(BrainError::UnknownEvent(
-        "brain.secret-detail".to_owned(),
-    )));
-    assert!(!message.contains("secret-detail"), "{message}");
+    let (_, message) = key_of(BrainHttpError::from(BrainError::UnknownEvent {
+        kind: BrainEventKind::new("brain.secret_detail").unwrap(),
+    }));
+    assert!(!message.contains("secret_detail"), "{message}");
 }
 
 #[test]
@@ -84,7 +89,9 @@ fn a_spent_budget_is_503_unavailable() {
 
 #[test]
 fn role_lookup_failure_is_a_fixed_500() {
-    let error = BrainHttpError::from(AuthzError::InvalidRuleType("bogus".to_owned()));
+    let error = BrainHttpError::from(AuthzError::InvalidRuleType {
+        rule_type: "bogus".to_owned(),
+    });
     let status = error.into_response().status();
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
 }

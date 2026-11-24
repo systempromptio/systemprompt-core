@@ -150,7 +150,7 @@ fn a_token_signed_by_the_retired_key_fails_after_its_expiry() {
     let (old, keys) = rotated(Duration::seconds(-1));
     let err = verify(&keys, &mint(&old)).expect_err("expired retired key accepted");
     assert!(
-        matches!(&err, AuthError::UnknownKid(kid) if kid == old.kid()),
+        matches!(&err, AuthError::UnknownKid { kid } if kid == old.kid()),
         "{err}"
     );
 }
@@ -161,7 +161,7 @@ fn without_a_retired_key_the_replaced_key_is_unknown() {
     let (next, _) = rotate(&old, Vec::new(), RotationMode::Overlap(Duration::hours(1)));
     let keys = SigningKeys::new(next, &SEED).expect("keys");
     let err = verify(&keys, &mint(&old)).expect_err("replaced key accepted");
-    assert!(matches!(err, AuthError::UnknownKid(_)), "{err}");
+    assert!(matches!(err, AuthError::UnknownKid { .. }), "{err}");
 }
 
 #[test]
@@ -278,7 +278,7 @@ fn an_expired_previous_key_is_pruned_at_rotation_and_rejected_at_verification() 
     )
     .expect("keys");
     let err = verify(&keys, &mint(&stale)).expect_err("expired key accepted");
-    assert!(matches!(err, AuthError::UnknownKid(_)), "{err}");
+    assert!(matches!(err, AuthError::UnknownKid { .. }), "{err}");
     assert!(keys.jwks().keys.iter().all(|k| k.kid != stale.kid()));
 
     let (_, rotation) = rotate(
@@ -304,7 +304,7 @@ fn a_revoking_rotation_invalidates_the_old_key_and_every_previous_key() {
     let keys = keys_after(third, &rotation);
     for old in [&first, &second] {
         let err = verify(&keys, &mint(old)).expect_err("revoked key accepted");
-        assert!(matches!(err, AuthError::UnknownKid(_)), "{err}");
+        assert!(matches!(err, AuthError::UnknownKid { .. }), "{err}");
     }
     assert_eq!(keys.jwks().keys.len(), 1);
     verify(&keys, &mint(keys.signing_key())).expect("new key verifies");

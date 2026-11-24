@@ -1,2 +1,4 @@
+# owner: shared/manifest; reason: stated on the entry line
 src/env/mod.rs:INTERPOLATION_REGEX — immutable data: the compiled form of a literal pattern
+# owner: shared/manifest; reason: stated on the entry line
 src/profile/field_kind.rs:PROFILE_SCHEMA — immutable data: the JSON schema derived once from the Profile type

@@ -148,13 +148,22 @@ collab-reaper-db = { max-threads = 1 }
 # collecting its own aged blobs. Serialise the GC and backfill tests.
 document-blob-gc-db = { max-threads = 1 }
 # Why: Postgres admits `max_connections` (100) sessions, and a pool that
-# cannot open one waits out its acquire timeout and fails the test. Each
-# api-integration test process holds `FIXTURE_TEST_CONNECTIONS` (14,
-# common/fixtures/src/db.rs); 5 slots × 14 = 70 stays within
-# `SERVER_CONNECTION_BUDGET` (85) with room for the one-slot shared-state
-# groups above, whatever `--test-threads` the run asks for. Tests already
-# serialised in a shared-state slot keep that slot.
-db-connection-budget = { max-threads = 5 }
+# cannot open one waits out its acquire timeout and fails the test. A test
+# process that touches the database holds up to `FIXTURE_TEST_CONNECTIONS`
+# (14, common/fixtures/src/db.rs): one fixture pool and one AppContext pool.
+# Every package built on `systemprompt-test-fixtures` can open them, so every
+# such test not already serialised in a shared-state slot runs in
+# `db-connection-budget`, and the CLI integration suite, whose tests also boot
+# a child `systemprompt` with its own pool, runs in `cli-integration-boot`.
+# (4 + 2) slots × 14 = 84 stays within `SERVER_CONNECTION_BUDGET` (85)
+# whatever `--test-threads` the run asks for. A fixture pool that still finds
+# the server full fails within `FIXTURE_POOL_ACQUIRE_TIMEOUT` with an error
+# naming this budget.
+db-connection-budget = { max-threads = 4 }
+# Why: each CLI integration test spawns a full `systemprompt` boot (validation,
+# database, migrations). Unbounded they oversubscribe the CPU and the server's
+# connections at once and trip the subprocess hang guard.
+cli-integration-boot = { max-threads = 2 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-integration-tests) and test(/^(declarative_object_refs|migration_schema_ahead|interrupted_install|schema_migration_order|migration_supersedes|fresh_install_retirement|fresh_install_stamp|migration_slot_reuse|migration_plan_status)::/)'
@@ -373,5 +382,9 @@ test-group = 'document-blob-gc-db'
 
 # Last, so every shared-state slot above wins for the tests it names.
 [[profile.default.overrides]]
-filter = 'package(systemprompt-api-integration-tests)'
+filter = 'package(systemprompt-cli-integration-tests)'
+test-group = 'cli-integration-boot'
+
+[[profile.default.overrides]]
+filter = 'rdeps(systemprompt-test-fixtures)'
 test-group = 'db-connection-budget'

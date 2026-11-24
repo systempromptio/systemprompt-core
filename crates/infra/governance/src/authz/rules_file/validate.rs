@@ -22,8 +22,8 @@ use crate::authz::types::RuleType;
 
 #[derive(Debug, Error)]
 pub enum RulesProblem {
-    #[error("{0}: declared more than once")]
-    Duplicate(String),
+    #[error("{entity}: declared more than once")]
+    Duplicate { entity: String },
     #[error("{entity}: {source}")]
     Target {
         entity: String,
@@ -80,7 +80,9 @@ impl RulesDoc {
         let mut seen = BTreeSet::new();
         for decl in &self.entities {
             if !seen.insert(decl.entity.as_str()) {
-                problems.push(RulesProblem::Duplicate(decl.entity.clone()));
+                problems.push(RulesProblem::Duplicate {
+                    entity: decl.entity.clone(),
+                });
             }
             if let Err(problem) = decl.check() {
                 problems.push(problem);

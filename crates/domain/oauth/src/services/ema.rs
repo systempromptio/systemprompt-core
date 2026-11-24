@@ -97,10 +97,6 @@ fn refused_or_failed(err: AuthProviderError) -> OauthError {
             context: "linking the ID-JAG subject to an account",
             source: err,
         },
-        |refusal| {
-            OauthError::InvalidGrant(format!(
-                "the enterprise identity cannot be linked: {refusal}"
-            ))
-        },
+        |refusal| OauthError::FederatedLinkRefused { refusal },
     )
 }

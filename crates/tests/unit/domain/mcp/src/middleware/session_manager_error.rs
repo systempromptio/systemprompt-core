@@ -6,21 +6,27 @@ use systemprompt_mcp_host::serving::middleware::session_handler::DatabaseSession
 
 #[test]
 fn session_not_found_display() {
-    let e = DatabaseSessionHandlerError::SessionNotFound("sess-abc".to_owned());
+    let e = DatabaseSessionHandlerError::SessionNotFound {
+        session_id: "sess-abc".to_owned(),
+    };
     let s = e.to_string();
     assert!(s.contains("sess-abc"), "got: {s}");
 }
 
 #[test]
 fn session_expired_display() {
-    let e = DatabaseSessionHandlerError::SessionExpired("sess-xyz".to_owned());
+    let e = DatabaseSessionHandlerError::SessionExpired {
+        session_id: "sess-xyz".to_owned(),
+    };
     let s = e.to_string();
     assert!(s.contains("sess-xyz"), "got: {s}");
 }
 
 #[test]
 fn session_needs_reconnect_display() {
-    let e = DatabaseSessionHandlerError::SessionNeedsReconnect("sess-r".to_owned());
+    let e = DatabaseSessionHandlerError::SessionNeedsReconnect {
+        session_id: "sess-r".to_owned(),
+    };
     let s = e.to_string();
     assert!(s.contains("sess-r") || s.contains("reconnect"), "got: {s}");
 }
@@ -53,21 +59,27 @@ fn database_variant_source_is_some() {
 #[test]
 fn session_not_found_source_is_none() {
     use std::error::Error;
-    let e = DatabaseSessionHandlerError::SessionNotFound("x".to_owned());
+    let e = DatabaseSessionHandlerError::SessionNotFound {
+        session_id: "x".to_owned(),
+    };
     assert!(e.source().is_none());
 }
 
 #[test]
 fn session_expired_source_is_none() {
     use std::error::Error;
-    let e = DatabaseSessionHandlerError::SessionExpired("x".to_owned());
+    let e = DatabaseSessionHandlerError::SessionExpired {
+        session_id: "x".to_owned(),
+    };
     assert!(e.source().is_none());
 }
 
 #[test]
 fn session_needs_reconnect_source_is_none() {
     use std::error::Error;
-    let e = DatabaseSessionHandlerError::SessionNeedsReconnect("x".to_owned());
+    let e = DatabaseSessionHandlerError::SessionNeedsReconnect {
+        session_id: "x".to_owned(),
+    };
     assert!(e.source().is_none());
 }
 
@@ -75,15 +87,21 @@ fn session_needs_reconnect_source_is_none() {
 fn debug_format_all_variants() {
     let variants: Vec<(DatabaseSessionHandlerError, &str)> = vec![
         (
-            DatabaseSessionHandlerError::SessionNotFound("a".to_owned()),
+            DatabaseSessionHandlerError::SessionNotFound {
+                session_id: "a".to_owned(),
+            },
             "SessionNotFound",
         ),
         (
-            DatabaseSessionHandlerError::SessionExpired("b".to_owned()),
+            DatabaseSessionHandlerError::SessionExpired {
+                session_id: "b".to_owned(),
+            },
             "SessionExpired",
         ),
         (
-            DatabaseSessionHandlerError::SessionNeedsReconnect("c".to_owned()),
+            DatabaseSessionHandlerError::SessionNeedsReconnect {
+                session_id: "c".to_owned(),
+            },
             "SessionNeedsReconnect",
         ),
         (

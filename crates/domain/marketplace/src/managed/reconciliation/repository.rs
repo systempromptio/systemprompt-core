@@ -53,9 +53,9 @@ impl ManagedRepository {
         let stored = sqlx::query!(r#"SELECT id,upstream_base_revision_id,status AS "status: ReconciliationStatus",resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND managed_candidate_revision_id=$3 AND incoming_revision_id=$4 FOR UPDATE"#,
             owner.as_str(), request.resource_id.as_str(), request.managed_candidate_revision_id.as_str(), request.incoming_revision_id.as_str()).fetch_one(&mut *tx).await?;
         if stored.upstream_base_revision_id != request.upstream_base_revision_id.as_str() {
-            return Err(ManagedError::Conflict(
-                "Reconciliation retry changes the retained upstream base".to_owned(),
-            ));
+            return Err(ManagedError::Conflict {
+                reason: "Reconciliation retry changes the retained upstream base",
+            });
         }
         for conflict in &conflicts {
             sqlx::query!("INSERT INTO managed_reconciliation_conflicts(reconciliation_id,path,base_digest,candidate_digest,incoming_digest) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
@@ -140,9 +140,9 @@ impl ManagedRepository {
             .iter()
             .any(|conflict| conflict.resolution.is_none())
         {
-            return Err(ManagedError::Conflict(
-                "Reconciliation has unresolved conflicts".to_owned(),
-            ));
+            return Err(ManagedError::Conflict {
+                reason: "Reconciliation has unresolved conflicts",
+            });
         }
         let base = self
             .get_revision_files(
@@ -186,9 +186,9 @@ impl ManagedRepository {
         let changed = sqlx::query!("UPDATE managed_reconciliations r SET status='resolved',resolved_revision_id=$3,resolved_by=$4,resolved_at=NOW() WHERE r.id=$1 AND r.owner_id=$2 AND r.status='open' AND NOT EXISTS(SELECT 1 FROM managed_reconciliation_conflicts c WHERE c.reconciliation_id=r.id AND c.resolution IS NULL)",
             id.as_str(), owner.as_str(), revision.as_str(), actor.as_str()).execute(&self.pool).await?;
         if changed.rows_affected() != 1 {
-            return Err(ManagedError::Conflict(
-                "Reconciliation has unresolved conflicts".to_owned(),
-            ));
+            return Err(ManagedError::Conflict {
+                reason: "Reconciliation has unresolved conflicts",
+            });
         }
         Ok(())
     }

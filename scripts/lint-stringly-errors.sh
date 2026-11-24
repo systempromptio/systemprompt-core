@@ -10,6 +10,10 @@
 #                   (`Foo(String)`, `Foo { message: String }`) and which some
 #                   production crate builds from an error's Display
 #                   (`Enum::Foo(e.to_string())`, `Self::Foo(format!("{err}"))`).
+#   layer-string-variant  in crates/{domain,app,infra}: any error-enum tuple
+#                   variant whose only payload is a `String` (`Foo(String)`),
+#                   however it is built. A message becomes typed fields; a
+#                   rendered cause becomes `#[source]`/`#[from]`.
 #
 # The typed form carries the cause: `Foo(#[from] Cause)` or
 # `Foo { context: String, #[source] source: Cause }`. A string variant whose
@@ -71,6 +75,11 @@ MAP_ERR = re.compile(
 )
 RESULT_STRING = re.compile(
     r"\bResult<(?:[^<>;]|<(?:[^<>;]|<[^<>;]*>)*>)*,\s*(?:std::string::)?String\s*>"
+)
+STRICT_LAYERS = ("crates/domain/", "crates/app/", "crates/infra/")
+TUPLE_STRING_VARIANT = re.compile(
+    r"^\s*(?:#\[error\([^)]*\)\]\s*)?(?P<name>[A-Z]\w*)\s*"
+    r"\(\s*(?:#\[[^\]]*\]\s*)?(?:::)?(?:std::string::)?String\s*\)\s*,?\s*$"
 )
 STRING_VARIANT = re.compile(
     r"^\s*(?:#\[error\([^)]*\)\]\s*)?(?P<name>[A-Z]\w*)\s*"
@@ -147,14 +156,28 @@ for path in sorted(production_files()):
             built_from_display.add((enum, built.group("name")))
     if ERROR_DERIVE.search(text):
         current_enum = None
+        current_is_error = False
+        derive_error_pending = False
         for number, line in enumerate(lines, 1):
+            if ERROR_DERIVE.search(line):
+                derive_error_pending = True
             declared = ENUM_DECL.match(line)
             if declared:
                 current_enum = declared.group("name")
+                current_is_error = derive_error_pending
+                derive_error_pending = False
                 continue
+            if line.strip().startswith(("struct ", "pub struct ", "pub(crate) struct ")):
+                derive_error_pending = False
             found = STRING_VARIANT.match(line)
             if found and current_enum:
                 variant_lines.append((current_enum, found.group("name"), path, number))
+                if (
+                    current_is_error
+                    and path.startswith(STRICT_LAYERS)
+                    and TUPLE_STRING_VARIANT.match(line)
+                ):
+                    hits.append(("layer-string-variant", path, number))
 
 for enum, name, path, number in variant_lines:
     if (enum, name) in built_from_display:
@@ -162,7 +185,7 @@ for enum, name, path, number in variant_lines:
 
 hits = [h for h in hits if is_selected(h[1]) and gate_scope.in_scope(h[1], scope)]
 
-categories = ("map-err-string", "result-string", "string-variant")
+categories = ("map-err-string", "result-string", "string-variant", "layer-string-variant")
 
 if report:
     if not hits:
@@ -172,15 +195,15 @@ if report:
     for category, path, _ in hits:
         counts[crate_of(path)][category] += 1
     rows = sorted(counts.items(), key=lambda kv: -sum(kv[1].values()))
-    print(f"{'crate':<34} {'map-err-string':>15} {'result-string':>14} {'string-variant':>15} {'total':>7}")
+    print(f"{'crate':<34} {'map-err-string':>15} {'result-string':>14} {'string-variant':>15} {'layer-variant':>14} {'total':>7}")
     totals = defaultdict(int)
     for crate, by_category in rows:
         values = [by_category[c] for c in categories]
         for c, v in zip(categories, values):
             totals[c] += v
-        print(f"{crate:<34} {values[0]:>15} {values[1]:>14} {values[2]:>15} {sum(values):>7}")
+        print(f"{crate:<34} {values[0]:>15} {values[1]:>14} {values[2]:>15} {values[3]:>14} {sum(values):>7}")
     values = [totals[c] for c in categories]
-    print(f"{'TOTAL':<34} {values[0]:>15} {values[1]:>14} {values[2]:>15} {sum(values):>7}")
+    print(f"{'TOTAL':<34} {values[0]:>15} {values[1]:>14} {values[2]:>15} {values[3]:>14} {sum(values):>7}")
     sys.exit(0)
 
 if hits:

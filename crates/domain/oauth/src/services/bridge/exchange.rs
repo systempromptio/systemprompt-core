@@ -24,7 +24,7 @@ use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{AnalyticsProvider, SessionProvider, UserProvider};
 
 use super::{BridgeAccessRequest, BridgeAuthResult, issue_bridge_access};
-use crate::error::{OauthError, OauthResult as Result};
+use crate::error::{OauthError, OauthResult as Result, ValidationError};
 use crate::models::PkceMethod;
 use crate::repository::{CreateExchangeCodeParams, DeviceLinkUiGrant, OAuthRepository};
 use crate::services::authenticated_user::load_interactive_user;
@@ -104,7 +104,8 @@ pub async fn issue_device_link_code(
 }
 
 async fn check_ui_request(repo: &OAuthRepository, ui: &DeviceLinkUiRequest<'_>) -> Result<String> {
-    let refuse = |reason: &str| OauthError::Validation(reason.to_owned());
+    let refuse =
+        |reason: &'static str| OauthError::Validation(ValidationError::Rejected { reason });
     if !repo.is_person_ui_client(ui.client_id).await? {
         return Err(refuse("client is not a declared person_ui client"));
     }

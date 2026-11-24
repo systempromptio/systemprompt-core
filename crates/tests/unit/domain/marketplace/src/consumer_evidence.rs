@@ -477,7 +477,6 @@ async fn same_native_session_can_bind_independent_resources() {
 #[tokio::test]
 async fn historical_multiple_receipts_ack_identical_binding_retries() {
     use systemprompt_identifiers::{ConsumerInstallationId, InstallationSessionBindingId};
-    use systemprompt_marketplace::managed::ManagedError;
     use systemprompt_marketplace::managed::consumer::host_key;
     let mut f = fixture().await;
     let original = f.receipt_binding().await;
@@ -515,7 +514,7 @@ async fn historical_multiple_receipts_ack_identical_binding_retries() {
         f.repo
             .bind_consumer_session(&f.credential.credential, &third)
             .await,
-        Err(ManagedError::Conflict(_))
+        Err(e) if e.is_conflict()
     ));
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM managed_consumer_session_bindings WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND native_session_id=$4")
         .bind(f.consumer.as_str()).bind(f.cert.as_str()).bind(host_key(f.request.host))

@@ -4,13 +4,23 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_models::bridge::host::UnknownHostKind;
 use systemprompt_models::managed::RevisionBundleError;
 use systemprompt_traits::{BoxedSource, RepositoryError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManagedError {
-    #[error("Invalid managed resource: {0}")]
-    Invalid(String),
+    #[error("Invalid managed resource: {reason}")]
+    Invalid { reason: &'static str },
+    #[error("Invalid managed resource: Inventory names must be UTF-8: {name}")]
+    NonUtf8EntryName { name: String },
+    #[error("Invalid managed resource: Skill hosts list is invalid: {source}")]
+    SkillHosts {
+        #[source]
+        source: UnknownHostKind,
+    },
+    #[error(transparent)]
+    InvalidBundle(RevisionBundleError),
     #[error("Invalid managed resource: {context}: {source}")]
     InvalidInput {
         context: &'static str,
@@ -19,8 +29,16 @@ pub enum ManagedError {
     },
     #[error("Managed resource is unavailable in this scope")]
     Unavailable,
-    #[error("Managed resource conflict: {0}")]
-    Conflict(String),
+    #[error("Managed resource conflict: {reason}")]
+    Conflict { reason: &'static str },
+    #[error("Managed resource conflict: Publication gate {gate} refused the publication: {reason}")]
+    GateRefused { gate: &'static str, reason: String },
+    #[error(
+        "Managed resource conflict: Resolved revision differs from the recorded merge at {path}"
+    )]
+    MergeMismatch { path: String },
+    #[error("Managed resource conflict: Expected publication generation {expected}, found {found}")]
+    GenerationMismatch { expected: i64, found: i64 },
     #[error("Managed resource integrity check failed")]
     Integrity,
     #[error("Managed resource storage failed: {0}")]
@@ -37,6 +55,28 @@ pub enum ManagedError {
     Json(#[from] serde_json::Error),
 }
 
+impl ManagedError {
+    pub const fn is_invalid(&self) -> bool {
+        matches!(
+            self,
+            Self::Invalid { .. }
+                | Self::NonUtf8EntryName { .. }
+                | Self::SkillHosts { .. }
+                | Self::InvalidBundle(_)
+        )
+    }
+
+    pub const fn is_conflict(&self) -> bool {
+        matches!(
+            self,
+            Self::Conflict { .. }
+                | Self::GateRefused { .. }
+                | Self::MergeMismatch { .. }
+                | Self::GenerationMismatch { .. }
+        )
+    }
+}
+
 impl From<sqlx::Error> for ManagedError {
     fn from(error: sqlx::Error) -> Self {
         Self::Repository(RepositoryError::from(error))
@@ -46,7 +86,7 @@ impl From<sqlx::Error> for ManagedError {
 impl From<RevisionBundleError> for ManagedError {
     fn from(error: RevisionBundleError) -> Self {
         match error {
-            RevisionBundleError::Invalid(message) => Self::Invalid(message),
+            invalid @ RevisionBundleError::Invalid(_) => Self::InvalidBundle(invalid),
             RevisionBundleError::Integrity => Self::Integrity,
             RevisionBundleError::MissingRevision(_) => Self::Unavailable,
             RevisionBundleError::Json(error) => Self::Json(error),
@@ -62,8 +102,8 @@ impl From<IdValidationError> for ManagedError {
 
 pub type Result<T> = std::result::Result<T, ManagedError>;
 
-pub(super) fn invalid(message: &str) -> ManagedError {
-    ManagedError::Invalid(message.to_owned())
+pub(super) const fn invalid(reason: &'static str) -> ManagedError {
+    ManagedError::Invalid { reason }
 }
 
 pub(crate) fn invalid_input(context: &'static str, source: impl Into<BoxedSource>) -> ManagedError {

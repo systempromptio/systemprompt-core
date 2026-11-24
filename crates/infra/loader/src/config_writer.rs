@@ -1,13 +1,15 @@
 //! Writes individual agent files and patches the top-level config to
 //! drop their `includes:` entries.
 //!
-//! A create or an update is checked: the new agent file is put in place
-//! atomically (a temporary sibling renamed over it), the caller's check runs
-//! against the tree as written, and when the check refuses the previous bytes
-//! are put back the same way (or the new file removed), so a refused change
-//! leaves the tree byte-identical and the error is
-//! [`ConfigWriteError::Rejected`]. The check needs the change on disk because
-//! the services loader resolves includes and discovery from the tree.
+//! A create or an update is checked before it is visible: the new bytes are
+//! staged in a sibling file with an unpredictable name created exclusively,
+//! the caller's check validates the tree with that staged file standing in
+//! for the live one ([`StagedAgentFile`], read by
+//! [`ConfigLoader::with_staged`](crate::ConfigLoader::with_staged)), and only
+//! an accepted change is renamed over the live file. A refused change removes
+//! the staged file and leaves the live file byte-identical
+//! ([`ConfigWriteError::Rejected`]); a staged file that cannot be removed is
+//! [`ConfigWriteError::RejectedStagedNotRemoved`], carrying both causes.
 //! Concurrent writers racing on the same agent file may overwrite each other;
 //! the loader does not lock the on-disk config.
 //!
@@ -16,6 +18,7 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::AgentName;
@@ -25,6 +28,31 @@ use crate::error::{ConfigWriteError, ConfigWriteResult};
 
 /// What a caller's check of a written change refuses with.
 pub type CheckError = Box<dyn std::error::Error + Send + Sync>;
+
+/// An agent file's new bytes, staged beside the live file and not yet visible.
+#[derive(Debug, Clone, Copy)]
+pub struct StagedAgentFile<'a> {
+    live: &'a Path,
+    staged: &'a Path,
+    contents: &'a [u8],
+}
+
+impl<'a> StagedAgentFile<'a> {
+    #[must_use]
+    pub const fn live_path(&self) -> &'a Path {
+        self.live
+    }
+
+    #[must_use]
+    pub const fn staged_path(&self) -> &'a Path {
+        self.staged
+    }
+
+    #[must_use]
+    pub const fn contents(&self) -> &'a [u8] {
+        self.contents
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigWriter;
@@ -38,7 +66,7 @@ impl ConfigWriter {
     pub fn create_agent(
         agent: &AgentConfig,
         services_dir: &Path,
-        check: impl FnOnce() -> Result<(), CheckError>,
+        check: impl FnOnce(&StagedAgentFile<'_>) -> Result<(), CheckError>,
     ) -> ConfigWriteResult<PathBuf> {
         let agents_dir = services_dir.join("agents");
         fs::create_dir_all(&agents_dir).map_err(|e| ConfigWriteError::Io {
@@ -61,7 +89,7 @@ impl ConfigWriter {
         name: &AgentName,
         agent: &AgentConfig,
         services_dir: &Path,
-        check: impl FnOnce() -> Result<(), CheckError>,
+        check: impl FnOnce(&StagedAgentFile<'_>) -> Result<(), CheckError>,
     ) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
             .ok_or_else(|| ConfigWriteError::AgentNotFound(name.clone()))?;
@@ -72,53 +100,48 @@ impl ConfigWriter {
     fn write_checked(
         path: &Path,
         agent: &AgentConfig,
-        check: impl FnOnce() -> Result<(), CheckError>,
+        check: impl FnOnce(&StagedAgentFile<'_>) -> Result<(), CheckError>,
     ) -> ConfigWriteResult<()> {
-        let previous = match fs::read(path) {
-            Ok(bytes) => Some(bytes),
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => None,
-            Err(source) => {
-                return Err(ConfigWriteError::Io {
-                    path: path.to_path_buf(),
-                    source,
-                });
-            },
-        };
-        Self::replace_atomically(path, Self::agent_file_content(agent)?.as_bytes())?;
-        let Err(refusal) = check() else {
-            return Ok(());
-        };
-        match previous {
-            Some(bytes) => Self::replace_atomically(path, &bytes)?,
-            None => fs::remove_file(path).map_err(|source| ConfigWriteError::Io {
-                path: path.to_path_buf(),
-                source,
-            })?,
-        }
-        Err(ConfigWriteError::Rejected(refusal))
-    }
-
-    fn replace_atomically(path: &Path, bytes: &[u8]) -> ConfigWriteResult<()> {
-        let staged = path.with_file_name(format!(
-            ".{}.staged",
-            path.file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_default()
-        ));
         let io = |source| ConfigWriteError::Io {
             path: path.to_path_buf(),
             source,
         };
-        fs::write(&staged, bytes).map_err(io)?;
-        fs::rename(&staged, path).map_err(|source| {
-            if let Err(error) = fs::remove_file(&staged) {
-                tracing::debug!(path = %staged.display(), %error, "staged agent file not removed");
-            }
-            ConfigWriteError::Io {
-                path: path.to_path_buf(),
-                source,
-            }
-        })
+        let contents = Self::agent_file_content(agent)?;
+        let dir = path.parent().unwrap_or_else(|| Path::new("."));
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let mut staged = tempfile::Builder::new()
+            .prefix(&format!(".{file_name}."))
+            .suffix(".staged")
+            .tempfile_in(dir)
+            .map_err(io)?;
+        staged.write_all(contents.as_bytes()).map_err(io)?;
+        staged.as_file().sync_all().map_err(io)?;
+
+        let verdict = check(&StagedAgentFile {
+            live: path,
+            staged: staged.path(),
+            contents: contents.as_bytes(),
+        });
+        match verdict {
+            Ok(()) => staged
+                .persist(path)
+                .map(drop)
+                .map_err(|failure| io(failure.error)),
+            Err(refusal) => {
+                let staged_path = staged.path().to_path_buf();
+                match staged.close() {
+                    Ok(()) => Err(ConfigWriteError::Rejected(refusal)),
+                    Err(cleanup) => Err(ConfigWriteError::RejectedStagedNotRemoved {
+                        staged: staged_path,
+                        refusal,
+                        cleanup,
+                    }),
+                }
+            },
+        }
     }
 
     pub fn delete_agent(name: &AgentName, services_dir: &Path) -> ConfigWriteResult<()> {

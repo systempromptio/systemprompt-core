@@ -94,7 +94,7 @@ async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
 
     let err = decode(&token).expect_err("foreign kid must be rejected");
     assert!(
-        matches!(err, AuthError::UnknownKid(ref k) if k == foreign.kid()),
+        matches!(err, AuthError::UnknownKid { ref kid } if kid == foreign.kid()),
         "expected UnknownKid({}), got {err:?}",
         foreign.kid(),
     );

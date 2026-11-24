@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 
 struct ScopeDefinition {
     name: &'static str,
@@ -57,10 +57,9 @@ impl OAuthRepository {
         }
 
         if !invalid_scopes.is_empty() {
-            return Err(OauthError::Validation(format!(
-                "Invalid scopes (roles): {}",
-                invalid_scopes.join(", ")
-            )));
+            return Err(OauthError::Validation(ValidationError::UnknownScopes {
+                scopes: invalid_scopes,
+            }));
         }
 
         Ok(valid_scopes)
@@ -81,10 +80,11 @@ impl OAuthRepository {
             .collect();
 
         if !refused.is_empty() {
-            return Err(OauthError::Validation(format!(
-                "Scopes not available to self-registered clients: {}",
-                refused.join(", ")
-            )));
+            return Err(OauthError::Validation(
+                ValidationError::ScopesNotSelfRegistrable {
+                    scopes: refused.into_iter().map(str::to_owned).collect(),
+                },
+            ));
         }
 
         Ok(valid)
@@ -101,10 +101,11 @@ impl OAuthRepository {
             .collect();
 
         if !outside.is_empty() {
-            return Err(OauthError::Validation(format!(
-                "Scopes not registered for this client: {}",
-                outside.join(", ")
-            )));
+            return Err(OauthError::Validation(
+                ValidationError::ScopesNotRegisteredForClient {
+                    scopes: outside.into_iter().map(str::to_owned).collect(),
+                },
+            ));
         }
 
         Ok(())

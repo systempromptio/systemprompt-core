@@ -14,17 +14,7 @@ struct Install {
 
 impl Install {
     fn new(gateway: &str) -> Option<Self> {
-        let source = if let Some(path) = std::env::var_os("SP_BRIDGE_BIN") {
-            let path = PathBuf::from(path);
-            assert!(path.is_file(), "SP_BRIDGE_BIN must name an existing binary");
-            path
-        } else {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .ancestors()
-                .nth(5)
-                .unwrap()
-                .join("bin/bridge/target/debug/systemprompt-bridge")
-        };
+        let source = crate::bridge_binary::candidate();
         if !source.is_file() {
             assert!(
                 std::env::var_os("CI").is_none(),

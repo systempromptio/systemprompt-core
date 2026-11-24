@@ -166,7 +166,7 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
     };
     assert!(matches!(
         error,
-        DatabaseSessionHandlerError::SessionNeedsReconnect(ref value) if value == id.as_ref()
+        DatabaseSessionHandlerError::SessionNeedsReconnect { ref session_id } if session_id == id.as_ref()
     ));
     assert!(
         repository

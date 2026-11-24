@@ -11,10 +11,9 @@ impl From<OauthError> for ApiError {
     fn from(err: OauthError) -> Self {
         if matches!(
             err,
-            OauthError::CodeNotFound(_)
-                | OauthError::TokenNotFound(_)
-                | OauthError::ClientNotFound(_)
-                | OauthError::UserNotFound(_)
+            OauthError::ClientNotFound { .. }
+                | OauthError::DcrClientNotFound { .. }
+                | OauthError::UserNotFound { .. }
         ) {
             return Self::not_found(err.to_string());
         }

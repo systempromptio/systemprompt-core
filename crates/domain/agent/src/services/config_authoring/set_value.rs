@@ -17,7 +17,9 @@ impl AgentConfigAuthoringService {
     ) -> Result<(), ConfigAuthoringError> {
         for set_value in &request.set_values {
             let Some((key, value)) = set_value.split_once('=') else {
-                return Err(ConfigAuthoringError::InvalidSetFormat(set_value.clone()));
+                return Err(ConfigAuthoringError::InvalidSetFormat {
+                    value: set_value.clone(),
+                });
             };
             apply_set_value(agent, key, value)?;
             changes.push(format!("{key}: {value}"));
@@ -54,7 +56,9 @@ fn apply_set_value(
             agent.dev_only = parse_bool(key, value)?;
         },
         _ => {
-            return Err(ConfigAuthoringError::UnknownSetKey(key.to_owned()));
+            return Err(ConfigAuthoringError::UnknownSetKey {
+                key: key.to_owned(),
+            });
         },
     }
     Ok(())

@@ -277,8 +277,6 @@ async fn a_fresh_database_stamps_real_migrations_but_not_tombstones() {
     f.finish().await;
 }
 
-#[path = "migration_checksum_transition.rs"]
 mod checksum_transition;
 
-#[path = "migration_schema_ahead.rs"]
 mod schema_ahead;

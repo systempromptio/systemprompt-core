@@ -73,7 +73,10 @@ fn resolve_profile_from_path_directory_with_profile_yaml() {
 #[test]
 fn resolve_profile_from_path_missing_returns_not_found() {
     let err = resolve_profile_from_path("/does/not/exist/profile.yaml").unwrap_err();
-    assert!(matches!(err, ProfileResolutionError::ProfileNotFound(_)));
+    assert!(matches!(
+        err,
+        ProfileResolutionError::ProfileNotFound { .. }
+    ));
 }
 
 #[test]
@@ -118,7 +121,9 @@ fn discovered_profile_is_debug() {
     // error-type variants instead.
     let err = ProfileResolutionError::NoProfilesFound;
     assert!(format!("{:?}", err).contains("NoProfiles"));
-    let err = ProfileResolutionError::ProfileNotFound("x".into());
+    let err = ProfileResolutionError::ProfileNotFound {
+        name: "x".to_owned(),
+    };
     assert!(format!("{:?}", err).contains("ProfileNotFound"));
     let err = ProfileResolutionError::MultipleProfilesFound {
         profiles: vec!["a".into()],

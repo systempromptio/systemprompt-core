@@ -169,11 +169,10 @@ pub(super) fn admit_published(
                     return Err(MarketplaceError::Managed(ManagedError::Integrity));
                 },
                 ManagedResolution::NotManaged => {
-                    return Err(MarketplaceError::Catalog(format!(
-                        "managed {} {} lost its resource binding",
-                        kind.as_str(),
-                        row.resource_key
-                    )));
+                    return Err(MarketplaceError::ManagedBindingLost {
+                        kind,
+                        resource_key: row.resource_key,
+                    });
                 },
             }
         };

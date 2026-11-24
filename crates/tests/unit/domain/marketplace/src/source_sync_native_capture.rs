@@ -190,7 +190,7 @@ fn unknown_reference_fails_and_leaves_no_checkout() {
         .capture(&harness.request("does-not-exist", "skill-a"))
         .expect_err("unknown ref rejected");
 
-    assert!(matches!(error, ManagedError::Conflict(_)), "{error:?}");
+    assert!(error.is_conflict(), "{error:?}");
     assert!(harness.scratch_is_empty());
 }
 
@@ -209,7 +209,7 @@ fn untrusted_certificate_is_refused_without_a_configured_authority() {
         .capture(&harness.request("main", "skill-a"))
         .expect_err("self-signed certificate rejected");
 
-    assert!(matches!(error, ManagedError::Conflict(_)), "{error:?}");
+    assert!(error.is_conflict(), "{error:?}");
     assert!(harness.scratch_is_empty());
 }
 

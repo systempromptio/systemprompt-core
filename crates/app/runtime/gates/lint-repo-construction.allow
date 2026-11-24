@@ -1,1 +1,0 @@
-src/host_kernel/boot.rs  # HostContext composition root: the MCP child's context, built once at its boot

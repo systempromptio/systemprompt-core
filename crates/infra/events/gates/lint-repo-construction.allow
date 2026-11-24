@@ -1,4 +1,4 @@
-# infra sits below app/runtime and cannot name AppContext; each of these is
-# the composition root for its own repository.
+# owner: infra/events; reason: infra sits below app/runtime and cannot name AppContext; the service is the composition root for its own repository
 src/services/bridge.rs
+# owner: infra/events; reason: infra sits below app/runtime and cannot name AppContext; the service is the composition root for its own repository
 src/services/routing.rs

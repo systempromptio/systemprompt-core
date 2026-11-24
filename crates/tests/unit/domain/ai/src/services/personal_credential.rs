@@ -95,7 +95,7 @@ fn a_disabled_provider_contributes_no_endpoint() {
     assert!(endpoint_names(&catalog, "go").is_empty());
     assert!(matches!(
         personal_credential(&catalog, "go"),
-        Err(PersonalKeyError::NotPersonalCredential(_))
+        Err(PersonalKeyError::NotPersonalCredential { .. })
     ));
 }
 
@@ -109,7 +109,7 @@ fn only_personal_credentials_take_a_key() {
     assert_eq!(ids, vec!["go"]);
     assert!(matches!(
         personal_credential(&catalog, "platform"),
-        Err(PersonalKeyError::NotPersonalCredential(_))
+        Err(PersonalKeyError::NotPersonalCredential { .. })
     ));
 }
 
@@ -154,7 +154,7 @@ async fn a_disabled_providers_endpoint_is_not_probed() {
     .await
     .expect_err("a credential with no enabled endpoint takes no key");
     assert!(
-        matches!(err, PersonalKeyError::NotPersonalCredential(_)),
+        matches!(err, PersonalKeyError::NotPersonalCredential { .. }),
         "{err:?}"
     );
     server.verify().await;
@@ -179,7 +179,7 @@ async fn a_key_any_endpoint_refuses_is_rejected() {
     .await
     .unwrap_err();
     assert!(
-        matches!(err, PersonalKeyError::Rejected(ref label) if label == "Go"),
+        matches!(err, PersonalKeyError::Rejected { credential: ref label } if label == "Go"),
         "{err:?}"
     );
 }

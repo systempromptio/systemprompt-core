@@ -12,8 +12,11 @@ domain_error! {
         #[error("session owner: {0}")]
         SessionOwner(#[from] systemprompt_traits::AnalyticsProviderError),
 
-        #[error("Invalid argument: {0}")]
-        InvalidArgument(String),
+        #[error("Invalid argument: {reason}")]
+        InvalidArgument {
+            field: &'static str,
+            reason: String,
+        },
 
         #[error("Session expired")]
         SessionExpired,
@@ -27,8 +30,11 @@ impl From<sqlx::Error> for AnalyticsError {
 }
 
 impl AnalyticsError {
-    pub fn invalid_argument<T: Into<String>>(message: T) -> Self {
-        Self::InvalidArgument(message.into())
+    pub fn invalid_argument(field: &'static str, reason: impl Into<String>) -> Self {
+        Self::InvalidArgument {
+            field,
+            reason: reason.into(),
+        }
     }
 }
 

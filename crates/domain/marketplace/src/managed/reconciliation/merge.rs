@@ -30,9 +30,7 @@ pub(super) fn verify_merge(
     for path in paths {
         let expected = expected_file(sides, resolved, conflicts, &path)?;
         if !same_file(resolved.0.get(&path), expected) {
-            return Err(ManagedError::Conflict(format!(
-                "Resolved revision differs from the recorded merge at {path}"
-            )));
+            return Err(ManagedError::MergeMismatch { path });
         }
     }
     Ok(())
@@ -59,26 +57,28 @@ fn expected_file<'a>(
     let conflict = conflicts
         .iter()
         .find(|conflict| conflict.path == path)
-        .ok_or_else(|| ManagedError::Conflict("Three-way conflict record is missing".to_owned()))?;
+        .ok_or_else(|| ManagedError::Conflict {
+            reason: "Three-way conflict record is missing",
+        })?;
     match conflict.resolution.as_deref() {
         Some("candidate") => Ok(candidate_file),
         Some("incoming") => Ok(incoming_file),
         Some("delete") => Ok(None),
         Some("manual") => {
-            let actual = resolved.0.get(path).ok_or_else(|| {
-                ManagedError::Conflict("Manual resolution content is missing".to_owned())
+            let actual = resolved.0.get(path).ok_or_else(|| ManagedError::Conflict {
+                reason: "Manual resolution content is missing",
             })?;
             let digest = super::super::AssetDigest::of(&actual.bytes);
             if conflict.resolved_digest.as_deref() != Some(digest.as_str()) {
-                return Err(ManagedError::Conflict(
-                    "Manual resolution digest does not match supplied content".to_owned(),
-                ));
+                return Err(ManagedError::Conflict {
+                    reason: "Manual resolution digest does not match supplied content",
+                });
             }
             Ok(Some(actual))
         },
-        _ => Err(ManagedError::Conflict(
-            "Invalid reconciliation resolution".to_owned(),
-        )),
+        _ => Err(ManagedError::Conflict {
+            reason: "Invalid reconciliation resolution",
+        }),
     }
 }
 

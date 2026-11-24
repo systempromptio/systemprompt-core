@@ -3,6 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
+
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::domain_error;
 use systemprompt_traits::BoxedSource;
 
@@ -10,8 +13,8 @@ domain_error! {
     pub enum McpDomainError {
         common: [repository, io, json, validation],
 
-        #[error("MCP server not found: {0}")]
-        ServerNotFound(String),
+        #[error("MCP server not found: {server}")]
+        ServerNotFound { server: String },
 
         #[error("Connection failed to {server}: {source}")]
         ConnectionFailed {
@@ -20,8 +23,14 @@ domain_error! {
             source: BoxedSource,
         },
 
-        #[error("Tool execution failed: {0}")]
-        ToolExecutionFailed(String),
+        #[error("Tool execution failed: task failed: {error}")]
+        TaskFailed { error: serde_json::Value },
+
+        #[error("Tool execution failed: task was cancelled by the server")]
+        TaskCancelled,
+
+        #[error("Tool execution failed: unexpected tools/call response variant: {variant}")]
+        UnexpectedToolResponse { variant: String },
 
         #[error("Tool execution failed: {context}: {source}")]
         ToolCall {
@@ -31,10 +40,10 @@ domain_error! {
         },
 
         #[error("Schema validation failed: {0}")]
-        SchemaValidation(String),
+        SchemaValidation(#[from] SchemaViolation),
 
         #[error("Registry validation failed: {0}")]
-        RegistryValidation(String),
+        RegistryValidation(#[from] RegistryViolation),
 
         #[error("Port unavailable: {port} - {message}")]
         PortUnavailable { port: u16, message: String },
@@ -61,7 +70,7 @@ domain_error! {
         PortNotReleased { port: u16, attempts: u32 },
 
         #[error("Configuration error: {0}")]
-        Configuration(String),
+        Configuration(#[from] ConfigurationIssue),
 
         #[error("Configuration error: {context}: {source}")]
         InvalidConfiguration {
@@ -71,7 +80,7 @@ domain_error! {
         },
 
         #[error("Authentication required for {0}")]
-        AuthRequired(String),
+        AuthRequired(AuthRequirement),
 
         #[error(
             "token issuer does not match this deployment; the token predates a change to \
@@ -88,9 +97,6 @@ domain_error! {
 
         #[error("no provider account connected for {server}")]
         ExternalAccountNotConnected { server: String },
-
-        #[error("Manifest error: {0}")]
-        Manifest(String),
 
         #[error("Transport error: {context}: {source}")]
         Transport {
@@ -172,6 +178,75 @@ domain_error! {
         #[error("Config validation: {0}")]
         ConfigValidation(#[from] systemprompt_models::errors::ServicesValidationError),
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SchemaViolation {
+    #[error("Schema file not found: {file} (full path: {})", path.display())]
+    FileNotFound { file: String, path: PathBuf },
+    #[error("Schema file is empty: {file}")]
+    FileEmpty { file: String },
+    #[error("Schema must start with CREATE TABLE statement")]
+    NotLeadingCreateTable,
+    #[error("Schema must contain at least one CREATE TABLE statement")]
+    NoCreateTableStatement,
+    #[error("No CREATE TABLE statements found in schema")]
+    NoTables,
+    #[error(
+        "Table name '{table}' must start with module prefix '{prefix}' (from module '{module}')"
+    )]
+    TablePrefix {
+        table: String,
+        prefix: String,
+        module: String,
+    },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RegistryViolation {
+    #[error("Port conflicts detected: {}", conflicts.join(", "))]
+    PortConflicts { conflicts: Vec<String> },
+    #[error("Invalid server configurations:\n{}", issues.join("\n"))]
+    ServerConfigs { issues: Vec<String> },
+    #[error("OAuth configuration issues:\n{}", issues.join("\n"))]
+    OAuthConfigs { issues: Vec<String> },
+    #[error("Server type validation issues:\n{}", issues.join("\n"))]
+    ServerTypes { issues: Vec<String> },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigurationIssue {
+    #[error(
+        "{server}: server declares no {field}; external MCP servers are proxied to their \
+         endpoint and are never spawned locally"
+    )]
+    NotSpawnable { server: String, field: &'static str },
+    #[error("profile path is not valid UTF-8 - cannot spawn MCP server")]
+    ProfilePathNotUtf8,
+    #[error("MCP server '{server}' has no external_auth accessor to mint a per-user bearer")]
+    NoExternalAuthAccessor { server: String },
+    #[error(
+        "secret `{secret}` is not configured; external MCP server '{server}' cannot resolve its \
+         bearer"
+    )]
+    BrokerSecretMissing {
+        secret: &'static str,
+        server: String,
+    },
+    #[error("{server}: internal MCP server declares neither a binary nor toolsets")]
+    NoBinaryOrToolsets { server: String },
+    #[error("Agent {agent} not found in services.yaml")]
+    AgentNotFound { agent: AgentName },
+    #[error("No deployment configuration found for server: {server}")]
+    MissingDeployment { server: String },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AuthRequirement {
+    #[error("external MCP server '{server}' requires an authenticated user to resolve its bearer")]
+    ExternalBearer { server: String },
+    #[error("User JWT required for authenticated MCP calls")]
+    UserJwt,
 }
 
 #[derive(Debug, thiserror::Error)]

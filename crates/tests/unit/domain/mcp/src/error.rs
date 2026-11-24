@@ -1,10 +1,15 @@
 //! Unit tests for McpError types
 
-use systemprompt_mcp::McpDomainError as McpError;
+use systemprompt_mcp::{
+    AuthRequirement, ConfigurationIssue, McpDomainError as McpError, RegistryViolation,
+    SchemaViolation,
+};
 
 #[test]
 fn test_mcp_error_server_not_found_display() {
-    let error = McpError::ServerNotFound("test-server".to_string());
+    let error = McpError::ServerNotFound {
+        server: "test-server".to_string(),
+    };
     let display = error.to_string();
     assert!(display.contains("test-server"));
     assert!(display.contains("not found"));
@@ -23,23 +28,40 @@ fn test_mcp_error_connection_failed_display() {
 
 #[test]
 fn test_mcp_error_tool_execution_failed_display() {
-    let error = McpError::ToolExecutionFailed("tool invocation timeout".to_string());
+    let error = McpError::TaskFailed {
+        error: serde_json::json!({ "message": "tool invocation timeout" }),
+    };
     let display = error.to_string();
+    assert!(display.contains("Tool execution failed: task failed: "));
     assert!(display.contains("tool invocation timeout"));
 }
 
 #[test]
 fn test_mcp_error_schema_validation_display() {
-    let error = McpError::SchemaValidation("invalid schema format".to_string());
+    let error = McpError::from(SchemaViolation::FileEmpty {
+        file: "schema/main.sql".to_string(),
+    });
     let display = error.to_string();
-    assert!(display.contains("invalid schema format"));
+    assert_eq!(
+        display,
+        "Schema validation failed: Schema file is empty: schema/main.sql"
+    );
 }
 
 #[test]
 fn test_mcp_error_registry_validation_display() {
-    let error = McpError::RegistryValidation("missing required field".to_string());
+    let error = McpError::from(RegistryViolation::ServerConfigs {
+        issues: vec![
+            "a: missing display_name".to_string(),
+            "b: missing description".to_string(),
+        ],
+    });
     let display = error.to_string();
-    assert!(display.contains("missing required field"));
+    assert_eq!(
+        display,
+        "Registry validation failed: Invalid server configurations:\na: missing display_name\nb: \
+         missing description"
+    );
 }
 
 #[test]
@@ -55,14 +77,21 @@ fn test_mcp_error_port_unavailable_display() {
 
 #[test]
 fn test_mcp_error_configuration_display() {
-    let error = McpError::Configuration("invalid config value".to_string());
+    let error = McpError::from(ConfigurationIssue::MissingDeployment {
+        server: "github".to_string(),
+    });
     let display = error.to_string();
-    assert!(display.contains("invalid config value"));
+    assert_eq!(
+        display,
+        "Configuration error: No deployment configuration found for server: github"
+    );
 }
 
 #[test]
 fn test_mcp_error_auth_required_display() {
-    let error = McpError::AuthRequired("github-api".to_string());
+    let error = McpError::AuthRequired(AuthRequirement::ExternalBearer {
+        server: "github-api".to_string(),
+    });
     let display = error.to_string();
     assert!(display.contains("github-api"));
     assert!(display.contains("Authentication") || display.contains("required"));
@@ -81,7 +110,9 @@ fn test_mcp_error_service_row_missing_display() {
 
 #[test]
 fn test_mcp_error_server_not_found_debug() {
-    let error = McpError::ServerNotFound("debug-server".to_string());
+    let error = McpError::ServerNotFound {
+        server: "debug-server".to_string(),
+    };
     let debug = format!("{:?}", error);
     assert!(debug.contains("ServerNotFound"));
     assert!(debug.contains("debug-server"));
@@ -104,7 +135,9 @@ fn test_mcp_result_ok() {
 
 #[test]
 fn test_mcp_result_err() {
-    let result: Result<i32, McpError> = Err(McpError::ServerNotFound("test".to_string()));
+    let result: Result<i32, McpError> = Err(McpError::ServerNotFound {
+        server: "test".to_string(),
+    });
     result.unwrap_err();
 }
 
@@ -124,7 +157,9 @@ fn test_mcp_result_and_then() {
 
 #[test]
 fn test_mcp_error_empty_server_name() {
-    let error = McpError::ServerNotFound(String::new());
+    let error = McpError::ServerNotFound {
+        server: String::new(),
+    };
     let display = error.to_string();
     assert!(display.contains("not found"));
 }
@@ -161,7 +196,9 @@ fn test_mcp_error_port_max() {
 
 #[test]
 fn test_mcp_error_unicode_message() {
-    let error = McpError::Configuration("配置错误: invalid 设置".to_string());
+    let error = McpError::from(ConfigurationIssue::MissingDeployment {
+        server: "配置错误: invalid 设置".to_string(),
+    });
     let display = error.to_string();
     assert!(display.contains("配置错误"));
     assert!(display.contains("设置"));
@@ -170,7 +207,9 @@ fn test_mcp_error_unicode_message() {
 #[test]
 fn test_mcp_error_long_message() {
     let long_message = "x".repeat(10000);
-    let error = McpError::Configuration(long_message.clone());
+    let error = McpError::from(ConfigurationIssue::NoBinaryOrToolsets {
+        server: long_message.clone(),
+    });
     let display = error.to_string();
     assert!(display.contains(&long_message));
 }

@@ -90,7 +90,7 @@ fn duplicate_slack_app_across_root_and_include_errors() {
         .expect_err("duplicate slack app must error");
 
     assert!(
-        matches!(err, ConfigLoadError::DuplicateSlackApp(ref name) if name == "ws_main"),
+        matches!(err, ConfigLoadError::DuplicateSlackApp { ref name } if name == "ws_main"),
         "expected DuplicateSlackApp(ws_main), got: {err}"
     );
 }
@@ -137,7 +137,7 @@ fn duplicate_teams_app_across_root_and_include_errors() {
         .expect_err("duplicate teams app must error");
 
     assert!(
-        matches!(err, ConfigLoadError::DuplicateTeamsApp(ref name) if name == "tenant_main"),
+        matches!(err, ConfigLoadError::DuplicateTeamsApp { ref name } if name == "tenant_main"),
         "expected DuplicateTeamsApp(tenant_main), got: {err}"
     );
 }

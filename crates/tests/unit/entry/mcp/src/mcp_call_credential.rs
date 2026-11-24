@@ -91,9 +91,7 @@ async fn the_api_proxy_receives_the_callers_token_and_ids() {
 
 #[tokio::test]
 async fn no_api_answering_is_api_unreachable() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let caller = caller();
     let target = McpTarget::through_proxy(
         &format!("http://127.0.0.1:{port}"),

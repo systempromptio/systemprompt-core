@@ -54,7 +54,7 @@ fn a_path_with_no_profile_reports_the_input_it_was_given() {
 
     let err = resolve_profile_from_path(missing.to_str().unwrap()).unwrap_err();
     match err {
-        ProfileResolutionError::ProfileNotFound(input) => {
+        ProfileResolutionError::ProfileNotFound { name: input } => {
             assert_eq!(input, missing.to_str().unwrap());
         },
         other => panic!("expected not-found, got {other:?}"),
@@ -107,7 +107,7 @@ fn resolving_with_data_rejects_an_unparseable_profile() {
     let err = resolve_profile_with_data(file.to_str().unwrap()).unwrap_err();
     assert!(matches!(
         err,
-        ProfileResolutionError::Load { .. } | ProfileResolutionError::ProfileNotFound(_)
+        ProfileResolutionError::Load { .. } | ProfileResolutionError::ProfileNotFound { .. }
     ));
 }
 

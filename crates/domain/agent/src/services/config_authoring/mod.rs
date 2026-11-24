@@ -24,7 +24,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::{CheckError, ConfigWriteError, ConfigWriter};
+use systemprompt_loader::{CheckError, ConfigWriteError, ConfigWriter, StagedAgentFile};
 use systemprompt_manifest::services::catalog::{CatalogContext, DefaultCatalog};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -46,8 +46,8 @@ pub enum ConfigAuthoringError {
     #[error("Agent name must be lowercase alphanumeric with underscores only")]
     NameCharset,
 
-    #[error("Agent name '{0}' is reserved")]
-    NameReserved(String),
+    #[error("Agent name '{name}' is reserved")]
+    NameReserved { name: String },
 
     #[error("Port cannot be 0")]
     PortZero,
@@ -65,17 +65,17 @@ pub enum ConfigAuthoringError {
     #[error("MCP server '{name}' not found in configuration. Available servers: {available}")]
     UnknownMcpServer { name: String, available: String },
 
-    #[error("Invalid --set format: '{0}'. Expected key=value")]
-    InvalidSetFormat(String),
+    #[error("Invalid --set format: '{value}'. Expected key=value")]
+    InvalidSetFormat { value: String },
 
     #[error("Invalid boolean value for {key}: '{value}'")]
     InvalidBoolean { key: String, value: String },
 
     #[error(
-        "Unknown configuration key: '{0}'. Supported keys: card.displayName, card.description, \
+        "Unknown configuration key: '{key}'. Supported keys: card.displayName, card.description, \
          card.version, endpoint, is_primary, default, dev_only"
     )]
-    UnknownSetKey(String),
+    UnknownSetKey { key: String },
 
     #[error(transparent)]
     Write(#[from] ConfigWriteError),
@@ -83,11 +83,11 @@ pub enum ConfigAuthoringError {
     #[error("No model given and the catalog declares no gateway.default_model")]
     NoDefaultModel,
 
-    #[error("No model given and core's default catalog deploys no model on provider '{0}'")]
-    NoModelForProvider(String),
+    #[error("No model given and core's default catalog deploys no model on provider '{provider}'")]
+    NoModelForProvider { provider: String },
 
-    #[error("Model '{0}' has no deployment on an enabled provider")]
-    ModelNotServable(String),
+    #[error("Model '{model}' has no deployment on an enabled provider")]
+    ModelNotServable { model: String },
 
     #[error("Failed to load services config for defaults: {0}")]
     ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
@@ -122,7 +122,9 @@ impl AgentConfigAuthoringService {
             return Err(ConfigAuthoringError::NameCharset);
         }
         if systemprompt_manifest::services::RESERVED_AGENT_NAMES.contains(&name) {
-            return Err(ConfigAuthoringError::NameReserved(name.to_owned()));
+            return Err(ConfigAuthoringError::NameReserved {
+                name: name.to_owned(),
+            });
         }
         Ok(())
     }
@@ -164,7 +166,7 @@ impl AgentConfigAuthoringService {
     pub fn create(
         &self,
         request: AgentCreateRequest,
-        check: impl FnOnce() -> Result<(), CheckError>,
+        check: impl FnOnce(&StagedAgentFile<'_>) -> Result<(), CheckError>,
     ) -> Result<PathBuf, ConfigAuthoringError> {
         Self::validate_agent_name(&request.name)?;
         Self::validate_port(request.port)?;
@@ -276,7 +278,9 @@ fn agent_defaults(
                 .enabled_hops(&model)
                 .next()
                 .map(|hop| hop.provider.as_str().to_owned())
-                .ok_or_else(|| ConfigAuthoringError::ModelNotServable(model.clone()))?;
+                .ok_or_else(|| ConfigAuthoringError::ModelNotServable {
+                    model: model.clone(),
+                })?;
             Ok((provider, model))
         },
     }
@@ -293,5 +297,7 @@ fn default_model_for(provider: &str) -> Result<String, ConfigAuthoringError> {
                 .is_some_and(|t| t.endpoint().provider.as_str() == provider)
         })
         .map(|(model, _)| model.as_str().to_owned())
-        .ok_or_else(|| ConfigAuthoringError::NoModelForProvider(provider.to_owned()))
+        .ok_or_else(|| ConfigAuthoringError::NoModelForProvider {
+            provider: provider.to_owned(),
+        })
 }

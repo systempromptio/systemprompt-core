@@ -66,6 +66,25 @@ pub const SERVER_CONNECTION_BUDGET: u32 = 85;
 // server mid-run.
 pub const FIXTURE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
+// A fixture pool that cannot get a connection within this long is starved by
+// the run, not by its own test: the budget above is exhausted. Failing fast
+// with a message that names the budget points at the nextest group to fix
+// rather than at the test that happened to wait longest.
+pub const FIXTURE_POOL_ACQUIRE_TIMEOUT: Duration = Duration::from_secs(10);
+
+#[must_use]
+pub fn budget_exhausted() -> String {
+    format!(
+        "a fixture pool holds at most {FIXTURE_POOL_MAX_CONNECTIONS} connections and a test \
+         process {FIXTURE_TEST_CONNECTIONS}; the run's budget is {SERVER_CONNECTION_BUDGET} \
+         sessions, bounded by the `db-connection-budget` test group in \
+         crates/tests/.config/nextest.toml — a test that waited \
+         {}s for a connection ran in a binary outside that group or beside an \
+         unbounded one",
+        FIXTURE_POOL_ACQUIRE_TIMEOUT.as_secs()
+    )
+}
+
 // A pool handle that never opens a socket: the connection is lazy and no
 // query ever runs through it. Fake `DatabaseProvider`s that script every call
 // use it to satisfy `get_postgres_pool` while staying DB-free. With no idle
@@ -104,10 +123,16 @@ pub(crate) async fn connect(url: &str) -> Result<DbPool> {
     let cfg = PoolConfig {
         max_connections: FIXTURE_POOL_MAX_CONNECTIONS,
         idle_timeout: FIXTURE_POOL_IDLE_TIMEOUT,
+        acquire_timeout: FIXTURE_POOL_ACQUIRE_TIMEOUT,
         ..PoolConfig::default()
     };
     Database::connect(url, None, &cfg)
         .await
         .map(Arc::new)
-        .context("failed to connect to the integration-test Postgres instance")
+        .with_context(|| {
+            format!(
+                "failed to connect to the integration-test Postgres instance ({})",
+                budget_exhausted()
+            )
+        })
 }

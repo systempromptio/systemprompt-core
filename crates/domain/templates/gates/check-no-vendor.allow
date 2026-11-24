@@ -1,2 +1,2 @@
-# Default homepage template.
+# owner: domain/templates; reason: default homepage template
 defaults/templates/homepage.html

@@ -45,12 +45,12 @@ pub async fn spawn_detached(
 
     let secrets_env = agent_child_secrets(environment, agent_name)?;
     let profile_path = environment.secrets.profile_path();
-    let profile_path = profile_path.to_str().ok_or_else(|| {
-        OrchestrationError::ProcessSpawnFailed(format!(
-            "profile path {} is not valid UTF-8",
-            profile_path.display()
-        ))
-    })?;
+    let profile_path =
+        profile_path
+            .to_str()
+            .ok_or_else(|| OrchestrationError::ProfilePathNotUtf8 {
+                path: profile_path.to_path_buf(),
+            })?;
 
     let log_file = command::prepare_agent_log_file(agent_name, &paths.system().logs())?;
 
@@ -74,10 +74,10 @@ pub async fn spawn_detached(
         .map_err(|e| OrchestrationError::spawn(format!("Failed to spawn {agent_name}"), e))?;
 
     if !systemprompt_loader::subprocess::is_running(pid).await {
-        return Err(OrchestrationError::ProcessSpawnFailed(format!(
-            "Agent {} (PID {}) died immediately after spawn",
-            agent_name, pid
-        )));
+        return Err(OrchestrationError::DiedAfterSpawn {
+            agent: agent_name.clone(),
+            pid,
+        });
     }
 
     tracing::debug!(pid = %pid, agent_name = %agent_name, "Detached process spawned");
@@ -90,9 +90,9 @@ pub fn agent_child_secrets(
 ) -> OrchestrationResult<Vec<(String, String)>> {
     let services = environment.services.config();
     let agent = services.agents.get(agent_name.as_str()).ok_or_else(|| {
-        OrchestrationError::ProcessSpawnFailed(format!(
-            "agent {agent_name} is not declared in the services configuration"
-        ))
+        OrchestrationError::AgentNotDeclared {
+            agent: agent_name.clone(),
+        }
     })?;
     let derived = grants::model_credential_secrets(agent, &environment.services.catalog);
     let mut env = environment

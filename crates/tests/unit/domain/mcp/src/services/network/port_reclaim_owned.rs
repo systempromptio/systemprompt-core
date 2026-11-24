@@ -64,13 +64,6 @@ fn kill(pid: u32) -> bool {
         .is_ok_and(|status| status.success())
 }
 
-fn free_port() -> u16 {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-    drop(listener);
-    port
-}
-
 // Why: this is what a restart depends on. An MCP server that died without
 // releasing its port, or one left behind by a previous run, must be reclaimed
 // or the service can never come back up on its configured port. The refusal
@@ -79,7 +72,7 @@ fn free_port() -> u16 {
 #[tokio::test]
 async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies() {
     let service = "port_reclaim_fixture";
-    let port = free_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let nonce = SpawnNonce::generate();
     let Some(pid) = spawn_owned_listener(port, service, &nonce).await else {
         panic!("could not stand up a marked listener on port {port}");
@@ -123,7 +116,10 @@ async fn a_port_nobody_holds_is_a_no_op_rather_than_an_error() {
         stamp: &stamp,
         grace: std::time::Duration::from_secs(5),
     };
-    cleanup_port_processes(free_port(), &holder)
-        .await
-        .expect("an unheld port needs no reclaiming and must not error");
+    cleanup_port_processes(
+        systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(),
+        &holder,
+    )
+    .await
+    .expect("an unheld port needs no reclaiming and must not error");
 }

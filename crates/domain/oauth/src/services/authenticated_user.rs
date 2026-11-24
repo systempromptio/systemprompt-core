@@ -19,7 +19,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{AccountKind, AuthenticatedUser, Permission};
 use systemprompt_traits::UserProvider;
 
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 
 pub async fn load_authenticated_user(
     users: &dyn UserProvider,
@@ -32,7 +32,9 @@ pub async fn load_authenticated_user(
             context: "loading the user a token is minted for",
             source,
         })?
-        .ok_or_else(|| OauthError::UserNotFound(user_id.to_string()))?;
+        .ok_or_else(|| OauthError::UserNotFound {
+            user_id: user_id.clone(),
+        })?;
 
     let permissions: Vec<Permission> = user
         .roles
@@ -52,9 +54,9 @@ pub async fn load_authenticated_user(
         .collect();
 
     if permissions.is_empty() {
-        return Err(OauthError::Validation(
-            "User has no valid permissions after parsing".to_owned(),
-        ));
+        return Err(OauthError::Validation(ValidationError::Rejected {
+            reason: "User has no valid permissions after parsing",
+        }));
     }
 
     let account_kind = if user.is_service_account {

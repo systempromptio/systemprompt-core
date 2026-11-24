@@ -26,10 +26,15 @@ use crate::documents_service_fixture::{
     GroupSource, Harness, allow, create, harness, person, trace, unique,
 };
 
-const SHARED_SOURCE: &str =
-    include_str!("../../../../domain/files/src/documents/repository/listing_scopes_shared.rs");
-const ROOT_SOURCE: &str =
-    include_str!("../../../../domain/files/src/documents/repository/listing_scopes_root.rs");
+fn compiled_query_record(statement: &str) -> std::path::PathBuf {
+    use sha2::Digest;
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../domain/files/.sqlx")
+        .join(format!(
+            "query-{}.json",
+            hex::encode(sha2::Sha256::digest(statement.as_bytes()))
+        ))
+}
 
 async fn named(
     h: &Harness,
@@ -261,11 +266,16 @@ fn seq_scans_on(plan: &serde_json::Value, relation: &str, found: &mut Vec<String
     }
 }
 
-fn assert_is_the_production_statement(source: &str, statement: &str) {
-    let literal = format!("r#\"{statement}\"#");
+fn assert_is_the_production_statement(statement: &str) {
+    let record = compiled_query_record(statement);
+    let stored: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&record).unwrap_or_else(|e| {
+            panic!("no query! macro compiled this statement ({record:?}): {e}")
+        }))
+        .expect("the offline query record parses");
     assert_eq!(
-        source.matches(&literal).count(),
-        2,
+        stored["query"].as_str(),
+        Some(statement),
         "the exposed statement is the one the query! macro runs"
     );
 }
@@ -315,7 +325,7 @@ async fn seeded_reader(h: &Harness, prefix: &str) -> AuthenticatedUser {
 
 #[tokio::test]
 async fn the_shared_scope_reaches_documents_through_indexes() {
-    assert_is_the_production_statement(SHARED_SOURCE, SHARED_LISTING_SQL);
+    assert_is_the_production_statement(SHARED_LISTING_SQL);
     let h = harness(allow(), GroupSource::new(&[])).await;
     let reader = seeded_reader(&h, "plan-shared").await;
     let found = documents_seq_scans(SHARED_LISTING_SQL, &reader.id).await;
@@ -324,7 +334,7 @@ async fn the_shared_scope_reaches_documents_through_indexes() {
 
 #[tokio::test]
 async fn the_root_scope_reaches_documents_through_indexes() {
-    assert_is_the_production_statement(ROOT_SOURCE, ROOT_LISTING_SQL);
+    assert_is_the_production_statement(ROOT_LISTING_SQL);
     let h = harness(allow(), GroupSource::new(&[])).await;
     let reader = seeded_reader(&h, "plan-root").await;
     let found = documents_seq_scans(ROOT_LISTING_SQL, &reader.id).await;
@@ -334,8 +344,7 @@ async fn the_root_scope_reaches_documents_through_indexes() {
 #[tokio::test]
 async fn the_statement_check_rejects_a_statement_the_macro_does_not_run() {
     let altered = SHARED_LISTING_SQL.replacen("LIMIT $7", "LIMIT $7 + 1", 1);
-    let literal = format!("r#\"{altered}\"#");
-    assert_eq!(SHARED_SOURCE.matches(&literal).count(), 0);
+    assert!(!compiled_query_record(&altered).exists());
 }
 
 #[tokio::test]

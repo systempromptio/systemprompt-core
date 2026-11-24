@@ -45,12 +45,12 @@ pub enum ClientCredentialsError {
     OwnerNotFound,
     #[error("Client owner is not active")]
     OwnerInactive,
-    #[error("Invalid scope: {0}")]
-    InvalidScope(String),
+    #[error("Invalid scope: {reason}")]
+    InvalidScope { reason: String },
     #[error("Requested scope is not a list of known permissions")]
     UnparseableScope(#[source] ParseEnumError),
-    #[error("Invalid audience: {0}")]
-    InvalidAudience(String),
+    #[error("Invalid audience: '{audience}' not in allowed audiences")]
+    InvalidAudience { audience: String },
     #[error("Audience '{audience}' is not a known audience")]
     UnknownAudience {
         audience: String,

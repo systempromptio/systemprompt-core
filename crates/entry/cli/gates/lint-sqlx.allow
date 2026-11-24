@@ -1,4 +1,4 @@
+# owner: entry/cli; reason: admin setup bootstrap DDL (database, role and extension creation) takes identifiers that cannot be bind parameters
 src/commands/admin/setup/
-# Database bootstrap shared by `admin setup` and the cloud compose flow:
-# CREATE EXTENSION takes an identifier, which cannot be a bind parameter.
+# owner: entry/cli; reason: database bootstrap shared by admin setup and the cloud compose flow: CREATE EXTENSION takes an identifier, which cannot be a bind parameter
 src/shared/postgres_access.rs

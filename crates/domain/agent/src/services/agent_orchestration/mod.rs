@@ -72,20 +72,38 @@ impl ValidationReport {
 }
 
 use crate::services::shared::AgentServiceError;
+use std::path::PathBuf;
+
 use systemprompt_identifiers::AgentName;
 use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum OrchestrationError {
-    #[error("Agent {0} not found")]
-    AgentNotFound(String),
+    #[error("Agent {agent} not found")]
+    AgentNotFound { agent: AgentName },
 
-    #[error("Agent {0} already running")]
-    AgentAlreadyRunning(String),
+    #[error("Agent {agent} already running")]
+    AgentAlreadyRunning { agent: AgentName },
 
-    #[error("Process spawn failed: {0}")]
-    ProcessSpawnFailed(String),
+    #[error(
+        "Process spawn failed: Port {port} did not become available within {timeout_secs} seconds"
+    )]
+    PortNotReleased { port: u16, timeout_secs: u64 },
+
+    #[error(
+        "Process spawn failed: Port {port} is in use but no listening process can be identified"
+    )]
+    PortHolderUnidentified { port: u16 },
+
+    #[error("Process spawn failed: profile path {} is not valid UTF-8", path.display())]
+    ProfilePathNotUtf8 { path: PathBuf },
+
+    #[error("Process spawn failed: Agent {agent} (PID {pid}) died immediately after spawn")]
+    DiedAfterSpawn { agent: AgentName, pid: u32 },
+
+    #[error("Process spawn failed: agent {agent} is not declared in the services configuration")]
+    AgentNotDeclared { agent: AgentName },
 
     #[error("Process spawn failed: {context}: {source}")]
     Spawn {
@@ -100,8 +118,8 @@ pub enum OrchestrationError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Health check timeout for agent {0}")]
-    HealthCheckTimeout(String),
+    #[error("Health check timeout for agent {agent}")]
+    HealthCheckTimeout { agent: AgentName },
 
     #[error("Failed to load agent registry: {0}")]
     Registry(#[source] crate::error::AgentError),

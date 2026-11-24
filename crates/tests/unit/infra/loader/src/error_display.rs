@@ -52,7 +52,9 @@ fn config_load_error_include_cycle_display() {
 
 #[test]
 fn config_load_error_duplicate_agent_display() {
-    let err = ConfigLoadError::DuplicateAgent("my_agent".to_owned());
+    let err = ConfigLoadError::DuplicateAgent {
+        name: "my_agent".to_owned(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("duplicate agent"));
     assert!(msg.contains("my_agent"));
@@ -60,7 +62,9 @@ fn config_load_error_duplicate_agent_display() {
 
 #[test]
 fn config_load_error_duplicate_mcp_server_display() {
-    let err = ConfigLoadError::DuplicateMcpServer("my_mcp".to_owned());
+    let err = ConfigLoadError::DuplicateMcpServer {
+        name: "my_mcp".to_owned(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("duplicate MCP server"));
     assert!(msg.contains("my_mcp"));
@@ -68,7 +72,9 @@ fn config_load_error_duplicate_mcp_server_display() {
 
 #[test]
 fn config_load_error_duplicate_plugin_display() {
-    let err = ConfigLoadError::DuplicatePlugin("my_plugin".to_owned());
+    let err = ConfigLoadError::DuplicatePlugin {
+        name: "my_plugin".to_owned(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("duplicate plugin"));
     assert!(msg.contains("my_plugin"));
@@ -76,7 +82,9 @@ fn config_load_error_duplicate_plugin_display() {
 
 #[test]
 fn config_load_error_duplicate_marketplace_display() {
-    let err = ConfigLoadError::DuplicateMarketplace("my_market".to_owned());
+    let err = ConfigLoadError::DuplicateMarketplace {
+        name: "my_market".to_owned(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("duplicate marketplace"));
     assert!(msg.contains("my_market"));
@@ -84,7 +92,9 @@ fn config_load_error_duplicate_marketplace_display() {
 
 #[test]
 fn config_load_error_duplicate_skill_display() {
-    let err = ConfigLoadError::DuplicateSkill("my_skill".to_owned());
+    let err = ConfigLoadError::DuplicateSkill {
+        name: "my_skill".to_owned(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("duplicate skill"));
     assert!(msg.contains("my_skill"));
@@ -92,7 +102,9 @@ fn config_load_error_duplicate_skill_display() {
 
 #[test]
 fn config_load_error_duplicate_external_agent_display() {
-    let err = ConfigLoadError::DuplicateExternalAgent("ext_agent".to_owned());
+    let err = ConfigLoadError::DuplicateExternalAgent {
+        name: "ext_agent".to_owned(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("duplicate external agent"));
     assert!(msg.contains("ext_agent"));
@@ -156,7 +168,9 @@ fn extension_load_error_binary_not_found_display() {
 
 #[test]
 fn extension_load_error_manifest_missing_display() {
-    let err = ExtensionLoadError::ManifestMissing("my-ext".to_owned());
+    let err = ExtensionLoadError::ManifestMissing {
+        extension: "my-ext".to_owned(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("manifest.yaml"));
     assert!(msg.contains("my-ext"));
@@ -174,6 +188,8 @@ fn error_types_implement_debug() {
     let cw = ConfigWriteError::AgentNotFound(AgentName::new("x"));
     let _ = format!("{cw:?}");
 
-    let el = ExtensionLoadError::ManifestMissing("y".to_owned());
+    let el = ExtensionLoadError::ManifestMissing {
+        extension: "y".to_owned(),
+    };
     let _ = format!("{el:?}");
 }

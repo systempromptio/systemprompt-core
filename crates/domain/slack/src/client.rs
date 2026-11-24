@@ -168,11 +168,11 @@ impl SlackClient {
         if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             return Ok(payload);
         }
-        let err = payload
+        let code = payload
             .get("error")
             .and_then(Value::as_str)
             .unwrap_or("unknown")
             .to_owned();
-        Err(SlackError::Outbound(err))
+        Err(SlackError::Outbound { code })
     }
 }

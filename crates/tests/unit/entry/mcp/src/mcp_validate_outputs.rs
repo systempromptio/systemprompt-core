@@ -103,8 +103,9 @@ fn success_output_ignores_empty_error_message() {
 
 #[tokio::test]
 async fn run_connection_validation_accepts_a_listening_hosted_service() {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
+    let reserved = systemprompt_test_fixtures::ReservedPort::loopback();
+    let port = reserved.port();
+    let listener = reserved.into_tokio_listener();
     let accepted = tokio::spawn(async move {
         let (_socket, peer) = listener.accept().await.unwrap();
         peer
@@ -123,9 +124,7 @@ async fn run_connection_validation_accepts_a_listening_hosted_service() {
 
 #[tokio::test]
 async fn run_connection_validation_reports_an_unavailable_port() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
 
     let out = run_connection_validation(&ServiceName::new("oauth-svc"), port, 1).await;
 

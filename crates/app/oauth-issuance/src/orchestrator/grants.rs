@@ -278,8 +278,10 @@ fn ui_session_resource_error() -> IssuanceError {
 
 fn refresh_token_error(error: OauthError) -> IssuanceError {
     match error {
-        OauthError::TokenInvalid(reason) | OauthError::Expired(reason) => {
-            IssuanceError::InvalidRefreshToken { reason }
+        OauthError::TokenInvalid { reason } | OauthError::Expired { reason } => {
+            IssuanceError::InvalidRefreshToken {
+                reason: reason.to_owned(),
+            }
         },
         other => IssuanceError::Oauth(other),
     }

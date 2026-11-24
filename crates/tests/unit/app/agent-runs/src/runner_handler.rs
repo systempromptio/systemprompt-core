@@ -31,7 +31,9 @@ impl HarnessSource for Source {
     ) -> Result<RevisionBundle, HarnessError> {
         match self {
             Self::Bundle(bundle) => Ok(bundle.clone()),
-            Self::Fails => Err(HarnessError::MissingAsset("AGENTS.md".to_owned())),
+            Self::Fails => Err(HarnessError::MissingAsset {
+                path: "AGENTS.md".to_owned(),
+            }),
         }
     }
 }

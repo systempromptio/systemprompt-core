@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Agent config writes"
+text = "An agent create or update is validated from an exclusively created, unpredictably named staged file before it is renamed over the live file, so a refused change never shows on disk. The check closure takes `&StagedAgentFile` and validates through `ConfigLoader::with_staged`; a staged file that cannot be removed after a refusal is `ConfigWriteError::RejectedStagedNotRemoved`, carrying both causes."

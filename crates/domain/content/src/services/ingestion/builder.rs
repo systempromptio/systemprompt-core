@@ -24,10 +24,10 @@ pub(super) fn create_content_from_metadata(
             source,
         })?
         .and_hms_opt(0, 0, 0)
-        .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_owned()))?
+        .ok_or_else(|| ContentError::Parse(crate::error::ContentParseError::InvalidDatetime))?
         .and_local_timezone(chrono::Utc)
         .single()
-        .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_owned()))?;
+        .ok_or_else(|| ContentError::Parse(crate::error::ContentParseError::AmbiguousTimezone))?;
 
     Ok(Content {
         id,

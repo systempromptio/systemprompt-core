@@ -71,7 +71,7 @@ async fn wait_for_startup_detects_dead_process() {
         .spawn()
         .expect("spawn short-lived child");
     let pid = child.id();
-    child.wait().expect("child exits");
+    assert!(child.wait().expect("child exits").success());
 
     let config = internal_at(&mock, "startup-dead");
     let err = wait_for_startup(

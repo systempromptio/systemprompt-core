@@ -2,9 +2,7 @@ use systemprompt_bridge::gateway::GatewayError;
 use systemprompt_bridge::sync::{KeptStored, RefreshFailure, SyncError, classify_refresh_failure};
 
 async fn connect_error() -> reqwest::Error {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-    drop(listener);
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     reqwest::Client::new()
         .get(format!("http://127.0.0.1:{port}/v1/bridge/manifest"))
         .send()

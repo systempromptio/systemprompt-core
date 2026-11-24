@@ -1,6 +1,8 @@
 //! Unit tests for `McpDomainError::classify` resilience classification.
 
-use systemprompt_mcp::McpDomainError;
+use systemprompt_mcp::{
+    AuthRequirement, ConfigurationIssue, McpDomainError, RegistryViolation, SchemaViolation,
+};
 use systemprompt_storage::resilience::Outcome;
 
 fn is_transient(outcome: &Outcome) -> bool {
@@ -43,25 +45,29 @@ fn test_service_error_is_transient() {
 
 #[test]
 fn test_server_not_found_is_permanent() {
-    let err = McpDomainError::ServerNotFound("s".to_string());
+    let err = McpDomainError::ServerNotFound {
+        server: "s".to_string(),
+    };
     assert!(is_permanent(&err.classify()));
 }
 
 #[test]
 fn test_tool_execution_failed_is_permanent() {
-    let err = McpDomainError::ToolExecutionFailed("nope".to_string());
+    let err = McpDomainError::TaskCancelled;
     assert!(is_permanent(&err.classify()));
 }
 
 #[test]
 fn test_schema_validation_is_permanent() {
-    let err = McpDomainError::SchemaValidation("bad".to_string());
+    let err = McpDomainError::from(SchemaViolation::NoTables);
     assert!(is_permanent(&err.classify()));
 }
 
 #[test]
 fn test_registry_validation_is_permanent() {
-    let err = McpDomainError::RegistryValidation("bad".to_string());
+    let err = McpDomainError::from(RegistryViolation::PortConflicts {
+        conflicts: vec!["a:5000".to_string()],
+    });
     assert!(is_permanent(&err.classify()));
 }
 
@@ -113,19 +119,13 @@ fn test_health_validation_failure_is_permanent() {
 
 #[test]
 fn test_configuration_is_permanent() {
-    let err = McpDomainError::Configuration("bad".to_string());
+    let err = McpDomainError::from(ConfigurationIssue::ProfilePathNotUtf8);
     assert!(is_permanent(&err.classify()));
 }
 
 #[test]
 fn test_auth_required_is_permanent() {
-    let err = McpDomainError::AuthRequired("svc".to_string());
-    assert!(is_permanent(&err.classify()));
-}
-
-#[test]
-fn test_manifest_is_permanent() {
-    let err = McpDomainError::Manifest("bad".to_string());
+    let err = McpDomainError::AuthRequired(AuthRequirement::UserJwt);
     assert!(is_permanent(&err.classify()));
 }
 

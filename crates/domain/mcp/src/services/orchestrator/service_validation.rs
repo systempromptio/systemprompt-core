@@ -23,7 +23,9 @@ pub(super) async fn validate_service(
     let server = servers
         .iter()
         .find(|s| service_name.as_str() == s.name)
-        .ok_or_else(|| crate::error::McpDomainError::ServerNotFound(service_name.to_string()))?;
+        .ok_or_else(|| crate::error::McpDomainError::ServerNotFound {
+            server: service_name.to_string(),
+        })?;
 
     tracing::info!(
         service = %service_name,

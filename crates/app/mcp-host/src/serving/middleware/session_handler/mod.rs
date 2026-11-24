@@ -29,9 +29,9 @@ use systemprompt_identifiers::McpServerId;
 pub enum DatabaseSessionHandlerError {
     Local(LocalSessionManagerError),
     Database(McpSessionStoreError),
-    SessionNotFound(String),
-    SessionExpired(String),
-    SessionNeedsReconnect(String),
+    SessionNotFound { session_id: String },
+    SessionExpired { session_id: String },
+    SessionNeedsReconnect { session_id: String },
 }
 
 impl fmt::Display for DatabaseSessionHandlerError {
@@ -39,9 +39,11 @@ impl fmt::Display for DatabaseSessionHandlerError {
         match self {
             Self::Local(e) => write!(f, "Local session error: {e}"),
             Self::Database(e) => write!(f, "Database error: {e}"),
-            Self::SessionNotFound(id) => write!(f, "Session not found: {id}"),
-            Self::SessionExpired(id) => write!(f, "Session expired: {id}"),
-            Self::SessionNeedsReconnect(id) => write!(f, "Session needs reconnect: {id}"),
+            Self::SessionNotFound { session_id } => write!(f, "Session not found: {session_id}"),
+            Self::SessionExpired { session_id } => write!(f, "Session expired: {session_id}"),
+            Self::SessionNeedsReconnect { session_id } => {
+                write!(f, "Session needs reconnect: {session_id}")
+            },
         }
     }
 }

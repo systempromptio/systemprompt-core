@@ -176,7 +176,7 @@ async fn fetch_rejects_host_not_in_allowlist() {
         .await
         .expect_err("untrusted host");
     assert!(
-        matches!(err, JwksClientError::HostNotAllowed(_)),
+        matches!(err, JwksClientError::HostNotAllowed { .. }),
         "expected HostNotAllowed, got {err:?}"
     );
 }
@@ -283,7 +283,7 @@ async fn fetch_rejects_non_http_scheme() {
         .await
         .expect_err("ftp scheme");
     assert!(
-        matches!(err, JwksClientError::InsecureScheme(_)),
+        matches!(err, JwksClientError::InsecureScheme { .. }),
         "expected InsecureScheme, got {err:?}"
     );
 }
@@ -296,7 +296,7 @@ async fn http_non_loopback_issuer_is_rejected() {
         .await
         .expect_err("http non-loopback issuer");
     assert!(
-        matches!(err, JwksClientError::InsecureScheme(_)),
+        matches!(err, JwksClientError::InsecureScheme { .. }),
         "expected InsecureScheme, got {err:?}"
     );
 }

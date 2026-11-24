@@ -231,7 +231,7 @@ async fn a_human_email_is_never_converted_into_a_service_account() {
             created_by: human,
         })
         .await;
-    assert!(matches!(result, Err(UserError::EmailAlreadyExists(_))));
+    assert!(matches!(result, Err(UserError::EmailAlreadyExists { .. })));
 }
 
 #[test]

@@ -191,25 +191,24 @@ fn validate_admission(request: &PublicationRequest, admission: PublicationAdmiss
         .and_then(serde_json::Value::as_str);
     if admission != PublicationAdmission::InventorySync {
         if source == Some(INVENTORY_REFRESH_SOURCE) {
-            return Err(ManagedError::Conflict(
-                "A reviewed publication cannot name the inventory refresh as its evidence source"
-                    .to_owned(),
-            ));
+            return Err(ManagedError::Conflict {
+                reason: "A reviewed publication cannot name the inventory refresh as its evidence source",
+            });
         }
         return Ok(());
     }
     if request.cohort.is_some() {
-        return Err(ManagedError::Conflict(
-            "Inventory synchronisation publishes the base selection only".to_owned(),
-        ));
+        return Err(ManagedError::Conflict {
+            reason: "Inventory synchronisation publishes the base selection only",
+        });
     }
     if !matches!(
         request.action,
         PublicationAction::InitialAdoption | PublicationAction::PublishImprovement
     ) {
-        return Err(ManagedError::Conflict(
-            "Inventory synchronisation only adopts or advances configured content".to_owned(),
-        ));
+        return Err(ManagedError::Conflict {
+            reason: "Inventory synchronisation only adopts or advances configured content",
+        });
     }
     if source != Some(INVENTORY_REFRESH_SOURCE) {
         return Err(invalid(

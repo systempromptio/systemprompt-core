@@ -24,7 +24,7 @@ pub use sso_replay::PostgresReplayGuard;
 pub use sso_state::{SsoStateParams, SsoStateRow};
 
 use super::{ClientOwnerScope, ClientRepository, CreateClientParams, UpdateClientParams};
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 use crate::models::OAuthClient;
 use crate::services::generate_client_secret;
 use sqlx::PgPool;
@@ -148,9 +148,9 @@ impl OAuthRepository {
         let updated_name = match name {
             Some(n) if !n.is_empty() => n.to_owned(),
             _ => {
-                return Err(OauthError::Validation(
-                    "Client name is required for update".to_owned(),
-                ));
+                return Err(OauthError::Validation(ValidationError::Rejected {
+                    reason: "Client name is required for update",
+                }));
             },
         };
 
@@ -158,17 +158,22 @@ impl OAuthRepository {
             redirect_uris
                 .filter(|uris| !uris.is_empty())
                 .ok_or_else(|| {
-                    OauthError::Validation("At least one redirect URI required".to_owned())
+                    OauthError::Validation(ValidationError::Rejected {
+                        reason: "At least one redirect URI required",
+                    })
                 })?;
 
-        let updated_scopes = scopes
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| OauthError::Validation("At least one scope required".to_owned()))?;
+        let updated_scopes = scopes.filter(|s| !s.is_empty()).ok_or_else(|| {
+            OauthError::Validation(ValidationError::Rejected {
+                reason: "At least one scope required",
+            })
+        })?;
 
-        let client = self
-            .find_client_by_id(client_id)
-            .await?
-            .ok_or_else(|| OauthError::Validation("Client not found".to_owned()))?;
+        let client = self.find_client_by_id(client_id).await?.ok_or_else(|| {
+            OauthError::Validation(ValidationError::Rejected {
+                reason: "Client not found",
+            })
+        })?;
 
         let client_repo = &self.client_repo;
         let params = UpdateClientParams {
@@ -185,7 +190,11 @@ impl OAuthRepository {
         };
         let updated = client_repo.update(params).await?;
 
-        updated.ok_or_else(|| OauthError::Validation("Client not found".to_owned()))
+        updated.ok_or_else(|| {
+            OauthError::Validation(ValidationError::Rejected {
+                reason: "Client not found",
+            })
+        })
     }
 
     pub async fn update_client_secret(

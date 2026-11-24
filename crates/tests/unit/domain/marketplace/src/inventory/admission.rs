@@ -2,7 +2,7 @@
 //! demands an attested experiment, and the sync path only moves forward.
 
 use super::*;
-use systemprompt_marketplace::managed::{ManagedError, ManagedResolution, PublicationAdmission};
+use systemprompt_marketplace::managed::{ManagedResolution, PublicationAdmission};
 
 async fn adopted(f: &Fixture) -> (ManagedResourceId, ResourceRevisionId) {
     f.skill("local", true);
@@ -111,7 +111,7 @@ async fn reviewed_path_does_not_accept_inventory_refresh_evidence() {
             ),
         )
         .await;
-    assert!(matches!(result, Err(ManagedError::Conflict(_))));
+    assert!(matches!(result, Err(ref e) if e.is_conflict()));
     assert!(matches!(
         f.repository
             .resolve_managed(&f.owner, ResourceKind::Skill, "local")
@@ -140,7 +140,7 @@ async fn inventory_sync_admission_refuses_withdraw_and_rollback() {
             PublicationAdmission::InventorySync,
         )
         .await;
-    assert!(matches!(withdraw, Err(ManagedError::Conflict(_))));
+    assert!(matches!(withdraw, Err(ref e) if e.is_conflict()));
     let rollback = f
         .repository
         .publish_with_admission(
@@ -155,7 +155,7 @@ async fn inventory_sync_admission_refuses_withdraw_and_rollback() {
             PublicationAdmission::InventorySync,
         )
         .await;
-    assert!(matches!(rollback, Err(ManagedError::Conflict(_))));
+    assert!(matches!(rollback, Err(ref e) if e.is_conflict()));
     assert_eq!(
         f.repository
             .list_publication_history(&f.owner, &resource)
@@ -185,7 +185,7 @@ async fn inventory_sync_admission_requires_refresh_evidence() {
             PublicationAdmission::InventorySync,
         )
         .await;
-    assert!(matches!(result, Err(ManagedError::Invalid(_))));
+    assert!(matches!(result, Err(ref e) if e.is_invalid()));
 }
 
 #[tokio::test]
@@ -246,7 +246,7 @@ async fn publication_operation_key_replays_same_decision_and_rejects_changed_req
                 PublicationAdmission::InventorySync,
             )
             .await,
-        Err(ManagedError::Conflict(_))
+        Err(e) if e.is_conflict()
     ));
     assert_eq!(
         f.repository

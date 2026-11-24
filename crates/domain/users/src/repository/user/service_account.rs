@@ -87,7 +87,7 @@ impl UserRepository {
         .map_err(UserError::from)
         .and_then(User::try_from)?;
         if !existing.is_service_account() || existing.status == UserStatus::Deleted {
-            return Err(UserError::EmailAlreadyExists(email));
+            return Err(UserError::EmailAlreadyExists { email });
         }
         Ok(EnsuredServiceAccount {
             user: existing,

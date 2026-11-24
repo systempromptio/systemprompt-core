@@ -140,20 +140,14 @@ async fn binding_an_already_bound_port_reports_the_port_in_the_error() {
     }
 }
 
+fn port_of(listener: &tokio::net::TcpListener) -> u16 {
+    listener.local_addr().expect("bound addr").port()
+}
+
 async fn occupy(port: u16) -> tokio::net::TcpListener {
     tokio::net::TcpListener::bind(("127.0.0.1", port))
         .await
         .expect("test squatter binds the port")
-}
-
-async fn free_ports(count: usize) -> Vec<u16> {
-    let mut held = Vec::new();
-    for _ in 0..count {
-        held.push(occupy(0).await);
-    }
-    held.iter()
-        .map(|l| l.local_addr().expect("bound addr").port())
-        .collect()
 }
 
 // Why: the shipped port list is fixed, so any process that grabs 8767 first
@@ -161,8 +155,10 @@ async fn free_ports(count: usize) -> Vec<u16> {
 // on. Docker Desktop did exactly this in production.
 #[tokio::test]
 async fn a_taken_port_is_stepped_over_for_the_next_candidate() {
-    let ports = free_ports(2).await;
-    let squatter = occupy(ports[0]).await;
+    let squatter = occupy(0).await;
+    let held = occupy(0).await;
+    let ports = [port_of(&squatter), port_of(&held)];
+    drop(held);
 
     let server = LoopbackServer::bind_first_available(&ports)
         .await
@@ -182,11 +178,8 @@ async fn a_taken_port_is_stepped_over_for_the_next_candidate() {
 
 #[tokio::test]
 async fn every_candidate_taken_names_the_ports_it_tried() {
-    let ports = free_ports(3).await;
-    let mut squatters = Vec::new();
-    for &port in &ports {
-        squatters.push(occupy(port).await);
-    }
+    let squatters = [occupy(0).await, occupy(0).await, occupy(0).await];
+    let ports: Vec<u16> = squatters.iter().map(port_of).collect();
 
     let err = LoopbackServer::bind_first_available(&ports)
         .await

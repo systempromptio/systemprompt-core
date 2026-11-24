@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_identifiers::MarketplaceId;
+use systemprompt_identifiers::{MarketplaceId, PluginId};
 use systemprompt_loader::BundleError;
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_marketplace::managed::ManagedError;
@@ -61,7 +61,10 @@ fn marketplace_error_maps_every_class() {
         ErrorCode::NotFound
     );
     assert_eq!(
-        marketplace_code(MarketplaceError::Managed(ManagedError::Invalid("x".into()))).code,
+        marketplace_code(MarketplaceError::Managed(ManagedError::Invalid {
+            reason: "x"
+        }))
+        .code,
         ErrorCode::BadRequest
     );
     assert_eq!(
@@ -73,9 +76,9 @@ fn marketplace_error_maps_every_class() {
         ErrorCode::BadRequest
     );
     assert_eq!(
-        marketplace_code(MarketplaceError::Managed(ManagedError::Conflict(
-            "x".into()
-        )))
+        marketplace_code(MarketplaceError::Managed(ManagedError::Conflict {
+            reason: "x"
+        }))
         .code,
         ErrorCode::ConflictError
     );
@@ -91,7 +94,10 @@ fn marketplace_error_maps_every_class() {
         ErrorCode::InternalError
     );
     assert_eq!(
-        marketplace_code(MarketplaceError::Catalog("x".into())).code,
+        marketplace_code(MarketplaceError::PluginUnconfigured {
+            plugin: PluginId::new("x")
+        })
+        .code,
         ErrorCode::InternalError
     );
     assert_eq!(
@@ -255,7 +261,9 @@ fn scope_binding_error_maps_dimension_membership_and_lookup() {
     );
     assert_eq!(
         code_of(ScopeBindingError::Lookup(SubjectAttributeError::Lookup(
-            Box::new(AuthzError::InvalidRuleType("x".into()))
+            Box::new(AuthzError::InvalidRuleType {
+                rule_type: "x".to_owned(),
+            })
         )))
         .code,
         ErrorCode::InternalError

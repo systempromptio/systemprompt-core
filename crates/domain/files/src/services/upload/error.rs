@@ -31,6 +31,6 @@ pub enum FileUploadError {
     #[error("Base64 input too large: encoded size {encoded_size} bytes exceeds limit")]
     Base64TooLarge { encoded_size: usize },
 
-    #[error("Path validation failed: {0}")]
-    PathValidation(String),
+    #[error("Path validation failed: {reason}")]
+    PathValidation { reason: &'static str },
 }

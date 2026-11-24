@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::{McpDomainError, McpDomainResult, SchemaViolation};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -15,11 +15,11 @@ impl SchemaLoader {
         let schema_path = service_path.join(schema_file);
 
         if !schema_path.exists() {
-            return Err(McpDomainError::SchemaValidation(format!(
-                "Schema file not found: {} (full path: {})",
-                schema_file,
-                schema_path.display()
-            )));
+            return Err(SchemaViolation::FileNotFound {
+                file: schema_file.to_owned(),
+                path: schema_path,
+            }
+            .into());
         }
 
         let content = fs::read_to_string(&schema_path).map_err(|e| {
@@ -30,9 +30,10 @@ impl SchemaLoader {
         })?;
 
         if content.trim().is_empty() {
-            return Err(McpDomainError::SchemaValidation(format!(
-                "Schema file is empty: {schema_file}"
-            )));
+            return Err(SchemaViolation::FileEmpty {
+                file: schema_file.to_owned(),
+            }
+            .into());
         }
 
         Ok(content)
@@ -63,15 +64,11 @@ impl SchemaLoader {
         let sql_upper = sql.trim().to_uppercase();
 
         if !sql_upper.starts_with("CREATE TABLE") && !sql_upper.starts_with("--") {
-            return Err(McpDomainError::SchemaValidation(
-                "Schema must start with CREATE TABLE statement".to_owned(),
-            ));
+            return Err(SchemaViolation::NotLeadingCreateTable.into());
         }
 
         if !sql_upper.contains("CREATE TABLE") {
-            return Err(McpDomainError::SchemaValidation(
-                "Schema must contain at least one CREATE TABLE statement".to_owned(),
-            ));
+            return Err(SchemaViolation::NoCreateTableStatement.into());
         }
 
         Ok(())
@@ -82,9 +79,7 @@ impl SchemaLoader {
         let table_names = Self::extract_table_names(sql);
 
         if table_names.is_empty() {
-            return Err(McpDomainError::SchemaValidation(
-                "No CREATE TABLE statements found in schema".to_owned(),
-            ));
+            return Err(SchemaViolation::NoTables.into());
         }
 
         let invalid = table_names
@@ -92,10 +87,12 @@ impl SchemaLoader {
             .find(|name| !name.starts_with(&module_prefix));
 
         invalid.map_or(Ok(()), |table_name| {
-            Err(McpDomainError::SchemaValidation(format!(
-                "Table name '{table_name}' must start with module prefix '{module_prefix}' (from \
-                 module '{module_name}')"
-            )))
+            Err(SchemaViolation::TablePrefix {
+                table: table_name.clone(),
+                prefix: module_prefix.clone(),
+                module: module_name.to_owned(),
+            }
+            .into())
         })
     }
 

@@ -8,6 +8,7 @@
 use systemprompt_agent::services::agent_orchestration::{
     AgentStatus, OrchestrationError, ValidationReport,
 };
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::subprocess::SpawnStamp;
 
 #[test]
@@ -150,7 +151,9 @@ fn test_validation_report_stays_invalid() {
 
 #[test]
 fn test_orchestration_error_agent_not_found() {
-    let error = OrchestrationError::AgentNotFound("missing-agent".to_string());
+    let error = OrchestrationError::AgentNotFound {
+        agent: AgentName::new("missing-agent"),
+    };
 
     assert!(error.to_string().contains("Agent"));
     assert!(error.to_string().contains("not found"));
@@ -159,7 +162,9 @@ fn test_orchestration_error_agent_not_found() {
 
 #[test]
 fn test_orchestration_error_agent_already_running() {
-    let error = OrchestrationError::AgentAlreadyRunning("running-agent".to_string());
+    let error = OrchestrationError::AgentAlreadyRunning {
+        agent: AgentName::new("running-agent"),
+    };
 
     assert!(error.to_string().contains("already running"));
     assert!(error.to_string().contains("running-agent"));
@@ -167,10 +172,10 @@ fn test_orchestration_error_agent_already_running() {
 
 #[test]
 fn test_orchestration_error_process_spawn_failed() {
-    let error = OrchestrationError::ProcessSpawnFailed("Failed to bind to port 8080".to_string());
+    let error = OrchestrationError::PortHolderUnidentified { port: 8080 };
 
     assert!(error.to_string().contains("Process spawn failed"));
-    assert!(error.to_string().contains("port 8080"));
+    assert!(error.to_string().contains("Port 8080"));
 }
 
 #[test]
@@ -185,7 +190,9 @@ fn test_orchestration_error_repository_keeps_classification() {
 
 #[test]
 fn test_orchestration_error_health_check_timeout() {
-    let error = OrchestrationError::HealthCheckTimeout("slow-agent".to_string());
+    let error = OrchestrationError::HealthCheckTimeout {
+        agent: AgentName::new("slow-agent"),
+    };
 
     assert!(error.to_string().contains("Health check timeout"));
     assert!(error.to_string().contains("slow-agent"));
@@ -193,7 +200,9 @@ fn test_orchestration_error_health_check_timeout() {
 
 #[test]
 fn test_orchestration_error_debug() {
-    let error = OrchestrationError::AgentNotFound("test-agent".to_string());
+    let error = OrchestrationError::AgentNotFound {
+        agent: AgentName::new("test-agent"),
+    };
     let debug_str = format!("{:?}", error);
 
     assert!(debug_str.contains("AgentNotFound"));
@@ -209,7 +218,8 @@ fn test_orchestration_result_ok() {
 
 #[test]
 fn test_orchestration_result_err() {
-    let result: Result<i32, OrchestrationError> =
-        Err(OrchestrationError::AgentNotFound("test".to_string()));
+    let result: Result<i32, OrchestrationError> = Err(OrchestrationError::AgentNotFound {
+        agent: AgentName::new("test"),
+    });
     result.unwrap_err();
 }

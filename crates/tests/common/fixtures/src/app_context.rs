@@ -524,7 +524,7 @@ pub fn fixture_job_context_over(
     seed: systemprompt_extension::prelude::Dependencies,
 ) -> systemprompt_traits::JobContext {
     systemprompt_traits::JobContext::new(
-        crate::fixture_actor(),
+        systemprompt_identifiers::Actor::user(crate::unique_user_id("job")),
         seed.with(Arc::clone(pool))
             .with(systemprompt_database::BudgetedDb::new(
                 Arc::clone(pool),

@@ -4,8 +4,9 @@
 //! variants plus the `From` adapters that route foreign error types
 //! into the enum.
 
-use systemprompt_oauth::{OauthError, OauthErrorKind};
-use systemprompt_traits::{AuthProviderError, RepositoryError};
+use systemprompt_identifiers::{ClientId, UserId};
+use systemprompt_oauth::{OauthError, OauthErrorKind, ValidationError};
+use systemprompt_traits::{AuthProviderError, FederatedRefusal, RepositoryError};
 
 #[test]
 fn user_provider_variant_keeps_context_and_source() {
@@ -20,7 +21,9 @@ fn user_provider_variant_keeps_context_and_source() {
 
 #[test]
 fn token_invalid_displays_inner_message() {
-    let err = OauthError::TokenInvalid("malformed".to_string());
+    let err = OauthError::TokenInvalid {
+        reason: "malformed",
+    };
     assert!(err.to_string().contains("token error"));
     assert!(err.to_string().contains("malformed"));
 }
@@ -52,40 +55,44 @@ fn token_unknown_kid_carries_kid() {
 
 #[test]
 fn expired_displays_inner_message() {
-    let err = OauthError::Expired("clock skew".to_string());
+    let err = OauthError::Expired {
+        reason: "clock skew",
+    };
     assert!(err.to_string().contains("expired"));
     assert!(err.to_string().contains("clock skew"));
 }
 
 #[test]
-fn pkce_mismatch_displays_inner_message() {
-    let err = OauthError::PkceMismatch("S256 mismatch".to_string());
-    assert!(err.to_string().contains("PKCE"));
-    assert!(err.to_string().contains("S256 mismatch"));
-}
-
-#[test]
-fn invalid_grant_displays_inner_message() {
-    let err = OauthError::InvalidGrant("code consumed".to_string());
+fn federated_link_refusal_displays_the_refusal() {
+    let err = OauthError::FederatedLinkRefused {
+        refusal: FederatedRefusal::NotProvisioned,
+    };
     assert!(err.to_string().contains("invalid grant"));
-    assert!(err.to_string().contains("code consumed"));
+    assert!(err.to_string().contains("provisioning is disabled"));
+    assert_eq!(err.kind(), OauthErrorKind::InvalidGrant);
 }
 
 #[test]
 fn invalid_client_displays_inner_message() {
-    let err = OauthError::InvalidClient("not registered".to_string());
+    let err = OauthError::InvalidClient {
+        reason: "not registered",
+    };
     assert!(err.to_string().contains("invalid client"));
 }
 
 #[test]
 fn client_not_found_displays_inner_message() {
-    let err = OauthError::ClientNotFound("client_xyz".to_string());
+    let err = OauthError::ClientNotFound {
+        client_id: ClientId::new("client_xyz"),
+    };
     assert!(err.to_string().contains("client_xyz"));
 }
 
 #[test]
 fn webauthn_variants_display_correctly() {
-    let wvf = OauthError::WebAuthnVerificationFailed("bad attestation".to_string());
+    let wvf = OauthError::WebAuthnVerificationFailed {
+        reason: "bad attestation",
+    };
     assert!(wvf.to_string().contains("bad attestation"));
 
     let exp = OauthError::RegistrationStateExpired;
@@ -94,27 +101,29 @@ fn webauthn_variants_display_correctly() {
 
 #[test]
 fn user_variants_display_correctly() {
-    let taken = OauthError::UsernameTaken("alice".to_string());
+    let taken = OauthError::UsernameTaken {
+        username: "alice".to_string(),
+    };
     assert!(taken.to_string().contains("alice"));
 
-    let registered = OauthError::EmailRegistered("alice@example.com".to_string());
+    let registered = OauthError::EmailRegistered {
+        email: "alice@example.com".to_string(),
+    };
     assert!(registered.to_string().contains("alice@example.com"));
 
-    let missing = OauthError::UserNotFound("user_999".to_string());
+    let missing = OauthError::UserNotFound {
+        user_id: UserId::new("user_999"),
+    };
     assert!(missing.to_string().contains("user_999"));
 }
 
 #[test]
 fn validation_displays_inner_message() {
-    let err = OauthError::Validation("bad scope".to_string());
+    let err = OauthError::Validation(ValidationError::Rejected {
+        reason: "bad scope",
+    });
     assert!(err.to_string().contains("validation"));
     assert!(err.to_string().contains("bad scope"));
-}
-
-#[test]
-fn unauthorized_displays_inner_message() {
-    let err = OauthError::Unauthorized("not logged in".to_string());
-    assert!(err.to_string().contains("unauthorized"));
 }
 
 #[test]
@@ -174,7 +183,10 @@ fn security_auth_error_maps_algorithm_and_kid_variants() {
     let err: OauthError = AuthError::MissingKid.into();
     assert!(matches!(err, OauthError::TokenMissingKid));
 
-    let err: OauthError = AuthError::UnknownKid("kid-9".to_string()).into();
+    let err: OauthError = AuthError::UnknownKid {
+        kid: "kid-9".to_string(),
+    }
+    .into();
     assert!(matches!(&err, OauthError::TokenUnknownKid { kid } if kid == "kid-9"));
 }
 
@@ -185,7 +197,7 @@ fn security_auth_error_expired_signature_maps_to_expired() {
     let expired =
         jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::ExpiredSignature);
     let err: OauthError = AuthError::InvalidToken(expired).into();
-    assert!(matches!(err, OauthError::Expired(_)));
+    assert!(matches!(err, OauthError::Expired { .. }));
 
     let invalid =
         jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidSignature);
@@ -239,8 +251,12 @@ fn setup_token_purpose_parse_error_converts_into_repository_decode() {
 #[test]
 fn client_authentication_failures_classify_as_invalid_client() {
     for err in [
-        OauthError::InvalidClient("Invalid client secret".to_owned()),
-        OauthError::ClientNotFound("client_x".to_owned()),
+        OauthError::InvalidClient {
+            reason: "Invalid client secret",
+        },
+        OauthError::ClientNotFound {
+            client_id: ClientId::new("client_x"),
+        },
     ] {
         assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
         assert_eq!(err.kind().rfc_code(), "invalid_client");
@@ -269,10 +285,10 @@ fn unique_violation_is_detected_from_the_repository_constraint() {
 
 #[test]
 fn oauth_error_debug_includes_variant_name() {
-    let err = OauthError::TokenNotFound("tok".to_string());
+    let err = OauthError::DcrClientNotFound {
+        client_id: ClientId::new("client_abc"),
+    };
     let debug = format!("{:?}", err);
-    assert!(debug.contains("TokenNotFound"));
-
-    let err2 = OauthError::CodeNotFound("auth_code_123".to_string());
-    assert!(format!("{:?}", err2).contains("CodeNotFound"));
+    assert!(debug.contains("DcrClientNotFound"));
+    assert!(debug.contains("client_abc"));
 }

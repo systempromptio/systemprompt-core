@@ -475,7 +475,9 @@ async fn coverage_image_fetch_errors_distinguish_caller_and_upstream_faults() {
     use systemprompt_gateway::image_fetch::{ImageFetchFailed, ImageFetchFault};
     let cases = [
         (
-            ImageFetchFault::UnsupportedType("image/tiff".to_owned()),
+            ImageFetchFault::UnsupportedType {
+                mime: "image/tiff".to_owned(),
+            },
             StatusCode::BAD_REQUEST,
         ),
         (

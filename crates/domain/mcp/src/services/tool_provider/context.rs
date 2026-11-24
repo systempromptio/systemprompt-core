@@ -94,9 +94,11 @@ pub(super) fn load_agent_servers(
     let config = deployments.load_config();
 
     let agent = config.agents.get(agent_name.as_str()).ok_or_else(|| {
-        crate::error::McpDomainError::Configuration(format!(
-            "Agent {agent_name} not found in services.yaml"
-        ))
+        crate::error::McpDomainError::Configuration(
+            crate::error::ConfigurationIssue::AgentNotFound {
+                agent: agent_name.clone(),
+            },
+        )
     })?;
 
     Ok(agent.metadata.mcp_servers.include.clone())

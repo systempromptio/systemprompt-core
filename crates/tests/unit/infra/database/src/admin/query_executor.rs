@@ -4,7 +4,15 @@ use std::sync::Arc;
 
 use systemprompt_database::{QueryExecutor, QueryExecutorError};
 
-use crate::services::db_helper::test_pool;
+use systemprompt_test_fixtures::ScratchSchema;
+
+use crate::services::db_helper::{scratch_pool, test_pool};
+
+async fn scratch_executor() -> (ScratchSchema, QueryExecutor) {
+    let (scratch, db) = scratch_pool("query_executor").await;
+    let pg = db.write_pool();
+    (scratch, QueryExecutor::new(Arc::clone(&pg)))
+}
 
 async fn test_executor() -> QueryExecutor {
     let db = test_pool().await;
@@ -70,7 +78,7 @@ async fn execute_readonly_rejects_write_statements() {
 
 #[tokio::test]
 async fn execute_write_runs_ddl_and_dml() {
-    let exec = test_executor().await;
+    let (scratch, exec) = scratch_executor().await;
     let table = format!("qexec_{}", uuid::Uuid::new_v4().simple());
 
     exec.execute_write(&format!("CREATE TABLE \"{table}\" (id BIGINT PRIMARY KEY)"))
@@ -86,7 +94,7 @@ async fn execute_write_runs_ddl_and_dml() {
         .expect("count");
     assert_eq!(result.rows[0]["c"], serde_json::json!(2));
 
-    let _ = exec.execute_write(&format!("DROP TABLE \"{table}\"")).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
@@ -143,7 +151,7 @@ async fn execute_readonly_decodes_uuid_numeric_and_bytea_columns() {
 
 #[tokio::test]
 async fn execute_readonly_refuses_a_write_hidden_in_a_volatile_function() {
-    let exec = test_executor().await;
+    let (scratch, exec) = scratch_executor().await;
     let table = format!("ro_probe_{}", uuid::Uuid::new_v4().simple());
     exec.execute_write(&format!("CREATE TABLE \"{table}\" (id INT)"))
         .await
@@ -171,5 +179,5 @@ async fn execute_readonly_refuses_a_write_hidden_in_a_volatile_function() {
     let _ = exec
         .execute_write(&format!("DROP FUNCTION \"{fn_name}\"()"))
         .await;
-    let _ = exec.execute_write(&format!("DROP TABLE \"{table}\"")).await;
+    scratch.drop_now().await;
 }

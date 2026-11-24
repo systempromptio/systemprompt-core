@@ -283,9 +283,10 @@ async fn invalid_rsa_keys_fail_before_contacting_the_token_endpoint() {
 
 #[tokio::test]
 async fn unreachable_token_endpoint_returns_a_transport_error() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let endpoint = format!("http://{}/token", listener.local_addr().unwrap());
-    drop(listener);
+    let endpoint = format!(
+        "http://{}/token",
+        systemprompt_test_fixtures::ReservedPort::loopback().addr()
+    );
     assert!(
         google_access_token(
             &TokenCache::new(),

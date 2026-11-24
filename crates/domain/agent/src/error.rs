@@ -83,8 +83,11 @@ pub enum AgentError {
     #[error("http: {0}")]
     Http(#[from] reqwest::Error),
 
-    #[error("agent not found: {0}")]
-    NotFound(String),
+    #[error("agent not found: {name}")]
+    NotFound { name: String },
+
+    #[error("agent not found: default agent not configured")]
+    DefaultAgentNotConfigured,
 
     #[error("No available ports in range {min}-{max}")]
     NoAvailablePort { min: u16, max: u16 },

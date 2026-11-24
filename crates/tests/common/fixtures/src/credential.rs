@@ -66,6 +66,9 @@ pub async fn seed_user_row_with_roles(
     Ok(())
 }
 
+/// The profile's `system_admin_username` row: the fixture profile names
+/// `testadmin`, so every context build needs this one shared row by contract.
+/// Owner-scoped tests mint their own owners with [`seed_fixture_owners`].
 pub const FIXTURE_SYSTEM_ADMIN_USERNAME: &str = "testadmin";
 pub const FIXTURE_SYSTEM_ADMIN_EMAIL: &str = "testadmin@localhost.localdomain";
 
@@ -303,6 +306,21 @@ pub async fn seed_drive_credential(pool: &DbPool, email_base: &str) -> Result<Au
         claims.custom.client_id = Some(systemprompt_identifiers::ClientId::bridge());
     });
     Ok(fixture)
+}
+
+/// A per-test admin and user, each with its own row, session and token, so
+/// owner-scoped rows a test writes and reads are keyed to owners no other
+/// test shares.
+#[derive(Debug, Clone)]
+pub struct FixtureOwners {
+    pub admin: AuthedFixture,
+    pub user: AuthedFixture,
+}
+
+pub async fn seed_fixture_owners(pool: &DbPool, label: &str) -> Result<FixtureOwners> {
+    let admin = seed_admin_credential(pool, &format!("{label}-admin@fixture.invalid")).await?;
+    let user = seed_bridge_credential(pool, &format!("{label}-user@fixture.invalid")).await?;
+    Ok(FixtureOwners { admin, user })
 }
 
 fn unique_email(base: &str, user_id: &UserId) -> String {

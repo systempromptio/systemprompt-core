@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "CLI session"
+text = "An unavailable context provider or a failed context recovery is reported to the operator and returned as `ContextCheck::Unverified` instead of being treated as valid, and an unreadable ownership check is treated as invalid."

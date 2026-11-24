@@ -195,11 +195,7 @@ fn non_loopback_interface() -> std::net::IpAddr {
 
 #[tokio::test]
 async fn the_a2a_server_listens_on_loopback_only() {
-    let port = std::net::TcpListener::bind("127.0.0.1:0")
-        .expect("free port")
-        .local_addr()
-        .expect("addr")
-        .port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let server = Server::new(
         state().await,
         ai(),

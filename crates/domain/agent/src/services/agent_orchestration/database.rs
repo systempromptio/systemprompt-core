@@ -154,7 +154,7 @@ impl AgentDatabaseService {
     pub fn agent_exists(&self, agent_name: &AgentName) -> OrchestrationResult<bool> {
         match self.registry.get_agent(agent_name.as_str()) {
             Ok(_) => Ok(true),
-            Err(AgentError::NotFound(_)) => Ok(false),
+            Err(AgentError::NotFound { .. }) => Ok(false),
             Err(e) => Err(e.into()),
         }
     }
@@ -162,9 +162,9 @@ impl AgentDatabaseService {
     pub fn get_agent_config(&self, agent_name: &AgentName) -> OrchestrationResult<AgentConfig> {
         match self.registry.get_agent(agent_name.as_str()) {
             Ok(agent_config) => Ok(agent_config),
-            Err(AgentError::NotFound(_)) => {
-                Err(OrchestrationError::AgentNotFound(agent_name.to_string()))
-            },
+            Err(AgentError::NotFound { .. }) => Err(OrchestrationError::AgentNotFound {
+                agent: agent_name.clone(),
+            }),
             Err(e) => Err(e.into()),
         }
     }

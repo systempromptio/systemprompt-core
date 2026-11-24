@@ -1,11 +1,16 @@
 use rmcp::model::ContentBlock;
 use serde_json::json;
 use systemprompt_ai::MessageRole;
+use systemprompt_ai::error::AiError;
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::tooled::{
     FallbackGenerator, FallbackReason, SynthesisPromptBuilder,
 };
 use systemprompt_identifiers::AiToolCallId;
+
+fn synthesis_error(message: impl Into<String>) -> AiError {
+    AiError::Io(std::io::Error::other(message.into()))
+}
 
 fn create_tool_call(name: &str) -> ToolCall {
     ToolCall {
@@ -32,7 +37,7 @@ mod fallback_reason_tests {
 
     #[test]
     fn synthesis_failed_is_debug() {
-        let reason = FallbackReason::SynthesisFailed("test error".to_string());
+        let reason = FallbackReason::SynthesisFailed(synthesis_error("test error"));
         let debug_str = format!("{:?}", reason);
         assert!(debug_str.contains("SynthesisFailed"));
         assert!(debug_str.contains("test error"));
@@ -62,7 +67,7 @@ mod fallback_generator_tests {
         let output = FallbackGenerator::generate(
             &tool_calls,
             &tool_results,
-            FallbackReason::SynthesisFailed("Provider timeout".to_string()),
+            FallbackReason::SynthesisFailed(synthesis_error("Provider timeout")),
         );
 
         assert!(output.contains("Tool execution completed"));

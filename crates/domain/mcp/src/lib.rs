@@ -51,7 +51,10 @@ pub(crate) mod user_data;
 
 pub use extension::McpExtension;
 
-pub use error::{McpDomainError, McpDomainResult, ServiceStartFailure, ServiceStartFailures};
+pub use error::{
+    AuthRequirement, ConfigurationIssue, McpDomainError, McpDomainResult, RegistryViolation,
+    SchemaViolation, ServiceStartFailure, ServiceStartFailures,
+};
 pub use rmcp::ErrorData as McpError;
 pub use rmcp::model::CallToolResult;
 

@@ -30,7 +30,7 @@ fn mixed_baseline_requires_an_exact_asset_revision_without_rewriting_bytes() {
         let error = normalize_form_text(original, "replacement")
             .expect_err("mixed source line endings cannot be inferred safely");
         assert!(
-            matches!(error, ManagedError::Invalid(message) if message == "Mixed line endings require an exact asset revision")
+            matches!(error, ManagedError::Invalid { reason } if reason == "Mixed line endings require an exact asset revision")
         );
     }
 }
@@ -41,7 +41,7 @@ fn binary_and_oversized_form_submissions_are_rejected_before_normalization() {
         let error = normalize_form_text(original, submitted)
             .expect_err("NUL-bearing text requires the exact asset path");
         assert!(
-            matches!(error, ManagedError::Invalid(message) if message == "NUL bytes require an exact asset revision")
+            matches!(error, ManagedError::Invalid { reason } if reason == "NUL bytes require an exact asset revision")
         );
     }
     let oversized = "x".repeat(1024 * 1024 + 1);
@@ -52,7 +52,7 @@ fn binary_and_oversized_form_submissions_are_rejected_before_normalization() {
         let error = normalize_form_text(original, submitted)
             .expect_err("form text is bounded on both sides");
         assert!(
-            matches!(error, ManagedError::Invalid(message) if message == "Text edits exceed 1 MiB")
+            matches!(error, ManagedError::Invalid { reason } if reason == "Text edits exceed 1 MiB")
         );
     }
 }

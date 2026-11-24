@@ -187,8 +187,8 @@ async fn verify_startup_accepts_the_spawned_agent_listening_on_its_port() {
         .expect("port");
 
     let verdict = lc.verify_startup(&name, child.id(), port).await;
-    let _ = child.kill();
-    let _ = child.wait();
+    child.kill().expect("kill the listening agent helper");
+    child.wait().expect("reap the listening agent helper");
     verdict.expect("the spawned, marked agent listening on its port is ready");
 }
 

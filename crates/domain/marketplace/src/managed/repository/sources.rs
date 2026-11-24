@@ -27,9 +27,9 @@ impl ManagedRepository {
         let row = sqlx::query!(r#"SELECT id, specification AS "specification!: Json<SourceSpec>" FROM managed_sources WHERE owner_id=$1 AND name=$2"#,
             owner.as_str(), name).fetch_one(&self.pool).await?;
         if serde_jcs::to_vec(&row.specification.0)? != serde_jcs::to_vec(spec)? {
-            return Err(ManagedError::Conflict(
-                "Source name already has a different specification".to_owned(),
-            ));
+            return Err(ManagedError::Conflict {
+                reason: "Source name already has a different specification",
+            });
         }
         Ok(ManagedSourceId::new(row.id))
     }
@@ -72,11 +72,11 @@ impl ManagedRepository {
             id.as_str(), owner.as_str(), input.source_id.as_str(), input.upstream_key, kind, input.resource_key).execute(&self.pool).await?;
         let row = sqlx::query!("SELECT id,kind,resource_key FROM managed_resources WHERE owner_id=$1 AND source_id=$2 AND upstream_key=$3",
             owner.as_str(), input.source_id.as_str(), input.upstream_key).fetch_optional(&self.pool).await?
-            .ok_or_else(|| ManagedError::Conflict("Resource key is already bound to another source".to_owned()))?;
+            .ok_or_else(|| ManagedError::Conflict { reason: "Resource key is already bound to another source" })?;
         if row.kind != kind || row.resource_key != input.resource_key {
-            return Err(ManagedError::Conflict(
-                "Upstream resource already has a different binding".to_owned(),
-            ));
+            return Err(ManagedError::Conflict {
+                reason: "Upstream resource already has a different binding",
+            });
         }
         Ok(ManagedResourceId::new(row.id))
     }

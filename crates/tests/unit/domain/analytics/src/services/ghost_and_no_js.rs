@@ -223,7 +223,7 @@ mod error_helper_tests {
 
     #[test]
     fn invalid_argument_constructs_error() {
-        let err = AnalyticsError::invalid_argument("bad value");
+        let err = AnalyticsError::invalid_argument("value", "bad value");
         assert!(format!("{}", err).contains("Invalid argument"));
         assert!(format!("{}", err).contains("bad value"));
     }

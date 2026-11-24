@@ -166,7 +166,7 @@ async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
                     }
                 )
                 .await,
-            Err(ManagedError::Invalid(_))
+            Err(e) if e.is_invalid()
         ));
     }
     let manifest = f
@@ -207,7 +207,7 @@ async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
                 }
             )
             .await,
-        Err(ManagedError::Invalid(_))
+        Err(e) if e.is_invalid()
     ));
     let source = f
         .repository
@@ -249,7 +249,7 @@ async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
         f.repository
             .compare_revisions(&f.owner, &f.revision, &other_revision)
             .await,
-        Err(ManagedError::Invalid(_))
+        Err(e) if e.is_invalid()
     ));
     let stranger = UserId::new("foreign-authoring-owner");
     assert!(matches!(
@@ -354,7 +354,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
         f.repository
             .review_and_publish(&f.owner, &f.owner, &rollback)
             .await,
-        Err(ManagedError::Conflict(_))
+        Err(e) if e.is_conflict()
     ));
     assert_eq!(
         f.repository
@@ -370,7 +370,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
         f.repository
             .review_and_publish(&f.owner, &f.owner, &rollback)
             .await,
-        Err(ManagedError::Conflict(_))
+        Err(e) if e.is_conflict()
     ));
     rollback.expected_generation = 2;
     let restored = f
@@ -392,7 +392,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
         f.repository
             .review_and_publish(&f.owner, &f.owner, &rollback)
             .await,
-        Err(ManagedError::Conflict(_))
+        Err(e) if e.is_conflict()
     ));
     let all = f
         .repository

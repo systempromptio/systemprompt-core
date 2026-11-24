@@ -40,9 +40,10 @@ fn an_unreadable_ca_certificate_names_the_path_it_tried() {
 
 #[tokio::test]
 async fn a_vault_that_is_not_listening_is_reported_as_unreachable() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let address = format!("http://{}", listener.local_addr().unwrap());
-    drop(listener);
+    let address = format!(
+        "http://{}",
+        systemprompt_test_fixtures::ReservedPort::loopback().addr()
+    );
 
     let err = vault_error(
         provider(&address, |c| c.retries = 2)

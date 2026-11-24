@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 use crate::models::PkceMethod;
 use chrono::Utc;
 use pkce::verify_pkce;
@@ -40,14 +40,14 @@ impl OAuthRepository {
             str::to_owned,
         );
         if params.code_challenge.is_empty() {
-            return Err(OauthError::Validation(
-                "PKCE code_challenge is required".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "PKCE code_challenge is required",
+            }));
         }
         if params.code_challenge_method.parse::<PkceMethod>().is_err() {
-            return Err(OauthError::Validation(
-                "PKCE code_challenge_method must be S256".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "PKCE code_challenge_method must be S256",
+            }));
         }
         let code = AuthorizationCode::new(crate::services::generate_secure_token("auth_code"));
 
@@ -66,9 +66,9 @@ impl OAuthRepository {
     }
     pub async fn store_authorization_code(&self, params: AuthCodeParams<'_>) -> OauthResult<()> {
         if params.code_challenge.is_empty() {
-            return Err(OauthError::Validation(
-                "PKCE code_challenge is required".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "PKCE code_challenge is required",
+            }));
         }
         let code_challenge_method = PkceMethod::S256.as_str();
         let expires_at = Utc::now() + chrono::Duration::seconds(600);
@@ -154,16 +154,16 @@ impl OAuthRepository {
                 actual = %client_id,
                 "Authorization code redeemed by a different client"
             );
-            return Err(OauthError::Validation(
-                "Invalid authorization code".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "Invalid authorization code",
+            }));
         }
 
         if row.expires_at < now {
             tracing::warn!("Authorization code expired");
-            return Err(OauthError::Validation(
-                "Invalid authorization code".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "Invalid authorization code",
+            }));
         }
 
         if row.redirect_uri != redirect_uri {
@@ -172,16 +172,16 @@ impl OAuthRepository {
                 actual = %redirect_uri,
                 "Redirect URI mismatch"
             );
-            return Err(OauthError::Validation(
-                "Invalid authorization code".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "Invalid authorization code",
+            }));
         }
 
         let Some(challenge) = row.code_challenge.as_deref() else {
             tracing::warn!("Authorization code carries no PKCE challenge");
-            return Err(OauthError::Validation(
-                "Invalid authorization code".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "Invalid authorization code",
+            }));
         };
         verify_pkce(
             challenge,
@@ -215,9 +215,9 @@ impl OAuthRepository {
             Some(Some(_)) => self.revoke_auth_code_family(code_hash).await?,
         }
 
-        Err(OauthError::Validation(
-            "Invalid authorization code".to_owned(),
-        ))
+        Err(OauthError::Validation(ValidationError::Rejected {
+            reason: "Invalid authorization code",
+        }))
     }
 
     async fn revoke_auth_code_family(&self, code_hash: &str) -> OauthResult<()> {

@@ -63,7 +63,7 @@ mod db_backed {
         let err = validate_client_credentials(&repo, &client_id, Some("wrong-secret"))
             .await
             .expect_err("wrong secret");
-        assert!(matches!(err, OauthError::InvalidClient(_)));
+        assert!(matches!(err, OauthError::InvalidClient { .. }));
         assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 
@@ -73,7 +73,7 @@ mod db_backed {
         let err = validate_client_credentials(&repo, &client_id, None)
             .await
             .expect_err("missing secret");
-        assert!(matches!(err, OauthError::InvalidClient(_)));
+        assert!(matches!(err, OauthError::InvalidClient { .. }));
         assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 
@@ -84,7 +84,7 @@ mod db_backed {
         let err = validate_client_credentials(&repo, &missing, Some(SECRET))
             .await
             .expect_err("unknown client");
-        assert!(matches!(err, OauthError::ClientNotFound(_)));
+        assert!(matches!(err, OauthError::ClientNotFound { .. }));
         assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 }

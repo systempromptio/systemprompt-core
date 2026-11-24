@@ -156,7 +156,7 @@ async fn completion_rejects_mutated_retained_claim_before_acknowledging_outbox()
             f.repo
                 .complete_distribution(&f.owner, &forged, true, None)
                 .await,
-            Err(ManagedError::Conflict(_))
+            Err(e) if e.is_conflict()
         ));
     }
     assert_eq!(
@@ -219,7 +219,7 @@ async fn historical_readback_rejects_undelivered_partial_duplicate_and_mode_tamp
     conflict.client_evidence.session_id = SessionId::new("different-session");
     assert!(matches!(
         f.repo.record_installation(&f.owner, &conflict).await,
-        Err(ManagedError::Conflict(_))
+        Err(e) if e.is_conflict()
     ));
     let retained = f
         .repo

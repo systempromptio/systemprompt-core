@@ -1,14 +1,28 @@
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|agent_tasks|read-only trace projection over the request's agent task
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|message_parts|read-only trace projection over task message parts
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|task_messages|read-only trace projection over task messages
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|task_execution_steps|read-only trace projection over execution steps
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|task_artifacts|read-only trace projection over task artifacts
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|artifact_parts|read-only trace projection over artifact parts
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|ai_requests|read-only trace projection over AI requests
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|ai_request_messages|read-only trace projection over AI request turns
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|ai_request_tool_calls|read-only trace projection over AI tool calls
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|ai_request_client_evidence|read-only trace projection over client evidence
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|mcp_tool_executions|read-only trace projection over MCP executions
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|logs|read-only trace projection over log rows
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|log_rollup_hourly|read-only trace projection over hourly log rollups
+# owner: app/runtime; reason: stated on the entry line
 src/trace/repository/|trace_facts|read-only trace projection over the trace fact ledger

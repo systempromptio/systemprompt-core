@@ -177,10 +177,10 @@ pub async fn delete(
 
 fn key_error(error: PersonalKeyError) -> ProviderCredentialsError {
     match error {
-        PersonalKeyError::NotPersonalCredential(id) => {
-            ProviderCredentialsError::NotPersonalCredential(id)
+        PersonalKeyError::NotPersonalCredential { credential } => {
+            ProviderCredentialsError::NotPersonalCredential(credential.as_str().to_owned())
         },
-        PersonalKeyError::Rejected(credential) => {
+        PersonalKeyError::Rejected { credential } => {
             ProviderCredentialsError::PersonalKeyRejected(credential)
         },
         PersonalKeyError::Unverified { credential, status } => {

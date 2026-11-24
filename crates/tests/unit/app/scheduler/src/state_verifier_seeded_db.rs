@@ -791,13 +791,6 @@ mod state_verifier_live {
             .expect("spawn sleep child")
     }
 
-    fn reserved_free_port() -> u16 {
-        TcpListener::bind("127.0.0.1:0")
-            .expect("bind probe listener")
-            .local_addr()
-            .expect("local addr")
-            .port()
-    }
 
     #[tokio::test]
     async fn running_row_with_live_pid_and_responsive_port_is_running() {
@@ -849,8 +842,8 @@ mod state_verifier_live {
             "Enabled + Running needs no action"
         );
 
-        child.kill().ok();
-        let _ = child.wait();
+        child.kill().expect("kill the test's own child");
+        child.wait().expect("reap the test's own child");
         delete_service(&pg, &name).await;
     }
 
@@ -903,8 +896,8 @@ mod state_verifier_live {
             "Disabled + Running must require Stop"
         );
 
-        child.kill().ok();
-        let _ = child.wait();
+        child.kill().expect("kill the test's own child");
+        child.wait().expect("reap the test's own child");
         delete_service(&pg, &name).await;
     }
 
@@ -915,7 +908,7 @@ mod state_verifier_live {
         let pg = pool.write_pool();
         let name = unique_name("sv_live_starting");
 
-        let port = reserved_free_port();
+        let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
         let mut child = spawn_sleep();
         let pid = child.id() as i32;
 
@@ -957,8 +950,8 @@ mod state_verifier_live {
             "Enabled + Starting needs no action"
         );
 
-        child.kill().ok();
-        let _ = child.wait();
+        child.kill().expect("kill the test's own child");
+        child.wait().expect("reap the test's own child");
         delete_service(&pg, &name).await;
     }
 
@@ -969,7 +962,7 @@ mod state_verifier_live {
         let pg = pool.write_pool();
         let name = unique_name("sv_live_starting_row");
 
-        let port = reserved_free_port();
+        let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
         let mut child = spawn_sleep();
         let pid = child.id() as i32;
 
@@ -1006,8 +999,8 @@ mod state_verifier_live {
         );
         assert_eq!(state.pid, Some(child.id()));
 
-        child.kill().ok();
-        let _ = child.wait();
+        child.kill().expect("kill the test's own child");
+        child.wait().expect("reap the test's own child");
         delete_service(&pg, &name).await;
     }
 

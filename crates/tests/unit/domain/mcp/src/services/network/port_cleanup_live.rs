@@ -9,11 +9,6 @@ use systemprompt_mcp::services::network::port::{
     cleanup_port_processes, is_port_in_use, prepare_port, wait_for_port_release_with_retry,
 };
 
-fn free_port() -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-    listener.local_addr().expect("addr").port()
-}
-
 fn spawn_listener_child(port: u16) -> Child {
     let script = format!(
         "import socket,time\ns=socket.socket()\ns.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\ns.bind(('127.0.0.1',{port}))\ns.listen()\ntime.sleep(30)"
@@ -37,7 +32,7 @@ async fn await_port_state(port: u16, in_use: bool) {
 
 #[tokio::test]
 async fn cleanup_port_processes_refuses_to_kill_a_foreign_listener() {
-    let port = free_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let mut child = spawn_listener_child(port);
     await_port_state(port, true).await;
 
@@ -83,7 +78,7 @@ async fn prepare_port_skips_self_held_listener() {
 
 #[tokio::test]
 async fn wait_for_port_release_with_retry_leaves_a_foreign_listener_alone() {
-    let port = free_port();
+    let port = systemprompt_test_fixtures::ReservedPort::loopback().release_for_child();
     let mut child = spawn_listener_child(port);
     await_port_state(port, true).await;
 

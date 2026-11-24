@@ -1,15 +1,21 @@
 //! DB-backed tests for `PostgresProvider`: the `DatabaseProvider` trait
-//! surface and `PostgresTransaction`. Each test uses a uniquely-named temp
-//! table.
+//! surface and `PostgresTransaction`. A test that creates a table works in its
+//! own scratch schema.
 
-use super::db_helper::test_pool;
+use super::db_helper::{scratch_pool, test_pool};
 use systemprompt_database::{DatabaseProvider, PostgresProvider};
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{ScratchSchema, test_database_url};
 
 async fn test_provider() -> PostgresProvider {
     let db = test_pool().await;
     let pg = db.write_pool();
     PostgresProvider::from_pool(pg)
+}
+
+async fn scratch_provider() -> (ScratchSchema, PostgresProvider) {
+    let (scratch, db) = scratch_pool("pg_provider").await;
+    let pg = db.write_pool();
+    (scratch, PostgresProvider::from_pool(pg))
 }
 
 fn unique_table() -> String {
@@ -22,14 +28,10 @@ async fn create_table(provider: &PostgresProvider, table: &str) {
     provider.execute_raw(&ddl).await.expect("create table");
 }
 
-async fn drop_table(provider: &PostgresProvider, table: &str) {
-    let ddl = format!("DROP TABLE IF EXISTS \"{table}\"");
-    let _ = provider.execute_raw(&ddl).await;
-}
 
 #[tokio::test]
 async fn execute_binds_params_and_reports_rows_affected() {
-    let provider = test_provider().await;
+    let (scratch, provider) = scratch_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
 
@@ -47,12 +49,12 @@ async fn execute_binds_params_and_reports_rows_affected() {
         .expect("update");
     assert_eq!(affected, 1);
 
-    drop_table(&provider, &table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn fetch_one_all_and_optional_round_trip_rows() {
-    let provider = test_provider().await;
+    let (scratch, provider) = scratch_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
     let insert = format!(
@@ -87,7 +89,7 @@ async fn fetch_one_all_and_optional_round_trip_rows() {
         .expect("optional none");
     assert!(missing.is_none());
 
-    drop_table(&provider, &table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
@@ -119,7 +121,7 @@ async fn query_raw_and_query_raw_with_report_columns_and_counts() {
 
 #[tokio::test]
 async fn execute_batch_runs_each_statement() {
-    let provider = test_provider().await;
+    let (scratch, provider) = scratch_provider().await;
     let table = unique_table();
 
     let batch = format!(
@@ -134,7 +136,7 @@ async fn execute_batch_runs_each_statement() {
         .expect("count");
     assert_eq!(count["n"], serde_json::json!(2));
 
-    drop_table(&provider, &table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
@@ -146,7 +148,7 @@ async fn test_connection_succeeds_and_pool_accessors_expose_postgres() {
 
 #[tokio::test]
 async fn transaction_commit_persists_and_rollback_discards() {
-    let provider = test_provider().await;
+    let (scratch, provider) = scratch_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
     let insert = format!("INSERT INTO \"{table}\" (id, name) VALUES ($1, $2)");
@@ -177,12 +179,12 @@ async fn transaction_commit_persists_and_rollback_discards() {
         .expect("count after rollback");
     assert_eq!(count["count"], serde_json::json!(1));
 
-    drop_table(&provider, &table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn transaction_fetch_variants_see_uncommitted_rows() {
-    let provider = test_provider().await;
+    let (scratch, provider) = scratch_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
 
@@ -214,7 +216,7 @@ async fn transaction_fetch_variants_see_uncommitted_rows() {
         .expect("outside");
     assert!(outside.is_none());
 
-    drop_table(&provider, &table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]

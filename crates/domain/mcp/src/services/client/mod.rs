@@ -241,7 +241,7 @@ async fn build_transport(
         if server_config.oauth.required {
             let Some(user_token) = context.auth_token() else {
                 return Err(crate::error::McpDomainError::AuthRequired(
-                    "User JWT required for authenticated MCP calls".to_owned(),
+                    crate::error::AuthRequirement::UserJwt,
                 ));
             };
             // Why: rmcp passes `auth_header` to `bearer_auth`, which adds the Bearer

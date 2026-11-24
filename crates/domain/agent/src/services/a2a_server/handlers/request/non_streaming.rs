@@ -33,14 +33,17 @@ use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageHandler;
 use crate::services::shared::AgentServiceError;
 
-use super::list_tasks::{ListTasksError, list_caller_tasks, trim_history};
+use super::list_tasks::{ListTasksError, PageTokenError, list_caller_tasks, trim_history};
 use super::validation::{ContextValidationError, owned_task_for, validate_message_context};
 
 const CANCEL_SETTLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
 #[derive(Debug)]
 pub(super) enum RequestFailure {
-    InvalidParams(String),
+    InvalidContext(ContextValidationError),
+    InvalidPageToken(PageTokenError),
+    AgentRunNotObject(AgentName),
+    AgentRunTaskExists(TaskId),
     TaskNotFound(TaskId),
     TaskNotCancelable(TaskId),
     Unsupported(&'static str),
@@ -64,10 +67,18 @@ impl RequestFailure {
 
     pub(super) fn into_jsonrpc(self, request_id: &NumberOrString) -> JsonRpcErrorResponse {
         match self {
-            Self::InvalidParams(message) => JsonRpcErrorBuilder::invalid_params()
-                .with_metadata("detail", message)
-                .log_warn("A2A request rejected: invalid params")
-                .build(request_id),
+            Self::InvalidContext(error) => invalid_params(error.to_string(), request_id),
+            Self::InvalidPageToken(source) => {
+                invalid_params(format!("invalid pageToken: {source}"), request_id)
+            },
+            Self::AgentRunNotObject(agent_name) => invalid_params(
+                format!("agent {agent_name} metadata.agent_run is not an object"),
+                request_id,
+            ),
+            Self::AgentRunTaskExists(task_id) => invalid_params(
+                format!("task {task_id} exists; an agent-run task cannot be continued"),
+                request_id,
+            ),
             Self::TaskNotFound(task_id) => JsonRpcErrorBuilder::task_not_found(&task_id)
                 .log_warn(format!("A2A task not found: {task_id}"))
                 .build(request_id),
@@ -91,6 +102,13 @@ impl RequestFailure {
     }
 }
 
+fn invalid_params(detail: String, request_id: &NumberOrString) -> JsonRpcErrorResponse {
+    JsonRpcErrorBuilder::invalid_params()
+        .with_metadata("detail", detail)
+        .log_warn("A2A request rejected: invalid params")
+        .build(request_id)
+}
+
 impl From<ContextValidationError> for RequestFailure {
     fn from(error: ContextValidationError) -> Self {
         match error {
@@ -102,7 +120,7 @@ impl From<ContextValidationError> for RequestFailure {
                 Self::internal("Context validation failed", source)
             },
             other @ (ContextValidationError::Unauthenticated
-            | ContextValidationError::Context(_)) => Self::InvalidParams(other.to_string()),
+            | ContextValidationError::Context(_)) => Self::InvalidContext(other),
         }
     }
 }
@@ -116,9 +134,7 @@ impl From<AgentServiceError> for RequestFailure {
 impl From<ListTasksError> for RequestFailure {
     fn from(error: ListTasksError) -> Self {
         match error {
-            ListTasksError::PageToken(source) => {
-                Self::InvalidParams(format!("invalid pageToken: {source}"))
-            },
+            ListTasksError::PageToken(source) => Self::InvalidPageToken(source),
             repository @ ListTasksError::Repository(_) => {
                 Self::internal("Task listing failed", repository)
             },

@@ -9,7 +9,7 @@
 use systemprompt_identifiers::{ApiKeyId, AuthorizationCode};
 
 use super::MintAuthCodeParams;
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 use crate::repository::oauth::OAuthRepository;
 
 impl OAuthRepository {
@@ -28,9 +28,9 @@ impl OAuthRepository {
         .execute(self.write_pool_ref())
         .await?;
         if bound.rows_affected() != 1 {
-            return Err(OauthError::Validation(
-                "Invalid authorization code".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "Invalid authorization code",
+            }));
         }
         Ok(code)
     }
