@@ -15,7 +15,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::AiRequestId;
 
 use super::Receipt;
-use super::log::{Log, Op, guard};
+use super::index::Op;
+use super::log::{Log, guard};
 use super::segment::{self, Entry, Record};
 use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 
@@ -87,7 +88,7 @@ pub(super) fn reserve(
     })
 }
 
-const fn unreserve(state: &mut super::log::State) {
+const fn unreserve(state: &mut super::index::State) {
     state.reserved = state.reserved.saturating_sub(1);
     state.in_flight = state.in_flight.saturating_sub(1);
 }

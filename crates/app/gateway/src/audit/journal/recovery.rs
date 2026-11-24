@@ -20,7 +20,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_identifiers::AiRequestId;
 
 use super::Receipt;
-use super::log::{Log, Op, guard};
+use super::index::Op;
+use super::log::{Log, guard};
 use super::ops::{MAX_ENTRIES, put_terminal, read};
 use super::segment::{self, Entry, Record};
 use crate::error::GatewayAuditResult as Result;
@@ -94,29 +95,7 @@ fn adopt_owner(log: &Log, owner: &str, torn: &mut u64) -> Result<usize> {
         return Ok(0);
     }
     let segments = segments_of(&log.root, owner)?;
-    let mut receipts: HashMap<AiRequestId, Receipt> = HashMap::new();
-    for path in &segments {
-        let scanned = segment::scan(&log.cipher, path)?;
-        for entry in scanned.entries {
-            match entry {
-                Entry::Put(receipt) => {
-                    receipts.insert(receipt.storage_id(), *receipt);
-                },
-                Entry::Remove(id) => {
-                    receipts.remove(&id);
-                },
-            }
-        }
-        if let Some((offset, cause)) = scanned.torn {
-            *torn += 1;
-            tracing::error!(
-                segment = %path.display(),
-                offset,
-                error = %cause,
-                "Gateway journal segment ends in a torn frame; the bytes after it are skipped"
-            );
-        }
-    }
+    let receipts = replay(log, &segments, torn)?;
     let mut adopted = 0;
     for (id, mut receipt) in receipts {
         {
@@ -155,6 +134,37 @@ fn adopt_owner(log: &Log, owner: &str, torn: &mut u64) -> Result<usize> {
     fs::remove_file(&lock_path)?;
     log.sync.sync(&File::open(&log.root)?)?;
     Ok(adopted)
+}
+
+fn replay(
+    log: &Log,
+    segments: &[PathBuf],
+    torn: &mut u64,
+) -> Result<HashMap<AiRequestId, Receipt>> {
+    let mut receipts: HashMap<AiRequestId, Receipt> = HashMap::new();
+    for path in segments {
+        let scanned = segment::scan(&log.cipher, path)?;
+        for entry in scanned.entries {
+            match entry {
+                Entry::Put(receipt) => {
+                    receipts.insert(receipt.storage_id(), *receipt);
+                },
+                Entry::Remove(id) => {
+                    receipts.remove(&id);
+                },
+            }
+        }
+        if let Some((offset, cause)) = scanned.torn {
+            *torn += 1;
+            tracing::error!(
+                segment = %path.display(),
+                offset,
+                error = %cause,
+                "Gateway journal segment ends in a torn frame; the bytes after it are skipped"
+            );
+        }
+    }
+    Ok(receipts)
 }
 
 fn segments_of(root: &Path, owner: &str) -> Result<Vec<PathBuf>> {
