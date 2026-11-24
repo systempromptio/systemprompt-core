@@ -29,6 +29,7 @@ const GOVERN: &str =
     "brain governance queue authorised by the steward role, not by resource ownership";
 const PUBLISH: &str =
     "stream publish is admitted by the stream's declared publishers, not by ownership";
+const ABSENT_MEMBER: &str = "answers 404 for the reserved path of a member that is not admitted; it serves and reads nothing";
 const BROADCAST: &str =
     "broadcasts only into the caller's own event stream; the body's user_id must equal the caller";
 const CONSUMER: &str =
@@ -46,9 +47,10 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("identity/http/admin_keys.rs::router", "POST", r#""/""#, ADMIN),
     free("routes/admin/services/mod.rs::router", "GET", r#""/status""#, ADMIN),
     free("routes/admin/services/mod.rs::router", "POST", r#""/refresh""#, ADMIN),
-    free("routes/webhook/mod.rs::router", "POST", r#""/a2a""#, BROADCAST),
-    free("routes/webhook/mod.rs::router", "POST", r#""/agui""#, BROADCAST),
+    free("agent/http/webhook/mod.rs::router", "POST", r#""/a2a""#, BROADCAST),
+    free("agent/http/webhook/mod.rs::router", "POST", r#""/agui""#, BROADCAST),
     free("agent/http/mod.rs::registry_routes", "GET", r#""/""#, CATALOG),
+    free("services/server/routes/protocol/agent.rs::mount_agent", "ANY", r#""/""#, ABSENT_MEMBER),
     free("brain/http/mount.rs::admin_routes", "POST", r#""/simulate""#, ADMIN),
     free("brain/http/mount.rs::user_routes", "GET", r#""/proposals""#, GOVERN),
     free("brain/http/mount.rs::user_routes", "POST", r#""/proposals/{id}/approve""#, GOVERN),
@@ -164,16 +166,16 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("identity/http/sso/mod.rs::router", "GET", r#""/{id}/metadata""#, OAUTH),
     free("identity/http/sso/mod.rs::router", "GET", r#""/{id}/start""#, OAUTH),
     free("identity/http/sso/mod.rs::router", "POST", r#""/{id}/callback""#, OAUTH),
-    free("routes/stream/mod.rs::stream_router", "GET", r#""/a2a""#, STREAM),
-    free("routes/stream/mod.rs::stream_router", "GET", r#""/agui""#, STREAM),
-    free("routes/stream/mod.rs::stream_router", "GET", r#""/contexts""#, STREAM),
+    free("agent/http/stream/mod.rs::router", "GET", r#""/a2a""#, STREAM),
+    free("agent/http/stream/mod.rs::router", "GET", r#""/agui""#, STREAM),
+    free("agent/http/stream/mod.rs::router", "GET", r#""/contexts""#, STREAM),
     free("routes/sync/mod.rs::router", "GET", r#""/files""#, SERVICE),
     free("routes/sync/mod.rs::router", "GET", r#""/files/manifest""#, SERVICE),
     free("teams/http/mod.rs::routes", "POST", r#""/messages""#, WEBHOOK),
     free("identity/http/users/mod.rs::router", "POST", r#""/me/sessions/revoke_all""#, CALLER),
-    free("routes/wellknown/agent_cards.rs::wellknown_router", "GET", r#"&format!("{}/{{agent_name}}",ApiPaths::WELLKNOWN_AGENT_CARDS)"#, PUBLIC),
-    free("routes/wellknown/agent_cards.rs::wellknown_router", "GET", "ApiPaths::WELLKNOWN_AGENT_CARD", PUBLIC),
-    free("routes/wellknown/agent_cards.rs::wellknown_router", "GET", "ApiPaths::WELLKNOWN_AGENT_CARDS", PUBLIC),
+    free("agent/http/agent_cards.rs::router", "GET", r#"&format!("{}/{{agent_name}}",ApiPaths::WELLKNOWN_AGENT_CARDS)"#, PUBLIC),
+    free("agent/http/agent_cards.rs::router", "GET", "ApiPaths::WELLKNOWN_AGENT_CARD", PUBLIC),
+    free("agent/http/agent_cards.rs::router", "GET", "ApiPaths::WELLKNOWN_AGENT_CARDS", PUBLIC),
     free("routes/wellknown/bridge.rs::bridge_discovery_router", "GET", "ApiPaths::WELLKNOWN_BRIDGE", PUBLIC),
     free("routes/wellknown/jwks.rs::jwks_router", "GET", "ApiPaths::WELLKNOWN_JWKS", PUBLIC),
     free("services/server/discovery.rs::authenticated_discovery_router", "GET", r#""/api/v1/health/detail""#, ADMIN),

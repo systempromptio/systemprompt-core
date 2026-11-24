@@ -8,8 +8,9 @@
 //! scope; the A2A proxy at `/api/v1/agents` behind the authenticated gate
 //! with the A2A context, the agent body limit and the `agents` scope. The
 //! exact `/api/v1/agents/registry` reservation belongs to `agent-http`: with
-//! the member not admitted it answers 404 ahead of the proxy's
-//! `/{service_name}` route. The well-known agent cards are merged under the
+//! the member not admitted an authenticated caller gets 404 there, from its
+//! own declaration under the user context, so the request never reaches the
+//! proxy's `/{service_name}` route or its A2A context extraction. The well-known agent cards are merged under the
 //! public discovery declaration. Every surface route is absent (404) when
 //! `agent-http` is not admitted.
 //!
@@ -28,8 +29,6 @@ use systemprompt_models::modules::ApiPaths;
 use super::super::RouteMountError;
 use super::{MountCtx, declare};
 use crate::services::middleware::MountError;
-
-const REGISTRY_SEGMENT: &str = "/registry";
 
 pub const WEBHOOK_RATE: RateLimit = RateLimit::new("webhook", RateBudget::PerSecond(200));
 
@@ -74,15 +73,23 @@ pub(in crate::services::server::routes) fn mount_agent(
         )?;
     }
 
-    let mut proxy = crate::routes::proxy::agents::router(ctx)?;
     if agent_http_absent(mount) {
-        proxy = proxy.route(REGISTRY_SEGMENT, any(|| async { StatusCode::NOT_FOUND }));
+        router = mount.mount(
+            router,
+            declare(
+                Router::new().route("/", any(|| async { StatusCode::NOT_FOUND })),
+                ApiPaths::AGENTS_REGISTRY,
+                AuthzPolicy::authenticated(),
+                ContextKind::User,
+                group,
+            ),
+        )?;
     }
 
     mount.mount(
         router,
         declare(
-            proxy,
+            crate::routes::proxy::agents::router(ctx)?,
             ApiPaths::AGENTS_BASE,
             AuthzPolicy::authenticated(),
             ContextKind::A2a,
