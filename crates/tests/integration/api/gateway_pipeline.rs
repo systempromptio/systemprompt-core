@@ -1714,15 +1714,23 @@ pub(super) async fn admitted_receipt_fixture(
     handle.abort();
     let error = handle.await.expect_err("dispatch task aborted");
     assert!(error.is_cancelled(), "dispatch must be cancelled: {error}");
-    // Why: the cancelled dispatch's abandon guard settles the request in the
-    // background and, when that settlement succeeds, retires the receipt. The
-    // fixture stands for a process that died before settling, so it waits for
-    // that work and then leaves the admitted segment behind as the segment set
-    // of an exited process, whose owner lock nobody holds.
+    // Why: the abort can land while the admission is still being reserved, so
+    // the live journal may keep a receipt whose lease was dropped; recovery
+    // settles that receipt as failed. The fixture stands for a process that
+    // died before settling, so it waits for the cancelled dispatch's
+    // background work, settles the live journal empty, and then leaves the
+    // admitted segment behind as the segment set of an exited process, whose
+    // owner lock nobody holds.
     let drained = repositories.background.drain(Duration::from_secs(30)).await;
     assert!(
         drained.is_drained(),
         "cancelled dispatch must finish its background work"
+    );
+    systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?;
+    assert_eq!(
+        systemprompt_gateway::audit::journal::pending(&repositories.settlement().journal)?,
+        0,
+        "the live journal holds no receipt before the exited segment is planted"
     );
     std::fs::write(root.join("exited.owner"), b"")?;
     let receipt = root.join("exited-0000000001.seg");
