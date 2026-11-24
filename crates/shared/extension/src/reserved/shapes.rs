@@ -49,16 +49,23 @@ const fn agent_user(base: ApiBase, rate: RateLimit) -> PrivilegedShape {
 const CONTENT_PUBLIC: RouteShape =
     shape(AuthzPolicy::public(), ContextKind::Public, CONTENT_LIMITS);
 const CONTENT_USER: RouteShape = shape(AuthzPolicy::user(), ContextKind::User, CONTENT_LIMITS);
-const ANALYTICS_ADMIN: RouteShape = shape(AuthzPolicy::admin(), ContextKind::User, CONTENT_LIMITS);
+const CONTENT_ADMIN: RouteShape = shape(AuthzPolicy::admin(), ContextKind::User, CONTENT_LIMITS);
 
 pub const CONTENT_GENERATE_ROUTES: &[(Method, &str)] = &[(Method::POST, "/links/generate")];
+pub const CONTENT_LINK_ANALYTICS_ROUTES: &[(Method, &str)] = &[
+    (Method::GET, "/links"),
+    (Method::GET, "/links/{link_id}/performance"),
+    (Method::GET, "/links/{link_id}/clicks"),
+    (Method::GET, "/links/campaigns/{campaign_id}/performance"),
+    (Method::GET, "/links/journey"),
+];
 pub const CONTENT_REDIRECT_ROUTES: &[(Method, &str)] = &[(Method::GET, "/r/{short_code}")];
 pub const MCP_REGISTRY_ROUTES: &[(Method, &str)] = &[(Method::GET, "/")];
 pub const AGENT_REGISTRY_ROUTES: &[(Method, &str)] = &[(Method::GET, "/")];
 
 const BRAIN_LIMITS: RouteLimits = limits(RateLimit::new("brain", RateBudget::Brain));
 
-const ALWAYS: [PrivilegedShape; 19] = [
+const ALWAYS: [PrivilegedShape; 20] = [
     PrivilegedShape {
         owner: CoreId::ContentHttp,
         base: BaseRef::Path(BasePath::Api(ApiBase::Content)),
@@ -77,6 +84,14 @@ const ALWAYS: [PrivilegedShape; 19] = [
     },
     PrivilegedShape {
         owner: CoreId::ContentHttp,
+        base: BaseRef::Path(BasePath::Api(ApiBase::Content)),
+        group: RouteGroup::ContentAndMisc,
+        allowance: Allowance::ReservedPrefix,
+        shape: CONTENT_ADMIN,
+        routes: Some(CONTENT_LINK_ANALYTICS_ROUTES),
+    },
+    PrivilegedShape {
+        owner: CoreId::ContentHttp,
         base: BaseRef::Path(BasePath::Web(WebBase::Root)),
         group: RouteGroup::ContentAndMisc,
         allowance: Allowance::Plain,
@@ -88,7 +103,7 @@ const ALWAYS: [PrivilegedShape; 19] = [
         base: BaseRef::Path(BasePath::Api(ApiBase::Analytics)),
         group: RouteGroup::ContentAndMisc,
         allowance: Allowance::ReservedPrefix,
-        shape: ANALYTICS_ADMIN,
+        shape: CONTENT_ADMIN,
         routes: None,
     },
     PrivilegedShape {
@@ -96,7 +111,7 @@ const ALWAYS: [PrivilegedShape; 19] = [
         base: BaseRef::Path(BasePath::Api(ApiBase::Analytics)),
         group: RouteGroup::ContentAndMisc,
         allowance: Allowance::KernelHandle(HandleId::AnalyticsBroadcaster),
-        shape: ANALYTICS_ADMIN,
+        shape: CONTENT_ADMIN,
         routes: None,
     },
     PrivilegedShape {
@@ -268,7 +283,7 @@ macro_rules! privileged_shapes {
         &[
             ALWAYS[0], ALWAYS[1], ALWAYS[2], ALWAYS[3], ALWAYS[4], ALWAYS[5], ALWAYS[6],
             ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10], ALWAYS[11], ALWAYS[12], ALWAYS[13],
-            ALWAYS[14], ALWAYS[15], ALWAYS[16], ALWAYS[17], ALWAYS[18] $(, $extra)*
+            ALWAYS[14], ALWAYS[15], ALWAYS[16], ALWAYS[17], ALWAYS[18], ALWAYS[19] $(, $extra)*
         ]
     };
 }

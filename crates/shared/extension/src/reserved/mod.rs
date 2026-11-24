@@ -44,8 +44,8 @@ pub use conferrals::{
 pub use install_seeds::{INSTALL_SEEDS, InstallSeed, install_reads};
 pub use nesting::{nested_rows_are_bounded, nested_under_another_owner};
 pub use shapes::{
-    AGENT_REGISTRY_ROUTES, CONTENT_GENERATE_ROUTES, CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES,
-    PRIVILEGED_SHAPES,
+    AGENT_REGISTRY_ROUTES, CONTENT_GENERATE_ROUTES, CONTENT_LINK_ANALYTICS_ROUTES,
+    CONTENT_REDIRECT_ROUTES, MCP_REGISTRY_ROUTES, PRIVILEGED_SHAPES,
 };
 
 pub const WEB_ROOT_BASE_PATH: &str = "/";
