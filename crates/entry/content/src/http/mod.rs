@@ -2,10 +2,12 @@
 //! [`crate::extension::ContentHttpExtension`] contributes.
 //!
 //! - [`public_routes`] — published content by source and slug (JSON, or
-//!   Markdown through content negotiation), search, and link analytics, under
-//!   `/api/v1/content` with no authentication.
+//!   Markdown through content negotiation) and search, under `/api/v1/content`
+//!   with no authentication.
 //! - [`authenticated_routes`] — trackable-link generation under
-//!   `/api/v1/content` for a signed-in user.
+//!   `/api/v1/content` for a signed-in user, and the link analytics (link list,
+//!   performance, clicks, campaign performance, journey) for an admin: the
+//!   click rows carry user, session, IP and user-agent columns.
 //! - [`redirect_routes`] — the short-link redirect `/r/{short_code}` at the web
 //!   root, which records a click for every session that is not a bot session.
 //!
@@ -54,6 +56,7 @@ const LIMITS: RouteLimits = RouteLimits {
 };
 const PUBLIC: RouteSpec = RouteSpec::new(AuthzPolicy::public(), ContextKind::Public, LIMITS);
 const USER: RouteSpec = RouteSpec::new(AuthzPolicy::user(), ContextKind::User, LIMITS);
+const ADMIN: RouteSpec = RouteSpec::new(AuthzPolicy::admin(), ContextKind::User, LIMITS);
 
 /// The application settings the content routes read, copied out of the
 /// configuration by the member's provide fn.
@@ -133,37 +136,37 @@ pub fn public_routes() -> RouteSet {
             get_content_markdown_handler,
             PUBLIC,
         )
-        .route(Method::GET, "/links", list_links_handler, PUBLIC)
-        .route(
-            Method::GET,
-            "/links/{link_id}/performance",
-            get_link_performance_handler,
-            PUBLIC,
-        )
-        .route(
-            Method::GET,
-            "/links/{link_id}/clicks",
-            get_link_clicks_handler,
-            PUBLIC,
-        )
-        .route(
-            Method::GET,
-            "/links/campaigns/{campaign_id}/performance",
-            get_campaign_performance_handler,
-            PUBLIC,
-        )
-        .route(
-            Method::GET,
-            "/links/journey",
-            get_content_journey_handler,
-            PUBLIC,
-        )
         .build()
 }
 
 pub fn authenticated_routes() -> RouteSet {
     RouteSet::at::<ContentHttpState>(BasePath::Api(ApiBase::Content), RouteGroup::ContentAndMisc)
         .route(Method::POST, "/links/generate", generate_link_handler, USER)
+        .route(Method::GET, "/links", list_links_handler, ADMIN)
+        .route(
+            Method::GET,
+            "/links/{link_id}/performance",
+            get_link_performance_handler,
+            ADMIN,
+        )
+        .route(
+            Method::GET,
+            "/links/{link_id}/clicks",
+            get_link_clicks_handler,
+            ADMIN,
+        )
+        .route(
+            Method::GET,
+            "/links/campaigns/{campaign_id}/performance",
+            get_campaign_performance_handler,
+            ADMIN,
+        )
+        .route(
+            Method::GET,
+            "/links/journey",
+            get_content_journey_handler,
+            ADMIN,
+        )
         .build()
 }
 

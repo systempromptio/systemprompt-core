@@ -65,12 +65,12 @@ POST	/api/v1/consumer-devices/enrollment	handler_verified(ManagedDeviceCredentia
 POST	/api/v1/consumer/receipts	handler_verified(ManagedDeviceCredential)	HandlerResolved	consumer_evidence/PerSecond(10)	1048576	Managed	kernel	feature:bridge
 GET	/api/v1/consumer/resources/{resource}/publications/{publication}/bundle	handler_verified(ManagedDeviceCredential)	HandlerResolved	consumer_evidence/PerSecond(10)	1048576	Managed	kernel	feature:bridge
 POST	/api/v1/consumer/session-bindings	handler_verified(ManagedDeviceCredential)	HandlerResolved	consumer_evidence/PerSecond(10)	1048576	Managed	kernel	feature:bridge
-GET	/api/v1/content/links	public	Public	content/Content	Default	ContentAndMisc	content-http	-
-GET	/api/v1/content/links/campaigns/{campaign_id}/performance	public	Public	content/Content	Default	ContentAndMisc	content-http	-
+GET	/api/v1/content/links	admin	User	content/Content	Default	ContentAndMisc	content-http	-
+GET	/api/v1/content/links/campaigns/{campaign_id}/performance	admin	User	content/Content	Default	ContentAndMisc	content-http	-
 POST	/api/v1/content/links/generate	user	User	content/Content	Default	ContentAndMisc	content-http	-
-GET	/api/v1/content/links/journey	public	Public	content/Content	Default	ContentAndMisc	content-http	-
-GET	/api/v1/content/links/{link_id}/clicks	public	Public	content/Content	Default	ContentAndMisc	content-http	-
-GET	/api/v1/content/links/{link_id}/performance	public	Public	content/Content	Default	ContentAndMisc	content-http	-
+GET	/api/v1/content/links/journey	admin	User	content/Content	Default	ContentAndMisc	content-http	-
+GET	/api/v1/content/links/{link_id}/clicks	admin	User	content/Content	Default	ContentAndMisc	content-http	-
+GET	/api/v1/content/links/{link_id}/performance	admin	User	content/Content	Default	ContentAndMisc	content-http	-
 POST	/api/v1/content/query	public	Public	content/Content	Default	ContentAndMisc	content-http	-
 GET	/api/v1/content/{source_id}	public	Public	content/Content	Default	ContentAndMisc	content-http	-
 GET	/api/v1/content/{source_id}/{slug}	public	Public	content/Content	Default	ContentAndMisc	content-http	-

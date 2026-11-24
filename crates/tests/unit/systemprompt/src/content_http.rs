@@ -1,14 +1,14 @@
 //! The reference composition admits `content-http` exactly as its conferrals
 //! describe: the public reads at `/api/v1/content` behind the public shape,
-//! the signed-in set holding only `POST /links/generate` behind the user
-//! shape, and the short-link redirect `GET /r/{short_code}` at the web root
-//! behind the public shape (T16, facade side: each real set is admitted under
-//! its own conferral; drift refusal is the kernel re-check's, since a probe
-//! cannot hold core standing). It declares the `core content` and
-//! `web sitemap` groups with no grants, classified as the CLI router reads
-//! them: deleting content, a source or a link is destructive, the read
-//! commands preserve data, `core content` reads the database and
-//! `web sitemap` the profile paths.
+//! the signed-in set holding `POST /links/generate` behind the user shape and
+//! the link analytics reads behind the admin shape, and the short-link redirect
+//! `GET /r/{short_code}` at the web root behind the public shape (T16, facade
+//! side: each real set is admitted under its own conferral; drift refusal is
+//! the kernel re-check's, since a probe cannot hold core standing). It declares
+//! the `core content` and `web sitemap` groups with no grants, classified as
+//! the CLI router reads them: deleting content, a source or a link is
+//! destructive, the read commands preserve data, `core content` reads the
+//! database and `web sitemap` the profile paths.
 
 use std::sync::Arc;
 
@@ -70,12 +70,34 @@ fn content_http_holds_the_three_conferred_route_sets() {
     let signed_in = at_content
         .iter()
         .find(|set| {
-            policies(set)
+            routes(set)
                 .iter()
-                .all(|shape| *shape == (AuthzPolicy::user(), ContextKind::User))
+                .any(|(_, path)| *path == "/links/generate")
         })
         .expect("a signed-in set at /api/v1/content");
-    assert_eq!(routes(signed_in), [("POST".to_owned(), "/links/generate")]);
+    let signed_in_shapes: Vec<(String, &str, (AuthzPolicy, ContextKind))> = routes(signed_in)
+        .into_iter()
+        .zip(policies(signed_in))
+        .map(|((method, path), shape)| (method, path, shape))
+        .collect();
+    let user = (AuthzPolicy::user(), ContextKind::User);
+    let admin = (AuthzPolicy::admin(), ContextKind::User);
+    for expected in [
+        ("POST", "/links/generate", user),
+        ("GET", "/links", admin),
+        ("GET", "/links/{link_id}/performance", admin),
+        ("GET", "/links/{link_id}/clicks", admin),
+        ("GET", "/links/campaigns/{campaign_id}/performance", admin),
+        ("GET", "/links/journey", admin),
+    ] {
+        assert!(
+            signed_in_shapes
+                .iter()
+                .any(|(m, p, s)| m == expected.0 && *p == expected.1 && *s == expected.2),
+            "{expected:?} in {signed_in_shapes:?}"
+        );
+    }
+    assert_eq!(signed_in_shapes.len(), 6, "{signed_in_shapes:?}");
 
     let public = at_content
         .iter()
@@ -89,7 +111,7 @@ fn content_http_holds_the_three_conferred_route_sets() {
     assert!(
         !public_routes
             .iter()
-            .any(|(_, path)| *path == "/links/generate"),
+            .any(|(_, path)| path.starts_with("/links")),
         "{public_routes:?}"
     );
     for expected in [
@@ -97,8 +119,6 @@ fn content_http_holds_the_three_conferred_route_sets() {
         ("GET", "/{source_id}"),
         ("GET", "/{source_id}/{slug}"),
         ("GET", "/{source_id}/{slug}/{suffix}"),
-        ("GET", "/links"),
-        ("GET", "/links/journey"),
     ] {
         assert!(
             public_routes

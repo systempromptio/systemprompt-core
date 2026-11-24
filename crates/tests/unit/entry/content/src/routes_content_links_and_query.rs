@@ -21,11 +21,17 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 use crate::common::{
-    body_to_string, content_app, empty_get, json_post, request_context, setup_ctx,
+    admin_request_context, body_to_string, content_app, empty_get, json_post, request_context,
+    setup_ctx,
 };
 
 fn public(ctx: &AppContext) -> Router {
     content_app(content::public_routes(), ctx).layer(Extension(request_context("content_user")))
+}
+
+fn admin(ctx: &AppContext) -> Router {
+    content_app(content::authenticated_routes(), ctx)
+        .layer(Extension(admin_request_context("content_user")))
 }
 
 fn authenticated(ctx: &AppContext) -> Router {
@@ -288,17 +294,14 @@ async fn assert_link_reads_live(
     campaign: &str,
     source: &str,
 ) -> Result<()> {
-    let (status, performance) = response_json(
-        public(ctx),
-        empty_get(&format!("/links/{link}/performance")),
-    )
-    .await?;
+    let (status, performance) =
+        response_json(admin(ctx), empty_get(&format!("/links/{link}/performance"))).await?;
     assert_eq!(status.as_u16(), 200, "{performance}");
     assert_eq!(performance["link_id"], link);
     assert_eq!(performance["click_count"], 1);
 
     let (status, performance) = response_json(
-        public(ctx),
+        admin(ctx),
         empty_get(&format!("/links/campaigns/{campaign}/performance")),
     )
     .await?;
@@ -308,7 +311,7 @@ async fn assert_link_reads_live(
     assert_eq!(performance["link_count"], 1);
 
     let (status, clicks) = response_json(
-        public(ctx),
+        admin(ctx),
         empty_get(&format!("/links/{link}/clicks?limit=10&offset=0")),
     )
     .await?;
@@ -322,7 +325,7 @@ async fn assert_link_reads_live(
         format!("/links?campaign_id={campaign}"),
         format!("/links?source_content_id={source}"),
     ] {
-        let (status, links) = response_json(public(ctx), empty_get(&uri)).await?;
+        let (status, links) = response_json(admin(ctx), empty_get(&uri)).await?;
         assert_eq!(status.as_u16(), 200, "{uri}: {links}");
         let links = links.as_array().expect("links response array");
         assert_eq!(links.len(), 1, "{uri}: {links:?}");
@@ -332,7 +335,7 @@ async fn assert_link_reads_live(
     }
 
     let (status, journey) =
-        response_json(public(ctx), empty_get("/links/journey?limit=10&offset=0")).await?;
+        response_json(admin(ctx), empty_get("/links/journey?limit=10&offset=0")).await?;
     assert_eq!(status.as_u16(), 200, "{journey}");
     let journey = journey.as_array().expect("journey response array");
     assert_eq!(journey.len(), 1);
@@ -356,7 +359,7 @@ async fn assert_link_reads_outage(
         format!("/links?source_content_id={source}"),
         "/links/journey?limit=10&offset=0".to_owned(),
     ] {
-        let (status, body) = response_json(public(ctx), empty_get(&uri)).await?;
+        let (status, body) = response_json(admin(ctx), empty_get(&uri)).await?;
         assert_eq!(status.as_u16(), 500, "{uri}: {body}");
         assert!(
             body["message"]
