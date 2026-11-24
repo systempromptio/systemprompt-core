@@ -17,7 +17,7 @@ use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::mcp_sidecar;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
@@ -57,7 +57,7 @@ fn manifest() -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("mcp-sidecar-port-move"),
         tenant_id: None,
         user: None,
         plugins: vec![],

@@ -5,7 +5,7 @@ use systemprompt_files::{
     UploadedFile,
 };
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId};
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -126,13 +126,13 @@ fn test_file_upload_request_builder_with_name() {
 #[test]
 fn test_file_upload_request_builder_with_user_id() {
     let context_id = ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId");
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("errors-requests");
     let request = FileUploadRequestBuilder::new("image/png", "base64data==", context_id)
-        .with_user_id(user_id)
+        .with_user_id(user_id.clone())
         .build();
 
     request.user_id.as_ref().expect("user_id should be present");
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
+    assert_eq!(request.user_id.as_ref(), Some(&user_id));
 }
 
 #[test]
@@ -168,13 +168,13 @@ fn test_file_upload_request_builder_with_trace_id() {
 #[test]
 fn test_file_upload_request_builder_full_chain() {
     let context_id = ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId");
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("errors-requests");
     let session_id = SessionId::new("sess_xyz");
     let trace_id = TraceId::new("trace_def");
 
     let request = FileUploadRequestBuilder::new("application/pdf", "pdfdata==", context_id)
         .with_name("document.pdf")
-        .with_user_id(user_id)
+        .with_user_id(user_id.clone())
         .with_session_id(session_id)
         .with_trace_id(trace_id)
         .build();
@@ -183,7 +183,7 @@ fn test_file_upload_request_builder_full_chain() {
     assert_eq!(request.bytes_base64, "pdfdata==");
     assert_eq!(request.context_id.as_str(), TEST_CONTEXT_ID_A);
     assert_eq!(request.name, Some("document.pdf".to_string()));
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
+    assert_eq!(request.user_id.as_ref(), Some(&user_id));
     assert_eq!(request.session_id.as_ref().unwrap().as_str(), "sess_xyz");
     assert_eq!(request.trace_id.as_ref().unwrap().as_str(), "trace_def");
 }

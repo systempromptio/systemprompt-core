@@ -3,7 +3,7 @@
 use chrono::Utc;
 use systemprompt_files::{File, FileMetadata, ImageMetadata};
 use systemprompt_identifiers::{FileId, SessionId, TraceId};
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 fn create_test_file() -> File {
     let now = Utc::now();
@@ -35,7 +35,7 @@ fn create_test_file_with_metadata(metadata: FileMetadata) -> File {
         size_bytes: Some(2048),
         ai_content: true,
         metadata: sqlx::types::Json(metadata),
-        user_id: Some(fixture_user_id()),
+        user_id: Some(unique_user_id("file")),
         session_id: Some(SessionId::new("sess_456")),
         trace_id: Some(TraceId::new("trace_789")),
         context_id: None,
@@ -134,6 +134,7 @@ fn test_file_metadata_with_checksums() {
 #[test]
 fn test_file_with_all_optional_ids() {
     let now = Utc::now();
+    let user_id = unique_user_id("file");
     let file = File {
         id: FileId::generate(),
         path: "/storage/test.png".to_string(),
@@ -142,7 +143,7 @@ fn test_file_with_all_optional_ids() {
         size_bytes: Some(4096),
         ai_content: true,
         metadata: sqlx::types::Json(FileMetadata::default()),
-        user_id: Some(fixture_user_id()),
+        user_id: Some(user_id.clone()),
         session_id: Some(SessionId::new("session_def")),
         trace_id: Some(TraceId::new("trace_ghi")),
         context_id: None,
@@ -156,7 +157,7 @@ fn test_file_with_all_optional_ids() {
         .as_ref()
         .expect("session_id should be present");
     file.trace_id.as_ref().expect("trace_id should be present");
-    assert_eq!(file.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
+    assert_eq!(file.user_id.as_ref(), Some(&user_id));
     assert_eq!(file.session_id.as_ref().unwrap().as_str(), "session_def");
     assert_eq!(file.trace_id.as_ref().unwrap().as_str(), "trace_ghi");
 }

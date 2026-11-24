@@ -5,12 +5,12 @@
 //! calls deterministically return an error here.
 
 use systemprompt_mcp::RegistryService;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 #[test]
 fn test_new_constructs() {
     let _r = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-service"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -19,7 +19,7 @@ fn test_new_constructs() {
 #[test]
 fn test_clone() {
     let r = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-service"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -29,7 +29,7 @@ fn test_clone() {
 #[test]
 fn test_get_server_missing_propagates_error() {
     let r = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-service"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -40,7 +40,7 @@ fn test_get_server_missing_propagates_error() {
 #[test]
 fn test_find_server_missing_returns_error_or_none() {
     let r = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-service"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -52,7 +52,7 @@ fn test_find_server_missing_returns_error_or_none() {
 #[test]
 fn managed_and_external_servers_are_callable() {
     let r = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-service"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );

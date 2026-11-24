@@ -8,14 +8,14 @@ use systemprompt_governance::authz::{
     EntityRef, WebhookHook,
 };
 use systemprompt_identifiers::{ModelId, RouteId, TraceId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn fixture() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("webhook-hook"),
         actor: None,
         client_id: None,
         access_scope: None,

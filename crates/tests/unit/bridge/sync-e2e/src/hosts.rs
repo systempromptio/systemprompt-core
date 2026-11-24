@@ -23,7 +23,7 @@ use systemprompt_models::bridge::manifest::{
     ManifestExternalMarketplace, ManifestExternalMarketplaceSource, ManifestExternalPlugin,
     ManifestExternalPluginSource,
 };
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -222,6 +222,7 @@ fn manifest(enabled_hosts: Vec<HostKind>, populated: bool, suffix: &str) -> Sign
     } else {
         (vec![], vec![])
     };
+    let user_id = unique_user_id("hosts");
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
@@ -232,10 +233,10 @@ fn manifest(enabled_hosts: Vec<HostKind>, populated: bool, suffix: &str) -> Sign
         not_before: chrono::DateTime::parse_from_rfc3339("2026-07-01T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: user_id.clone(),
         tenant_id: None,
         user: Some(UserInfo {
-            id: fixture_user_id(),
+            id: user_id,
             name: "alice".into(),
             email: "alice@example.com".into(),
             display_name: None,

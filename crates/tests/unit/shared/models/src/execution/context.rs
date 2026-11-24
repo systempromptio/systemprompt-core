@@ -3,7 +3,7 @@ use systemprompt_identifiers::{
     TaskId, TraceId, UserId,
 };
 use systemprompt_models::auth::UserType;
-use systemprompt_test_fixtures::fixture_actor;
+use systemprompt_test_fixtures::unique_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -103,8 +103,9 @@ fn request_context_new_carries_no_bearer_credential() {
 
 #[test]
 fn request_context_with_user_id() {
-    let ctx = test_context().with_actor(fixture_actor());
-    assert_eq!(ctx.user_id().as_str(), "test-user");
+    let user_id = unique_user_id("context");
+    let ctx = test_context().with_actor(Actor::user(user_id.clone()));
+    assert_eq!(ctx.user_id().as_str(), user_id.as_str());
 }
 
 #[test]
@@ -191,15 +192,16 @@ fn request_context_with_fingerprint_hash() {
 
 #[test]
 fn request_context_builder_chain_multiple() {
+    let user_id = unique_user_id("context");
     let ctx = test_context()
-        .with_actor(fixture_actor())
+        .with_actor(Actor::user(user_id.clone()))
         .with_user_type(UserType::User)
         .with_auth_token(JwtToken::new("token"))
         .with_task_id(TaskId::new("t1"))
         .with_call_source(CallSource::Direct)
         .with_budget(100);
 
-    assert_eq!(ctx.user_id().as_str(), "test-user");
+    assert_eq!(ctx.user_id().as_str(), user_id.as_str());
     assert_eq!(ctx.user_type(), UserType::User);
     assert_eq!(ctx.auth_token().map(JwtToken::as_str), Some("token"));
     assert_eq!(ctx.task_id().unwrap().as_str(), "t1");
@@ -254,7 +256,7 @@ fn request_context_validate_authenticated_fails_with_anonymous_user() {
 fn request_context_validate_authenticated_succeeds_when_valid() {
     let ctx = test_context()
         .with_auth_token(JwtToken::new("valid-token"))
-        .with_actor(fixture_actor())
+        .with_actor(Actor::user(unique_user_id("context")))
         .with_user_type(UserType::User);
     assert!(ctx.validate_authenticated().is_ok());
 }
@@ -288,7 +290,9 @@ fn context_id_source_from_task() {
 
 #[test]
 fn context_extraction_error_missing_header_display() {
-    let err = ContextExtractionError::MissingHeader("x-session-id".to_string());
+    let err = ContextExtractionError::MissingHeader {
+        header: "x-session-id".to_string(),
+    };
     let msg = format!("{}", err);
     assert!(msg.contains("x-session-id"));
 }

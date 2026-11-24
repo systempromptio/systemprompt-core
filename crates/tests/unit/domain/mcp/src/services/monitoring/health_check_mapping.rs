@@ -11,12 +11,12 @@ use systemprompt_mcp::services::client::McpConnectionResult;
 use systemprompt_mcp::services::monitoring::health::{HealthCheckResult, HealthStatus};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::OAuthRequirement;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn config(name: &str, oauth_required: bool) -> McpServerConfig {
     McpServerConfig {
         name: name.to_string(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("health-check-mapping"),
         server_type: Default::default(),
         binary: Some("test-binary".to_string()),
         enabled: true,

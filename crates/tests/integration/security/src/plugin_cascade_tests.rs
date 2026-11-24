@@ -14,7 +14,7 @@ use systemprompt_governance::authz::{
     NO_SUBJECT_ATTRIBUTES, ParentChainIndex, allowed_ids,
 };
 use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use uuid::Uuid;
 
 struct Fixture {
@@ -161,7 +161,7 @@ async fn visible_skills(fixture: &Fixture, roles: &[&str]) -> HashSet<String> {
     allowed_ids(
         &repo,
         BulkKeepQuery {
-            user_id: &fixture_user_id(),
+            user_id: &unique_user_id("plugin-cascade-tests"),
             roles: &roles,
             kind: EntityKind::Skill,
             ids: &ids,
@@ -227,7 +227,7 @@ async fn a_skill_reachable_through_either_of_two_marketplaces_is_visible() {
     let seen = allowed_ids(
         &repo,
         BulkKeepQuery {
-            user_id: &fixture_user_id(),
+            user_id: &unique_user_id("plugin-cascade-tests"),
             roles: &roles,
             kind: EntityKind::Skill,
             ids: &ids,

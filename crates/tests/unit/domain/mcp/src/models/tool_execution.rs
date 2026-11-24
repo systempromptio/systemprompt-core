@@ -4,7 +4,7 @@ use chrono::Utc;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName};
 use systemprompt_mcp::models::ToolExecution;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -17,7 +17,7 @@ fn create_test_execution() -> ToolExecution {
             ContextId::try_new(TEST_CONTEXT_ID_A.to_string()).expect("valid ContextId"),
         ),
         ai_tool_call_id: Some(AiToolCallId::new("call-789".to_string())),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("tool-execution"),
         status: "success".to_string(),
         input: r#"{"query": "test"}"#.to_string(),
         output: Some(r#"{"result": "ok"}"#.to_string()),

@@ -15,11 +15,12 @@ const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::manifest_signing;
-use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 const SEED_B64: &str = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
 fn sample_manifest() -> SignedManifest {
+    let user_id = unique_user_id("manifest-signing");
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
@@ -31,10 +32,10 @@ fn sample_manifest() -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-04-27T00:00:00Z")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: user_id.clone(),
         tenant_id: Some(TenantId::new("tenant_xyz")),
         user: Some(UserInfo {
-            id: fixture_user_id(),
+            id: user_id,
             name: "alice".into(),
             email: "alice@example.com".into(),
             display_name: Some("Alice".into()),
@@ -209,11 +210,12 @@ fn sign_bytes_round_trips_through_verifier() {
 fn tamper_with_payload_breaks_signature() {
     let pubkey = manifest_keys().manifest_pubkey_b64();
 
-    let mut envelope = sealed_envelope(&sample_manifest());
+    let manifest = sample_manifest();
+    let mut envelope = sealed_envelope(&manifest);
     let tampered_user = unique_user_id("tampered");
     envelope.payload = envelope
         .payload
-        .replace(fixture_user_id().as_str(), tampered_user.as_str());
+        .replace(manifest.user_id.as_str(), tampered_user.as_str());
 
     let result = verify_envelope(&envelope, &pubkey);
     assert!(result.is_err(), "tampered payload must fail verification");

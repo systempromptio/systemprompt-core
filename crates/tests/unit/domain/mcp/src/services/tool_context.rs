@@ -13,13 +13,13 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
 async fn provider() -> McpToolProvider {
     let db = test_db_pool().await;
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("tool-context"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -33,7 +33,8 @@ async fn provider() -> McpToolProvider {
 }
 
 fn base_ctx() -> ToolContext {
-    ToolContext::new(Actor::user(fixture_user_id())).with_auth_token(JwtToken::new("test-token"))
+    ToolContext::new(Actor::user(unique_user_id("tool-context")))
+        .with_auth_token(JwtToken::new("test-token"))
 }
 
 fn full_ctx() -> ToolContext {
@@ -138,7 +139,7 @@ async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
 async fn tool_context_with_session_and_trace_ids_propagated() {
     let p = provider().await;
     let ctx_id = ContextId::generate();
-    let ctx = ToolContext::new(Actor::user(fixture_user_id()))
+    let ctx = ToolContext::new(Actor::user(unique_user_id("tool-context")))
         .with_auth_token(JwtToken::new("tok"))
         .with_session_id(SessionId::new("my-session"))
         .with_trace_id(TraceId::new("my-trace"))
@@ -158,7 +159,7 @@ async fn tool_context_with_ai_tool_call_id_and_task_id() {
     let p = provider().await;
     let ctx_id = ContextId::generate();
     let tool_call_id = AiToolCallId::new("call-abc");
-    let ctx = ToolContext::new(Actor::user(fixture_user_id()))
+    let ctx = ToolContext::new(Actor::user(unique_user_id("tool-context")))
         .with_auth_token(JwtToken::new("tok"))
         .with_ai_tool_call_id(tool_call_id)
         .with_header("x-context-id", ctx_id.as_str())

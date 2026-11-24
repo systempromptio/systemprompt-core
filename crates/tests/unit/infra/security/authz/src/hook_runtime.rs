@@ -6,7 +6,7 @@ use systemprompt_governance::authz::{
     EntityRef,
 };
 use systemprompt_identifiers::{McpServerId, RouteId, TraceId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 #[derive(Debug)]
 struct LocalDenyAllHook;
@@ -31,7 +31,7 @@ impl AuthzDecisionHook for LocalDenyAllHook {
 fn fixture_request(entity: EntityRef) -> AuthzRequest {
     AuthzRequest {
         entity,
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("hook-runtime"),
         actor: None,
         client_id: None,
         access_scope: None,

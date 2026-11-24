@@ -1,26 +1,14 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_logging::{LogSink, LoggingRuntime};
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_users::{UserRepository, UserService};
 
-pub const FIXTURE_USER_ID: &str = "test-user";
-
-#[must_use]
-pub fn fixture_user_id() -> UserId {
-    UserId::new(FIXTURE_USER_ID)
-}
-
 #[must_use]
 pub fn unique_user_id(prefix: &str) -> UserId {
     UserId::new(format!("{prefix}-{}", uuid::Uuid::new_v4()))
-}
-
-#[must_use]
-pub fn fixture_actor() -> Actor {
-    Actor::user(fixture_user_id())
 }
 
 #[must_use]

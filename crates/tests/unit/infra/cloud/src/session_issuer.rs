@@ -5,7 +5,7 @@ use systemprompt_cloud::cli_session::{
 };
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
 use systemprompt_models::auth::UserType;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use tempfile::TempDir;
 
 const ISSUER: &str = "http://localhost:8080";
@@ -22,7 +22,7 @@ fn session_minted_under(issuer: &str) -> CliSession {
         SessionId::new("sid-001"),
         ContextId::try_new(CONTEXT_ID).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            unique_user_id("session-issuer"),
             Email::try_new("test@example.com").expect("valid Email"),
             UserType::Admin,
         ),
@@ -126,7 +126,7 @@ fn a_version_5_entry_is_rejected_rather_than_migrated() {
                     "session_token": "token-abc",
                     "session_id": "sid-001",
                     "context_id": CONTEXT_ID,
-                    "user_id": fixture_user_id().as_str(),
+                    "user_id": unique_user_id("session-issuer").as_str(),
                     "user_email": "test@example.com",
                     "user_type": "admin",
                     "created_at": "2026-08-06T00:00:00Z",
@@ -178,7 +178,7 @@ fn a_builder_ttl_pins_the_entry_to_the_tokens_own_lifetime() {
         SessionId::new("sid-001"),
         ContextId::try_new(CONTEXT_ID).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            unique_user_id("session-issuer"),
             Email::try_new("test@example.com").expect("valid Email"),
             UserType::Admin,
         ),

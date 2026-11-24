@@ -7,12 +7,12 @@ use systemprompt_mcp::services::client::McpClient;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::OAuthRequirement;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn external_config(external_auth: bool) -> McpServerConfig {
     McpServerConfig {
         name: "sf".to_string(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("external-proxy"),
         server_type: systemprompt_models::mcp::McpServerType::External,
         binary: None,
         enabled: true,

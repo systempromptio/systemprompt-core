@@ -25,7 +25,7 @@ use systemprompt_mcp::services::orchestrator::process_cleanup::{
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_user_id, test_db_pool,
+    TestBootstrap, ensure_test_bootstrap, test_db_pool, unique_user_id,
 };
 
 use crate::harness::internal_mcp_config;
@@ -69,7 +69,7 @@ async fn fixture() -> Fixture {
         repo.clone(),
         app_paths,
         RegistryService::new(
-            fixture_user_id(),
+            unique_user_id("process-cleanup"),
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),

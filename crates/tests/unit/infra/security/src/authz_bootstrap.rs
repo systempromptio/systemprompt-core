@@ -14,7 +14,7 @@ use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
-use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{closed_db_pool, unique_user_id};
 
 async fn pool() -> std::sync::Arc<sqlx::PgPool> {
     closed_db_pool().await.write_pool()
@@ -23,7 +23,7 @@ async fn pool() -> std::sync::Arc<sqlx::PgPool> {
 fn fixture() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("authz-bootstrap"),
         actor: None,
         client_id: None,
         access_scope: None,

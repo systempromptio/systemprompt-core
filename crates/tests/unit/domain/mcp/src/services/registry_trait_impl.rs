@@ -9,12 +9,12 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::McpDeploymentProvider;
 use systemprompt_mcp::{McpDeploymentProviderImpl, RegistryService};
 use systemprompt_models::mcp::McpRegistry;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 #[tokio::test]
 async fn list_servers_is_reachable() {
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-trait-impl"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -24,7 +24,7 @@ async fn list_servers_is_reachable() {
 #[tokio::test]
 async fn server_exists_is_reachable() {
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-trait-impl"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -40,7 +40,7 @@ async fn server_exists_is_reachable() {
 #[tokio::test]
 async fn find_server_is_reachable() {
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("registry-trait-impl"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );

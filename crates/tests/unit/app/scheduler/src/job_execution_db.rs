@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_identifiers::JobName;
+use systemprompt_identifiers::{Actor, JobName};
 
 use systemprompt_scheduler::{
     JobExecutionService, JobRepository, JobSelection, SchedulerError, parse_job_parameters,
@@ -339,7 +339,9 @@ mod kernel_state_context {
     #[tokio::test]
     async fn a_context_without_the_kernel_state_lacks_the_schedule() {
         let ctx = JobContext::new(
-            systemprompt_test_fixtures::fixture_actor(),
+            Actor::user(systemprompt_test_fixtures::unique_user_id(
+                "job-execution-db",
+            )),
             Dependencies::new(),
         );
         let err = KernelStateJob

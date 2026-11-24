@@ -27,7 +27,7 @@ async fn test_client_lifecycle() {
 
     let params = CreateClientParams {
         client_id: client_id.clone(),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: crate::create_test_user(&db).await,
         client_secret_hash: Some("hash_of_secret".to_string()),
         registration_token_hash: None,
         client_name: "Test Client".to_string(),
@@ -113,7 +113,7 @@ async fn test_client_update() {
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: crate::create_test_user(&db).await,
         client_secret_hash: Some("hash_of_secret".to_string()),
         registration_token_hash: None,
         client_name: "Original Name".to_string(),
@@ -168,7 +168,7 @@ async fn test_client_secret_update() {
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: crate::create_test_user(&db).await,
         client_secret_hash: Some("original_hash".to_string()),
         registration_token_hash: None,
         client_name: "Test Client".to_string(),
@@ -256,7 +256,7 @@ async fn test_application_type_round_trip() {
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: crate::create_test_user(&db).await,
         client_secret_hash: Some("hash".to_string()),
         registration_token_hash: None,
         client_name: "Native App".to_string(),

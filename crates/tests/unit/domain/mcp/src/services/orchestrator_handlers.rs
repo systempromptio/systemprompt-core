@@ -12,7 +12,7 @@ use systemprompt_mcp::services::orchestrator::{
 };
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_instance, unique_user_id};
 
 async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryService) {
     let db = test_db_pool().await;
@@ -36,7 +36,7 @@ async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryServ
         .expect("app paths"),
     );
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("orchestrator-handlers"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );

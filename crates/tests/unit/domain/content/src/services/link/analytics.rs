@@ -1,7 +1,7 @@
 //! Tests for LinkPerformance, CampaignPerformance, ContentJourneyNode,
 //! LinkClick, and TrackClickParams
 
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 #[test]
 fn test_link_performance_creation() {
     use systemprompt_content::models::LinkPerformance;
@@ -169,7 +169,7 @@ fn test_link_click_creation_full() {
         id: LinkClickId::new("click-2"),
         link_id: LinkId::new("link-2"),
         session_id: SessionId::new("session-2"),
-        user_id: Some(fixture_user_id()),
+        user_id: Some(unique_user_id("analytics")),
         context_id: Some(ContextId::try_new(TEST_CTX).expect("valid ContextId")),
         task_id: Some(TaskId::new("task-1")),
         referrer_page: Some("/blog".to_string()),
@@ -256,7 +256,7 @@ fn test_track_click_params_with_context() {
     let params = TrackClickParams {
         link_id: LinkId::new("link-ctx"),
         session_id: SessionId::new("session-ctx"),
-        user_id: Some(fixture_user_id()),
+        user_id: Some(unique_user_id("analytics")),
         context_id: Some(ContextId::try_new(TEST_CTX).expect("valid ContextId")),
         task_id: None,
         referrer_page: Some("/previous-page".to_string()),

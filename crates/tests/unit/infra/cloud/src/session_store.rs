@@ -6,7 +6,7 @@ use systemprompt_cloud::cli_session::{
 use systemprompt_cloud::{CloudError, SessionBinding};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
 use systemprompt_models::auth::UserType;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use tempfile::TempDir;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
@@ -22,7 +22,7 @@ fn test_builder(profile: &str) -> CliSessionBuilder {
         SessionId::new("sid-001"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            unique_user_id("session-store"),
             Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
@@ -148,7 +148,7 @@ fn get_valid_session_returns_none_for_empty_token() {
         SessionId::new("sid"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            unique_user_id("session-store"),
             Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
@@ -526,6 +526,7 @@ fn save_creates_parent_directories() {
 fn serde_roundtrip_preserves_all_fields() {
     let mut store = SessionStore::new();
     let key = SessionKey::Tenant(TenantId::new("serde-test"));
+    let user_id = unique_user_id("session-store");
     let session = CliSessionBuilder::new(
         SessionBinding::new(
             ProfileName::try_new("serde-prof").expect("valid ProfileName"),
@@ -535,7 +536,7 @@ fn serde_roundtrip_preserves_all_fields() {
         SessionId::new("sid-001"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            user_id.clone(),
             Email::try_new("serde@test.com").expect("valid Email"),
             UserType::User,
         ),
@@ -555,7 +556,7 @@ fn serde_roundtrip_preserves_all_fields() {
 
     let s = deserialized.get_session(&key).unwrap();
     assert_eq!(s.profile_name.as_str(), "serde-prof");
-    assert_eq!(s.user_id, fixture_user_id());
+    assert_eq!(s.user_id, user_id);
     assert_eq!(s.user_email.as_str(), "serde@test.com");
     assert_eq!(s.user_type, UserType::User);
     assert_eq!(s.profile_path, Some(PathBuf::from("/serde/path.yaml")));

@@ -9,7 +9,7 @@ use systemprompt_bridge::instance::window::{
     CandidateRefusal, CombinedWindow, admit_candidate, combine,
 };
 use systemprompt_models::bridge::instance::BridgeVersionWindow;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn v(s: &str) -> semver::Version {
     semver::Version::parse(s).unwrap()
@@ -31,7 +31,7 @@ fn manifest_with(window: Option<BridgeVersionWindow>) -> SignedManifest {
         ManifestVersion::try_new("2026-04-22T00:00:00Z-01abcdef").unwrap(),
         at,
         at,
-        fixture_user_id(),
+        unique_user_id("release-window"),
     );
     match window {
         Some(w) => builder.with_bridge_versions(w).build(),

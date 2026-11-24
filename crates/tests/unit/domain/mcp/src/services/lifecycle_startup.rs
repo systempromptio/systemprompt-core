@@ -19,7 +19,7 @@ const fn attempt(number: u32, started: std::time::Instant) -> StartupAttempt {
     }
 }
 use systemprompt_models::mcp::McpServerConfig;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool, unique_user_id};
 use systemprompt_traits::startup_channel;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -141,7 +141,7 @@ async fn start_server_rejects_external_servers() {
     let db = test_db_pool().await;
     let bootstrap = ensure_test_bootstrap();
     let registry = systemprompt_mcp::services::registry::RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("lifecycle-startup"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );

@@ -17,14 +17,14 @@ use systemprompt_mcp::services::monitoring::health::{
 };
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::{McpServerType, OAuthRequirement};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, unique_user_id};
 
 use crate::mock_server::start_echo_mcp_server;
 
 fn external_config(name: &str, remote_endpoint: &str) -> McpServerConfig {
     McpServerConfig {
         name: name.to_owned(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("client-live"),
         server_type: McpServerType::External,
         binary: None,
         enabled: true,

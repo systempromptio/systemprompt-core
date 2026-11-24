@@ -1,6 +1,6 @@
-use crate::setup_test_db;
+use crate::{create_test_user, setup_test_db};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_oauth::repository::{ClientRepository, DeclaredClientRow, DeclaredClientWrite};
 use uuid::Uuid;
 
@@ -31,7 +31,7 @@ async fn declared(db: &DbPool, id: &ClientId) -> Option<DeclaredClientRow> {
 async fn a_declared_client_is_written_rewritten_and_released() {
     let db = setup_test_db().await;
     let id = ClientId::new(format!("declared_{}", Uuid::new_v4().simple()));
-    let owner = systemprompt_test_fixtures::fixture_user_id();
+    let owner = create_test_user(&db).await;
     let redirects = strings(&["https://b.example/cb", "https://a.example/cb"]);
     let grants = strings(&["refresh_token", "authorization_code"]);
     let scopes = strings(&["profile", "openid"]);
@@ -129,14 +129,14 @@ async fn refresh_tokens_of(db: &DbPool, id: &ClientId) -> i64 {
         .expect("count")
 }
 
-async fn seed_refresh_token(db: &DbPool, id: &ClientId) {
+async fn seed_refresh_token(db: &DbPool, id: &ClientId, owner: &UserId) {
     sqlx::query(
         "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, expires_at, \
          family_id) VALUES ($1, $2, $3, 'user', now() + interval '1 hour', $1)",
     )
     .bind(format!("rt-{}", Uuid::new_v4().simple()))
     .bind(id.as_str())
-    .bind(systemprompt_test_fixtures::fixture_user_id().as_str())
+    .bind(owner.as_str())
     .execute(db.write_pool().as_ref())
     .await
     .expect("seed refresh token");
@@ -147,7 +147,7 @@ async fn only_a_live_declaration_makes_a_client_person_ui() {
     let db = setup_test_db().await;
     let repo = ClientRepository::new(&db);
     let id = ClientId::new(format!("desk_{}", Uuid::new_v4().simple()));
-    let owner = systemprompt_test_fixtures::fixture_user_id();
+    let owner = create_test_user(&db).await;
     let redirects = strings(&["http://127.0.0.1:53682/cb"]);
     let grants = strings(&["authorization_code", "refresh_token"]);
     let write = |person_ui| DeclaredClientWrite {
@@ -166,7 +166,7 @@ async fn only_a_live_declaration_makes_a_client_person_ui() {
     upsert(&db, write(false)).await;
     assert!(!repo.is_person_ui(&id).await.expect("lookup"));
 
-    seed_refresh_token(&db, &id).await;
+    seed_refresh_token(&db, &id, &owner).await;
     upsert(&db, write(true)).await;
     assert!(repo.is_person_ui(&id).await.expect("lookup"));
     assert!(declared(&db, &id).await.expect("declared").person_ui);
@@ -176,7 +176,7 @@ async fn only_a_live_declaration_makes_a_client_person_ui() {
         "flipping person_ui revokes"
     );
 
-    seed_refresh_token(&db, &id).await;
+    seed_refresh_token(&db, &id, &owner).await;
     upsert(&db, write(true)).await;
     assert_eq!(
         refresh_tokens_of(&db, &id).await,
@@ -198,12 +198,10 @@ async fn only_a_live_declaration_makes_a_client_person_ui() {
 #[tokio::test]
 async fn a_registered_client_is_never_person_ui() {
     let db = setup_test_db().await;
-    let client = systemprompt_test_fixtures::seed_oauth_client(
-        &db,
-        &systemprompt_test_fixtures::fixture_user_id(),
-    )
-    .await
-    .expect("register");
+    let owner = create_test_user(&db).await;
+    let client = systemprompt_test_fixtures::seed_oauth_client(&db, &owner)
+        .await
+        .expect("register");
     assert!(
         !ClientRepository::new(&db)
             .is_person_ui(&client.client_id)

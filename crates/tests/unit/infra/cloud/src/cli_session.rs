@@ -6,15 +6,21 @@ use systemprompt_cloud::SessionBinding;
 use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey,
 };
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
+use systemprompt_identifiers::{
+    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+};
 use systemprompt_models::auth::UserType;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use tempfile::TempDir;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 
 fn create_test_builder() -> CliSessionBuilder {
+    create_test_builder_for(unique_user_id("cli-session"))
+}
+
+fn create_test_builder_for(user_id: UserId) -> CliSessionBuilder {
     CliSessionBuilder::new(
         SessionBinding::new(
             ProfileName::try_new("test-profile").expect("valid ProfileName"),
@@ -24,7 +30,7 @@ fn create_test_builder() -> CliSessionBuilder {
         SessionId::new("session-123"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            user_id,
             Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
@@ -33,14 +39,15 @@ fn create_test_builder() -> CliSessionBuilder {
 
 #[test]
 fn test_cli_session_builder_new() {
-    let builder = create_test_builder();
+    let user_id = unique_user_id("cli-session");
+    let builder = create_test_builder_for(user_id.clone());
     let session = builder.build();
 
     assert_eq!(session.profile_name.as_str(), "test-profile");
     assert_eq!(session.session_token.as_str(), "test-token");
     assert_eq!(session.session_id.as_str(), "session-123");
     assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_A);
-    assert_eq!(session.user_id, fixture_user_id());
+    assert_eq!(session.user_id, user_id);
     assert_eq!(session.user_email.as_str(), "test@example.com");
     assert_eq!(session.user_type, UserType::User);
 }
@@ -190,7 +197,7 @@ fn test_cli_session_has_valid_credentials_false_empty_token() {
         SessionId::new("session"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            unique_user_id("cli-session"),
             Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
@@ -383,7 +390,7 @@ fn test_cli_session_builder_method() {
         SessionId::new("s"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            unique_user_id("cli-session"),
             Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
