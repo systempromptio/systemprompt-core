@@ -17,14 +17,15 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::contribute::ContributionSink;
-use systemprompt_identifiers::Actor;
+use systemprompt_extension::reserved::CoreId;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_provider_contracts::DependencyProvider;
 use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::services::SchedulerHandle;
 use systemprompt_traits::{
-    BackgroundTasks, Dependencies, JobContext, OwnedTask, Phase, RunnerService, StartupEventExt,
-    StartupEventSender,
+    BackgroundTasks, OwnedTask, Phase, RunnerService, StartupEventExt, StartupEventSender,
 };
 
 use super::lifecycle::{
@@ -195,10 +196,17 @@ async fn serve_until_shutdown(
 }
 
 fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>) -> Result<()> {
-    let shared = ctx.kernel().runtime_state();
     let mut started = 0usize;
     if let Some(consumer) = brain {
-        spawn_runner_service(ctx, &shared, consumer)?;
+        let owner = match ctx
+            .kernel()
+            .state()
+            .provider_of::<systemprompt_extension::brain::DynBrainConsumerStart>()
+        {
+            Some(DependencyProvider::Extension(owner)) => owner.clone(),
+            _ => ExtensionId::new(CoreId::Kernel.id()),
+        };
+        spawn_runner_service(ctx, &owner, consumer)?;
         tracing::info!(service = "brain", "runner service started");
         started += 1;
     }
@@ -212,7 +220,7 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         .context("runner services")?;
     for (owner, service) in services {
         let name = service.name();
-        spawn_runner_service(ctx, &shared, service)?;
+        spawn_runner_service(ctx, &owner, service)?;
         tracing::info!(extension = %owner, service = name, "runner service started");
         started += 1;
     }
@@ -222,16 +230,13 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
 
 fn spawn_runner_service(
     ctx: &AppContext,
-    shared: &Dependencies,
+    owner: &ExtensionId,
     service: Arc<dyn RunnerService>,
 ) -> Result<()> {
     let state = ctx.kernel().state();
-    let name = service.name();
     let admin = state.get::<SystemAdmin>()?.id().clone();
-    let shared = shared.clone();
-    super::runner_supervisor::supervise(state.get::<BackgroundTasks>()?, service, move || {
-        JobContext::new(Actor::job(admin.clone(), name), shared.clone())
-    });
+    let job_ctx = super::runner_supervisor::member_context(state, owner, service.as_ref(), admin)?;
+    super::runner_supervisor::supervise(state.get::<BackgroundTasks>()?, service, job_ctx);
     Ok(())
 }
 
