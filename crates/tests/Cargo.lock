@@ -12714,6 +12714,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-notifications",
  "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",

@@ -23,6 +23,7 @@
 //! | profile disables | identity routes |
 //! |---|---|
 //! | `identity-http` | 404 (not mounted) |
+//! | `identity` (with `identity-http` admitted) | boot refused: no SSO slot is built |
 //! | `users` | boot refused (`users` is a required member) |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
