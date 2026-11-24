@@ -45,7 +45,7 @@ use systemprompt_documents::http::error::DocumentsResult;
 use systemprompt_documents::http::headers::{hash_etag, none_match, range};
 use systemprompt_documents::http::surface::{DriveSurface, FilesSurfaceError};
 use systemprompt_extension::prelude::Resolved;
-use systemprompt_files::documents::{DocumentsHandlesSlot, bound};
+use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_traits::{DriveTokens, DynDriveTokens};
 
 use self::commit::commit;
@@ -92,7 +92,7 @@ impl DriveSurface for FilesDriveSurface {
     fn build(&self, resolved: &Resolved<'_>) -> Result<Option<Router>, FilesSurfaceError> {
         let slot = resolved.get::<DocumentsHandlesSlot>()?;
         let (Some(service), Some(tokens)) = (
-            bound(&slot)?.service.clone(),
+            slot.get().and_then(|handles| handles.service.clone()),
             resolved.optional::<DynDriveTokens>(),
         ) else {
             return Ok(None);
