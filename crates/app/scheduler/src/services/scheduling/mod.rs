@@ -130,8 +130,6 @@ struct RegistrationCtx<'a> {
     owners: &'a HashMap<JobName, UserId>,
 }
 
-#[must_use]
-
 pub struct SchedulerService {
     config: SchedulerConfig,
     repository: SchedulerRepository,

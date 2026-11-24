@@ -7,6 +7,7 @@ use crate::models::SchedulerConfig;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::JobName;
 
+#[must_use]
 pub fn unknown_job_names(config: &SchedulerConfig, schedule: &AdmittedSchedule) -> Vec<JobName> {
     collect_unknown_job_names(config, |name| schedule.contains_job(name.as_str()))
         .into_iter()
