@@ -169,17 +169,6 @@ impl AgentOrchestrator {
         Ok(())
     }
 
-    pub async fn update_agent_running(
-        &self,
-        agent_name: &AgentName,
-        pid: u32,
-        port: u16,
-    ) -> OrchestrationResult<()> {
-        self.db_service
-            .update_agent_running(agent_name, pid, port)
-            .await
-    }
-
     pub async fn update_agent_stopped(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.db_service.update_agent_stopped(agent_name).await
     }

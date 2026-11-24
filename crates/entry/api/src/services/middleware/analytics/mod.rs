@@ -1,10 +1,12 @@
 //! Request analytics middleware.
 //!
 //! [`AnalyticsMiddleware`] records tracked requests after the response is
-//! produced, running session activity, velocity-based scanner detection,
-//! behavioural bot scoring, and analytics-event capture on the process's
-//! [`BackgroundTasks`] so the request path is never blocked on persistence and
-//! shutdown drains every pending write.
+//! produced, offering session activity, velocity-based scanner detection,
+//! behavioural bot scoring, and analytics-event capture to one bounded
+//! [`AnalyticsQueue`] (`server.analytics_queue`) whose single writer task is
+//! owned by the process's `BackgroundTasks`, so the request path is never
+//! blocked on persistence, the work in flight is bounded, and shutdown drains
+//! every queued write. A write offered to a full queue is dropped and counted.
 //!
 //! The session store, the behavioural scorer, the content catalog the scorer
 //! counts site pages from and the request-analytics write are read from the
@@ -16,6 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod events;
+pub mod queue;
 
 use axum::extract::Request;
 use axum::http::StatusCode;
@@ -28,11 +31,12 @@ use systemprompt_models::{RequestContext, RouteClassifier};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
 use systemprompt_traits::{
-    BackgroundTasks, DetectionSubject, DynContentCatalogStats, DynRequestAnalytics,
-    DynSessionBehaviourScorer, DynSessionTelemetry,
+    DetectionSubject, DynContentCatalogStats, DynRequestAnalytics, DynSessionBehaviourScorer,
+    DynSessionTelemetry,
 };
 
 pub use events::AnalyticsEventParams;
+pub use queue::{AnalyticsQueue, Offered};
 
 struct TrackingParams<'a> {
     req_ctx: &'a RequestContext,
@@ -52,7 +56,7 @@ pub struct AnalyticsMiddleware {
     scoring: Option<(DynSessionBehaviourScorer, DynContentCatalogStats)>,
     events: Option<DynRequestAnalytics>,
     route_classifier: Arc<RouteClassifier>,
-    background: BackgroundTasks,
+    queue: AnalyticsQueue,
 }
 
 impl std::fmt::Debug for AnalyticsMiddleware {
@@ -62,7 +66,7 @@ impl std::fmt::Debug for AnalyticsMiddleware {
             .field("scores_behaviour", &self.scoring.is_some())
             .field("records_events", &self.events.is_some())
             .field("route_classifier", &self.route_classifier)
-            .field("background", &self.background)
+            .field("queue", &self.queue)
             .finish_non_exhaustive()
     }
 }
@@ -77,13 +81,18 @@ impl AnalyticsMiddleware {
             .zip(state.find::<DynContentCatalogStats>().cloned());
         let events = state.find::<DynRequestAnalytics>().cloned();
         let route_classifier = Arc::clone(app_context.route_classifier());
+        let queue = app_context.profile().server.analytics_queue;
 
         Self {
             sessions,
             scoring,
             events,
             route_classifier,
-            background: app_context.background_tasks().clone(),
+            queue: AnalyticsQueue::new(
+                app_context.background_tasks().clone(),
+                queue.capacity,
+                queue.writers,
+            ),
         }
     }
 
@@ -165,18 +174,18 @@ impl AnalyticsMiddleware {
         if let Some(sessions) = &self.sessions {
             if is_scanner {
                 spawn_mark_scanner_task(
-                    &self.background,
+                    &self.queue,
                     Arc::clone(sessions),
                     req_ctx.request.session_id.clone(),
                 );
             }
             spawn_velocity_scanner_check(
-                &self.background,
+                &self.queue,
                 Arc::clone(sessions),
                 req_ctx.request.session_id.clone(),
             );
             spawn_session_tracking_task(
-                &self.background,
+                &self.queue,
                 Arc::clone(sessions),
                 req_ctx.request.session_id.clone(),
             );
@@ -184,7 +193,7 @@ impl AnalyticsMiddleware {
 
         if let Some((scorer, content)) = &self.scoring {
             spawn_behavioral_detection_task(
-                &self.background,
+                &self.queue,
                 Arc::clone(scorer),
                 Arc::clone(content),
                 DetectionSubject {
@@ -198,7 +207,7 @@ impl AnalyticsMiddleware {
 
         if let Some(recorder) = &self.events {
             events::spawn_analytics_event_task(
-                &self.background,
+                &self.queue,
                 Arc::clone(recorder),
                 Arc::clone(&self.route_classifier),
                 AnalyticsEventParams {
@@ -219,13 +228,13 @@ impl AnalyticsMiddleware {
 }
 
 fn spawn_session_tracking_task(
-    background: &BackgroundTasks,
+    queue: &AnalyticsQueue,
     sessions: DynSessionTelemetry,
     session_id: SessionId,
 ) {
     // Why: one UPDATE per request — the increment also stamps
     // last_activity_at and duration_seconds.
-    background.spawn("analytics_session_activity", async move {
+    queue.offer(async move {
         if let Err(e) = sessions.increment_request_count(&session_id).await {
             tracing::error!(error = %e, "Failed to record session request");
         }
@@ -233,11 +242,11 @@ fn spawn_session_tracking_task(
 }
 
 fn spawn_velocity_scanner_check(
-    background: &BackgroundTasks,
+    queue: &AnalyticsQueue,
     sessions: DynSessionTelemetry,
     session_id: SessionId,
 ) {
-    background.spawn("analytics_velocity_check", async move {
+    queue.offer(async move {
         let (request_count, duration_seconds) =
             match sessions.get_session_velocity(&session_id).await {
                 Ok(velocity) => velocity,
@@ -265,11 +274,11 @@ fn spawn_velocity_scanner_check(
 }
 
 fn spawn_mark_scanner_task(
-    background: &BackgroundTasks,
+    queue: &AnalyticsQueue,
     sessions: DynSessionTelemetry,
     session_id: SessionId,
 ) {
-    background.spawn("analytics_mark_scanner", async move {
+    queue.offer(async move {
         if let Err(e) = sessions.mark_as_scanner(&session_id).await {
             tracing::warn!(error = %e, session_id = %session_id, "Failed to mark session as scanner");
         }
@@ -277,12 +286,12 @@ fn spawn_mark_scanner_task(
 }
 
 fn spawn_behavioral_detection_task(
-    background: &BackgroundTasks,
+    queue: &AnalyticsQueue,
     scorer: DynSessionBehaviourScorer,
     content: DynContentCatalogStats,
     subject: DetectionSubject,
 ) {
-    background.spawn("analytics_behavioral_detection", async move {
+    queue.offer(async move {
         if let Err(e) = scorer.score(subject, &*content).await {
             tracing::error!(error = %e, "Failed to update behavioral detection");
         }

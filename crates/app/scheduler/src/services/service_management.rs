@@ -28,7 +28,9 @@ use std::time::Duration;
 
 use systemprompt_database::{Reaped, ServiceConfig, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, StopOutcome, SubprocessLiveness};
+use systemprompt_loader::subprocess::{
+    self, ChildClaim, SpawnStamp, StopOutcome, SubprocessLiveness,
+};
 use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_manifest::services::ServiceModule;
 use tracing::warn;
@@ -203,13 +205,17 @@ impl ServiceManagementService {
         service: &ServiceConfig,
         grace: Duration,
     ) -> SchedulerResult<StopOutcome> {
-        let kind = child_kind(service.module_name);
+        let claim = ChildClaim::spawned(
+            child_kind(service.module_name),
+            &service.name,
+            SpawnStamp::recorded(service.pid, service.spawn_nonce.as_ref()),
+        );
         let outcome = match stored_pid(service) {
-            Some(pid) => subprocess::stop_owned(pid, kind, &service.name, grace).await?,
+            Some(pid) => subprocess::stop_owned(pid, &claim, grace).await?,
             None => StopOutcome::NotRunning,
         };
         if let Some(port) = service_port(service) {
-            stop_owned_port_holders(port, kind, &service.name, grace).await?;
+            stop_owned_port_holders(port, &claim, grace).await?;
         }
 
         if let Err(e) = self.mark_service_stopped(&service.name).await {

@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Marketplace import"
+text = "Every metadata read an Anthropic-tree import makes (marketplace and plugin manifests, both sidecars, skill, rule, agent and base-tree directory listings, skill bodies, OpenCode theme pins) is confined to its tree; a symbolic link that resolves outside refuses the import with a confinement cause instead of reading the link's target."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`import::sidecar::load_marketplace_sidecar` and `load_plugin_sidecar` take the root the sidecar is confined to as their first argument."

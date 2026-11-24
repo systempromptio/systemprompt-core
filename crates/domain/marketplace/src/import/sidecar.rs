@@ -162,23 +162,25 @@ impl Default for PluginSidecarBody {
     }
 }
 
-pub fn load_marketplace_sidecar(path: &Path) -> Result<MarketplaceSidecar, MarketplaceError> {
-    load_sidecar(path, "marketplace")
+pub fn load_marketplace_sidecar(
+    root: &Path,
+    path: &Path,
+) -> Result<MarketplaceSidecar, MarketplaceError> {
+    load_sidecar(root, path, "marketplace")
 }
 
-pub fn load_plugin_sidecar(path: &Path) -> Result<PluginSidecar, MarketplaceError> {
-    load_sidecar(path, "plugin")
+pub fn load_plugin_sidecar(root: &Path, path: &Path) -> Result<PluginSidecar, MarketplaceError> {
+    load_sidecar(root, path, "plugin")
 }
 
-fn load_sidecar<T>(path: &Path, section: &str) -> Result<T, MarketplaceError>
+fn load_sidecar<T>(root: &Path, path: &Path, section: &str) -> Result<T, MarketplaceError>
 where
     T: Default + for<'de> Deserialize<'de>,
 {
-    if !path.is_file() {
+    if path.symlink_metadata().is_err() {
         return Ok(T::default());
     }
-    let text =
-        std::fs::read_to_string(path).map_err(|e| MarketplaceError::import(path, "read", e))?;
+    let text = super::writer::read_source(root, path)?;
     let raw: serde_yaml::Value = serde_yaml::from_str(&text)
         .map_err(|e| MarketplaceError::import(path, "sidecar is not valid YAML", e))?;
     reject_forbidden_keys(path, &raw, section)?;

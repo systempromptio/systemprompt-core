@@ -33,7 +33,7 @@ use super::super::migration_owners::MigrationMembers;
 use super::super::prepare::PreparedSchema;
 use super::super::report::SchemaInstallReport;
 use super::ExtensionSet;
-use super::catalog_digest::catalog_digest;
+use super::catalog_digest::catalog_digest_held;
 use crate::lifecycle::migrations::MigrationConfig;
 use crate::services::DatabaseProvider;
 
@@ -112,11 +112,12 @@ async fn run_settled(
             super::validate_extension_columns(db, cols, &p.extension_id).await?;
         }
     }
-    super::check_trigger_routines(db).await?;
+    super::check_trigger_routines_held(db).await?;
     for ext in active {
         super::apply_seeds(ext.as_ref(), db).await?;
     }
     super::ownership::record_owners(db, prepared, members).await?;
+    super::reassignment_targets::check_catalog_targets(db, active).await?;
     super::purge_records::record_purges(db, active).await?;
     Ok(SchemaInstallReport {
         residue: super::residue_including(db, prepared, held_back).await?,
@@ -197,7 +198,7 @@ pub(super) async fn is_settled(
     if missing != 0 {
         return Ok(false);
     }
-    Ok(stored == stamp(fingerprint, &catalog_digest(db).await?))
+    Ok(stored == stamp(fingerprint, &catalog_digest_held(db).await?))
 }
 
 pub(super) async fn record(
@@ -207,7 +208,7 @@ pub(super) async fn record(
     if !fingerprint_table_present(db).await? {
         return Ok(());
     }
-    let stamped = stamp(fingerprint, &catalog_digest(db).await?);
+    let stamped = stamp(fingerprint, &catalog_digest_held(db).await?);
     sqlx::query!(
         "INSERT INTO schema_install_fingerprint (singleton, fingerprint, recorded_at)
          VALUES (true, $1, CURRENT_TIMESTAMP)

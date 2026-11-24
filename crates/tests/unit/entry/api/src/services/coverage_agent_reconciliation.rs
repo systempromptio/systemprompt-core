@@ -111,6 +111,7 @@ struct OwnedMarkedAgent {
     child: std::process::Child,
     helper: systemprompt_test_fixtures::Helper,
     name: String,
+    nonce: systemprompt_identifiers::SpawnNonce,
 }
 
 #[cfg(unix)]
@@ -119,6 +120,7 @@ impl OwnedMarkedAgent {
         use std::process::{Command, Stdio};
 
         let helper = systemprompt_test_fixtures::helper(RECONCILE_MARKER_HELPER);
+        let nonce = systemprompt_identifiers::SpawnNonce::generate();
         let child = Command::new(std::env::current_exe().expect("test binary path"))
             .args(["--exact", RECONCILE_MARKER_HELPER, "--ignored"])
             .env(
@@ -127,6 +129,10 @@ impl OwnedMarkedAgent {
             )
             .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
             .env(systemprompt_models::subprocess::AGENT_NAME_ENV, name)
+            .env(
+                systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+                nonce.as_str(),
+            )
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
@@ -135,13 +141,16 @@ impl OwnedMarkedAgent {
             child,
             helper,
             name: name.to_owned(),
+            nonce,
         };
         owned.helper.await_ready();
         assert!(
             systemprompt_loader::subprocess::live_pid_is_subprocess(
                 owned.pid(),
-                systemprompt_models::subprocess::AGENT_NAME_ENV,
-                &systemprompt_identifiers::ServiceName::new(name),
+                &systemprompt_loader::subprocess::ChildClaim::Agent {
+                    service: systemprompt_identifiers::ServiceName::new(name),
+                    stamp: systemprompt_loader::subprocess::SpawnStamp::Boot(owned.nonce.clone()),
+                },
             ),
             "owned child carries the exact agent identity"
         );
@@ -183,7 +192,12 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     let owned = OwnedMarkedAgent::spawn(&name);
 
     agent_services(&ctx)
-        .register_agent(&AgentName::new(name.as_str()), owned.pid(), port)
+        .register_agent(
+            &AgentName::new(name.as_str()),
+            owned.pid(),
+            &owned.nonce,
+            port,
+        )
         .await
         .expect("seed the owned agent as running");
 

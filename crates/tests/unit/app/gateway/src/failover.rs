@@ -112,6 +112,28 @@ fn breakers_are_keyed_per_provider_and_shared_across_calls() {
 }
 
 #[test]
+fn each_endpoint_has_one_bulkhead_sized_by_its_max_concurrent() {
+    let breakers = ProviderBreakers::new();
+    let settings = ResilienceSettings {
+        max_concurrent: 2,
+        ..ResilienceSettings::default()
+    };
+    let a = breakers.bulkhead_for("anthropic/eu", &settings);
+    let again = breakers.bulkhead_for("anthropic/eu", &settings);
+    let b = breakers.bulkhead_for("vertex/us", &settings);
+    assert!(Arc::ptr_eq(&a, &again));
+    assert!(!Arc::ptr_eq(&a, &b));
+    assert_eq!(a.limit(), 2);
+
+    let first = a.try_acquire().expect("first permit");
+    let _second = again.try_acquire().expect("second permit");
+    assert!(a.try_acquire().is_err(), "the endpoint's cap is shared");
+    assert!(b.try_acquire().is_ok(), "another endpoint has its own cap");
+    drop(first);
+    assert!(a.try_acquire().is_ok(), "a released permit admits again");
+}
+
+#[test]
 fn a_provider_trips_after_its_failure_threshold_and_stays_isolated() {
     let breakers = ProviderBreakers::new();
     let settings = ResilienceSettings {

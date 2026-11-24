@@ -226,7 +226,13 @@ async fn health_check_with_stale_pid_marks_stopped() {
     })
     .await
     .unwrap();
-    repo.update_service_pid(&name_id, 999_999).await.unwrap();
+    repo.update_service_pid(
+        &name_id,
+        999_999,
+        &systemprompt_identifiers::SpawnNonce::generate(),
+    )
+    .await
+    .unwrap();
 
     let config = make_config(&name, port);
     let r = life.health_check(&config).await.unwrap();
@@ -250,7 +256,13 @@ async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
     })
     .await
     .unwrap();
-    repo.update_service_pid(&name_id, 999_998).await.unwrap();
+    repo.update_service_pid(
+        &name_id,
+        999_998,
+        &systemprompt_identifiers::SpawnNonce::generate(),
+    )
+    .await
+    .unwrap();
 
     let config = make_config(&name, port);
     life.stop_server(&config).await.unwrap();

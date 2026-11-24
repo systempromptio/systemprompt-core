@@ -98,6 +98,23 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
         .collect()
     }
 
+    pub async fn list_live_folder_ids(&self) -> RepoResult<Vec<DocumentFolderId>> {
+        let ids = sqlx::query_scalar!(
+            r#"WITH RECURSIVE live AS (
+                   SELECT id FROM document_folders
+                   WHERE parent_id IS NULL AND deleted_at IS NULL
+                   UNION ALL
+                   SELECT f.id FROM document_folders f
+                   JOIN live ON f.parent_id = live.id
+                   WHERE f.deleted_at IS NULL
+               )
+               SELECT id::text AS "id!: DocumentFolderId" FROM live"#
+        )
+        .fetch_all(&*self.pools.read)
+        .await?;
+        Ok(ids)
+    }
+
     pub async fn set_agent_edit_policy(
         &self,
         id: &DocumentFolderId,

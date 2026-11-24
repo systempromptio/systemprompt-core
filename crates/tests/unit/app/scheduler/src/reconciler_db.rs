@@ -476,9 +476,13 @@ mod reconciler_action_arms {
         .await
         .expect("seed services row");
         if let Some(pid) = pid {
-            repo.update_service_pid(name, i32::try_from(pid).expect("pid fits i32"))
-                .await
-                .expect("seed services pid");
+            repo.update_service_pid(
+                name,
+                i32::try_from(pid).expect("pid fits i32"),
+                systemprompt_test_fixtures::test_spawner().nonce(),
+            )
+            .await
+            .expect("seed services pid");
         }
     }
 
@@ -529,7 +533,11 @@ mod reconciler_action_arms {
             .args(arg)
             .stdout(Stdio::piped());
         if let Some(service) = marked_as {
-            subprocess::mark_child(&mut command, ChildKind::Mcp, service);
+            systemprompt_test_fixtures::test_spawner().mark_child(
+                &mut command,
+                ChildKind::Mcp,
+                service,
+            );
         }
         let mut child = command.spawn().expect("spawn python3 port holder");
         let stdout = child.stdout.take().expect("holder stdout");

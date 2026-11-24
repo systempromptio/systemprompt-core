@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Overload"
+text = "Admission control is on by default and decided outside every other layer: `server.max_in_flight` defaults to 4096 in-flight requests per replica (an explicit `null` is no ceiling), and the shed layer is the outermost layer of the API router, so a saturated replica answers `503` with `Retry-After: 1` before CORS, sessions, authentication, rate limits or body parsing. Migrate by setting `server.max_in_flight` to the replica's measured capacity, or `null` to keep queueing."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "`services::middleware::load_shed::outermost` mounts the in-flight ceiling as the router's outermost layer."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`ServerConfig::max_in_flight` defaults to `Some(DEFAULT_MAX_IN_FLIGHT)` (4096) when the key is omitted; `profile::DEFAULT_MAX_IN_FLIGHT` is exported."

@@ -4,6 +4,7 @@
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use systemprompt_loader::subprocess::SpawnStamp;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::process::ProcessService;
@@ -179,9 +180,13 @@ async fn spawn_server_permission_failure_creates_no_process_and_retains_its_diag
         "the operator receives the executable-permission cause: {diagnosis}"
     );
     assert_eq!(
-        ProcessService::owned_port_holders(59323, &config.service_name())
-            .await
-            .expect("listener search"),
+        ProcessService::owned_port_holders(
+            59323,
+            &config.service_name(),
+            &SpawnStamp::Boot(systemprompt_test_fixtures::test_spawner().nonce().clone()),
+        )
+        .await
+        .expect("listener search"),
         Vec::<u32>::new(),
         "failed spawn leaves no process carrying the unique service identity"
     );

@@ -13,8 +13,9 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::database::stored_pid;
 use crate::services::process::ProcessService;
+use std::time::Duration;
 use systemprompt_database::{Reaped, ServiceRepository};
-use systemprompt_loader::subprocess::SubprocessLiveness;
+use systemprompt_loader::subprocess::{SpawnStamp, SubprocessLiveness};
 use systemprompt_manifest::services::ServiceStatus;
 
 pub async fn reap_stale_services(repository: &ServiceRepository) -> McpDomainResult<Reaped> {
@@ -32,7 +33,10 @@ pub async fn sync_database_state(
         let server_name = server.service_name();
         if let Some(service) = repository.find_service_by_name(&server_name).await? {
             let owned = match stored_pid(service.pid) {
-                Some(pid) => ProcessService::owns(pid, &server_name).await,
+                Some(pid) => {
+                    let stamp = SpawnStamp::recorded(service.pid, service.spawn_nonce.as_ref());
+                    ProcessService::owns(pid, &server_name, &stamp).await
+                },
                 None => false,
             };
             if service.status == ServiceStatus::Running && !owned {
@@ -47,6 +51,7 @@ pub async fn sync_database_state(
 pub async fn delete_disabled_services(
     repository: &ServiceRepository,
     enabled_servers: &[McpServerConfig],
+    stop_grace: Duration,
 ) -> McpDomainResult<usize> {
     let enabled_names: std::collections::HashSet<&str> =
         enabled_servers.iter().map(|s| s.name.as_str()).collect();
@@ -57,7 +62,8 @@ pub async fn delete_disabled_services(
     for service in all_services {
         if !enabled_names.contains(service.name.as_str()) {
             if let Some(pid) = stored_pid(service.pid) {
-                ProcessService::stop(pid, &service.name).await?;
+                let stamp = SpawnStamp::recorded(service.pid, service.spawn_nonce.as_ref());
+                ProcessService::stop(pid, &service.name, &stamp, stop_grace).await?;
             }
 
             repository.delete_service(&service.name).await?;

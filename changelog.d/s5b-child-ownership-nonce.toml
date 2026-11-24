@@ -1,0 +1,39 @@
+[root]
+section = "Breaking"
+area = "Child supervision"
+text = "A supervised agent or MCP child is signalled only when its environment carries the service marker and the boot nonce of the process that spawned it, recorded with its pid in the `services` row (database migration 017 adds `services.spawn_nonce`); ownership is checked again immediately before a forced kill, so a pid that changed owner during the grace period is reported `NotOurs` and never killed. A row recorded by an earlier release (a pid and no nonce) matches only a process carrying the service marker and no nonce, until the child is next restarted. Every agent and MCP stop waits `server.shutdown.child_grace_secs` instead of a fixed five seconds. `admin agents delete` treats an agent as running only while its recorded pid proves to be that agent's child. Migrate by passing a `ChildClaim` to `subprocess::owns`/`stop_owned` and recording `Spawner::nonce()` with every pid."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "`subprocess::owns(pid, &ChildClaim)` and `stop_owned(pid, &ChildClaim, grace)` replace the `(kind, service)` arguments; `ChildClaim` carries the recorded `SpawnStamp` (`Boot(SpawnNonce)`, `PreNonce`, `Unrecorded`). `mark_child` becomes `Spawner::mark_child`, which stamps `SYSTEMPROMPT_SPAWN_NONCE`; `Spawner::nonce` returns the boot nonce. `live_pid_is_subprocess(pid, &ChildClaim)` is platform-independent. `ChildKind::identifies` is removed in favour of `ChildClaim::identifies`."
+
+[[crate]]
+name = "systemprompt-identifiers"
+section = "Added"
+text = "`SpawnNonce`, the per-boot nonce of a supervising process."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`subprocess::environ_identifies_child` takes the expected `Option<&SpawnNonce>`; `SPAWN_NONCE_ENV` names the variable."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`ProcessLiveness::owns` takes the nonce recorded with the pid."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`ServiceConfig::spawn_nonce`, `UpsertServiceProcessInput::spawn_nonce` and the `spawn_nonce` argument of `ServiceRepository::update_service_pid`; clearing a pid clears its nonce. Migration 017 adds the nullable `services.spawn_nonce` column."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentStatus::Running` carries the recorded `stamp`; `PortService::new` takes the stop grace and `cleanup_port_if_needed` the recorded stamp; `register_agent`/`register_agent_starting` take the spawn nonce; `AgentDatabaseService::update_agent_running` and `AgentOrchestrator::update_agent_running` are removed."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`ProcessService::{owns, owned_port_holders, stop}` take the recorded `SpawnStamp` (and `stop` the grace); `prepare_port`/`cleanup_port_processes`/`wait_for_port_release_with_retry` take a `PortHolderClaim`; `DatabaseService::register_service` takes the spawn nonce; `register_existing_process` is removed; `ServiceInfo` carries `stamp`."

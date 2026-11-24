@@ -17,14 +17,14 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{ChildKind, mark_child};
+use systemprompt_loader::subprocess::{ChildKind, Spawner};
 
 use systemprompt_mcp::services::process::spawner::{
     SpawnEnvSpec, SpawnSecrets, build_environment, rotate_log_if_needed, serialize_server_configs,
     spawn_environment,
 };
 use systemprompt_models::subprocess::{
-    MCP_SERVICE_ID_ENV, SUBPROCESS_MARKER_ENV, VERIFICATION_KEYS_ENV,
+    MCP_SERVICE_ID_ENV, SPAWN_NONCE_ENV, SUBPROCESS_MARKER_ENV, VERIFICATION_KEYS_ENV,
 };
 
 use crate::harness::internal_mcp_config;
@@ -55,7 +55,7 @@ fn nothing_set(_: &str) -> Option<String> {
 // Why: this marker is the contract between spawning and reaping. The stop
 // path proves a pid is ours by reading `SYSTEMPROMPT_SUBPROCESS=1` and
 // `MCP_SERVICE_ID=<name>` back from the live process. `spawn_server` stamps
-// them with `mark_child` after clearing the environment, so the pure
+// them with `Spawner::mark_child` after clearing the environment, so the pure
 // environment list must not carry a second, divergent copy.
 #[test]
 fn the_marker_is_stamped_by_mark_child_not_the_environment_list() {
@@ -65,8 +65,11 @@ fn the_marker_is_stamped_by_mark_child_not_the_environment_list() {
     assert!(!map.contains_key(SUBPROCESS_MARKER_ENV));
     assert!(!map.contains_key(MCP_SERVICE_ID_ENV));
 
+    assert!(!map.contains_key(SPAWN_NONCE_ENV));
+
+    let spawner = Spawner::new().expect("start spawner");
     let mut command = std::process::Command::new("true");
-    mark_child(
+    spawner.mark_child(
         &mut command,
         ChildKind::Mcp,
         &ServiceName::new("marker-server"),
@@ -82,6 +85,11 @@ fn the_marker_is_stamped_by_mark_child_not_the_environment_list() {
         stamped.get(OsStr::new(MCP_SERVICE_ID_ENV)).copied(),
         Some(Some(OsStr::new("marker-server"))),
         "the stop path matches the service by this name"
+    );
+    assert_eq!(
+        stamped.get(OsStr::new(SPAWN_NONCE_ENV)).copied(),
+        Some(Some(OsStr::new(spawner.nonce().as_str()))),
+        "the stop path matches the boot by this nonce"
     );
 }
 

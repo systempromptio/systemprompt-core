@@ -25,6 +25,8 @@ mod helpers;
 #[cfg(test)]
 mod import_claude_code;
 #[cfg(test)]
+mod import_confinement;
+#[cfg(test)]
 mod import_edges;
 #[cfg(test)]
 mod import_hosts;

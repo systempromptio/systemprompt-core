@@ -1,13 +1,12 @@
 // DB-backed tests for AgentOrchestrator verbs that need a populated agent
 // registry, injected via `set_registry` over an explicit `ServicesConfig`.
-// A pid far above any pid_max is never live; the test runner's parent pid
-// drives the "recorded running and alive" branches without spawning anything
-// (the supervision module never signals a process without this agent's
-// marker, and never reads its own pid as a live child).
+// A pid far above any pid_max is never live; a helper process carrying this
+// agent's marker and the nonce its row records drives the "recorded running
+// and alive" branches.
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_identifiers::{AgentName, InstanceId, SpawnNonce};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -19,6 +18,8 @@ use systemprompt_manifest::ServicesConfig;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state_for};
 use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
+
+const AGENT_HELPER: &str = "services::agent_orchestration::process_stop_live::marker_helper";
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -82,7 +83,7 @@ async fn detailed_status_reports_configured_agents() {
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9450)]).await;
 
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, 9450)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9450)
         .await
         .expect("register");
 
@@ -125,7 +126,7 @@ async fn validate_agent_reports_missing_and_failed() {
     );
 
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, 9451)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9451)
         .await
         .expect("register");
     let failed = orchestrator.validate_agent(&name).await.expect("report");
@@ -150,8 +151,9 @@ async fn validate_agent_running_agent_reaches_health_check() {
     let name = unique_agent_name("orchreg_health");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9452)]).await;
 
+    let agent = systemprompt_test_fixtures::spawn_marked_agent(AGENT_HELPER, name.as_str());
     db_service(&pool, &instance)
-        .register_agent(&name, std::os::unix::process::parent_id(), 9452)
+        .register_agent(&name, agent.pid(), &agent.nonce, 9452)
         .await
         .expect("register");
 
@@ -179,8 +181,9 @@ async fn delete_agent_with_live_pid_removes_service_row() {
     let name = unique_agent_name("orchreg_delete");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9453)]).await;
 
+    let agent = systemprompt_test_fixtures::spawn_marked_agent(AGENT_HELPER, name.as_str());
     db_service(&pool, &instance)
-        .register_agent(&name, std::os::unix::process::parent_id(), 9453)
+        .register_agent(&name, agent.pid(), &agent.nonce, 9453)
         .await
         .expect("register");
 
@@ -203,8 +206,12 @@ async fn delete_all_agents_deletes_configured_agents() {
     let orchestrator = make_orchestrator(&pool, &instance, &[(&a, 9454), (&b, 9455)]).await;
 
     let db = db_service(&pool, &instance);
-    db.register_agent(&a, DEAD_PID, 9454).await.expect("reg a");
-    db.register_agent(&b, DEAD_PID, 9455).await.expect("reg b");
+    db.register_agent(&a, DEAD_PID, &SpawnNonce::generate(), 9454)
+        .await
+        .expect("reg a");
+    db.register_agent(&b, DEAD_PID, &SpawnNonce::generate(), 9455)
+        .await
+        .expect("reg b");
 
     let deleted = orchestrator.delete_all_agents().await.expect("delete all");
     assert!(deleted >= 2);
@@ -228,8 +235,9 @@ async fn start_agent_already_running_is_rejected() {
     let name = unique_agent_name("orchreg_running");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9457)]).await;
 
+    let agent = systemprompt_test_fixtures::spawn_marked_agent(AGENT_HELPER, name.as_str());
     db_service(&pool, &instance)
-        .register_agent(&name, std::os::unix::process::parent_id(), 9457)
+        .register_agent(&name, agent.pid(), &agent.nonce, 9457)
         .await
         .expect("register");
 
@@ -273,7 +281,7 @@ async fn restart_agent_dead_pid_row_reaches_start_path() {
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, port)]).await;
 
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, port)
+        .register_agent(&name, DEAD_PID, &SpawnNonce::generate(), port)
         .await
         .expect("register");
 

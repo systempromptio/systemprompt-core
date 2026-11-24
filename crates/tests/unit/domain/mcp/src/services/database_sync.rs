@@ -72,7 +72,9 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
     }
 
     let enabled = [internal_mcp_config(keep.as_str(), 65514)];
-    let deleted = delete_disabled_services(&repo, &enabled).await.unwrap();
+    let deleted = delete_disabled_services(&repo, &enabled, std::time::Duration::from_secs(5))
+        .await
+        .unwrap();
     assert_eq!(deleted, 1, "only the disabled service is deleted");
     assert!(
         repo.find_service_by_name(&keep).await.unwrap().is_some(),

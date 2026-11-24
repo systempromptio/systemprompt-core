@@ -29,6 +29,7 @@ pub enum AgentStatus {
     Running {
         pid: u32,
         port: u16,
+        stamp: systemprompt_loader::subprocess::SpawnStamp,
     },
     Failed {
         reason: String,

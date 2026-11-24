@@ -8,7 +8,7 @@ use crate::interactive::confirm_optional;
 use anyhow::{Context, Result};
 use std::time::Duration;
 use systemprompt_extension::cli::{CliConfig, Prompter};
-use systemprompt_loader::subprocess::{self, ChildKind};
+use systemprompt_loader::subprocess;
 use systemprompt_logging::CliService;
 use systemprompt_scheduler::{port_holders, wait_for_port_free};
 use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
@@ -84,7 +84,7 @@ async fn handle_port_conflict(
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }
 
-    let verified = subprocess::owns(pid, ChildKind::Api, &subprocess::api_server_service()).await;
+    let verified = subprocess::owns(pid, &subprocess::ChildClaim::ApiServer).await;
     let should_kill = if verified {
         kill_port_process
             || confirm_optional(

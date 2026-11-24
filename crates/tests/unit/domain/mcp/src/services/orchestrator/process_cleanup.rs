@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 use systemprompt_loader::subprocess;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::database::DatabaseService;
@@ -105,6 +105,7 @@ struct RowSpec<'a> {
     binary_mtime: Option<i64>,
     port: u16,
     pid: u32,
+    nonce: SpawnNonce,
 }
 
 async fn seed_row(repo: &ServiceRepository, spec: &RowSpec<'_>) {
@@ -117,18 +118,28 @@ async fn seed_row(repo: &ServiceRepository, spec: &RowSpec<'_>) {
     })
     .await
     .expect("create service row");
-    repo.update_service_pid(spec.name, i32::try_from(spec.pid).expect("pid fits i32"))
-        .await
-        .expect("set pid");
+    repo.update_service_pid(
+        spec.name,
+        i32::try_from(spec.pid).expect("pid fits i32"),
+        &spec.nonce,
+    )
+    .await
+    .expect("set pid");
 }
 
-fn running_row(name: &ServiceName, binary_mtime: Option<i64>, pid: u32) -> RowSpec<'_> {
+fn running_row(
+    name: &ServiceName,
+    binary_mtime: Option<i64>,
+    pid: u32,
+    nonce: SpawnNonce,
+) -> RowSpec<'_> {
     RowSpec {
         name,
         status: ServiceStatus::Running,
         binary_mtime,
         port: FIXTURE_PORT,
         pid,
+        nonce,
     }
 }
 
@@ -157,7 +168,12 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
     let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
     seed_row(
         &fx.repo,
-        &running_row(&id, Some(current - 3600), marked.pid()),
+        &running_row(
+            &id,
+            Some(current - 3600),
+            marked.pid(),
+            marked.nonce.clone(),
+        ),
     )
     .await;
 
@@ -185,7 +201,12 @@ async fn unchanged_binary_leaves_the_service_registered() {
     let current = write_binary(fx.bootstrap, &name);
     seed_row(
         &fx.repo,
-        &running_row(&id, Some(current), std::process::id()),
+        &running_row(
+            &id,
+            Some(current),
+            std::process::id(),
+            SpawnNonce::generate(),
+        ),
     )
     .await;
 
@@ -204,7 +225,11 @@ async fn service_without_a_recorded_mtime_is_never_stale() {
     let name = unique_name("nomtime");
     let id = ServiceName::new(name.as_str());
     write_binary(fx.bootstrap, &name);
-    seed_row(&fx.repo, &running_row(&id, None, std::process::id())).await;
+    seed_row(
+        &fx.repo,
+        &running_row(&id, None, std::process::id(), SpawnNonce::generate()),
+    )
+    .await;
 
     let restarted = sweep_stale(&internal_mcp_config(&name, FIXTURE_PORT), &fx.database).await;
 
@@ -220,7 +245,11 @@ async fn unresolvable_binary_is_never_stale() {
     let fx = fixture().await;
     let name = unique_name("gonebin");
     let id = ServiceName::new(name.as_str());
-    seed_row(&fx.repo, &running_row(&id, Some(1), std::process::id())).await;
+    seed_row(
+        &fx.repo,
+        &running_row(&id, Some(1), std::process::id(), SpawnNonce::generate()),
+    )
+    .await;
 
     let restarted = sweep_stale(&internal_mcp_config(&name, FIXTURE_PORT), &fx.database).await;
 
@@ -245,6 +274,7 @@ async fn stopped_service_is_never_stale() {
         &RowSpec {
             name: &id,
             status: ServiceStatus::Stopped,
+            nonce: SpawnNonce::generate(),
             binary_mtime: Some(current - 3600),
             port: FIXTURE_PORT,
             pid: std::process::id(),
@@ -265,7 +295,7 @@ async fn stopped_service_is_never_stale() {
 async fn empty_registry_and_unbound_ports_hold_no_orphans() {
     let fx = fixture().await;
 
-    let none = detect_and_handle_orphaned_processes(&[], &fx.database)
+    let none = detect_and_handle_orphaned_processes(&[], &fx.database, &SpawnNonce::generate())
         .await
         .expect("empty sweep");
     assert_eq!(none, 0);
@@ -275,9 +305,13 @@ async fn empty_registry_and_unbound_ports_hold_no_orphans() {
         listener.local_addr().expect("addr").port()
     };
     let config = internal_mcp_config(&unique_name("noorphan"), free_port);
-    let swept = detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
-        .await
-        .expect("free-port sweep");
+    let swept = detect_and_handle_orphaned_processes(
+        std::slice::from_ref(&config),
+        &fx.database,
+        &SpawnNonce::generate(),
+    )
+    .await
+    .expect("free-port sweep");
 
     assert_eq!(swept, 0, "an unbound port holds no orphan");
 }
@@ -289,9 +323,13 @@ async fn an_unmarked_port_holder_is_never_an_orphan_and_is_never_signalled() {
     let port = listener.local_addr().expect("addr").port();
     let config = internal_mcp_config(&unique_name("unmarked"), port);
 
-    let swept = detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
-        .await
-        .expect("unregistered sweep");
+    let swept = detect_and_handle_orphaned_processes(
+        std::slice::from_ref(&config),
+        &fx.database,
+        &SpawnNonce::generate(),
+    )
+    .await
+    .expect("unregistered sweep");
 
     assert_eq!(
         swept, 0,
@@ -320,7 +358,7 @@ fn listener_helper() {
 
 // The stand-in server is this crate's own test binary re-executing an ignored
 // helper, so its environment is readable on macOS as well as Linux.
-fn spawn_marked_listener(port: u16, service_name: &str) -> Child {
+fn spawn_marked_listener(port: u16, service_name: &str, nonce: &SpawnNonce) -> Child {
     let helper = systemprompt_test_fixtures::helper(LISTENER_HELPER);
     let child = Command::new(std::env::current_exe().expect("test binary path"))
         .args(["--exact", LISTENER_HELPER, "--ignored"])
@@ -333,6 +371,10 @@ fn spawn_marked_listener(port: u16, service_name: &str) -> Child {
         .env(
             systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
             service_name,
+        )
+        .env(
+            systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+            nonce.as_str(),
         )
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -352,12 +394,14 @@ async fn a_marked_holder_with_no_service_row_is_stopped_as_an_orphan() {
     let fx = fixture().await;
     let port = released_port();
     let name = unique_name("orphan");
-    let child = spawn_marked_listener(port, &name);
+    let nonce = SpawnNonce::generate();
+    let child = spawn_marked_listener(port, &name, &nonce);
     let pid = child.id();
     let config = internal_mcp_config(&name, port);
 
     let swept =
-        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database).await;
+        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database, &nonce)
+            .await;
     let gone = !subprocess::is_running(pid).await;
     if !gone {
         let cleanup = subprocess::terminate_gracefully(pid, Duration::from_secs(5)).await;
@@ -374,7 +418,8 @@ async fn a_marked_holder_that_owns_a_service_row_is_not_an_orphan() {
     let port = released_port();
     let name = unique_name("registered");
     let id = ServiceName::new(name.as_str());
-    let child = spawn_marked_listener(port, &name);
+    let nonce = SpawnNonce::generate();
+    let child = spawn_marked_listener(port, &name, &nonce);
     let pid = child.id();
     seed_row(
         &fx.repo,
@@ -384,13 +429,15 @@ async fn a_marked_holder_that_owns_a_service_row_is_not_an_orphan() {
             binary_mtime: None,
             port,
             pid,
+            nonce: nonce.clone(),
         },
     )
     .await;
     let config = internal_mcp_config(&name, port);
 
     let swept =
-        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database).await;
+        detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database, &nonce)
+            .await;
     let alive = subprocess::is_running(pid).await;
     fx.repo.delete_service(&id).await.ok();
     let cleanup = subprocess::terminate_gracefully(pid, Duration::from_secs(5)).await;

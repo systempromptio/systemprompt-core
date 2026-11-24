@@ -3,8 +3,9 @@
 //!
 //! A recorded agent or MCP pid is signalled only through
 //! [`subprocess::stop_owned`], which proves the live process still carries
-//! the service's spawn marker. A port holder is stopped on a service's behalf
-//! only when it carries that same marker ([`stop_owned_port_holders`]).
+//! the service's spawn marker and the boot nonce its row recorded. A port
+//! holder is stopped on a service's behalf only when it carries that same
+//! claim ([`stop_owned_port_holders`]).
 //!
 //! The API server is not spawned by us; `infra services serve` stamps itself
 //! with the API marker ([`subprocess::stamp_api_server`]).
@@ -19,8 +20,7 @@
 
 use std::time::Duration;
 
-use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, StopOutcome};
 use systemprompt_manifest::services::ServiceModule;
 
 use crate::error::{SchedulerError, SchedulerResult};
@@ -45,15 +45,12 @@ pub async fn port_holders(port: u16) -> SchedulerResult<Vec<u32>> {
 
 pub async fn stop_owned_port_holders(
     port: u16,
-    kind: ChildKind,
-    service: &ServiceName,
+    claim: &ChildClaim,
     grace: Duration,
 ) -> SchedulerResult<Vec<u32>> {
     let mut stopped = Vec::new();
     for holder in port_holders(port).await? {
-        if let StopOutcome::Stopped(_) =
-            subprocess::stop_owned(holder, kind, service, grace).await?
-        {
+        if let StopOutcome::Stopped(_) = subprocess::stop_owned(holder, claim, grace).await? {
             stopped.push(holder);
         }
     }
@@ -70,12 +67,11 @@ pub async fn stop_api_listeners(
     port: u16,
     grace: Duration,
 ) -> SchedulerResult<Vec<ApiListenerStop>> {
-    let service = subprocess::api_server_service();
     let mut stops = Vec::new();
     for pid in port_holders(port).await? {
         let outcome = if !subprocess::is_running(pid).await {
             StopOutcome::NotRunning
-        } else if subprocess::owns(pid, ChildKind::Api, &service).await {
+        } else if subprocess::owns(pid, &ChildClaim::ApiServer).await {
             StopOutcome::Stopped(subprocess::terminate_gracefully(pid, grace).await?)
         } else {
             StopOutcome::NotOurs

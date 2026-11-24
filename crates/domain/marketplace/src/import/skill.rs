@@ -38,6 +38,7 @@ use systemprompt_manifest::services::skill_frontmatter::{
     split_skill_frontmatter,
 };
 use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::path_confine::entries_within;
 
 use crate::error::MarketplaceError;
 
@@ -85,7 +86,10 @@ struct SkillFrontmatter {
     hosts: Vec<String>,
 }
 
-pub(super) fn discover_skill_dirs(plugin_dir: &Path, extra: &[PathBuf]) -> Vec<(String, PathBuf)> {
+pub(super) fn discover_skill_dirs(
+    plugin_dir: &Path,
+    extra: &[PathBuf],
+) -> Result<Vec<(String, PathBuf)>, MarketplaceError> {
     let mut out: Vec<(String, PathBuf)> = Vec::new();
     let roots = std::iter::once(plugin_dir.join("skills")).chain(extra.iter().cloned());
     for root in roots {
@@ -93,17 +97,20 @@ pub(super) fn discover_skill_dirs(plugin_dir: &Path, extra: &[PathBuf]) -> Vec<(
             push_skill(&mut out, root);
             continue;
         }
-        let Ok(read) = std::fs::read_dir(&root) else {
+        if !root.is_dir() {
             continue;
-        };
-        for path in read.filter_map(Result::ok).map(|e| e.path()) {
-            if path.is_dir() && path.join(SKILL_FILE).is_file() {
+        }
+        let entries = entries_within(plugin_dir, &root)
+            .map_err(|e| MarketplaceError::import(&root, "read", e))?;
+        for entry in entries {
+            let path = root.join(&entry.name);
+            if entry.is_dir && path.join(SKILL_FILE).is_file() {
                 push_skill(&mut out, path);
             }
         }
     }
     out.sort_by(|a, b| a.0.cmp(&b.0));
-    out
+    Ok(out)
 }
 
 fn push_skill(out: &mut Vec<(String, PathBuf)>, dir: PathBuf) {

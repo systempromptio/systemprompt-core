@@ -44,6 +44,7 @@ fn make_server_config() -> ServerConfig {
         role: Default::default(),
         advertise_url: None,
         max_in_flight: None,
+        analytics_queue: Default::default(),
         shutdown: Default::default(),
         trusted_proxies: Vec::new(),
     }
@@ -88,6 +89,7 @@ fn make_profile(name: &str) -> Profile {
             external_db_access: false,
             migrate_on_boot: true,
             connection_budget: None,
+            schema_install_roles: None,
             pool: None,
         },
         server: make_server_config(),
@@ -743,6 +745,7 @@ fn database_config_serde_roundtrip() {
         external_db_access: true,
         migrate_on_boot: true,
         connection_budget: None,
+        schema_install_roles: None,
         pool: None,
     };
     let json = serde_json::to_string(&config).unwrap();

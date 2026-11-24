@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::ProcessLiveness;
 
@@ -58,7 +58,7 @@ impl ServiceRepository {
 
         let candidates = sqlx::query!(
             r#"
-            SELECT name, module_name, pid AS "pid!"
+            SELECT name, module_name, pid AS "pid!", spawn_nonce AS "spawn_nonce: SpawnNonce"
             FROM services
             WHERE instance_id = $1 AND status = $2 AND pid IS NOT NULL
             ORDER BY name
@@ -87,7 +87,7 @@ impl ServiceRepository {
                 });
                 continue;
             };
-            if liveness.owns(pid, &name).await {
+            if liveness.owns(pid, &name, row.spawn_nonce.as_ref()).await {
                 continue;
             }
             self.delete_service(&name).await?;

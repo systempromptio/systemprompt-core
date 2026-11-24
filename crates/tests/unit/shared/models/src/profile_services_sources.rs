@@ -38,6 +38,7 @@ pub(crate) fn local_profile() -> Profile {
             external_db_access: false,
             migrate_on_boot: true,
             connection_budget: None,
+            schema_install_roles: None,
             pool: None,
         },
         server: ServerConfig {
@@ -58,6 +59,7 @@ pub(crate) fn local_profile() -> Profile {
             role: Default::default(),
             advertise_url: None,
             max_in_flight: None,
+            analytics_queue: Default::default(),
             shutdown: Default::default(),
             trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
         },

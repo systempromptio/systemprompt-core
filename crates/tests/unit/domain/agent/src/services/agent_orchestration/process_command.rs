@@ -114,11 +114,10 @@ fn build_agent_command_sets_args_and_scoped_env() {
     );
     assert_eq!(env("DATABASE_TYPE").as_deref(), Some("postgres"));
     assert_eq!(
-        env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV).as_deref(),
-        Some("1")
+        env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV),
+        None,
+        "the spawn marker is stamped by the spawner, not the command builder"
     );
-    assert_eq!(
-        env(systemprompt_models::subprocess::AGENT_NAME_ENV).as_deref(),
-        Some("cmd_env")
-    );
+    assert_eq!(env(systemprompt_models::subprocess::AGENT_NAME_ENV), None);
+    assert_eq!(env(systemprompt_models::subprocess::SPAWN_NONCE_ENV), None);
 }

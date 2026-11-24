@@ -157,7 +157,7 @@ pub use gateway_boot::{
 };
 pub use gateway_conversation::GatewayConversationId;
 pub use hook::HookId;
-pub use instance::{AdvisoryLockKey, InstanceId, LeaseKey};
+pub use instance::{AdvisoryLockKey, InstanceId, LeaseKey, SpawnNonce};
 pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;

@@ -5,7 +5,7 @@
 // `failed`, while fix_inconsistencies is driven with an explicit report.
 
 use std::collections::HashMap;
-use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_identifiers::{AgentName, InstanceId, SpawnNonce};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -18,6 +18,8 @@ use systemprompt_manifest::ServicesConfig;
 
 use super::super::a2a_server::a2a_helpers::agent_config;
 use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
+
+const AGENT_HELPER: &str = "services::agent_orchestration::process_stop_live::marker_helper";
 
 const DEAD_PID: u32 = 2_000_000_001;
 
@@ -47,7 +49,7 @@ async fn reconcile_repairs_dead_pid_row_via_status_lookup() {
     let instance = unique_instance();
     let name = unique_agent_name("rec_dead");
     let svc = db_service_with(&pool, &instance, &[(&name, 9410)]);
-    svc.register_agent(&name, DEAD_PID, 9410)
+    svc.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9410)
         .await
         .expect("register");
 
@@ -72,10 +74,11 @@ async fn consistency_check_buckets_live_and_dead_agents() {
     let dead = unique_agent_name("rec_bucket_d");
     let live = unique_agent_name("rec_bucket_l");
     let svc = db_service_with(&pool, &instance, &[(&dead, 9413), (&live, 9414)]);
-    svc.register_agent(&dead, DEAD_PID, 9413)
+    let agent = systemprompt_test_fixtures::spawn_marked_agent(AGENT_HELPER, live.as_str());
+    svc.register_agent(&dead, DEAD_PID, &SpawnNonce::generate(), 9413)
         .await
         .expect("register dead");
-    svc.register_agent(&live, std::os::unix::process::parent_id(), 9414)
+    svc.register_agent(&live, agent.pid(), &agent.nonce, 9414)
         .await
         .expect("register live");
 
@@ -104,9 +107,14 @@ async fn fix_inconsistencies_marks_reported_agents_failed() {
     let instance = unique_instance();
     let stale = unique_agent_name("rec_fix_a");
     let svc = db_service_with(&pool, &instance, &[(&stale, 9415)]);
-    svc.register_agent(&stale, std::os::unix::process::parent_id(), 9415)
-        .await
-        .expect("register stale");
+    svc.register_agent(
+        &stale,
+        std::os::unix::process::parent_id(),
+        &SpawnNonce::generate(),
+        9415,
+    )
+    .await
+    .expect("register stale");
 
     let mut report = ConsistencyReport::new();
     report.inconsistent_running.push((stale.clone(), DEAD_PID));

@@ -4,9 +4,11 @@
 //! reclamation of a port held by this service's own stale process, and
 //! retry/backoff helpers that wait for a port to free up before a server
 //! binds. A holder is stopped only when the loader's supervision module proves
-//! it carries this service's marker; a foreign or unverifiable holder is
-//! refused with a typed error. The probe timeout guards against kernel-level
-//! connect hangs that would otherwise stall startup silently.
+//! it carries this service's marker and the boot nonce its row recorded
+//! ([`PortHolderClaim`]); a foreign or unverifiable holder is refused with a
+//! typed error. The stop waits the grace the claim carries (the profile's
+//! `server.shutdown.child_grace_secs`). The probe timeout guards against
+//! kernel-level connect hangs that would otherwise stall startup silently.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +17,7 @@ use crate::error::{McpDomainError, McpDomainResult};
 use std::net::SocketAddr;
 use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp, StopOutcome};
 use tokio::net::TcpStream;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
@@ -25,14 +27,29 @@ pub const POST_KILL_DELAY_MS: u64 = 500;
 // Why: Firewalls can blackhole even loopback SYN packets, leaving a blocking
 // connect waiting for the operating system's TCP timeout.
 const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
-const STALE_HOLDER_GRACE: Duration = Duration::from_secs(5);
 
-pub async fn prepare_port(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
+/// The service a port is being prepared for, the stamp its row recorded and
+/// the grace a stale holder of that service gets.
+#[derive(Debug, Clone, Copy)]
+pub struct PortHolderClaim<'a> {
+    pub service: &'a ServiceName,
+    pub stamp: &'a SpawnStamp,
+    pub grace: Duration,
+}
+
+impl PortHolderClaim<'_> {
+    fn claim(&self) -> ChildClaim {
+        ChildClaim::spawned(ChildKind::Mcp, self.service, self.stamp.clone())
+    }
+}
+
+pub async fn prepare_port(port: u16, holder: &PortHolderClaim<'_>) -> McpDomainResult<()> {
+    let service_name = holder.service;
     tracing::debug!(port = port, service = %service_name, "Preparing port");
 
     if is_port_in_use(port).await {
         tracing::debug!(port = port, service = %service_name, "Port is in use, cleaning up");
-        cleanup_port_processes(port, service_name).await?;
+        cleanup_port_processes(port, holder).await?;
     }
 
     tracing::debug!(port = port, service = %service_name, "Port is ready");
@@ -47,14 +64,14 @@ enum PortHolder {
     Unverifiable,
 }
 
-async fn classify_port_holder(pid: u32, service_name: &ServiceName) -> PortHolder {
+async fn classify_port_holder(pid: u32, claim: &ChildClaim) -> PortHolder {
     if pid == std::process::id() {
         return PortHolder::Caller;
     }
     if !systemprompt_models::subprocess::identity_verification_supported() {
         return PortHolder::Unverifiable;
     }
-    if subprocess::owns(pid, ChildKind::Mcp, service_name).await {
+    if subprocess::owns(pid, claim).await {
         PortHolder::Ours
     } else if subprocess::is_running(pid).await {
         PortHolder::Foreign
@@ -92,9 +109,14 @@ pub async fn is_port_responsive(port: u16) -> bool {
     is_port_in_use(port).await
 }
 
-pub async fn cleanup_port_processes(port: u16, service_name: &ServiceName) -> McpDomainResult<()> {
+pub async fn cleanup_port_processes(
+    port: u16,
+    holder: &PortHolderClaim<'_>,
+) -> McpDomainResult<()> {
+    let service_name = holder.service;
+    let claim = holder.claim();
     for pid in subprocess::pids_listening_on(port).await? {
-        match classify_port_holder(pid, service_name).await {
+        match classify_port_holder(pid, &claim).await {
             PortHolder::Caller | PortHolder::Gone => continue,
             PortHolder::Foreign => {
                 return Err(McpDomainError::PortOwnedByForeignProcess {
@@ -114,7 +136,7 @@ pub async fn cleanup_port_processes(port: u16, service_name: &ServiceName) -> Mc
         }
 
         tracing::debug!(port = port, pid = pid, service = %service_name, "Stopping our stale process on port");
-        match subprocess::stop_owned(pid, ChildKind::Mcp, service_name, STALE_HOLDER_GRACE).await? {
+        match subprocess::stop_owned(pid, &claim, holder.grace).await? {
             StopOutcome::NotRunning | StopOutcome::Stopped(_) => {},
             StopOutcome::NotOurs => {
                 return Err(McpDomainError::PortOwnedByForeignProcess {
@@ -151,9 +173,10 @@ pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
 
 pub async fn wait_for_port_release_with_retry(
     port: u16,
-    service_name: &ServiceName,
+    holder: &PortHolderClaim<'_>,
     max_cleanup_attempts: u32,
 ) -> McpDomainResult<()> {
+    let service_name = holder.service;
     for cleanup_attempt in 1..=max_cleanup_attempts {
         if !is_port_in_use(port).await {
             return Ok(());
@@ -167,7 +190,7 @@ pub async fn wait_for_port_release_with_retry(
             "Port still in use, attempting cleanup"
         );
 
-        cleanup_port_processes(port, service_name).await?;
+        cleanup_port_processes(port, holder).await?;
 
         match wait_for_port_release(port).await {
             Ok(()) => return Ok(()),

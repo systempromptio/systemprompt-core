@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE services SET status = $3, pid = NULL, spawn_nonce = NULL, updated_at = CURRENT_TIMESTAMP\n               WHERE instance_id = $1 AND name = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "de93db184df48f95b549df07a977ece66ff74c3bff160580ca496e03d33e56b5"
+}

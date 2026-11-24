@@ -13,6 +13,7 @@
 use std::path::Path;
 
 use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, MARKETPLACE_BUNDLE_DIRS};
+use systemprompt_models::path_confine::entries_within;
 
 use crate::error::MarketplaceError;
 
@@ -26,15 +27,15 @@ pub(super) fn copy_base_tree(from: &Path, sink: &Sink) -> Result<Vec<String>, Ma
         return Ok(Vec::new());
     }
 
-    let read = std::fs::read_dir(&base).map_err(|e| MarketplaceError::import(&base, "read", e))?;
+    let entries =
+        entries_within(from, &base).map_err(|e| MarketplaceError::import(&base, "read", e))?;
 
     let mut dirs: Vec<(String, std::path::PathBuf)> = Vec::new();
-    for entry in read {
-        let entry = entry.map_err(|e| MarketplaceError::import(&base, "read", e))?;
-        let path = entry.path();
-        if !path.is_dir() {
+    for entry in entries {
+        if !entry.is_dir {
             continue;
         }
+        let path = base.join(&entry.name);
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };

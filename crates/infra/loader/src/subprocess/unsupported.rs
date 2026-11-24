@@ -10,24 +10,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::ServiceName;
-
-#[must_use]
-pub fn live_pid_is_subprocess(pid: u32, _name_key: &str, service_name: &ServiceName) -> bool {
-    tracing::warn!(
-        pid,
-        service = %service_name,
-        "Child identity cannot be verified on this platform, so this process will not be \
-         signalled; it must be stopped by hand"
-    );
-    false
-}
-
 #[must_use]
 pub const fn is_zombie(_pid: u32) -> bool {
     false
 }
 
-pub(super) const fn live_environ(_pid: u32) -> Option<Vec<u8>> {
+pub(super) fn live_environ(pid: u32) -> Option<Vec<u8>> {
+    tracing::warn!(
+        pid,
+        "Child identity cannot be verified on this platform, so this process will not be \
+         signalled; it must be stopped by hand"
+    );
     None
 }

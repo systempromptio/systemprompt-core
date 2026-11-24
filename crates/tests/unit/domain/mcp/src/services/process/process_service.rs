@@ -2,9 +2,10 @@
 //! supervision: liveness, port holders and the identity-gated stop.
 
 use std::net::TcpListener;
+use std::time::Duration;
 
-use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::StopOutcome;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{SpawnStamp, StopOutcome};
 use systemprompt_mcp::services::process::ProcessService;
 
 const DEAD_PID: u32 = 4_194_305;
@@ -26,9 +27,14 @@ async fn the_supervisor_itself_never_reads_as_a_running_child() {
 
 #[tokio::test]
 async fn stopping_a_dead_pid_reports_not_running() {
-    let outcome = ProcessService::stop(DEAD_PID, &ServiceName::new("any-service"))
-        .await
-        .expect("a dead pid is not a failure");
+    let outcome = ProcessService::stop(
+        DEAD_PID,
+        &ServiceName::new("any-service"),
+        &SpawnStamp::Boot(SpawnNonce::generate()),
+        Duration::from_secs(5),
+    )
+    .await
+    .expect("a dead pid is not a failure");
 
     assert_eq!(outcome, StopOutcome::NotRunning);
 }
@@ -39,10 +45,14 @@ async fn a_free_port_has_no_listener_and_no_owned_holder() {
 
     assert!(!ProcessService::port_has_listener(port).await.expect("lsof"));
     assert!(
-        ProcessService::owned_port_holders(port, &ServiceName::new("absent"))
-            .await
-            .expect("lsof")
-            .is_empty()
+        ProcessService::owned_port_holders(
+            port,
+            &ServiceName::new("absent"),
+            &SpawnStamp::Boot(SpawnNonce::generate())
+        )
+        .await
+        .expect("lsof")
+        .is_empty()
     );
 }
 
@@ -53,10 +63,14 @@ async fn an_unmarked_listener_is_seen_but_never_owned() {
 
     assert!(ProcessService::port_has_listener(port).await.expect("lsof"));
     assert!(
-        ProcessService::owned_port_holders(port, &ServiceName::new("files"))
-            .await
-            .expect("lsof")
-            .is_empty(),
+        ProcessService::owned_port_holders(
+            port,
+            &ServiceName::new("files"),
+            &SpawnStamp::Boot(SpawnNonce::generate())
+        )
+        .await
+        .expect("lsof")
+        .is_empty(),
         "the test process carries no MCP marker, so it is never an owned holder"
     );
 }

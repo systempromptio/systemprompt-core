@@ -140,6 +140,14 @@ async fn run_install(
         },
         Err(e) => return Err(failure(&e)),
     };
+    if let Some(superseded) = &report.superseded {
+        return Err(anyhow!(
+            "Schema install refused: release {} is older than release {}, which installed this \
+             database; run the migration with the newer release",
+            superseded.release,
+            superseded.recorded
+        ));
+    }
     database.mark_schema_changed();
     refuse_foreign_key_drift(&report)?;
 

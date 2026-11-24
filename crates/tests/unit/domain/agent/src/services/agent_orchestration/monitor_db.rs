@@ -13,6 +13,8 @@ use systemprompt_manifest::ServicesConfig;
 use super::super::a2a_server::a2a_helpers::agent_config;
 use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
 
+const AGENT_HELPER: &str = "services::agent_orchestration::process_stop_live::marker_helper";
+
 fn db_service_with(
     pool: &systemprompt_database::DbPool,
     instance: &InstanceId,
@@ -71,7 +73,8 @@ async fn health_check_passes_for_live_process_with_open_port() {
 
     let name = unique_agent_name("mon_live");
     let svc = db_service_with(&pool, &instance, &[(&name, port)]);
-    svc.register_agent(&name, std::os::unix::process::parent_id(), port)
+    let agent = systemprompt_test_fixtures::spawn_marked_agent(AGENT_HELPER, name.as_str());
+    svc.register_agent(&name, agent.pid(), &agent.nonce, port)
         .await
         .expect("register");
 
@@ -97,7 +100,8 @@ async fn health_check_fails_for_live_process_with_closed_port() {
 
     let name = unique_agent_name("mon_closed");
     let svc = db_service_with(&pool, &instance, &[(&name, port)]);
-    svc.register_agent(&name, std::os::unix::process::parent_id(), port)
+    let agent = systemprompt_test_fixtures::spawn_marked_agent(AGENT_HELPER, name.as_str());
+    svc.register_agent(&name, agent.pid(), &agent.nonce, port)
         .await
         .expect("register");
 

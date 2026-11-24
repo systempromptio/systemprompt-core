@@ -1,7 +1,8 @@
 //! Port discovery reports listeners cleanly for occupied and free ports, and
 //! never counts an unmarked listener as one of this service's processes.
 
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::SpawnStamp;
 use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::{bind_ephemeral_port, spawn_tcp_accept_loop};
@@ -35,8 +36,12 @@ async fn a_bound_port_has_a_listener() {
 async fn an_unmarked_listener_is_not_an_owned_port_holder() {
     let (addr, handle) = spawn_tcp_accept_loop().await;
 
-    let owned =
-        ProcessService::owned_port_holders(addr.port(), &ServiceName::new("nonexistent-mcp")).await;
+    let owned = ProcessService::owned_port_holders(
+        addr.port(),
+        &ServiceName::new("nonexistent-mcp"),
+        &SpawnStamp::Boot(SpawnNonce::generate()),
+    )
+    .await;
     handle.abort();
 
     assert_eq!(

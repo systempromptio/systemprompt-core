@@ -364,6 +364,7 @@ fn fingerprinted_ledger() -> Arc<dyn SchemaMember> {
         retirements: vec![],
         cross_tables: vec![],
         purges: vec![],
+        reassignments: vec![],
     })
 }
 

@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS services (
     module_name TEXT NOT NULL,
     server_type TEXT NOT NULL DEFAULT 'internal',
     pid INTEGER,
+    spawn_nonce TEXT,
     port INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'stopped'
         CHECK (status IN ('starting', 'running', 'stopping', 'stopped', 'error')),

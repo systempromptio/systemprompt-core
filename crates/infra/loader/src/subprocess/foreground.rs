@@ -23,7 +23,8 @@ use systemprompt_extension::cli::ChildSupervisor;
 
 use systemprompt_identifiers::ServiceName;
 
-use super::{ChildKind, Spawner, StopOutcome, SupervisionError, mark_child, stop_owned};
+use super::spawn::stamp_marker;
+use super::{ChildClaim, ChildKind, Spawner, StopOutcome, SupervisionError, stop_owned};
 
 /// The registry of a CLI run's foreground children; cheap to clone, shared
 /// by the command that spawns and the interrupt handler that stops.
@@ -69,7 +70,7 @@ impl ForegroundChildren {
     pub fn spawn(&self, mut cmd: Command) -> io::Result<ForegroundChild> {
         let sequence = self.inner.next.fetch_add(1, Ordering::Relaxed);
         let token = ServiceName::new(format!("cli-{}-{sequence}", std::process::id()));
-        mark_child(&mut cmd, ChildKind::Command, &token);
+        stamp_marker(&mut cmd, ChildKind::Command, &token);
         let mut live = self
             .inner
             .live
@@ -129,7 +130,7 @@ impl ForegroundChildren {
             .collect();
         let mut outcomes = Vec::with_capacity(recorded.len());
         for (pid, token) in recorded {
-            let outcome = stop_owned(pid, ChildKind::Command, &token, grace).await;
+            let outcome = stop_owned(pid, &ChildClaim::Command { token }, grace).await;
             outcomes.push((pid, outcome));
         }
         outcomes

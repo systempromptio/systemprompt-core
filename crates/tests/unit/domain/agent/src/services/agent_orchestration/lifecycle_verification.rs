@@ -7,7 +7,7 @@
 // status.
 
 use std::sync::Arc;
-use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_identifiers::{AgentName, InstanceId, SpawnNonce};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::OrchestrationError;
@@ -17,6 +17,8 @@ use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
 
 use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
+
+const AGENT_HELPER: &str = "services::agent_orchestration::process_stop_live::marker_helper";
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -46,6 +48,18 @@ async fn ephemeral_listener() -> (TcpListener, u16) {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("addr").port();
     (listener, port)
+}
+
+#[tokio::test]
+async fn child_grace_is_the_profiles_shutdown_child_grace() {
+    let pool = test_db_pool().await;
+    let instance = unique_instance();
+    let lc = lifecycle(&pool, &instance);
+
+    assert_eq!(
+        lc.child_grace(),
+        crate::spawn_environment().config.shutdown.child_grace()
+    );
 }
 
 #[tokio::test]
@@ -158,6 +172,10 @@ async fn verify_startup_accepts_the_spawned_agent_listening_on_its_port() {
             systemprompt_models::subprocess::AGENT_NAME_ENV,
             name.as_str(),
         )
+        .env(
+            systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+            systemprompt_test_fixtures::test_spawner().nonce().as_str(),
+        )
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
@@ -183,7 +201,7 @@ async fn verify_startup_times_out_without_clearing_the_pid() {
     let db = db_service(&pool, &instance);
 
     let name = unique_agent_name("lc_verify_dead");
-    db.register_agent_starting(&name, DEAD_PID, 39461)
+    db.register_agent_starting(&name, DEAD_PID, &SpawnNonce::generate(), 39461)
         .await
         .expect("register");
 
@@ -223,14 +241,15 @@ async fn log_startup_failure_covers_stored_statuses() {
         .await;
 
     let running = unique_agent_name("lc_log_running");
-    db.register_agent(&running, std::os::unix::process::parent_id(), 39463)
+    let agent = systemprompt_test_fixtures::spawn_marked_agent(AGENT_HELPER, running.as_str());
+    db.register_agent(&running, agent.pid(), &agent.nonce, 39463)
         .await
         .expect("register running");
     lc.log_startup_failure(&running, 39463).await;
     db.remove_agent_service(&running).await.ok();
 
     let dead = unique_agent_name("lc_log_dead");
-    db.register_agent(&dead, DEAD_PID, 39464)
+    db.register_agent(&dead, DEAD_PID, &SpawnNonce::generate(), 39464)
         .await
         .expect("register dead");
     lc.log_startup_failure(&dead, 39464).await;

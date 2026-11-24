@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_identifiers::{AgentName, InstanceId, SpawnNonce};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -78,8 +78,12 @@ async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
         make_orchestrator(&pool, &instance, &[(&a, &a, 39470), (&b, &b, 39471)]).await;
 
     let db = db_service(&pool, &instance);
-    db.register_agent(&a, DEAD_PID, 39470).await.expect("reg a");
-    db.register_agent(&b, DEAD_PID, 39471).await.expect("reg b");
+    db.register_agent(&a, DEAD_PID, &SpawnNonce::generate(), 39470)
+        .await
+        .expect("reg a");
+    db.register_agent(&b, DEAD_PID, &SpawnNonce::generate(), 39471)
+        .await
+        .expect("reg b");
 
     let (tx, mut rx) = startup_channel();
     let result = orchestrator.reconcile(Some(&tx)).await;
@@ -146,8 +150,12 @@ async fn disable_all_leaves_every_registry_agent_failed() {
         make_orchestrator(&pool, &instance, &[(&a, &a, 39473), (&b, &b, 39474)]).await;
 
     let db = db_service(&pool, &instance);
-    db.register_agent(&a, DEAD_PID, 39473).await.expect("reg a");
-    db.register_agent(&b, DEAD_PID, 39474).await.expect("reg b");
+    db.register_agent(&a, DEAD_PID, &SpawnNonce::generate(), 39473)
+        .await
+        .expect("reg a");
+    db.register_agent(&b, DEAD_PID, &SpawnNonce::generate(), 39474)
+        .await
+        .expect("reg b");
 
     orchestrator.disable_all().await.expect("disable all");
 
@@ -173,7 +181,7 @@ async fn health_check_reports_a_dead_pid_as_not_running() {
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, &name, 39475)]).await;
 
     let db = db_service(&pool, &instance);
-    db.register_agent(&name, DEAD_PID, 39475)
+    db.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 39475)
         .await
         .expect("register");
 

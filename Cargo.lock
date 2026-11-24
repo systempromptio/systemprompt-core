@@ -6588,6 +6588,7 @@ dependencies = [
  "http",
  "http-body-util",
  "ipnet",
+ "lru",
  "metrics",
  "metrics-exporter-prometheus",
  "nix",

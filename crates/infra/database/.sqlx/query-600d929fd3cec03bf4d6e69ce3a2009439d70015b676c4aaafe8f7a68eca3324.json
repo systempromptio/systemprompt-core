@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT instance_id as \"instance_id: InstanceId\", name, module_name, status, pid, port, binary_mtime,\n                   heartbeat_at::text as \"heartbeat_at!\",\n                   created_at::text as \"created_at!\", updated_at::text as \"updated_at!\"\n            FROM services\n            WHERE instance_id = $1 AND module_name = $2 AND status = $3\n            ORDER BY name\n            ",
+  "query": "\n            SELECT instance_id as \"instance_id: InstanceId\", name, module_name, status, pid,\n                   spawn_nonce as \"spawn_nonce: SpawnNonce\", port, binary_mtime,\n                   heartbeat_at::text as \"heartbeat_at!\",\n                   created_at::text as \"created_at!\", updated_at::text as \"updated_at!\"\n            FROM services\n            WHERE instance_id = $1 AND name = $2\n            ",
   "describe": {
     "columns": [
       {
@@ -60,6 +60,17 @@
       },
       {
         "ordinal": 5,
+        "name": "spawn_nonce: SpawnNonce",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "services",
+            "name": "spawn_nonce"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
         "name": "port",
         "type_info": "Int4",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "binary_mtime",
         "type_info": "Int8",
         "origin": {
@@ -81,19 +92,19 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "heartbeat_at!",
         "type_info": "Text",
         "origin": "Expression"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "created_at!",
         "type_info": "Text",
         "origin": "Expression"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "updated_at!",
         "type_info": "Text",
         "origin": "Expression"
@@ -101,7 +112,6 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
         "Text",
         "Text"
       ]
@@ -112,6 +122,7 @@
       false,
       false,
       true,
+      true,
       false,
       true,
       null,
@@ -119,5 +130,5 @@
       null
     ]
   },
-  "hash": "d157e94436bea74b4765d83dcc2a7a0825511876b206003df5e26c61d3705a1f"
+  "hash": "600d929fd3cec03bf4d6e69ce3a2009439d70015b676c4aaafe8f7a68eca3324"
 }

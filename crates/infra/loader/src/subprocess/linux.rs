@@ -7,7 +7,6 @@
 use std::process::Command;
 use std::time::Duration;
 
-use systemprompt_identifiers::ServiceName;
 
 #[expect(
     unsafe_code,
@@ -40,13 +39,6 @@ pub(super) fn arm_parent_death_signal(cmd: &mut Command) {
 
 const IDENTITY_ATTEMPTS: u32 = 20;
 const IDENTITY_RETRY: Duration = Duration::from_millis(5);
-
-#[must_use]
-pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &ServiceName) -> bool {
-    live_environ(pid).is_some_and(|environ| {
-        systemprompt_models::subprocess::environ_identifies_child(&environ, name_key, service_name)
-    })
-}
 
 pub(super) fn live_environ(pid: u32) -> Option<Vec<u8>> {
     // Why: inside execve a process's `/proc/<pid>/environ` is briefly empty or

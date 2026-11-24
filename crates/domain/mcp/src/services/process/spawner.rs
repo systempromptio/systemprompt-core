@@ -191,7 +191,7 @@ pub fn spawn_server(
     child_command.args(args);
     child_command.env_clear();
     child_command.envs(env);
-    subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
+    spawner.mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
 
     child_command
         .stdout(std::process::Stdio::null())

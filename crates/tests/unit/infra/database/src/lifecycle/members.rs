@@ -28,5 +28,6 @@ pub(super) fn unit(ext: &dyn Extension) -> SchemaUnit {
         retirements: member.sink.retirements().to_vec(),
         cross_tables: member.sink.cross_tables().to_vec(),
         purges: purge_declarations(&member.sink),
+        reassignments: member.sink.owner_reassignments().to_vec(),
     }
 }

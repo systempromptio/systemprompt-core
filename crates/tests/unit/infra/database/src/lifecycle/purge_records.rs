@@ -33,6 +33,7 @@ fn unit(
         retirements: vec![],
         cross_tables: vec![],
         purges,
+        reassignments: vec![],
     })
 }
 

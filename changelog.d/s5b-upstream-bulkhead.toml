@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Gateway"
+text = "Each upstream endpoint has a concurrency cap sized by its resilience settings' `max_concurrent`: a send that finds its endpoint at the cap fails over to the next deployment, and a chain that ends there answers `Saturated` with `Retry-After`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Added"
+text = "`service::failover::ProviderBreakers::bulkhead_for`, one `Bulkhead` per endpoint."

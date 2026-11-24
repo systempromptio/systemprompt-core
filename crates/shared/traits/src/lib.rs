@@ -175,7 +175,7 @@ pub use ai_reports::{
     SafetyFindingRollup, SafetyFindingsReader,
 };
 pub use bridge_host_filters::{BridgeHostFilterMigration, DynBridgeHostFilterMigration};
-pub use ownership::is_plain_identifier;
+pub use ownership::{MERGE_EXCLUDED_SECURITY_TABLES, is_plain_identifier};
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,
 };

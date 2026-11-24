@@ -51,6 +51,7 @@ pub(super) fn unit(
         retirements: vec![],
         cross_tables,
         purges: vec![],
+        reassignments: vec![],
     })
 }
 
@@ -275,6 +276,7 @@ pub(super) fn ledger() -> Arc<dyn SchemaMember> {
         retirements: vec![],
         cross_tables: vec![],
         purges: vec![],
+        reassignments: vec![],
     })
 }
 

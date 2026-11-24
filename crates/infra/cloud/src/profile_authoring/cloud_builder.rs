@@ -119,6 +119,7 @@ impl CloudProfileBuilder {
                 external_db_access: self.external_db_access,
                 migrate_on_boot: true,
                 connection_budget: None,
+                schema_install_roles: None,
                 pool: None,
             },
             security: security_config(self.trusted_issuers, false),

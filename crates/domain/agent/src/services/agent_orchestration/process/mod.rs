@@ -54,7 +54,7 @@ pub async fn spawn_detached(
 
     let log_file = command::prepare_agent_log_file(agent_name, &paths.system().logs())?;
 
-    let cmd = command::build_agent_command(command::BuildAgentCommandParams {
+    let mut cmd = command::build_agent_command(command::BuildAgentCommandParams {
         binary_path: &binary_path,
         agent_name,
         port,
@@ -64,6 +64,11 @@ pub async fn spawn_detached(
         log_file,
     });
 
+    spawner.mark_child(
+        &mut cmd,
+        systemprompt_loader::subprocess::ChildKind::Agent,
+        &systemprompt_identifiers::ServiceName::of_agent(agent_name),
+    );
     let pid = spawner
         .spawn_supervised(cmd)
         .map_err(|e| OrchestrationError::spawn(format!("Failed to spawn {agent_name}"), e))?;

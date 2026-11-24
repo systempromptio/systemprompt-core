@@ -13,6 +13,7 @@ pub mod readiness;
 mod verification;
 
 use std::sync::Arc;
+use std::time::Duration;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::services::ServicesView;
@@ -43,5 +44,10 @@ impl AgentLifecycle {
             spawner,
             spawn_environment,
         }
+    }
+
+    #[must_use]
+    pub fn child_grace(&self) -> Duration {
+        self.spawn_environment.config.shutdown.child_grace()
     }
 }

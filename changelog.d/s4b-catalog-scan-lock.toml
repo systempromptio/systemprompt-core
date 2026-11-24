@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Schema install"
+text = "A catalog scan (the schema digest, the trigger-routine check) outside an install holds the bootstrap lock shared, and every install holds it exclusively, so an install's DDL never drops an object a scan has listed. The scan retries only on SQLSTATE `55P03`, `40P01` or `40001`; the `XX000` message-prefix retry is removed, and the schema-phase classifier no longer reads message text from an error that carries no SQLSTATE."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`BootstrapLockGuard::acquire_shared` takes the bootstrap advisory lock in shared mode."

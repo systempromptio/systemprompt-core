@@ -5,7 +5,7 @@
 
 use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
-use systemprompt_loader::subprocess::StopOutcome;
+use systemprompt_loader::subprocess::{SpawnStamp, StopOutcome};
 use systemprompt_manifest::services::ServiceStatus;
 use tracing::Instrument;
 
@@ -13,16 +13,18 @@ use crate::McpServerConfig;
 use crate::services::database::state::get_binary_mtime_for_service;
 use crate::services::database::{DatabaseService, ServiceInfo, stored_pid};
 use crate::services::process::ProcessService;
+use systemprompt_identifiers::SpawnNonce;
 
 pub async fn detect_and_handle_orphaned_processes(
     servers: &[McpServerConfig],
     database: &DatabaseService,
+    nonce: &SpawnNonce,
 ) -> McpDomainResult<usize> {
     let span = systemprompt_logging::SystemSpan::new("mcp_orchestrator");
     async move {
         let mut killed = 0;
         for server in servers {
-            if kill_orphaned_process(server, database).await? {
+            if kill_orphaned_process(server, database, nonce).await? {
                 killed += 1;
             }
         }
@@ -35,11 +37,16 @@ pub async fn detect_and_handle_orphaned_processes(
 async fn kill_orphaned_process(
     server: &McpServerConfig,
     database: &DatabaseService,
+    nonce: &SpawnNonce,
 ) -> McpDomainResult<bool> {
     let port = server.spawn_port()?;
     let service_name = server.service_name();
-    let holders = ProcessService::owned_port_holders(port, &service_name).await?;
-    if holders.is_empty() || database.get_service_by_name(&service_name).await?.is_some() {
+    if database.get_service_by_name(&service_name).await?.is_some() {
+        return Ok(false);
+    }
+    let stamp = SpawnStamp::Boot(nonce.clone());
+    let holders = ProcessService::owned_port_holders(port, &service_name, &stamp).await?;
+    if holders.is_empty() {
         return Ok(false);
     }
 
@@ -52,7 +59,8 @@ async fn kill_orphaned_process(
             "Found orphaned process"
         );
         if let StopOutcome::Stopped(termination) =
-            ProcessService::stop(orphaned_pid, &service_name).await?
+            ProcessService::stop(orphaned_pid, &service_name, &stamp, database.child_grace())
+                .await?
         {
             stopped = true;
             tracing::info!(
@@ -136,7 +144,13 @@ async fn kill_and_unregister(
     service_info: &ServiceInfo,
 ) -> McpDomainResult<()> {
     if let Some(pid) = stored_pid(service_info.pid) {
-        let outcome = ProcessService::stop(pid, &service_info.name).await?;
+        let outcome = ProcessService::stop(
+            pid,
+            &service_info.name,
+            &service_info.stamp,
+            database.child_grace(),
+        )
+        .await?;
         tracing::debug!(service = %service_info.name, pid, ?outcome, "Stale-binary process stop");
     }
     database.unregister_service(&service_info.name).await
