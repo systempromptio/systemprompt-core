@@ -20,15 +20,15 @@
 //!
 //! Before the passes the run deletes log rows whose user is gone and runs
 //! every admitted `RetentionSweep` (the AI crate's fails orphaned pending
-//! requests); after them it purges archived users past
-//! `retention.archived_users_days` that are not under legal hold. A run in
+//! requests); after them the users member's `DynUserRetention` purges
+//! archived users past `retention.archived_users_days` that are not under
+//! legal hold. With no such provider neither user pass runs. A run in
 //! which any archived user's purge was incomplete reports the count
 //! (`incomplete_purges`) and is not a success.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod archived_users;
 mod holds;
 pub(crate) mod kernel_purges;
 mod orphans;
@@ -40,14 +40,15 @@ use std::time::Instant;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 pub use systemprompt_extension::RetentionTarget;
-use systemprompt_extension::{AdmittedPurge, AdmittedSchedule};
+use systemprompt_extension::AdmittedSchedule;
 use systemprompt_manifest::profile::RetentionConfig;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{
+    ArchivedUserPurge, DynUserRetention, Job, JobContext, JobResult, ProviderResult,
+};
 use tracing::debug;
 
 use crate::services::scheduling::kernel_handles;
 
-use self::archived_users::purge_archived_users;
 use self::holds::HoldOutcome;
 use self::orphans::{delete_orphaned_logs, run_sweeps};
 use self::tables::{PassRunner, RetentionOwners, RetentionPass};
@@ -85,7 +86,8 @@ impl Job for DatabaseCleanupJob {
         let owners = RetentionOwners::discover(schedule)?;
 
         debug!("Job started");
-        let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;
+        let users = app.kernel().state().find::<DynUserRetention>().cloned();
+        let orphaned = delete_orphaned_logs(&db_pool, users.as_ref(), ctx.enforce()).await?;
         run_sweeps(ctx, schedule).await?;
         let plan: Vec<_> = plan(&retention, app.services_state())
             .into_iter()
@@ -116,13 +118,17 @@ impl Job for DatabaseCleanupJob {
             passes.push(pass);
         }
 
-        let archived = purge_archived_users(
-            &db_pool,
-            ctx.get::<AdmittedPurge>()?,
-            retention.archived_users_days,
-            ctx.enforce(),
-        )
-        .await?;
+        let archived = match users {
+            Some(users) => {
+                users
+                    .purge_archived(ctx, retention.archived_users_days, ctx.enforce())
+                    .await?
+            },
+            None => {
+                debug!("no user retention is provided; archived users are not purged");
+                ArchivedUserPurge::default()
+            },
+        };
         total += archived.purged;
 
         let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);

@@ -54,7 +54,6 @@ systemprompt-manifest = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-users = { workspace = true }
 
 
 # OTLP export (otlp_export job)

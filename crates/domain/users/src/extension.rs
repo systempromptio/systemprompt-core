@@ -124,6 +124,8 @@ impl Extension for UsersExtension {
             Ok(provider)
         })
         .job(UserRateLimitPruneJob)
+        .provide_sealed(crate::provides::user_retention)
+        .provide_sealed_after_governance(crate::provides::user_provider)
         .job(CleanupAnonymousUsersJob)
         .job(CleanupInactiveSessionsJob);
         c.slot::<RoleDirectorySlot>().directory(|r: &Resolved<'_>| {

@@ -16,6 +16,7 @@ mod device_cert_service;
 mod role_audience;
 mod sso_events;
 mod user;
+mod user_retention;
 
 pub use crate::repository::UpdateUserParams;
 pub use admin_service::{DemoteResult, PromoteResult, UserAdminService};
@@ -29,3 +30,4 @@ pub use device_cert_service::{
 pub use role_audience::UserRoleAudienceResolver;
 pub use sso_events::{OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink};
 pub use user::{PurgedArchive, UserService};
+pub(crate) use user_retention::UsersRetention;

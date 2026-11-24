@@ -266,6 +266,8 @@ pub trait UserProvider: Send + Sync {
     }
 }
 
+pub type DynUserProvider = std::sync::Arc<dyn UserProvider>;
+
 pub trait RoleProvider: Send + Sync {
     fn get_roles(&self, user_id: &UserId) -> impl Future<Output = AuthResult<Vec<String>>> + Send;
     fn assign_role(

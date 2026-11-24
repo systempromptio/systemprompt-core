@@ -114,6 +114,7 @@ pub mod storage;
 pub mod stream_drain;
 pub mod tool_executions;
 pub mod traffic_class_counts;
+pub mod user_retention;
 pub mod validation;
 
 pub use systemprompt_provider_contracts::{
@@ -181,6 +182,7 @@ pub use auth::{
     AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, FederatedLink,
     FederatedRefusal, FederatedResolution, LinkPolicy, RoleProvider, SenderIdentity, UserProvider,
 };
+pub use auth::DynUserProvider;
 
 pub use storage::{
     ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, ServedRange,
@@ -222,3 +224,4 @@ pub use gateway_session::{
 };
 pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
 pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};
+pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};

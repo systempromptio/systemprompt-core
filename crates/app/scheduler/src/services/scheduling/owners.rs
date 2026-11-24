@@ -1,8 +1,8 @@
 //! Owner resolution for scheduled jobs.
 //!
 //! A job with no explicit owner runs as the profile `system_admin`; a job whose
-//! explicit owner does not resolve to an active user is dropped from the
-//! schedule (collected as a [`SkippedJob`]) and, on the live `start` pass,
+//! explicit owner does not resolve to an active user (or that no admitted
+//! user directory can resolve) is dropped from the schedule (collected as a [`SkippedJob`]) and, on the live `start` pass,
 //! recorded as an `ERROR` in the `logs` table.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,7 +12,6 @@ use std::collections::HashMap;
 
 use systemprompt_identifiers::{JobName, SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel};
-use systemprompt_models::auth::UserStatus;
 use tracing::{debug, warn};
 
 use super::SchedulerService;
@@ -40,7 +39,6 @@ impl ResolvedOwners {
 
 impl SchedulerService {
     pub(super) async fn resolve_owners(&self, emit_logs: bool) -> SchedulerResult<ResolvedOwners> {
-        let users = &self.user_repository;
         let system_admin_id = self.app_context.system_admin().id();
         let mut map = HashMap::with_capacity(self.config.jobs.len());
         let mut skipped = Vec::new();
@@ -49,10 +47,13 @@ impl SchedulerService {
                 map.insert(job.name.clone(), system_admin_id.clone());
                 continue;
             };
-            let active = users
-                .find_by_name(owner.as_str())
-                .await?
-                .filter(|u| u.status == UserStatus::Active);
+            let active = match &self.users {
+                Some(users) => users
+                    .find_by_name(owner.as_str())
+                    .await?
+                    .filter(|u| u.is_active),
+                None => None,
+            };
             if let Some(user) = active {
                 debug!(job_name = %job.name, owner = %user.id, "resolved job owner");
                 map.insert(job.name.clone(), user.id);

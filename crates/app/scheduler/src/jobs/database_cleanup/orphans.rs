@@ -1,5 +1,6 @@
 //! The passes that run before the retention windows: log rows whose owning
-//! user is gone, then every admitted `RetentionSweep` (an owner's own
+//! user is gone (the users member's `DynUserRetention` names them; with no
+//! provider the pass deletes nothing), then every admitted `RetentionSweep` (an owner's own
 //! orphan settlement, such as the AI crate failing requests left `pending`
 //! by a lost settlement).
 //!
@@ -9,13 +10,19 @@
 use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_logging::LoggingRepository;
-use systemprompt_traits::{JobContext, ProviderError, ProviderResult};
-use systemprompt_users::UserRepository;
+use systemprompt_traits::{DynUserRetention, JobContext, ProviderError, ProviderResult};
 use tracing::{debug, info};
 
-pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> ProviderResult<u64> {
+pub(super) async fn delete_orphaned_logs(
+    db_pool: &DbPool,
+    users: Option<&DynUserRetention>,
+    enforce: bool,
+) -> ProviderResult<u64> {
+    let Some(users) = users else {
+        debug!("no user retention is provided; orphaned log rows are not computed");
+        return Ok(0);
+    };
     let logs = LoggingRepository::new(db_pool);
-    let users = UserRepository::new(db_pool);
     let internal =
         |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(Box::new(e));
     // Why: `logs` and `users` have different owners, so the orphan set is
@@ -29,10 +36,7 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
         .into_iter()
         .filter(|id| id.as_str() != systemprompt_logging::SYSTEM_LOG_OWNER)
         .collect();
-    let orphans = users
-        .missing_ids(&seen)
-        .await
-        .map_err(|e| ProviderError::Internal(Box::new(e)))?;
+    let orphans = users.missing_user_ids(&seen).await?;
     if enforce {
         logs.delete_logs_for_users(&orphans).await.map_err(internal)
     } else {

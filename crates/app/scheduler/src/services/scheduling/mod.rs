@@ -135,14 +135,22 @@ fn collect_unknown_job_names(
     unknown
 }
 
-#[derive(Debug)]
 pub struct SchedulerService {
     config: SchedulerConfig,
     repository: SchedulerRepository,
-    user_repository: Arc<systemprompt_users::UserRepository>,
+    users: Option<systemprompt_traits::DynUserProvider>,
     logging_repository: systemprompt_logging::LoggingRepository,
     app_context: Arc<AppContext>,
     schedule: Arc<AdmittedSchedule>,
+}
+
+impl std::fmt::Debug for SchedulerService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SchedulerService")
+            .field("config", &self.config)
+            .field("users", &self.users.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 impl SchedulerService {
@@ -153,12 +161,16 @@ impl SchedulerService {
         schedule: Arc<AdmittedSchedule>,
     ) -> Self {
         let repository = SchedulerRepository::new(db_pool);
-        let user_repository = Arc::clone(app_context.user_repository());
+        let users = app_context
+            .kernel()
+            .state()
+            .find::<systemprompt_traits::DynUserProvider>()
+            .cloned();
         let logging_repository = systemprompt_logging::LoggingRepository::new(db_pool);
         Self {
             config,
             repository,
-            user_repository,
+            users,
             logging_repository,
             app_context,
             schedule,
