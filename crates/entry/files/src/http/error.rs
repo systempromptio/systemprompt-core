@@ -70,14 +70,12 @@ impl From<UserError> for ApiHttpError {
             UserError::Repository(inner) => ApiError::from(inner),
             e @ UserError::NotFound(_) => ApiError::not_found(e.to_string()),
             e @ UserError::FederatedRefused(_) => ApiError::forbidden(e.to_string()),
-            e @ (UserError::EmailAlreadyExists(_)
-            | UserError::AccountKindMismatch(_)
+            e @ (UserError::EmailAlreadyExists { .. }
+            | UserError::AccountKindMismatch { .. }
             | UserError::LegalHold(_)
             | UserError::NotArchived(_)
             | UserError::RestoreRefused { .. }) => ApiError::conflict(e.to_string()),
             e @ (UserError::Validation(_)
-            | UserError::InvalidStatus(_)
-            | UserError::InvalidRole(_)
             | UserError::InvalidRoles(_)
             | UserError::ApiKeyLifetimeExceeded { .. }) => ApiError::bad_request(e.to_string()),
             e @ (UserError::MergeUnavailable

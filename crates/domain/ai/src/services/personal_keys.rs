@@ -10,7 +10,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{CredentialId, UserId};
 use systemprompt_manifest::services::catalog::{
     ResolvedCatalog, ResolvedCredential, ResolvedEndpoint,
 };
@@ -25,10 +25,12 @@ const MAX_KEY_BYTES: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PersonalKeyError {
-    #[error("credential '{0}' does not take a personal key")]
-    NotPersonalCredential(String),
-    #[error("{0} rejected the key; check it was copied whole and the subscription is active")]
-    Rejected(String),
+    #[error("credential '{credential}' does not take a personal key")]
+    NotPersonalCredential { credential: CredentialId },
+    #[error(
+        "{credential} rejected the key; check it was copied whole and the subscription is active"
+    )]
+    Rejected { credential: String },
     #[error(
         "{credential} could not verify the key (upstream answered {status}); try again shortly"
     )]
@@ -53,7 +55,9 @@ pub fn personal_credential<'c>(
     personal_credentials(catalog)
         .into_iter()
         .find(|credential| credential.id.as_str() == id)
-        .ok_or_else(|| PersonalKeyError::NotPersonalCredential(id.to_owned()))
+        .ok_or_else(|| PersonalKeyError::NotPersonalCredential {
+            credential: CredentialId::new(id),
+        })
 }
 
 #[must_use]
@@ -94,7 +98,9 @@ pub async fn store_personal_key(
     let credential = personal_credential(catalog, credential)?;
     let key = key.trim();
     if key.is_empty() || key.len() > MAX_KEY_BYTES {
-        return Err(PersonalKeyError::Rejected(credential_label(credential)));
+        return Err(PersonalKeyError::Rejected {
+            credential: credential_label(credential),
+        });
     }
     verify_personal_key(tokens, catalog, credential, key, user_id).await?;
     let label = label.map(str::trim).filter(|l| !l.is_empty());
@@ -125,9 +131,9 @@ pub async fn verify_personal_key(
         .ok_or_else(|| PersonalKeyError::Internal("foreign token cache".into()))?;
     let endpoints = credential_endpoints(catalog, credential);
     if endpoints.is_empty() {
-        return Err(PersonalKeyError::NotPersonalCredential(
-            credential.id.as_str().to_owned(),
-        ));
+        return Err(PersonalKeyError::NotPersonalCredential {
+            credential: credential.id.clone(),
+        });
     }
     for endpoint in endpoints {
         let binding = EndpointBinding::of_endpoint(catalog, &endpoint.endpoint_ref())
@@ -163,7 +169,9 @@ async fn verify_endpoint(
     key: &str,
     user_id: &UserId,
 ) -> Result<(), PersonalKeyError> {
-    let rejected = || PersonalKeyError::Rejected(credential_label(binding.credential));
+    let rejected = || PersonalKeyError::Rejected {
+        credential: credential_label(binding.credential),
+    };
     let target =
         UpstreamTarget::resolve_personal(tokens, binding, key, user_id).map_err(|_e| rejected())?;
     let call = target.call().await.map_err(|_e| rejected())?;
@@ -184,7 +192,10 @@ async fn verify_endpoint(
             %error,
             "Personal key check got no response"
         );
-        Verdict::Unverified("no response".to_owned()).into_error(binding.credential)
+        Verdict::Unverified {
+            status: "no response".to_owned(),
+        }
+        .into_error(binding.credential)
     })?;
     let status = response.status().as_u16();
     if matches!(status, 404 | 405) {
@@ -213,9 +224,10 @@ async fn probe_completion(probe: &Probe<'_>) -> Result<(), PersonalKeyError> {
     } = probe;
     let wire = binding.endpoint.wire;
     let Some(upstream_model) = probe_model(catalog, binding.endpoint) else {
-        return Err(
-            Verdict::Unverified("no model to probe".to_owned()).into_error(binding.credential)
-        );
+        let verdict = Verdict::Unverified {
+            status: "no model to probe".to_owned(),
+        };
+        return Err(verdict.into_error(binding.credential));
     };
     // JSON: provider request body — a one-token probe in the upstream wire format.
     let body = serde_json::json!({
@@ -239,7 +251,10 @@ async fn probe_completion(probe: &Probe<'_>) -> Result<(), PersonalKeyError> {
                 %error,
                 "Personal key probe got no response"
             );
-            Verdict::Unverified("no response".to_owned()).into_error(binding.credential)
+            Verdict::Unverified {
+                status: "no response".to_owned(),
+            }
+            .into_error(binding.credential)
         })?
         .status()
         .as_u16();
@@ -273,14 +288,16 @@ fn probe_model(catalog: &ResolvedCatalog, endpoint: &ResolvedEndpoint) -> Option
 
 enum Verdict {
     Rejected,
-    Unverified(String),
+    Unverified { status: String },
 }
 
 impl Verdict {
     fn into_error(self, credential: &ResolvedCredential) -> PersonalKeyError {
         match self {
-            Self::Rejected => PersonalKeyError::Rejected(credential_label(credential)),
-            Self::Unverified(status) => PersonalKeyError::Unverified {
+            Self::Rejected => PersonalKeyError::Rejected {
+                credential: credential_label(credential),
+            },
+            Self::Unverified { status } => PersonalKeyError::Unverified {
                 credential: credential_label(credential),
                 status,
             },
@@ -295,6 +312,8 @@ fn classify(status: u16, completion: bool) -> Result<(), Verdict> {
         200..=299 => Ok(()),
         401 | 403 => Err(Verdict::Rejected),
         400 | 422 | 429 if completion => Ok(()),
-        other => Err(Verdict::Unverified(other.to_string())),
+        other => Err(Verdict::Unverified {
+            status: other.to_string(),
+        }),
     }
 }

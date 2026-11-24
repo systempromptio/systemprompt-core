@@ -46,7 +46,10 @@ impl From<IdValidationError> for AgentHttpError {
 impl IntoApiError for AgentHttpError {
     fn into_api_error(self) -> ApiError {
         match self {
-            Self::Agent(AgentError::NotFound(message)) => ApiError::not_found(message),
+            Self::Agent(AgentError::NotFound { name }) => ApiError::not_found(name),
+            Self::Agent(AgentError::DefaultAgentNotConfigured) => {
+                ApiError::not_found("default agent not configured")
+            },
             Self::Agent(AgentError::Repository(inner)) | Self::Repository(inner) => {
                 ApiError::from(inner)
             },

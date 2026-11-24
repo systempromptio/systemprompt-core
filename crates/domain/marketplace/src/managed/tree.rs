@@ -103,8 +103,8 @@ fn validate_skill(id: &SkillId, files: &RevisionFiles) -> Result<()> {
     {
         return Err(invalid("Skill ID does not match its authoring directory"));
     }
-    if let Err(unknown) = config.host_kinds() {
-        return Err(invalid(&format!("Skill hosts list is invalid: {unknown}")));
+    if let Err(source) = config.host_kinds() {
+        return Err(ManagedError::SkillHosts { source });
     }
     if !config.enabled || !files.0.contains_key(config.content_file()) {
         return Err(invalid(

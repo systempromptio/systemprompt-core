@@ -73,7 +73,7 @@ impl From<BrainError> for BrainHttpError {
             BrainError::UnknownKind(_) => invalid(error.to_string(), "unknown_kind"),
             BrainError::Subject(_) => invalid(error.to_string(), "invalid_subject"),
             BrainError::Statement(_) => invalid(error.to_string(), "invalid_statement"),
-            BrainError::InvalidFields(_) => invalid(error.to_string(), "invalid_fields"),
+            BrainError::InvalidFields { .. } => invalid(error.to_string(), "invalid_fields"),
             BrainError::Cursor(_) => invalid(error.to_string(), "invalid_cursor"),
             BrainError::Repository(repo) => repository(repo),
             transient if transient.is_transient() => {

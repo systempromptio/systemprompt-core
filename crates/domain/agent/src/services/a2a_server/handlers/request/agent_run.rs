@@ -39,9 +39,7 @@ pub(super) async fn launch_if_configured(
         return Ok(None);
     };
     let Some(fields) = request.as_object_mut() else {
-        return Err(RequestFailure::InvalidParams(format!(
-            "agent {agent_name} metadata.agent_run is not an object"
-        )));
+        return Err(RequestFailure::AgentRunNotObject(agent_name.clone()));
     };
     let (prompt, _) = extract_message_content(message);
     fields.insert("prompt".to_owned(), serde_json::Value::String(prompt));
@@ -50,9 +48,7 @@ pub(super) async fn launch_if_configured(
     let task_id = resolve_task_id(message);
     match task_repo.owned_task(&task_id, context.user_id()).await {
         Ok(_) => {
-            return Err(RequestFailure::InvalidParams(format!(
-                "task {task_id} exists; an agent-run task cannot be continued"
-            )));
+            return Err(RequestFailure::AgentRunTaskExists(task_id));
         },
         Err(e) if e.is_not_found() => {},
         Err(e) => return Err(RequestFailure::internal("Task lookup failed", e)),

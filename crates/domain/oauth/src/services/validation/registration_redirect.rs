@@ -13,7 +13,7 @@
 
 use url::{Host, Url};
 
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 
 const REFUSED_SCHEMES: &[&str] = &["javascript", "data", "file", "blob", "vbscript"];
 
@@ -35,29 +35,36 @@ fn validate_one(application_type: &str, uri: &str) -> OauthResult<()> {
     })?;
 
     if parsed.fragment().is_some() {
-        return Err(OauthError::Validation(format!(
-            "redirect_uri {uri:?} must not contain a fragment"
-        )));
+        return Err(OauthError::Validation(
+            ValidationError::RedirectUriFragment {
+                uri: uri.to_owned(),
+            },
+        ));
     }
 
     let scheme = parsed.scheme();
     if REFUSED_SCHEMES.contains(&scheme) {
-        return Err(OauthError::Validation(format!(
-            "redirect_uri {uri:?} uses a refused scheme"
-        )));
+        return Err(OauthError::Validation(
+            ValidationError::RedirectUriRefusedScheme {
+                uri: uri.to_owned(),
+            },
+        ));
     }
 
     match scheme {
         "https" => Ok(()),
         "http" if is_loopback(&parsed) => Ok(()),
-        "http" => Err(OauthError::Validation(format!(
-            "redirect_uri {uri:?} must use https unless it targets the loopback interface"
-        ))),
+        "http" => Err(OauthError::Validation(
+            ValidationError::RedirectUriInsecureHttp {
+                uri: uri.to_owned(),
+            },
+        )),
         _ if application_type == "native" => Ok(()),
-        _ => Err(OauthError::Validation(format!(
-            "redirect_uri {uri:?} uses a private-use scheme, which requires application_type \
-             \"native\""
-        ))),
+        _ => Err(OauthError::Validation(
+            ValidationError::RedirectUriPrivateScheme {
+                uri: uri.to_owned(),
+            },
+        )),
     }
 }
 
@@ -71,9 +78,10 @@ pub fn validate_client_metadata_uri(field: &str, value: Option<&str>) -> OauthRe
         source,
     })?;
     if !matches!(parsed.scheme(), "http" | "https") {
-        return Err(OauthError::Validation(format!(
-            "{field} {value:?} must be an http(s) URL"
-        )));
+        return Err(OauthError::Validation(ValidationError::NonHttpUrl {
+            field: field.to_owned(),
+            value: value.to_owned(),
+        }));
     }
     Ok(())
 }

@@ -12,17 +12,8 @@ domain_error! {
         #[error("database must be PostgreSQL")]
         DatabaseNotPostgres,
 
-        #[error("content not found: {0}")]
-        ContentNotFound(String),
-
-        #[error("link not found: {0}")]
-        LinkNotFound(String),
-
-        #[error("invalid request: {0}")]
-        InvalidRequest(String),
-
         #[error("parse error: {0}")]
-        Parse(String),
+        Parse(#[from] ContentParseError),
 
         #[error("invalid date '{value}'")]
         InvalidDate {
@@ -34,6 +25,16 @@ domain_error! {
         #[error("invalid identifier: {0}")]
         InvalidIdentifier(#[from] systemprompt_identifiers::error::IdValidationError),
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ContentParseError {
+    #[error("Failed to create datetime")]
+    InvalidDatetime,
+    #[error("Ambiguous timezone conversion")]
+    AmbiguousTimezone,
+    #[error("Invalid frontmatter format - missing '---' delimiters")]
+    MissingFrontmatterDelimiters,
 }
 
 impl From<sqlx::Error> for ContentError {

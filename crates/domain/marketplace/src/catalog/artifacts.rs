@@ -34,26 +34,24 @@ pub fn validate_artifact_tools(
     for artifact in artifacts {
         for tool in &artifact.mcp_tools {
             let Some(server) = mcp_server_of(tool) else {
-                return Err(MarketplaceError::Catalog(format!(
-                    "artifact '{}': mcp_tools entry '{tool}' is not of the form \
-                     mcp__<server>__<tool>",
-                    artifact.id.as_str()
-                )));
+                return Err(MarketplaceError::ArtifactToolMalformed {
+                    artifact: artifact.id.clone(),
+                    tool: tool.clone(),
+                });
             };
             match services.mcp_servers.get(server) {
                 None => {
-                    return Err(MarketplaceError::Catalog(format!(
-                        "artifact '{}': mcp_tools entry '{tool}' names unknown mcp_server \
-                         '{server}'",
-                        artifact.id.as_str()
-                    )));
+                    return Err(MarketplaceError::ArtifactServerUnknown {
+                        artifact: artifact.id.clone(),
+                        tool: tool.clone(),
+                        server: server.to_owned(),
+                    });
                 },
                 Some(deployment) if !deployment.enabled => {
-                    return Err(MarketplaceError::Catalog(format!(
-                        "artifact '{}' is enabled but depends on disabled mcp_server '{server}' \
-                         — enable the server or disable the artifact",
-                        artifact.id.as_str()
-                    )));
+                    return Err(MarketplaceError::ArtifactServerDisabled {
+                        artifact: artifact.id.clone(),
+                        server: server.to_owned(),
+                    });
                 },
                 Some(_) => {},
             }

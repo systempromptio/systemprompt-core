@@ -47,8 +47,8 @@ pub enum AgentServiceError {
     #[error("plan has {planned} tool calls; at most {max} are executed")]
     PlanTooLarge { planned: usize, max: usize },
 
-    #[error("Tool execution failed: {0}")]
-    ToolExecution(String),
+    #[error("Tool execution failed: {message}")]
+    ToolExecution { message: String },
 
     #[error("tool {tool_name} returned no result")]
     ToolReturnedNoResult {

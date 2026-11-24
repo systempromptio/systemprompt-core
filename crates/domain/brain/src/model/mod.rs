@@ -27,8 +27,10 @@ pub enum ModelOutputError {
     NotJson(#[source] serde_json::Error),
     #[error("model output `span` is malformed")]
     MalformedSpan(#[source] serde_json::Error),
-    #[error("model output does not match the schema: {0}")]
-    Schema(String),
+    #[error("model output does not match the schema: {reason}")]
+    Schema { reason: &'static str },
+    #[error("model output does not match the schema: unexpected key {key}")]
+    UnexpectedKey { key: String },
 }
 
 #[must_use]

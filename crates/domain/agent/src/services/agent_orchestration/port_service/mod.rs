@@ -44,10 +44,7 @@ impl PortService {
             tokio::time::sleep(check_interval).await;
         }
 
-        Err(OrchestrationError::ProcessSpawnFailed(format!(
-            "Port {} did not become available within {} seconds",
-            port, timeout_secs
-        )))
+        Err(OrchestrationError::PortNotReleased { port, timeout_secs })
     }
 
     pub async fn cleanup_port_if_needed(
@@ -67,9 +64,7 @@ impl PortService {
         );
         let holders = subprocess::pids_listening_on(port).await?;
         if holders.is_empty() {
-            return Err(OrchestrationError::ProcessSpawnFailed(format!(
-                "Port {port} is in use but no listening process can be identified"
-            )));
+            return Err(OrchestrationError::PortHolderUnidentified { port });
         }
         for holder in holders {
             if !subprocess::owns(holder, &claim).await {

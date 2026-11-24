@@ -27,8 +27,8 @@ enum IngestFileResult {
     Updated,
     Unchanged,
     Skipped,
-    WouldCreate(String),
-    WouldUpdate(String),
+    WouldCreate { slug: String },
+    WouldUpdate { slug: String },
 }
 
 struct IngestCandidate<'a> {
@@ -85,8 +85,8 @@ impl IngestionService {
                 Ok(result) => {
                     report.files_processed += 1;
                     match result {
-                        IngestFileResult::WouldCreate(slug) => report.would_create.push(slug),
-                        IngestFileResult::WouldUpdate(slug) => report.would_update.push(slug),
+                        IngestFileResult::WouldCreate { slug } => report.would_create.push(slug),
+                        IngestFileResult::WouldUpdate { slug } => report.would_update.push(slug),
                         IngestFileResult::Unchanged => report.unchanged_count += 1,
                         IngestFileResult::Skipped => report.skipped_count += 1,
                         IngestFileResult::Created | IngestFileResult::Updated => {},
@@ -160,7 +160,7 @@ impl IngestionService {
             parsed,
         } = candidate;
         if dry_run {
-            return Ok(IngestFileResult::WouldCreate(slug));
+            return Ok(IngestFileResult::WouldCreate { slug });
         }
         let params = CreateContentParams::new(
             new_content.slug.clone(),
@@ -216,7 +216,7 @@ impl IngestionService {
         }
 
         if options.dry_run {
-            return Ok(IngestFileResult::WouldUpdate(slug));
+            return Ok(IngestFileResult::WouldUpdate { slug });
         }
 
         let update_params = UpdateContentParams::new(

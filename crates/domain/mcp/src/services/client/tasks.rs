@@ -58,15 +58,12 @@ where
                 });
             },
             TaskPayload::Failed { error } => {
-                return Err(McpDomainError::ToolExecutionFailed(format!(
-                    "task failed: {}",
-                    serde_json::Value::Object(error)
-                )));
+                return Err(McpDomainError::TaskFailed {
+                    error: serde_json::Value::Object(error),
+                });
             },
             TaskPayload::Cancelled => {
-                return Err(McpDomainError::ToolExecutionFailed(
-                    "task was cancelled by the server".to_owned(),
-                ));
+                return Err(McpDomainError::TaskCancelled);
             },
             other => {
                 tracing::warn!(status = ?other.status(), "Unrecognized task payload; continuing to poll");

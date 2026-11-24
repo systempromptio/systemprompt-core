@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{OauthError, OauthResult as Result};
+use crate::error::{OauthError, OauthResult as Result, ValidationError};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ClientId, ClientType};
 
@@ -34,22 +34,22 @@ pub struct CimdMetadata {
 impl CimdMetadata {
     pub fn validate(&self) -> Result<()> {
         if !self.client_id.as_str().starts_with("https://") {
-            return Err(OauthError::Validation(
-                "client_id must be HTTPS URL".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "client_id must be HTTPS URL",
+            }));
         }
 
         if self.redirect_uris.is_empty() {
-            return Err(OauthError::Validation(
-                "redirect_uris cannot be empty".to_owned(),
-            ));
+            return Err(OauthError::Validation(ValidationError::Rejected {
+                reason: "redirect_uris cannot be empty",
+            }));
         }
 
         for uri in &self.redirect_uris {
             if uri.contains("..") || uri.contains('\0') {
-                return Err(OauthError::Validation(format!(
-                    "Invalid redirect_uri: {uri}"
-                )));
+                return Err(OauthError::Validation(ValidationError::UnsafeRedirectUri {
+                    uri: uri.clone(),
+                }));
             }
         }
 

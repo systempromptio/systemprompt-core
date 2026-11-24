@@ -10,9 +10,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum TemplateError {
-    #[error("template not found: {0}")]
-    NotFound(String),
-
     #[error("failed to load template '{name}': {source}")]
     LoadError {
         name: String,
@@ -34,8 +31,8 @@ pub enum TemplateError {
         source: handlebars::RenderError,
     },
 
-    #[error("no loader available for template: {0}")]
-    NoLoader(String),
+    #[error("no loader available for template: {name}")]
+    NoLoader { name: String },
 
     #[error("template registry not initialized")]
     NotInitialized,

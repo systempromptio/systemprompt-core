@@ -69,8 +69,8 @@ pub enum GateVerdict {
 pub enum PublicationGateError {
     #[error("publication gate backend unavailable: {0}")]
     Backend(#[source] BoxedSource),
-    #[error("publication gate evidence is invalid: {0}")]
-    Evidence(String),
+    #[error("publication gate evidence is invalid: {message}")]
+    Evidence { message: String },
 }
 
 /// The publication policy a [`ManagedRepository`][super::ManagedRepository]
@@ -163,10 +163,10 @@ impl PublicationPolicy {
                     admitted.push((gate.id(), evidence_digest));
                 },
                 Ok(GateVerdict::Refuse { reason }) => {
-                    return Err(ManagedError::Conflict(format!(
-                        "Publication gate {} refused the publication: {reason}",
-                        gate.id()
-                    )));
+                    return Err(ManagedError::GateRefused {
+                        gate: gate.id(),
+                        reason,
+                    });
                 },
                 Err(source) => {
                     return Err(ManagedError::Internal {

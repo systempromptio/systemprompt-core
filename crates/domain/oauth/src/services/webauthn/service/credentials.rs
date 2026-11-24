@@ -116,23 +116,21 @@ impl WebAuthnService {
         let stored = credentials
             .iter()
             .find(|cred| cred.credential_id.as_slice() == authenticated_id)
-            .ok_or_else(|| {
-                OauthError::WebAuthnVerificationFailed(
-                    "authenticated credential is not registered to the user".to_owned(),
-                )
+            .ok_or_else(|| OauthError::WebAuthnVerificationFailed {
+                reason: "authenticated credential is not registered to the user",
             })?;
 
         let mut passkey = decode_passkey(&stored.public_key, &stored.transports)?;
         let changed = passkey.update_credential(auth_result).ok_or_else(|| {
-            OauthError::WebAuthnVerificationFailed(
-                "authenticated credential does not match the stored passkey".to_owned(),
-            )
+            OauthError::WebAuthnVerificationFailed {
+                reason: "authenticated credential does not match the stored passkey",
+            }
         })?;
 
         if auth_result.counter() > 0 && !changed {
-            return Err(OauthError::WebAuthnVerificationFailed(
-                "signature counter did not advance; possible cloned authenticator".to_owned(),
-            ));
+            return Err(OauthError::WebAuthnVerificationFailed {
+                reason: "signature counter did not advance; possible cloned authenticator",
+            });
         }
 
         if changed {

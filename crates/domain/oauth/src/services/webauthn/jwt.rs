@@ -45,7 +45,7 @@ impl TokenValidator for JwtTokenValidator {
     async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthRequestError> {
         let claims = jwt::validate_jwt_token(self.authority.as_ref(), token, &self.audiences)
             .map_err(|error| match error {
-                OauthError::Expired(_) => AuthRequestError::TokenExpired,
+                OauthError::Expired { .. } => AuthRequestError::TokenExpired,
                 other => {
                     tracing::debug!(error = %other, "JWT validation failed");
                     AuthRequestError::AuthenticationFailed {

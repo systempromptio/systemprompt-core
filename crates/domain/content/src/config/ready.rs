@@ -213,10 +213,10 @@ fn parse_date(date_str: &str) -> Result<DateTime<Utc>, ContentError> {
             source,
         })?
         .and_hms_opt(0, 0, 0)
-        .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_owned()))?
+        .ok_or_else(|| ContentError::Parse(crate::error::ContentParseError::InvalidDatetime))?
         .and_local_timezone(Utc)
         .single()
-        .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_owned()))
+        .ok_or_else(|| ContentError::Parse(crate::error::ContentParseError::AmbiguousTimezone))
 }
 
 fn compute_version_hash(title: &str, body: &str, description: &str) -> String {

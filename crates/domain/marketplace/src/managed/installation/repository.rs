@@ -117,14 +117,12 @@ impl ManagedRepository {
             DistributionState::Failed
         };
         let existing = sqlx::query!(r#"SELECT status AS "status: DistributionState",error,outbox_id,publication_id,generation FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE"#,
-            claim.id.as_str(), owner.as_str(), &claim.claim_token).fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict("Distribution claim is stale or unavailable".to_owned()))?;
+            claim.id.as_str(), owner.as_str(), &claim.claim_token).fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict { reason: "Distribution claim is stale or unavailable" })?;
         if existing.outbox_id != claim.outbox_id.as_str()
             || existing.publication_id != claim.publication_id.as_str()
             || existing.generation != claim.generation
         {
-            return Err(ManagedError::Conflict(
-                "Distribution claim does not match retained delivery".to_owned(),
-            ));
+            return Err(ManagedError::Conflict { reason: "Distribution claim does not match retained delivery" });
         }
         if existing.status == status && existing.error.as_deref() == error {
             tx.commit().await?;
@@ -133,9 +131,7 @@ impl ManagedRepository {
         let changed = sqlx::query!("UPDATE managed_distribution_deliveries SET status=$4,delivered_at=CASE WHEN $5 THEN NOW() ELSE NULL END,error=$6 WHERE id=$1 AND owner_id=$2 AND claim_token=$3 AND status IN ('claimed','failed')",
             claim.id.as_str(), owner.as_str(), &claim.claim_token, status.as_str(), delivered, error).execute(&mut *tx).await?;
         if changed.rows_affected() != 1 {
-            return Err(ManagedError::Conflict(
-                "Distribution claim is stale or already completed".to_owned(),
-            ));
+            return Err(ManagedError::Conflict { reason: "Distribution claim is stale or already completed" });
         }
         if delivered {
             sqlx::query!("UPDATE managed_distribution_outbox SET delivered_at=NOW() WHERE id=$1 AND owner_id=$2 AND delivered_at IS NULL",
@@ -202,7 +198,7 @@ impl ManagedRepository {
         sqlx::query!("INSERT INTO managed_installation_receipts(id,owner_id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_id,installation_id,resource_id,generation) DO NOTHING",
             id.as_str(), owner.as_str(), request.installation_id.as_str(), request.publication_id.as_str(), request.resource_id.as_str(), request.generation, request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &client_evidence).execute(&self.pool).await?;
         let row = sqlx::query!("SELECT id,verified_at FROM managed_installation_receipts WHERE owner_id=$1 AND installation_id=$2 AND resource_id=$3 AND generation=$4 AND publication_id=$5 AND bundle_digest=$6 AND installed_manifest=$7 AND client_evidence=$8",
-            owner.as_str(), request.installation_id.as_str(), request.resource_id.as_str(), request.generation, request.publication_id.as_str(), request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &client_evidence).fetch_optional(&self.pool).await?.ok_or_else(|| ManagedError::Conflict("Installation receipt conflicts with existing immutable evidence".to_owned()))?;
+            owner.as_str(), request.installation_id.as_str(), request.resource_id.as_str(), request.generation, request.publication_id.as_str(), request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &client_evidence).fetch_optional(&self.pool).await?.ok_or_else(|| ManagedError::Conflict { reason: "Installation receipt conflicts with existing immutable evidence" })?;
         Ok(InstallationReceipt {
             id: InstallationReceiptId::new(row.id),
             installation_id: request.installation_id.clone(),

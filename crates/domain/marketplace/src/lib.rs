@@ -100,4 +100,6 @@ pub use membership::MarketplaceMembership;
 pub use scope::{enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include};
 pub use service::MarketplaceService;
 pub use trace::{ManifestTrace, NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};
-pub use view::{render_marketplace_json, render_marketplace_list};
+pub use view::{
+    MarketplaceListEntry, MarketplaceListView, render_marketplace_json, render_marketplace_list,
+};

@@ -184,12 +184,12 @@ pub enum PluginSourceError {
         #[source]
         source: RevisionBundleError,
     },
-    #[error("`sha` {0:?} is not a full lowercase commit id")]
-    Commit(String),
-    #[error("{0:?} is not a public https repository URL")]
-    NotPublicHttps(String),
-    #[error("{0:?} is neither `owner/repository` nor an https URL")]
-    Location(String),
+    #[error("`sha` {sha:?} is not a full lowercase commit id")]
+    Commit { sha: String },
+    #[error("{location:?} is not a public https repository URL")]
+    NotPublicHttps { location: String },
+    #[error("{location:?} is neither `owner/repository` nor an https URL")]
+    Location { location: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -245,7 +245,7 @@ impl RemotePluginSource {
         if let Some(sha) = &commit
             && !is_commit(sha)
         {
-            return Err(PluginSourceError::Commit(sha.clone()));
+            return Err(PluginSourceError::Commit { sha: sha.clone() });
         }
         Ok(Self {
             repository: repository_url(location)?,
@@ -260,7 +260,9 @@ fn repository_url(location: &str) -> Result<String, PluginSourceError> {
     if let Some(rest) = location.strip_prefix("https://") {
         let host = rest.split('/').next().unwrap_or_default();
         if host.is_empty() || host.contains('@') || rest.chars().any(char::is_whitespace) {
-            return Err(PluginSourceError::NotPublicHttps(location.to_owned()));
+            return Err(PluginSourceError::NotPublicHttps {
+                location: location.to_owned(),
+            });
         }
         return Ok(location.to_owned());
     }
@@ -278,7 +280,9 @@ fn repository_url(location: &str) -> Result<String, PluginSourceError> {
             location.trim_end_matches(".git")
         ));
     }
-    Err(PluginSourceError::Location(location.to_owned()))
+    Err(PluginSourceError::Location {
+        location: location.to_owned(),
+    })
 }
 
 fn is_commit(value: &str) -> bool {

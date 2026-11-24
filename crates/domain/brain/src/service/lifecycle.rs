@@ -80,7 +80,10 @@ impl BrainService {
                 .ok_or_else(|| BrainError::UnknownKind(fact.kind.clone()))?;
             let fields = merge_fields(&fact.fields, edit);
             if let Some(reason) = SchemaValidator::fields_reason(&fields, kind) {
-                return Err(BrainError::InvalidFields(reason));
+                return Err(BrainError::InvalidFields {
+                    kind: fact.kind.clone(),
+                    reason,
+                });
             }
             if rules::identity_of(kind, &fact.subject, &fields) != fact.identity_hash {
                 return Err(BrainError::Forbidden {

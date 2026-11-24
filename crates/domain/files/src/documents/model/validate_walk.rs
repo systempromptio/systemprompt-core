@@ -17,7 +17,7 @@ pub(super) fn check_raw(before: &RichText, next: &RichText) -> Result<(), ModelR
     let mut now = HashSet::new();
     collect_raw(next, &mut now);
     match now.difference(&held).next() {
-        Some((id, _)) => Err(ModelRejection::RawChanged((*id).to_owned())),
+        Some((id, _)) => Err(ModelRejection::RawChanged { block: (*id).to_owned() }),
         None => Ok(()),
     }
 }

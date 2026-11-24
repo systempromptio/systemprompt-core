@@ -229,9 +229,9 @@ impl FileUploadService {
             match component {
                 Component::Normal(_) | Component::CurDir => {},
                 Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                    return Err(FileUploadError::PathValidation(
-                        "Resolved path contains traversal or absolute component".to_owned(),
-                    ));
+                    return Err(FileUploadError::PathValidation {
+                        reason: "Resolved path contains traversal or absolute component",
+                    });
                 },
             }
         }
@@ -245,17 +245,17 @@ impl FileUploadService {
         user_id: Option<&UserId>,
     ) -> Result<(), FileUploadError> {
         if context_str.contains("..") || context_str.contains('\0') {
-            return Err(FileUploadError::PathValidation(
-                "Invalid context_id: contains path traversal sequence".to_owned(),
-            ));
+            return Err(FileUploadError::PathValidation {
+                reason: "Invalid context_id: contains path traversal sequence",
+            });
         }
 
         if let Some(uid) = user_id {
             let user_str = uid.as_str();
             if user_str.contains("..") || user_str.contains('\0') {
-                return Err(FileUploadError::PathValidation(
-                    "Invalid user_id: contains path traversal sequence".to_owned(),
-                ));
+                return Err(FileUploadError::PathValidation {
+                    reason: "Invalid user_id: contains path traversal sequence",
+                });
             }
         }
 
@@ -266,9 +266,9 @@ impl FileUploadService {
             || filename == "."
             || filename.is_empty()
         {
-            return Err(FileUploadError::PathValidation(
-                "Invalid filename: must be a single path component".to_owned(),
-            ));
+            return Err(FileUploadError::PathValidation {
+                reason: "Invalid filename: must be a single path component",
+            });
         }
 
         Ok(())

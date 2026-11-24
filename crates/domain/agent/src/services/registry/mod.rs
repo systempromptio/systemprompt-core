@@ -75,7 +75,9 @@ impl AgentRegistry {
             .agents
             .get(name)
             .cloned()
-            .ok_or_else(|| AgentError::NotFound(name.to_owned()))
+            .ok_or_else(|| AgentError::NotFound {
+                name: name.to_owned(),
+            })
     }
 
     pub fn list_agents(&self) -> Vec<AgentConfig> {
@@ -97,7 +99,7 @@ impl AgentRegistry {
             .values()
             .find(|a| a.default && a.enabled && !(a.dev_only && is_cloud))
             .cloned()
-            .ok_or_else(|| AgentError::NotFound("default agent not configured".to_owned()))
+            .ok_or(AgentError::DefaultAgentNotConfigured)
     }
 
     pub fn to_agent_card(

@@ -108,10 +108,10 @@ fn build_rule_entry(
     }
     let content_path = rule_dir.join(config.content_file());
     if !content_path.exists() {
-        return Err(MarketplaceError::Catalog(format!(
-            "rule '{dir_name}' names content file '{}' which does not exist",
-            config.content_file()
-        )));
+        return Err(MarketplaceError::RuleContentMissing {
+            rule: dir_name.to_owned(),
+            content_file: config.content_file().to_owned(),
+        });
     }
     let raw = std::fs::read_to_string(&content_path)
         .map_err(|e| MarketplaceError::catalog(format!("read {}", content_path.display()), e))?;
@@ -131,10 +131,10 @@ pub(crate) fn rule_entry(
     file_path: String,
 ) -> Result<RuleEntry, MarketplaceError> {
     if config.id.as_str() != dir_name {
-        return Err(MarketplaceError::Catalog(format!(
-            "rule id '{}' does not match its directory name '{dir_name}'",
-            config.id.as_str()
-        )));
+        return Err(MarketplaceError::RuleIdMismatch {
+            declared: config.id.clone(),
+            dir_name: dir_name.to_owned(),
+        });
     }
     let display_name = if config.name.is_empty() {
         dir_name.replace('_', " ")

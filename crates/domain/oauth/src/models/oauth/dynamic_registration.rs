@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{OauthError, OauthResult};
+use crate::error::{OauthError, OauthResult, ValidationError};
 use crate::models::TokenAuthMethod;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -68,7 +68,9 @@ impl DynamicRegistrationRequest {
             .filter(|n| !n.is_empty())
             .cloned()
             .ok_or_else(|| {
-                OauthError::Validation("client_name is required for client registration".to_owned())
+                OauthError::Validation(ValidationError::Rejected {
+                    reason: "client_name is required for client registration",
+                })
             })
     }
 
@@ -78,9 +80,9 @@ impl DynamicRegistrationRequest {
             .filter(|uris| !uris.is_empty())
             .cloned()
             .ok_or_else(|| {
-                OauthError::Validation(
-                    "redirect_uris are required for client registration".to_owned(),
-                )
+                OauthError::Validation(ValidationError::Rejected {
+                    reason: "redirect_uris are required for client registration",
+                })
             })
     }
 
@@ -110,10 +112,9 @@ impl DynamicRegistrationRequest {
         match self.token_endpoint_auth_method.as_deref() {
             None | Some("") => Ok(TokenAuthMethod::ClientSecretBasic),
             Some(method) => method.parse::<TokenAuthMethod>().map_err(|_e| {
-                OauthError::Validation(format!(
-                    "token_endpoint_auth_method must be one of none, client_secret_post, \
-                     client_secret_basic, got {method:?}"
-                ))
+                OauthError::Validation(ValidationError::UnsupportedTokenAuthMethod {
+                    method: method.to_owned(),
+                })
             }),
         }
     }
@@ -122,9 +123,11 @@ impl DynamicRegistrationRequest {
         match self.application_type.as_deref().filter(|t| !t.is_empty()) {
             None => Ok("web".to_owned()),
             Some(t @ ("web" | "native")) => Ok(t.to_owned()),
-            Some(other) => Err(OauthError::Validation(format!(
-                "application_type must be \"web\" or \"native\", got {other:?}"
-            ))),
+            Some(other) => Err(OauthError::Validation(
+                ValidationError::UnsupportedApplicationType {
+                    value: other.to_owned(),
+                },
+            )),
         }
     }
 }

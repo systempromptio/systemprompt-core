@@ -83,8 +83,8 @@ where
             .call_tool(params)
             .await
             .map_err(|e| crate::error::McpDomainError::tool_call("MCP tool call failed", e)),
-        other => Err(crate::error::McpDomainError::ToolExecutionFailed(format!(
-            "unexpected tools/call response variant: {other:?}"
-        ))),
+        other => Err(crate::error::McpDomainError::UnexpectedToolResponse {
+            variant: format!("{other:?}"),
+        }),
     }
 }

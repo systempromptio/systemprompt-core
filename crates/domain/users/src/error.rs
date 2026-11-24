@@ -14,17 +14,11 @@ domain_error! {
         #[error("user not found: {0}")]
         NotFound(UserId),
 
-        #[error("user already exists with email: {0}")]
-        EmailAlreadyExists(String),
+        #[error("user already exists with email: {email}")]
+        EmailAlreadyExists { email: String },
 
-        #[error("user {0} exists with a different account kind; the declaration cannot convert it")]
-        AccountKindMismatch(String),
-
-        #[error("invalid status: {0}")]
-        InvalidStatus(String),
-
-        #[error("invalid role: {0}")]
-        InvalidRole(String),
+        #[error("user {email} exists with a different account kind; the declaration cannot convert it")]
+        AccountKindMismatch { email: String },
 
         #[error("invalid roles: {0:?}")]
         InvalidRoles(Vec<String>),
@@ -90,14 +84,12 @@ impl From<UserError> for systemprompt_models::api::ApiError {
             UserError::Repository(inner) => Self::from(inner),
             e @ UserError::NotFound(_) => Self::not_found(e.to_string()),
             e @ UserError::FederatedRefused(_) => Self::forbidden(e.to_string()),
-            e @ (UserError::EmailAlreadyExists(_)
-            | UserError::AccountKindMismatch(_)
+            e @ (UserError::EmailAlreadyExists { .. }
+            | UserError::AccountKindMismatch { .. }
             | UserError::LegalHold(_)
             | UserError::NotArchived(_)
             | UserError::RestoreRefused { .. }) => Self::conflict(e.to_string()),
             e @ (UserError::Validation(_)
-            | UserError::InvalidStatus(_)
-            | UserError::InvalidRole(_)
             | UserError::InvalidRoles(_)
             | UserError::ApiKeyLifetimeExceeded { .. }) => Self::bad_request(e.to_string()),
             e @ (UserError::MergeUnavailable

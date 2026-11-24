@@ -45,10 +45,7 @@ fn validate_port_conflicts(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::RegistryValidation(format!(
-        "Port conflicts detected: {}",
-        conflicts.join(", ")
-    )))
+    Err(crate::error::RegistryViolation::PortConflicts { conflicts }.into())
 }
 
 fn validate_server_configs(config: &RegistryConfig) -> McpDomainResult<()> {
@@ -64,10 +61,10 @@ fn validate_server_configs(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::RegistryValidation(format!(
-        "Invalid server configurations:\n{}",
-        invalid_servers.join("\n")
-    )))
+    Err(crate::error::RegistryViolation::ServerConfigs {
+        issues: invalid_servers,
+    }
+    .into())
 }
 
 fn validate_single_server(
@@ -125,10 +122,10 @@ fn validate_oauth_configs(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::RegistryValidation(format!(
-        "OAuth configuration issues:\n{}",
-        oauth_issues.join("\n")
-    )))
+    Err(crate::error::RegistryViolation::OAuthConfigs {
+        issues: oauth_issues,
+    }
+    .into())
 }
 
 fn validate_server_types(config: &RegistryConfig) -> McpDomainResult<()> {
@@ -143,10 +140,7 @@ fn validate_server_types(config: &RegistryConfig) -> McpDomainResult<()> {
         return Ok(());
     }
 
-    Err(crate::error::McpDomainError::RegistryValidation(format!(
-        "Server type validation issues:\n{}",
-        issues.join("\n")
-    )))
+    Err(crate::error::RegistryViolation::ServerTypes { issues }.into())
 }
 
 fn validate_server_type_constraints(

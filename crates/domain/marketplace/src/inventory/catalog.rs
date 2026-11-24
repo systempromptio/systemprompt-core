@@ -130,12 +130,12 @@ fn scan_catalog_directory(
         if entries.len() >= 10_000 {
             return Err(invalid("Inventory exceeds 10000 configured entries"));
         }
-        let name = entry.file_name().into_string().map_err(|name| {
-            invalid(&format!(
-                "Inventory names must be UTF-8: {}",
-                name.to_string_lossy()
-            ))
-        })?;
+        let name = entry
+            .file_name()
+            .into_string()
+            .map_err(|name| ManagedError::NonUtf8EntryName {
+                name: name.to_string_lossy().into_owned(),
+            })?;
         if name.starts_with('.') {
             continue;
         }
@@ -255,6 +255,6 @@ fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn invalid(message: &str) -> ManagedError {
-    ManagedError::Invalid(message.to_owned())
+pub(super) const fn invalid(reason: &'static str) -> ManagedError {
+    ManagedError::Invalid { reason }
 }

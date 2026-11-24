@@ -53,24 +53,24 @@ impl Default for Limits {
 pub enum ModelRejection {
     #[error("the document has more than {0} blocks")]
     TooManyBlocks(usize),
-    #[error("block {0} is longer than the limit")]
-    BlockTooLong(String),
-    #[error("block {0} has too many marks")]
-    TooManyMarks(String),
+    #[error("block {block} is longer than the limit")]
+    BlockTooLong { block: String },
+    #[error("block {block} has too many marks")]
+    TooManyMarks { block: String },
     #[error("a table is larger or nested deeper than the limit")]
     TableTooLarge,
-    #[error("block id {0:?} is empty or used twice")]
-    BadBlockId(String),
-    #[error("block {0} has an attribute outside its allowed range")]
-    BadAttribute(String),
-    #[error("block {0} has a mark outside its text")]
-    MarkOutOfRange(String),
-    #[error("block {0} has a link whose scheme is not allowed")]
-    LinkNotAllowed(String),
-    #[error("block {0} carries text its type cannot hold")]
-    UnexpectedText(String),
-    #[error("block {0} is native markup a live update may not create or change")]
-    RawChanged(String),
+    #[error("block id {block:?} is empty or used twice")]
+    BadBlockId { block: String },
+    #[error("block {block} has an attribute outside its allowed range")]
+    BadAttribute { block: String },
+    #[error("block {block} has a mark outside its text")]
+    MarkOutOfRange { block: String },
+    #[error("block {block} has a link whose scheme is not allowed")]
+    LinkNotAllowed { block: String },
+    #[error("block {block} carries text its type cannot hold")]
+    UnexpectedText { block: String },
+    #[error("block {block} is native markup a live update may not create or change")]
+    RawChanged { block: String },
     #[error("a comment-level caller changed more than comment marks")]
     BeyondCommentLevel,
 }
@@ -80,13 +80,13 @@ impl ModelRejection {
     pub const fn reason(&self) -> &'static str {
         match self {
             Self::TooManyBlocks(_)
-            | Self::BlockTooLong(_)
-            | Self::TooManyMarks(_)
+            | Self::BlockTooLong { .. }
+            | Self::TooManyMarks { .. }
             | Self::TableTooLarge => "too_large",
-            Self::BadBlockId(_) => "bad_block_id",
-            Self::BadAttribute(_) | Self::UnexpectedText(_) => "bad_block",
-            Self::MarkOutOfRange(_) | Self::LinkNotAllowed(_) => "bad_mark",
-            Self::RawChanged(_) => "raw_block_changed",
+            Self::BadBlockId { .. } => "bad_block_id",
+            Self::BadAttribute { .. } | Self::UnexpectedText { .. } => "bad_block",
+            Self::MarkOutOfRange { .. } | Self::LinkNotAllowed { .. } => "bad_mark",
+            Self::RawChanged { .. } => "raw_block_changed",
             Self::BeyondCommentLevel => "beyond_access_level",
         }
     }
@@ -105,7 +105,7 @@ pub fn validate(
     if let Some(settings) = next.document.as_deref()
         && !bounds::settings_ok(settings)
     {
-        return Err(ModelRejection::BadAttribute("document".to_owned()));
+        return Err(ModelRejection::BadAttribute { block: "document".to_owned() });
     }
     for part in next.running() {
         check_blocks(part, limits, 1, &mut ids)?;
@@ -128,7 +128,7 @@ fn check_blocks<'a>(
     }
     for block in &model.blocks {
         if block.id.is_empty() || block.id.len() > limits.attr_chars || !ids.insert(&block.id) {
-            return Err(ModelRejection::BadBlockId(block.id.clone()));
+            return Err(ModelRejection::BadBlockId { block: block.id.clone() });
         }
         check_block(block, limits)?;
         let shape_ok =
@@ -159,7 +159,7 @@ fn check_blocks<'a>(
                 | BlockKind::Raw { .. } => true,
             };
         if !shape_ok {
-            return Err(ModelRejection::BadAttribute(block.id.clone()));
+            return Err(ModelRejection::BadAttribute { block: block.id.clone() });
         }
         for nested in block.kind.nested() {
             check_blocks(nested, limits, depth + 1, ids)?;
@@ -171,7 +171,7 @@ fn check_blocks<'a>(
 fn check_block(block: &Block, limits: &Limits) -> Result<(), ModelRejection> {
     let id = || block.id.clone();
     if !block.kind.has_text() && !block.text.is_empty() {
-        return Err(ModelRejection::UnexpectedText(id()));
+        return Err(ModelRejection::UnexpectedText { block: id() });
     }
     let attrs_ok = match &block.kind {
         BlockKind::Heading { level } => (1..=6).contains(level),
@@ -202,14 +202,14 @@ fn check_block(block: &Block, limits: &Limits) -> Result<(), ModelRejection> {
         | BlockKind::SectionBreak { .. } => true,
     };
     if !attrs_ok || !bounds::attrs_ok(&block.attrs) {
-        return Err(ModelRejection::BadAttribute(id()));
+        return Err(ModelRejection::BadAttribute { block: id() });
     }
     let len = block.len();
     if len > limits.block_chars {
-        return Err(ModelRejection::BlockTooLong(id()));
+        return Err(ModelRejection::BlockTooLong { block: id() });
     }
     if block.marks.len() > limits.marks_per_block {
-        return Err(ModelRejection::TooManyMarks(id()));
+        return Err(ModelRejection::TooManyMarks { block: id() });
     }
     for mark in &block.marks {
         check_mark(block, mark, len, limits)?;
@@ -224,11 +224,11 @@ fn check_mark(
     limits: &Limits,
 ) -> Result<(), ModelRejection> {
     if mark.start >= mark.end || mark.end > len {
-        return Err(ModelRejection::MarkOutOfRange(block.id.clone()));
+        return Err(ModelRejection::MarkOutOfRange { block: block.id.clone() });
     }
     let value = mark.kind.value();
     if value.len() > limits.attr_chars {
-        return Err(ModelRejection::BadAttribute(block.id.clone()));
+        return Err(ModelRejection::BadAttribute { block: block.id.clone() });
     }
     let allowed = match &mark.kind {
         MarkKind::Link { href } => is_safe_url(href, &LINK_SCHEMES),
@@ -252,9 +252,9 @@ fn check_mark(
     if allowed {
         Ok(())
     } else if matches!(mark.kind, MarkKind::Link { .. }) {
-        Err(ModelRejection::LinkNotAllowed(block.id.clone()))
+        Err(ModelRejection::LinkNotAllowed { block: block.id.clone() })
     } else {
-        Err(ModelRejection::BadAttribute(block.id.clone()))
+        Err(ModelRejection::BadAttribute { block: block.id.clone() })
     }
 }
 

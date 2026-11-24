@@ -65,12 +65,7 @@ capability_error_response!(ContentHttpError);
 fn content(error: ContentError) -> ApiError {
     match error {
         ContentError::Repository(inner) => ApiError::from(inner),
-        e @ (ContentError::ContentNotFound(_) | ContentError::LinkNotFound(_)) => {
-            ApiError::not_found(e.to_string())
-        },
-        e @ (ContentError::InvalidRequest(_) | ContentError::Validation(_)) => {
-            ApiError::bad_request(e.to_string())
-        },
+        e @ ContentError::Validation(_) => ApiError::bad_request(e.to_string()),
         other => ApiError::internal("Content operation failed", other),
     }
 }

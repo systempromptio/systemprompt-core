@@ -15,6 +15,7 @@ impl SessionSignalsRepository {
     ) -> Result<u64> {
         if batch_size <= 0 {
             return Err(AnalyticsError::invalid_argument(
+                "batch_size",
                 "batch size must be positive",
             ));
         }

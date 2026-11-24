@@ -37,9 +37,7 @@ pub(super) async fn existing_decision(
         return Ok(None);
     };
     if existing.request_digest != request_digest {
-        return Err(ManagedError::Conflict(
-            "Publication operation key was already used for another decision".to_owned(),
-        ));
+        return Err(ManagedError::Conflict { reason: "Publication operation key was already used for another decision" });
     }
     decision_from_row(
         &request.resource_id,
@@ -81,10 +79,10 @@ pub(super) async fn admit_generation(
     .fetch_one(&mut **tx)
     .await?;
     if current_generation != request.expected_generation {
-        return Err(ManagedError::Conflict(format!(
-            "Expected publication generation {}, found {current_generation}",
-            request.expected_generation
-        )));
+        return Err(ManagedError::GenerationMismatch {
+            expected: request.expected_generation,
+            found: current_generation,
+        });
     }
     if let Some(cohort) = &request.cohort
         && request.action == PublicationAction::Withdraw
@@ -92,9 +90,7 @@ pub(super) async fn admit_generation(
         let selected = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_publication_cohort_selections WHERE owner_id=$1 AND resource_id=$2 AND cohort_dimension=$3 AND cohort_value=$4)",
             owner.as_str(), request.resource_id.as_str(), &cohort.dimension, &cohort.value).fetch_one(&mut **tx).await?.unwrap_or(false);
         if !selected {
-            return Err(ManagedError::Conflict(
-                "Withdrawing a cohort requires a cohort selection to clear".to_owned(),
-            ));
+            return Err(ManagedError::Conflict { reason: "Withdrawing a cohort requires a cohort selection to clear" });
         }
     }
     if request.action == PublicationAction::Rollback {
@@ -103,9 +99,7 @@ pub(super) async fn admit_generation(
         let retained = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 AND revision_id=$3 AND bundle_digest=$4 AND generation<=$5)",
             owner.as_str(), request.resource_id.as_str(), revision, digest, current_generation).fetch_one(&mut **tx).await?.unwrap_or(false);
         if !retained {
-            return Err(ManagedError::Conflict(
-                "Rollback must reference content retained by an earlier generation".to_owned(),
-            ));
+            return Err(ManagedError::Conflict { reason: "Rollback must reference content retained by an earlier generation" });
         }
     }
     current_generation

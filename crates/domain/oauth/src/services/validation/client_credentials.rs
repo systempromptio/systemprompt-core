@@ -16,10 +16,12 @@ pub async fn validate_client_credentials(
     client_id: &ClientId,
     client_secret: Option<&str>,
 ) -> Result<OAuthClient> {
-    let client = repo
-        .find_client_by_id(client_id)
-        .await?
-        .ok_or_else(|| OauthError::ClientNotFound(client_id.to_string()))?;
+    let client =
+        repo.find_client_by_id(client_id)
+            .await?
+            .ok_or_else(|| OauthError::ClientNotFound {
+                client_id: client_id.clone(),
+            })?;
 
     verify_client_authentication(
         client.token_endpoint_auth_method.as_str(),
@@ -43,28 +45,28 @@ pub fn verify_client_authentication(
         (Some(hash), Some(secret)) => (hash, secret),
         (Some(_hash), None) => {
             perform_timing_safe_dummy_verification();
-            return Err(OauthError::InvalidClient(
-                "Client secret required".to_owned(),
-            ));
+            return Err(OauthError::InvalidClient {
+                reason: "Client secret required",
+            });
         },
         (None, Some(_secret)) => {
             perform_timing_safe_dummy_verification();
-            return Err(OauthError::InvalidClient(
-                "Client has no secret hash configured".to_owned(),
-            ));
+            return Err(OauthError::InvalidClient {
+                reason: "Client has no secret hash configured",
+            });
         },
         (None, None) => {
             perform_timing_safe_dummy_verification();
-            return Err(OauthError::InvalidClient(
-                "Client secret required".to_owned(),
-            ));
+            return Err(OauthError::InvalidClient {
+                reason: "Client secret required",
+            });
         },
     };
 
     if !verify_client_secret(secret_to_verify, hash_to_verify)? {
-        return Err(OauthError::InvalidClient(
-            "Invalid client secret".to_owned(),
-        ));
+        return Err(OauthError::InvalidClient {
+            reason: "Invalid client secret",
+        });
     }
 
     Ok(())

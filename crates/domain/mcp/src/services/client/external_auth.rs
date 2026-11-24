@@ -35,7 +35,7 @@ use systemprompt_traits::{MCP_CREDENTIAL_BROKER_SECRET, SecretLookup};
 
 use super::McpClient;
 use super::validation::rewrite_url_for_internal_use;
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::{AuthRequirement, ConfigurationIssue, McpDomainError, McpDomainResult};
 use crate::services::deployment::DeploymentService;
 
 pub const MCP_SERVER_HEADER: &str = systemprompt_identifiers::headers::MCP_SERVER;
@@ -72,9 +72,11 @@ pub(super) async fn resolve_external_bearer(
         return Ok(token);
     }
     let Some(jwt) = context.auth_token() else {
-        return Err(McpDomainError::AuthRequired(format!(
-            "external MCP server '{server}' requires an authenticated user to resolve its bearer"
-        )));
+        return Err(McpDomainError::AuthRequired(
+            AuthRequirement::ExternalBearer {
+                server: server.to_owned(),
+            },
+        ));
     };
 
     let accessor = accessor_url(&config.api_external_url, &ext.token_endpoint, config);
@@ -86,10 +88,10 @@ pub(super) async fn resolve_external_bearer(
         .lookup(MCP_CREDENTIAL_BROKER_SECRET)
         .filter(|secret| !secret.expose().is_empty())
         .ok_or_else(|| {
-            McpDomainError::Configuration(format!(
-                "secret `{MCP_CREDENTIAL_BROKER_SECRET}` is not configured; external MCP server '{server}' \
-                 cannot resolve its bearer"
-            ))
+            McpDomainError::Configuration(ConfigurationIssue::BrokerSecretMissing {
+                secret: MCP_CREDENTIAL_BROKER_SECRET,
+                server: server.to_owned(),
+            })
         })?;
     fetch_external_bearer(
         &accessor,

@@ -88,9 +88,11 @@ impl RegistryService {
                     PathBuf::new()
                 },
                 (McpServerType::Internal, None) => {
-                    return Err(McpDomainError::Configuration(format!(
-                        "{server_name}: internal MCP server declares neither a binary nor toolsets"
-                    )));
+                    return Err(McpDomainError::Configuration(
+                        crate::error::ConfigurationIssue::NoBinaryOrToolsets {
+                            server: server_name.to_string(),
+                        },
+                    ));
                 },
                 (McpServerType::External, _) => PathBuf::new(),
             };
@@ -177,7 +179,9 @@ impl RegistryService {
 
     pub fn get_server(&self, name: &str) -> McpDomainResult<crate::McpServerConfig> {
         self.find_server(name)?.ok_or_else(|| {
-            McpDomainError::ServerNotFound(format!("MCP server '{name}' not found in registry"))
+            McpDomainError::ServerNotFound {
+                server: name.to_owned(),
+            }
         })
     }
 }
@@ -185,7 +189,7 @@ impl RegistryService {
 impl From<McpDomainError> for McpRegistryError {
     fn from(err: McpDomainError) -> Self {
         match err {
-            McpDomainError::ServerNotFound(name) => Self::NotFound(name),
+            McpDomainError::ServerNotFound { server } => Self::NotFound(server),
             other => Self::Configuration(Box::new(other)),
         }
     }
@@ -193,7 +197,7 @@ impl From<McpDomainError> for McpRegistryError {
 
 pub(super) fn registry_error(err: McpDomainError) -> RegistryError {
     match err {
-        McpDomainError::ServerNotFound(what) => RegistryError::NotFound(what),
+        McpDomainError::ServerNotFound { server } => RegistryError::NotFound(server),
         other => RegistryError::Unavailable(Box::new(other)),
     }
 }

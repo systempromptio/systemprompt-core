@@ -14,9 +14,9 @@ use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::ServicesView;
 
 fn missing_deployment(name: &str) -> McpDomainError {
-    McpDomainError::Configuration(format!(
-        "No deployment configuration found for server: {name}"
-    ))
+    McpDomainError::Configuration(crate::error::ConfigurationIssue::MissingDeployment {
+        server: name.to_owned(),
+    })
 }
 
 #[derive(Debug, Clone)]

@@ -72,9 +72,9 @@ impl FactExtractor for ModelExtractor {
     ) -> Result<ExtractionOutput, BrainExtractError> {
         let kind = &input.kind;
         let Some(text) = &input.text else {
-            return Err(failed(ModelOutputError::Schema(
-                "no source text".to_owned(),
-            )));
+            return Err(failed(ModelOutputError::Schema {
+                reason: "no source text",
+            }));
         };
         let hints = vec![kind.subject.clone()];
         let request = request_for(kind, text, &hints, self.max_output_tokens)

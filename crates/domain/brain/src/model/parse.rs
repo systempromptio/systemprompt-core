@@ -54,7 +54,7 @@ fn parse_fact(
         .keys()
         .find(|key| !RESERVED_KEYS.contains(&key.as_str()) && !kind.fields.contains_key(*key))
     {
-        return Err(ModelOutputError::Schema(format!("unexpected key {key}")));
+        return Err(ModelOutputError::UnexpectedKey { key: key.clone() });
     }
     let Some(Value::String(subject)) = object.remove(SUBJECT_KEY) else {
         return Err(schema("`subject` is not a string"));
@@ -106,6 +106,6 @@ fn with_span(source: &FactSource, span: Option<Value>) -> Result<FactSource, Mod
     }
 }
 
-fn schema(reason: &str) -> ModelOutputError {
-    ModelOutputError::Schema(reason.to_owned())
+const fn schema(reason: &'static str) -> ModelOutputError {
+    ModelOutputError::Schema { reason }
 }

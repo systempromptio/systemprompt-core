@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::fetcher::CimdFetcher;
-use crate::error::OauthResult as Result;
+use crate::error::{ClientMetadataError, OauthResult as Result};
 use crate::models::cimd::ClientValidation;
 use crate::repository::oauth::OAuthRepository;
 use systemprompt_identifiers::ClientId;
@@ -40,11 +40,11 @@ impl ClientValidator {
                 client_id: client_id.clone(),
             }),
             systemprompt_identifiers::ClientType::Unknown => {
-                Err(crate::error::OauthError::InvalidClientMetadata(format!(
-                    "Invalid client_id format: '{client_id}'. Expected patterns:\n- https://* \
-                     (CIMD decentralized client)\n- sp_* (first-party systemprompt.io client)\n- \
-                     client_* (third-party registered client)\n- sys_* (internal system service)"
-                )))
+                Err(crate::error::OauthError::InvalidClientMetadata(
+                    ClientMetadataError::UnrecognisedClientId {
+                        client_id: client_id.clone(),
+                    },
+                ))
             },
         }
     }
@@ -59,9 +59,12 @@ impl ClientValidator {
         if let Some(uri) = redirect_uri
             && !metadata.has_redirect_uri(uri)
         {
-            return Err(crate::error::OauthError::InvalidClientMetadata(format!(
-                "redirect_uri '{uri}' not registered in CIMD metadata for {client_id}"
-            )));
+            return Err(crate::error::OauthError::InvalidClientMetadata(
+                ClientMetadataError::RedirectUriNotRegistered {
+                    uri: uri.to_owned(),
+                    client_id: client_id.clone(),
+                },
+            ));
         }
 
         Ok(ClientValidation::Cimd {
@@ -74,9 +77,9 @@ impl ClientValidator {
         let client = self.dcr_repo.find_client_by_id(client_id).await?;
 
         if client.is_none() {
-            return Err(crate::error::OauthError::ClientNotFound(format!(
-                "DCR client_id '{client_id}' not found in oauth_clients table"
-            )));
+            return Err(crate::error::OauthError::DcrClientNotFound {
+                client_id: client_id.clone(),
+            });
         }
 
         Ok(ClientValidation::Dcr {

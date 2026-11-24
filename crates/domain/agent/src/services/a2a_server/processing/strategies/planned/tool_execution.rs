@@ -168,7 +168,9 @@ async fn synthesize_response(
                     tool_error = %tool_message,
                     "AI synthesis failed after tool errors - returning tool errors"
                 );
-                return Err(AgentServiceError::ToolExecution(tool_message));
+                return Err(AgentServiceError::ToolExecution {
+                    message: tool_message,
+                });
             }
             Err(AgentServiceError::AiInference(ai_error))
         },

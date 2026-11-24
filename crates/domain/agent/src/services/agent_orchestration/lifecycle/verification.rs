@@ -116,9 +116,9 @@ impl AgentLifecycle {
         }
 
         self.log_startup_failure(agent_name, port).await;
-        Err(OrchestrationError::HealthCheckTimeout(
-            agent_name.to_string(),
-        ))
+        Err(OrchestrationError::HealthCheckTimeout {
+            agent: agent_name.clone(),
+        })
     }
 
     async fn readiness(

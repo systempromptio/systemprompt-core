@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::AiError;
 use crate::models::ai::{AiMessage, AiResponse, MessageRole, ReasoningParams, SamplingParams};
 use crate::models::tools::{CallToolResult, ToolCall};
 use crate::services::providers::{GenerationParams, ProviderClient, ToolResultsParams};
@@ -18,7 +19,7 @@ use tracing::{info, warn};
 #[derive(Debug)]
 pub enum FallbackReason {
     EmptyContent,
-    SynthesisFailed(String),
+    SynthesisFailed(AiError),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -79,7 +80,7 @@ impl SynthesisPromptBuilder {
 
 #[derive(Debug)]
 pub enum SynthesisResult {
-    Success(String),
+    Success { content: String },
     NeedsFallback { reason: FallbackReason },
 }
 
@@ -138,7 +139,7 @@ impl ResponseSynthesizer {
         let synthesis_result = self.attempt_synthesis(&params, &mut provider_calls).await;
 
         let content = match synthesis_result {
-            SynthesisResult::Success(content) => {
+            SynthesisResult::Success { content } => {
                 Self::log_synthesis_success(&content);
                 content
             },
@@ -176,13 +177,13 @@ impl ResponseSynthesizer {
     fn log_fallback_reason(reason: &FallbackReason, tool_count: usize) {
         let (reason_str, error_opt) = match reason {
             FallbackReason::EmptyContent => ("empty_content", None),
-            FallbackReason::SynthesisFailed(e) => ("synthesis_error", Some(e.as_str())),
+            FallbackReason::SynthesisFailed(e) => ("synthesis_error", Some(e.to_string())),
         };
 
         warn!(
             strategy = "fallback_generator",
             reason = reason_str,
-            error = error_opt,
+            error = error_opt.as_deref(),
             tool_count = tool_count,
             "Synthesis failed, using fallback"
         );
@@ -211,7 +212,7 @@ impl ResponseSynthesizer {
             Ok(response) if !response.content.is_empty() => {
                 let content = response.content.clone();
                 provider_calls.push(response);
-                return SynthesisResult::Success(content);
+                return SynthesisResult::Success { content };
             },
             Ok(response) => {
                 warn!("tool-results synthesis returned empty content; retrying with guidance");
@@ -240,7 +241,7 @@ impl ResponseSynthesizer {
             Ok(response) if !response.content.is_empty() => {
                 let content = response.content.clone();
                 provider_calls.push(response);
-                SynthesisResult::Success(content)
+                SynthesisResult::Success { content }
             },
             Ok(response) => {
                 provider_calls.push(response);
@@ -249,7 +250,7 @@ impl ResponseSynthesizer {
                 }
             },
             Err(e) => SynthesisResult::NeedsFallback {
-                reason: FallbackReason::SynthesisFailed(e.to_string()),
+                reason: FallbackReason::SynthesisFailed(e),
             },
         }
     }

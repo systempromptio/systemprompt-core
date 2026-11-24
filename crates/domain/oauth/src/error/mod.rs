@@ -3,7 +3,7 @@
 //! Variants enumerate the security-meaningful failure modes encountered
 //! throughout the OAuth 2.0 / OIDC, `WebAuthn` and CIMD subsystems. A variant
 //! built from another error keeps it as its `source`; a `String` payload is
-//! only ever text this crate authors. [`OauthError::kind`] classifies every
+//! only ever text a caller supplied. [`OauthError::kind`] classifies every
 //! variant into the RFC 6749 §5.2 (plus `WebAuthn` / RFC 7591) error class the
 //! HTTP edge answers with, so the edge never inspects error text.
 //!
@@ -12,16 +12,21 @@
 
 mod http;
 mod kind;
+mod validation;
 
 pub use kind::OauthErrorKind;
+pub use validation::{ClientMetadataError, ValidationError};
 
-use systemprompt_traits::{AnalyticsProviderError, AuthProviderError, RepositoryError};
+use systemprompt_identifiers::{ClientId, UserId};
+use systemprompt_traits::{
+    AnalyticsProviderError, AuthProviderError, FederatedRefusal, RepositoryError,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum OauthError {
-    #[error("token error: {0}")]
-    TokenInvalid(String),
+    #[error("token error: {reason}")]
+    TokenInvalid { reason: &'static str },
 
     #[error("token rejected: {0}")]
     TokenRejected(#[source] systemprompt_models::auth::TokenError),
@@ -35,38 +40,32 @@ pub enum OauthError {
     #[error("token references unknown signing key `{kid}`")]
     TokenUnknownKid { kid: String },
 
-    #[error("token not found: {0}")]
-    TokenNotFound(String),
+    #[error("expired: {reason}")]
+    Expired { reason: &'static str },
 
-    #[error("authorization code not found: {0}")]
-    CodeNotFound(String),
+    #[error("invalid grant: the enterprise identity cannot be linked: {refusal}")]
+    FederatedLinkRefused { refusal: FederatedRefusal },
 
-    #[error("expired: {0}")]
-    Expired(String),
+    #[error("invalid client: {reason}")]
+    InvalidClient { reason: &'static str },
 
-    #[error("PKCE challenge mismatch: {0}")]
-    PkceMismatch(String),
+    #[error("client not found: {client_id}")]
+    ClientNotFound { client_id: ClientId },
 
-    #[error("invalid grant: {0}")]
-    InvalidGrant(String),
-
-    #[error("invalid client: {0}")]
-    InvalidClient(String),
-
-    #[error("client not found: {0}")]
-    ClientNotFound(String),
+    #[error("client not found: DCR client_id '{client_id}' not found in oauth_clients table")]
+    DcrClientNotFound { client_id: ClientId },
 
     #[error("setup token rejected: {0}")]
     SetupTokenRejected(&'static str),
 
-    #[error("username already taken: {0}")]
-    UsernameTaken(String),
+    #[error("username already taken: {username}")]
+    UsernameTaken { username: String },
 
-    #[error("email already registered: {0}")]
-    EmailRegistered(String),
+    #[error("email already registered: {email}")]
+    EmailRegistered { email: String },
 
-    #[error("user not found: {0}")]
-    UserNotFound(String),
+    #[error("user not found: {user_id}")]
+    UserNotFound { user_id: UserId },
 
     #[error("passkey authentication is not available for this account")]
     AuthenticationUnavailable,
@@ -80,8 +79,8 @@ pub enum OauthError {
     #[error("authentication challenge expired or not found")]
     ChallengeExpired,
 
-    #[error("webauthn verification failed: {0}")]
-    WebAuthnVerificationFailed(String),
+    #[error("webauthn verification failed: {reason}")]
+    WebAuthnVerificationFailed { reason: &'static str },
 
     #[error("webauthn ceremony failed: {0}")]
     WebAuthnCeremony(#[from] webauthn_rs::prelude::WebauthnError),
@@ -100,7 +99,7 @@ pub enum OauthError {
     Repository(#[from] RepositoryError),
 
     #[error("validation error: {0}")]
-    Validation(String),
+    Validation(#[from] ValidationError),
 
     #[error("{field} {value:?} is not a valid absolute URL: {source}")]
     InvalidUrl {
@@ -109,9 +108,6 @@ pub enum OauthError {
         #[source]
         source: url::ParseError,
     },
-
-    #[error("unauthorized: {0}")]
-    Unauthorized(String),
 
     #[error("config error: {0}")]
     Config(#[from] systemprompt_models::errors::GlobalConfigError),
@@ -162,7 +158,7 @@ pub enum OauthError {
     },
 
     #[error("invalid client metadata: {0}")]
-    InvalidClientMetadata(String),
+    InvalidClientMetadata(#[from] ClientMetadataError),
 
     #[error("webauthn configuration error: {0}")]
     WebAuthnConfig(&'static str),
@@ -195,7 +191,9 @@ impl From<systemprompt_models::auth::TokenError> for OauthError {
             },
             TokenError::KidMismatch => Self::TokenMissingKid,
             TokenError::UnknownKid(kid) => Self::TokenUnknownKid { kid },
-            TokenError::Expired => Self::Expired("Token has expired".to_owned()),
+            TokenError::Expired => Self::Expired {
+                reason: "Token has expired",
+            },
             TokenError::InvalidLifetime { seconds } => Self::InvalidTokenLifetime { seconds },
             other => Self::TokenRejected(other),
         }
@@ -224,31 +222,30 @@ impl OauthError {
     #[must_use]
     pub const fn kind(&self) -> OauthErrorKind {
         match self {
-            Self::InvalidClient(_) | Self::ClientNotFound(_) => OauthErrorKind::InvalidClient,
+            Self::InvalidClient { .. }
+            | Self::ClientNotFound { .. }
+            | Self::DcrClientNotFound { .. } => OauthErrorKind::InvalidClient,
             Self::InvalidClientMetadata(_) | Self::CimdTarget { .. } => {
                 OauthErrorKind::InvalidClientMetadata
             },
-            Self::InvalidGrant(_)
-            | Self::CodeNotFound(_)
-            | Self::TokenNotFound(_)
-            | Self::TokenInvalid(_)
-            | Self::PkceMismatch(_)
-            | Self::Expired(_)
+            Self::FederatedLinkRefused { .. }
+            | Self::TokenInvalid { .. }
+            | Self::Expired { .. }
             | Self::SetupTokenRejected(_) => OauthErrorKind::InvalidGrant,
             Self::TokenRejected(_)
             | Self::TokenAlgMismatch { .. }
             | Self::TokenMissingKid
             | Self::TokenUnknownKid { .. } => OauthErrorKind::InvalidToken,
             Self::Validation(_) | Self::InvalidUrl { .. } => OauthErrorKind::InvalidRequest,
-            Self::Unauthorized(_) | Self::ServiceAccountInteractive => OauthErrorKind::AccessDenied,
-            Self::UsernameTaken(_) => OauthErrorKind::UsernameUnavailable,
-            Self::EmailRegistered(_) => OauthErrorKind::EmailExists,
-            Self::UserNotFound(_) => OauthErrorKind::NotFound,
+            Self::ServiceAccountInteractive => OauthErrorKind::AccessDenied,
+            Self::UsernameTaken { .. } => OauthErrorKind::UsernameUnavailable,
+            Self::EmailRegistered { .. } => OauthErrorKind::EmailExists,
+            Self::UserNotFound { .. } => OauthErrorKind::NotFound,
             Self::AuthenticationUnavailable => OauthErrorKind::AuthenticationFailed,
             Self::RegistrationStateExpired | Self::ChallengeExpired => {
                 OauthErrorKind::ExpiredChallenge
             },
-            Self::WebAuthnVerificationFailed(_) | Self::WebAuthnCeremony(_) => {
+            Self::WebAuthnVerificationFailed { .. } | Self::WebAuthnCeremony(_) => {
                 OauthErrorKind::InvalidCredential
             },
             Self::UserProvider { .. }

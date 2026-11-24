@@ -82,7 +82,7 @@ fn validate_markdown_file(path: &Path) -> Result<(), ContentError> {
 
 pub(crate) fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentError> {
     let frontmatter = split_frontmatter(markdown).ok_or_else(|| {
-        ContentError::Parse("Invalid frontmatter format - missing '---' delimiters".to_owned())
+        ContentError::Parse(crate::error::ContentParseError::MissingFrontmatterDelimiters)
     })?;
 
     let raw_yaml: serde_yaml::Value = serde_yaml::from_str(frontmatter.yaml)?;

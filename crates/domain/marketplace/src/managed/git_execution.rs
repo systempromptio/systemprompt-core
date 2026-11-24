@@ -141,7 +141,7 @@ fn terminate(child: &mut Child) -> Result<()> {
 }
 
 fn failed() -> ManagedError {
-    ManagedError::Conflict("Git operation failed or exceeded its execution/output limit; no publication selection changed".to_owned())
+    ManagedError::Conflict { reason: "Git operation failed or exceeded its execution/output limit; no publication selection changed" }
 }
 
 fn bounded_disk(root: &std::path::Path) -> bool {
