@@ -12,7 +12,7 @@ use crate::repository::parts::part_from_row;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 use systemprompt_identifiers::{ArtifactId, MessageId};
-use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
+use systemprompt_models::{ExecutionStep, StepContent, StepId};
 use systemprompt_traits::RepositoryError;
 
 use super::converters;
@@ -29,9 +29,6 @@ pub fn build_execution_steps(
 
     let mut result = Vec::with_capacity(steps.len());
     for row in steps {
-        let status = row.status.parse::<StepStatus>().map_err(|e| {
-            RepositoryError::decode(format!("execution step {} status", row.step_id), e)
-        })?;
         let content: StepContent = serde_json::from_value(row.content.clone()).map_err(|e| {
             RepositoryError::decode(format!("execution step {} content", row.step_id), e)
         })?;
@@ -39,7 +36,7 @@ pub fn build_execution_steps(
         result.push(ExecutionStep {
             step_id: StepId(row.step_id.to_string()),
             task_id: row.task_id.clone(),
-            status,
+            status: row.status,
             started_at: row.started_at,
             completed_at: row.completed_at,
             duration_ms: row.duration_ms,

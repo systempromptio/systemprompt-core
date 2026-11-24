@@ -16,9 +16,10 @@ use systemprompt_identifiers::{
     AgentName, EventOutboxId, NotificationId, NotificationStreamId, NotificationSubscriptionId,
     UserId,
 };
+use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::notifications::{
-    ActionPrompt, Attention, AttentionReason, DeliveryState, KeysetCursor, Notification,
-    NotificationKind, SubjectRef, SubscriptionDecl,
+    ActionPrompt, Attention, AttentionReason, DeliveryState, Notification, NotificationKind,
+    SubjectRef, SubscriptionDecl,
 };
 use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_traits::RepositoryError;

@@ -197,9 +197,8 @@ impl IssueService {
         reporter: &UserId,
     ) -> IssuesResult<()> {
         self.enabled()?;
-        let report = match self.repo.find(id).await? {
-            Some(report) if &report.reporter_user_id == reporter => report,
-            _ => return Err(IssuesError::NotFound(id.clone())),
+        let Some(report) = self.repo.find_reported_by(id, Some(reporter)).await? else {
+            return Err(IssuesError::NotFound(id.clone()));
         };
         if !report.status.is_active() {
             return Err(IssuesError::NotActive(id.clone()));
@@ -221,12 +220,11 @@ impl IssueService {
         roles: &[String],
     ) -> IssuesResult<IssueReport> {
         self.enabled()?;
-        match self.repo.find(id).await? {
-            Some(report) if &report.reporter_user_id == reader || self.is_triager(roles) => {
-                Ok(report)
-            },
-            _ => Err(IssuesError::NotFound(id.clone())),
-        }
+        let reporter = (!self.is_triager(roles)).then_some(reader);
+        self.repo
+            .find_reported_by(id, reporter)
+            .await?
+            .ok_or_else(|| IssuesError::NotFound(id.clone()))
     }
 
     pub async fn find(&self, id: &IssueReportId) -> IssuesResult<Option<IssueReport>> {

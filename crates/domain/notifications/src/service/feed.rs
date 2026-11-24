@@ -7,10 +7,11 @@
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{NotificationId, UserId};
+use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::notifications::{
-    Attention, Escalate, KeysetCursor, MarkRead, NOTIFICATION_ESCALATED, NOTIFICATION_READ,
-    Notification, NotificationEscalatedPayload, NotificationPage, NotificationReadPayload,
-    ReceiptState, SURFACE_API,
+    Attention, Escalate, MarkRead, NOTIFICATION_ESCALATED, NOTIFICATION_READ, Notification,
+    NotificationEscalatedPayload, NotificationPage, NotificationReadPayload, ReceiptState,
+    SURFACE_API,
 };
 
 use systemprompt_traits::{EscalationDelivery, RepositoryError};

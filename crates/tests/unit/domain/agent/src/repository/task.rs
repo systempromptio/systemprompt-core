@@ -1,7 +1,9 @@
 use super::{make_task, repos, seed_context_and_task, seed_runtime_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::models::context::ContextKind;
-use systemprompt_agent::repository::task::{RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams};
+use systemprompt_agent::repository::task::{
+    ListTasksFilter, RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams,
+};
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId, TraceId, UserId};
 use systemprompt_test_fixtures::agent_reads::{ContextReadsExt, TaskReadsExt};
 use systemprompt_test_fixtures::test_db_pool;
@@ -96,17 +98,20 @@ async fn list_tasks_by_context_and_by_user() {
 
     let by_user = r
         .tasks
-        .get_tasks_by_user_id(&user_id, Some(10), Some(0))
+        .list_tasks(
+            ListTasksFilter {
+                user_id: &user_id,
+                context_id: None,
+                status: None,
+                status_timestamp_after: None,
+            },
+            None,
+            10,
+        )
         .await
-        .expect("by user");
+        .expect("by user")
+        .items;
     assert!(by_user.iter().any(|t| t.id == task_id));
-
-    let by_user_default = r
-        .tasks
-        .get_tasks_by_user_id(&user_id, None, None)
-        .await
-        .expect("by user default");
-    assert!(by_user_default.iter().any(|t| t.id == task_id));
 
     r.tasks.remove_task(&task_id).await.ok();
 }

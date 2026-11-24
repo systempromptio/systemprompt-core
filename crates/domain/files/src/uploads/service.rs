@@ -179,10 +179,10 @@ impl UploadService {
         owner: &UserId,
         id: &DocumentUploadId,
     ) -> UploadResult<UploadSession> {
-        match self.uploads.find(id).await? {
-            Some(session) if session.owner_user_id == *owner => Ok(session),
-            _ => Err(UploadError::NotFound),
-        }
+        self.uploads
+            .find_owned(id, owner)
+            .await?
+            .ok_or(UploadError::NotFound)
     }
 
     pub(super) async fn open_session(

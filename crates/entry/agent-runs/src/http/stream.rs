@@ -15,7 +15,6 @@ use axum::http::HeaderMap;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures_util::Stream;
 use std::convert::Infallible;
-use systemprompt_agent_runs::RunStatus;
 use systemprompt_agent_runs::notify::BACKSTOP;
 use systemprompt_models::RequestContext;
 use tokio::sync::broadcast::error::RecvError;
@@ -57,11 +56,8 @@ pub(super) async fn events_stream(
                 }
             }
             if drained {
-                let terminal = match state.runs.find_run(&row.id).await {
-                    Ok(Some(current)) => current
-                        .status
-                        .parse::<RunStatus>()
-                        .is_ok_and(RunStatus::is_terminal),
+                let terminal = match state.runs.find_owned_run(&row.id, &row.user_id).await {
+                    Ok(Some(current)) => current.status.is_terminal(),
                     Ok(None) => true,
                     Err(error) => {
                         tracing::error!(run_id = %row.id, %error, "agent run status read failed");

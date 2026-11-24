@@ -9,8 +9,9 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::NotificationId;
+use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::notifications::{
-    Attention, AttentionReason, KeysetCursor, Notification, NotificationPage,
+    Attention, AttentionReason, Notification, NotificationPage,
 };
 
 pub const MAX_ITEMS: usize = 200;

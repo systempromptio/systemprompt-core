@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::a2a::{Artifact, Message, Part, Task, TaskStatus};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus};
 use crate::models::{MessagePart, TaskMessage, TaskRow};
 use crate::repository::parts::parts_from_rows;
 use systemprompt_identifiers::{
@@ -29,14 +29,13 @@ async fn fetch_task_row(
     task_id: &TaskId,
 ) -> Result<Option<TaskRow>, RepositoryError> {
     let pool = constructor.pool();
-    let task_id_str = task_id.as_str();
 
     sqlx::query_as!(
         TaskRow,
         r#"SELECT
             task_id as "task_id!: TaskId",
             context_id as "context_id!: ContextId",
-            status as "status!",
+            status as "status!: TaskState",
             status_timestamp,
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
@@ -50,7 +49,7 @@ async fn fetch_task_row(
             created_at as "created_at!",
             updated_at as "updated_at!"
         FROM agent_tasks WHERE task_id = $1"#,
-        task_id_str
+        task_id as _
     )
     .fetch_optional(pool.as_ref())
     .await
@@ -72,7 +71,7 @@ async fn construct_task_from_row(
         metadata.execution_steps = Some(steps);
     }
 
-    let task_state = converters::parse_task_state(row)?;
+    let task_state = row.status;
 
     Ok(Task {
         id: task_id,
@@ -95,7 +94,6 @@ async fn load_task_messages(
     task_id: &TaskId,
 ) -> Result<Option<Vec<Message>>, RepositoryError> {
     let pool = constructor.pool();
-    let task_id_str = task_id.as_str();
 
     let message_rows: Vec<TaskMessage> = sqlx::query_as!(
         TaskMessage,
@@ -104,7 +102,7 @@ async fn load_task_messages(
             task_id as "task_id!: TaskId",
             message_id as "message_id!: MessageId",
             client_message_id as "client_message_id?: MessageId",
-            role as "role!",
+            role as "role!: MessageRole",
             context_id as "context_id!: ContextId",
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
@@ -115,7 +113,7 @@ async fn load_task_messages(
             metadata,
             reference_task_ids
         FROM task_messages WHERE task_id = $1 ORDER BY sequence_number ASC"#,
-        task_id_str
+        task_id as _
     )
     .fetch_all(pool.as_ref())
     .await?;
@@ -139,8 +137,6 @@ async fn load_message_parts(
     task_id: &TaskId,
 ) -> Result<Vec<Part>, RepositoryError> {
     let pool = constructor.pool();
-    let task_id_str = task_id.as_str();
-    let message_id_str = message_id.as_str();
 
     let part_rows: Vec<MessagePart> = sqlx::query_as!(
         MessagePart,
@@ -158,8 +154,8 @@ async fn load_message_parts(
             data_content,
             metadata
         FROM message_parts WHERE message_id = $1 AND task_id = $2 ORDER BY sequence_number ASC"#,
-        message_id_str,
-        task_id_str
+        message_id as _,
+        task_id as _
     )
     .fetch_all(pool.as_ref())
     .await?;

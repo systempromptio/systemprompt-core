@@ -11,6 +11,8 @@ use systemprompt_identifiers::{
     AgentName, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, MessageId, SessionId,
     SkillId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::StepStatus;
+use systemprompt_models::a2a::{MessageRole, TaskState};
 use systemprompt_traits::RepositoryError;
 
 pub(in crate::repository) async fn fetch_task_rows(
@@ -22,7 +24,7 @@ pub(in crate::repository) async fn fetch_task_rows(
         r#"SELECT
             task_id as "task_id!: TaskId",
             context_id as "context_id!: ContextId",
-            status as "status!",
+            status as "status!: TaskState",
             status_timestamp,
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
@@ -54,7 +56,7 @@ pub(in crate::repository) async fn fetch_messages(
             task_id as "task_id!: TaskId",
             message_id as "message_id!: MessageId",
             client_message_id as "client_message_id?: MessageId",
-            role as "role!",
+            role as "role!: MessageRole",
             context_id as "context_id!: ContextId",
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
@@ -172,7 +174,7 @@ pub(in crate::repository) async fn fetch_execution_steps(
         r#"SELECT
             step_id as "step_id!: ExecutionStepId",
             task_id as "task_id!: TaskId",
-            status as "status!",
+            status as "status!: StepStatus",
             content as "content!",
             started_at as "started_at!",
             completed_at,

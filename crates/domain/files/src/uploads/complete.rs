@@ -56,7 +56,7 @@ impl UploadService {
         if !self.uploads.claim(id).await? {
             let status = self
                 .uploads
-                .find(id)
+                .find_owned(id, owner)
                 .await?
                 .map_or(UploadStatus::Expired, |current| current.status);
             return Err(UploadError::Closed { status });

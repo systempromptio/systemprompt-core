@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 use systemprompt_agent_runs::execute::outputs;
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_agent_runs::repository::{AgentRunRow, Enqueued, NewAgentRun};
-use systemprompt_agent_runs::{McpServerSpec, RunEvent, RunLayout, RunRequest};
+use systemprompt_agent_runs::{
+    ErrorClass, McpServerSpec, RunEvent, RunLayout, RunRequest, RunStatus,
+};
 use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{AgentRunId, HostSessionId, SessionId};
 use systemprompt_models::RequestContext;
@@ -42,8 +44,8 @@ struct RunView {
     origin_kind: String,
     origin_id: String,
     host: String,
-    status: String,
-    error_class: Option<String>,
+    status: RunStatus,
+    error_class: Option<ErrorClass>,
     error: Option<String>,
     harness_digest: Option<String>,
     gateway_session_id: Option<SessionId>,
@@ -108,9 +110,9 @@ pub(super) async fn owned_run(
     id: &str,
 ) -> Result<AgentRunRow, AgentRunsHttpError> {
     let id = AgentRunId::try_new(id)?;
-    match state.runs.find_run(&id).await? {
-        Some(row) if &row.user_id == req_ctx.user_id() => Ok(row),
-        _ => Err(ApiHttpError::not_found(format!("agent run '{id}' not found")).into()),
+    match state.runs.find_owned_run(&id, req_ctx.user_id()).await? {
+        Some(row) => Ok(row),
+        None => Err(ApiHttpError::not_found(format!("agent run '{id}' not found")).into()),
     }
 }
 

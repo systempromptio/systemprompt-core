@@ -50,8 +50,7 @@ pub(super) async fn transition_in_tx(
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let task_id_str = task_id.as_str();
-    let (current_state, expected_version) = lock_task_state(tx, task_id_str).await?;
+    let (current_state, expected_version) = lock_task_state(tx, task_id).await?;
 
     if current_state == state {
         return Ok(());
@@ -60,18 +59,18 @@ pub(super) async fn transition_in_tx(
     if !current_state.can_transition_to(&state) {
         return Err(RepositoryError::conflict(
             "task",
-            task_id_str,
+            task_id.as_str(),
             format!("invalid state transition {current_state:?} -> {state:?}"),
         ));
     }
 
     let rows_affected =
-        execute_state_update(tx, state, timestamp, task_id_str, expected_version).await?;
+        execute_state_update(tx, state, timestamp, task_id, expected_version).await?;
 
     if rows_affected == 0 {
         return Err(RepositoryError::conflict(
             "task",
-            task_id_str,
+            task_id.as_str(),
             format!("stale update, expected version {expected_version}"),
         ));
     }
@@ -81,15 +80,15 @@ pub(super) async fn transition_in_tx(
 
 async fn lock_task_state(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    task_id_str: &str,
+    task_id: &TaskId,
 ) -> Result<(TaskState, i64), RepositoryError> {
     let current = sqlx::query!(
         r#"SELECT status, version FROM agent_tasks WHERE task_id = $1 FOR UPDATE"#,
-        task_id_str
+        task_id as _
     )
     .fetch_optional(&mut **tx)
     .await?
-    .ok_or_else(|| RepositoryError::not_found("task", task_id_str))?;
+    .ok_or_else(|| RepositoryError::not_found("task", task_id.as_str()))?;
 
     let current_state: TaskState = current
         .status
@@ -103,7 +102,7 @@ async fn execute_state_update(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
-    task_id_str: &str,
+    task_id: &TaskId,
     expected_version: i64,
 ) -> Result<u64, RepositoryError> {
     let status = state.as_str();
@@ -121,7 +120,7 @@ async fn execute_state_update(
                WHERE task_id = $3 AND version = $4"#,
             status,
             timestamp,
-            task_id_str,
+            task_id as _,
             expected_version
         )
         .execute(&mut **tx)
@@ -137,7 +136,7 @@ async fn execute_state_update(
                WHERE task_id = $3 AND version = $4"#,
             status,
             timestamp,
-            task_id_str,
+            task_id as _,
             expected_version
         )
         .execute(&mut **tx)
@@ -152,7 +151,7 @@ async fn execute_state_update(
                WHERE task_id = $3 AND version = $4"#,
             status,
             timestamp,
-            task_id_str,
+            task_id as _,
             expected_version
         )
         .execute(&mut **tx)
@@ -182,11 +181,9 @@ pub(crate) async fn update_task_failed_with_error(
     error_message: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let task_id_str = task_id.as_str();
-
     let mut tx = pool.begin().await?;
 
-    let (current_state, expected_version) = lock_task_state(&mut tx, task_id_str).await?;
+    let (current_state, expected_version) = lock_task_state(&mut tx, task_id).await?;
 
     if current_state == TaskState::Failed {
         tx.commit().await?;
@@ -196,7 +193,7 @@ pub(crate) async fn update_task_failed_with_error(
     if !current_state.can_transition_to(&TaskState::Failed) {
         return Err(RepositoryError::conflict(
             "task",
-            task_id_str,
+            task_id.as_str(),
             format!("invalid state transition {current_state:?} -> Failed"),
         ));
     }
@@ -214,7 +211,7 @@ pub(crate) async fn update_task_failed_with_error(
         WHERE task_id = $3 AND version = $4"#,
         timestamp,
         error_message,
-        task_id_str,
+        task_id as _,
         expected_version
     )
     .execute(&mut *tx)
@@ -224,7 +221,7 @@ pub(crate) async fn update_task_failed_with_error(
     if rows_affected == 0 {
         return Err(RepositoryError::conflict(
             "task",
-            task_id_str,
+            task_id.as_str(),
             format!("stale update, expected version {expected_version}"),
         ));
     }

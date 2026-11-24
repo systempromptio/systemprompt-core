@@ -148,7 +148,7 @@ impl DocumentUploadRepository {
             r#"SELECT COUNT(*)::bigint AS "count!" FROM document_uploads
                WHERE owner_user_id = $1 AND status IN ('open', 'completing')
                  AND NOT one_shot AND expires_at > now()"#,
-            terms.owner.as_str(),
+            terms.owner as _,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -163,7 +163,7 @@ impl DocumentUploadRepository {
                FROM document_uploads
                WHERE quota_user_id = $1 AND NOT quota_exempt
                  AND created_at > now() - interval '1 day'"#,
-            terms.quota_user.as_str(),
+            terms.quota_user as _,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -171,7 +171,7 @@ impl DocumentUploadRepository {
             && sqlx::query_scalar!(
                 r#"SELECT EXISTS (SELECT 1 FROM document_blobs WHERE content_sha256 = $1)
                        AS "held!""#,
-                request.sha256.as_str(),
+                request.sha256 as _,
             )
             .fetch_one(&mut *tx)
             .await?;
@@ -193,17 +193,17 @@ impl DocumentUploadRepository {
                          part_size, status, blob_sha256 AS "blob_sha256: ContentHash",
                          detected_mime, checked_kind, refusal, trace_id AS "trace_id: TraceId", created_at,
                          expires_at, finished_at"#,
-            terms.owner.as_str(),
+            terms.owner as _,
             request.name,
             request.mime,
             size,
-            request.sha256.as_str(),
+            request.sha256 as _,
             terms.part_size,
-            terms.trace.as_str(),
+            terms.trace as _,
             terms.ttl_hours,
             terms.one_shot,
             quota_exempt,
-            terms.quota_user.as_str(),
+            terms.quota_user as _,
         )
         .fetch_one(&mut *tx)
         .await?
@@ -239,6 +239,22 @@ impl DocumentUploadRepository {
     }
 
     pub async fn find(&self, id: &DocumentUploadId) -> RepoResult<Option<UploadSession>> {
+        self.session_row(id, None).await
+    }
+
+    pub async fn find_owned(
+        &self,
+        id: &DocumentUploadId,
+        owner: &UserId,
+    ) -> RepoResult<Option<UploadSession>> {
+        self.session_row(id, Some(owner)).await
+    }
+
+    async fn session_row(
+        &self,
+        id: &DocumentUploadId,
+        owner: Option<&UserId>,
+    ) -> RepoResult<Option<UploadSession>> {
         sqlx::query_as!(
             SessionRow,
             r#"SELECT id::text AS "id!: DocumentUploadId",
@@ -247,8 +263,10 @@ impl DocumentUploadRepository {
                       part_size, status, blob_sha256 AS "blob_sha256: ContentHash",
                       detected_mime, checked_kind, refusal, trace_id AS "trace_id: TraceId", created_at,
                       expires_at, finished_at
-               FROM document_uploads WHERE id = $1::text::uuid"#,
-            id.as_str(),
+               FROM document_uploads
+               WHERE id = $1::text::uuid AND ($2::text IS NULL OR owner_user_id = $2)"#,
+            id as _,
+            owner as _,
         )
         .fetch_optional(&*self.write)
         .await?
@@ -263,7 +281,7 @@ impl DocumentUploadRepository {
             "UPDATE document_uploads SET received_bytes = received_bytes + $2
              WHERE id = $1::text::uuid AND status = 'open'
                AND received_bytes + $2 <= declared_size * 2",
-            id.as_str(),
+            id as _,
             bytes,
         )
         .execute(&*self.write)
@@ -278,7 +296,7 @@ impl DocumentUploadRepository {
                       storage_id AS "storage_id: StoredFileId"
                FROM document_upload_parts WHERE upload_id = $1::text::uuid
                ORDER BY part_number"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_all(&*self.write)
         .await?

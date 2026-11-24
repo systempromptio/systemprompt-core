@@ -3,7 +3,8 @@ use std::future::{Ready, ready};
 
 use systemprompt_bridge::proxy::notifications::{CATCH_UP_PAGE, InboxHandle, MAX_ITEMS, catch_up};
 use systemprompt_identifiers::NotificationId;
-use systemprompt_models::notifications::{KeysetCursor, Notification, NotificationPage};
+use systemprompt_models::api::KeysetCursor;
+use systemprompt_models::notifications::{Notification, NotificationPage};
 
 const CURSORS: [&str; 8] = [
     "MjAyNi0wOS0wMVQwMDowMDowMC4wMDAwMDBafDAwMDAwMDAwLTAwMDAtNDAwMC05MDAwLTAwMDAwMDAwMDAwMA",

@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, UserId,
 };
-use systemprompt_models::mcp::{Correlation, ExecutionSource};
+use systemprompt_models::mcp::{Correlation, ExecutionSource, McpToolExecutionStatus};
 use systemprompt_traits::{RepositoryError, ToolExecutionLookup};
 
 use super::ToolUsageRepository;
@@ -47,8 +47,8 @@ impl ToolUsageRepository {
             ORDER BY started_at DESC
             LIMIT 1
             "#,
-            session_id.as_str(),
-            tool_name.as_str(),
+            session_id as _,
+            tool_name as _,
             payload_sha256,
             window_seconds as f64
         )
@@ -86,9 +86,9 @@ impl ToolUsageRepository {
             ORDER BY started_at DESC
             LIMIT 1
             "#,
-            user_id.as_str(),
-            server_name.as_str(),
-            tool_name.as_str(),
+            user_id as _,
+            server_name as _,
+            tool_name as _,
             at,
             window_seconds as f64
         )
@@ -98,7 +98,22 @@ impl ToolUsageRepository {
     }
 
     pub async fn find_by_id(&self, id: &McpExecutionId) -> McpDomainResult<Option<ToolExecution>> {
-        let id_str = id.as_str();
+        self.execution_row(id, None).await
+    }
+
+    pub async fn find_visible(
+        &self,
+        id: &McpExecutionId,
+        owner: Option<&UserId>,
+    ) -> McpDomainResult<Option<ToolExecution>> {
+        self.execution_row(id, owner).await
+    }
+
+    async fn execution_row(
+        &self,
+        id: &McpExecutionId,
+        owner: Option<&UserId>,
+    ) -> McpDomainResult<Option<ToolExecution>> {
         let row = sqlx::query!(
             r#"SELECT
                 mcp_execution_id as "mcp_execution_id!",
@@ -107,7 +122,7 @@ impl ToolUsageRepository {
                 context_id,
                 ai_tool_call_id,
                 user_id as "user_id!",
-                status as "status!",
+                status as "status!: McpToolExecutionStatus",
                 input as "input!",
                 output,
                 error_message,
@@ -117,8 +132,9 @@ impl ToolUsageRepository {
                 source as "source!",
                 correlation as "correlation!"
             FROM mcp_tool_executions
-            WHERE mcp_execution_id = $1"#,
-            id_str
+            WHERE mcp_execution_id = $1 AND ($2::text IS NULL OR user_id = $2)"#,
+            id as _,
+            owner as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -153,10 +169,9 @@ impl ToolUsageRepository {
         &self,
         ai_tool_call_id: &AiToolCallId,
     ) -> McpDomainResult<Option<McpExecutionId>> {
-        let id_str = ai_tool_call_id.as_str();
         let result = sqlx::query_scalar!(
             r#"SELECT mcp_execution_id as "mcp_execution_id!" FROM mcp_tool_executions WHERE ai_tool_call_id = $1"#,
-            id_str
+            ai_tool_call_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -169,7 +184,7 @@ impl ToolExecutionLookup for ToolUsageRepository {
     async fn execution_exists(&self, id: &McpExecutionId) -> Result<bool, RepositoryError> {
         sqlx::query_scalar!(
             r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
-            id.as_str()
+            id as _
         )
         .fetch_one(&*self.pool)
         .await
@@ -183,10 +198,9 @@ impl ToolExecutionLookup for ToolUsageRepository {
         if contexts.is_empty() {
             return Ok(HashSet::new());
         }
-        let keys: Vec<String> = contexts.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query_scalar!(
             r#"SELECT DISTINCT context_id as "context_id!" FROM mcp_tool_executions WHERE context_id = ANY($1)"#,
-            &keys
+            contexts as _
         )
         .fetch_all(&*self.pool)
         .await?;

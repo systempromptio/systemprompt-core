@@ -18,7 +18,7 @@ impl DocumentUploadRepository {
         let result = sqlx::query!(
             "UPDATE document_uploads SET status = 'completing', claimed_at = CURRENT_TIMESTAMP
              WHERE id = $1::text::uuid AND status = 'open' AND expires_at > now()",
-            id.as_str(),
+            id as _,
         )
         .execute(&*self.write)
         .await?;
@@ -29,7 +29,7 @@ impl DocumentUploadRepository {
         sqlx::query!(
             "UPDATE document_uploads SET claimed_at = CURRENT_TIMESTAMP
              WHERE id = $1::text::uuid AND status = 'completing'",
-            id.as_str(),
+            id as _,
         )
         .execute(&*self.write)
         .await?;
@@ -46,8 +46,8 @@ impl DocumentUploadRepository {
             "UPDATE document_uploads SET checked_kind = $3
              WHERE owner_user_id = $1 AND blob_sha256 = $2 AND status = 'completed'
                AND checked_kind IS NULL",
-            owner.as_str(),
-            blob.as_str(),
+            owner as _,
+            blob as _,
             checked_kind,
         )
         .execute(&*self.write)
@@ -59,7 +59,7 @@ impl DocumentUploadRepository {
         let result = sqlx::query!(
             "UPDATE document_uploads SET status = 'open', claimed_at = NULL
              WHERE id = $1::text::uuid AND status = 'completing'",
-            id.as_str(),
+            id as _,
         )
         .execute(&*self.write)
         .await?;
@@ -78,8 +78,8 @@ impl DocumentUploadRepository {
              SET status = 'completed', blob_sha256 = $2, detected_mime = $3, checked_kind = $4,
                  finished_at = CURRENT_TIMESTAMP
              WHERE id = $1::text::uuid AND status = 'completing'",
-            id.as_str(),
-            blob.as_str(),
+            id as _,
+            blob as _,
             detected_mime,
             checked_kind,
         )
@@ -99,7 +99,7 @@ impl DocumentUploadRepository {
             "UPDATE document_uploads
              SET status = $2, refusal = $3, finished_at = CURRENT_TIMESTAMP
              WHERE id = $1::text::uuid AND status = $4",
-            id.as_str(),
+            id as _,
             status.as_str(),
             refusal,
             from.as_str(),
@@ -141,7 +141,7 @@ impl DocumentUploadRepository {
                                  WHERE c.declared_sha256 = b.content_sha256
                                    AND c.status = 'completing')
                RETURNING b.storage_id"#,
-            blob.as_str(),
+            blob as _,
         )
         .fetch_optional(&*self.write)
         .await?)
@@ -158,8 +158,8 @@ impl DocumentUploadRepository {
                FROM document_uploads
                WHERE owner_user_id = $1 AND blob_sha256 = $2 AND status = 'completed'
                ORDER BY finished_at DESC LIMIT 1"#,
-            owner.as_str(),
-            blob.as_str(),
+            owner as _,
+            blob as _,
         )
         .fetch_optional(&*self.write)
         .await?)

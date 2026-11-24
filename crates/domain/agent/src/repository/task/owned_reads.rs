@@ -21,8 +21,8 @@ impl TaskRepository {
             FROM agent_tasks t
             JOIN user_contexts c ON t.context_id = c.context_id
             WHERE t.task_id = $1 AND c.user_id = $2"#,
-            task_id.as_str(),
-            user_id.as_str()
+            task_id as _,
+            user_id as _
         )
         .fetch_optional(self.pool.as_ref())
         .await?
@@ -41,8 +41,8 @@ impl TaskRepository {
             FROM agent_tasks t
             JOIN user_contexts c ON c.context_id = t.context_id AND c.user_id = $2
             WHERE t.task_id = $1"#,
-            task_id.as_str(),
-            user_id.as_str()
+            task_id as _,
+            user_id as _
         )
         .fetch_optional(&mut **tx)
         .await?
