@@ -102,7 +102,10 @@ async fn probe_completion(probe: &Probe<'_>) -> Result<(), PersonalKeyError> {
         "max_tokens": 1,
         "messages": [{"role": "user", "content": "ping"}],
     });
-    let forward = vec![("x-opencode-session".to_owned(), probe_session(user_id))];
+    let forward = vec![(
+        systemprompt_identifiers::headers::OPENCODE_SESSION.to_owned(),
+        probe_session(user_id),
+    )];
     let mut request = client
         .post(call.url(wire, &upstream_model, false))
         .body(body.to_string());

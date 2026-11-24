@@ -10341,7 +10341,6 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
- "systemprompt-models",
  "systemprompt-storage",
  "systemprompt-traits",
  "thiserror 2.0.21",

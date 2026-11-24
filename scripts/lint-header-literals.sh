@@ -29,7 +29,6 @@ definers=(
 )
 
 allowlist=$(cat <<'LIST'
-crates/domain/ai/src/services/personal_keys.rs|x-opencode-session|owned by config-arch; removed when it lands
 crates/app/gateway/src/service/client_session.rs|x-opencode-session|owned by config-arch; removed when it lands
 crates/app/gateway/src/service/mod.rs|x-systemprompt-request-id x-systemprompt-recovery-count|owned by config-arch; gateway response headers defined beside their writer until it lands
 LIST
