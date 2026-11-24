@@ -11,8 +11,8 @@
 use std::time::{Duration, Instant};
 
 use systemprompt_events::services::durable::{DurableOutbox, ReportingFact, SseEvent};
-use systemprompt_identifiers::{Actor, InstanceId, UserId};
-use systemprompt_test_fixtures::test_pg_pool;
+use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_test_fixtures::{test_pg_pool, unique_instance};
 
 const DELTAS_PER_STREAM: usize = 400;
 const DELTA_TEXT: &str = "a typical streamed token run of about forty b";
@@ -89,7 +89,7 @@ async fn run(outbox: &DurableOutbox, pool: &sqlx::PgPool, streams: usize) -> Run
 #[ignore = "measurement of the streaming outbox path; run on demand"]
 async fn streaming_outbox_rate() {
     let pool = test_pg_pool().await;
-    let outbox = DurableOutbox::new(pool.clone(), InstanceId::new("r1-measurement"));
+    let outbox = DurableOutbox::new(pool.clone(), unique_instance());
     for streams in [1, 10, 50] {
         let measured = run(&outbox, &pool, streams).await;
         println!("streaming_outbox_rate {}", measured.report());
