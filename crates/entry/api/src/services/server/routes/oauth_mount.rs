@@ -20,7 +20,7 @@
 //!
 //! Every route the surface builds is absent (404) when `identity-http` is not
 //! admitted. When it is admitted, boot is refused with a typed
-//! [`IdentityMountError`] if the member provides no identity surface or the
+//! `IdentityMountError` if the member provides no identity surface or the
 //! SSO slot was never built.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -49,7 +49,6 @@ use crate::services::middleware::place;
 const OAUTH_PUBLIC: RateLimit = RateLimit::new("oauth_public", RateBudget::OauthPublic);
 const OAUTH_AUTH: RateLimit = RateLimit::new("oauth_auth", RateBudget::OauthAuth);
 
-/// Why an admitted `identity-http` member's routes cannot be built.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum IdentityMountError {
     #[error("identity-http is admitted but provides no identity surface")]
