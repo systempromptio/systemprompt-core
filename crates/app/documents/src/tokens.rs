@@ -1,14 +1,15 @@
 //! The two narrow token views the documents member builds from the sealed
 //! token authority, one type per holder.
 //!
-//! [`DocumentLinkTokens`] is conferred on `files-http`. It signs a download
-//! link (audience `documents.download`) or an upload link (audience
-//! `documents.upload`), verifies a presented token against exactly one of
-//! those two audiences, and verifies the MCP hop token a managed server
-//! presents when it asks for a link. It mints no other audience and verifies
-//! no user, session or UI token.
+//! [`DocumentLinkTokens`](crate::tokens::DocumentLinkTokens) is conferred on
+//! `files-http`. It signs a download link (audience `documents.download`) or an
+//! upload link (audience `documents.upload`), verifies a presented token
+//! against exactly one of those two audiences, and verifies the MCP hop token a
+//! managed server presents when it asks for a link. It mints no other audience
+//! and verifies no user, session or UI token.
 //!
-//! [`DocumentDriveTokens`] is the [`DriveTokens`] view conferred on
+//! [`DocumentDriveTokens`](crate::tokens::DocumentDriveTokens) is the
+//! [`DriveTokens`](systemprompt_traits::DriveTokens) view conferred on
 //! `gateway-http`: it trades a bridge device token for a Drive sync token
 //! and verifies Drive sync tokens, and nothing else.
 //!

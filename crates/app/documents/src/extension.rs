@@ -1,11 +1,13 @@
-//! [`DocumentsExtension`] (`documents`): the document store's member.
+//! [`DocumentsExtension`](crate::extension::DocumentsExtension) (`documents`):
+//! the document store's member.
 //!
 //! After governance it builds the store from the resolved state and provides
 //! its bound handles sealed (`Arc<DocumentsHandles>`); the host binds them
 //! into the `DocumentsHandlesSlot` it seeded, which the files member's seams,
 //! the document jobs, the routes, the issues commands and the MCP toolsets
 //! read. From the sealed token authority it builds two narrow views and
-//! confers each on its one holder: [`DocumentLinkTokens`] on `files-http`
+//! confers each on its one holder:
+//! [`DocumentLinkTokens`](crate::tokens::DocumentLinkTokens) on `files-http`
 //! and the `DynDriveTokens` view on `gateway-http` (see [`crate::tokens`]).
 //!
 //! With `files.documents.enabled` off the store is still built and the

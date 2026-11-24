@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The document, folder, upload, public-link and issue handlers leave `systemprompt-api` for the `files-http` member (`systemprompt-files-entry`, `http` feature), which contributes them as a `FilesSurface` the API mount builds with the `files-http` route-scoped state. The API keeps their layering unchanged: the documents and uploads routers are protected by the user gate, wrapped in their download or upload token gate and mounted handler-verified with the `documents` rate limit outermost; folders, the public-link open and issues keep their policies, context kinds and rate scopes. With `files-http` disabled none of these routes is mounted. The handlers read the store cell, the `DocumentLinkTokens` view conferred on `files-http`, the member's own settings and repositories, and no host-sealed value."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::uploads`, `routes::issues` and every document handler module are removed, with `DocumentsState`, `router`, `folders_router`, `with_download_tokens` and `public_link`; `routes::documents` keeps the bridge Drive feed, `document_service`, `documents_handles`, `link_tokens` and gains `files_host_handles`. The `collab` feature is removed; enable `systemprompt-files-entry/collab` instead."
+
+[[crate]]
+name = "systemprompt-files-entry"
+section = "Added"
+text = "With `http`, the document, folder, upload, public-link and issue handlers (`http::documents`, `http::uploads`, `http::issues`), the `FilesHttpSurface`, `FilesHttpSettings` and `FilesHttpRepositories`; with `collab`, the live co-editing routes. `DocumentsState::build` and `IssuesState::build` take the `FilesRouteState`; `public_link::router` takes the host's client-address resolver."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "With `http`, the HTTP pieces shared by every route set serving the store: `http::error` (the document error mapping), `http::headers` (conditional and ranged request headers), `http::body_limit`, and the `http::surface` contract (`FilesSurface`, `DynFilesSurface`, `FilesRouteState`, `FilesHostHandles`, `FilesRoutes`, `DocumentRoutes`, `TokenGatedRoutes`, `ISSUES_PATH`)."
+
+[[crate]]
+name = "systemprompt"
+section = "Changed"
+text = "`files-collab` enables `systemprompt-files-entry/collab` in place of `systemprompt-api/collab`."
