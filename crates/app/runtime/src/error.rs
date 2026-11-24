@@ -28,7 +28,6 @@ use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_security::keys::SigningKeysError;
 use systemprompt_traits::{FileStorageError, RepositoryError};
-use systemprompt_users::UserError;
 use thiserror::Error;
 
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
@@ -54,7 +53,10 @@ pub enum RuntimeError {
     Files(#[from] FilesError),
 
     #[error(transparent)]
-    Users(#[from] UserError),
+    AdminBootstrap(#[from] crate::admin_bootstrap::AdminBootstrapUnavailable),
+
+    #[error(transparent)]
+    AdminLookup(#[from] systemprompt_traits::AdminBootstrapError),
 
     #[error(transparent)]
     Repository(#[from] RepositoryError),

@@ -7,7 +7,9 @@
 //! reads (`DynUserRetention`), and the sealed user directory
 //! (`DynUserProvider`: find, create and promote users, with the admitted owner
 //! reassignments applied on merge), which only kernel code and core provide
-//! fns read.
+//! fns read, and the sealed service-account directory
+//! (`DynServiceAccounts`) an in-process core service's gateway principal is
+//! ensured through.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,12 +29,12 @@ use systemprompt_security::{
 };
 use systemprompt_traits::{
     AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion, DatabaseHandle,
-    DynAdminBootstrap, DynGatewaySessionMint, DynRateLimitBuckets, DynSignInSessions,
-    DynUserProvider, DynUserRetention,
+    DynAdminBootstrap, DynGatewaySessionMint, DynRateLimitBuckets, DynServiceAccounts,
+    DynSignInSessions, DynUserProvider, DynUserRetention,
 };
 
 use crate::repository::{SessionRepository, UserRateLimitBucketRepository, UserRepository};
-use crate::services::UsersRetention;
+use crate::services::{UsersRetention, UsersServiceAccounts};
 use crate::{
     ApiKeyLifetime, PromoteResult, User, UserAdminService, UserRole, UserService,
     UsersGatewaySessionMint,
@@ -51,6 +53,13 @@ pub(crate) fn user_provider(r: &Resolved<'_>) -> Result<DynUserProvider, Provide
         UserService::new(Arc::new(UserRepository::new(&db)))
             .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
     ))
+}
+
+pub(crate) fn service_accounts(r: &Resolved<'_>) -> Result<DynServiceAccounts, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(UsersServiceAccounts::new(UserRepository::new(
+        &db,
+    ))))
 }
 
 pub(crate) fn gateway_session_mint(

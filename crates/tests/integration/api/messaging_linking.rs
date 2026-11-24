@@ -68,7 +68,7 @@ impl Ctx {
     }
 
     async fn owner(&self, roles: &[&str]) -> anyhow::Result<User> {
-        let repo = self.app.user_repository();
+        let repo = systemprompt_test_fixtures::user_repository(&self.app);
         let user = repo
             .create(&format!("member-{}", self.tag), &self.email(), None, None)
             .await?;
@@ -91,9 +91,7 @@ impl Ctx {
     }
 
     async fn roles_of(&self, id: &UserId) -> anyhow::Result<Vec<String>> {
-        Ok(self
-            .app
-            .user_repository()
+        Ok(systemprompt_test_fixtures::user_repository(&self.app)
             .find_by_id(id)
             .await?
             .map(|user| user.roles)
@@ -103,7 +101,9 @@ impl Ctx {
     async fn cleanup(&self, id: &UserId) {
         let plan = systemprompt_extension::AdmittedPurge::of(self.app.admitted().built())
             .expect("the fixture composition admits its purge plan");
-        let _ = self.app.user_repository().delete(id, &plan).await;
+        let _ = systemprompt_test_fixtures::user_repository(&self.app)
+            .delete(id, &plan)
+            .await;
     }
 }
 
@@ -167,8 +167,7 @@ async fn an_admin_owner_is_never_claimed_by_a_workspace_sender() -> anyhow::Resu
 async fn a_suspended_owner_is_never_claimed_by_a_workspace_sender() -> anyhow::Result<()> {
     let ctx = setup().await?;
     let owner = ctx.owner(&["user"]).await?;
-    ctx.app
-        .user_repository()
+    systemprompt_test_fixtures::user_repository(&ctx.app)
         .update_status(&owner.id, UserStatus::Suspended)
         .await?;
 
@@ -196,8 +195,7 @@ async fn an_existing_link_to_a_suspended_account_is_denied_before_any_token() ->
 {
     let ctx = setup().await?;
     let id = first_contact(&ctx).await?;
-    ctx.app
-        .user_repository()
+    systemprompt_test_fixtures::user_repository(&ctx.app)
         .update_status(&id, UserStatus::Suspended)
         .await?;
 

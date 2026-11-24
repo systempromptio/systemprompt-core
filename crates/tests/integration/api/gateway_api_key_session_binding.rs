@@ -40,7 +40,7 @@ fn gateway_http_state(
             .expect("request authenticator"),
         api_keys: systemprompt_gateway_entry::http::state::GatewayApiKeys::new(
             systemprompt_users::ApiKeyService::new(
-                std::sync::Arc::clone(ctx.user_repository()),
+                systemprompt_test_fixtures::user_repository(&ctx),
                 systemprompt_users::ApiKeyLifetime::from_max_days(
                     ctx.config().api_key_max_lifetime_days,
                 ),
@@ -90,7 +90,7 @@ pub(super) async fn sign_in(
 
 async fn key_for(ctx: &AppContext, cred: &AuthedFixture) -> Result<NewApiKey> {
     Ok(ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
+        systemprompt_test_fixtures::user_repository(&ctx),
         systemprompt_users::ApiKeyLifetime::unbounded(),
     )
     .issue(IssueApiKeyParams {
@@ -139,7 +139,9 @@ async fn a_key_without_a_session_header_gets_one_minted_and_bound() -> Result<()
     );
     assert!(first.client_session().is_none());
     let key_id = &first.api_key().expect("api key principal").api_key_id;
-    let bound = ctx.user_repository().find_api_key_session(key_id).await?;
+    let bound = systemprompt_test_fixtures::user_repository(&ctx)
+        .find_api_key_session(key_id)
+        .await?;
     assert_eq!(bound.as_ref(), Some(first.session_id()));
     Ok(())
 }

@@ -90,7 +90,7 @@ async fn connect_profile_database(
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
     let admins =
-        crate::kernel::admin_bootstrap(host.admitted()?, Arc::<Database>::clone(&db_pool))?;
+        systemprompt_runtime::admin_bootstrap(host.admitted()?, Arc::<Database>::clone(&db_pool))?;
     Ok((db_pool, admins))
 }
 

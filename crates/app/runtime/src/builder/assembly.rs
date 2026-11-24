@@ -10,9 +10,8 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_models::auth::UserRole;
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
-use systemprompt_users::UserService;
+use systemprompt_traits::DynAdminBootstrap;
 
 use crate::context::AppContext;
 use crate::error::{RuntimeError, RuntimeResult};
@@ -34,32 +33,31 @@ pub(super) fn assemble_content(config: &Config, app_paths: &AppPaths) -> Content
 
 pub(crate) async fn load_system_admin(
     config: &Config,
-    users: &Arc<UserService>,
+    admins: &DynAdminBootstrap,
 ) -> RuntimeResult<Arc<SystemAdmin>> {
     let cfg = SystemAdminConfig {
         username: config.system_admin_username.clone(),
         email: config.system_admin_email.clone(),
     };
-    let resolved = resolve_system_admin(&cfg, users.as_ref()).await?;
+    let resolved = resolve_system_admin(&cfg, admins).await?;
     Ok(Arc::new(resolved))
 }
 
 async fn resolve_system_admin(
     cfg: &SystemAdminConfig,
-    users: &UserService,
+    admins: &DynAdminBootstrap,
 ) -> RuntimeResult<SystemAdmin> {
-    let user = users.find_by_name(&cfg.username).await?.ok_or_else(|| {
+    let user = admins.find_by_name(&cfg.username).await?.ok_or_else(|| {
         RuntimeError::SystemAdminNotFound {
             username: cfg.username.clone(),
         }
     })?;
-    if !user.is_active() {
+    if !user.active {
         return Err(RuntimeError::SystemAdminInactive {
             username: cfg.username.clone(),
         });
     }
-    let admin_role = UserRole::Admin.as_str();
-    if !user.roles.iter().any(|r| r == admin_role) {
+    if !user.is_admin() {
         return Err(RuntimeError::SystemAdminMissingRole {
             username: cfg.username.clone(),
         });

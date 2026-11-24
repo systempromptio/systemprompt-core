@@ -35,8 +35,6 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let data = DataPlane {
         database: Arc::clone(&pool),
-        user_service: None,
-        user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
             &pool,
             test_instance.clone(),
@@ -48,7 +46,6 @@ async fn plane_debug_impls_flag_optional_members() {
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");
-    assert!(dbg.contains("user_service: false"), "got: {dbg}");
 
     let app_paths = Arc::new(
         AppPaths::from_profile(

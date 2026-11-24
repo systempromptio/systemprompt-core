@@ -283,7 +283,7 @@ async fn issue_key(
     systemprompt_test_fixtures::seed_user_row(pool, &user, &format!("key-{uniq}@example.invalid"))
         .await?;
     let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
+        systemprompt_test_fixtures::user_repository(&ctx),
         systemprompt_users::ApiKeyLifetime::unbounded(),
     );
     let issued = service

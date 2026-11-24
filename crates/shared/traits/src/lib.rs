@@ -108,6 +108,7 @@ pub mod run_origin;
 pub mod runner_service;
 pub mod secret;
 pub mod secret_pattern;
+pub mod service_accounts;
 pub use process_liveness::ProcessLiveness;
 pub use run_origin::RunOrigin;
 pub use runner_service::RunnerService;
@@ -119,6 +120,9 @@ pub use secret::{
 pub use secret_pattern::{
     CORE_SECRET_NAMES, LICENCE_SIGNING_SECRET, MCP_CREDENTIAL_BROKER_SECRET, SecretPattern,
     SecretPatternError, is_core_secret_name,
+};
+pub use service_accounts::{
+    DynServiceAccounts, ServiceAccount, ServiceAccountError, ServiceAccountRequest, ServiceAccounts,
 };
 pub mod storage;
 pub mod stream_drain;

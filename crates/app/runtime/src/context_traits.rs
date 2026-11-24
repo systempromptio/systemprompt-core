@@ -8,13 +8,12 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{HasRouteClassifier, HasUserService};
+use systemprompt_extension::HasRouteClassifier;
 use systemprompt_models::RouteClassifier;
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
     FingerprintProvider, UserProvider,
 };
-use systemprompt_users::UserService;
 
 use crate::AppContext;
 
@@ -53,17 +52,10 @@ impl AppContextTrait for AppContext {
     }
 
     fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
-        let concrete = Arc::clone(self.data.user_service.as_ref()?);
-        let provider: Arc<dyn UserProvider> = concrete;
-        Some(provider)
-    }
-}
-
-impl HasUserService for AppContext {
-    type UserService = Arc<UserService>;
-
-    fn user_service(&self) -> Option<&Self::UserService> {
-        self.data.user_service.as_ref()
+        self.kernel
+            .state()
+            .find::<systemprompt_traits::DynUserProvider>()
+            .cloned()
     }
 }
 

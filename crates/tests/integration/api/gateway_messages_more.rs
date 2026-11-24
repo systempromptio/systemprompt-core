@@ -369,7 +369,7 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "auth-apikey@example.invalid").await?;
     let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
+        systemprompt_test_fixtures::user_repository(&ctx),
         systemprompt_users::ApiKeyLifetime::unbounded(),
     );
     let issued = service

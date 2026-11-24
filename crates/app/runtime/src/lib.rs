@@ -7,13 +7,14 @@
 //!
 //! Public APIs return [`RuntimeResult<T>`]. [`RuntimeError`] composes
 //! upstream typed errors (`ConfigError`, `RepositoryError`,
-//! `FilesError`, `UserError`, `LoaderError`,
+//! `FilesError`, `LoaderError`,
 //! `ProfileBootstrapError`, `PathError`) via `#[from]`; every variant
 //! built from another error keeps it as its source.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod admin_bootstrap;
 mod builder;
 mod context;
 mod context_traits;
@@ -29,6 +30,7 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
+pub use admin_bootstrap::{ADMIN_BOOTSTRAP_OWNER, AdminBootstrapUnavailable, admin_bootstrap};
 pub use builder::kernel_binders::{
     ApiKernelBinders, ApiLateBinders, KernelBinders, PendingBinders,
 };

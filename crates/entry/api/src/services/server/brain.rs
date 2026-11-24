@@ -66,8 +66,13 @@ async fn brain_model_client(
     let sessions = ctx
         .session_provider()
         .context("brain extraction requires a session provider")?;
+    let accounts = ctx
+        .kernel()
+        .state()
+        .get::<systemprompt_traits::DynServiceAccounts>()
+        .context("brain extraction requires the users member's service accounts")?;
     let principal = ServicePrincipal::resolve(
-        ctx.user_repository(),
+        accounts.as_ref(),
         sessions,
         ServiceIdentity {
             name: ServiceName::try_new(BRAIN_ACTOR)?,

@@ -6,9 +6,9 @@
 use std::sync::Arc;
 
 use systemprompt::CompositionError;
-use systemprompt_cli::kernel::{AdminBootstrapUnavailable, admin_bootstrap};
 use systemprompt_extension::Admitted;
 use systemprompt_extension::admitted::AdmittedParts;
+use systemprompt_runtime::{AdminBootstrapUnavailable, admin_bootstrap};
 use systemprompt_traits::{AdminBootstrapError, DatabaseHandle, DynAdminBootstrap};
 
 use crate::probe::{Probe, build_with, profile};

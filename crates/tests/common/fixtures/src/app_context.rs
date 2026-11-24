@@ -57,6 +57,10 @@ pub fn oauth_repositories(
         .expect("the oauth member provides its repositories on the API host")
 }
 
+pub fn user_repository(ctx: &AppContext) -> Arc<systemprompt_users::UserRepository> {
+    Arc::new(systemprompt_users::UserRepository::new(ctx.db_pool()))
+}
+
 pub fn fixture_session_usage(db: &DbPool) -> systemprompt_traits::DynSessionUsageCounters {
     Arc::new(systemprompt_users::SessionRepository::new(db))
 }

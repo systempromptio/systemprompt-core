@@ -6,16 +6,16 @@
 //! [`Kernel::resolve`] -> the stages that read the resolved state (authz,
 //! governance, repositories) -> the context. The kernel is seeded with plain
 //! handles ([`kernel_state`]) before it resolves, so every member's provide
-//! fn, slot and governance surface reads the kernel seeds; the authz hook,
-//! policy engine and user service (over the admitted owner reassignments) are
-//! built from what it resolved. The host seeds the read half of the authz hook
-//! cell (`AuthzHookCell`) and binds it, through the binder it kept out of the
-//! state, as soon as the hook exists, so a member service that decides
-//! through the cell denies until then and decides through the one hook from
-//! then on. The host seeds the read half of the document store cell
-//! (`DocumentsHandlesSlot`) too and binds it, through its binder, to the
-//! handles the `documents` member provides sealed, right after the kernel
-//! resolves. A failing step propagates as
+//! fn, slot and governance surface reads the kernel seeds; the authz hook and
+//! policy engine are built from what it resolved, and the system admin is
+//! resolved before it through the users member's admin-bootstrap view. The host
+//! seeds the read half of the authz hook cell (`AuthzHookCell`) and binds it,
+//! through the binder it kept out of the state, as soon as the hook exists, so
+//! a member service that decides through the cell denies until then and decides
+//! through the one hook from then on. The host seeds the read half of the
+//! document store cell (`DocumentsHandlesSlot`) too and binds it, through its
+//! binder, to the handles the `documents` member provides sealed, right after
+//! the kernel resolves. A failing step propagates as
 //! [`RuntimeError`](crate::error::RuntimeError); helpers are in [`assembly`].
 //!
 //! [`Kernel::resolve`]: crate::Kernel::resolve
@@ -43,7 +43,7 @@ use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::{Admitted, AdmittedOwnerReassignments};
+use systemprompt_extension::Admitted;
 use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
@@ -51,7 +51,6 @@ use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::services::root::ActiveProfilePath;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
-use systemprompt_users::UserService;
 
 use crate::context::{
     AppContext, ConfigPlane, ContextPlanes, DataPlane, ShutdownRequest, Subsystems,
@@ -130,7 +129,7 @@ impl AppContextBuilder {
 
         let content = assembly::assemble_content(&config, &app_paths);
         let seeded = seeded_repositories(&database, &config.instance_id);
-        let system_admin = load_identity(&self.boot, &seeded.users).await?;
+        let system_admin = load_identity(&self.boot, &self.admitted, &database).await?;
         let (router, bridge, listener_pool) =
             event_plane(self.event_router, &database, &config, &cache_epochs);
         drop(listener_pool);
@@ -221,10 +220,6 @@ impl AppContextBuilder {
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
         bind_secret_scanner(&governance.get(), binders.base.secret_scanner)?;
-        let user_service = Arc::new(
-            UserService::new(Arc::clone(&seeded.users))
-                .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
-        );
         let repositories = build_domain_layer(
             &seeded,
             &system_admin,
@@ -253,7 +248,7 @@ impl AppContextBuilder {
 
         AppContext::from_parts(
             ContextPlanes {
-                data: build_data_plane(database, user_service, repositories),
+                data: build_data_plane(database, repositories),
                 cfg: ConfigPlane {
                     boot: self.boot,
                     config,

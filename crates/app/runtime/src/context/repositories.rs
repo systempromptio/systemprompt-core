@@ -7,15 +7,10 @@
 use std::sync::Arc;
 
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
-use systemprompt_users::UserRepository;
 
 use super::AppContext;
 
 impl AppContext {
-    pub const fn user_repository(&self) -> &Arc<UserRepository> {
-        &self.data.user_repository
-    }
-
     pub const fn service_repository(&self) -> &Arc<ServiceRepository> {
         &self.data.service_repository
     }

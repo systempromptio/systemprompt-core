@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{HasRouteClassifier, HasUserService};
+use systemprompt_extension::HasRouteClassifier;
 use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
@@ -14,6 +14,13 @@ use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry,
     DynLeaseRepository, FileStorage, SecretStore,
 };
+
+fn state_has_user_provider(ctx: &AppContext) -> bool {
+    ctx.kernel()
+        .state()
+        .find::<systemprompt_traits::DynUserProvider>()
+        .is_some()
+}
 
 async fn context() -> (Arc<AppContext>, String) {
     ensure_test_bootstrap();
@@ -36,7 +43,7 @@ async fn the_provider_view_shares_the_concrete_config_and_database() {
     assert!(view.session_provider().is_some());
     assert_eq!(
         view.user_provider().is_some(),
-        HasUserService::user_service(ctx.as_ref()).is_some()
+        state_has_user_provider(&ctx)
     );
     assert_eq!(
         view.fingerprint_provider().is_some(),

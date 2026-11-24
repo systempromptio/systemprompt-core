@@ -126,6 +126,7 @@ impl Extension for UsersExtension {
             })
             .job(UserRateLimitPruneJob)
             .provide_sealed(crate::provides::user_retention)
+            .provide_sealed(crate::provides::service_accounts)
             .provide_sealed_after_governance(crate::provides::user_provider)
             .job(CleanupAnonymousUsersJob)
             .job(CleanupInactiveSessionsJob);

@@ -19,7 +19,6 @@ use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_models::RouteClassifier;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
-use systemprompt_users::{UserRepository, UserService};
 
 use super::ShutdownRequest;
 
@@ -32,15 +31,10 @@ pub struct ContextPlanes {
     pub subsystems: Subsystems,
 }
 
-/// Database pool and the data-access services layered on it.
-///
-/// `user_service` is `None` when it failed to initialise; callers must
-/// degrade gracefully.
+/// Database pool and the platform repositories layered on it.
 #[derive(Clone)]
 pub struct DataPlane {
     pub database: DbPool,
-    pub user_service: Option<Arc<UserService>>,
-    pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
 }

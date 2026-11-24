@@ -63,6 +63,7 @@ pub use services::{
     DeviceCertService, EnrollDeviceCertServiceParams, EnsuredApiKey, IssueApiKeyParams,
     OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink, PromoteResult, PurgedArchive,
     UpdateUserParams, UserAdminService, UserRoleAudienceResolver, UserService,
+    UsersServiceAccounts,
 };
 
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};

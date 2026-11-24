@@ -1,0 +1,29 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The runtime resolves the configured system admin through the users member's admin-bootstrap view and reads the user directory from the kernel state; it no longer depends on `systemprompt-users`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`ServiceAccounts`, `DynServiceAccounts`, `ServiceAccountRequest`, `ServiceAccount` and `ServiceAccountError`: the service-account directory an in-process core service's gateway principal is ensured through."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "`UsersServiceAccounts`, provided sealed as `DynServiceAccounts`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`ServicePrincipal::resolve` takes `&dyn ServiceAccounts` instead of `&UserRepository`; `PrincipalError::Account` carries a `ServiceAccountError`. The crate no longer depends on `systemprompt-users`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::user_repository`, `DataPlane::{user_service, user_repository}` and `RuntimeError::Users` are removed; `admin_bootstrap`, `AdminBootstrapUnavailable` and `ADMIN_BOOTSTRAP_OWNER` move here from `systemprompt_cli::kernel`; `RuntimeError::{AdminBootstrap, AdminLookup}` are added. `AppContext::user_provider` reads the users member's `DynUserProvider`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "The `HasUserService` capability trait is removed."

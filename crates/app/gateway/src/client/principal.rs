@@ -1,11 +1,11 @@
 //! The service principal an in-process gateway call runs as.
 //!
 //! A core service calls models as its own non-human user: a service account
-//! ensured through [`UserRepository::ensure_service_account`] (created active
-//! with the plain `user` role, `account_kind = service`), so the gateway's
-//! policy, quota windows and audit rows key on it like on any other principal.
-//! Dispatch refuses a request without a session, so the principal also holds
-//! a gateway session minted in-process, the same `user_sessions` row
+//! ensured through the users member's `ServiceAccounts` directory (created
+//! active with the plain `user` role, `account_kind = service`), so the
+//! gateway's policy, quota windows and audit rows key on it like on any other
+//! principal. Dispatch refuses a request without a session, so the principal
+//! also holds a gateway session minted in-process, the same `user_sessions` row
 //! `POST /api/public/gateway/sessions` mints, and re-mints it once expired.
 //! The service carries no API key, so no per-key quota window applies: its
 //! limits are the gateway policy's quotas on the service account.
@@ -21,8 +21,9 @@ use systemprompt_identifiers::{
     ClientId, ScopeDimension, ServiceName, SessionId, SessionSource, UserId,
 };
 use systemprompt_models::attribution::{AttributionEntry, AttributionSource, RequestAttribution};
-use systemprompt_traits::{CreateSessionInput, SessionAnalytics, SessionProvider};
-use systemprompt_users::{NewServiceAccount, UserRepository};
+use systemprompt_traits::{
+    CreateSessionInput, ServiceAccountRequest, ServiceAccounts, SessionAnalytics, SessionProvider,
+};
 use tokio::sync::Mutex;
 
 use super::error::PrincipalError;
@@ -67,26 +68,26 @@ impl std::fmt::Debug for ServicePrincipal {
 
 impl ServicePrincipal {
     pub async fn resolve(
-        users: &UserRepository,
+        accounts: &dyn ServiceAccounts,
         sessions: Arc<dyn SessionProvider>,
         identity: ServiceIdentity,
     ) -> Result<Self, PrincipalError> {
-        let ensured = users
-            .ensure_service_account(NewServiceAccount {
+        let ensured = accounts
+            .ensure(ServiceAccountRequest {
                 name: identity.name.as_str().to_owned(),
                 email: identity.email,
                 created_by: identity.created_by,
             })
             .await
             .map_err(PrincipalError::Account)?;
-        if !ensured.user.is_service_account() {
+        if !ensured.service {
             return Err(PrincipalError::NotService);
         }
         let purpose_dimension =
             ScopeDimension::try_new(PURPOSE_DIMENSION).map_err(PrincipalError::Identity)?;
         Ok(Self {
-            access_scope: AccessScope::from_roles(&ensured.user.roles),
-            user_id: ensured.user.id,
+            access_scope: AccessScope::from_roles(&ensured.roles),
+            user_id: ensured.id,
             client_id: ClientId::system(&identity.name),
             purpose_dimension,
             sessions,

@@ -50,7 +50,7 @@ fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
         uploads: Some(Arc::clone(
             &systemprompt_test_fixtures::documents_handles(ctx).uploads,
         )),
-        users: Arc::clone(ctx.user_repository()),
+        users: systemprompt_test_fixtures::user_repository(&ctx),
         links: Arc::new(
             systemprompt_documents::links::ApiLinkIssuer::new(
                 "http://127.0.0.1:1",

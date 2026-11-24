@@ -27,7 +27,6 @@ use admin_bootstrap::{
 use systemprompt_extension::Admitted;
 use systemprompt_extension::cli::CliConfig;
 
-use crate::kernel::admin_bootstrap;
 
 pub(super) async fn create_local_session(
     profile_ctx: &ProfileContext<'_>,
@@ -54,7 +53,7 @@ pub(super) async fn create_local_session(
     }
 
     let db_pool = connect_database(&secrets).await?;
-    let admins = admin_bootstrap(
+    let admins = systemprompt_runtime::admin_bootstrap(
         admitted,
         std::sync::Arc::<systemprompt_database::Database>::clone(&db_pool),
     )?;
@@ -159,7 +158,7 @@ pub(super) async fn create_session_for_tenant(
     }
 
     let db_pool = connect_database(&secrets).await?;
-    let admins = admin_bootstrap(
+    let admins = systemprompt_runtime::admin_bootstrap(
         admitted,
         std::sync::Arc::<systemprompt_database::Database>::clone(&db_pool),
     )?;

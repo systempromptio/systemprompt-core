@@ -18,7 +18,6 @@ use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, DatabaseHandle, SecretStore};
-use systemprompt_users::UserRepository;
 
 use crate::builder::assembly::load_system_admin;
 use crate::builder::authz::{AuthzBuilt, authz_stage};
@@ -97,14 +96,12 @@ impl HostKernel {
             event_plane(None, &database, &config, &cache_epochs);
         drop(listener_pool);
         let background_tasks = BackgroundTasks::default();
-        let user_repository = Arc::new(UserRepository::new(&database));
-        let system_admin = load_system_admin(
-            &config,
-            &Arc::new(systemprompt_users::UserService::new(Arc::clone(
-                &user_repository,
-            ))),
+        let admins = crate::admin_bootstrap(
+            &admitted,
+            Arc::<systemprompt_database::Database>::clone(&database),
         )
-        .await?;
+        .map_err(RuntimeError::from)?;
+        let system_admin = load_system_admin(&config, &admins).await?;
         let system_owner = system_admin.id().clone();
 
         let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);

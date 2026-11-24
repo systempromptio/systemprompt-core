@@ -1,11 +1,11 @@
 //! Exercises trait implementations on [`AppContext`] via the
 //! [`test_app_context`](systemprompt_test_fixtures::test_app_context) helper.
 //! Each test holds the context, dispatches via the relevant trait
-//! (`AppContextTrait`, `HasUserService`, `HasRouteClassifier`), and checks the
+//! (`AppContextTrait`, `HasRouteClassifier`), and checks the
 //! resulting provider Arc / inner reference is wired through unchanged.
 
 use anyhow::Result;
-use systemprompt_extension::{HasRouteClassifier, HasUserService};
+use systemprompt_extension::HasRouteClassifier;
 use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
@@ -27,13 +27,6 @@ async fn app_context_trait_optional_providers_present() -> Result<()> {
     let ctx = build_ctx().await;
     assert!(AppContextTrait::fingerprint_provider(ctx.as_ref()).is_some());
     assert!(AppContextTrait::user_provider(ctx.as_ref()).is_some());
-    Ok(())
-}
-
-#[tokio::test]
-async fn has_user_service_some_when_wired() -> Result<()> {
-    let ctx = build_ctx().await;
-    assert!(HasUserService::user_service(ctx.as_ref()).is_some());
     Ok(())
 }
 

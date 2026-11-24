@@ -13,7 +13,6 @@ impl std::fmt::Debug for AppContext {
             .field("kernel", &self.kernel)
             .field("admitted_members", &self.admitted.built().members().count())
             .field("route_classifier", &"RouteClassifier")
-            .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
             .field("event_bridge", &self.subsystems.event_bridge.status())
             .field("system_admin", &self.subsystems.system_admin.username())
@@ -28,8 +27,6 @@ impl std::fmt::Debug for DataPlane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DataPlane")
             .field("database", &"DbPool")
-            .field("user_service", &self.user_service.is_some())
-            .field("user_repository", &"UserRepository")
             .field("service_repository", &"ServiceRepository")
             .field("coordination", &"CoordinationRepositories")
             .finish()
