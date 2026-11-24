@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Runtime"
+text = "A child stopped with its graceful signal is reported stopped even when it tears down its environment before it exits; a full schema install leaves an unchanged constraint trigger in place instead of taking an exclusive lock on its table; with the documents member disabled the bridge Drive routes are absent (404) instead of failing the gateway router build."

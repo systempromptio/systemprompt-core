@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Identifiers"
+text = "A provider tool use id is the typed `ToolUseId`: `AiContentPart::ToolResult` and `AiContentPart::tool_result`, the thought signature store (`ThoughtSignatureWrite`, `AiThoughtSignatureRepository::find`) and cache (`ThoughtSignatureCache::store`/`lookup`), the policy `AuditTarget`, the governance decision record and the agent run events (`RunEventPayload::ToolUse`/`ToolResult`, `RunEvent::tool_use_id`) take and return it. The serialised value is unchanged."
