@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Schema installer"
+text = "`install_admitted_schemas`, `install_schema_members`, `MigrationService::assess_freshness`, `schema_currency`, `audit_schema_residue` and the table/column validators take the target schema as a typed `SchemaName`; a real install passes `SchemaName::public()`."
