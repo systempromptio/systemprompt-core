@@ -12,13 +12,17 @@ use super::finalize::attach_request_id;
 use super::stages::{self, ScannedDispatch};
 use super::{DispatchError, GatewayError};
 use crate::audit::GatewayAudit;
+use crate::error::GatewayAuditError;
 use crate::registry::GatewayEngines;
 
 async fn commit_admission(audit: &GatewayAudit) -> Result<(), DispatchError> {
     let Err(error) = audit.commit_admission().await else {
         return Ok(());
     };
-    let error = GatewayError::internal("audit admission failed", error);
+    let error = match error {
+        GatewayAuditError::AdmissionLimit { limit } => GatewayError::Saturated { limit },
+        other => GatewayError::internal("audit admission failed", other),
+    };
     match audit
         .fail("Gateway admission failed before provider dispatch")
         .await

@@ -1,8 +1,9 @@
 //! `journal::recover`, `pending`, `flush_on_shutdown` and `spawn_recovery`
-//! over a journal no other test writes to: unreadable receipts are
-//! quarantined, interrupted writes are swept, a receipt whose request is still
-//! in flight is left alone, and one whose request ended without a terminal
-//! receipt is settled as failed with unknown usage.
+//! over a journal no other test writes to: the segments an exited process
+//! left behind are adopted (an unreadable or torn frame is skipped, counted and
+//! never replayed), a receipt whose request is still in flight is left alone,
+//! and one whose request ended without a terminal receipt is settled as failed
+//! with unknown usage.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -10,7 +11,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
 use systemprompt_gateway::audit::journal::{
-    GatewayJournal, flush_on_shutdown, pending, recover, spawn_recovery,
+    GatewayJournal, JOURNAL_TORN_FRAMES_TOTAL, flush_on_shutdown, pending, recover, spawn_recovery,
 };
 use systemprompt_gateway::{GatewayAudit, GatewayRepositories, GatewayRequestContext};
 use systemprompt_governance::policy::AccessScope;
@@ -21,7 +22,7 @@ use systemprompt_models::origin::{
 
 use crate::support::{minimal_request, seed_user, setup_db};
 
-fn private_state_dir() -> PathBuf {
+pub(crate) fn private_state_dir() -> PathBuf {
     systemprompt_test_fixtures::ensure_test_bootstrap()
         .app_paths
         .storage()
@@ -33,7 +34,7 @@ fn private_state_dir() -> PathBuf {
 }
 
 fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
-    GatewayRepositories::new(
+    repos_over(
         db,
         GatewayJournal::open(
             state_dir,
@@ -42,6 +43,13 @@ fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
                 .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
+    )
+}
+
+pub(crate) fn repos_over(db: &DbPool, journal: GatewayJournal) -> GatewayRepositories {
+    GatewayRepositories::new(
+        db,
+        journal,
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
@@ -60,7 +68,7 @@ fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
     )
 }
 
-fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestContext {
+pub(crate) fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestContext {
     GatewayRequestContext {
         ai_request_id,
         user_id: user_id.clone(),
@@ -111,14 +119,6 @@ fn journal_dir(state_dir: &Path) -> PathBuf {
     state_dir.join("gateway-journal")
 }
 
-fn files_with_suffix(dir: &Path, suffix: &str) -> usize {
-    std::fs::read_dir(dir)
-        .expect("read journal dir")
-        .filter_map(Result::ok)
-        .filter(|e| e.file_name().to_string_lossy().ends_with(suffix))
-        .count()
-}
-
 async fn status_of(db: &DbPool, id: &AiRequestId) -> (String, Option<String>) {
     sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
@@ -133,34 +133,75 @@ async fn an_empty_journal_recovers_nothing() {
     let state = private_state_dir();
     let repos = repos_in(&db, &state);
     let journal = repos.settlement().journal;
-    assert_eq!(pending(&journal).await.expect("count"), 0);
+    assert_eq!(pending(&journal).expect("count"), 0);
     assert_eq!(recover(&repos.settlement()).await.expect("recover"), 0);
 }
 
 #[tokio::test]
-async fn unreadable_receipts_are_quarantined_and_temp_files_swept() {
+async fn a_dead_owners_unreadable_segment_is_skipped_and_foreign_files_kept() {
     let db = setup_db().await;
     let state = private_state_dir();
     let repos = repos_in(&db, &state);
     let dir = journal_dir(&state);
-    std::fs::write(dir.join("aa.receipt"), b"short").expect("truncated receipt");
-    std::fs::write(dir.join("bb.receipt"), vec![7u8; 64]).expect("forged receipt");
-    std::fs::write(dir.join("cc.tmp"), b"interrupted").expect("temp file");
+    std::fs::write(dir.join("dead.owner"), b"").expect("dead owner lock");
+    std::fs::write(dir.join("dead-0000000001.seg"), b"short").expect("truncated segment");
+    std::fs::write(dir.join("dead-0000000002.seg"), vec![7u8; 64]).expect("forged segment");
     std::fs::write(dir.join("notes.txt"), b"ignored").expect("foreign file");
 
-    assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
-        2
-    );
     assert_eq!(recover(&repos.settlement()).await.expect("recover"), 0);
 
-    assert_eq!(files_with_suffix(&dir, ".receipt.bad"), 2);
-    assert_eq!(files_with_suffix(&dir, ".tmp"), 0);
+    assert!(!dir.join("dead-0000000001.seg").exists());
+    assert!(!dir.join("dead-0000000002.seg").exists());
+    assert!(!dir.join("dead.owner").exists());
     assert!(dir.join("notes.txt").exists());
+    assert_eq!(pending(&repos.settlement().journal).expect("count"), 0);
+}
+
+#[tokio::test]
+async fn a_torn_tail_of_an_exited_process_is_skipped_logged_and_never_replayed_twice() {
+    use metrics_util::debugging::{DebugValue, DebuggingRecorder};
+
+    let recorder = DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    let _local = metrics::set_default_local_recorder(&recorder);
+    let db = setup_db().await;
+    let state = private_state_dir();
+    let id = {
+        let exited = repos_in(&db, &state);
+        let (audit, id) = admitted_audit(&db, &exited).await;
+        drop(audit);
+        id
+    };
+    let dir = journal_dir(&state);
+    let segment = std::fs::read_dir(&dir)
+        .expect("read journal dir")
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|x| x == "seg"))
+        .expect("the exited process left its segment");
+    let mut bytes = std::fs::read(&segment).expect("segment");
+    bytes.extend_from_slice(&[0x40, 0, 0, 0, 1, 2, 3]);
+    std::fs::write(&segment, bytes).expect("torn tail");
+
+    let repos = repos_in(&db, &state);
+    assert_eq!(recover(&repos.settlement()).await.expect("recover"), 1);
+    let (status, _) = status_of(&db, &id).await;
+    assert_eq!(status, "failed");
+    assert!(!segment.exists(), "an adopted segment is deleted");
+    let torn = snapshotter
+        .snapshot()
+        .into_vec()
+        .into_iter()
+        .find(|(key, _, _, _)| key.key().name() == JOURNAL_TORN_FRAMES_TOTAL)
+        .map(|(_, _, _, value)| value);
+    assert_eq!(torn, Some(DebugValue::Counter(1)));
+
     assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
-        0
+        recover(&repos.settlement()).await.expect("recover"),
+        0,
+        "a settled receipt is never replayed"
     );
+    assert_eq!(pending(&repos.settlement().journal).expect("count"), 0);
 }
 
 #[tokio::test]
@@ -170,26 +211,17 @@ async fn an_in_flight_request_is_left_alone_then_settled_failed_once_it_ends() {
     let repos = repos_in(&db, &state);
     let (audit, id) = admitted_audit(&db, &repos).await;
 
-    assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
-        1
-    );
+    assert_eq!(pending(&repos.settlement().journal).expect("count"), 1);
     assert_eq!(
         recover(&repos.settlement()).await.expect("recover"),
         0,
         "a receipt whose lease is held belongs to a live request"
     );
-    assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
-        1
-    );
+    assert_eq!(pending(&repos.settlement().journal).expect("count"), 1);
 
     drop(audit);
     assert_eq!(recover(&repos.settlement()).await.expect("recover"), 1);
-    assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
-        0
-    );
+    assert_eq!(pending(&repos.settlement().journal).expect("count"), 0);
     let (status, error) = status_of(&db, &id).await;
     assert_eq!(status, "failed");
     assert!(
@@ -209,10 +241,7 @@ async fn the_shutdown_flush_settles_an_abandoned_receipt() {
     drop(audit);
 
     flush_on_shutdown(&repos.settlement()).await;
-    assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
-        0
-    );
+    assert_eq!(pending(&repos.settlement().journal).expect("count"), 0);
     assert_eq!(status_of(&db, &id).await.0, "failed");
 }
 
@@ -225,7 +254,7 @@ async fn the_shutdown_flush_reports_but_keeps_a_live_receipt() {
 
     flush_on_shutdown(&repos.settlement()).await;
     assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
+        pending(&repos.settlement().journal).expect("count"),
         1,
         "the flush must not settle a request still holding its lease"
     );
@@ -246,9 +275,6 @@ async fn the_recovery_task_settles_by_the_shutdown_flush_at_the_latest() {
         tasks.shutdown(std::time::Duration::from_secs(30)).await,
         systemprompt_traits::DrainOutcome::Drained
     );
-    assert_eq!(
-        pending(&repos.settlement().journal).await.expect("count"),
-        0
-    );
+    assert_eq!(pending(&repos.settlement().journal).expect("count"), 0);
     assert_eq!(status_of(&db, &id).await.0, "failed");
 }

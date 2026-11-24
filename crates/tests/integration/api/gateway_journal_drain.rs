@@ -23,11 +23,11 @@ async fn the_shutdown_flush_settles_a_cut_request_and_empties_the_journal() -> a
     let (database, repositories, _state_dir, receipt) =
         admitted_receipt_fixture("gateway_journal_shutdown_flush").await?;
     let settlement = repositories.settlement();
-    assert_eq!(journal::pending(&settlement.journal).await?, 1);
+    assert!(receipt.exists());
 
     journal::flush_on_shutdown(&settlement).await;
 
-    assert_eq!(journal::pending(&settlement.journal).await?, 0);
+    assert_eq!(journal::pending(&settlement.journal)?, 0);
     assert!(!receipt.exists());
     assert_ne!(latest_status(&database).await, "pending");
     database.drop_now().await;
@@ -35,7 +35,7 @@ async fn the_shutdown_flush_settles_a_cut_request_and_empties_the_journal() -> a
 }
 
 #[tokio::test]
-async fn a_settlement_pass_publishes_the_receipts_left_on_disk() -> anyhow::Result<()> {
+async fn a_settlement_pass_publishes_the_receipts_still_held() -> anyhow::Result<()> {
     use metrics_util::debugging::{DebugValue, DebuggingRecorder};
 
     let recorder = DebuggingRecorder::new();
@@ -72,7 +72,7 @@ async fn a_failed_settlement_is_counted_and_the_receipt_stays_on_the_gauge() -> 
     let recorder = DebuggingRecorder::new();
     let snapshotter = recorder.snapshotter();
     let _local = metrics::set_default_local_recorder(&recorder);
-    let (database, repositories, _state_dir, receipt) =
+    let (database, repositories, _state_dir, _receipt) =
         admitted_receipt_fixture("gateway_journal_metrics_fail").await?;
     let pool = database.test_pool().await;
     sqlx::raw_sql(
@@ -95,8 +95,9 @@ async fn a_failed_settlement_is_counted_and_the_receipt_stays_on_the_gauge() -> 
         .collect();
     let value = |name: &str| values.iter().find(|(n, _)| n == name).map(|(_, v)| v);
     assert_eq!(settled, 0);
-    assert!(
-        receipt.exists(),
+    assert_eq!(
+        journal::pending(&repositories.settlement().journal)?,
+        1,
         "a receipt that did not settle is retained"
     );
     assert_eq!(
@@ -125,7 +126,7 @@ async fn draining_background_tasks_runs_the_final_settlement_pass() -> anyhow::R
         outcome.is_drained(),
         "the flush must finish inside the grace"
     );
-    assert_eq!(journal::pending(&settlement.journal).await?, 0);
+    assert_eq!(journal::pending(&settlement.journal)?, 0);
     assert!(!receipt.exists());
     assert_ne!(latest_status(&database).await, "pending");
     database.drop_now().await;

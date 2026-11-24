@@ -120,6 +120,7 @@ async fn a_single_shard_config_keeps_one_row() {
     let sharding = QuotaConfig {
         shared_subject_shards: 1,
         principal_subject_shards: 1,
+        ..QuotaConfig::default()
     };
     for _ in 0..6 {
         reserve(&db, &project, &windows, sharding).await;
@@ -170,6 +171,7 @@ async fn windows_sharing_one_bucket_charge_it_once() {
     let sharding = QuotaConfig {
         shared_subject_shards: 1,
         principal_subject_shards: 1,
+        ..QuotaConfig::default()
     };
     let reservation = match reserve(&db, &project, &[daily, calendar_day], sharding).await {
         ReserveOutcome::Admitted(reservation) => reservation,

@@ -111,6 +111,7 @@ fn quota_shard_counts_outside_one_to_sixty_four_are_rejected() {
         !with_quota(QuotaConfig {
             shared_subject_shards: 64,
             principal_subject_shards: 1,
+            ..QuotaConfig::default()
         })
         .contains("governance.quota")
     );

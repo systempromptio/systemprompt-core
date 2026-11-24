@@ -5,6 +5,8 @@
 #[cfg(test)]
 mod abandon_guard;
 #[cfg(test)]
+mod admission_shed;
+#[cfg(test)]
 mod audit_metrics;
 #[cfg(test)]
 mod audit_payload;

@@ -98,7 +98,8 @@ pub struct GatewayRequestContext {
 )]
 pub struct GatewayAudit {
     settlement: journal::Settlement,
-    journal_lease: std::sync::OnceLock<std::fs::File>,
+    journal_lease: std::sync::OnceLock<journal::JournalLease>,
+    admission_limit: std::num::NonZeroU32,
     admitted_messages: std::sync::OnceLock<i32>,
     pricing_snapshot: Mutex<Option<systemprompt_manifest::services::ModelPricing>>,
     requests: Arc<AiRequestRepository>,
@@ -130,6 +131,7 @@ impl GatewayAudit {
         Self {
             settlement: repos.settlement(),
             journal_lease: std::sync::OnceLock::new(),
+            admission_limit: repos.quota_sharding.admission_limit,
             admitted_messages: std::sync::OnceLock::new(),
             pricing_snapshot: Mutex::new(None),
             requests: Arc::clone(&repos.requests),

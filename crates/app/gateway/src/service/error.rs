@@ -95,6 +95,8 @@ pub enum GatewayError {
     },
     #[error("gateway dispatch has no authenticated session")]
     MissingSession,
+    #[error("gateway is at its limit of {limit} in-flight requests; retry shortly")]
+    Saturated { limit: u32 },
     #[error("gateway {context}")]
     Internal {
         context: &'static str,
@@ -123,7 +125,7 @@ impl GatewayError {
             Self::PolicyUnavailable(_) | Self::GuardUnavailable(_) => {
                 StatusCode::SERVICE_UNAVAILABLE
             },
-            Self::Quota(_) => StatusCode::TOO_MANY_REQUESTS,
+            Self::Quota(_) | Self::Saturated { .. } => StatusCode::TOO_MANY_REQUESTS,
             Self::GuardForbidden(_) | Self::PersonalKeyRequired { .. } => StatusCode::FORBIDDEN,
             Self::CallerCredentialRequired { .. } => StatusCode::UNAUTHORIZED,
             Self::ImageFetch(image) if image.caller_fault() => StatusCode::BAD_REQUEST,
