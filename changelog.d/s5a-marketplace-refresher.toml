@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Marketplace inventory refresh"
+text = "The `managed_inventory_refresh` job reads the inventory refresher its member provides sealed; the open crate-private `MemberRefresher` wrapper is removed, and no other member's context resolves the refresher."
