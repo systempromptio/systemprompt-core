@@ -78,7 +78,15 @@ impl ConfigReconcileService {
         if let Some(users) = ctx.user_provider() {
             dependencies.insert(users);
         }
-        Ok(Self::new(ctx.config_planes()?, repository, dependencies))
+        let config = ctx
+            .kernel()
+            .state()
+            .get::<Arc<systemprompt_manifest::Config>>()?;
+        Ok(Self::new(
+            systemprompt_runtime::config_plane_set(ctx.admitted(), config)?,
+            repository,
+            dependencies,
+        ))
     }
 
     #[must_use]

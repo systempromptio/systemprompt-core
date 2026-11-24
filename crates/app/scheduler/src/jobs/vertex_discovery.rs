@@ -73,12 +73,19 @@ impl Job for VertexDiscoveryJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
         let app = kernel_handles(ctx)?.app();
-        let services = app.services_state().view();
-        let scanned = Self::probe(&services, app.secrets().get())
-            .await
-            .map_or(0, |report| {
-                report.discovered_priced.len() + report.discovered_unpriced.len()
-            });
+        let state = app.kernel().state();
+        let services = state.get::<systemprompt_loader::ServicesState>()?.view();
+        let scanned = Self::probe(
+            &services,
+            state
+                .get::<systemprompt_loader::BootContext>()?
+                .secrets()
+                .get(),
+        )
+        .await
+        .map_or(0, |report| {
+            report.discovered_priced.len() + report.discovered_unpriced.len()
+        });
         Ok(JobResult::success()
             .with_stats(scanned as u64, 0)
             .with_duration(start.elapsed().as_millis() as u64))

@@ -32,9 +32,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
-use systemprompt_identifiers::{Actor, JobName};
+use systemprompt_identifiers::{Actor, InstanceId, JobName, UserId};
+use systemprompt_manifest::Config;
 use systemprompt_manifest::SchedulerConfig;
+use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
 
@@ -48,6 +51,9 @@ use selection::JobLookup;
 
 pub struct JobExecutionService {
     ctx: Arc<AppContext>,
+    db_pool: DbPool,
+    instance_id: InstanceId,
+    admin_id: UserId,
     scheduler_config: SchedulerConfig,
     job_repo: JobRepository,
     scheduler_repo: SchedulerRepository,
@@ -67,17 +73,24 @@ impl JobExecutionService {
         ctx: Arc<AppContext>,
         scheduler_config: SchedulerConfig,
         schedule: Arc<AdmittedSchedule>,
-    ) -> Self {
-        let job_repo = JobRepository::new(ctx.db_pool());
-        let scheduler_repo = SchedulerRepository::new(ctx.db_pool());
-        Self {
+    ) -> SchedulerResult<Self> {
+        let state = ctx.kernel().state();
+        let db_pool = state.get::<DbPool>()?.clone();
+        let instance_id = state.get::<Arc<Config>>()?.instance_id.clone();
+        let admin_id = state.get::<SystemAdmin>()?.id().clone();
+        let job_repo = JobRepository::new(&db_pool);
+        let scheduler_repo = SchedulerRepository::new(&db_pool);
+        Ok(Self {
             ctx,
+            db_pool,
+            instance_id,
+            admin_id,
             scheduler_config,
             job_repo,
             scheduler_repo,
             lock_wait: Duration::ZERO,
             schedule,
-        }
+        })
     }
 
     #[must_use]
@@ -159,7 +172,7 @@ impl JobExecutionService {
         parameters: &HashMap<String, String>,
         start: Instant,
     ) -> JobRunReport {
-        let admin_id = self.ctx.system_admin().id().clone();
+        let admin_id = self.admin_id.clone();
         let actor = Actor::job(admin_id, job_name.as_str());
         let config_entry = self
             .scheduler_config
@@ -178,6 +191,7 @@ impl JobExecutionService {
                 budget: job.db_budget(),
             },
             &self.ctx,
+            &self.db_pool,
             &self.schedule,
         )
         .with_enforce(enforce)
@@ -243,7 +257,7 @@ impl JobExecutionService {
                         .then_some(report.message.as_deref())
                         .flatten(),
                     next_run,
-                    instance_id: &self.ctx.config().instance_id,
+                    instance_id: &self.instance_id,
                 },
             )
             .await

@@ -38,9 +38,14 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
-use systemprompt_identifiers::{JobName, UserId};
+use systemprompt_identifiers::{InstanceId, JobName, UserId};
+use systemprompt_loader::BootContext;
+use systemprompt_logging::LoggingRuntime;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job as JobTrait;
+use systemprompt_traits::{BackgroundTasks, Dependencies};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
@@ -152,6 +157,12 @@ pub struct SchedulerService {
     users: Option<systemprompt_traits::DynUserProvider>,
     logging_repository: systemprompt_logging::LoggingRepository,
     app_context: Arc<AppContext>,
+    db_pool: DbPool,
+    instance_id: InstanceId,
+    system_admin_id: UserId,
+    log_instance_id: Option<InstanceId>,
+    deployment: Dependencies,
+    background_tasks: BackgroundTasks,
     schedule: Arc<AdmittedSchedule>,
     clock: DynSchedulerClock,
 }
@@ -171,23 +182,34 @@ impl SchedulerService {
         db_pool: &DbPool,
         app_context: Arc<AppContext>,
         schedule: Arc<AdmittedSchedule>,
-    ) -> Self {
+    ) -> SchedulerResult<Self> {
         let repository = SchedulerRepository::new(db_pool);
-        let users = app_context
-            .kernel()
-            .state()
+        let state = app_context.kernel().state();
+        let users = state
             .find::<systemprompt_traits::DynUserProvider>()
             .cloned();
+        let kernel_pool = state.get::<DbPool>()?.clone();
+        let instance_id = state.get::<Arc<Config>>()?.instance_id.clone();
+        let system_admin_id = state.get::<SystemAdmin>()?.id().clone();
+        let log_instance_id = state.get::<LoggingRuntime>()?.instance_id().cloned();
+        let deployment = deployment_dependencies(state.get::<BootContext>()?);
+        let background_tasks = state.get::<BackgroundTasks>()?.clone();
         let logging_repository = systemprompt_logging::LoggingRepository::new(db_pool);
-        Self {
+        Ok(Self {
             config,
             repository,
             users,
             logging_repository,
             app_context,
+            db_pool: kernel_pool,
+            instance_id,
+            system_admin_id,
+            log_instance_id,
+            deployment,
+            background_tasks,
             schedule,
             clock: Arc::new(SystemClock),
-        }
+        })
     }
 
     #[must_use]
@@ -247,7 +269,7 @@ impl SchedulerService {
     }
 
     fn check_requirements(&self, registered_jobs: &JobMap) -> SchedulerResult<()> {
-        let deployment = deployment_dependencies(self.app_context.boot());
+        let deployment = &self.deployment;
         for job_config in self.config.jobs.iter().filter(|j| j.enabled) {
             let Some(job) = registered_jobs.get(job_config.name.as_str()) else {
                 continue;
@@ -263,6 +285,7 @@ impl SchedulerService {
                 &job_config.name,
                 job.db_budget(),
                 &self.app_context,
+                &self.db_pool,
                 &self.schedule,
             );
             if let Some(unmet) = requirements.iter().find(|r| !r.is_met_by(&state)) {

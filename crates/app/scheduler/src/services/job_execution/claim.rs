@@ -35,7 +35,7 @@ impl JobExecutionService {
             &self.scheduler_config,
             job_config,
             Some(job),
-            &self.ctx.config().instance_id,
+            &self.instance_id,
         );
         if policy != ClaimPolicy::Cluster {
             return Ok(Claimed::Free);

@@ -16,7 +16,7 @@
 
 use super::dispatch::Trigger;
 use super::instants::{CronInstants, DynSchedulerClock};
-use super::{RegistrationCtx, SchedulerService, deployment_dependencies, dispatch};
+use super::{RegistrationCtx, SchedulerService, dispatch};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobConfig, SkippedJob};
 use std::sync::Arc;
@@ -72,7 +72,7 @@ impl SchedulerService {
 
     async fn persist_registration_errors(&self, skipped: &[SkippedJob]) {
         let repository = &self.logging_repository;
-        let system_admin_id = self.app_context.system_admin().id().clone();
+        let system_admin_id = self.system_admin_id.clone();
         for job in skipped {
             let actor = LogActor::new(
                 system_admin_id.clone(),
@@ -89,7 +89,7 @@ impl SchedulerService {
                 ),
                 actor,
             );
-            let entry = match self.app_context.logging().instance_id() {
+            let entry = match self.log_instance_id.as_ref() {
                 Some(instance_id) => entry.with_instance_id(instance_id.clone()),
                 None => entry,
             };
@@ -113,7 +113,7 @@ impl SchedulerService {
             return Err(SchedulerError::job_not_found(job_config.name.clone()));
         };
 
-        if !registered_job.configured(&deployment_dependencies(self.app_context.boot())) {
+        if !registered_job.configured(&self.deployment) {
             debug!(job = %job_config.name, "Job is not configured in this deployment; not scheduled");
             return Ok(Registered::No);
         }
@@ -163,7 +163,7 @@ impl SchedulerService {
             &self.config,
             Some(job_config),
             Some(registered_job.as_ref()),
-            &self.app_context.config().instance_id,
+            &self.instance_id,
         );
         let ticker = Ticker {
             dispatch: dispatch::JobDispatch {
@@ -172,6 +172,8 @@ impl SchedulerService {
                 actor,
                 repository: self.repository.clone(),
                 app_context: Arc::clone(&self.app_context),
+                db_pool: self.db_pool.clone(),
+                instance_id: self.instance_id.clone(),
                 running_jobs: Arc::clone(ctx.running_jobs),
                 claim_policy,
                 enforce: job_config.enforce,

@@ -46,8 +46,7 @@ impl SchedulerService {
         if due.is_empty() {
             return;
         }
-        self.app_context
-            .background_tasks()
+        self.background_tasks
             .spawn("scheduler_missed_runs", async move {
                 for (ticker, missed) in due {
                     for instant in missed {

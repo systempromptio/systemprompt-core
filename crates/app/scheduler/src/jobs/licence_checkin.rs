@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -128,7 +129,11 @@ impl Job for LicenceCheckinJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
         let app = kernel_handles(ctx)?.app();
-        let profile = app.profile();
+        let boot = app
+            .kernel()
+            .state()
+            .get::<systemprompt_loader::BootContext>()?;
+        let profile = boot.profile();
         if !profile.licence.enabled() {
             debug!("licence.multi_tenant is off; no check-in");
             return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));
@@ -145,7 +150,9 @@ impl Job for LicenceCheckinJob {
         repository.mark_attempt().await?;
 
         let roles = match app
-            .service_repository()
+            .kernel()
+            .state()
+            .get::<Arc<systemprompt_database::ServiceRepository>>()?
             .count_live_instances_by_role()
             .await
         {
@@ -157,11 +164,15 @@ impl Job for LicenceCheckinJob {
         };
         let checkin = build_checkin(
             profile,
-            app.config().instance_id.clone(),
+            app.kernel()
+                .state()
+                .get::<Arc<systemprompt_manifest::Config>>()?
+                .instance_id
+                .clone(),
             &roles,
             Utc::now(),
         );
-        let secret = app.secrets().get().get(LICENCE_SIGNING_SECRET).cloned();
+        let secret = boot.secrets().get().get(LICENCE_SIGNING_SECRET).cloned();
         match post_checkin(&profile.licence, secret.as_deref(), &checkin).await {
             Ok(status) => {
                 info!(

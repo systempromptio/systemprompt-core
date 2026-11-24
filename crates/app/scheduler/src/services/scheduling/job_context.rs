@@ -30,7 +30,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::BudgetedDb;
+use systemprompt_database::{BudgetedDb, DbPool};
 use systemprompt_extension::{AdmittedSchedule, StandingTag};
 use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_loader::BootContext;
@@ -64,9 +64,10 @@ pub(crate) struct JobRun<'a> {
 pub(crate) fn make_job_context(
     run: JobRun<'_>,
     app_context: &Arc<AppContext>,
+    db_pool: &DbPool,
     schedule: &AdmittedSchedule,
 ) -> JobContext {
-    let dependencies = job_dependencies(run.job_name, run.budget, app_context, schedule);
+    let dependencies = job_dependencies(run.job_name, run.budget, app_context, db_pool, schedule);
     match schedule.owner_of(run.job_name.as_str()) {
         Some((owner, _)) => JobContext::for_member(run.actor, dependencies, owner),
         None => JobContext::new(run.actor, dependencies),
@@ -77,13 +78,14 @@ pub(crate) fn job_dependencies(
     job_name: &JobName,
     budget: Option<DbBudget>,
     app_context: &Arc<AppContext>,
+    db_pool: &DbPool,
     schedule: &AdmittedSchedule,
 ) -> Dependencies {
     let mut dependencies = app_context
         .kernel()
         .state()
         .clone()
-        .with(BudgetedDb::new(Arc::clone(app_context.db_pool()), budget));
+        .with(BudgetedDb::new(Arc::clone(db_pool), budget));
     if is_kernel_job(schedule, job_name) {
         dependencies.insert(KernelJobHandles {
             app: Arc::clone(app_context),

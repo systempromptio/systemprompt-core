@@ -76,7 +76,11 @@ impl Job for DatabaseCleanupJob {
         let start_time = Instant::now();
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let app = kernel_handles(ctx)?.app();
-        let mut retention = app.config().retention;
+        let mut retention = app
+            .kernel()
+            .state()
+            .get::<Arc<systemprompt_manifest::Config>>()?
+            .retention;
         // Why: the parameter predates the profile block and operators still
         // pass it from the CLI; it stays as an override for the logs window.
         if let Some(days) = ctx.get_parameter_parsed::<u32>("log_retention_days")? {
@@ -89,19 +93,24 @@ impl Job for DatabaseCleanupJob {
         let users = app.kernel().state().find::<DynUserRetention>().cloned();
         let orphaned = delete_orphaned_logs(&db_pool, users.as_ref(), ctx.enforce()).await?;
         run_sweeps(ctx, schedule).await?;
-        let plan: Vec<_> = plan(&retention, app.services_state())
-            .into_iter()
-            .filter(|(target, _)| {
-                let owned = owners.owns(*target);
-                if !owned {
-                    debug!(
-                        table = target.table(),
-                        "no admitted member purges this target"
-                    );
-                }
-                owned
-            })
-            .collect();
+        let plan: Vec<_> = plan(
+            &retention,
+            app.kernel()
+                .state()
+                .get::<systemprompt_loader::ServicesState>()?,
+        )
+        .into_iter()
+        .filter(|(target, _)| {
+            let owned = owners.owns(*target);
+            if !owned {
+                debug!(
+                    table = target.table(),
+                    "no admitted member purges this target"
+                );
+            }
+            owned
+        })
+        .collect();
         let holds = schedule.holds();
         let mut passes = Vec::with_capacity(plan.len());
         let mut total = orphaned;
