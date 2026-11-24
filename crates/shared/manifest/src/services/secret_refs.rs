@@ -30,6 +30,7 @@ pub(crate) fn is_secret_key(key: &str) -> bool {
     key.contains("secret") || key.ends_with("_ref") || key.ends_with("_refs")
 }
 
+// JSON: the serialized configuration is walked structurally, at any depth.
 fn strings_below(value: &Value, names: &mut Vec<String>) {
     match value {
         Value::String(name) => {
@@ -44,6 +45,7 @@ fn strings_below(value: &Value, names: &mut Vec<String>) {
     }
 }
 
+// JSON: the serialized configuration is walked structurally, at any depth.
 fn walk(value: &Value, names: &mut Vec<String>) {
     match value {
         Value::Object(map) => {
