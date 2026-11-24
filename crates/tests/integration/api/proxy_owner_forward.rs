@@ -39,11 +39,7 @@ async fn app_with_role(
     config.role = role;
     let ctx = fixture_app_context_with_config(config).await?;
     Ok((
-        with_config(
-            systemprompt_api::routes::proxy::mcp::router(&ctx)
-                .expect("the proxy reads the kernel's connector token cache"),
-            &ctx,
-        ),
+        with_config(super::common::mcp_proxy_router(&ctx), &ctx),
         ctx,
     ))
 }
@@ -129,11 +125,7 @@ settings:
     config.bin_path = boot.bin_path.display().to_string();
     let ctx = fixture_app_context_with_services(config, state).await?;
     Ok(SupervisedApi {
-        app: with_config(
-            systemprompt_api::routes::proxy::mcp::router(&ctx)
-                .expect("the proxy reads the kernel's connector token cache"),
-            &ctx,
-        ),
+        app: with_config(super::common::mcp_proxy_router(&ctx), &ctx),
         service: ServiceName::new(name),
         _boot: boot,
     })

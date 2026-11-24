@@ -8,7 +8,6 @@ use crate::error::ApiHttpError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_mcp::McpDomainError;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::{BoxedSource, RegistryError};
 use thiserror::Error;
@@ -98,7 +97,7 @@ pub enum ProxyError {
     RestartFailed {
         service: String,
         #[source]
-        source: McpDomainError,
+        source: systemprompt_traits::ServiceProcessError,
     },
 
     #[error("Connect your account for '{service}' before using this server")]
@@ -108,7 +107,7 @@ pub enum ProxyError {
     ExternalResolveFailed {
         service: String,
         #[source]
-        source: McpDomainError,
+        source: BoxedSource,
     },
 
     #[error("MCP registry could not be read while resolving '{service}': {source}")]
@@ -118,8 +117,8 @@ pub enum ProxyError {
         source: BoxedSource,
     },
 
-    #[error("No MCP execution audit is available for '{service}'; the tool call is refused")]
-    AuditUnavailable { service: String },
+    #[error("No MCP backends are provided for '{service}'; the request is refused")]
+    McpBackendsUnavailable { service: String },
 
     #[error("The context named for '{service}' is not one the caller owns")]
     ContextNotOwned { service: String },
@@ -141,7 +140,7 @@ pub enum ProxyError {
     SessionLookupFailed {
         service: String,
         #[source]
-        source: McpDomainError,
+        source: BoxedSource,
     },
 
     #[error("The hop token for '{service}' could not be signed")]
@@ -176,6 +175,8 @@ pub enum ResponseBuildError {
     },
     #[error("failed to read the upstream response body")]
     Body(#[source] reqwest::Error),
+    #[error("failed to read the audited upstream response body")]
+    Tap(#[source] std::io::Error),
     #[error("failed to assemble the proxied response")]
     Assemble(#[source] Box<http::Error>),
 }
@@ -188,7 +189,7 @@ impl ProxyError {
             Self::ServiceNotRunning { .. }
             | Self::RestartFailed { .. }
             | Self::NoLiveOwner { .. }
-            | Self::AuditUnavailable { .. } => StatusCode::SERVICE_UNAVAILABLE,
+            | Self::McpBackendsUnavailable { .. } => StatusCode::SERVICE_UNAVAILABLE,
             Self::ConnectionFailed { .. }
             | Self::InvalidResponse { .. }
             | Self::ExternalResolveFailed { .. } => StatusCode::BAD_GATEWAY,
@@ -245,7 +246,7 @@ impl ProxyError {
             Self::ProviderNotConnected { .. } => "provider_not_connected",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",
             Self::ContextNotOwned { .. } => "context_not_owned",
-            Self::AuditUnavailable { .. } => "audit_unavailable",
+            Self::McpBackendsUnavailable { .. } => "mcp_backends_unavailable",
             Self::ContextLookupFailed { .. } => "context_lookup_failed",
         }
     }

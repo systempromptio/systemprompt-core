@@ -29,6 +29,7 @@ use crate::serving::middleware::hop::VerifiedHop;
 use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 use systemprompt_extension::mcp::{
     DynToolExecution, McpAccessOutcome, McpToolset, SharedMcpAccessRecorder, ToolsetCall,
+    VerifiedCaller,
 };
 
 /// What a [`ToolsetServer`] authorises against.
@@ -176,16 +177,25 @@ impl ServerHandler for ToolsetServer {
         self.record(&tool, Some(&context), McpAccessOutcome::Used)
             .await;
         let client = client_profile_from_peer(&ctx);
-        let hop = ctx
-            .extensions
-            .get::<http::request::Parts>()
+        let parts = ctx.extensions.get::<http::request::Parts>();
+        let hop = parts
             .and_then(|parts| parts.extensions.get::<VerifiedHop>())
             .map(|hop| hop.token().clone());
+        let caller = parts
+            .and_then(|parts| parts.extensions.get::<VerifiedCaller>())
+            .cloned()
+            .ok_or_else(|| {
+                tracing::warn!(tool = %tool, "Refused a tool call with no hop-verified caller");
+                McpError::invalid_request(
+                    "This server runs tools only for a caller the platform proxy verified.",
+                    None,
+                )
+            })?;
         self.inner.toolsets[hosted.toolset]
             .call(ToolsetCall {
                 executor: self.inner.executor.as_ref(),
                 request: &request,
-                context: &context,
+                caller: &caller,
                 client: &client,
                 hop: hop.as_ref(),
             })

@@ -1,25 +1,20 @@
-//! Binding of managed MCP sessions to the server and principal that opened
-//! them.
+//! Managed MCP session binding at the proxy edge.
 //!
-//! A session id is a correlation handle, never a credential: every request is
-//! authenticated on its own credential at the edge, and the session id only
-//! selects which backend session the request belongs to. The `initialize`
-//! response that mints a session binds it to `(server, principal)`
-//! ([`bind_issued_session`]); every later request naming a session must come
-//! from the same principal on the same server ([`ensure_bound`]) or it is
-//! answered 404, exactly as for a session that does not exist. Session ids
-//! are not written to logs above debug level.
+//! A managed MCP server issues a session id on `initialize`; the proxy binds
+//! it to the server and the principal that opened it through the MCP
+//! backends, and refuses a later request naming a session that is not bound
+//! to the same pair (404, so the client initializes again).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{McpServerId, ServiceName, SessionId, UserId};
-use systemprompt_mcp::repository::McpProxySessionRepository;
+use systemprompt_extension::router::ProxyBackendResolver;
+use systemprompt_identifiers::{ServiceName, SessionId, UserId};
 
 use super::super::backend::ProxyError;
 
-pub const SESSION_HEADER: &str = "mcp-session-id";
+pub const SESSION_HEADER: &str = systemprompt_identifiers::headers::MCP_SESSION_ID;
 
 pub fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
     headers
@@ -30,7 +25,7 @@ pub fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
 }
 
 pub async fn ensure_bound(
-    sessions: &McpProxySessionRepository,
+    backends: &dyn ProxyBackendResolver,
     request_headers: &HeaderMap,
     service_name: &ServiceName,
     principal: Option<&UserId>,
@@ -38,22 +33,14 @@ pub async fn ensure_bound(
     if request_headers.get(SESSION_HEADER).is_none() {
         return Ok(());
     }
-    let Some(session_id) = session_id_header(request_headers) else {
-        return Err(ProxyError::SessionNotFound {
-            service: service_name.to_string(),
-        });
+    let not_found = || ProxyError::SessionNotFound {
+        service: service_name.to_string(),
     };
-    let bound = sessions
-        .is_bound_to(
-            &session_id,
-            &McpServerId::new(service_name.as_str()),
-            principal,
-        )
+    let session_id = session_id_header(request_headers).ok_or_else(not_found)?;
+    let bound = backends
+        .session_bound(service_name, &session_id, principal)
         .await
-        .map_err(|source| ProxyError::SessionLookupFailed {
-            service: service_name.to_string(),
-            source,
-        })?;
+        .map_err(|error| ProxyError::from_backend(service_name, error))?;
     if bound {
         return Ok(());
     }
@@ -62,14 +49,12 @@ pub async fn ensure_bound(
         session_id = %session_id,
         "MCP session is not bound to this server and principal"
     );
-    Err(ProxyError::SessionNotFound {
-        service: service_name.to_string(),
-    })
+    Err(not_found())
 }
 
 #[derive(Debug)]
 pub struct IssuedSession<'a> {
-    pub sessions: &'a McpProxySessionRepository,
+    pub backends: &'a dyn ProxyBackendResolver,
     pub response: &'a reqwest::Response,
     pub request_headers: &'a HeaderMap,
     pub service_name: &'a ServiceName,
@@ -79,7 +64,7 @@ pub struct IssuedSession<'a> {
 
 pub async fn bind_issued_session(issued: IssuedSession<'_>) -> Result<(), ProxyError> {
     let IssuedSession {
-        sessions,
+        backends,
         response,
         request_headers,
         service_name,
@@ -98,17 +83,10 @@ pub async fn bind_issued_session(issued: IssuedSession<'_>) -> Result<(), ProxyE
     let Some(session_id) = session_id_header(response.headers()) else {
         return Ok(());
     };
-    sessions
-        .bind(
-            &session_id,
-            &McpServerId::new(service_name.as_str()),
-            principal,
-        )
+    backends
+        .bind_session(service_name, &session_id, principal)
         .await
-        .map_err(|source| ProxyError::SessionLookupFailed {
-            service: service_name.to_string(),
-            source,
-        })?;
+        .map_err(|error| ProxyError::from_backend(service_name, error))?;
     tracing::debug!(
         service = %service_name,
         session_id = %session_id,

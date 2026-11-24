@@ -22,9 +22,9 @@ use rmcp::model::{
     ReadResourceResult, Tool,
 };
 use systemprompt_identifiers::JwtToken;
-use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
 
+use super::caller::VerifiedCaller;
 use super::execution::ToolExecution;
 
 /// One tool call, already authenticated and authorised by the host.
@@ -32,7 +32,7 @@ use super::execution::ToolExecution;
 pub struct ToolsetCall<'a> {
     pub executor: &'a dyn ToolExecution,
     pub request: &'a CallToolRequestParams,
-    pub context: &'a RequestContext,
+    pub caller: &'a VerifiedCaller,
     pub client: &'a ClientProfile,
     pub hop: Option<&'a JwtToken>,
 }

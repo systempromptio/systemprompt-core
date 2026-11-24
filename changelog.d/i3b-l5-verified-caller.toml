@@ -1,0 +1,24 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "A tool execution is recorded only for the caller the toolset host restored from a verified platform hop token: `ToolExecution::begin` and `execute` take a `VerifiedCaller` that only the host's hop admission builds, and a tool call reaching the host without one is refused."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`mcp::ToolExecution::begin` and `mcp::execute` take `&VerifiedCaller` instead of `&RequestContext`; `mcp::ToolsetCall` carries `caller` instead of `context`. `mcp::VerifiedCaller` is added."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Breaking"
+text = "`mcp::DocumentsToolCall` carries `caller: &VerifiedCaller` instead of `context`."
+
+[[crate]]
+name = "systemprompt-issues"
+section = "Breaking"
+text = "`mcp::IssuesToolCall` carries `caller: &VerifiedCaller` instead of `context`."
+
+[[crate]]
+name = "systemprompt-brain"
+section = "Breaking"
+text = "`mcp::BrainToolCall` carries `caller: &VerifiedCaller` instead of `context`."

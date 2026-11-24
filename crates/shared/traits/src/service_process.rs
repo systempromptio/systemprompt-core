@@ -16,7 +16,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_identifiers::ServiceName;
 
-use crate::BoxedSource;
+use crate::{BoxedSource, StartupEventSender};
 
 /// The kind of process a set supervises.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -148,6 +148,16 @@ pub trait ServiceProcessSet: Send + Sync {
         name: Option<&ServiceName>,
         mode: RestartMode,
     ) -> Result<Vec<ServiceRun>, ServiceProcessError>;
+
+    async fn reconcile(
+        &self,
+        _events: Option<&StartupEventSender>,
+    ) -> Result<(), ServiceProcessError> {
+        Err(ServiceProcessError::Unsupported {
+            kind: self.kind(),
+            operation: "startup reconciliation",
+        })
+    }
 }
 
 pub type DynServiceProcessSet = Arc<dyn ServiceProcessSet>;

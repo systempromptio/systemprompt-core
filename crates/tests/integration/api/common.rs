@@ -103,6 +103,16 @@ async fn same_origin_fetch(
     next.run(request).await
 }
 
+pub fn mcp_proxy_router(ctx: &AppContext) -> axum::Router {
+    let backends = ctx
+        .kernel()
+        .state()
+        .get::<systemprompt_extension::router::DynProxyBackendResolver>()
+        .cloned()
+        .expect("the mcp-http member provides the MCP proxy backends");
+    systemprompt_api::routes::proxy::mcp::router(ctx, backends)
+}
+
 pub fn request_context(user: &str) -> RequestContext {
     RequestContext::new(
         SessionId::generate(),

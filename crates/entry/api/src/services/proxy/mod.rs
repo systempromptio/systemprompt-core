@@ -7,9 +7,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod audit;
 pub mod auth;
 mod backend;
+mod backend_error;
 mod client;
 mod errors;
 pub mod resolver;

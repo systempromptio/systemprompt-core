@@ -8,8 +8,6 @@ mod health;
 mod process_departure;
 mod process_ownership;
 mod process_rendezvous;
-mod proxy_audit;
-mod proxy_fixed_arguments;
 mod proxy_oauth_challenge;
 mod proxy_resolver;
 mod server_health_stats;

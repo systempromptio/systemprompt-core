@@ -43,7 +43,7 @@ impl McpToolset for BrainToolset {
         Box::pin(self.tools.call(BrainToolCall {
             executor: call.executor,
             request: call.request,
-            context: call.context,
+            caller: call.caller,
             client: call.client,
         }))
         .await

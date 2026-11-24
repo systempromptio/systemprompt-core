@@ -51,7 +51,7 @@ mod upload;
 mod write;
 
 use std::sync::Arc;
-use systemprompt_extension::mcp::ToolExecution;
+use systemprompt_extension::mcp::{ToolExecution, VerifiedCaller};
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
@@ -59,7 +59,6 @@ use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::documents::{DocumentService, DocumentsHandles};
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
-use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
@@ -122,7 +121,7 @@ pub struct DocumentsMcpConfig {
 pub struct DocumentsToolCall<'a> {
     pub executor: &'a dyn ToolExecution,
     pub request: &'a CallToolRequestParams,
-    pub context: &'a RequestContext,
+    pub caller: &'a VerifiedCaller,
     pub client: &'a ClientProfile,
     pub hop: Option<&'a JwtToken>,
 }
@@ -248,6 +247,10 @@ impl DocumentsMcpTools {
     }
 
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
-        act_as(mentions::document_actor(call.context), self.dispatch(call)).await
+        act_as(
+            mentions::document_actor(call.caller.context()),
+            self.dispatch(call),
+        )
+        .await
     }
 }

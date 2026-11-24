@@ -16,6 +16,7 @@ pub mod observer;
 pub mod orchestrator;
 pub mod process;
 pub mod process_set;
+pub mod reconcile;
 pub mod registry;
 pub mod schema;
 pub mod spawn_target;

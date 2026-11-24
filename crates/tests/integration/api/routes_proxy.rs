@@ -4,7 +4,7 @@
 
 use axum::Extension;
 use http::StatusCode;
-use systemprompt_api::routes::proxy::{agents, mcp};
+use systemprompt_api::routes::proxy::agents;
 use tower::ServiceExt;
 
 use super::common::{empty_get, request_context, setup_ctx};
@@ -12,10 +12,7 @@ use super::common::{empty_get, request_context, setup_ctx};
 #[tokio::test]
 async fn agents_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(
-        agents::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
-        &ctx,
-    );
+    let app = super::common::with_config(agents::router(&ctx), &ctx);
     let resp = app.oneshot(empty_get("/does-not-exist")).await?;
     assert!(resp.status().as_u16() >= 400);
     Ok(())
@@ -24,10 +21,7 @@ async fn agents_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agents_proxy_with_path_returns_error() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(
-        agents::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
-        &ctx,
-    );
+    let app = super::common::with_config(agents::router(&ctx), &ctx);
     let resp = app.oneshot(empty_get("/does-not-exist/foo/bar")).await?;
     assert!(resp.status().as_u16() >= 400);
     Ok(())
@@ -36,10 +30,7 @@ async fn agents_proxy_with_path_returns_error() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(
-        mcp::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
-        &ctx,
-    );
+    let app = super::common::with_config(super::common::mcp_proxy_router(&ctx), &ctx);
     let resp = app.oneshot(empty_get("/no-such-server/tools/list")).await?;
     assert!(resp.status().as_u16() >= 400);
     Ok(())
@@ -60,10 +51,7 @@ async fn mcp_get_execution_unknown_is_not_found() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_proxy_protected_resource_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(
-        mcp::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
-        &ctx,
-    );
+    let app = super::common::with_config(super::common::mcp_proxy_router(&ctx), &ctx);
     let resp = app
         .oneshot(empty_get(
             "/my-server/mcp/.well-known/oauth-protected-resource",
@@ -76,10 +64,7 @@ async fn mcp_proxy_protected_resource_runs() -> anyhow::Result<()> {
 #[tokio::test]
 async fn mcp_proxy_authorization_server_runs() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = super::common::with_config(
-        mcp::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
-        &ctx,
-    );
+    let app = super::common::with_config(super::common::mcp_proxy_router(&ctx), &ctx);
     let resp = app
         .oneshot(empty_get(
             "/my-server/mcp/.well-known/oauth-authorization-server",

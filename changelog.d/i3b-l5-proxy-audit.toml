@@ -1,9 +1,4 @@
 [root]
 section = "Fixed"
 area = "Security"
-text = "Every client-mediated tool call proxied to an external MCP server records its execution row and runs the artifact ingest (secret and gateway policy scanners) whether or not the `ai` member is admitted; the model's intent claims pair the execution only when `ai` provides them. A tool call with no audit available is refused with 503 `audit_unavailable`."
-
-[[crate]]
-name = "systemprompt-api"
-section = "Breaking"
-text = "`ProxyService::{with_tool_usage_repo, with_artifact_ingest}` are replaced by `with_mcp_audit(McpAuditSinks)`; `audit::AuditSinks` gains `executions`, `intent_claims` is optional and `ingest` is required; `ProxyError::AuditUnavailable` is added."
+text = "Every client-mediated tool call proxied to an external MCP server records its execution row and runs the artifact ingest (secret and gateway policy scanners) whether or not the `ai` member is admitted; the model's intent claims pair the execution only when `ai` provides them. The MCP proxy is mounted only when the `mcp-http` member provides the MCP backends that audit it, so no tool call is forwarded unaudited. A single JSON tool-call response is read and recorded before it is returned, so the row is written even when the client never reads the body."

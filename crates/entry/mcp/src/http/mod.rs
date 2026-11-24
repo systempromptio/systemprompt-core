@@ -23,6 +23,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod executions;
+pub mod proxy;
 pub mod registry;
 
 use std::sync::Arc;

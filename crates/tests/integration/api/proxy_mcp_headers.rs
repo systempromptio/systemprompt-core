@@ -3,7 +3,7 @@
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use systemprompt_api::services::proxy::ProxyError;
-use systemprompt_api::services::proxy::service::external::{map_resolve_error, outbound_headers};
+use systemprompt_api::services::proxy::service::external::outbound_headers;
 use systemprompt_api::services::proxy::service::hop::{HopGrant, hop_identity};
 use systemprompt_api::services::proxy::service::outbound::{agent_headers, managed_mcp_headers};
 use systemprompt_identifiers::ServiceName;
@@ -87,6 +87,13 @@ fn agent_headers_carry_only_the_allow_list_and_proxy_context() {
     );
 }
 
+fn map_resolve_error(service: &ServiceName, error: McpDomainError) -> ProxyError {
+    ProxyError::from_backend(
+        service,
+        systemprompt_mcp_entry::http::proxy::map_resolve_error(error),
+    )
+}
+
 #[test]
 fn outbound_headers_filters_to_mcp_passthrough_set() {
     let mut incoming = HeaderMap::new();
@@ -100,7 +107,7 @@ fn outbound_headers_filters_to_mcp_passthrough_set() {
     incoming.insert("authorization", HeaderValue::from_static("Bearer leak-me"));
     incoming.insert("cookie", HeaderValue::from_static("secret=1"));
 
-    let out = outbound_headers(&incoming, std::collections::HashMap::new());
+    let out = outbound_headers(&incoming, &HeaderMap::new());
     assert!(
         out.get("authorization").is_none(),
         "client bearer must not leak"
@@ -113,11 +120,11 @@ fn outbound_headers_filters_to_mcp_passthrough_set() {
 fn outbound_headers_provider_credential_wins() {
     let mut incoming = HeaderMap::new();
     incoming.insert("content-type", HeaderValue::from_static("application/json"));
-    let provider = std::collections::HashMap::from([(
+    let provider = HeaderMap::from_iter([(
         HeaderName::from_static("authorization"),
         HeaderValue::from_static("Bearer provider-token"),
     )]);
-    let out = outbound_headers(&incoming, provider);
+    let out = outbound_headers(&incoming, &provider);
     assert_eq!(
         out.get("authorization").and_then(|v| v.to_str().ok()),
         Some("Bearer provider-token")

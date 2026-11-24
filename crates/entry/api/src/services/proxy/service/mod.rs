@@ -8,9 +8,12 @@
 //! verified identity for every request to a managed MCP server,
 //! and, for MCP, binds each session to the server and principal that opened
 //! it (see [`mcp_session`]), so a session id never stands in for a
-//! credential. A node that supervises no processes, or a
-//! worker that does not hold the process's lease, forwards to the owning
-//! replica instead (see [`owner`]).
+//! credential. What is MCP-specific about a backend — external servers, the
+//! spawn port, the session store, the external upstream and its audit — is
+//! read through the [`DynProxyBackendResolver`] the `mcp-http` member
+//! provides; an MCP request with no resolver is refused. A node that supervises
+//! no processes, or a worker that does not hold the process's lease, forwards
+//! to the owning replica instead (see [`owner`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,8 +21,6 @@
 mod context_owner;
 pub mod external;
 mod external_governance;
-mod external_sessions;
-pub mod fixed_arguments;
 mod handlers;
 pub mod hop;
 pub mod mcp_session;
@@ -33,16 +34,12 @@ use axum::extract::Request;
 use axum::http::header::AUTHORIZATION;
 use axum::response::Response;
 use std::sync::Arc;
-use systemprompt_config::SecretsService;
 use systemprompt_database::{ServiceConfig, ServiceModule};
+use systemprompt_extension::router::DynProxyBackendResolver;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_manifest::Config;
-use systemprompt_mcp::repository::McpProxySessionRepository;
-use systemprompt_mcp::services::client::McpClient;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_runtime::AppContext;
-use systemprompt_security::credential::TokenCache;
 
 use super::auth::AccessValidator;
 use super::backend::{
@@ -52,24 +49,6 @@ use super::client::ClientPool;
 use super::resolver::ServiceResolver;
 use target::{external_server, unknown_service_error};
 use upstream::{Upstream, forward_context};
-
-/// What an external MCP call is audited with: the execution ledger and the
-/// artifact ingest always, the model's intent claims when the `ai` member
-/// provides them.
-#[derive(Clone)]
-pub struct McpAuditSinks {
-    pub executions: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
-    pub intent_claims: Option<systemprompt_traits::DynToolCallIntentClaims>,
-    pub ingest: Arc<systemprompt_mcp::ArtifactIngest>,
-}
-
-impl std::fmt::Debug for McpAuditSinks {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("McpAuditSinks")
-            .field("intent_claims", &self.intent_claims.is_some())
-            .finish_non_exhaustive()
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProxyKind {
@@ -94,46 +73,35 @@ struct ManagedRequest<'a> {
     tokens: &'a dyn TokenAuthority,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProxyService {
     client_pool: ClientPool,
-    sessions: Arc<McpProxySessionRepository>,
-    audit: Option<McpAuditSinks>,
-    mcp_client: Arc<McpClient>,
+    backends: Option<DynProxyBackendResolver>,
     owners: Arc<owner::OwnerCache>,
     handovers: Arc<owner::HandoverWaits>,
 }
 
 impl ProxyService {
-    pub fn new(
-        sessions: Arc<McpProxySessionRepository>,
-        connector_tokens: Arc<TokenCache>,
-        services: &systemprompt_manifest::services::ServicesView,
-        config: Arc<Config>,
-        secrets: Arc<SecretsService>,
-    ) -> Self {
-        Self {
-            client_pool: ClientPool::new(),
-            sessions,
-            audit: None,
-            mcp_client: Arc::new(McpClient::new(
-                connector_tokens,
-                systemprompt_mcp::services::DeploymentService::new(services.clone()),
-                config,
-                secrets,
-                systemprompt_mcp::services::client::McpClientLimits::from(
-                    &services.config().ai.mcp.resilience,
-                ),
-            )),
-            owners: Arc::new(owner::OwnerCache::default()),
-            handovers: Arc::new(owner::HandoverWaits::default()),
-        }
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     #[must_use]
-    pub fn with_mcp_audit(mut self, audit: McpAuditSinks) -> Self {
-        self.audit = Some(audit);
+    pub fn with_mcp_backends(mut self, backends: DynProxyBackendResolver) -> Self {
+        self.backends = Some(backends);
         self
+    }
+
+    fn mcp_backends(
+        &self,
+        service_name: &ServiceName,
+    ) -> Result<&DynProxyBackendResolver, ProxyError> {
+        self.backends
+            .as_ref()
+            .ok_or_else(|| ProxyError::McpBackendsUnavailable {
+                service: service_name.to_string(),
+            })
     }
 
     pub async fn proxy_request(
@@ -151,7 +119,9 @@ impl ProxyService {
             tracing::warn!("RequestContext missing from request extensions");
         }
 
-        if let Some(server_config) = external_server(proxy_kind, service_name, &ctx)? {
+        if let Some(server_config) =
+            external_server(proxy_kind, service_name, self.backends.as_ref())?
+        {
             return self
                 .proxy_external_mcp(service_name, request, ctx, server_config)
                 .await;
@@ -167,7 +137,7 @@ impl ProxyService {
             return self.forward_to(&owner, service_name, request, &ctx).await;
         }
 
-        let service = ServiceResolver::resolve(service_name, &ctx)
+        let service = ServiceResolver::resolve(service_name, &ctx, self.backends.as_deref())
             .await
             .map_err(|err| unknown_service_error(service_name, proxy_kind, &request, &ctx, err))?;
 
@@ -229,7 +199,7 @@ impl ProxyService {
         RequestBuilder::ensure_declared_length(request.headers(), body_limit)?;
         if is_mcp {
             mcp_session::ensure_bound(
-                &self.sessions,
+                self.mcp_backends(service_name)?.as_ref(),
                 request.headers(),
                 service_name,
                 principal.as_ref(),
@@ -272,7 +242,7 @@ impl ProxyService {
 
         if is_mcp {
             mcp_session::bind_issued_session(mcp_session::IssuedSession {
-                sessions: &self.sessions,
+                backends: self.mcp_backends(service_name)?.as_ref(),
                 response: &response,
                 request_headers: &request_headers,
                 service_name,

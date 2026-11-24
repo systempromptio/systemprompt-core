@@ -25,7 +25,7 @@ use crate::service::{BrainCaller, BrainService};
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
 use systemprompt_extension::brain::MemoryRecall;
-use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, execute};
+use systemprompt_extension::mcp::{McpToolHandler, ToolExecution, VerifiedCaller, execute};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::auth::{RequestActor, agent_name};
@@ -82,7 +82,7 @@ pub enum BrainMcpUnavailable {
 pub struct BrainToolCall<'a> {
     pub executor: &'a dyn ToolExecution,
     pub request: &'a CallToolRequestParams,
-    pub context: &'a RequestContext,
+    pub caller: &'a VerifiedCaller,
     pub client: &'a ClientProfile,
 }
 
@@ -209,7 +209,7 @@ async fn run<H: McpToolHandler>(
         call.executor,
         handler,
         call.request,
-        call.context,
+        call.caller,
         call.client,
     )
     .await

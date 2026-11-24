@@ -7,6 +7,8 @@ handoff the kernel mounts and dispatches from; only the facade
 verified gateway caller; only the API kernel's bridge credential check
 (`crates/entry/api/src/routes/gateway/bridge_error.rs`) calls it, after the
 gateway verifier accepted the bearer.
+`VerifiedCaller::__from_hop` stamps the caller a tool execution is recorded
+for; only the toolset host's hop admission (`crates/app/mcp-host/`) calls it.
 A call anywhere else in the root workspace's production source fails.
 
 The facade also must not re-export a `systemprompt_api` or
@@ -35,6 +37,7 @@ FACADE = "systemprompt"
 ALLOWED = {
     "__from_facade": (FACADE,),
     "__from_kernel": ("crates/entry/api/src/routes/gateway/bridge_error.rs",),
+    "__from_hop": ("crates/app/mcp-host",),
 }
 SCANNED = ("crates", FACADE)
 EXCLUDED = ("crates/tests",)

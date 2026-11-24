@@ -1,12 +1,18 @@
 //! Policy-chain enforcement before an external MCP tool call leaves the
 //! gateway.
 //!
+//! [`KernelCallGovernor`] is the [`ProxiedCallGovernor`] the engine hands an
+//! external upstream: the upstream classifies the JSON-RPC frame, the kernel
+//! evaluates the named tool against the governance engine and records the
+//! decision; a call naming no valid tool is recorded as a policy violation
+//! and refused.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::super::audit::{ToolCallFrame, classify_tool_call};
-use super::super::backend::ProxyError;
+use async_trait::async_trait;
 use std::borrow::Cow;
+use systemprompt_extension::router::{GovernedToolCall, ProxiedCallGovernor, ProxyBackendError};
 use systemprompt_governance::authz::{Decision, DenyReason};
 use systemprompt_governance::policy::{
     AccessScope, AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernedInput,
@@ -16,37 +22,50 @@ use systemprompt_identifiers::{CallId, McpToolName, ServiceName};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
-pub(super) async fn enforce(
+pub(super) struct KernelCallGovernor<'a> {
+    ctx: &'a AppContext,
+}
+
+impl<'a> KernelCallGovernor<'a> {
+    pub(super) const fn new(ctx: &'a AppContext) -> Self {
+        Self { ctx }
+    }
+}
+
+#[async_trait]
+impl ProxiedCallGovernor for KernelCallGovernor<'_> {
+    async fn enforce(
+        &self,
+        caller: &RequestContext,
+        service: &ServiceName,
+        call: GovernedToolCall<'_>,
+    ) -> Result<(), ProxyBackendError> {
+        match call {
+            GovernedToolCall::Valid { tool, arguments } => {
+                enforce(self.ctx, caller, service, tool, arguments).await
+            },
+            GovernedToolCall::InvalidName { raw_name } => {
+                record_invalid_name(self.ctx, caller, service, raw_name).await;
+                Err(ProxyBackendError::Forbidden)
+            },
+        }
+    }
+}
+
+async fn enforce(
     ctx: &AppContext,
     request: &RequestContext,
     service: &ServiceName,
-    body: &[u8],
-) -> Result<(), ProxyError> {
-    let denied = || ProxyError::Forbidden {
-        service: service.to_string(),
-    };
-    let value = match tool_call(service, body)? {
-        GovernedCall::None => return Ok(()),
-        GovernedCall::Valid(value) => value,
-        GovernedCall::InvalidName { raw_name } => {
-            record_invalid_name(ctx, request, service, raw_name.as_deref()).await;
-            return Err(denied());
-        },
-    };
+    tool: &str,
+    arguments: serde_json::Value,
+) -> Result<(), ProxyBackendError> {
+    let denied = || ProxyBackendError::Forbidden;
     let call_id = CallId::generate();
     let scope = access_scope(request);
-    let tool = value
-        .pointer("/params/name")
-        .and_then(serde_json::Value::as_str)
-        .ok_or_else(denied)?;
     let target = McpToolName::try_new(format!("mcp__{service}__{tool}")).map_err(|error| {
         tracing::warn!(%error, %service, "External MCP tool name rejected");
         denied()
     })?;
-    let arguments = value
-        .pointer("/params/arguments")
-        .cloned()
-        .unwrap_or_else(|| serde_json::json!({}));
     let input = GovernedInput::tool_arguments(McpToolInput::new(arguments));
     let evaluation = evaluate_tool(ctx, request, &target, &input, &call_id).await;
     let allowed = matches!(
@@ -173,39 +192,5 @@ fn principal(request: &RequestContext, scope: AccessScope) -> PrincipalSnapshot 
         agent_id: None,
         agent_scope: scope,
         client_id: request.client_id().cloned(),
-    }
-}
-
-enum GovernedCall {
-    None,
-    // JSON: MCP JSON-RPC request frame — forwarded verbatim to the external MCP
-    // server.
-    Valid(serde_json::Value),
-    InvalidName { raw_name: Option<String> },
-}
-
-fn tool_call(service: &ServiceName, body: &[u8]) -> Result<GovernedCall, ProxyError> {
-    let denied = || ProxyError::Forbidden {
-        service: service.to_string(),
-    };
-    if body.is_empty() {
-        return Ok(GovernedCall::None);
-    }
-    let value: serde_json::Value = serde_json::from_slice(body).map_err(|error| {
-        tracing::debug!(%error, %service, "Invalid external MCP request");
-        denied()
-    })?;
-    if !value.is_object() {
-        return Err(denied());
-    }
-    match classify_tool_call(body) {
-        ToolCallFrame::Call(_) => Ok(GovernedCall::Valid(value)),
-        ToolCallFrame::InvalidName { raw_name } => Ok(GovernedCall::InvalidName { raw_name }),
-        ToolCallFrame::NotToolCall
-            if value.get("method").and_then(serde_json::Value::as_str) == Some("tools/call") =>
-        {
-            Ok(GovernedCall::InvalidName { raw_name: None })
-        },
-        ToolCallFrame::NotToolCall => Ok(GovernedCall::None),
     }
 }

@@ -5,8 +5,9 @@
 //! writes one `mcp_tool_executions` row under the calling user, and hands the
 //! result to the artifact ingest. The execution id is minted before the
 //! response leaves, and stamped into its `_meta`, so the client's own later
-//! report of the same result carries the exact server key. `record` composes
-//! the tap over the upstream body; the tap owns an [`McpAudit`] and finalizes
+//! report of the same result carries the exact server key. The tap
+//! ([`CallAudit`](systemprompt_extension::router::CallAudit)) composes over the
+//! upstream body and owns an [`McpAudit`] and finalizes
 //! it (once) on stream EOF or drop, writing on the process's
 //! [`BackgroundTasks`] so shutdown drains the row.
 //!
@@ -41,8 +42,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use systemprompt_traits::BackgroundTasks;
 
-pub(crate) use jsonrpc::{ToolCallFrame, classify_tool_call, parse_tool_call};
-pub(crate) use tap::record;
+pub use jsonrpc::{ToolCallFrame, classify_tool_call, parse_tool_call};
 
 use jsonrpc::{ToolCallInvocation, ToolCallOutcome};
 

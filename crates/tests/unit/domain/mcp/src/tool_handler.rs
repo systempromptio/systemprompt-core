@@ -12,7 +12,7 @@ use rmcp::model::CallToolRequestParams;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_extension::mcp::{McpToolHandler, execute};
+use systemprompt_extension::mcp::{McpToolHandler, VerifiedCaller, execute};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor};
@@ -161,7 +161,7 @@ async fn execute_success_records_and_returns_result() {
         &exec,
         &EchoHandler,
         &request,
-        &ctx,
+        &VerifiedCaller::__from_hop(ctx.clone()),
         &ClientProfile::unknown(),
     )
     .await;
@@ -200,7 +200,7 @@ async fn execute_handler_error_propagates() {
         &exec,
         &FailingHandler,
         &request,
-        &ctx,
+        &VerifiedCaller::__from_hop(ctx.clone()),
         &ClientProfile::unknown(),
     )
     .await;
@@ -231,7 +231,7 @@ async fn execute_input_parse_error_returns_invalid_params() {
         &exec,
         &EchoHandler,
         &request,
-        &ctx,
+        &VerifiedCaller::__from_hop(ctx.clone()),
         &ClientProfile::unknown(),
     )
     .await;

@@ -12,9 +12,9 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
 use systemprompt_extension::mcp::{
     DynToolExecution, McpOutputSchema, ToolExecution, ToolExecutions, ToolOutput, ToolRun,
+    VerifiedCaller,
 };
 use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
-use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 use systemprompt_traits::DynToolCallIntentClaims;
 
@@ -31,8 +31,9 @@ impl ToolExecution for McpToolExecutor {
         &self,
         tool_name: McpToolName,
         request: &CallToolRequestParams,
-        context: &RequestContext,
+        caller: &VerifiedCaller,
     ) -> Result<ToolRun, McpError> {
+        let context = caller.context();
         let started_at = Utc::now();
         let input_value = serde_json::to_value(&request.arguments).map_err(|e| {
             tracing::error!(error = %e, "Failed to serialize tool arguments");

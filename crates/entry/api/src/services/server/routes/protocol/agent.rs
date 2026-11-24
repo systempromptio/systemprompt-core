@@ -106,7 +106,7 @@ pub(in crate::services::server::routes) fn mount_agent(
     mount.mount(
         router,
         declare(
-            crate::routes::proxy::agents::router(ctx)?,
+            crate::routes::proxy::agents::router(ctx),
             ApiPaths::AGENTS_BASE,
             AuthzPolicy::authenticated(),
             ContextKind::A2a,
