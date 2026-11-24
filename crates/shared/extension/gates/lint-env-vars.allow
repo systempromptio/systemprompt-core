@@ -1,1 +1,2 @@
+# owner: shared/extension; reason: stated on the entry line
 src/build/mod.rs  # cargo build-script environment (OUT_DIR, CARGO_MANIFEST_DIR)

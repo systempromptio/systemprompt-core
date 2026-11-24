@@ -1,4 +1,8 @@
+# owner: entry/cli; reason: stated on the entry line
 src/env_overrides.rs  # the single CLI reader of SYSTEMPROMPT_* overrides (EnvOverrides)
+# owner: entry/cli; reason: stated on the entry line
 src/commands/admin/config/secret_check.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection and OAUTH_AT_REST_PEPPER presence for resolve_source (secrets `env` source)
+# owner: entry/cli; reason: stated on the entry line
 src/commands/core/services/publish.rs  # --auth env:VAR — operator names the registry credential variable explicitly on the CLI
+# owner: entry/cli; reason: stated on the entry line
 src/commands/core/services/signing.rs  # --key env:VAR — operator names the signing-key variable explicitly on the CLI

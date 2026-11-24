@@ -1,1 +1,2 @@
+# owner: app/runtime; reason: stated on the entry line
 src/host_kernel/boot.rs  # MCP child boot: SYSTEMPROMPT_PROFILE, DATABASE_* URLs, VERIFICATION_KEYS and the granted secrets the API spawned it with

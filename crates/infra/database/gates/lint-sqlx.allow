@@ -1,7 +1,6 @@
+# owner: infra/database; reason: admin SQL console: the SQL text is operator-supplied, necessarily dynamic
 src/admin/
+# owner: infra/database; reason: generic postgres provider executing caller-built runtime queries
 src/services/postgres/
-# The projection drainer calls the `refresh_*(keys TEXT[])` function the
-# caller names (validated as a bare identifier) and binds the keys; the
-# queue helpers beside it stay runtime so the crate carries no offline
-# cache for them.
+# owner: infra/database; reason: the projection drainer calls the refresh_*(keys TEXT[]) function the caller names (validated bare identifier) and binds the keys; the queue helpers beside it stay runtime so the crate carries no offline cache for them
 src/projection/

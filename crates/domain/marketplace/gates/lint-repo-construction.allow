@@ -1,4 +1,2 @@
-# the cloud doctor's probe source builds the managed repository over the
-# short-lived read-only pool the doctor opens before any boot; there is no
-# AppContext and no kernel state in that process to inject it from.
+# owner: domain/marketplace; reason: the cloud doctor probe builds the managed repository over the short-lived read-only pool it opens before any boot; that process has no AppContext to inject from
 src/managed/doctor.rs

@@ -1,3 +1,6 @@
+# owner: entry/cloud; reason: stated on the entry line
 src/cli/deploy/pipeline/secrets.rs  # collect_bootstrap_env lookup closure for the operator-listed --bootstrap-env variables pushed to Vault
+# owner: entry/cloud; reason: stated on the entry line
 src/cli/doctor/vault_checks.rs  # VaultKvProvider::from_config lookup closure — Vault credentials from the secrets `env` source
+# owner: entry/cloud; reason: stated on the entry line
 src/cli/profile/templates.rs  # SYSTEMPROMPT_SERVICES_PATH subprocess boot variable

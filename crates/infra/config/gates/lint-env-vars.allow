@@ -1,5 +1,10 @@
+# owner: infra/config; reason: stated on the entry line
 src/bootstrap/profile.rs  # SYSTEMPROMPT_PROFILE boot variable
+# owner: infra/config; reason: stated on the entry line
 src/bootstrap/secrets/mod.rs  # deployment-host detection for the secrets bootstrap (SYSTEMPROMPT_* subprocess vars)
+# owner: infra/config; reason: stated on the entry line
 src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; OAUTH_AT_REST_PEPPER presence for `resolve_source`; Vault credentials from the secrets `env` source
+# owner: infra/config; reason: stated on the entry line
 src/bootstrap/secrets/sources/env.rs  # the secrets `env` source itself
+# owner: infra/config; reason: stated on the entry line
 src/config_loader.rs  # SYSTEMPROMPT_SYSTEM_ADMIN cloud-boot variable; POD_NAME (Kubernetes downward API) / HOSTNAME / FLY_MACHINE_ID replica identity when server.instance_id is absent

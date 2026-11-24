@@ -1,3 +1,6 @@
+# owner: infra/logging; reason: infra sits below app/runtime and cannot name AppContext; the service constructor is the composition root for its own LoggingRepository
 src/services/database_log.rs
+# owner: infra/logging; reason: infra sits below app/runtime and cannot name AppContext; the service constructor is the composition root for its own LoggingRepository
 src/layer/mod.rs
+# owner: infra/logging; reason: infra sits below app/runtime and cannot name AppContext; the service constructor is the composition root for its own LoggingRepository
 src/services/maintenance.rs

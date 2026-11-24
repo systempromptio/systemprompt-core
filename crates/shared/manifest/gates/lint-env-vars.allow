@@ -1,2 +1,4 @@
+# owner: shared/manifest; reason: stated on the entry line
 src/profile/paths.rs  # HOME / USERPROFILE for `~` expansion in profile paths
+# owner: shared/manifest; reason: stated on the entry line
 src/env/mod.rs  # read_env_optional: the one primitive behind `${VAR}` profile and services interpolation, the secrets `env` source and cloud credentials bootstrap

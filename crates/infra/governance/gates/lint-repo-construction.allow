@@ -1,4 +1,2 @@
-# the services-tree authz reconcile is called from the CLI, a services
-# refresh and a boot step; it takes a pool because none of those three has an
-# AppContext to take the repository from.
+# owner: infra/governance; reason: the services-tree authz reconcile runs from the CLI, a services refresh and a boot step, none of which has an AppContext; it takes a pool
 src/authz/reconcile.rs

@@ -1,2 +1,4 @@
+# owner: entry/api; reason: stated on the entry line
 src/services/server/metrics.rs:RECORDER — external constraint: the metrics crate's process-global recorder is set-once
+# owner: entry/api; reason: stated on the entry line
 src/services/server/metrics.rs:RECORDER_INIT — external constraint: serialises the single install of that recorder

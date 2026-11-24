@@ -1,2 +1,2 @@
-# MCP Apps artifact renderer templates.
+# owner: domain/mcp; reason: MCP Apps artifact renderer templates
 src/services/ui_renderer/templates/assets/*

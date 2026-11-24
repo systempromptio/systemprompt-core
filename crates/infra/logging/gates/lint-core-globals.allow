@@ -1,2 +1,2 @@
-# Third-party set-once globals mirrored by a static.
+# owner: infra/logging; reason: stated on the entry line
 src/lib.rs:SUBSCRIBER_INITIALIZED — external constraint: tracing's process-global default dispatcher is set-once

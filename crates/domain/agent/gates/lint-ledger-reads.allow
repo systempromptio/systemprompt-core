@@ -1,1 +1,2 @@
+# owner: domain/agent; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/context/message/queries.rs#1b1b181983
