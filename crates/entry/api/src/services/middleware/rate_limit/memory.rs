@@ -16,7 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::BuildHasher;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
@@ -88,9 +88,7 @@ impl MemoryRateLimitBuckets {
     }
 
     fn shard_of(&self, key: &Key) -> &Mutex<LruCache<Key, Window>> {
-        let mut hasher = self.hasher.build_hasher();
-        key.hash(&mut hasher);
-        let index = usize::try_from(hasher.finish() % SHARDS as u64).unwrap_or(0);
+        let index = usize::try_from(self.hasher.hash_one(key) % SHARDS as u64).unwrap_or(0);
         &self.shards[index]
     }
 }
@@ -146,6 +144,7 @@ impl RateLimitBuckets for MemoryRateLimitBuckets {
                 hits: 1,
             },
         );
+        drop(shard);
         Ok(1)
     }
 }

@@ -233,7 +233,7 @@ impl CommandHost for MemberHost<'_> {
             return Box::pin(async move { Err(grant_refused(KernelGrant::SessionContext)) });
         }
         Box::pin(async move {
-            crate::session::use_session_context(self.ctx, context)
+            Box::pin(crate::session::use_session_context(self.ctx, context))
                 .await
                 .map_err(CommandError::new)
         })

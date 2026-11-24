@@ -119,7 +119,7 @@ async fn get_session_for_loaded_profile(
         if let ContextCheck::Recovered(refreshed) =
             try_validate_context(&mut session, &profile_name, contexts).await
         {
-            session = refreshed;
+            session = *refreshed;
         }
 
         store.upsert_session(&session_key, session.clone());

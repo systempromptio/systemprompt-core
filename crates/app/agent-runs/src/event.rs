@@ -118,7 +118,7 @@ impl RunEventPayload {
     }
 
     #[must_use]
-    pub fn tool_use_id(&self) -> Option<&ToolUseId> {
+    pub const fn tool_use_id(&self) -> Option<&ToolUseId> {
         match self {
             Self::ToolUse { tool_use_id, .. } | Self::ToolResult { tool_use_id, .. } => {
                 Some(tool_use_id)

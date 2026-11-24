@@ -168,7 +168,7 @@ pub fn resolve_profile_path_without_session(
 #[derive(Debug)]
 pub enum ContextCheck {
     Owned,
-    Recovered(CliSession),
+    Recovered(Box<CliSession>),
     Unverified(SessionContextError),
 }
 
@@ -212,7 +212,7 @@ pub async fn revalidate_context(
     {
         Ok(new_context_id) => {
             session.set_context_id(new_context_id);
-            ContextCheck::Recovered(session.clone())
+            ContextCheck::Recovered(Box::new(session.clone()))
         },
         Err(error) => unverified(error),
     }

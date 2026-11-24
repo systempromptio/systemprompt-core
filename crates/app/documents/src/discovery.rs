@@ -1,10 +1,11 @@
-//! The `endpoints.documents` block of the root discovery document: whether
-//! the document store is on and, when it is, where its routes are and the
-//! byte limits an upload, a part of one and an inline upload stay within, and
-//! the rendered-HTML policy (`renderedHtml`: `scripts`, `remoteOrigins` and
-//! the `agentAuthored` tier), and whether a document may be shared outside
-//! the instance (`publicLinks`, `externalInvites`), so a client learns the
-//! Drive from discovery instead of probing for a `404`.
+//! The `endpoints.documents` block of the root discovery document.
+//!
+//! It says whether the document store is on and, when it is, where its routes
+//! are and the byte limits an upload, a part of one and an inline upload stay
+//! within, and the rendered-HTML policy (`renderedHtml`: `scripts`,
+//! `remoteOrigins` and the `agentAuthored` tier), and whether a document may be
+//! shared outside the instance (`publicLinks`, `externalInvites`), so a client
+//! learns the Drive from discovery instead of probing for a `404`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
