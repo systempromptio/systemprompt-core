@@ -23,7 +23,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{SessionGenerator, SessionParams};
-use systemprompt_users::{User, UserRole};
+use systemprompt_traits::{AdminAccount, DynAdminBootstrap};
 
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
@@ -68,8 +68,8 @@ pub async fn execute(args: LoginArgs, host: &dyn KernelHost) -> Result<CommandOu
     .await
 }
 
-fn ensure_interactive_admin(admin_user: &User) -> Result<()> {
-    if admin_user.is_service_account() {
+fn ensure_interactive_admin(admin_user: &AdminAccount) -> Result<()> {
+    if admin_user.service_account {
         anyhow::bail!(
             "User '{}' is a service account; service accounts cannot open an interactive session",
             admin_user.name
@@ -78,14 +78,20 @@ fn ensure_interactive_admin(admin_user: &User) -> Result<()> {
     Ok(())
 }
 
-async fn connect_profile_database(boot: &BootContext) -> Result<DbPool> {
+async fn connect_profile_database(
+    boot: &BootContext,
+    host: &dyn KernelHost,
+) -> Result<(DbPool, DynAdminBootstrap)> {
     let profile = boot.profile();
     let secrets = boot.secrets().get();
     let database_url = secrets.effective_database_url(profile.database.external_db_access);
     let db = Database::new_postgres(database_url)
         .await
         .context("Failed to connect to database")?;
-    Ok(DbPool::from(Arc::new(db)))
+    let db_pool = DbPool::from(Arc::new(db));
+    let admins =
+        crate::kernel::admin_bootstrap(host.admitted()?, Arc::<Database>::clone(&db_pool))?;
+    Ok((db_pool, admins))
 }
 
 pub async fn login_for_profile(
@@ -101,7 +107,7 @@ pub async fn login_for_profile(
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let session_key = session_key_for_profile(profile);
 
-    let db_pool = connect_profile_database(boot).await?;
+    let (db_pool, admins) = connect_profile_database(boot, host).await?;
 
     if !args.force_new
         && let Some(output) = try_use_existing_session(
@@ -109,7 +115,7 @@ pub async fn login_for_profile(
             &session_key,
             &profile.security.issuer,
             args,
-            &db_pool,
+            admins.as_ref(),
         )
         .await?
     {
@@ -119,7 +125,7 @@ pub async fn login_for_profile(
     let admin_name = &profile.system_admin.username;
     progress(args, &format!("Fetching admin user: {admin_name}"));
     let admin_user = fetch_admin_user(
-        &db_pool,
+        admins.as_ref(),
         admin_name,
         profile.target.is_cloud(),
         args.email.as_deref(),
@@ -201,7 +207,7 @@ fn generate_session_token(
     profile: &Profile,
     keys: SigningKeys,
     args: &LoginArgs,
-    admin_user: &User,
+    admin_user: &AdminAccount,
     session_id: &SessionId,
 ) -> Result<SessionToken> {
     let session_generator = SessionGenerator::new(&profile.security.issuer, keys);
@@ -213,7 +219,7 @@ fn generate_session_token(
             duration: ChronoDuration::hours(args.duration_hours),
             user_type: UserType::Admin,
             permissions: vec![Permission::Admin],
-            roles: vec![UserRole::Admin.as_str().to_owned()],
+            roles: vec![AdminAccount::ADMIN_ROLE.to_owned()],
             attributes: std::collections::BTreeMap::new(),
             rate_limit_tier: RateLimitTier::Admin,
         })

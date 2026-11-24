@@ -4,11 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
-use std::sync::Arc;
 use systemprompt_database::DatabaseAdminService;
 use systemprompt_models::artifacts::NoticeLine;
-use systemprompt_runtime::AppContext;
-use systemprompt_users::{PromoteResult, UserAdminService, UserService};
+use systemprompt_traits::{AdminBootstrap, AdminPromotion};
 
 use systemprompt_extension::cli::CommandOutput;
 
@@ -31,24 +29,24 @@ pub(super) use super::admin_migrate_status::{
 };
 pub(super) use super::admin_migrations::{execute_migrations, execute_migrations_standalone};
 
-pub(super) async fn execute_assign_admin(ctx: &AppContext, user: &str) -> Result<CommandOutput> {
-    let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-    let user_admin = UserAdminService::new(user_service);
-
-    let (output, note) = match user_admin.promote_to_admin(user).await? {
-        PromoteResult::Promoted(u, new_roles) => {
+pub(super) async fn execute_assign_admin(
+    admins: &dyn AdminBootstrap,
+    user: &str,
+) -> Result<CommandOutput> {
+    let (output, note) = match admins.promote(user).await? {
+        AdminPromotion::Promoted(u) => {
             let message = format!("Admin role assigned to user '{}' ({})", u.name, u.email);
             let output = DbAssignAdminOutput {
                 user_id: u.id,
                 name: u.name,
                 email: u.email,
-                roles: new_roles,
+                roles: u.roles,
                 already_admin: false,
                 message: message.clone(),
             };
             (output, NoticeLine::new("success", message))
         },
-        PromoteResult::AlreadyAdmin(u) => {
+        AdminPromotion::AlreadyAdmin(u) => {
             let message = format!("User '{}' already has admin role", u.name);
             let output = DbAssignAdminOutput {
                 user_id: u.id,
@@ -60,7 +58,7 @@ pub(super) async fn execute_assign_admin(ctx: &AppContext, user: &str) -> Result
             };
             (output, NoticeLine::new("warning", message))
         },
-        PromoteResult::UserNotFound => {
+        AdminPromotion::NotFound => {
             return Err(anyhow!("User '{}' not found", user));
         },
     };

@@ -40,6 +40,7 @@ impl ContributionSink {
             assets: _,
             configs: _,
             config_planes: _,
+            admin_bootstrap: _,
             site_auth: _,
             provides: _,
             requires: _,

@@ -61,7 +61,8 @@ impl Project {
                 .with_output_format(OutputFormat::Json)
                 .with_profile_override(Some(self.profile.display().to_string())),
             EnvOverrides::default(),
-        );
+        )
+        .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()));
         match &self.seams {
             Some(kernel) => ctx.with_kernel(Arc::clone(kernel)),
             None => ctx.with_detached_kernel(),

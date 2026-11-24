@@ -76,6 +76,7 @@ impl Extension for UsersExtension {
             predicate: None,
         })
         .migrations(extension_migrations!())
+        .admin_bootstrap(crate::provides::admin_bootstrap)
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));

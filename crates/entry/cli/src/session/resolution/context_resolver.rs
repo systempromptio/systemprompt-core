@@ -67,7 +67,11 @@ pub(super) async fn create_new_session(
     session_email_hint: Option<&str>,
     source: SessionSource<'_>,
 ) -> Result<CliSession> {
-    let SessionSource { boot, contexts } = source;
+    let SessionSource {
+        boot,
+        contexts,
+        admitted,
+    } = source;
     let profile = boot.profile();
     if session_key.is_local() || profile.is_local_trial() {
         return crate::session::creation::create_local_session(
@@ -100,6 +104,7 @@ pub(super) async fn create_new_session(
             session_email_hint,
             boot,
             contexts,
+            admitted,
         },
     )
     .await

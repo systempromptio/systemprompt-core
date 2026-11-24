@@ -24,6 +24,10 @@ fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
 }
 
+fn admins(pool: &DbPool) -> systemprompt_traits::DynAdminBootstrap {
+    systemprompt_users::admin_bootstrap(pool.clone()).expect("the users admin bootstrap builds")
+}
+
 async fn seed(pool: &DbPool, roles: &[&str], status: &str) -> (String, String) {
     let name = unique("sessadmin");
     let email = format!("{name}@sessadmin.invalid");
@@ -52,7 +56,7 @@ async fn an_active_admin_resolves() {
     let pool = test_db_pool().await;
     let (name, _email) = seed(&pool, &["admin"], "active").await;
 
-    let user = resolve_local_admin(&pool, &name)
+    let user = resolve_local_admin(admins(&pool).as_ref(), &name)
         .await
         .expect("an active admin should resolve");
 
@@ -68,7 +72,7 @@ async fn an_inactive_user_is_refused_even_when_they_hold_the_admin_role() {
     let pool = test_db_pool().await;
     let (name, _email) = seed(&pool, &["admin"], "inactive").await;
 
-    let err = resolve_local_admin(&pool, &name)
+    let err = resolve_local_admin(admins(&pool).as_ref(), &name)
         .await
         .expect_err("an inactive user must not resolve as the local admin");
 
@@ -85,7 +89,7 @@ async fn a_user_without_the_admin_role_is_refused() {
     let pool = test_db_pool().await;
     let (name, _email) = seed(&pool, &["user"], "active").await;
 
-    let err = resolve_local_admin(&pool, &name)
+    let err = resolve_local_admin(admins(&pool).as_ref(), &name)
         .await
         .expect_err("a non-admin must not resolve as the local admin");
 
@@ -99,7 +103,7 @@ async fn a_user_without_the_admin_role_is_refused() {
 async fn an_unknown_name_is_refused_with_the_repair_instruction() {
     let pool = test_db_pool().await;
 
-    let err = resolve_local_admin(&pool, &unique("nobody"))
+    let err = resolve_local_admin(admins(&pool).as_ref(), &unique("nobody"))
         .await
         .expect_err("an unknown name must not resolve");
 
@@ -117,7 +121,7 @@ async fn an_existing_non_admin_is_promoted_rather_than_refused() {
     let pool = test_db_pool().await;
     let (_name, email) = seed(&pool, &["user"], "active").await;
 
-    let user = get_or_create_admin(&pool, &email, "test")
+    let user = get_or_create_admin(admins(&pool).as_ref(), &email, "test")
         .await
         .expect("an existing user should be promoted");
 
@@ -133,7 +137,7 @@ async fn an_existing_admin_comes_back_unchanged() {
     let pool = test_db_pool().await;
     let (name, email) = seed(&pool, &["admin"], "active").await;
 
-    let user = get_or_create_admin(&pool, &email, "test")
+    let user = get_or_create_admin(admins(&pool).as_ref(), &email, "test")
         .await
         .expect("an existing admin should resolve");
 
@@ -150,7 +154,7 @@ async fn a_missing_user_is_provisioned_as_an_admin_named_for_the_address() {
     let local = unique("fresh");
     let email = format!("{local}@sessadmin.invalid");
 
-    let user = get_or_create_admin(&pool, &email, "test")
+    let user = get_or_create_admin(admins(&pool).as_ref(), &email, "test")
         .await
         .expect("a missing user should be provisioned");
 
@@ -175,7 +179,7 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let (_name, email) = seed(&pool, &["admin"], "active").await;
-    let user = get_or_create_admin(&pool, &email, "test")
+    let user = get_or_create_admin(admins(&pool).as_ref(), &email, "test")
         .await
         .expect("resolve admin");
 
@@ -206,7 +210,7 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
 // requires a session email hint. Without that guard, any failed lookup would
 // silently open a session as someone else.
 mod tenant_fallback {
-    use super::{seed, test_db_pool, unique};
+    use super::{admins, seed, test_db_pool, unique};
     use systemprompt_cli::session::creation::admin_bootstrap::resolve_tenant_admin_with_fallback;
     use systemprompt_cloud::CloudCredentials;
     use systemprompt_identifiers::{CloudAuthToken, Email};
@@ -229,9 +233,14 @@ mod tenant_fallback {
         let (_name, email) = seed(&pool, &["admin"], "active").await;
         let other = format!("{}@other.invalid", unique("creds"));
 
-        let user = resolve_tenant_admin_with_fallback(&pool, &creds(&other), &email, Some(&email))
-            .await
-            .expect("a resolvable user needs no fallback");
+        let user = resolve_tenant_admin_with_fallback(
+            admins(&pool).as_ref(),
+            &creds(&other),
+            &email,
+            Some(&email),
+        )
+        .await
+        .expect("a resolvable user needs no fallback");
 
         assert_eq!(
             user.email, email,
@@ -247,10 +256,14 @@ mod tenant_fallback {
         let pool = test_db_pool().await;
         let holder = format!("{}@holder.invalid", unique("creds"));
 
-        let err =
-            resolve_tenant_admin_with_fallback(&pool, &creds(&holder), &unresolvable_email(), None)
-                .await
-                .expect_err("with no session hint the failure must propagate");
+        let err = resolve_tenant_admin_with_fallback(
+            admins(&pool).as_ref(),
+            &creds(&holder),
+            &unresolvable_email(),
+            None,
+        )
+        .await
+        .expect_err("with no session hint the failure must propagate");
 
         assert!(
             !format!("{err:#}").is_empty(),
@@ -268,7 +281,7 @@ mod tenant_fallback {
         let requested = unresolvable_email();
 
         let user = resolve_tenant_admin_with_fallback(
-            &pool,
+            admins(&pool).as_ref(),
             &creds(&holder),
             &requested,
             Some(&requested),
@@ -291,9 +304,14 @@ mod tenant_fallback {
         let pool = test_db_pool().await;
         let same = unresolvable_email();
 
-        let err = resolve_tenant_admin_with_fallback(&pool, &creds(&same), &same, Some(&same))
-            .await
-            .expect_err("retrying the same address cannot succeed");
+        let err = resolve_tenant_admin_with_fallback(
+            admins(&pool).as_ref(),
+            &creds(&same),
+            &same,
+            Some(&same),
+        )
+        .await
+        .expect_err("retrying the same address cannot succeed");
 
         assert!(!format!("{err:#}").is_empty());
     }
@@ -305,7 +323,7 @@ mod tenant_fallback {
 // worth asserting — keyed too loosely, one operator's CLI history surfaces in
 // another's.
 mod cli_context {
-    use super::{pname, seed, test_db_pool};
+    use super::{admins, pname, seed, test_db_pool};
     use systemprompt_agent::repository::context::ContextRepository;
     use systemprompt_agent::services::ContextProviderService;
     use systemprompt_cli::session::SessionContexts;
@@ -313,11 +331,11 @@ mod cli_context {
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{ContextId, ProfileName, SessionId, UserId};
     use systemprompt_test_fixtures::seed_user_session;
-    use systemprompt_users::User;
+    use systemprompt_traits::AdminAccount;
 
     async fn create_cli_context(
         pool: DbPool,
-        user: &User,
+        user: &AdminAccount,
         session: &SessionId,
         profile: &ProfileName,
     ) -> Result<ContextId, systemprompt_cli::session::SessionContextError> {
@@ -340,7 +358,7 @@ mod cli_context {
     async fn the_same_user_and_profile_keep_one_context_across_sessions() {
         let pool = test_db_pool().await;
         let (_name, email) = seed(&pool, &["admin"], "active").await;
-        let user = get_or_create_admin(&pool, &email, "test")
+        let user = get_or_create_admin(admins(&pool).as_ref(), &email, "test")
             .await
             .expect("resolve admin");
 
@@ -366,7 +384,7 @@ mod cli_context {
     async fn different_profiles_get_different_contexts() {
         let pool = test_db_pool().await;
         let (_name, email) = seed(&pool, &["admin"], "active").await;
-        let user = get_or_create_admin(&pool, &email, "test")
+        let user = get_or_create_admin(admins(&pool).as_ref(), &email, "test")
             .await
             .expect("resolve admin");
         let session = session_for(&pool, &user.id).await;
@@ -388,10 +406,10 @@ mod cli_context {
         let pool = test_db_pool().await;
         let (_n1, email_one) = seed(&pool, &["admin"], "active").await;
         let (_n2, email_two) = seed(&pool, &["admin"], "active").await;
-        let one = get_or_create_admin(&pool, &email_one, "test")
+        let one = get_or_create_admin(admins(&pool).as_ref(), &email_one, "test")
             .await
             .expect("resolve first admin");
-        let two = get_or_create_admin(&pool, &email_two, "test")
+        let two = get_or_create_admin(admins(&pool).as_ref(), &email_two, "test")
             .await
             .expect("resolve second admin");
 
@@ -455,7 +473,7 @@ async fn an_address_with_no_user_behind_it_is_provisioned_as_an_admin() {
     let pool = test_db_pool().await;
     let email = format!("{}@sessadmin.invalid", unique("fallback"));
 
-    let user = resolve_admin_with_fallback(&pool, &email, None, "local")
+    let user = resolve_admin_with_fallback(admins(&pool).as_ref(), &email, None, "local")
         .await
         .expect("an address with no user is provisioned rather than refused");
 
@@ -475,7 +493,7 @@ async fn a_hinted_lookup_that_fails_falls_back_and_still_reports_the_original_fa
     let pool = closed_db_pool().await;
 
     let err = resolve_admin_with_fallback(
-        &pool,
+        admins(&pool).as_ref(),
         "hinted@sessadmin.invalid",
         Some("hinted@sessadmin.invalid"),
         "local",
@@ -493,9 +511,14 @@ async fn a_hinted_lookup_that_fails_falls_back_and_still_reports_the_original_fa
 async fn a_hintless_lookup_that_fails_is_reported_without_a_fallback() {
     let pool = closed_db_pool().await;
 
-    let err = resolve_admin_with_fallback(&pool, "plain@sessadmin.invalid", None, "local")
-        .await
-        .expect_err("a closed pool cannot resolve anyone");
+    let err = resolve_admin_with_fallback(
+        admins(&pool).as_ref(),
+        "plain@sessadmin.invalid",
+        None,
+        "local",
+    )
+    .await
+    .expect_err("a closed pool cannot resolve anyone");
 
     assert!(
         format!("{err:#}").contains("Failed to query user by email"),

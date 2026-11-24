@@ -30,9 +30,16 @@ async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
         .await
         .expect("assign admin role");
 
-    let resolved = fetch_admin_user(&db, &username, false, None)
-        .await
-        .expect("local admin resolves by name without cloud credentials");
+    let resolved = fetch_admin_user(
+        systemprompt_users::admin_bootstrap(db.clone())
+            .expect("the users admin bootstrap builds")
+            .as_ref(),
+        &username,
+        false,
+        None,
+    )
+    .await
+    .expect("local admin resolves by name without cloud credentials");
 
     assert_eq!(resolved.name, username);
     assert_eq!(resolved.email, email);
@@ -48,9 +55,16 @@ async fn fetch_admin_user_missing_local_user_points_to_bootstrap_not_cloud_login
 
     let missing_username = format!("nonexistent_admin_{}", uuid::Uuid::new_v4());
 
-    let err = fetch_admin_user(&db, &missing_username, false, None)
-        .await
-        .expect_err("missing admin row must error");
+    let err = fetch_admin_user(
+        systemprompt_users::admin_bootstrap(db.clone())
+            .expect("the users admin bootstrap builds")
+            .as_ref(),
+        &missing_username,
+        false,
+        None,
+    )
+    .await
+    .expect_err("missing admin row must error");
 
     let msg = format!("{:#}", err);
     assert!(

@@ -10,6 +10,8 @@
 //! conferral table.
 
 #[cfg(test)]
+mod admin_bootstrap_slot;
+#[cfg(test)]
 mod admitted_views;
 #[cfg(test)]
 mod analytics_http;

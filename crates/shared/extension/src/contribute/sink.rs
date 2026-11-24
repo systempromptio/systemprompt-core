@@ -32,8 +32,9 @@ use crate::state::StateRequirement;
 
 use super::factories::SecretReferenceFactory;
 pub use super::factories::{
-    AssetFn, AudienceResolverFactory, DiagnosticFactory, DoctorCheckRef, GatewayGuardFactory,
-    PolicyFactory, ReadinessFactory, RunnerServiceFactory, SubjectProviderFactory,
+    AdminBootstrapFn, AssetFn, AudienceResolverFactory, DiagnosticFactory, DoctorCheckRef,
+    GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
+    SubjectProviderFactory,
 };
 
 /// Everything one member contributed, in declaration order.
@@ -52,6 +53,7 @@ pub struct ContributionSink {
     pub(crate) assets: Vec<AssetFn>,
     pub(crate) configs: Vec<ConfigDecl>,
     pub(crate) config_planes: Vec<Arc<dyn ConfigPlane>>,
+    pub(crate) admin_bootstrap: Option<AdminBootstrapFn>,
     pub(crate) site_auth: Vec<SiteAuthConfig>,
     pub(crate) provides: Vec<ProvideEntry>,
     pub(crate) requires: Vec<StateRequirement>,
@@ -140,6 +142,11 @@ impl ContributionSink {
     #[must_use]
     pub fn configs(&self) -> &[ConfigDecl] {
         &self.configs
+    }
+
+    #[must_use]
+    pub const fn admin_bootstrap(&self) -> Option<AdminBootstrapFn> {
+        self.admin_bootstrap
     }
 
     #[must_use]

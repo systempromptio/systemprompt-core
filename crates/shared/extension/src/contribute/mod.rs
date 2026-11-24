@@ -53,8 +53,8 @@ pub use member::{MemberResolved, MemberScope};
 pub use resolved::{FromState, KernelAccess, ProvideFn, Resolved};
 pub use secrets::{MemberSecrets, SecretDeclarations};
 pub use sink::{
-    AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory, DoctorCheckRef,
-    GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
+    AdminBootstrapFn, AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory,
+    DoctorCheckRef, GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
     SubjectProviderFactory,
 };
 pub use slot::{Slot, SlotBuildInput, SlotEntry, SlotOrder, SlotRecord, build_slot};

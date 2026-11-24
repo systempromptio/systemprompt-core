@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
-use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
+use systemprompt_traits::{AdminAccount, AdminBootstrap, AdminGrant, DynAdminBootstrap};
 
 use systemprompt_extension::cli::CommandOutput;
 
@@ -45,9 +45,9 @@ pub async fn execute(args: BootstrapArgs, host: &dyn KernelHost) -> Result<Comma
 
     let email = resolve_admin_email(&config, args.email.as_deref())?;
 
-    let user_service = connect_user_service(&config).await?;
+    let admins = connect_admin_bootstrap(host, &config).await?;
 
-    let (user, created) = if let Some(existing) = user_service.find_by_name(&name).await? {
+    let (user, created) = if let Some(existing) = admins.find_by_name(&name).await? {
         (existing, false)
     } else {
         let Some(email) = email else {
@@ -56,23 +56,22 @@ pub async fn execute(args: BootstrapArgs, host: &dyn KernelHost) -> Result<Comma
                  or pass --email."
             ));
         };
-        let created = user_service
-            .create(&name, email.as_str(), Some(&args.full_name), None)
+        let created = admins
+            .create(&name, email.as_str(), Some(&args.full_name))
             .await?;
         (created, true)
     };
 
-    if !user.is_active() {
+    if !user.active {
         return Err(anyhow!(
-            "Bootstrap user '{}' exists but has status '{}'; expected '{}'. Re-activate it before \
-             running the platform.",
+            "Bootstrap user '{}' exists but has status '{}'; expected 'active'. Re-activate it \
+             before running the platform.",
             user.name,
-            user.status.as_str(),
-            UserStatus::Active.as_str(),
+            user.status,
         ));
     }
 
-    let user = ensure_admin_role(&user_service, user).await?;
+    let user = ensure_admin_role(admins.as_ref(), user).await?;
 
     Ok(build_output(user, created))
 }
@@ -118,7 +117,10 @@ fn resolve_admin_name(config: &Config, requested: Option<&str>) -> Result<String
     }
 }
 
-async fn connect_user_service(config: &Config) -> Result<UserService> {
+async fn connect_admin_bootstrap(
+    host: &dyn KernelHost,
+    config: &Config,
+) -> Result<DynAdminBootstrap> {
     let database: DbPool = Arc::new(
         Database::connect(
             &config.database_url,
@@ -128,21 +130,20 @@ async fn connect_user_service(config: &Config) -> Result<UserService> {
         .await
         .context("Failed to connect to database")?,
     );
-    Ok(UserService::new(Arc::new(UserRepository::new(&database))))
+    Ok(crate::kernel::admin_bootstrap(host.admitted()?, database)?)
 }
 
-async fn ensure_admin_role(user_service: &UserService, user: User) -> Result<User> {
-    let admin_role = UserRole::Admin.as_str().to_owned();
-
-    let user = if user.roles.contains(&admin_role) {
+async fn ensure_admin_role(
+    admins: &dyn AdminBootstrap,
+    user: AdminAccount,
+) -> Result<AdminAccount> {
+    let user = if user.is_admin() {
         user
     } else {
-        let mut next_roles = user.roles.clone();
-        next_roles.push(admin_role.clone());
-        user_service.assign_roles(&user.id, &next_roles).await?
+        admins.grant_admin(&user.id, AdminGrant::Added).await?
     };
 
-    if !user.roles.contains(&admin_role) {
+    if !user.is_admin() {
         return Err(anyhow!(
             "Failed to assign 'admin' role to bootstrap user '{}'",
             user.name
@@ -152,7 +153,7 @@ async fn ensure_admin_role(user_service: &UserService, user: User) -> Result<Use
     Ok(user)
 }
 
-fn build_output(user: User, created: bool) -> CommandOutput {
+fn build_output(user: AdminAccount, created: bool) -> CommandOutput {
     let message = if created {
         format!(
             "Bootstrap user '{}' created and granted admin role",

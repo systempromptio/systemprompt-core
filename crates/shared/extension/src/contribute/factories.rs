@@ -23,6 +23,16 @@ use crate::health::{DiagnosticProbe, ReadinessCheck};
 use crate::notifications::NotificationAudienceResolver;
 
 pub type AssetFn = Arc<dyn Fn(&dyn AssetPaths) -> Vec<AssetDefinition> + Send + Sync>;
+/// The users member's pre-kernel admin-bootstrap constructor: an open
+/// database handle in, the
+/// [`DynAdminBootstrap`](systemprompt_traits::DynAdminBootstrap) view out. The
+/// CLI host calls it only for a core-standing `users` member.
+pub type AdminBootstrapFn =
+    fn(
+        Arc<dyn systemprompt_traits::DatabaseHandle>,
+    )
+        -> Result<systemprompt_traits::DynAdminBootstrap, systemprompt_traits::AdminBootstrapError>;
+
 pub type RunnerServiceFactory = Box<dyn Factory<Arc<dyn RunnerService>>>;
 pub type ReadinessFactory = Box<dyn Factory<Arc<dyn ReadinessCheck>>>;
 pub type DiagnosticFactory = Box<dyn Factory<Arc<dyn DiagnosticProbe>>>;

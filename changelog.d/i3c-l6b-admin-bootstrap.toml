@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The CLI's admin flows (`admin bootstrap`, `admin session login`, CLI session creation, `infra db assign-admin`) find, create and promote the platform admin through the `DynAdminBootstrap` view, built before any kernel state from the constructor a core-standing `users` member contributes (`Contributions::admin_bootstrap`). An install's constructor is never called. The view cannot demote, delete, ban, merge, list or update a user."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`AdminBootstrap` / `DynAdminBootstrap`, `AdminAccount`, `AdminGrant`, `AdminPromotion` and `AdminBootstrapError`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Contributions::admin_bootstrap`, `AdminBootstrapFn` and `ContributionSink::admin_bootstrap`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "`admin_bootstrap`, the pre-kernel `DynAdminBootstrap` constructor the users member contributes."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`session::creation::admin_bootstrap::{get_or_create_admin, resolve_local_admin, resolve_admin_with_fallback, resolve_tenant_admin_with_fallback}` and `admin::session::login_helpers::fetch_admin_user` take a `&dyn AdminBootstrap` instead of a `DbPool` and return an `AdminAccount`; `generate_admin_token` takes an `AdminAccount`. Added `kernel::admin_bootstrap` and `kernel::AdminBootstrapUnavailable`."
