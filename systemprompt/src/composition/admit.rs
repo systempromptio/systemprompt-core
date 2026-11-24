@@ -10,7 +10,7 @@ use std::any::TypeId;
 
 #[cfg(feature = "cli")]
 use systemprompt_extension::admitted::AdmittedCommand;
-use systemprompt_extension::{DuplicateJobOwner, MemberWithheld, WithheldBecause};
+use systemprompt_extension::{AbsentDependency, DuplicateJobOwner, MemberWithheld};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::{DisabledExtension, ExtensionsConfig};
 
@@ -47,7 +47,7 @@ pub(super) fn apply_removals(
 pub(super) fn withhold_dependants(
     members: &mut Vec<DeclaredMember>,
     absent: Vec<(TypeId, ExtensionId)>,
-    because: WithheldBecause,
+    because: AbsentDependency,
 ) -> Result<Vec<MemberWithheld>, CompositionError> {
     let mut absent = absent;
     let mut withheld = Vec::new();
@@ -78,7 +78,7 @@ pub(super) fn withhold_dependants(
             .map(|id| {
                 let cascaded = withheld.iter().any(|w: &MemberWithheld| w.owner == id);
                 let reason = if cascaded {
-                    WithheldBecause::DependencyWithheld
+                    AbsentDependency::Withheld
                 } else {
                     because
                 };

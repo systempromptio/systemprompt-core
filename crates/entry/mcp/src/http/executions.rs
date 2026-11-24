@@ -48,7 +48,7 @@ pub fn executions_router(repo: Arc<ToolUsageRepository>) -> Router {
         .with_state(ExecutionsState { repo })
 }
 
-fn reader_scope(req_ctx: &RequestContext) -> Option<&UserId> {
+const fn reader_scope(req_ctx: &RequestContext) -> Option<&UserId> {
     match req_ctx.user_type() {
         UserType::Admin => None,
         _ => Some(req_ctx.user_id()),

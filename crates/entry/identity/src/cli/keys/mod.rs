@@ -78,10 +78,7 @@ impl CliCommandGroup for KeysCommands {
     const NAME: &'static str = "keys";
     const ABOUT: &'static str = "RSA signing-key generation for the federated JWT plane";
 
-    fn run(
-        self,
-        host: &dyn CommandHost,
-    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
-        async move { execute(self, host).await.map_err(crate::cli::command_error) }
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(crate::cli::command_error)
     }
 }

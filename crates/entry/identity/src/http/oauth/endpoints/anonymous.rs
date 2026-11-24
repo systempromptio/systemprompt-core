@@ -98,7 +98,7 @@ async fn issue_anonymous_session(
 
 fn build_session_service(
     state: &OAuthState,
-    config: Arc<IdentityConfigView>,
+    config: &IdentityConfigView,
 ) -> SessionCreationService {
     let mut session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
@@ -130,7 +130,7 @@ pub async fn generate_anonymous_token(
     let client_type = validation.client_type();
 
     let cookie = SessionCookie::for_external_url(&config.api_external_url);
-    let session_service = build_session_service(&state, config);
+    let session_service = build_session_service(&state, &config);
 
     let analytics = state.analytics_provider().extract_analytics(
         &headers,

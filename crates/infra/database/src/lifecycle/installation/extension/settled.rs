@@ -89,7 +89,7 @@ pub(super) async fn install_unless_settled(
         super::purge_records::check_recorded_purges(db, active).await?;
         if is_settled(db, &prepared, &fingerprint).await? {
             info!("Schema is settled at this release; applying no DDL");
-            return run_settled(db, members, active, held_back, &prepared, target).await;
+            return run_settled(db, members, active, &prepared, target).await;
         }
     }
     if migration_config.force_full_install {
@@ -106,10 +106,10 @@ async fn run_settled(
     db: &dyn DatabaseProvider,
     members: MigrationMembers<'_>,
     active: &ExtensionSet,
-    held_back: &ExtensionSet,
     prepared: &[PreparedSchema],
     target: &SchemaName,
 ) -> Result<SchemaInstallReport, LoaderError> {
+    let held_back = members.held_back();
     for p in prepared {
         for cols in &p.columns_to_validate {
             super::validate_extension_columns(db, cols, target, &p.extension_id).await?;

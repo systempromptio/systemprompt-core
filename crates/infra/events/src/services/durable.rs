@@ -106,6 +106,15 @@ impl SseEvent<'_> {
     }
 }
 
+/// One outbox append: the acting principal, the live frame and the durable
+/// fact.
+#[derive(Debug)]
+pub struct OutboxAppend<'a, T> {
+    pub actor: &'a Actor,
+    pub event: SseEvent<'a>,
+    pub fact: &'a ReportingFact<T>,
+}
+
 #[derive(Debug, Clone)]
 pub struct DurableOutbox {
     pool: PgPool,
@@ -142,26 +151,23 @@ impl DurableOutbox {
         event: SseEvent<'_>,
         fact: &ReportingFact<T>,
     ) -> Result<EventOutboxId, DurableEventError> {
-        self.insert(conn, actor, event, fact, None).await
+        self.insert(conn, OutboxAppend { actor, event, fact }, None)
+            .await
     }
 
     pub async fn append_in_order_on<T: Serialize + Sync>(
         &self,
         conn: &mut PgConnection,
-        actor: &Actor,
-        event: SseEvent<'_>,
-        fact: &ReportingFact<T>,
+        append: OutboxAppend<'_, T>,
         aggregate: &OutboxAggregateKey,
     ) -> Result<EventOutboxId, DurableEventError> {
-        self.insert(conn, actor, event, fact, Some(aggregate)).await
+        self.insert(conn, append, Some(aggregate)).await
     }
 
     async fn insert<T: Serialize + Sync>(
         &self,
         conn: &mut PgConnection,
-        actor: &Actor,
-        event: SseEvent<'_>,
-        fact: &ReportingFact<T>,
+        OutboxAppend { actor, event, fact }: OutboxAppend<'_, T>,
         aggregate: Option<&OutboxAggregateKey>,
     ) -> Result<EventOutboxId, DurableEventError> {
         if fact.consumer.trim().is_empty() || fact.kind.trim().is_empty() || fact.version == 0 {

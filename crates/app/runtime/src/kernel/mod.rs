@@ -212,7 +212,7 @@ impl Kernel {
         &self.state
     }
 
-    pub(crate) fn state_mut(&mut self) -> &mut Dependencies {
+    pub(crate) const fn state_mut(&mut self) -> &mut Dependencies {
         &mut self.state
     }
 

@@ -8,7 +8,7 @@ use std::any::TypeId;
 
 use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts, DeclaredCommandParts};
 use systemprompt_extension::contribute::ContributionSink;
-use systemprompt_extension::{Admitted, DeclaredCommands, MemberWithheld, WithheldBecause};
+use systemprompt_extension::{AbsentDependency, Admitted, DeclaredCommands, MemberWithheld};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::ExtensionsConfig;
 
@@ -87,8 +87,7 @@ impl Declared {
             .map(|member| (member.type_id, member.id.clone()))
             .collect();
         let mut withheld = self.withheld;
-        let cascaded =
-            withhold_dependants(&mut enabled, absent, WithheldBecause::DependencyDisabled)?;
+        let cascaded = withhold_dependants(&mut enabled, absent, AbsentDependency::Disabled)?;
         withheld.extend(cascaded);
         check_providers(&enabled, &dropped)?;
         drop(dropped);

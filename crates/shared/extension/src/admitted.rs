@@ -42,24 +42,24 @@ pub struct AdmittedMember {
 pub struct MemberWithheld {
     pub owner: ExtensionId,
     pub dependency: ExtensionId,
-    pub because: WithheldBecause,
+    pub because: AbsentDependency,
 }
 
 /// Why a [`MemberWithheld`]'s dependency is absent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WithheldBecause {
-    DependencyDisabled,
-    DependencyRemoved,
-    DependencyWithheld,
+pub enum AbsentDependency {
+    Disabled,
+    Removed,
+    Withheld,
 }
 
-impl WithheldBecause {
+impl AbsentDependency {
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::DependencyDisabled => "dependency_disabled",
-            Self::DependencyRemoved => "dependency_removed",
-            Self::DependencyWithheld => "dependency_withheld",
+            Self::Disabled => "dependency_disabled",
+            Self::Removed => "dependency_removed",
+            Self::Withheld => "dependency_withheld",
         }
     }
 }

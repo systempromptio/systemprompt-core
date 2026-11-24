@@ -34,7 +34,7 @@ use std::collections::HashSet;
 
 use systemprompt_extension::contribute::{ContributionSink, Contributions};
 use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES, PrivilegedShape};
-use systemprompt_extension::{Admitted, Extension, StandingTag, WithheldBecause};
+use systemprompt_extension::{AbsentDependency, Admitted, Extension, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
 
@@ -258,8 +258,7 @@ impl Composition {
                 sink,
             });
         }
-        let withheld =
-            withhold_dependants(&mut declared, removed, WithheldBecause::DependencyRemoved)?;
+        let withheld = withhold_dependants(&mut declared, removed, AbsentDependency::Removed)?;
         check_member_dependencies(&declared)?;
         check_job_names(&declared)?;
         #[cfg(feature = "cli")]

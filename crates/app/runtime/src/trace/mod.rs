@@ -42,5 +42,10 @@ pub enum TraceError {
     MalformedLevel(#[from] systemprompt_logging::models::LoggingError),
 
     #[error("Stored {column} value `{value}` is outside its vocabulary")]
-    MalformedState { column: &'static str, value: String },
+    MalformedState {
+        column: &'static str,
+        value: String,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }

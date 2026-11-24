@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::PreparedAt;
 use systemprompt_extension::LoaderError;
 use tracing::info;
 
@@ -15,7 +16,6 @@ use super::{ExtensionSet, FreshSet};
 use crate::lifecycle::installation::prepare::PreparedSchema;
 use crate::lifecycle::installation::report::SchemaInstallReport;
 use crate::lifecycle::migrations::MigrationService;
-use crate::lifecycle::schema_name::SchemaName;
 use crate::services::DatabaseProvider;
 
 pub(super) async fn apply_structural(
@@ -68,9 +68,8 @@ pub(super) async fn apply_structural(
 pub(super) async fn apply_dependent(
     db: &dyn DatabaseProvider,
     schema_extensions: &ExtensionSet,
-    prepared: &[PreparedSchema],
+    PreparedAt { prepared, target }: PreparedAt<'_>,
     fresh: &FreshSet,
-    target: &SchemaName,
     reuse: TriggerReuse,
 ) -> Result<SchemaInstallReport, LoaderError> {
     for p in prepared {

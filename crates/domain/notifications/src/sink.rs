@@ -15,7 +15,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{
-    DurableEventError, DurableOutbox, ReportingFact, SseEvent,
+    DurableEventError, DurableOutbox, OutboxAppend, ReportingFact, SseEvent,
 };
 use systemprompt_extension::notifications::{
     DynNotificationSink, NotificationSink, NotificationSinkError,
@@ -69,7 +69,15 @@ impl NotificationSink for OutboxNotificationSink {
         let appended = match event.aggregate_key() {
             Some(aggregate) => {
                 self.outbox
-                    .append_in_order_on(conn, &actor, SseEvent::FactOnly, &fact, &aggregate)
+                    .append_in_order_on(
+                        conn,
+                        OutboxAppend {
+                            actor: &actor,
+                            event: SseEvent::FactOnly,
+                            fact: &fact,
+                        },
+                        &aggregate,
+                    )
                     .await
             },
             None => {

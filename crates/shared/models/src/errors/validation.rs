@@ -193,7 +193,7 @@ impl ServicesValidationError {
     }
 
     #[must_use]
-    pub fn circular_dependency(chain: Vec<String>) -> Self {
+    pub const fn circular_dependency(chain: Vec<String>) -> Self {
         Self::CircularDependency { chain }
     }
 

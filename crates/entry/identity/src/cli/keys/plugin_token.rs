@@ -62,12 +62,12 @@ pub(super) async fn execute(
         Some(email) => PluginTokenHolder::Email(email),
         None => PluginTokenHolder::User(host.caller_session().await?.user_id().clone()),
     };
-    let minter = host
+    let tokens = host
         .resolved()
         .await?
         .get::<DynPluginTokenMinter>()
         .context("the plugin-token minter is not available on this host")?;
-    let minted = minter
+    let minted = tokens
         .mint(PluginTokenRequest {
             holder,
             plugin_id: args.plugin_id.clone(),

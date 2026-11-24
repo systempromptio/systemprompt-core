@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use systemprompt_events::services::durable::{
-    DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
+    DurableOutbox, OutboxAppend, OutboxConsumer, ReportingFact, SseEvent,
 };
 use systemprompt_identifiers::{Actor, ConnectionId, EventOutboxId, OutboxAggregateKey, UserId};
 use systemprompt_models::AnalyticsEventBuilder;
@@ -59,9 +59,11 @@ async fn seed(pool: &sqlx::PgPool, consumer: &str, keyed: bool) -> HashSet<Event
             outbox
                 .append_in_order_on(
                     tx.as_mut(),
-                    &actor,
-                    SseEvent::Analytics(&event),
-                    &fact,
+                    OutboxAppend {
+                        actor: &actor,
+                        event: SseEvent::Analytics(&event),
+                        fact: &fact,
+                    },
                     &aggregate,
                 )
                 .await

@@ -3,7 +3,7 @@
 //! of other aggregates and unkeyed rows still are.
 
 use systemprompt_events::services::durable::{
-    DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
+    DurableOutbox, OutboxAppend, OutboxConsumer, ReportingFact, SseEvent,
 };
 use systemprompt_identifiers::{Actor, ConnectionId, EventOutboxId, OutboxAggregateKey, UserId};
 use systemprompt_test_fixtures::unique_instance;
@@ -26,7 +26,15 @@ async fn append(
     let id = match aggregate {
         Some(key) => {
             outbox
-                .append_in_order_on(tx.as_mut(), &actor, SseEvent::FactOnly, &fact, key)
+                .append_in_order_on(
+                    tx.as_mut(),
+                    OutboxAppend {
+                        actor: &actor,
+                        event: SseEvent::FactOnly,
+                        fact: &fact,
+                    },
+                    key,
+                )
                 .await
         },
         None => {

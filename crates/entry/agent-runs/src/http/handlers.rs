@@ -110,10 +110,11 @@ pub(super) async fn owned_run(
     id: &str,
 ) -> Result<AgentRunRow, AgentRunsHttpError> {
     let id = AgentRunId::try_new(id)?;
-    match state.runs.find_owned_run(&id, req_ctx.user_id()).await? {
-        Some(row) => Ok(row),
-        None => Err(ApiHttpError::not_found(format!("agent run '{id}' not found")).into()),
-    }
+    state
+        .runs
+        .find_owned_run(&id, req_ctx.user_id())
+        .await?
+        .ok_or_else(|| ApiHttpError::not_found(format!("agent run '{id}' not found")).into())
 }
 
 fn refusal(

@@ -1,4 +1,4 @@
 [root]
 section = "Changed"
 area = "extension"
-text = "A member is withheld with a member it declares through `depends_on` when that member is disabled in the profile, removed with `Composition::without` or itself withheld; `Admitted::withheld` lists each one with its dependency (`MemberWithheld`, `WithheldBecause`), the API logs them at boot, and `identity-http` depends on `oauth`, so with oauth off the host boots without the identity routes. `AdmittedParts` gains a `withheld` field."
+text = "A member is withheld with a member it declares through `depends_on` when that member is disabled in the profile, removed with `Composition::without` or itself withheld; `Admitted::withheld` lists each one with its dependency (`MemberWithheld`, `AbsentDependency`), the API logs them at boot, and `identity-http` depends on `oauth`, so with oauth off the host boots without the identity routes. `AdmittedParts` gains a `withheld` field."

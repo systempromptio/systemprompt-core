@@ -69,6 +69,13 @@ use self::validation::{validate_extension_columns, validate_table_ownership};
 use super::migration_owners::MigrationMembers;
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
+
+/// The prepared schemas of an install and the schema they install into.
+#[derive(Clone, Copy)]
+pub(super) struct PreparedAt<'a> {
+    pub(super) prepared: &'a [PreparedSchema],
+    pub(super) target: &'a SchemaName,
+}
 use super::report::SchemaInstallReport;
 use super::routine_refs::check_trigger_routines_held;
 use super::seeds::apply_seeds;
@@ -210,8 +217,17 @@ async fn run_install(
     } else {
         TriggerReuse::Reuse
     };
-    let mut report =
-        apply_dependent(db, schema_extensions, &prepared, &fresh, target, reuse).await?;
+    let mut report = apply_dependent(
+        db,
+        schema_extensions,
+        PreparedAt {
+            prepared: &prepared,
+            target,
+        },
+        &fresh,
+        reuse,
+    )
+    .await?;
 
     // Why: after every phase, so the schema checked is the one the server
     // will write to; a trigger left writing a dropped table fails every
@@ -244,8 +260,17 @@ async fn prepare_and_check(
     validate_table_ownership(&prepared, members.held_back(), schema_extensions)?;
     let owners = recorded_table_owners(db).await?;
     check_recorded_owners(&owners, &prepared)?;
-    check_pending_migration_owners(db, &owners, migration_service, members, &prepared, target)
-        .await?;
+    check_pending_migration_owners(
+        db,
+        &owners,
+        migration_service,
+        members,
+        PreparedAt {
+            prepared: &prepared,
+            target,
+        },
+    )
+    .await?;
     check_recorded_purges(db, schema_extensions).await?;
     check_migration_references(schema_extensions)?;
     check_retirements(schema_extensions)?;

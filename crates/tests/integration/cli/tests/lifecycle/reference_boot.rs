@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt::{CompositionError, reference};
 use systemprompt_api::services::server::routes::Composed;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
-use systemprompt_extension::WithheldBecause;
+use systemprompt_extension::AbsentDependency;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_boot_profile,
@@ -109,7 +109,7 @@ async fn oauth_disabled_withholds_identity_http_and_the_api_still_mounts() {
             .iter()
             .any(|member| member.owner.as_str() == "identity-http"
                 && member.dependency == oauth
-                && member.because == WithheldBecause::DependencyDisabled),
+                && member.because == AbsentDependency::Disabled),
         "identity-http is withheld with oauth: {withheld:?}"
     );
     assert!(
@@ -133,7 +133,7 @@ fn oauth_removed_from_the_composition_withholds_identity_http() {
             .withheld()
             .iter()
             .any(|member| member.owner.as_str() == "identity-http"
-                && member.because == WithheldBecause::DependencyRemoved),
+                && member.because == AbsentDependency::Removed),
         "{:?}",
         admitted.withheld()
     );

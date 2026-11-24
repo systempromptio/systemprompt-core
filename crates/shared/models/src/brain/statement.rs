@@ -81,7 +81,7 @@ fn render_into(
                     StatementError::MissingField {
                         field: name.clone(),
                     }
-                })?)
+                })?);
             },
             Segment::Optional { field, body } => {
                 if lookup(field, subject, fields).is_some() {

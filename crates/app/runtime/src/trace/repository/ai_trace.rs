@@ -203,8 +203,14 @@ impl TraceRepository {
     }
 }
 
-pub(super) fn parse_state<T: std::str::FromStr>(column: &'static str, value: String) -> Result<T> {
-    value
-        .parse()
-        .map_err(|_| TraceError::MalformedState { column, value })
+pub(super) fn parse_state<T>(column: &'static str, value: String) -> Result<T>
+where
+    T: std::str::FromStr,
+    T::Err: std::error::Error + Send + Sync + 'static,
+{
+    value.parse().map_err(|source| TraceError::MalformedState {
+        column,
+        value,
+        source: Box::new(source),
+    })
 }
