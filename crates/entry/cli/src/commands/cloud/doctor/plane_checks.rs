@@ -96,7 +96,15 @@ pub(super) fn check_services_source(profile: &Profile) -> CheckResult {
             ),
         );
     }
-    let refused = cache.read_refusals();
+    let refused = match cache.read_refusals() {
+        Ok(refused) => refused,
+        Err(error) => {
+            return CheckResult::warn(
+                SOURCE,
+                format!("the record of held-back sources cannot be read: {error}"),
+            );
+        },
+    };
     if !refused.is_empty() {
         let held: Vec<String> = refused
             .iter()

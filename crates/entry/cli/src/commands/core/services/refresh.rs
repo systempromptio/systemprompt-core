@@ -2,9 +2,10 @@
 //!
 //! Resolution never fails outright under a fallback policy: a refused or
 //! unreachable source is held back on its cached bundle, and a composition
-//! that cannot be built falls back whole. Both are read back from the bundle
-//! cache after the swap and end the command with an error, so a script sees
-//! a release that was not served as a failure rather than as "unchanged".
+//! that cannot be built falls back whole. The resolve itself says whether it
+//! fell back and the bundle cache names what was held back; either ends the
+//! command with an error, so a script sees a release that was not served as a
+//! failure rather than as "unchanged".
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,8 +15,9 @@ use clap::Args;
 use serde::Serialize;
 use systemprompt_loader::ServicesSourceBootstrap;
 use systemprompt_loader::bundle::source::{AnyFetcher, BundleFetcher};
-use systemprompt_loader::bundle::{BundleCache, cache_root};
+use systemprompt_loader::bundle::{BundleCache, DegradedRecord, SourceRefusal, cache_root};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::root::ServicesProvenance;
 use systemprompt_manifest::{Profile, Secrets};
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
@@ -57,6 +59,13 @@ pub struct SourceRow {
     pub changed: bool,
 }
 
+struct Refreshed {
+    rows: Vec<SourceRow>,
+    outcome: RefreshOutcome,
+    reconciled: Vec<ReconcileRow>,
+    provenance: Option<ServicesProvenance>,
+}
+
 pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
     let profile = ctx.profile()?;
     let secrets = ctx
@@ -67,9 +76,19 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
     let cache = BundleCache::new(cache_root(profile));
     let before = cache.read_state();
 
-    let (rows, outcome, reconciled) = if args.check {
+    let Refreshed {
+        rows,
+        outcome,
+        reconciled,
+        provenance,
+    } = if args.check {
         let (rows, outcome) = check_sources(profile, secrets, &before).await?;
-        (rows, outcome, Vec::new())
+        Refreshed {
+            rows,
+            outcome,
+            reconciled: Vec::new(),
+            provenance: None,
+        }
     } else {
         Box::pin(swap_sources(profile, secrets, &cache, &before, ctx)).await?
     };
@@ -102,8 +121,8 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         );
     }
 
-    if !args.check {
-        report_unserved(&cache, ctx)?;
+    if let Some(provenance) = &provenance {
+        report_unserved(provenance, &cache, ctx)?;
     }
 
     // Why: a supervisor script distinguishes "nothing to do" from "restart me"
@@ -120,15 +139,33 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
     Ok(())
 }
 
-fn report_unserved(cache: &BundleCache, ctx: &CommandContext) -> Result<()> {
-    if let Some(record) = cache.read_degraded() {
+pub fn refused_or_fallback(
+    provenance: &ServicesProvenance,
+    cache: &BundleCache,
+) -> Result<Vec<SourceRefusal>> {
+    if *provenance == ServicesProvenance::Bundled {
+        return Ok(Vec::new());
+    }
+    if let Some(record) =
+        DegradedRecord::for_provenance(provenance).or_else(|| cache.read_degraded())
+    {
         anyhow::bail!(
             "the sources could not be composed; serving the {} services tree: {}",
             record.serving,
             record.error
         );
     }
-    let refused = cache.read_refusals();
+    cache
+        .read_refusals()
+        .context("The record of held-back sources cannot be read")
+}
+
+fn report_unserved(
+    provenance: &ServicesProvenance,
+    cache: &BundleCache,
+    ctx: &CommandContext,
+) -> Result<()> {
+    let refused = refused_or_fallback(provenance, cache)?;
     if refused.is_empty() {
         return Ok(());
     }
@@ -205,7 +242,7 @@ async fn swap_sources(
     cache: &BundleCache,
     before: &ServicesBundleState,
     ctx: &CommandContext,
-) -> Result<(Vec<SourceRow>, RefreshOutcome, Vec<ReconcileRow>)> {
+) -> Result<Refreshed> {
     let root = ServicesSourceBootstrap::resolve(
         profile,
         |name| secrets.get(name).cloned(),
@@ -225,7 +262,12 @@ async fn swap_sources(
     } else {
         Vec::new()
     };
-    Ok((rows, outcome, reconciled))
+    Ok(Refreshed {
+        rows,
+        outcome,
+        reconciled,
+        provenance: Some(root.provenance),
+    })
 }
 
 #[must_use]

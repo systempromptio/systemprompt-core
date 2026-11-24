@@ -128,7 +128,9 @@ async fn a_kit_requiring_a_newer_core_is_held_back_while_the_base_advances() {
     let state = BundleCache::new(cache.path()).read_state();
     assert_eq!(state.sources["kit"].version, "4.2.0");
 
-    let refusals = BundleCache::new(cache.path()).read_refusals();
+    let refusals = BundleCache::new(cache.path())
+        .read_refusals()
+        .expect("refusals");
     assert_eq!(refusals.len(), 1, "{refusals:?}");
     let refusal = &refusals[0];
     assert_eq!(refusal.source, "kit");
@@ -183,7 +185,13 @@ async fn the_refusal_is_cleared_by_the_next_bundle_that_loads() {
     ServicesSourceBootstrap::resolve(&boot(&refused), no_secrets, CORE)
         .await
         .expect("held back");
-    assert_eq!(BundleCache::new(cache.path()).read_refusals().len(), 1);
+    assert_eq!(
+        BundleCache::new(cache.path())
+            .read_refusals()
+            .expect("refusals")
+            .len(),
+        1
+    );
 
     let repacked = serve(
         packed(
@@ -203,7 +211,10 @@ async fn the_refusal_is_cleared_by_the_next_bundle_that_loads() {
 
     assert!(after.path.join("plugins/support/config.yaml").is_file());
     assert!(
-        BundleCache::new(cache.path()).read_refusals().is_empty(),
+        BundleCache::new(cache.path())
+            .read_refusals()
+            .expect("refusals")
+            .is_empty(),
         "a resolve that holds nothing back leaves no record"
     );
     assert_eq!(
@@ -244,7 +255,12 @@ async fn fail_closed_refuses_a_kit_this_build_cannot_load() {
         .expect_err("fail_closed must not hold a source back");
 
     assert!(err.to_string().contains("fail_closed"), "{err}");
-    assert!(BundleCache::new(cache.path()).read_refusals().is_empty());
+    assert!(
+        BundleCache::new(cache.path())
+            .read_refusals()
+            .expect("refusals")
+            .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -276,5 +292,10 @@ async fn a_source_with_nothing_cached_falls_back_whole() {
         },
         other => panic!("expected the bundled fallback, got {other:?}"),
     }
-    assert!(BundleCache::new(cache.path()).read_refusals().is_empty());
+    assert!(
+        BundleCache::new(cache.path())
+            .read_refusals()
+            .expect("refusals")
+            .is_empty()
+    );
 }

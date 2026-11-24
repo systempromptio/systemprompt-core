@@ -6,7 +6,8 @@
 //! and is served, so nothing about the active root says a source was held
 //! back; this record does. Every composition that loads rewrites it with
 //! exactly the sources it held back, so an absent record means each source
-//! serves what it resolves to.
+//! serves what it resolves to. A record that cannot be read says nothing, so
+//! reading one is an error.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -66,12 +67,14 @@ pub struct SourceRefusal {
 }
 
 impl BundleCache {
-    #[must_use]
-    pub fn read_refusals(&self) -> Vec<SourceRefusal> {
-        fs::read_to_string(self.root().join(REFUSALS_FILE))
-            .ok()
-            .and_then(|raw| serde_json::from_str(&raw).ok())
-            .unwrap_or_default()
+    pub fn read_refusals(&self) -> BundleResult<Vec<SourceRefusal>> {
+        let raw = match fs::read_to_string(self.root().join(REFUSALS_FILE)) {
+            Ok(raw) => raw,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(error.into()),
+        };
+        serde_json::from_str(&raw)
+            .map_err(|e| BundleError::policy_context("refusal record does not parse", e))
     }
 
     pub fn write_refusals(&self, refusals: &[SourceRefusal]) -> BundleResult<()> {

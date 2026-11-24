@@ -11,7 +11,6 @@
 use axum::Json;
 use axum::extract::State;
 use systemprompt_loader::bundle::{BundleCache, DegradedRecord, cache_root};
-use systemprompt_manifest::profile::Profile;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::AppContext;
@@ -36,24 +35,30 @@ pub(super) async fn status(
     if has_sources {
         body.provenance =
             served_provenance(body.provenance, cache.read_degraded().as_ref(), &state);
-        body.refused = cache.read_refusals();
+        body.refused = cache.read_refusals()?;
     }
     Ok(Json(body))
 }
 
 // JSON: `/readyz` and `/health` carry this block as an open JSON object.
-pub(crate) fn held_back_block(profile: &Profile) -> Option<serde_json::Value> {
-    if profile.services.sources.is_empty() {
+pub fn held_back_block(has_sources: bool, cache: &BundleCache) -> Option<serde_json::Value> {
+    if !has_sources {
         return None;
     }
-    let refusals = BundleCache::new(cache_root(profile)).read_refusals();
-    if refusals.is_empty() {
-        return None;
+    match cache.read_refusals() {
+        Ok(refusals) if refusals.is_empty() => None,
+        Ok(refusals) => Some(serde_json::json!({
+            "serving": "held_back",
+            "sources": refusals,
+        })),
+        Err(error) => {
+            tracing::warn!(error = %error, "Held-back services sources could not be read");
+            Some(serde_json::json!({
+                "serving": "unknown",
+                "error": "the record of held-back sources cannot be read",
+            }))
+        },
     }
-    Some(serde_json::json!({
-        "serving": "held_back",
-        "sources": refusals,
-    }))
 }
 
 pub fn served_provenance(

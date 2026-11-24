@@ -150,6 +150,7 @@ fn describe_active(boot: &BootContext) -> Result<ActiveReport> {
     let state = cache.read_state();
     let held_back = cache
         .read_refusals()
+        .context("The record of held-back sources cannot be read")?
         .iter()
         .map(|r| format!("{} on {}: {}", r.source, r.serving_version, r.reason))
         .collect::<Vec<_>>()

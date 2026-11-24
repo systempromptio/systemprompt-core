@@ -3,10 +3,10 @@ use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
 use systemprompt_api::routes::admin::services::{
-    ProvenanceView, RefreshLock, build_status, served_provenance,
+    ProvenanceView, RefreshLock, build_status, held_back_block, served_provenance,
 };
 use systemprompt_identifiers::ContentHash;
-use systemprompt_loader::bundle::DegradedRecord;
+use systemprompt_loader::bundle::{BundleCache, DegradedRecord, RefusalKind, SourceRefusal};
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
@@ -209,4 +209,47 @@ fn a_healthy_boot_with_no_record_keeps_its_provenance() {
     let boot = boot_view("fetched", None);
 
     assert_eq!(served_provenance(boot.clone(), None, &staged_state()), boot);
+}
+
+fn refused_kit() -> SourceRefusal {
+    SourceRefusal {
+        source: "kit".to_owned(),
+        kind: RefusalKind::RequiresCore,
+        reason: "bundle requires core >=0.88".to_owned(),
+        attempted_digest: None,
+        serving_version: "4.2.0".to_owned(),
+        serving_digest: "sha256:aaa".to_owned(),
+        recorded_at: Utc
+            .with_ymd_and_hms(2026, 11, 24, 8, 0, 0)
+            .single()
+            .expect("valid timestamp"),
+    }
+}
+
+#[test]
+fn the_probe_block_names_a_held_back_source() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(root.path());
+    assert_eq!(held_back_block(true, &cache), None);
+
+    cache.write_refusals(&[refused_kit()]).expect("write");
+
+    let block = held_back_block(true, &cache).expect("held back");
+    assert_eq!(block["serving"], "held_back");
+    assert_eq!(block["sources"][0]["source"], "kit");
+    assert_eq!(
+        held_back_block(false, &cache),
+        None,
+        "a profile with no sources holds nothing back, whatever the cache kept"
+    );
+}
+
+#[test]
+fn the_probe_block_is_degraded_when_the_record_cannot_be_read() {
+    let root = tempfile::tempdir().expect("tempdir");
+    std::fs::write(root.path().join("refusals.json"), "{").expect("write");
+
+    let block = held_back_block(true, &BundleCache::new(root.path())).expect("unknown");
+
+    assert_eq!(block["serving"], "unknown");
 }

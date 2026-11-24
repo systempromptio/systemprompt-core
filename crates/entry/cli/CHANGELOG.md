@@ -5,7 +5,7 @@
 ### Breaking
 
 - `BundleArgs` gains `requires_core: Option<String>` and `ActiveReport` gains `held_back: Option<String>`. Migrate a struct literal by setting them to `None`.
-- `services refresh` ends with an error when a source was held back or the composition fell back.
+- `services refresh` exits 1 when a source was held back or the composition fell back, including when other sources changed. Migrate a supervisor that restarts on `3` by reading the printed table of changed sources on exit 1.
 
 ### Added
 

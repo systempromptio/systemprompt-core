@@ -29,8 +29,9 @@ use axum::extract::{Extension, Query, State};
 use serde::Deserialize;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
-use systemprompt_loader::bundle::{BundleCache, cache_root};
+use systemprompt_loader::bundle::{BundleCache, BundleError, SourceRefusal, cache_root};
 use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
+use systemprompt_manifest::profile::Profile;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
@@ -166,7 +167,7 @@ async fn run_refresh(
     }
 
     let state = cache.read_state();
-    let refused = cache.read_refusals();
+    let refused = refused_sources(profile, &cache)?;
     let restart_recommended = changed && owns_static_config(&cache, &state);
     let restarting = changed && restart;
 
@@ -203,6 +204,16 @@ async fn run_refresh(
         restart_recommended,
         restarting,
     })
+}
+
+fn refused_sources(
+    profile: &Profile,
+    cache: &BundleCache,
+) -> Result<Vec<SourceRefusal>, BundleError> {
+    if profile.services.sources.is_empty() {
+        return Ok(Vec::new());
+    }
+    cache.read_refusals()
 }
 
 // Why: governance hooks are read once at boot into the static services config;

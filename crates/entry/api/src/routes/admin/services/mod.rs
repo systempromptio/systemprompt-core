@@ -36,8 +36,7 @@ use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenan
 use systemprompt_runtime::AppContext;
 
 pub use refresh::{RefreshQuery, ServicesRefresh, refresh};
-pub(crate) use status::held_back_block;
-pub use status::{build_status, served_provenance};
+pub use status::{build_status, held_back_block, served_provenance};
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()

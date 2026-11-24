@@ -198,7 +198,9 @@ async fn an_unreachable_source_is_held_back_on_its_cached_bundle() {
         "the cached bundle composes to the tree already served"
     );
     assert!(after.path.join("config/config.yaml").is_file());
-    let refusals = BundleCache::new(cache.path()).read_refusals();
+    let refusals = BundleCache::new(cache.path())
+        .read_refusals()
+        .expect("refusals");
     assert_eq!(
         refusals.len(),
         1,

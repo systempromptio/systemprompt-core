@@ -191,6 +191,7 @@ fn flag_degraded_services_source(ctx: &AppContext, config: &mut serde_json::Valu
 
 // JSON: `/readyz` and `/health` carry this block as an open JSON object.
 pub(super) fn degraded_services_source(ctx: &AppContext) -> Option<serde_json::Value> {
+    use systemprompt_loader::bundle::{BundleCache, cache_root};
     use systemprompt_manifest::services::root::ServicesProvenance;
     match &ctx.boot().services_root()?.provenance {
         ServicesProvenance::LastGood { error, .. } => Some(json!({
@@ -202,7 +203,11 @@ pub(super) fn degraded_services_source(ctx: &AppContext) -> Option<serde_json::V
             "error": error,
         })),
         ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. } => {
-            crate::routes::admin::services::held_back_block(ctx.profile())
+            let profile = ctx.profile();
+            crate::routes::admin::services::held_back_block(
+                !profile.services.sources.is_empty(),
+                &BundleCache::new(cache_root(profile)),
+            )
         },
     }
 }

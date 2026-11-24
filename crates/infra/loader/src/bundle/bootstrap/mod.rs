@@ -149,7 +149,7 @@ impl ServicesSourceBootstrap {
         };
         cache.write_state(&state)?;
         cache.write_refusals(&resolution.refusals)?;
-        cache.gc(&composed_hash)?;
+        cache.gc(&state)?;
 
         let versions: BTreeMap<String, String> = resolved
             .iter()
