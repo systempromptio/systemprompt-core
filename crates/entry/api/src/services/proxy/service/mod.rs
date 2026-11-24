@@ -53,6 +53,24 @@ use super::resolver::ServiceResolver;
 use target::{external_server, unknown_service_error};
 use upstream::{Upstream, forward_context};
 
+/// What an external MCP call is audited with: the execution ledger and the
+/// artifact ingest always, the model's intent claims when the `ai` member
+/// provides them.
+#[derive(Clone)]
+pub struct McpAuditSinks {
+    pub executions: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
+    pub intent_claims: Option<systemprompt_traits::DynToolCallIntentClaims>,
+    pub ingest: Arc<systemprompt_mcp::ArtifactIngest>,
+}
+
+impl std::fmt::Debug for McpAuditSinks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("McpAuditSinks")
+            .field("intent_claims", &self.intent_claims.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProxyKind {
     Mcp,
@@ -80,8 +98,7 @@ struct ManagedRequest<'a> {
 pub struct ProxyService {
     client_pool: ClientPool,
     sessions: Arc<McpProxySessionRepository>,
-    intent_claims: Option<systemprompt_mcp::IntentClaimService>,
-    artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
+    audit: Option<McpAuditSinks>,
     mcp_client: Arc<McpClient>,
     owners: Arc<owner::OwnerCache>,
     handovers: Arc<owner::HandoverWaits>,
@@ -98,8 +115,7 @@ impl ProxyService {
         Self {
             client_pool: ClientPool::new(),
             sessions,
-            intent_claims: None,
-            artifact_ingest: None,
+            audit: None,
             mcp_client: Arc::new(McpClient::new(
                 connector_tokens,
                 systemprompt_mcp::services::DeploymentService::new(services.clone()),
@@ -115,18 +131,8 @@ impl ProxyService {
     }
 
     #[must_use]
-    pub fn with_tool_usage_repo(
-        mut self,
-        repo: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
-        intents: systemprompt_traits::DynToolCallIntentClaims,
-    ) -> Self {
-        self.intent_claims = Some(systemprompt_mcp::IntentClaimService::new(intents, repo));
-        self
-    }
-
-    #[must_use]
-    pub fn with_artifact_ingest(mut self, ingest: Arc<systemprompt_mcp::ArtifactIngest>) -> Self {
-        self.artifact_ingest = Some(ingest);
+    pub fn with_mcp_audit(mut self, audit: McpAuditSinks) -> Self {
+        self.audit = Some(audit);
         self
     }
 

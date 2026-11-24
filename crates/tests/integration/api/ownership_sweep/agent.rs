@@ -5,7 +5,6 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::{Extension, Router};
 use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
-use systemprompt_api::routes::proxy::mcp;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId,
@@ -176,7 +175,9 @@ fn webhooks(ctx: &AppContext) -> Router {
 }
 
 fn executions(ctx: &AppContext) -> Router {
-    mcp::executions_router(ctx)
+    systemprompt_mcp_entry::http::executions_router(systemprompt_api::repository::tool_usage(
+        ctx.db_pool(),
+    ))
 }
 
 #[tokio::test]

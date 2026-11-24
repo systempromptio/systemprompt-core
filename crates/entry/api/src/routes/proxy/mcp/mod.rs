@@ -1,6 +1,6 @@
-//! MCP reverse-proxy routes: forwards requests to managed MCP backends and
-//! exposes tool-execution lookups. Per-service discovery metadata lives in the
-//! `discovery` submodule.
+//! MCP reverse-proxy routes: forwards requests to managed MCP backends.
+//! Per-service discovery metadata lives in the `discovery` submodule; the
+//! tool-execution lookup is the `mcp-http` member's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,9 +8,6 @@
 use std::sync::Arc;
 
 mod discovery;
-mod executions;
-
-pub use executions::{ExecutionsState, ToolExecutionResponse, executions_router};
 
 use crate::kernel::ProxyService;
 use axum::Router;
@@ -34,22 +31,15 @@ pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
         Arc::clone(ctx.config_arc()),
         Arc::clone(ctx.secrets()),
     );
-    let engine = match ctx
-        .kernel()
-        .state()
+    let state = ctx.kernel().state();
+    let intent_claims = state
         .find::<systemprompt_traits::DynToolCallIntentClaims>()
-    {
-        Some(intents) => engine.with_tool_usage_repo(repo, Arc::clone(intents)),
-        None => engine,
-    };
-    let engine = match ctx
-        .kernel()
-        .state()
-        .get::<Arc<systemprompt_mcp::ArtifactIngest>>()
-    {
-        Ok(ingest) => engine.with_artifact_ingest(Arc::clone(ingest)),
-        Err(_) => engine,
-    };
+        .cloned();
+    let engine = engine.with_mcp_audit(crate::services::proxy::service::McpAuditSinks {
+        executions: repo,
+        intent_claims,
+        ingest: Arc::clone(state.get::<Arc<systemprompt_mcp::ArtifactIngest>>()?),
+    });
 
     let state = McpState { ctx: ctx.clone() };
 

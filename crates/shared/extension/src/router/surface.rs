@@ -8,6 +8,8 @@
 //!
 //! - [`SyncSurface`] (`cloud`): the services-tree manifest and download
 //!   routes under `/api/v1/sync`.
+//! - [`McpSurface`] (`mcp-http`): the MCP tool-execution lookup under
+//!   `/api/v1/mcp`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,3 +26,17 @@ pub trait SyncSurface: Send + Sync + std::fmt::Debug {
 }
 
 pub type DynSyncSurface = Arc<dyn SyncSurface>;
+
+/// Builds the MCP routes the API mounts under `/api/v1/mcp` from the
+/// `mcp-http` route state.
+pub trait McpSurface: Send + Sync + std::fmt::Debug {
+    fn build(&self, resolved: &Resolved<'_>) -> Result<McpRoutes, MissingDependency>;
+}
+
+pub type DynMcpSurface = Arc<dyn McpSurface>;
+
+/// What an [`McpSurface`] builds: the tool-execution lookup router.
+#[derive(Debug)]
+pub struct McpRoutes {
+    pub executions: Router,
+}

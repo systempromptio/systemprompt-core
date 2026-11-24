@@ -9,8 +9,8 @@ use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_marketplace::surface::ConsumerCatalog;
 use systemprompt_marketplace_entry::http::managed::{ManagedConsumerState, routes};
-use systemprompt_traits::BoxedSource;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
+use systemprompt_traits::BoxedSource;
 use tower::ServiceExt;
 
 struct NoCatalog;

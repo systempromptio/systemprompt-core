@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -97,12 +98,15 @@ impl ProxyService {
         super::fixed_arguments::apply(&server_config.tools, &mut body);
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
-        let sinks = self.intent_claims.clone().map(|intent_claims| AuditSinks {
-            intent_claims,
-            ingest: self.artifact_ingest.clone(),
+        let sinks = self.audit.clone().map(|audit| AuditSinks {
+            intent_claims: audit.intent_claims.map(|intents| {
+                systemprompt_mcp::IntentClaimService::new(intents, Arc::clone(&audit.executions))
+            }),
+            executions: audit.executions,
+            ingest: audit.ingest,
             background: ctx.background_tasks().clone(),
         });
-        let audit = build_audit(sinks, &req_ctx, service_name, &body);
+        let audit = build_audit(sinks, &req_ctx, service_name, &body)?;
         let outbound = outbound_headers(&incoming_headers, target.headers);
 
         let method = RequestBuilder::parse_method(&method_str)?;
@@ -161,18 +165,19 @@ fn build_audit(
     req_ctx: &RequestContext,
     service_name: &ServiceName,
     body: &[u8],
-) -> Option<McpAudit> {
-    let invocation = parse_tool_call(body)?;
-    let Some(sinks) = sinks else {
-        tracing::warn!(service = %service_name, "Tool-usage repository unavailable; external MCP call not audited");
-        return None;
+) -> Result<Option<McpAudit>, ProxyError> {
+    let Some(invocation) = parse_tool_call(body) else {
+        return Ok(None);
     };
-    Some(McpAudit::new(
+    let sinks = sinks.ok_or_else(|| ProxyError::AuditUnavailable {
+        service: service_name.to_string(),
+    })?;
+    Ok(Some(McpAudit::new(
         sinks,
         req_ctx.clone(),
         McpServerId::new(service_name.as_str()),
         invocation,
-    ))
+    )))
 }
 
 pub fn map_resolve_error(service_name: &ServiceName, error: McpDomainError) -> ProxyError {

@@ -10,13 +10,16 @@
 //! it (once) on stream EOF or drop, writing on the process's
 //! [`BackgroundTasks`] so shutdown drains the row.
 //!
-//! The execution row is written first, then paired with the model's intent
-//! through [`IntentClaimService`], mirroring
-//! [`systemprompt_mcp::McpToolExecutor`]: a client-supplied tool-call id is
-//! claimed as an exact pairing, otherwise the newest unclaimed intent for the
-//! tool in the calling session is claimed as an inferred one. Failing to claim
-//! leaves the execution unpaired rather than failing the call, which has
-//! already returned to the client.
+//! The execution row is written first, then, when the `ai` member provides
+//! the intent claims, paired with the model's intent through
+//! [`IntentClaimService`], mirroring [`systemprompt_mcp::McpToolExecutor`]: a
+//! client-supplied tool-call id is claimed as an exact pairing, otherwise the
+//! newest unclaimed intent for the tool in the calling session is claimed as
+//! an inferred one. Failing to claim leaves the execution unpaired rather than
+//! failing the call, which has already returned to the client. Intent pairing
+//! is attribution, not a protection: without `ai` there are no intents to
+//! pair, and the execution row and the artifact ingest (with its secret and
+//! policy scanners) still run for every call.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,6 +33,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpServerId};
 use systemprompt_mcp::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{
     ArtifactIngest, INTENT_CLAIM_WINDOW_SECONDS, IngestRequest, IntentClaimService, from_wire_value,
 };
@@ -44,8 +48,9 @@ use jsonrpc::{ToolCallInvocation, ToolCallOutcome};
 
 #[derive(Debug)]
 pub struct McpAudit {
-    intent_claims: IntentClaimService,
-    ingest: Option<Arc<ArtifactIngest>>,
+    executions: Arc<ToolUsageRepository>,
+    intent_claims: Option<IntentClaimService>,
+    ingest: Arc<ArtifactIngest>,
     context: RequestContext,
     server_name: McpServerId,
     invocation: ToolCallInvocation,
@@ -56,8 +61,9 @@ pub struct McpAudit {
 
 #[derive(Debug, Clone)]
 pub struct AuditSinks {
-    pub intent_claims: IntentClaimService,
-    pub ingest: Option<Arc<ArtifactIngest>>,
+    pub executions: Arc<ToolUsageRepository>,
+    pub intent_claims: Option<IntentClaimService>,
+    pub ingest: Arc<ArtifactIngest>,
     pub background: BackgroundTasks,
 }
 
@@ -69,11 +75,13 @@ impl McpAudit {
         invocation: ToolCallInvocation,
     ) -> Self {
         let AuditSinks {
+            executions,
             intent_claims,
             ingest,
             background,
         } = sinks;
         Self {
+            executions,
             intent_claims,
             ingest,
             context,
@@ -123,6 +131,7 @@ impl McpAudit {
             completed_at: Some(Utc::now()),
         };
 
+        let executions = self.executions;
         let intent_claims = self.intent_claims;
         let ingest = self.ingest;
         let mcp_execution_id = self.mcp_execution_id;
@@ -135,8 +144,7 @@ impl McpAudit {
             } else {
                 Correlation::Inferred
             };
-            if let Err(e) = intent_claims
-                .executions()
+            if let Err(e) = executions
                 .log_execution_sync_with_id(&mcp_execution_id, &request, &result_row, correlation)
                 .await
             {
@@ -154,18 +162,18 @@ impl McpAudit {
             // unclaimed intent for the tool in this session; without the same
             // claim here, every proxied call stayed unpaired — and eight of
             // nine configured servers are external.
-            match exact {
-                Some(call_id) => {
-                    claim_exact(&intent_claims, &request, &call_id, &mcp_execution_id).await;
-                },
-                None => {
-                    request.ai_tool_call_id =
-                        claim_inferred(&intent_claims, &request, &mcp_execution_id).await;
-                },
+            if let Some(intent_claims) = &intent_claims {
+                match exact {
+                    Some(call_id) => {
+                        claim_exact(intent_claims, &request, &call_id, &mcp_execution_id).await;
+                    },
+                    None => {
+                        request.ai_tool_call_id =
+                            claim_inferred(intent_claims, &request, &mcp_execution_id).await;
+                    },
+                }
             }
-            if let Some(ingest) = ingest {
-                ingest_proxied_result(&ingest, &request, result, mcp_execution_id).await;
-            }
+            ingest_proxied_result(&ingest, &request, result, mcp_execution_id).await;
         });
     }
 }

@@ -34,10 +34,11 @@ async fn record_tool_call(
         .ok_or_else(|| anyhow::anyhow!("request body is not a tools/call"))?;
     let repo = tool_usage(pool);
     let intents: DynToolCallIntentClaims = Arc::new(AiRequestRepository::new(pool));
-    let claims = IntentClaimService::new(intents, repo);
+    let claims = IntentClaimService::new(intents, Arc::clone(&repo));
     let sinks = AuditSinks {
-        intent_claims: claims,
-        ingest: None,
+        executions: repo,
+        intent_claims: Some(claims),
+        ingest: systemprompt_test_fixtures::fixture_artifact_ingest(pool)?,
         background: tasks.clone(),
     };
     let audit = McpAudit::new(sinks, context, McpServerId::new(server_name), invocation);

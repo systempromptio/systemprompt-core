@@ -62,6 +62,7 @@ sha2 = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-mcp = { workspace = true }
+systemprompt-mcp-entry = { workspace = true, features = ["http"] }
 systemprompt-loader = { workspace = true }
 systemprompt-marketplace = { workspace = true, features = ["http"] }
 systemprompt-marketplace-entry = { workspace = true, features = ["http"] }

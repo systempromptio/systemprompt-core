@@ -1,5 +1,8 @@
-//! The MCP registry HTTP surface: [`registry_routes`], the one route set
-//! [`crate::extension::McpHttpExtension`] contributes.
+//! The MCP HTTP surface: [`registry_routes`], the one route set
+//! [`crate::extension::McpHttpExtension`] contributes, and
+//! [`McpHttpSurface`], the [`McpSurface`] the API mounts the tool-execution
+//! lookup from under its own declaration (authenticated, a user context, the
+//! `mcp` rate scope and budget).
 //!
 //! `GET /api/v1/mcp/registry` lists the enabled MCP servers with the endpoint
 //! a client connects to, behind the public gate with a public request
@@ -17,20 +20,23 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod executions;
 pub mod registry;
 
 use std::sync::Arc;
 
 use axum::http::Method;
 use systemprompt_extension::router::{
-    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
+    ApiBase, BasePath, BodyLimit, McpRoutes, McpSurface, RouteLimits, RouteSet, RouteSpec,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, FromState, MissingDependency, RateBudget, RateLimit, Resolved,
     RouteGroup,
 };
+use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_traits::McpRegistryProvider;
 
+pub use executions::{ExecutionsState, ToolExecutionResponse, executions_router};
 pub use registry::{McpRegistryServer, handle_mcp_registry};
 
 const SPEC: RouteSpec = RouteSpec::new(
@@ -75,4 +81,24 @@ pub fn registry_routes() -> RouteSet {
     )
     .route(Method::GET, "/", handle_mcp_registry, SPEC)
     .build()
+}
+
+/// The repositories the `mcp-http` routes read, built in the member's
+/// provide fn: the tool-execution ledger.
+#[derive(Debug, Clone)]
+pub struct McpHttpRepositories {
+    pub tool_usage: Arc<ToolUsageRepository>,
+}
+
+/// The `mcp-http` member's MCP surface.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct McpHttpSurface;
+
+impl McpSurface for McpHttpSurface {
+    fn build(&self, resolved: &Resolved<'_>) -> Result<McpRoutes, MissingDependency> {
+        let repositories = resolved.get::<Arc<McpHttpRepositories>>()?;
+        Ok(McpRoutes {
+            executions: executions_router(Arc::clone(&repositories.tool_usage)),
+        })
+    }
 }

@@ -1,24 +1,25 @@
 //! Tool-execution lookup: `GET /executions/{id}` returns one execution's input
 //! and output to the user it belongs to (or an admin). An execution owned by
 //! another user answers exactly like a missing one, so ids cannot be probed.
+//! The ledger is the `ToolUsageRepository` the member builds in its provide
+//! fn ([`crate::extension`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::ApiHttpError;
 use axum::extract::{Extension, Path, State};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_mcp::models::ToolExecution;
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{ApiError, RequestContext};
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Serialize)]
 pub struct ToolExecutionResponse {
@@ -39,8 +40,7 @@ pub struct ExecutionsState {
     pub repo: Arc<ToolUsageRepository>,
 }
 
-pub fn executions_router(ctx: &AppContext) -> Router {
-    let repo = crate::repository::tool_usage(ctx.db_pool());
+pub fn executions_router(repo: Arc<ToolUsageRepository>) -> Router {
     Router::new()
         .route("/executions/{id}", get(handle_get_execution))
         .with_state(ExecutionsState { repo })

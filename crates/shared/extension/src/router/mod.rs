@@ -64,7 +64,7 @@ pub use sse::{
     subscription_refused,
 };
 #[cfg(feature = "router")]
-pub use surface::{DynSyncSurface, SyncSurface};
+pub use surface::{DynMcpSurface, DynSyncSurface, McpRoutes, McpSurface, SyncSurface};
 
 #[cfg(feature = "router")]
 #[doc(hidden)]

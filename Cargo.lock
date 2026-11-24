@@ -6793,6 +6793,7 @@ version = "0.86.1"
 dependencies = [
  "anyhow",
  "async-trait",
+ "axum",
  "chrono",
  "clap",
  "hex",
@@ -6820,6 +6821,7 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-traits",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "url",
@@ -7402,6 +7404,7 @@ name = "systemprompt-marketplace"
 version = "0.86.1"
 dependencies = [
  "async-trait",
+ "axum",
  "chrono",
  "globset",
  "hex",
@@ -7449,6 +7452,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
