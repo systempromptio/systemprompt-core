@@ -155,10 +155,13 @@ pub(super) async fn execute(
 ) -> Result<CommandOutput> {
     let config = host.output();
     let ctx = app_context(host).await?;
+    let state = ctx.kernel().state();
+    let boot = state.get::<systemprompt_loader::BootContext>()?;
+    let app_config = state.get::<Arc<systemprompt_manifest::Config>>()?;
 
-    let Ok(configs) = super::load_service_configs(ctx.boot()) else {
-        let mut validator = StartupValidator::new(ctx.boot().clone())?;
-        let report = validator.validate(ctx.config(), host.admitted()?.built());
+    let Ok(configs) = super::load_service_configs(boot) else {
+        let mut validator = StartupValidator::new(boot.clone())?;
+        let report = validator.validate(app_config, host.admitted()?.built());
         if report.has_errors() {
             display_validation_report(&report);
             return Err(anyhow::anyhow!("Startup validation failed"));
@@ -166,8 +169,10 @@ pub(super) async fn execute(
         return Err(anyhow::anyhow!("Failed to load service configs"));
     };
 
-    let state_manager =
-        ServiceStateVerifier::new(Arc::clone(ctx.db_pool()), ctx.config().instance_id.clone());
+    let state_manager = ServiceStateVerifier::new(
+        Arc::clone(state.get::<systemprompt_database::DbPool>()?),
+        app_config.instance_id.clone(),
+    );
     let states = state_manager.get_verified_states(&configs).await?;
 
     let mcp_statuses =

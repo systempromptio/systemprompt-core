@@ -15,7 +15,6 @@
 use crate::CookieExtractor;
 use axum::http::HeaderValue;
 use axum::http::header::InvalidHeaderValue;
-use systemprompt_manifest::Config;
 
 /// The `SameSite` policy a session cookie is issued under.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,11 +39,6 @@ pub struct SessionCookie {
 }
 
 impl SessionCookie {
-    #[must_use]
-    pub fn from_config(config: &Config) -> Self {
-        Self::for_external_url(&config.api_external_url)
-    }
-
     #[must_use]
     pub fn for_external_url(api_external_url: &str) -> Self {
         let secure = url::Url::parse(api_external_url).map_or(true, |url| url.scheme() != "http");

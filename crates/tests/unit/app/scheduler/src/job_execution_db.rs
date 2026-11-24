@@ -22,7 +22,8 @@ macro_rules! db_service {
                 app_ctx,
                 systemprompt_manifest::SchedulerConfig::with_system_admin(),
                 Arc::clone(&schedule),
-            ),
+            )
+            .expect("job execution service"),
             pool,
         )
     }};
@@ -281,7 +282,8 @@ mod dead_pool_recording {
         let (app_ctx, schedule) = app_over_a_dropped_database("sched_dead_run").await;
         let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
         config.distributed_lock = false;
-        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule));
+        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule))
+            .expect("job execution service");
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.
@@ -299,7 +301,8 @@ mod dead_pool_recording {
             app_ctx,
             systemprompt_manifest::SchedulerConfig::with_system_admin(),
             Arc::clone(&schedule),
-        );
+        )
+        .expect("job execution service");
 
         let report = service
             .run_job(&JobName::new(FAILING_JOB), &HashMap::new())
@@ -327,7 +330,8 @@ mod kernel_state_context {
         let (app_ctx, schedule) = crate::test_extension::scheduled_app(&test_database_url()).await;
         let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
         config.distributed_lock = false;
-        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule));
+        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule))
+            .expect("job execution service");
 
         let report = service
             .run_job(&JobName::new(KERNEL_STATE_JOB), &HashMap::new())
@@ -356,7 +360,8 @@ mod kernel_state_context {
         let (app_ctx, schedule) = crate::test_extension::scheduled_app(&test_database_url()).await;
         let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
         config.distributed_lock = false;
-        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule));
+        let service = JobExecutionService::new(app_ctx, config, Arc::clone(&schedule))
+            .expect("job execution service");
 
         let report = service
             .run_job(

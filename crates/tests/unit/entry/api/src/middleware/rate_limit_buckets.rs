@@ -102,7 +102,8 @@ fn window_start(now: DateTime<Utc>) -> DateTime<Utc> {
 
 #[tokio::test]
 async fn memory_windows_count_per_user_scope_and_window() {
-    let buckets = MemoryRateLimitBuckets::default();
+    let buckets =
+        MemoryRateLimitBuckets::with_capacity(std::num::NonZeroU64::new(262_144).unwrap());
     let user = UserId::new("memory-windows");
     let start = DateTime::from_timestamp(1_000, 0).expect("timestamp");
 
@@ -127,7 +128,9 @@ async fn memory_windows_count_per_user_scope_and_window() {
 
 #[tokio::test]
 async fn a_spent_memory_window_refuses_the_caller() {
-    let buckets = Arc::new(MemoryRateLimitBuckets::default());
+    let buckets = Arc::new(MemoryRateLimitBuckets::with_capacity(
+        std::num::NonZeroU64::new(262_144).unwrap(),
+    ));
     let limits = RateLimitState::new(&config(), buckets.clone());
     let budget = i64::try_from(PER_SECOND).expect("small") * WINDOW_SECS;
 

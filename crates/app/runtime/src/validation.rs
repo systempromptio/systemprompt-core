@@ -12,8 +12,8 @@ pub async fn validate_system(ctx: &AppContext) -> RuntimeResult<()> {
 }
 
 async fn validate_database(ctx: &AppContext) -> RuntimeResult<()> {
-    validate_database_url(&ctx.config().database_url)?;
-    validate_database_connection(ctx.db_pool().as_ref()).await?;
+    validate_database_url(&ctx.config.database_url)?;
+    validate_database_connection(ctx.database.as_ref()).await?;
     Ok(())
 }
 

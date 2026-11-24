@@ -16,6 +16,7 @@ use axum::http::header::{AUTHORIZATION, CONTENT_TYPE, HOST, WWW_AUTHENTICATE};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
+use std::sync::Arc;
 
 use crate::services::proxy::backend::ProxyError;
 use systemprompt_identifiers::ServiceName;
@@ -115,12 +116,17 @@ impl OAuthChallengeBuilder {
         } = *req;
         tracing::warn!(service = %service_name, status = %status_code, "Building OAuth challenge");
 
+        let config = ctx.kernel().state().get::<Arc<Config>>().map_err(|e| {
+            tracing::error!(error = %e, "Host configuration is not seeded");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
         let resource_metadata_url =
-            Self::resource_metadata_url(headers, &ctx.config().api_external_url, resource_path)
-                .map_err(|e| {
+            Self::resource_metadata_url(headers, &config.api_external_url, resource_path).map_err(
+                |e| {
                     tracing::error!(error = %e, "api_external_url is not a valid URL");
                     StatusCode::INTERNAL_SERVER_ERROR
-                })?;
+                },
+            )?;
 
         let (auth_header_value, error_body) = if status_code == StatusCode::UNAUTHORIZED {
             if has_authorization {
@@ -175,9 +181,17 @@ pub(crate) fn build_mcp_unknown_service_challenge(
     ctx: &AppContext,
     req_context: Option<&RequestContext>,
 ) -> Option<ProxyError> {
+    let state = ctx.kernel().state();
+    let (authority, config) = match (
+        state.get::<Arc<dyn TokenAuthority>>(),
+        state.get::<Arc<Config>>(),
+    ) {
+        (Ok(authority), Ok(config)) => (authority, config),
+        (Err(missing), _) | (_, Err(missing)) => return Some(ProxyError::Missing(missing)),
+    };
     let status_code = AuthValidator::validate_service_access(
-        ctx.token_authority().as_ref(),
-        ctx.config(),
+        authority.as_ref(),
+        config,
         headers,
         service_name,
         req_context,

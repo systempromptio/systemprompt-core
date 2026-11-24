@@ -11,7 +11,7 @@ use http_body_util::BodyExt;
 use systemprompt_identifiers::UserId;
 use systemprompt_identity_entry::http::admin_keys;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::seed_user_row;
+use systemprompt_test_fixtures::{AppContextSeeds as _, seed_user_row};
 use tower::ServiceExt;
 use uuid::Uuid;
 

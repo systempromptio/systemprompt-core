@@ -30,7 +30,7 @@ async fn discover_with_oidc(oidc_yaml: &str) -> Result<SsoDriver, SsoProviderErr
     );
     let hook = SsoHookContext {
         db: Arc::clone(&db),
-        config: Arc::clone(&config),
+        edge: systemprompt_security::http::EdgeConfigView::of(&config),
         services: systemprompt_test_fixtures::fixture_services_view(),
         services_root,
         secrets: systemprompt_test_fixtures::fixture_secret_store(),

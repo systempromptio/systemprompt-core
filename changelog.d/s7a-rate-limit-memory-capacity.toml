@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Rate limits"
+text = "`rate_limits.memory_capacity` bounds the callers a node tracks in its per-replica rate-limit windows, divided evenly over 64 shards and rounded up. Omitted it is 262144 (today's 64 × 4096); zero or a value above 16777216 is refused at profile validation. `MemoryRateLimitBuckets::default` is replaced by `with_capacity`."

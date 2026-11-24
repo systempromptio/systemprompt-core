@@ -23,6 +23,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{Actor, InstanceId, JobName};
 use systemprompt_runtime::AppContext;
@@ -46,6 +47,8 @@ pub(super) struct JobDispatch {
     pub(super) actor: Actor,
     pub(super) repository: SchedulerRepository,
     pub(super) app_context: Arc<AppContext>,
+    pub(super) db_pool: DbPool,
+    pub(super) instance_id: InstanceId,
     pub(super) running_jobs: RunningJobs,
     pub(super) claim_policy: ClaimPolicy,
     pub(super) enforce: bool,
@@ -60,14 +63,14 @@ pub(super) async fn execute_job(dispatch: JobDispatch, trigger: Trigger) {
         actor,
         repository,
         app_context,
+        db_pool,
+        instance_id,
         running_jobs,
         claim_policy,
         enforce,
         parameters,
         schedule,
     } = dispatch;
-    let instance_id = app_context.config().instance_id.clone();
-
     {
         let mut guard = running_jobs.lock().await;
         if guard.contains(&job_name) {
@@ -101,6 +104,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch, trigger: Trigger) {
             budget,
         },
         &app_context,
+        &db_pool,
         &schedule,
     )
     .with_enforce(enforce)

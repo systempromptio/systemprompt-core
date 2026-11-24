@@ -4,6 +4,7 @@
 //! and a document with agent content served under its `agentAuthored` tier.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::Result;
 use axum::body::Body;

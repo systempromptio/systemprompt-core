@@ -162,7 +162,7 @@ fn close_opt(a: Option<f64>, b: Option<f64>) -> bool {
 }
 
 #[must_use]
-pub fn pricing_close(a: &ModelPricing, b: &ModelPricing) -> bool {
+pub(crate) fn pricing_close(a: &ModelPricing, b: &ModelPricing) -> bool {
     close(a.input_per_million, b.input_per_million)
         && close(a.output_per_million, b.output_per_million)
         && close_opt(a.cache_read_per_million, b.cache_read_per_million)

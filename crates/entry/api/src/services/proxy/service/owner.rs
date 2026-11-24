@@ -31,17 +31,19 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use axum::body::Body;
 use axum::extract::{OriginalUri, Request};
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::Response;
-use systemprompt_database::ProcessOwner;
+use systemprompt_database::{ProcessOwner, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::jwt::{mint_owner_hop, verify_owner_hop};
+use systemprompt_security::keys::SigningKeys;
 
 use super::ProxyService;
 use crate::services::proxy::backend::{ProxyError, ResponseHandler};
@@ -57,10 +59,10 @@ pub fn owner_url(advertise_url: &str, path_and_query: &str) -> String {
     }
 }
 
-pub const FORWARDED_TO_OWNER: HeaderName =
+pub(crate) const FORWARDED_TO_OWNER: HeaderName =
     HeaderName::from_static(systemprompt_identifiers::headers::OWNER_HOP);
 
-pub const OWNER_CACHE_TTL: Duration = Duration::from_secs(2);
+pub(crate) const OWNER_CACHE_TTL: Duration = Duration::from_secs(2);
 pub const OWNER_HANDOVER_WAIT: Duration = Duration::from_secs(10);
 pub const OWNER_HANDOVER_POLL: Duration = Duration::from_millis(200);
 
@@ -180,7 +182,9 @@ impl ProxyService {
             return Ok(Some(owner));
         }
         let owner = ctx
-            .service_repository()
+            .kernel()
+            .state()
+            .get::<Arc<ServiceRepository>>()?
             .find_process_owner(service_name)
             .await
             .map_err(|source| ProxyError::DatabaseError {
@@ -231,11 +235,16 @@ impl ProxyService {
             "Forwarding to the replica that owns the process"
         );
 
-        let marker = mint_owner_hop(ctx.signing_keys(), &ctx.config().jwt_issuer, service_name)
-            .map_err(|source| ProxyError::OwnerHopUnavailable {
-                service: service_name.to_string(),
-                source,
-            })?;
+        let state = ctx.kernel().state();
+        let marker = mint_owner_hop(
+            state.get::<SigningKeys>()?,
+            &state.get::<Arc<Config>>()?.jwt_issuer,
+            service_name,
+        )
+        .map_err(|source| ProxyError::OwnerHopUnavailable {
+            service: service_name.to_string(),
+            source,
+        })?;
         let marker =
             HeaderValue::from_str(&marker).map_err(|source| ProxyError::HopTokenHeader {
                 service: service_name.to_string(),
@@ -261,27 +270,30 @@ impl ProxyService {
     }
 }
 
-pub fn forwarded_by_replica(
+pub(crate) fn forwarded_by_replica(
     headers: &HeaderMap,
     service_name: &ServiceName,
     ctx: &AppContext,
-) -> bool {
+) -> Result<bool, ProxyError> {
     let Some(marker) = headers
         .get(FORWARDED_TO_OWNER)
         .and_then(|v| v.to_str().ok())
     else {
-        return false;
+        return Ok(false);
     };
-    match verify_owner_hop(
-        ctx.signing_keys().keyring(),
-        &ctx.config().jwt_issuer,
-        service_name,
-        marker,
-    ) {
-        Ok(_) => true,
-        Err(error) => {
-            tracing::debug!(service = %service_name, %error, "Ignoring an owner-hop marker that does not verify");
-            false
+    let state = ctx.kernel().state();
+    Ok(
+        match verify_owner_hop(
+            state.get::<SigningKeys>()?.keyring(),
+            &state.get::<Arc<Config>>()?.jwt_issuer,
+            service_name,
+            marker,
+        ) {
+            Ok(_) => true,
+            Err(error) => {
+                tracing::debug!(service = %service_name, %error, "Ignoring an owner-hop marker that does not verify");
+                false
+            },
         },
-    }
+    )
 }

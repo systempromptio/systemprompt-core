@@ -5,6 +5,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::path::PathBuf;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 

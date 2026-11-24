@@ -4,6 +4,7 @@
 //! an active admin over a fresh CLI session row, refusing anyone else.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use base64::Engine;
 use systemprompt_extension::reserved::{ConferralRow, CoreId};

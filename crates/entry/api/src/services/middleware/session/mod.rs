@@ -46,6 +46,8 @@ use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
+use systemprompt_extension::reserved::CoreId;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::HeaderExtractor;
@@ -65,7 +67,7 @@ pub struct SessionMiddleware {
     analytics: Arc<dyn AnalyticsProvider>,
     issuer: Option<DynSessionIssuer>,
     trusted_proxies: Arc<Vec<IpNet>>,
-    config: Arc<Config>,
+    cookie: SessionCookie,
     claims: SessionClaims,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
@@ -89,11 +91,20 @@ impl std::fmt::Debug for SessionMiddleware {
 
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> Result<Self, LoaderError> {
+        let config = Arc::clone(
+            ctx.kernel()
+                .state()
+                .get::<Arc<Config>>()
+                .map_err(|source| LoaderError::MissingProvider {
+                    extension: ExtensionId::new(CoreId::Kernel.id()),
+                    source,
+                })?,
+        );
         Ok(Self {
             analytics: ctx.analytics_provider(),
             issuer: session_issuer(ctx),
-            trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
-            config: Arc::clone(ctx.config_arc()),
+            trusted_proxies: Arc::new(config.trusted_proxies.clone()),
+            cookie: SessionCookie::for_external_url(&config.api_external_url),
             claims: SessionClaims::from_kernel(ctx.kernel().state())?,
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
@@ -164,11 +175,9 @@ impl SessionMiddleware {
         let mut response = next.run(request).await;
 
         if let Some(token) = jwt_cookie
-            && let Ok(cookie_value) = SessionCookie::from_config(&self.config).issue(
-                &token,
-                SESSION_COOKIE_MAX_AGE_SECS,
-                SameSite::Strict,
-            )
+            && let Ok(cookie_value) =
+                self.cookie
+                    .issue(&token, SESSION_COOKIE_MAX_AGE_SECS, SameSite::Strict)
         {
             response
                 .headers_mut()

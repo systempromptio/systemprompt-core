@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Coordination"
+text = "`LeaseRepository::release` takes the held `Lease` and deletes the row only while it still carries that fencing token, returning `CoordinationError::Fenced` otherwise. The process lease supervisor renews through `renew(&Lease, ttl)`; a fenced renew stops the local process and writes nothing."

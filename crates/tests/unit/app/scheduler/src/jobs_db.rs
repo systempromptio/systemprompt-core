@@ -3,7 +3,7 @@
 //! handles. Against a database with nothing to clean up every run succeeds
 //! with no failures; against a closed pool the run fails at the database.
 
-use systemprompt_test_fixtures::{DisposableDb, test_database_url};
+use systemprompt_test_fixtures::{AppContextSeeds as _, DisposableDb, test_database_url};
 
 use crate::test_extension::{job_service, retention_job, run_admitted_job, scheduled_app};
 

@@ -13,7 +13,7 @@ use systemprompt_gateway_entry::http::messages::auth::{AuthInputs, authenticate}
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
+use systemprompt_test_fixtures::{AppContextSeeds as _, ensure_test_bootstrap, test_app_context};
 
 struct Harness {
     state: systemprompt_gateway_entry::http::state::GatewayHttpState,
@@ -43,7 +43,7 @@ fn gateway_http_state(
         repos: std::sync::Arc::new(
             systemprompt_gateway::surface::repositories::gateway_repositories(
                 &ctx.kernel().resolved(),
-                &systemprompt_api::routes::gateway::host_handles(ctx),
+                &systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
                 ctx.kernel()
                     .resolved()
                     .get::<systemprompt_traits::DynContextMaterializer>()
@@ -54,7 +54,7 @@ fn gateway_http_state(
         ),
         engines: systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
             .expect("gateway engines"),
-        host: systemprompt_api::routes::gateway::host_handles(ctx),
+        host: systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
         db: std::sync::Arc::clone(ctx.db_pool()),
     }
 }

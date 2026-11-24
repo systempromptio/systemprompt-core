@@ -4,7 +4,9 @@ use axum::http::StatusCode;
 use axum::{Extension, Router};
 use systemprompt_agent_entry::http::{artifacts_routes, contexts_routes, tasks_routes};
 use systemprompt_identifiers::{ArtifactId, ContextId, SessionId, TaskId, UserId};
-use systemprompt_test_fixtures::{DisposableDb, seed_user_row, seed_user_session};
+use systemprompt_test_fixtures::{
+    AppContextSeeds as _, DisposableDb, seed_user_row, seed_user_session,
+};
 use tower::ServiceExt;
 
 use super::common::{empty_get, request_context};

@@ -12,6 +12,7 @@ use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::auth::{DynRequestAuthenticator, TokenInteraction};
 use systemprompt_runtime::AppContext;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 use tower::ServiceExt;
 
@@ -406,6 +407,7 @@ async fn manifest_without_credential_is_unauthorized() -> Result<()> {
 // AG-UI event on the instance.
 mod bridge_stream_auth {
     use std::time::Duration;
+    use systemprompt_test_fixtures::AppContextSeeds as _;
 
     use super::{bearer, call, path, send, setup_ctx};
     use anyhow::Result;

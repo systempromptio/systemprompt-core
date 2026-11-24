@@ -4,6 +4,7 @@
 //! there.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use systemprompt_agent_entry::http::stream::StreamFeeds;
 use systemprompt_ai::PersonalProviderCredentials;

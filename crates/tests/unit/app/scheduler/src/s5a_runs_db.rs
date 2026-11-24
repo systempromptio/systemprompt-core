@@ -384,6 +384,7 @@ mod missed_runs_db {
             app,
             schedule,
         )
+        .expect("scheduler")
         .with_clock(Arc::new(FixedClock(now)))
         .start()
         .await
@@ -417,6 +418,7 @@ mod requirements_db {
         let (app, schedule) = app().await;
 
         let refused = SchedulerService::new(config(&[UNMET_JOB]), &pool, app, schedule)
+            .expect("scheduler")
             .start()
             .await;
 

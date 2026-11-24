@@ -10,6 +10,7 @@
 use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use async_trait::async_trait;
 use axum::Router;

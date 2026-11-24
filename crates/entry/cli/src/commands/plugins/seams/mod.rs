@@ -41,7 +41,7 @@ pub fn execute(args: &SeamsArgs, host: &dyn KernelHost) -> Result<CommandOutput,
 }
 
 #[must_use]
-pub fn member_rows(member: &AdmittedMember) -> Vec<SeamRow> {
+pub(crate) fn member_rows(member: &AdmittedMember) -> Vec<SeamRow> {
     let sink = &member.sink;
     let named = |contribution: &str, entries: Vec<String>| {
         (contribution.to_owned(), entries.len(), entries.join(", "))

@@ -125,7 +125,7 @@ pub async fn bind_and_serve(
 pub fn starting_router() -> Router {
     Router::new()
         .route(ApiPaths::HEALTH, get(starting_health))
-        .route("/health", get(starting_health))
+        .route(ApiPaths::HEALTH_ROOT, get(starting_health))
         .route(ApiPaths::LIVEZ, get(starting_livez))
         .route(ApiPaths::READYZ, get(starting_readyz))
         .fallback(starting_fallback)

@@ -30,7 +30,16 @@ pub(super) async fn execute_migrate_plan(
     extension: Option<&ExtensionId>,
     flags: PlanFlags,
 ) -> Result<CommandOutput> {
-    run_migrate_plan(ctx.db_pool().as_ref(), built, extension, flags).await
+    run_migrate_plan(
+        ctx.kernel()
+            .state()
+            .get::<systemprompt_database::DbPool>()?
+            .as_ref(),
+        built,
+        extension,
+        flags,
+    )
+    .await
 }
 
 pub(super) async fn execute_migrate_plan_standalone(

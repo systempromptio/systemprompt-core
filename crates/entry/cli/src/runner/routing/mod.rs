@@ -96,7 +96,7 @@ pub fn determine_execution_target(profile: &Profile) -> Result<ExecutionTarget> 
     })
 }
 
-pub async fn authorize_target(target: ExecutionTarget) -> Result<ExecutionTarget> {
+pub(crate) async fn authorize_target(target: ExecutionTarget) -> Result<ExecutionTarget> {
     let ExecutionTarget::SelfManaged { hostname } = target else {
         return Ok(target);
     };

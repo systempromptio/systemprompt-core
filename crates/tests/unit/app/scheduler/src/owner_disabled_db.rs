@@ -29,7 +29,8 @@ async fn a_job_whose_member_is_not_admitted_is_refused_as_unregistered() {
         ctx,
         systemprompt_manifest::SchedulerConfig::with_system_admin(),
         schedule,
-    );
+    )
+    .expect("job execution service");
     let report = service
         .run_job(&JobName::new(MCP_JOB), &HashMap::new())
         .await;
@@ -49,7 +50,8 @@ async fn the_same_job_runs_with_its_member_admitted() {
         ctx,
         systemprompt_manifest::SchedulerConfig::with_system_admin(),
         schedule,
-    );
+    )
+    .expect("job execution service");
     let report = service
         .run_job(&JobName::new(MCP_JOB), &HashMap::new())
         .await;
@@ -79,6 +81,7 @@ async fn a_configuration_naming_a_left_out_members_job_refuses_the_start() {
     let (ctx, schedule) = app_over(&test_database_url(), without).await;
 
     let err = SchedulerService::new(naming_the_mcp_job(), &pool, ctx, schedule)
+        .expect("scheduler")
         .start()
         .await
         .expect_err("an unknown job refuses the start");
@@ -95,6 +98,7 @@ async fn the_same_configuration_starts_with_the_member_admitted() {
     let (ctx, schedule) = app_over(&test_database_url(), fixture_admitted()).await;
 
     let startup = SchedulerService::new(naming_the_mcp_job(), &pool, ctx, schedule)
+        .expect("scheduler")
         .start()
         .await
         .expect("an admitted member's job starts");

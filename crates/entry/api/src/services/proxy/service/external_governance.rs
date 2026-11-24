@@ -12,15 +12,18 @@
 
 use async_trait::async_trait;
 use std::borrow::Cow;
+use systemprompt_database::DbPool;
 use systemprompt_extension::router::{GovernedToolCall, ProxiedCallGovernor, ProxyBackendError};
 use systemprompt_governance::authz::{Decision, DenyReason};
 use systemprompt_governance::policy::{
-    AccessScope, AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernedInput,
-    GovernedTarget, McpToolInput, PolicyRequest, PrincipalSnapshot, record_decision,
+    AccessScope, AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernanceEngine,
+    GovernedInput, GovernedTarget, McpToolInput, PolicyRequest, PrincipalSnapshot, record_decision,
 };
 use systemprompt_identifiers::{CallId, McpToolName, ServiceName};
 use systemprompt_models::RequestContext;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::ConfigWatch;
 
 pub(super) struct KernelCallGovernor<'a> {
     ctx: &'a AppContext,
@@ -68,7 +71,12 @@ async fn enforce(
         denied()
     })?;
     let input = GovernedInput::tool_arguments(McpToolInput::new(arguments));
-    let evaluation = evaluate_tool(ctx, request, &target, &input, &call_id).await;
+    let evaluation = evaluate_tool(ctx, request, &target, &input, &call_id)
+        .await
+        .map_err(|error| {
+            tracing::warn!(%error, %service, "External MCP governance failed");
+            denied()
+        })?;
     let allowed = matches!(
         evaluation.decision,
         Decision::Allow { .. } | Decision::Warn { .. }
@@ -90,7 +98,15 @@ async fn enforce(
         context_id: Some(request.context_id().clone()),
         trace_id: Some(request.trace_id().clone()),
     };
-    let pool = ctx.db_pool().write_pool();
+    let pool = ctx
+        .kernel()
+        .state()
+        .get::<DbPool>()
+        .map_err(|error| {
+            tracing::warn!(%error, %service, "External MCP governance failed");
+            denied()
+        })?
+        .write_pool();
     record_decision(&pool, &record).await.map_err(|error| {
         tracing::warn!(%error, %service, "External MCP governance failed");
         denied()
@@ -104,13 +120,18 @@ async fn evaluate_tool(
     target: &McpToolName,
     input: &GovernedInput,
     call_id: &CallId,
-) -> Evaluation {
+) -> Result<Evaluation, MissingDependency> {
     let roles = request
         .user
         .as_ref()
         .map(|user| user.roles.clone())
         .unwrap_or_default();
-    ctx.governance()
+    let governance = ctx
+        .kernel()
+        .state()
+        .get::<ConfigWatch<GovernanceEngine>>()?
+        .get();
+    Ok(governance
         .charge_and_evaluate(PolicyRequest {
             target: GovernedTarget::Tool {
                 tool: target.clone(),
@@ -125,7 +146,7 @@ async fn evaluate_tool(
             input,
             call_id,
         })
-        .await
+        .await)
 }
 
 fn access_scope(request: &RequestContext) -> AccessScope {
@@ -177,7 +198,13 @@ async fn record_invalid_name(
         context_id: Some(request.context_id().clone()),
         trace_id: Some(request.trace_id().clone()),
     };
-    let pool = ctx.db_pool().write_pool();
+    let pool = match ctx.kernel().state().get::<DbPool>() {
+        Ok(pool) => pool.write_pool(),
+        Err(error) => {
+            tracing::warn!(%error, %service, "Refused external MCP tools/call could not be audited");
+            return;
+        },
+    };
     if let Err(error) = record_decision(&pool, &record).await {
         tracing::warn!(%error, %service, "Refused external MCP tools/call could not be audited");
     }

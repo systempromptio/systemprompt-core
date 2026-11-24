@@ -80,7 +80,7 @@ pub async fn execute(command: &SecretCommands, host: &dyn KernelHost) -> Result<
     ))
 }
 
-pub fn file_secrets_path(host: &dyn KernelHost) -> Result<std::path::PathBuf> {
+pub(crate) fn file_secrets_path(host: &dyn KernelHost) -> Result<std::path::PathBuf> {
     let profile_path = profile_path(host)?;
     let profile = load_profile(profile_path)?;
     let secrets_config = profile

@@ -1,6 +1,7 @@
 //! Shared helpers for API route integration tests.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::Result;
 use axum::body::Body;
@@ -225,7 +226,7 @@ fn conversation_state(ctx: &AppContext) -> systemprompt_agent_entry::http::Agent
             systemprompt_agent_entry::http::ConversationRepositories::new(ctx.db_pool(), sessions),
         ),
         Arc::new(systemprompt_agent_entry::http::ContextEventPublisher::new(
-            Arc::new(ctx.event_router().clone()),
+            Arc::clone(ctx.event_router()),
         )),
         None,
     )
@@ -273,7 +274,8 @@ pub fn documents_state(
         resolved: ctx
             .kernel()
             .route_scoped(&owner, systemprompt_extension::StandingTag::Core, &[]),
-        host: systemprompt_api::routes::documents::files_host_handles(ctx),
+        host: systemprompt_api::routes::documents::files_host_handles(ctx)
+            .expect("files host handles"),
     };
     systemprompt_files_entry::http::documents::DocumentsState::build(&state)?
         .ok_or_else(|| anyhow::anyhow!("the document store is disabled"))
@@ -289,7 +291,8 @@ pub fn issues_state(
         resolved: ctx
             .kernel()
             .route_scoped(&owner, systemprompt_extension::StandingTag::Core, &[]),
-        host: systemprompt_api::routes::documents::files_host_handles(ctx),
+        host: systemprompt_api::routes::documents::files_host_handles(ctx)
+            .expect("files host handles"),
     };
     Ok(systemprompt_files_entry::http::issues::IssuesState::build(
         &state,

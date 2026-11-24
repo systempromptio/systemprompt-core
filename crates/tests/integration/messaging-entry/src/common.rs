@@ -2,6 +2,7 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::http::{Response, StatusCode};
 use http_body_util::BodyExt;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 pub async fn body_to_string(resp: Response<Body>) -> Result<(StatusCode, String)> {
     let status = resp.status();

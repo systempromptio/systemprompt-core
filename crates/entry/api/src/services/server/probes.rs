@@ -27,11 +27,18 @@
 
 use std::sync::Arc;
 
+use crate::error::ApiHttpError;
 use axum::Json;
+use axum::http::StatusCode;
 use serde_json::json;
-use systemprompt_database::PLANE_NOT_APPLIED_HINT;
-use systemprompt_runtime::{AppContext, ConfigPlaneSet};
+use systemprompt_database::{DbPool, PLANE_NOT_APPLIED_HINT};
+use systemprompt_governance::policy::GovernanceEngine;
+use systemprompt_loader::BootContext;
+use systemprompt_manifest::Config;
+use systemprompt_provider_contracts::MissingDependency;
+use systemprompt_runtime::{AppContext, ConfigPlaneSet, SchemaState};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
+use systemprompt_traits::ConfigWatch;
 
 use super::extension_readiness::ExtensionReadiness;
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
@@ -40,11 +47,15 @@ use crate::services::middleware::LoadShed;
 
 pub(crate) async fn handle_livez(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
-) -> impl axum::response::IntoResponse {
+) -> Result<Json<serde_json::Value>, ApiHttpError> {
     let mut body = serde_json::Map::new();
     body.insert("status".to_owned(), json!("alive"));
-    body.extend(super::identity::node_identity(&ctx));
-    Json(serde_json::Value::Object(body))
+    body.extend(super::identity::node_identity(&ctx).map_err(seed_error)?);
+    Ok(Json(serde_json::Value::Object(body)))
+}
+
+pub(super) fn seed_error(error: MissingDependency) -> ApiHttpError {
+    ApiHttpError::internal("node state", error)
 }
 
 pub(crate) async fn handle_readyz(
@@ -53,18 +64,19 @@ pub(crate) async fn handle_readyz(
     planes: Option<axum::Extension<Arc<ConfigReconcileRepository>>>,
     readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
     axum::Extension(api_ready): axum::Extension<Arc<ReadinessState>>,
-) -> impl axum::response::IntoResponse {
-    use axum::http::StatusCode;
+) -> Result<(StatusCode, Json<serde_json::Value>), ApiHttpError> {
     use systemprompt_database::DatabaseProvider;
 
-    let identity = super::identity::node_identity(&ctx);
-    let fingerprint = super::config_fingerprint::current(ctx.boot());
+    let state = ctx.kernel().state();
+    let identity = super::identity::node_identity(&ctx).map_err(seed_error)?;
+    let fingerprint =
+        super::config_fingerprint::current(state.get::<BootContext>().map_err(seed_error)?);
     let respond = |status: StatusCode, mut body: serde_json::Value, config: serde_json::Value| {
         if let Some(fields) = body.as_object_mut() {
             fields.extend(identity.clone());
             fields.insert("config".to_owned(), config);
         }
-        (status, Json(body))
+        Ok((status, Json(body)))
     };
     let bare = json!({ "fingerprint": fingerprint });
 
@@ -87,7 +99,10 @@ pub(crate) async fn handle_readyz(
         return respond(StatusCode::SERVICE_UNAVAILABLE, body, bare);
     }
 
-    let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
+    let probe = state
+        .get::<DbPool>()
+        .map_err(seed_error)?
+        .fetch_optional(&HEALTH_CHECK_QUERY, &[]);
     let db_ready = matches!(
         tokio::time::timeout(HEALTH_PROBE_TIMEOUT, probe).await,
         Ok(Ok(_))
@@ -97,15 +112,15 @@ pub(crate) async fn handle_readyz(
         return respond(StatusCode::SERVICE_UNAVAILABLE, body, bare);
     }
 
-    let registered = registered_planes(&ctx);
+    let registered = registered_planes(&ctx).map_err(seed_error)?;
     let mut config = config_block(
         fingerprint,
         planes.as_deref().map(AsRef::as_ref),
         registered.as_ref(),
     )
     .await;
-    flag_unapplied_governance(&ctx, &mut config);
-    flag_degraded_services_source(&ctx, &mut config);
+    flag_unapplied_governance(&ctx, &mut config).map_err(seed_error)?;
+    flag_degraded_services_source(&ctx, &mut config).map_err(seed_error)?;
     let (extensions_ready, extensions) = match readiness.as_deref() {
         Some(readiness) => readiness.run().await,
         None => (true, json!([])),
@@ -114,7 +129,7 @@ pub(crate) async fn handle_readyz(
         let body = json!({ "status": "unready", "extensions": extensions });
         return respond(StatusCode::SERVICE_UNAVAILABLE, body, config);
     }
-    let schema = ctx.schema_state();
+    let schema = state.get::<Arc<SchemaState>>().map_err(seed_error)?;
     let ahead = schema.ahead();
     if schema.breaks_this_release() {
         let body = json!({ "status": "unready", "schema": "breaking", "schema_ahead": ahead });
@@ -166,24 +181,38 @@ async fn config_block(
 }
 
 // JSON: the `/readyz` config block is an open JSON object.
-fn flag_unapplied_governance(ctx: &AppContext, config: &mut serde_json::Value) {
-    if let (Some(block), Some(fields)) = (unapplied_governance(ctx), config.as_object_mut()) {
+fn flag_unapplied_governance(
+    ctx: &AppContext,
+    config: &mut serde_json::Value,
+) -> Result<(), MissingDependency> {
+    if let (Some(block), Some(fields)) = (unapplied_governance(ctx)?, config.as_object_mut()) {
         fields.insert("unapplied".to_owned(), block);
     }
+    Ok(())
 }
 
 // JSON: the `/readyz` config block is an open JSON object.
-fn flag_degraded_services_source(ctx: &AppContext, config: &mut serde_json::Value) {
-    if let (Some(block), Some(fields)) = (degraded_services_source(ctx), config.as_object_mut()) {
+fn flag_degraded_services_source(
+    ctx: &AppContext,
+    config: &mut serde_json::Value,
+) -> Result<(), MissingDependency> {
+    if let (Some(block), Some(fields)) = (degraded_services_source(ctx)?, config.as_object_mut()) {
         fields.insert("services_source".to_owned(), block);
     }
+    Ok(())
 }
 
 // JSON: `/readyz` and `/health` carry this block as an open JSON object.
-pub(super) fn degraded_services_source(ctx: &AppContext) -> Option<serde_json::Value> {
+pub(super) fn degraded_services_source(
+    ctx: &AppContext,
+) -> Result<Option<serde_json::Value>, MissingDependency> {
     use systemprompt_loader::bundle::{BundleCache, cache_root};
     use systemprompt_manifest::services::root::ServicesProvenance;
-    match &ctx.boot().services_root()?.provenance {
+    let boot = ctx.kernel().state().get::<BootContext>()?;
+    let Some(root) = boot.services_root() else {
+        return Ok(None);
+    };
+    Ok(match &root.provenance {
         ServicesProvenance::LastGood { error, .. } => Some(json!({
             "serving": "last_good",
             "error": error,
@@ -193,37 +222,49 @@ pub(super) fn degraded_services_source(ctx: &AppContext) -> Option<serde_json::V
             "error": error,
         })),
         ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. } => {
-            let profile = ctx.profile();
+            let profile = boot.profile();
             crate::routes::admin::services::held_back_block(
                 !profile.services.sources.is_empty(),
                 &BundleCache::new(cache_root(profile)),
             )
         },
-    }
+    })
 }
 
 // JSON: `/readyz` and `/health` carry this block as an open JSON object.
-pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value> {
-    let mode = ctx.governance().unapplied_mode()?;
+pub(super) fn unapplied_governance(
+    ctx: &AppContext,
+) -> Result<Option<serde_json::Value>, MissingDependency> {
+    let governance = ctx
+        .kernel()
+        .state()
+        .get::<ConfigWatch<GovernanceEngine>>()?
+        .get();
+    let Some(mode) = governance.unapplied_mode() else {
+        return Ok(None);
+    };
     let effect = if mode.denies() {
         "every governed request is denied"
     } else {
         "governed requests pass ungoverned, with a warning on each"
     };
-    Some(json!({
+    Ok(Some(json!({
         "planes": ["governance"],
         "unapplied_planes": mode.as_str(),
         "effect": effect,
         "fix": PLANE_NOT_APPLIED_HINT,
-    }))
+    })))
 }
 
-fn registered_planes(ctx: &AppContext) -> Option<ConfigPlaneSet> {
-    match ctx.config_planes() {
-        Ok(planes) => Some(planes),
-        Err(error) => {
-            tracing::warn!(%error, "config plane set unavailable for /readyz");
-            None
+fn registered_planes(ctx: &AppContext) -> Result<Option<ConfigPlaneSet>, MissingDependency> {
+    let config = ctx.kernel().state().get::<Arc<Config>>()?;
+    Ok(
+        match systemprompt_runtime::config_plane_set(ctx.admitted(), config) {
+            Ok(planes) => Some(planes),
+            Err(error) => {
+                tracing::warn!(%error, "config plane set unavailable for /readyz");
+                None
+            },
         },
-    }
+    )
 }

@@ -9,6 +9,7 @@ use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 

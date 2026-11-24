@@ -40,7 +40,11 @@ impl Job for ConfigReconcileJob {
         let app = kernel_handles(ctx)?.app();
         let service = ConfigReconcileService::from_app_context(
             app,
-            ConfigReconcileRepository::new(app.db_pool()),
+            ConfigReconcileRepository::new(
+                app.kernel()
+                    .state()
+                    .get::<systemprompt_database::DbPool>()?,
+            ),
         )?;
         let applier = ConfigApplyService::new(service);
         let file_planes = applier

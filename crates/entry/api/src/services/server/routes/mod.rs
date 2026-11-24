@@ -60,7 +60,12 @@ pub(super) fn configure_routes(
     events: Option<&StartupEventSender>,
     engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Router, RouteMountError> {
-    build_routes(ctx, composed, ctx.config().role, events, engines)
+    let role = ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_manifest::Config>>()?
+        .role;
+    build_routes(ctx, composed, role, events, engines)
 }
 
 pub fn configure_routes_for_role(
@@ -90,7 +95,12 @@ fn build_routes(
         .members()
         .flat_map(|member| member.sink.metrics().iter().copied())
         .collect();
-    super::metrics::install_recorder(&ctx.config().instance_id, &metrics)
+    let config = Arc::clone(
+        ctx.kernel()
+            .state()
+            .get::<Arc<systemprompt_manifest::Config>>()?,
+    );
+    super::metrics::install_recorder(&config.instance_id, &metrics)
         .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let layers = mount_layers(ctx, role)?;
@@ -164,9 +174,9 @@ fn build_routes(
 fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, RouteMountError> {
     let jwt_extractor = JwtContextExtractor::from_kernel(ctx.kernel().state())?;
     let limits = if role.shares_process_ownership() {
-        RateLimitState::from_context(ctx).unmetered()
+        RateLimitState::from_context(ctx)?.unmetered()
     } else {
-        RateLimitState::from_context(ctx)
+        RateLimitState::from_context(ctx)?
     };
     Ok(MountLayers {
         limits,
@@ -194,7 +204,13 @@ fn finish_router(
         "ip_ban",
         ctx.kernel().state().find::<DynIpBanStore>().cloned(),
     )?;
-    let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
+    let trusted_proxies = Arc::new(
+        ctx.kernel()
+            .state()
+            .get::<Arc<systemprompt_manifest::Config>>()?
+            .trusted_proxies
+            .clone(),
+    );
 
     router = router.layer(axum::middleware::from_fn(move |req, next| {
         let repo = Arc::clone(&bans);

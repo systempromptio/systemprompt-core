@@ -42,7 +42,7 @@ use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{OutputFormat, VerbosityLevel};
 
 #[derive(Debug)]
-pub struct ProfileContext<'a> {
+pub(crate) struct ProfileContext<'a> {
     pub name: &'a ProfileName,
     pub path: PathBuf,
 }

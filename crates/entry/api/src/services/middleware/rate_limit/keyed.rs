@@ -23,8 +23,8 @@ use std::time::{Duration, Instant};
 
 use systemprompt_traits::OwnedTask;
 
-pub const MAX_TRACKED_KEYS: usize = 100_000;
-pub const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
+pub(crate) const MAX_TRACKED_KEYS: usize = 100_000;
+pub(crate) const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
 const OVERFLOW_KEY: &str = "overflow";
 
 /// One limiter's per-key state, bounded by eviction and by a key cap.

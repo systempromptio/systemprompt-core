@@ -54,7 +54,7 @@ pub async fn apply(
 }
 
 #[must_use]
-pub fn list_output(title: &str, rows: Vec<String>) -> CommandOutput {
+pub(crate) fn list_output(title: &str, rows: Vec<String>) -> CommandOutput {
     let items: Vec<ListItem> = rows
         .into_iter()
         .map(|row| ListItem::new(row, String::new(), String::new()))
@@ -67,7 +67,7 @@ pub async fn read_active(host: &dyn KernelHost) -> Result<CatalogDocument> {
     CatalogLocation::active(boot.loaded_profile()).read()
 }
 
-pub fn parse_wire(raw: &str) -> Result<WireProtocol> {
+pub(crate) fn parse_wire(raw: &str) -> Result<WireProtocol> {
     WireProtocol::from_tag(raw).ok_or_else(|| {
         anyhow!(
             "invalid --wire '{raw}'; expected one of: anthropic, openai-chat, openai-responses, \
@@ -76,7 +76,7 @@ pub fn parse_wire(raw: &str) -> Result<WireProtocol> {
     })
 }
 
-pub fn parse_clients(raw: &[String]) -> Result<Vec<ClientFamily>> {
+pub(crate) fn parse_clients(raw: &[String]) -> Result<Vec<ClientFamily>> {
     raw.iter()
         .flat_map(|value| value.split(','))
         .map(str::trim)
@@ -89,13 +89,13 @@ pub fn parse_clients(raw: &[String]) -> Result<Vec<ClientFamily>> {
         .collect()
 }
 
-pub fn parse_endpoints(raw: &[String]) -> Result<Vec<EndpointRef>> {
+pub(crate) fn parse_endpoints(raw: &[String]) -> Result<Vec<EndpointRef>> {
     raw.iter()
         .map(|value| EndpointRef::parse(value).map_err(|e| anyhow!(e)))
         .collect()
 }
 
-pub fn parse_headers(raw: &[String]) -> Result<HashMap<String, String>> {
+pub(crate) fn parse_headers(raw: &[String]) -> Result<HashMap<String, String>> {
     raw.iter()
         .map(|h| {
             h.split_once('=')

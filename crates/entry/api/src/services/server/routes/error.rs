@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{LoaderError, SlotError};
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::BoxedSource;
 
 use crate::services::middleware::MountError;
@@ -26,6 +27,9 @@ pub(crate) enum RouteMountError {
 
     #[error(transparent)]
     Initialization(Box<InitializationError>),
+
+    #[error(transparent)]
+    Missing(#[from] MissingDependency),
 }
 
 #[derive(Debug, thiserror::Error)]

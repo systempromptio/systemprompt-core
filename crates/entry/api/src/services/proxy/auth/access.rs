@@ -55,16 +55,19 @@ impl AccessValidator {
         service_name: &ServiceName,
         ctx: &AppContext,
         req_context: Option<&RequestContext>,
-    ) -> Option<AuthenticatedUser> {
-        headers.get(AUTHORIZATION)?;
-        AuthValidator::validate_service_access(
-            ctx.token_authority().as_ref(),
-            ctx.config(),
+    ) -> Result<Option<AuthenticatedUser>, ProxyError> {
+        if headers.get(AUTHORIZATION).is_none() {
+            return Ok(None);
+        }
+        let state = ctx.kernel().state();
+        Ok(AuthValidator::validate_service_access(
+            state.get::<Arc<dyn TokenAuthority>>()?.as_ref(),
+            state.get::<Arc<Config>>()?,
             headers,
             service_name,
             req_context,
         )
-        .ok()
+        .ok())
     }
 
     pub fn validate_with_requirement(
@@ -77,6 +80,9 @@ impl AccessValidator {
         if !requirement.required {
             return Ok(None);
         }
+        let state = ctx.kernel().state();
+        let authority = state.get::<Arc<dyn TokenAuthority>>()?.as_ref();
+        let config = state.get::<Arc<Config>>()?;
         let resource_path = resource_path_for(requirement.module, service_name);
         let has_authorization = headers.get(AUTHORIZATION).is_some();
         let challenge = |status_code: StatusCode| {
@@ -90,8 +96,8 @@ impl AccessValidator {
             })
         };
         let authenticated_user = match AuthValidator::validate_service_access(
-            ctx.token_authority().as_ref(),
-            ctx.config(),
+            authority,
+            config,
             headers,
             service_name,
             req_context,
@@ -100,8 +106,8 @@ impl AccessValidator {
             Err(status_code) => return Err(challenge(status_code)),
         };
         if let Err(status_code) = enforce_required_audience(
-            ctx.token_authority().as_ref(),
-            ctx.config(),
+            authority,
+            config,
             headers,
             service_name,
             &requirement.audience,

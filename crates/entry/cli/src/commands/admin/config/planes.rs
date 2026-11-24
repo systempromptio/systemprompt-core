@@ -129,7 +129,11 @@ pub async fn execute(command: PlanesCommands, host: &dyn KernelHost) -> Result<C
 pub async fn run(command: PlanesCommands, ctx: &Arc<AppContext>) -> Result<CommandOutput> {
     let service = ConfigReconcileService::from_app_context(
         ctx,
-        systemprompt_scheduler::repository::ConfigReconcileRepository::new(ctx.db_pool()),
+        systemprompt_scheduler::repository::ConfigReconcileRepository::new(
+            ctx.kernel()
+                .state()
+                .get::<systemprompt_database::DbPool>()?,
+        ),
     )?;
     match command {
         PlanesCommands::List => list(ctx, &service).await,
@@ -147,12 +151,17 @@ async fn list(ctx: &AppContext, service: &ConfigReconcileService) -> Result<Comm
         .into_iter()
         .map(|row| (row.plane.clone(), row))
         .collect();
+    let state_seeds = ctx.kernel().state();
+    let pool = state_seeds.get::<systemprompt_database::DbPool>()?;
+    let unapplied_mode = state_seeds
+        .get::<systemprompt_loader::BootContext>()?
+        .profile()
+        .unapplied_plane_mode();
     let set = service.planes();
     let mut rows = Vec::new();
     let mut unapplied = Vec::new();
     for plane in set.planes() {
-        let applied =
-            find_config_plane_applied(ctx.db_pool().pool().as_ref(), plane.name()).await?;
+        let applied = find_config_plane_applied(pool.pool().as_ref(), plane.name()).await?;
         if !applied {
             unapplied.push(plane.name());
         }
@@ -187,10 +196,7 @@ async fn list(ctx: &AppContext, service: &ConfigReconcileService) -> Result<Comm
         ],
         &rows,
     )
-    .with_title(planes_title(
-        &unapplied,
-        ctx.profile().unapplied_plane_mode(),
-    )))
+    .with_title(planes_title(&unapplied, unapplied_mode)))
 }
 
 fn planes_title(unapplied: &[&str], mode: UnappliedPlaneMode) -> String {

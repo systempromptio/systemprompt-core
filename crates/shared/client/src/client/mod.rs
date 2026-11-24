@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{ClientError, ClientResult};
+use crate::error::ClientResult;
 
 mod http;
 use chrono::Utc;
@@ -17,9 +17,7 @@ use reqwest::Client;
 use std::time::Duration;
 use systemprompt_identifiers::{AgentName, ContextId, JwtToken, TaskId};
 use systemprompt_models::a2a::{Artifact, Message, Task, methods};
-use systemprompt_models::net::{
-    HTTP_AUTH_VERIFY_TIMEOUT, HTTP_DEFAULT_TIMEOUT, HTTP_HEALTH_CHECK_TIMEOUT,
-};
+use systemprompt_models::net::{HTTP_DEFAULT_TIMEOUT, HTTP_HEALTH_CHECK_TIMEOUT};
 use systemprompt_models::{
     AgentCard, ApiPaths, CollectionResponse, CreateContextRequest, SingleResponse, UserContext,
     UserContextWithStats,
@@ -203,20 +201,6 @@ impl SystempromptClient {
             .is_ok()
     }
 
-    pub async fn verify_token(&self) -> ClientResult<bool> {
-        let url = format!("{}{}", self.base_url, ApiPaths::AUTH_ME);
-        let auth = self.auth_header()?;
-        let response = self
-            .client
-            .get(&url)
-            .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
-            .header("Authorization", auth)
-            .send()
-            .await?;
-
-        Ok(response.status().is_success())
-    }
-
     pub async fn send_message(
         &self,
         agent_name: &AgentName,
@@ -252,16 +236,5 @@ impl SystempromptClient {
     pub async fn list_all_artifacts(&self, limit: Option<u32>) -> ClientResult<Vec<Artifact>> {
         let url = self.limited_url(ApiPaths::CORE_ARTIFACTS, limit);
         http::get(&self.client, &url, self.token.as_ref()).await
-    }
-
-    fn auth_header(&self) -> ClientResult<String> {
-        self.token.as_ref().map_or_else(
-            || {
-                Err(ClientError::AuthError {
-                    message: "No token configured".to_owned(),
-                })
-            },
-            |token| Ok(format!("Bearer {}", token.as_str())),
-        )
     }
 }

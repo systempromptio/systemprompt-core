@@ -9,6 +9,8 @@
 //! rejects an unparseable `client_id` and an unregistered third-party client,
 //! and issues a session for the first-party default.
 
+use systemprompt_test_fixtures::AppContextSeeds;
+
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
@@ -138,7 +140,9 @@ async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(
+                    AppContextSeeds::config(&*ctx),
+                ),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
@@ -166,7 +170,9 @@ async fn wellknown_options_preflight_returns_200() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(
+                    AppContextSeeds::config(&*ctx),
+                ),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

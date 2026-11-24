@@ -29,9 +29,7 @@
 use std::sync::Arc;
 
 use axum::Router;
-use systemprompt_documents::http::surface::{
-    DynFilesSurface, FilesRouteState, FilesRoutes, ISSUES_PATH,
-};
+use systemprompt_documents::http::surface::{DynFilesSurface, FilesRouteState, FilesRoutes};
 use systemprompt_documents::links::LinkMinter;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::{
@@ -60,7 +58,8 @@ fn files_routes(mount: &MountCtx<'_>) -> Result<Option<FilesRoutes>, RouteMountE
     surface
         .build(FilesRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
-            host: files_host_handles(mount.ctx),
+            host: files_host_handles(mount.ctx)
+                .map_err(|source| RouteMountError::initialization("files", source))?,
         })
         .map(Some)
         .map_err(|source| RouteMountError::initialization("files", source))
@@ -77,7 +76,7 @@ pub(super) fn mount_files(
         router,
         declare(
             issues,
-            ISSUES_PATH,
+            ApiPaths::ISSUES,
             AuthzPolicy::user(),
             ContextKind::User,
             RouteGroup::ContentAndMisc,
@@ -160,14 +159,16 @@ pub(super) fn mount_internal_links(
     let tokens = link_tokens(mount.ctx).ok_or_else(|| {
         RouteMountError::initialization("internal_links", DocumentsMountError::MissingLinkTokens)
     })?;
+    let state = mount.ctx.kernel().state();
+    let config = state.get::<Arc<systemprompt_manifest::Config>>()?;
     let minter = LinkMinter {
         tokens,
         documents,
         uploads: Arc::clone(&handles.uploads),
-        services: mount.ctx.services_state().clone(),
-        api_external_url: mount.ctx.config().api_external_url.clone(),
+        services: state.get::<systemprompt_loader::ServicesState>()?.clone(),
+        api_external_url: config.api_external_url.clone(),
     };
-    let per_second = mount.ctx.config().rate_limits.content_per_second;
+    let per_second = config.rate_limits.content_per_second;
     Ok(mount.mount(
         router,
         declare(

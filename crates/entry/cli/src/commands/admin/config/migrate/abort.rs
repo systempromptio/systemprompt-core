@@ -34,8 +34,8 @@ impl MigrateAbort {
     }
 }
 
-pub type MigrateResult<T> = Result<T, MigrateAbort>;
+pub(crate) type MigrateResult<T> = Result<T, MigrateAbort>;
 
-pub const PROVIDERS_FILE: &str = "ai/providers.yaml";
-pub const GATEWAY_FILE: &str = "ai/gateway.yaml";
-pub const AI_FILE: &str = "ai/config.yaml";
+pub(crate) const PROVIDERS_FILE: &str = "ai/providers.yaml";
+pub(crate) const GATEWAY_FILE: &str = "ai/gateway.yaml";
+pub(crate) const AI_FILE: &str = "ai/config.yaml";

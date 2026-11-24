@@ -23,8 +23,8 @@ use std::time::{Duration, Instant};
 use systemprompt_traits::BackgroundTasks;
 use tokio::sync::mpsc;
 
-pub const HTTP_ANALYTICS_DROPPED_TOTAL: &str = "http_analytics_dropped_total";
-pub const DROP_WARN_INTERVAL: Duration = Duration::from_secs(10);
+pub(crate) const HTTP_ANALYTICS_DROPPED_TOTAL: &str = "http_analytics_dropped_total";
+pub(crate) const DROP_WARN_INTERVAL: Duration = Duration::from_secs(10);
 
 type Write = Pin<Box<dyn Future<Output = ()> + Send>>;
 

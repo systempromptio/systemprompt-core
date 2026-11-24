@@ -63,6 +63,9 @@ impl DomainConfig for RateLimitsConfigValidator {
 
 impl RateLimitsConfigValidator {
     fn validate_quota_limits(report: &mut ValidationReport, config: &RateLimitsConfig) {
+        if let Some(reason) = config.memory_capacity_error() {
+            report.add_error(ValidationIssue::new("rate_limits.memory_capacity", reason));
+        }
         if config.burst_multiplier == 0 {
             report.add_error(ValidationIssue::new(
                 "rate_limits.burst_multiplier",

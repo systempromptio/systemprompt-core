@@ -15,6 +15,7 @@
 //! [`test_app_context`] panics when the context cannot be assembled: a test
 //! whose context is missing fails rather than skips (see [`crate::db`]).
 
+use crate::AppContextSeeds as _;
 use std::sync::Arc;
 
 use anyhow::Result;

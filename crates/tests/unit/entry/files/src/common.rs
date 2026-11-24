@@ -3,6 +3,7 @@
 //! `core files` commands resolve.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;

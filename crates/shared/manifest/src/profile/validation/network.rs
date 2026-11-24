@@ -70,6 +70,9 @@ impl Profile {
     }
 
     pub(crate) fn validate_rate_limits(&self, errors: &mut Vec<String>) {
+        if let Some(reason) = self.rate_limits.memory_capacity_error() {
+            errors.push(format!("rate_limits.memory_capacity {reason}"));
+        }
         if self.rate_limits.disabled {
             return;
         }

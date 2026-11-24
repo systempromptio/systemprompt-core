@@ -11,7 +11,7 @@
 use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
 use systemprompt_runtime::{AppContext, KernelError, RuntimeError};
 use systemprompt_test_fixtures::{
-    core_members, fixture_admitted, fixture_admitted_of, fixture_core_members,
+    AppContextSeeds as _, core_members, fixture_admitted, fixture_admitted_of, fixture_core_members,
 };
 
 use crate::boot::{BootOptions, boot};
@@ -68,7 +68,10 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
 
     assert_eq!(ctx.system_admin().username(), admin);
     assert_eq!(ctx.config().system_admin_username, admin);
-    assert_eq!(ctx.server_address(), "127.0.0.1:8080");
+    assert_eq!(
+        format!("{}:{}", ctx.config().host, ctx.config().port),
+        "127.0.0.1:8080"
+    );
     assert!(
         ctx.config().database_write_url.is_some(),
         "write url from secrets must be threaded into the config"

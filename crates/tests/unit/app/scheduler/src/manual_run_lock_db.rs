@@ -43,7 +43,8 @@ async fn service(config: SchedulerConfig) -> (JobExecutionService, DbPool) {
     let pool = test_db_pool().await;
     let (app_ctx, schedule) = crate::test_extension::scheduled_app(&url).await;
     (
-        JobExecutionService::new(app_ctx, config, Arc::clone(&schedule)),
+        JobExecutionService::new(app_ctx, config, Arc::clone(&schedule))
+            .expect("job execution service"),
         pool,
     )
 }

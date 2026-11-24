@@ -13,7 +13,6 @@ use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
 use systemprompt_traits::DynAdminBootstrap;
 
-use crate::context::AppContext;
 use crate::error::{RuntimeError, RuntimeResult};
 
 pub(super) struct ContentRoutingParts {
@@ -22,7 +21,7 @@ pub(super) struct ContentRoutingParts {
 }
 
 pub(super) fn assemble_content(config: &Config, app_paths: &AppPaths) -> ContentRoutingParts {
-    let content_config = AppContext::load_content_config(config, app_paths);
+    let content_config = crate::context::load_content_config(config, app_paths);
     let content_routing = content_routing_from(content_config.as_ref());
     let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(content_routing));
     ContentRoutingParts {

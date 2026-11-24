@@ -15,11 +15,12 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::ServiceModule;
+use systemprompt_database::{CoordinationRepositories, ServiceModule, ServiceRepository};
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{
-    DynServiceProcessSet, LeaseRepository, RestartMode, ServiceProcessError, ServiceProcessKind,
-    StopMode,
+    BackgroundTasks, DynServiceProcessSet, Lease, LeaseRepository, RestartMode,
+    ServiceProcessError, ServiceProcessKind, StopMode,
 };
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
@@ -28,8 +29,14 @@ use super::process_ownership::ProcessKey;
 
 #[derive(Debug)]
 pub(super) enum ProcessCommand {
-    Start(ProcessKey),
-    Stop { key: ProcessKey, release: bool },
+    Start {
+        key: ProcessKey,
+        lease: Lease,
+    },
+    Stop {
+        key: ProcessKey,
+        release: Option<Lease>,
+    },
 }
 
 struct ProcessSets {
@@ -68,14 +75,15 @@ impl ProcessSets {
 pub(super) fn spawn_process_actuator(
     ctx: &AppContext,
     failed: UnboundedSender<ProcessKey>,
-) -> UnboundedSender<ProcessCommand> {
+) -> Result<UnboundedSender<ProcessCommand>, MissingDependency> {
     let (commands, mut inbox) = unbounded_channel();
-    let ctx = ctx.clone();
-    ctx.background_tasks().clone().spawn_cancellable(
+    let state = ctx.kernel().state();
+    let services = Arc::clone(state.get::<Arc<ServiceRepository>>()?);
+    let leases = Arc::clone(&state.get::<Arc<CoordinationRepositories>>()?.leases);
+    let sets = ProcessSets::of(ctx);
+    state.get::<BackgroundTasks>()?.clone().spawn_cancellable(
         "process_actuator",
         move |cancel| async move {
-            let sets = ProcessSets::of(&ctx);
-            let leases = Arc::clone(&ctx.coordination_repositories().leases);
             loop {
                 let command = tokio::select! {
                     () = cancel.cancelled() => break,
@@ -84,15 +92,15 @@ pub(super) fn spawn_process_actuator(
                         None => break,
                     },
                 };
-                apply(&ctx, &sets, leases.as_ref(), &failed, command).await;
+                apply(&services, &sets, leases.as_ref(), &failed, command).await;
             }
         },
     );
-    commands
+    Ok(commands)
 }
 
 async fn apply(
-    ctx: &AppContext,
+    services: &ServiceRepository,
     sets: &ProcessSets,
     leases: &dyn LeaseRepository,
     failed: &UnboundedSender<ProcessKey>,
@@ -100,7 +108,7 @@ async fn apply(
 ) {
     {
         match command {
-            ProcessCommand::Start(key) => {
+            ProcessCommand::Start { key, lease } => {
                 if let Err(error) = start(sets, &key).await {
                     tracing::error!(
                         service = %key.name(),
@@ -108,7 +116,7 @@ async fn apply(
                         error = %error,
                         "owned process failed to start; releasing its lease"
                     );
-                    release_and_announce(ctx, leases, &key).await;
+                    release_and_announce(services, leases, &key, &lease).await;
                     if failed.send(key).is_err() {
                         tracing::debug!("process lease loop has stopped");
                     }
@@ -125,8 +133,8 @@ async fn apply(
                     return;
                 }
                 tracing::info!(service = %key.name(), module = %key.module(), "owned process stopped");
-                if release {
-                    release_and_announce(ctx, leases, &key).await;
+                if let Some(lease) = release {
+                    release_and_announce(services, leases, &key, &lease).await;
                 }
             },
         }
@@ -134,20 +142,16 @@ async fn apply(
 }
 
 pub(super) async fn release_and_announce(
-    ctx: &AppContext,
+    services: &ServiceRepository,
     leases: &dyn LeaseRepository,
     key: &ProcessKey,
+    lease: &Lease,
 ) {
-    let lease = key.lease_key();
-    if let Err(error) = leases.release(&lease).await {
+    if let Err(error) = leases.release(lease).await {
         tracing::warn!(service = %key.name(), error = %error, "process lease release failed");
         return;
     }
-    if let Err(error) = ctx
-        .service_repository()
-        .announce_process_released(&lease)
-        .await
-    {
+    if let Err(error) = services.announce_process_released(&lease.key).await {
         tracing::warn!(
             service = %key.name(),
             error = %error,

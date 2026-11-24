@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Runner"
+text = "A runner service runs on its member-scoped context (`JobContext::for_member`) and a requirement that context does not hold refuses the start with `UnmetRunnerRequirement`, as the scheduler refuses a job."

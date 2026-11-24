@@ -276,7 +276,9 @@ impl CommandContext {
         if let Some(db) = &self.db {
             return Ok(db.db_pool_arc());
         }
-        Ok(Arc::clone(self.app_context().await?.db_pool()))
+        Ok(Arc::clone(
+            self.app_context().await?.kernel().state().get::<DbPool>()?,
+        ))
     }
 
     pub async fn database(&self) -> Result<DatabaseContext> {
@@ -284,7 +286,7 @@ impl CommandContext {
             return Ok(db.clone());
         }
         Ok(DatabaseContext::from_pool(Arc::clone(
-            self.app_context().await?.db_pool(),
+            self.app_context().await?.kernel().state().get::<DbPool>()?,
         )))
     }
 }

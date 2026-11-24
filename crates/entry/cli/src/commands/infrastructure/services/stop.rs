@@ -29,7 +29,11 @@ pub(super) async fn execute(
     let config = host.output();
     let app = app_context(host).await?;
     let service_mgmt = ServiceManagementService::new(
-        app.service_repository().as_ref().clone(),
+        app.kernel()
+            .state()
+            .get::<Arc<systemprompt_database::ServiceRepository>>()?
+            .as_ref()
+            .clone(),
         host.profile()?.server.shutdown,
     );
 

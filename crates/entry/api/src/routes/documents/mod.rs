@@ -13,28 +13,35 @@ use std::sync::Arc;
 use systemprompt_documents::http::error::DocumentsHttpError;
 use systemprompt_documents::http::surface::FilesHostHandles;
 use systemprompt_documents::tokens::DocumentLinkTokens;
+use systemprompt_manifest::Config;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
 
 use crate::kernel::{ApiHttpError, resolve_client_ip};
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
-pub enum DocumentsMountError {
+pub(crate) enum DocumentsMountError {
     #[error("document routes need the document store enabled")]
     Disabled,
     #[error("document routes need the documents member's link token view")]
     MissingLinkTokens,
 }
 
-#[must_use]
-pub fn files_host_handles(ctx: &AppContext) -> FilesHostHandles {
-    let trusted = Arc::new(ctx.config().trusted_proxies.clone());
-    FilesHostHandles {
+pub fn files_host_handles(ctx: &AppContext) -> Result<FilesHostHandles, MissingDependency> {
+    let trusted = Arc::new(
+        ctx.kernel()
+            .state()
+            .get::<Arc<Config>>()?
+            .trusted_proxies
+            .clone(),
+    );
+    Ok(FilesHostHandles {
         users: ctx.user_provider(),
         client_ip: Arc::new(move |headers, connect_info| {
             resolve_client_ip(headers, connect_info, &trusted)
         }),
-    }
+    })
 }
 
 pub fn link_tokens(ctx: &AppContext) -> Option<Arc<DocumentLinkTokens>> {

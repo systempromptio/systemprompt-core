@@ -10,6 +10,7 @@
 //! forbids under `unsafe_code = "deny"`).
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, header};

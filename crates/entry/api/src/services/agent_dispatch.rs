@@ -22,13 +22,13 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::dispatch::{AgentDispatch, AgentDispatchBinder, AgentDispatchError};
 use systemprompt_models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 use systemprompt_models::late_bound::AlreadyBound;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, PendingBinders};
 
 use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
 
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
-pub struct ApiAgentDispatch {
+pub(crate) struct ApiAgentDispatch {
     ctx: AppContext,
 }
 
@@ -40,7 +40,7 @@ impl std::fmt::Debug for ApiAgentDispatch {
 
 impl ApiAgentDispatch {
     #[must_use]
-    pub const fn new(ctx: AppContext) -> Self {
+    pub(crate) const fn new(ctx: AppContext) -> Self {
         Self { ctx }
     }
 }
@@ -100,11 +100,16 @@ pub enum DispatcherBindError {
     BindersTaken,
     #[error("a dispatch cell was already bound")]
     AlreadyBound(#[from] AlreadyBound),
+    #[error(transparent)]
+    Missing(#[from] systemprompt_provider_contracts::MissingDependency),
 }
 
 pub fn bind_dispatchers(ctx: &AppContext) -> Result<(), DispatcherBindError> {
     let binders = ctx
-        .take_late_binders()
+        .kernel()
+        .state()
+        .get::<PendingBinders>()?
+        .take()
         .ok_or(DispatcherBindError::BindersTaken)?;
     bind_agent_dispatch(ctx, binders.agent_dispatch)?;
     Ok(())

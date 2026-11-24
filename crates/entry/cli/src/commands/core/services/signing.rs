@@ -15,7 +15,7 @@ use base64::Engine;
 use rand::{Rng, rng};
 use systemprompt_security::manifest_signing::{key_id_for_pubkey, pubkey_b64_from_seed};
 
-pub const SEED_BYTES: usize = 32;
+pub(crate) const SEED_BYTES: usize = 32;
 pub const ENV_PREFIX: &str = "env:";
 
 #[derive(Debug, Clone)]

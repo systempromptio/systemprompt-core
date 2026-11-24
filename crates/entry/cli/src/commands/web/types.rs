@@ -14,7 +14,7 @@ use systemprompt_identifiers::CategoryId;
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ContentTypeSummary {
+pub(crate) struct ContentTypeSummary {
     pub name: String,
     #[serde(rename = "source_id")]
     pub source: String,
@@ -25,7 +25,7 @@ pub struct ContentTypeSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ContentTypeDetailOutput {
+pub(crate) struct ContentTypeDetailOutput {
     pub name: String,
     #[serde(rename = "source_id")]
     pub source: String,
@@ -40,7 +40,7 @@ pub struct ContentTypeDetailOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SitemapInfo {
+pub(crate) struct SitemapInfo {
     pub enabled: bool,
     pub url_pattern: String,
     pub priority: f32,
@@ -50,7 +50,7 @@ pub struct SitemapInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ParentRouteInfo {
+pub(crate) struct ParentRouteInfo {
     pub enabled: bool,
     pub url: String,
     pub priority: f32,
@@ -58,7 +58,7 @@ pub struct ParentRouteInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BrandingInfo {
+pub(crate) struct BrandingInfo {
     pub name: Option<String>,
     pub description: Option<String>,
     pub image: Option<String>,
@@ -66,33 +66,33 @@ pub struct BrandingInfo {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct IndexingInfo {
+pub(crate) struct IndexingInfo {
     pub clear_before: bool,
     pub recursive: bool,
     pub override_existing: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ContentTypeCreateOutput {
+pub(crate) struct ContentTypeCreateOutput {
     pub name: String,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ContentTypeEditOutput {
+pub(crate) struct ContentTypeEditOutput {
     pub name: String,
     pub message: String,
     pub changes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ContentTypeDeleteOutput {
+pub(crate) struct ContentTypeDeleteOutput {
     pub deleted: Vec<String>,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateSummary {
+pub(crate) struct TemplateSummary {
     pub name: String,
     pub content_types: Vec<String>,
     pub file_exists: bool,
@@ -100,7 +100,7 @@ pub struct TemplateSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateDetailOutput {
+pub(crate) struct TemplateDetailOutput {
     pub name: String,
     pub content_types: Vec<String>,
     pub file_path: String,
@@ -110,28 +110,28 @@ pub struct TemplateDetailOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateCreateOutput {
+pub(crate) struct TemplateCreateOutput {
     pub name: String,
     pub file_path: String,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateEditOutput {
+pub(crate) struct TemplateEditOutput {
     pub name: String,
     pub message: String,
     pub changes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TemplateDeleteOutput {
+pub(crate) struct TemplateDeleteOutput {
     pub deleted: String,
     pub file_deleted: bool,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AssetSummary {
+pub(crate) struct AssetSummary {
     pub path: String,
     pub asset_type: AssetType,
     pub size_bytes: u64,
@@ -163,7 +163,7 @@ impl std::fmt::Display for AssetType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AssetDetailOutput {
+pub(crate) struct AssetDetailOutput {
     pub path: String,
     pub absolute_path: String,
     pub asset_type: AssetType,

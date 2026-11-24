@@ -16,9 +16,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::error::ApiHttpError;
 use axum::Json;
+use axum::http::StatusCode;
 use serde_json::json;
-use systemprompt_database::{DatabaseQuery, JsonRow};
+use systemprompt_database::{DatabaseQuery, DbPool, JsonRow};
+use systemprompt_events::EventBridgeHandle;
+use systemprompt_models::BuildIdentity;
 use systemprompt_runtime::AppContext;
 
 use super::scheduler_health::SchedulerHealth;
@@ -221,22 +225,29 @@ pub(super) const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 pub async fn handle_health(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
     axum::Extension(scheduler_health): axum::Extension<Arc<SchedulerHealth>>,
-) -> impl axum::response::IntoResponse {
-    use axum::http::StatusCode;
+) -> Result<(StatusCode, Json<serde_json::Value>), ApiHttpError> {
+    use super::probes::seed_error;
     use systemprompt_database::DatabaseProvider;
 
-    let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
+    let state = ctx.kernel().state();
+    let probe = state
+        .get::<DbPool>()
+        .map_err(seed_error)?
+        .fetch_optional(&HEALTH_CHECK_QUERY, &[]);
     let db_healthy = matches!(
         tokio::time::timeout(HEALTH_PROBE_TIMEOUT, probe).await,
         Ok(Ok(_))
     );
 
     let degraded_jobs = scheduler_health.degraded();
-    let relay_status = ctx.event_bridge().status();
+    let relay_status = state
+        .get::<Arc<EventBridgeHandle>>()
+        .map_err(seed_error)?
+        .status();
     let relay_listening = relay_status.is_listening();
 
-    let unapplied = super::probes::unapplied_governance(&ctx);
-    let services_source = super::probes::degraded_services_source(&ctx);
+    let unapplied = super::probes::unapplied_governance(&ctx).map_err(seed_error)?;
+    let services_source = super::probes::degraded_services_source(&ctx).map_err(seed_error)?;
     let (status, http_status) = if !db_healthy {
         ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
     } else if degraded_jobs.is_empty()
@@ -252,7 +263,7 @@ pub async fn handle_health(
     let mut body = json!({
         "status": status,
         "version": env!("CARGO_PKG_VERSION"),
-        "build": ctx.build_identity(),
+        "build": state.get::<BuildIdentity>().map_err(seed_error)?,
     });
     if !degraded_jobs.is_empty() {
         body["scheduler"] = json!({ "degraded_jobs": degraded_jobs });
@@ -267,7 +278,7 @@ pub async fn handle_health(
         body["services_source"] = block;
     }
 
-    (http_status, Json(body))
+    Ok((http_status, Json(body)))
 }
 
 const fn relay_label(status: systemprompt_events::RelayStatus) -> &'static str {

@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Runtime"
+text = "`AppContext` exposes only `kernel()`, `admitted()` and its constructors. Every other host value (runtime `Config`, `DbPool`, `BootContext`, platform repositories, governance and services watches, event bridge, shutdown request, signing keys, token authority, …) is a typed seed read with `ctx.kernel().state().get::<T>()`. The seeds the context builds are sealed and their types reserved before members resolve; a kernel missing a host seed refuses `AppContext::from_parts` with `RuntimeError::Missing`. `from_parts` takes the `Kernel` by value and `ContextPlanes` carries only context-built values. `config_plane_set`, `reload_governance` and `load_content_config` are free functions. `SchedulerService::new` and `JobExecutionService::new` return a `Result`."

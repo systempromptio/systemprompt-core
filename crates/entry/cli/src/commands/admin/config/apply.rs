@@ -92,7 +92,11 @@ pub async fn execute(args: &ApplyArgs, host: &dyn KernelHost) -> Result<CommandO
 pub async fn run(args: &ApplyArgs, ctx: &Arc<AppContext>) -> Result<MergeReport> {
     let service = ConfigApplyService::new(ConfigReconcileService::from_app_context(
         ctx,
-        ConfigReconcileRepository::new(ctx.db_pool()),
+        ConfigReconcileRepository::new(
+            ctx.kernel()
+                .state()
+                .get::<systemprompt_database::DbPool>()?,
+        ),
     )?);
     let options = ApplyOptions {
         planes: &args.planes,

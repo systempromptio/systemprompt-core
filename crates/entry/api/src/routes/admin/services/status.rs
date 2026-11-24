@@ -10,6 +10,7 @@
 
 use axum::Json;
 use axum::extract::State;
+use systemprompt_loader::BootContext;
 use systemprompt_loader::bundle::{BundleCache, DegradedRecord, cache_root};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
@@ -21,13 +22,14 @@ use crate::kernel::ApiHttpError;
 pub(super) async fn status(
     State(ctx): State<AppContext>,
 ) -> Result<Json<ServicesStatusResponse>, ApiHttpError> {
-    let profile = ctx.profile();
+    let boot = ctx.kernel().state().get::<BootContext>()?;
+    let profile = boot.profile();
     let cache = BundleCache::new(cache_root(profile));
     let state = cache.read_state();
     let has_sources = !profile.services.sources.is_empty();
 
     let mut body = build_status(
-        ctx.boot().services_root(),
+        boot.services_root(),
         &profile.paths.services,
         has_sources,
         &state,

@@ -32,7 +32,11 @@ pub(super) async fn execute(args: DisableArgs, host: &dyn KernelHost) -> Result<
     }
 
     let app = app_context(host).await?;
-    let repo = JobRepository::new(app.db_pool());
+    let repo = JobRepository::new(
+        app.kernel()
+            .state()
+            .get::<systemprompt_database::DbPool>()?,
+    );
     repo.set_enabled(&args.job_name, false)
         .await
         .context("Failed to disable job")?;

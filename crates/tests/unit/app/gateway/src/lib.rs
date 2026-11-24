@@ -15,6 +15,8 @@ mod audit_phases;
 #[cfg(test)]
 mod bridge_views;
 #[cfg(test)]
+mod bulkhead_stream_hold;
+#[cfg(test)]
 mod canonical_inbound;
 #[cfg(test)]
 mod canonical_request;

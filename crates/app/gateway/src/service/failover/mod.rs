@@ -31,11 +31,13 @@
 mod breakers;
 mod chain;
 mod decision;
+mod held;
 mod load;
 mod selection;
 
 pub use self::breakers::{ProviderBreakers, REGISTRY_CAP, breaker_key};
 pub use self::decision::{FailoverReason, failover_reason, is_failover_status, plan_attempts};
+pub use self::held::DeploymentSlot;
 pub use self::load::{DeploymentLoad, InFlight};
 pub use self::selection::{DeploymentState, plan_selection};
 
@@ -62,12 +64,13 @@ pub(super) async fn send_with_failover(
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
     if send.primary.deployments.len() <= 1 {
-        let _in_flight = enter_deployment(&send.engines.load, send.primary);
-        return with_policy(
+        let slot = DeploymentSlot::new(None, enter_deployment(&send.engines.load, send.primary));
+        let outcome = with_policy(
             current_policy(),
             Box::pin(scanned.send(send.primary, send.forward_headers, send.audit)),
         )
-        .await;
+        .await?;
+        return Ok(slot.hold(outcome));
     }
     chain::run(scanned, send).await
 }

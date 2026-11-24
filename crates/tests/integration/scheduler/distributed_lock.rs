@@ -132,6 +132,7 @@ async fn start_replicas(job: &str, distributed_lock: bool) -> Result<Vec<Schedul
             Arc::clone(&app_context),
             Arc::clone(&schedule),
         )
+        .expect("scheduler")
         .start()
         .await?;
         ensure!(startup.scheduled == 1, "the probe job must be scheduled");

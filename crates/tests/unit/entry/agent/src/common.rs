@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use clap::Parser;
 use systemprompt_agent::services::agent_orchestration::status_view::AgentStatusView;

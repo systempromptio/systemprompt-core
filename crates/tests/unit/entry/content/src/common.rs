@@ -1,6 +1,7 @@
 //! Shared helpers for the content route and command tests.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::Result;
 use axum::Router;
@@ -48,7 +49,7 @@ pub fn content_state(ctx: &AppContext) -> ContentHttpState {
 }
 
 pub fn negotiating_state(ctx: &AppContext) -> ContentHttpState {
-    let mut config = ctx.config().clone();
+    let mut config = (**ctx.config()).clone();
     config.content_negotiation.enabled = true;
     config.content_negotiation.markdown_suffix = ".md".to_owned();
     ContentHttpState::new(content_repositories(ctx), ContentHttpSettings::of(&config))

@@ -19,7 +19,8 @@ fn window(offset_secs: i64) -> DateTime<Utc> {
 
 #[tokio::test]
 async fn a_caller_is_counted_within_a_window_and_restarts_in_the_next() {
-    let buckets = MemoryRateLimitBuckets::default();
+    let buckets =
+        MemoryRateLimitBuckets::with_capacity(std::num::NonZeroU64::new(262_144).unwrap());
     let user = UserId::new("memory-shards-counter");
     for expected in 1..=3 {
         assert_eq!(
@@ -68,7 +69,9 @@ async fn a_shard_of_current_counters_refuses_a_new_caller() {
 
 #[tokio::test]
 async fn concurrent_charges_of_one_caller_are_all_counted() {
-    let buckets = std::sync::Arc::new(MemoryRateLimitBuckets::default());
+    let buckets = std::sync::Arc::new(MemoryRateLimitBuckets::with_capacity(
+        std::num::NonZeroU64::new(262_144).unwrap(),
+    ));
     let user = UserId::new("memory-shards-concurrent");
     let start = Utc::now() - Duration::seconds(1);
     let mut tasks = Vec::new();

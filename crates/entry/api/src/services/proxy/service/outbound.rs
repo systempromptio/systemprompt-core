@@ -16,7 +16,7 @@ use systemprompt_identifiers::headers;
 use systemprompt_models::RequestContext;
 use systemprompt_traits::InjectContextHeaders;
 
-pub const MCP_PASSTHROUGH_HEADERS: [&str; 5] = [
+pub(crate) const MCP_PASSTHROUGH_HEADERS: [&str; 5] = [
     "content-type",
     "accept",
     headers::MCP_SESSION_ID,
@@ -24,9 +24,9 @@ pub const MCP_PASSTHROUGH_HEADERS: [&str; 5] = [
     "last-event-id",
 ];
 
-pub const TRACE_PASSTHROUGH_HEADERS: [&str; 2] = ["traceparent", "tracestate"];
+pub(crate) const TRACE_PASSTHROUGH_HEADERS: [&str; 2] = ["traceparent", "tracestate"];
 
-pub const AGENT_PASSTHROUGH_HEADERS: [&str; 7] = [
+pub(crate) const AGENT_PASSTHROUGH_HEADERS: [&str; 7] = [
     "content-type",
     "accept",
     "last-event-id",

@@ -12,7 +12,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::PgPool;
+use systemprompt_database::DbPool;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::BackgroundTasks;
 
 pub(super) const DB_POOL_SIZE: &str = "db_pool_size";
 pub(super) const DB_POOL_CONNECTIONS: &str = "db_pool_connections";
@@ -30,11 +33,14 @@ pub(super) fn describe() {
     );
 }
 
-pub(super) fn spawn_sampler(ctx: &AppContext) {
-    let write = ctx.db_pool().write_pool();
-    let read = ctx.db_pool().pool();
+pub(super) fn spawn_sampler(ctx: &AppContext) -> Result<(), MissingDependency> {
+    let state = ctx.kernel().state();
+    let db = state.get::<DbPool>()?;
+    let write = db.write_pool();
+    let read = db.pool();
     let read = (!Arc::ptr_eq(&read, &write)).then_some(read);
-    ctx.background_tasks()
+    state
+        .get::<BackgroundTasks>()?
         .spawn_cancellable("db_pool_metrics", |cancel| async move {
             let mut tick = tokio::time::interval(SAMPLE_INTERVAL);
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -49,6 +55,7 @@ pub(super) fn spawn_sampler(ctx: &AppContext) {
                 }
             }
         });
+    Ok(())
 }
 
 fn record(label: &'static str, pool: &PgPool) {

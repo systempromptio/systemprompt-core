@@ -8,6 +8,7 @@
 //! actually driven.
 
 use std::time::Duration;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::Extension;
 use axum::body::Body;

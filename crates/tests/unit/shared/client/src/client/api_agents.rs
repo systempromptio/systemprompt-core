@@ -1,8 +1,7 @@
 //! Tests for health check, list agents, and verify token API methods.
 
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
-use wiremock::matchers::{header, method, path};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn response_meta() -> serde_json::Value {
@@ -125,59 +124,6 @@ async fn test_list_agents_unauthorized() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client.list_agents().await;
-
-    result.unwrap_err();
-}
-
-#[tokio::test]
-async fn test_verify_token_success() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/auth/me"))
-        .and(header("Authorization", "Bearer valid-token"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&mock_server)
-        .await;
-
-    let token = JwtToken::new("valid-token");
-    let client = SystempromptClient::new(&mock_server.uri())
-        .unwrap()
-        .with_token(token);
-
-    let is_valid = client
-        .verify_token()
-        .await
-        .expect("verify_token should succeed");
-    assert!(is_valid);
-}
-
-#[tokio::test]
-async fn test_verify_token_invalid() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/auth/me"))
-        .respond_with(ResponseTemplate::new(401))
-        .mount(&mock_server)
-        .await;
-
-    let token = JwtToken::new("invalid-token");
-    let client = SystempromptClient::new(&mock_server.uri())
-        .unwrap()
-        .with_token(token);
-
-    let is_valid = client
-        .verify_token()
-        .await
-        .expect("verify_token should succeed");
-    assert!(!is_valid);
-}
-
-#[tokio::test]
-async fn test_verify_token_no_token_configured() {
-    let client = SystempromptClient::new("https://api.example.com").unwrap();
-    let result = client.verify_token().await;
 
     result.unwrap_err();
 }

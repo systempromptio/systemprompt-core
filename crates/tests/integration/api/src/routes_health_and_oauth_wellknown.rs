@@ -4,6 +4,7 @@
 use axum::Router;
 use axum::routing::get;
 use systemprompt_identity_entry::http::oauth::wellknown_routes;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 
 use super::common::{empty_get, setup_ctx};

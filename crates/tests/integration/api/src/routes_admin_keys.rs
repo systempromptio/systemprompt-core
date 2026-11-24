@@ -4,6 +4,7 @@
 
 use axum::{Extension, Router};
 use systemprompt_identity_entry::http::admin_keys;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 
 use super::common::{empty_delete, empty_get, json_post, request_context, setup_ctx};

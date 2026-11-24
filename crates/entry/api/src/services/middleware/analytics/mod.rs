@@ -27,12 +27,14 @@ use axum::response::Response;
 use std::sync::Arc;
 
 use systemprompt_identifiers::SessionId;
+use systemprompt_loader::BootContext;
 use systemprompt_models::{RequestContext, RouteClassifier};
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
 use systemprompt_traits::{
-    DetectionSubject, DynContentCatalogStats, DynRequestAnalytics, DynSessionBehaviourScorer,
-    DynSessionTelemetry,
+    BackgroundTasks, DetectionSubject, DynContentCatalogStats, DynRequestAnalytics,
+    DynSessionBehaviourScorer, DynSessionTelemetry,
 };
 
 pub use events::AnalyticsEventParams;
@@ -72,7 +74,7 @@ impl std::fmt::Debug for AnalyticsMiddleware {
 }
 
 impl AnalyticsMiddleware {
-    pub fn new(app_context: &AppContext) -> Self {
+    pub fn new(app_context: &AppContext) -> Result<Self, MissingDependency> {
         let state = app_context.kernel().state();
         let sessions = state.find::<DynSessionTelemetry>().cloned();
         let scoring = state
@@ -80,20 +82,20 @@ impl AnalyticsMiddleware {
             .cloned()
             .zip(state.find::<DynContentCatalogStats>().cloned());
         let events = state.find::<DynRequestAnalytics>().cloned();
-        let route_classifier = Arc::clone(app_context.route_classifier());
-        let queue = app_context.profile().server.analytics_queue;
+        let route_classifier = Arc::clone(state.get::<Arc<RouteClassifier>>()?);
+        let queue = state.get::<BootContext>()?.profile().server.analytics_queue;
 
-        Self {
+        Ok(Self {
             sessions,
             scoring,
             events,
             route_classifier,
             queue: AnalyticsQueue::new(
-                app_context.background_tasks().clone(),
+                state.get::<BackgroundTasks>()?.clone(),
                 queue.capacity,
                 queue.writers,
             ),
-        }
+        })
     }
 
     pub async fn track_request(

@@ -7,6 +7,7 @@
 //! reach the per-server scopes the protected-resource document advertises.
 
 use std::sync::OnceLock;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use systemprompt_test_fixtures::{TestBootstrap, init_isolated_bootstrap, test_app_context_on};
 use tower::ServiceExt;

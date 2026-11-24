@@ -101,7 +101,7 @@ pub struct TraceViewOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TraceListRow {
+pub(crate) struct TraceListRow {
     pub trace_id: TraceId,
     pub timestamp: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -114,7 +114,7 @@ pub struct TraceListRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TraceListOutput {
+pub(crate) struct TraceListOutput {
     pub traces: Vec<TraceListRow>,
     pub total: u64,
 }

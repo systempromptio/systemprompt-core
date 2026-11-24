@@ -9,6 +9,7 @@
 
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use anyhow::Result;
 use axum::body::Body;
@@ -39,7 +40,7 @@ async fn setup() -> Result<(DbPool, Arc<AppContext>)> {
 
 fn build(ctx: &Arc<AppContext>) -> Result<Router> {
     let session = SessionMiddleware::new(ctx)?;
-    let analytics = AnalyticsMiddleware::new(ctx);
+    let analytics = AnalyticsMiddleware::new(ctx).expect("analytics middleware");
     let app = Router::new()
         .route("/boom", get(boom_handler))
         .fallback(get(ok_handler))
@@ -185,7 +186,7 @@ async fn untracked_context_skips_analytics_fanout() -> Result<()> {
 #[tokio::test]
 async fn request_without_context_passes_through() -> Result<()> {
     let (_db, ctx) = setup().await?;
-    let analytics = AnalyticsMiddleware::new(&ctx);
+    let analytics = AnalyticsMiddleware::new(&ctx).expect("analytics middleware");
     let app = Router::new()
         .fallback(get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {

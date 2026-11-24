@@ -40,7 +40,7 @@ impl ResolvedOwners {
 
 impl SchedulerService {
     pub(super) async fn resolve_owners(&self, emit_logs: bool) -> SchedulerResult<ResolvedOwners> {
-        let system_admin_id = self.app_context.system_admin().id();
+        let system_admin_id = &self.system_admin_id;
         let mut map = HashMap::with_capacity(self.config.jobs.len());
         let mut skipped = Vec::new();
         for job in self.config.jobs.iter().filter(|j| j.enabled) {
@@ -75,7 +75,7 @@ impl SchedulerService {
 
     async fn persist_skipped_owner_errors(&self, skipped: &[SkippedJob]) {
         let repository = &self.logging_repository;
-        let system_admin_id = self.app_context.system_admin().id().clone();
+        let system_admin_id = self.system_admin_id.clone();
         for job in skipped {
             let actor = LogActor::new(
                 system_admin_id.clone(),
@@ -92,7 +92,7 @@ impl SchedulerService {
                 ),
                 actor,
             );
-            let entry = match self.app_context.logging().instance_id() {
+            let entry = match self.log_instance_id.as_ref() {
                 Some(instance_id) => entry.with_instance_id(instance_id.clone()),
                 None => entry,
             };

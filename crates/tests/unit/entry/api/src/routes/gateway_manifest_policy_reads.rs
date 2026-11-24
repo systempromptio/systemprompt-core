@@ -9,6 +9,7 @@
 //! credential check, the catalogue and every other read keep working.
 
 use std::sync::{Arc, OnceLock};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::http::{HeaderMap, header};
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};

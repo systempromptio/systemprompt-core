@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::Router;
 use systemprompt_extension::router::RouteSet;

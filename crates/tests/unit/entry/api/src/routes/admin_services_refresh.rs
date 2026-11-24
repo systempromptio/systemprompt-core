@@ -5,6 +5,7 @@
 //! source sees, and it is what the unchanged/no-restart arms assert.
 
 use std::time::Duration;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::extract::{Extension, Query, State};
 use axum::http::StatusCode;

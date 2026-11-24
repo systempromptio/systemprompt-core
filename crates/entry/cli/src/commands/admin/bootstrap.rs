@@ -30,7 +30,7 @@ pub struct BootstrapArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BootstrapOutput {
+pub(crate) struct BootstrapOutput {
     pub id: UserId,
     pub name: String,
     pub email: String,

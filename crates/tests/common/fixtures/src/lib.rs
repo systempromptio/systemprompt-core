@@ -40,6 +40,7 @@ pub mod poll;
 pub mod schema_template;
 pub mod scratch_schema;
 pub mod secrets;
+pub mod seeds;
 #[cfg(test)]
 mod self_check;
 pub mod service_row;
@@ -48,6 +49,8 @@ pub mod slots;
 pub mod subprocess;
 pub mod usage;
 pub mod user;
+
+pub use seeds::AppContextSeeds;
 pub mod web_config;
 
 pub use agent::{

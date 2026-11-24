@@ -27,7 +27,15 @@ pub(super) async fn execute_migrate_status(
     built: &BuiltState,
     extension: Option<&ExtensionId>,
 ) -> Result<CommandOutput> {
-    run_migrate_status(ctx.db_pool().as_ref(), built, extension).await
+    run_migrate_status(
+        ctx.kernel()
+            .state()
+            .get::<systemprompt_database::DbPool>()?
+            .as_ref(),
+        built,
+        extension,
+    )
+    .await
 }
 
 pub(super) async fn execute_migrate_status_standalone(

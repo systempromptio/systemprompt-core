@@ -6,6 +6,7 @@ use axum::Router;
 use axum::routing::get;
 use systemprompt_identity_entry::http::oauth;
 use systemprompt_manifest::profile::UiSessionConfig;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get, setup_ctx, setup_ctx_customised};

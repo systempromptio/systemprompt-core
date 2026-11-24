@@ -83,7 +83,7 @@ pub async fn setup_non_interactive(
     Ok(config)
 }
 
-pub async fn require_verified(config: PostgresConfig) -> Result<PostgresConfig> {
+pub(crate) async fn require_verified(config: PostgresConfig) -> Result<PostgresConfig> {
     if test_connection(&config).await {
         return Ok(config);
     }

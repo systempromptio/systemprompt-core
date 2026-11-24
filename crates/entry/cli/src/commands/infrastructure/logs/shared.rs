@@ -28,7 +28,7 @@ pub fn level_notice(level: LogLevel, text: impl Into<String>) -> NoticeLine {
     NoticeLine::new(notice, text)
 }
 
-pub fn filter_notes(filters: &LogFilters) -> Vec<NoticeLine> {
+pub(crate) fn filter_notes(filters: &LogFilters) -> Vec<NoticeLine> {
     let mut notes = Vec::new();
     if let Some(level) = filters.level {
         notes.push(NoticeLine::new(

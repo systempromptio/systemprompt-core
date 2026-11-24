@@ -15,7 +15,7 @@ use crate::error::ApiHttpError;
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 #[error("request handler panicked")]
-pub struct HandlerPanicked;
+pub(crate) struct HandlerPanicked;
 
 type PanicHandler = fn(Box<dyn Any + Send + 'static>) -> Response;
 

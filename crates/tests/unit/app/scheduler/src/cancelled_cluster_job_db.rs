@@ -50,18 +50,21 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         .upsert_job(&JobName::new(CANCELLABLE_CLUSTER_JOB), "", true)
         .await
         .unwrap();
-    let service = Arc::new(SchedulerService::new(
-        SchedulerConfig {
-            enabled: true,
-            jobs: Vec::new(),
-            bootstrap_jobs: vec![JobName::new(CANCELLABLE_CLUSTER_JOB)],
-            distributed_lock: true,
-            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
-        },
-        &pool,
-        context,
-        Arc::clone(&schedule),
-    ));
+    let service = Arc::new(
+        SchedulerService::new(
+            SchedulerConfig {
+                enabled: true,
+                jobs: Vec::new(),
+                bootstrap_jobs: vec![JobName::new(CANCELLABLE_CLUSTER_JOB)],
+                distributed_lock: true,
+                unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
+            },
+            &pool,
+            context,
+            Arc::clone(&schedule),
+        )
+        .expect("scheduler"),
+    );
 
     CANCELLABLE_CLUSTER_JOB_RUNS.store(0, Ordering::SeqCst);
     let started = cancellable_cluster_job_started().notified();

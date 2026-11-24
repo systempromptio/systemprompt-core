@@ -9,7 +9,9 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+use std::sync::Arc;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_manifest::Config;
 use systemprompt_models::ApiError;
 use systemprompt_models::mcp::McpExtensionId;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
@@ -42,7 +44,13 @@ pub(super) async fn handle_mcp_protected_resource(
     Path(raw_server): Path<String>,
 ) -> Result<Response, ApiHttpError> {
     let server = McpServerId::try_new(raw_server).map_err(ApiError::from)?;
-    let base_url = state.ctx.config().api_external_url.clone();
+    let base_url = state
+        .ctx
+        .kernel()
+        .state()
+        .get::<Arc<Config>>()?
+        .api_external_url
+        .clone();
 
     let registry = match crate::services::proxy::mcp_registry(&state.ctx) {
         Ok(registry) => Some(registry),
@@ -84,7 +92,7 @@ pub(super) async fn handle_mcp_protected_resource(
 pub(super) async fn handle_mcp_authorization_server(
     State(state): State<McpState>,
 ) -> Result<Response, ApiHttpError> {
-    let config = state.ctx.config();
+    let config = state.ctx.kernel().state().get::<Arc<Config>>()?;
     let (base_url, allow_dcr) = (
         config.api_external_url.clone(),
         config.allow_dynamic_client_registration,

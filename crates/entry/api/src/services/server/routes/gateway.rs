@@ -61,7 +61,16 @@ fn mount_gateway(
     for group in registered {
         surface = surface.merge(mount.protect(group.router, &group.protection, base)?);
     }
-    router = place(router, base, with_access_log(ctx.logging(), surface));
+    router = place(
+        router,
+        base,
+        with_access_log(
+            ctx.kernel()
+                .state()
+                .get::<systemprompt_logging::LoggingRuntime>()?,
+            surface,
+        ),
+    );
     router = mount.mount(
         router,
         declare(

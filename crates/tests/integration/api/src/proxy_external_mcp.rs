@@ -10,6 +10,7 @@
 //! seeds the `mcp_servers:` registry — one process per test under nextest.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::body::{Body, to_bytes};
 

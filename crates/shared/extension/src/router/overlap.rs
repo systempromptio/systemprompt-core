@@ -47,11 +47,7 @@ pub struct RouteOverlap {
 
 #[must_use]
 pub fn full_path(base: BaseRef, path: &str) -> String {
-    let base = match base {
-        BaseRef::Path(base) => base.path(),
-        BaseRef::Gateway(_) => ApiPaths::GATEWAY_BASE,
-    };
-    match (base, path) {
+    match (base.path(), path) {
         ("/", path) => path.to_owned(),
         (base, "/") => base.to_owned(),
         (base, path) => format!("{base}{path}"),

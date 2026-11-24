@@ -1,6 +1,7 @@
 //! The consumer router enforces device identity and cookie origin.
 use std::convert::Infallible;
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::Router;
 use axum::body::Body;

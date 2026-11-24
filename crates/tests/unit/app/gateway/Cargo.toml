@@ -46,6 +46,7 @@ async-trait = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }
 futures-util = { workspace = true }
+systemprompt-storage = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }

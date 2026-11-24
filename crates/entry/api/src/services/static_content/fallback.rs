@@ -13,7 +13,7 @@ use systemprompt_models::modules::ApiPaths;
 use super::static_files::StaticContentState;
 use crate::error::ApiHttpError;
 
-pub async fn smart_fallback_handler(
+pub(crate) async fn smart_fallback_handler(
     State(state): State<StaticContentState>,
     uri: Uri,
     method: Method,
@@ -41,7 +41,7 @@ pub fn is_api_path(path: &str) -> bool {
         || path.starts_with(ApiPaths::WELLKNOWN_BASE)
         || path.starts_with("/server/")
         || path.starts_with("/mcp/")
-        || path.starts_with("/health")
+        || path.starts_with(ApiPaths::HEALTH_ROOT)
         || path.starts_with(ApiPaths::OPENAPI_BASE)
         || path.starts_with(ApiPaths::DOCS_BASE)
         || path.starts_with(ApiPaths::SWAGGER_BASE)

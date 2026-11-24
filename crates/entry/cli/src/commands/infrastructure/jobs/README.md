@@ -219,7 +219,7 @@ use systemprompt_database::DbPool;
 use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
-pub struct MyCustomJob;
+pub(crate) struct MyCustomJob;
 
 #[async_trait]
 impl Job for MyCustomJob {
@@ -345,7 +345,7 @@ use systemprompt_database::DbPool;
 use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
-pub struct BlogContentIngestionJob;
+pub(crate) struct BlogContentIngestionJob;
 
 #[async_trait]
 impl Job for BlogContentIngestionJob {

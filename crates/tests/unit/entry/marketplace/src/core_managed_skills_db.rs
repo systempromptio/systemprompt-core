@@ -7,6 +7,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::BTreeMap;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use clap::Parser;
 use systemprompt_cli::CommandContext;

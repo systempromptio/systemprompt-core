@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "CLI"
+text = "`infra services serve` stops a confirmed port holder within the profile's `server.shutdown.child_grace_secs`; the Ctrl-C handler uses the `ShutdownConfig` default."

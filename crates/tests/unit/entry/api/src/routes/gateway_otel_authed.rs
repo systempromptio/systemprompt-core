@@ -20,8 +20,8 @@ use systemprompt_gateway_entry::http::otel::{handle, ingest_envelope};
 use systemprompt_identifiers::{InstanceId, SessionId};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context,
-    test_database_url, test_db_pool,
+    AppContextSeeds as _, AuthedFixture, ensure_test_bootstrap, seed_bridge_credential,
+    test_app_context, test_database_url, test_db_pool,
 };
 
 const EXPORTS: &str = "gateway_desktop_telemetry_exports_total";
@@ -55,7 +55,7 @@ fn gateway_http_state(
         repos: std::sync::Arc::new(
             systemprompt_gateway::surface::repositories::gateway_repositories(
                 &ctx.kernel().resolved(),
-                &systemprompt_api::routes::gateway::host_handles(ctx),
+                &systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
                 ctx.kernel()
                     .resolved()
                     .get::<systemprompt_traits::DynContextMaterializer>()
@@ -66,7 +66,7 @@ fn gateway_http_state(
         ),
         engines: systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
             .expect("gateway engines"),
-        host: systemprompt_api::routes::gateway::host_handles(ctx),
+        host: systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
         db: std::sync::Arc::clone(ctx.db_pool()),
     }
 }

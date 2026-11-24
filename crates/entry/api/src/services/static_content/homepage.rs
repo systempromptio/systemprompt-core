@@ -8,6 +8,8 @@ use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 
+use std::sync::Arc;
+use systemprompt_config::AppPaths;
 use systemprompt_models::api::ApiError;
 
 use super::static_files::{CACHE_HTML, StaticContentState, compute_etag};
@@ -17,7 +19,10 @@ pub async fn serve_homepage(
     State(state): State<StaticContentState>,
     headers: http::HeaderMap,
 ) -> impl IntoResponse {
-    let dist_dir = state.ctx.app_paths().web().dist().to_path_buf();
+    let dist_dir = match state.ctx.kernel().state().get::<Arc<AppPaths>>() {
+        Ok(paths) => paths.web().dist().to_path_buf(),
+        Err(missing) => return ApiHttpError::from(missing).into_response(),
+    };
 
     let homepage_path = dist_dir.join("index.html");
 

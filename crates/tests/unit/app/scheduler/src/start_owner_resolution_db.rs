@@ -33,7 +33,8 @@ mod start_owner_resolution_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let startup = svc.start().await.expect("scheduler must start");
         assert!(startup.handle.is_some(), "scheduler must start");
@@ -67,7 +68,8 @@ mod start_owner_resolution_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let startup = svc
             .start()
@@ -122,7 +124,8 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let startup = svc
             .start()
@@ -150,7 +153,8 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let err = svc
             .start()
@@ -186,7 +190,8 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let startup = svc.start().await.expect("start must succeed");
         let repo = SchedulerRepository::new(&pool);
@@ -226,7 +231,8 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let startup = svc.start().await.expect("start must succeed");
         let repo = SchedulerRepository::new(&pool);
@@ -261,7 +267,8 @@ mod start_lifecycle_db {
             distributed_lock: false,
             unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
-        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule));
+        let svc = SchedulerService::new(config, &pool, app_ctx, Arc::clone(&schedule))
+            .expect("scheduler");
 
         let startup = svc.start().await.expect("start must succeed");
         let handle = startup

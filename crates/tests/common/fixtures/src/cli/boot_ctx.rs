@@ -1,4 +1,4 @@
-use crate::{ensure_test_bootstrap, fixture_admitted};
+use crate::{ensure_test_bootstrap, fixture_admitted, AppContextSeeds as _};
 use systemprompt_cli::kernel::MemberHost;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, GrantedPlane, KernelGrant};

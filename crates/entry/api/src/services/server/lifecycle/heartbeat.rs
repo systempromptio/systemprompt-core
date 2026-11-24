@@ -16,23 +16,29 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Result;
 use systemprompt_database::{INSTANCE_DEAD_AFTER_SECS, ServiceRepository};
+use systemprompt_loader::BootContext;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::NodeRole;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::BackgroundTasks;
 
 pub(in crate::services::server) const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 
 const GC_EVERY_BEATS: u32 = 4;
 
-pub(in crate::services::server) fn start_registry_heartbeat(ctx: &AppContext) {
-    let repository = Arc::clone(ctx.service_repository());
-    let role = ctx.profile().server.role;
-    let advertise_url = ctx
-        .config()
+pub(in crate::services::server) fn start_registry_heartbeat(ctx: &AppContext) -> Result<()> {
+    let state = ctx.kernel().state();
+    let repository = Arc::clone(state.get::<Arc<ServiceRepository>>()?);
+    let role = state.get::<BootContext>()?.profile().server.role;
+    let advertise_url = state
+        .get::<Arc<Config>>()?
         .advertise_url
         .clone()
         .filter(|url| !url.is_empty());
-    ctx.background_tasks()
+    state
+        .get::<BackgroundTasks>()?
         .spawn_cancellable("registry_heartbeat", |cancel| async move {
             let mut tick = tokio::time::interval(HEARTBEAT_INTERVAL);
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -45,6 +51,7 @@ pub(in crate::services::server) fn start_registry_heartbeat(ctx: &AppContext) {
                 beat(&repository, role, advertise_url.as_deref(), &mut beats).await;
             }
         });
+    Ok(())
 }
 
 async fn beat(

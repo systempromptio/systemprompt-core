@@ -49,7 +49,7 @@ pub struct BundleReport {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ActiveReport {
+pub(crate) struct ActiveReport {
     pub path: String,
     pub provenance: String,
     pub composed_hash: Option<String>,

@@ -47,7 +47,13 @@ pub(super) async fn writable_plane(
         return Ok(());
     }
     let app = ctx.app_context().await.map_err(CommandError::new)?;
-    let planes = app.config_planes().map_err(CommandError::new)?;
+    let config = app
+        .kernel()
+        .state()
+        .get::<std::sync::Arc<systemprompt_manifest::Config>>()
+        .map_err(CommandError::new)?;
+    let planes = systemprompt_runtime::config_plane_set(app.admitted(), config)
+        .map_err(CommandError::new)?;
     planes.writer(plane.name()).map_err(CommandError::new)?;
     Ok(())
 }

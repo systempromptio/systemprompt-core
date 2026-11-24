@@ -12,7 +12,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenLineage, RefreshTokenParams};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{OAuthClientFixture, seed_oauth_client};
+use systemprompt_test_fixtures::{AppContextSeeds as _, OAuthClientFixture, seed_oauth_client};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;

@@ -14,19 +14,25 @@
 
 use std::sync::Arc;
 
+use anyhow::Result;
+use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::BackgroundTasks;
 
-pub(in crate::services::server) fn start_secrets_refresh(ctx: &AppContext) {
-    let Some(interval) = ctx.secrets().refresh_interval() else {
-        return;
+pub(in crate::services::server) fn start_secrets_refresh(ctx: &AppContext) -> Result<()> {
+    let state = ctx.kernel().state();
+    let boot = state.get::<BootContext>()?;
+    let Some(interval) = boot.secrets().refresh_interval() else {
+        return Ok(());
     };
     tracing::info!(
         interval_secs = interval.as_secs(),
         "secrets refresh scheduled on this replica"
     );
-    let secrets = Arc::clone(ctx.secrets());
-    ctx.background_tasks()
-        .spawn_cancellable("secrets_refresh", move |cancel| async move {
+    let secrets = Arc::clone(boot.secrets());
+    state.get::<BackgroundTasks>()?.spawn_cancellable(
+        "secrets_refresh",
+        move |cancel| async move {
             let mut tick = tokio::time::interval(interval);
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
             tick.tick().await;
@@ -49,5 +55,7 @@ pub(in crate::services::server) fn start_secrets_refresh(ctx: &AppContext) {
                     ),
                 }
             }
-        });
+        },
+    );
+    Ok(())
 }

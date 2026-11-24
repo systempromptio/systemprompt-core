@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "API"
+text = "Every served and reserved `/api/v1` path is spelled once in `ApiPaths`; `systemprompt_documents::http::surface::ISSUES_PATH` and the unused `SystempromptClient::verify_token` are removed."

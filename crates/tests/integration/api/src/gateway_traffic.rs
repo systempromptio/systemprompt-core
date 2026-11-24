@@ -3,6 +3,7 @@
 //! stamped on `ai_requests.traffic`, and the hourly rollup keys on it.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use systemprompt_gateway_entry::http::messages::error::RejectionError;

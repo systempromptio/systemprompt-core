@@ -73,7 +73,7 @@ impl CommandContext {
                 let state = self.command_seed(app.kernel().state().clone());
                 Ok(Arc::new(Kernel::new(
                     app.database_handle(),
-                    app.background_tasks().clone(),
+                    app.kernel().state().get::<BackgroundTasks>()?.clone(),
                     state,
                 )))
             })

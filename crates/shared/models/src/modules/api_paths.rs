@@ -44,12 +44,24 @@ impl ApiPaths {
     pub const OAUTH_TOKEN: &'static str = "/api/v1/core/oauth/token";
     pub const OAUTH_CLIENTS: &'static str = "/api/v1/core/oauth/clients";
     pub const SSO_BASE: &'static str = "/api/v1/core/sso";
+    pub const SSO_OIDC_START: &'static str = "/api/v1/core/sso/oidc/start";
+    pub const SSO_OIDC_CALLBACK: &'static str = "/api/v1/core/sso/oidc/callback";
+    pub const AUTH_LINK_PASSKEY: &'static str = "/auth/link-passkey";
+    pub const LEGACY_OAUTH_BASE: &'static str = "/api/v1/oauth";
+    pub const LEGACY_USERS_BASE: &'static str = "/api/v1/users";
+    pub const LEGACY_FILES_BASE: &'static str = "/api/v1/files";
+    pub const SCHEDULER_BASE: &'static str = "/api/v1/scheduler";
+    pub const INTERNAL_BASE: &'static str = "/api/v1/internal";
+    pub const ISSUES: &'static str = "/api/v1/issues";
+    pub const CONTENT_REDIRECT_BASE: &'static str = "/r";
 
     pub const CORE_USERS: &'static str = "/api/v1/core/users";
 
     pub const WEBHOOK: &'static str = "/api/v1/webhook";
 
     pub const HEALTH: &'static str = "/api/v1/health";
+    pub const HEALTH_DETAIL: &'static str = "/api/v1/health/detail";
+    pub const HEALTH_ROOT: &'static str = "/health";
 
     pub const LIVEZ: &'static str = "/livez";
 
@@ -145,6 +157,7 @@ impl ApiPaths {
     pub const MCP: &'static str = "/mcp";
     pub const PUBLIC_HOOKS: &'static str = "/api/public/hooks";
     pub const PUBLIC_HOOKS_TRACK: &'static str = "/api/public/hooks/track";
+    pub const CONSUMER_BASE: &'static str = "/api/v1/consumer";
     pub const CONSUMER_RECEIPTS: &'static str = "/api/v1/consumer/receipts";
     pub const CONSUMER_SESSION_BINDINGS: &'static str = "/api/v1/consumer/session-bindings";
     pub const CONSUMER_DEVICE_ENROLLMENT: &'static str = "/api/v1/consumer-devices/enrollment";

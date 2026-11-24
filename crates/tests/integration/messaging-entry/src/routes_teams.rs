@@ -8,6 +8,7 @@
 //! asserts the Adaptive Card reply reaches the Bot Connector.
 
 use std::time::Duration;
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};

@@ -8,7 +8,9 @@ use http::StatusCode;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_test_fixtures::{seed_admin_credential, test_app_context_on, test_db_pool};
+use systemprompt_test_fixtures::{
+    AppContextSeeds as _, seed_admin_credential, test_app_context_on, test_db_pool,
+};
 use systemprompt_traits::{CacheDomain, ConfigVersionSource, RepositoryError, WatchSignals};
 use tower::ServiceExt;
 

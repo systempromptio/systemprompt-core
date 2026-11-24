@@ -23,6 +23,7 @@ use systemprompt_identifiers::{ServiceName, SpawnNonce};
 use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_runtime::{AppContext, ShutdownRequest};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -139,7 +140,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     )
     .await?;
 
-    shutdown::terminate_children(&ctx).await;
+    shutdown::terminate_children(&ctx).await?;
     let foreign_survived = foreign.try_wait()?.is_none();
     foreign.kill()?;
     foreign.wait()?;
@@ -156,7 +157,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
         "a live non-child pid is cleared, not signalled"
     );
 
-    shutdown::drain(&ctx, None).await;
+    shutdown::drain(&ctx, None).await?;
     Ok(())
 }
 

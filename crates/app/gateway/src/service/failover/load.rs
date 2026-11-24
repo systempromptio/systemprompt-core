@@ -5,9 +5,10 @@
 //! selection. An idle counter reads zero, the same as one that was never
 //! created, so idle counters are dropped once the registry passes the
 //! breakers' cap. A
-//! send holds an [`InFlight`] guard from the moment it leaves until the
-//! upstream answers (headers for a stream), so the gauge measures concurrent
-//! upstream calls in this process, not cluster-wide load.
+//! send holds an [`InFlight`] guard from the moment it leaves until its
+//! answer is read (a streamed body carries the guard until the body is
+//! dropped), so the gauge measures concurrent upstream calls in this process,
+//! not cluster-wide load.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -66,11 +66,7 @@ fn collect_unlisted(
 
 impl SchedulerService {
     pub(super) fn adopt_unlisted_jobs(&mut self, registered: &JobMap) -> SchedulerResult<()> {
-        let unlisted = collect_unlisted(
-            &self.config,
-            registered,
-            &deployment_dependencies(self.app_context.boot()),
-        );
+        let unlisted = collect_unlisted(&self.config, registered, &self.deployment);
         if unlisted.is_empty() {
             return Ok(());
         }

@@ -4,6 +4,7 @@
 //! type. Each must answer from the same planes as the concrete accessors.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::AppContextSeeds;
 
 use systemprompt_extension::HasRouteClassifier;
 use systemprompt_identifiers::{InstanceId, LeaseKey};
@@ -38,7 +39,7 @@ async fn the_provider_view_shares_the_concrete_config_and_database() {
 
     let config = AppContextTrait::config(view);
     assert_eq!(config.database_url(), url);
-    assert_eq!(config.api_port(), ctx.config().port);
+    assert_eq!(config.api_port(), AppContextSeeds::config(&*ctx).port);
     assert!(view.database_handle().is_connected());
     assert!(view.session_provider().is_some());
     assert_eq!(
@@ -61,7 +62,7 @@ async fn the_kernel_seeds_name_this_instance_and_share_the_file_storage() {
 
     assert_eq!(
         state.get::<InstanceId>().expect("instance id seed"),
-        &ctx.config().instance_id
+        &AppContextSeeds::config(&*ctx).instance_id
     );
     assert!(Arc::ptr_eq(
         state

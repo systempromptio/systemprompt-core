@@ -27,7 +27,7 @@ pub struct SessionInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RoutingInfo {
+pub(crate) struct RoutingInfo {
     #[schemars(with = "Option<String>")]
     pub profile_name: Option<ProfileName>,
     pub target: String,
@@ -37,7 +37,7 @@ pub struct RoutingInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SessionShowOutput {
+pub(crate) struct SessionShowOutput {
     pub sessions: Vec<SessionInfo>,
     pub routing: Option<RoutingInfo>,
 }
@@ -57,7 +57,7 @@ pub struct LogoutOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SwitchOutput {
+pub(crate) struct SwitchOutput {
     #[schemars(with = "Option<String>")]
     pub previous_profile: Option<ProfileName>,
     #[schemars(with = "String")]

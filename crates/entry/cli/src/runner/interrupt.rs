@@ -27,6 +27,7 @@ use std::time::Duration;
 
 use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_traits::OwnedTask;
 use tokio::sync::oneshot;
 
@@ -40,7 +41,6 @@ pub fn exit_code(outcome: anyhow::Result<()>) -> anyhow::Result<ExitCode> {
 }
 
 const GRACE: Duration = Duration::from_secs(3);
-const CHILD_GRACE: Duration = Duration::from_secs(2);
 const SHIELD_POLL: Duration = Duration::from_millis(20);
 
 /// Defers the forced exit while a critical section runs.
@@ -156,7 +156,8 @@ async fn listen(
 }
 
 async fn stop_children(children: &ForegroundChildren) {
-    for (pid, outcome) in children.stop_all(CHILD_GRACE).await {
+    let grace = ShutdownConfig::default().child_grace();
+    for (pid, outcome) in children.stop_all(grace).await {
         match outcome {
             Ok(outcome) => tracing::debug!(pid, ?outcome, "Foreground child stopped"),
             Err(e) => tracing::warn!(pid, error = %e, "Foreground child could not be stopped"),
@@ -173,7 +174,7 @@ fn hard_exit() {
     std::process::exit(i32::from(INTERRUPTED_EXIT_CODE));
 }
 
-pub fn restore_terminal() {
+pub(crate) fn restore_terminal() {
     for term in [console::Term::stdout(), console::Term::stderr()] {
         if let Err(e) = term.show_cursor() {
             tracing::debug!(error = %e, "terminal cursor not restored");

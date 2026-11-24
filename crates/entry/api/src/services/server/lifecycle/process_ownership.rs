@@ -35,7 +35,7 @@ use super::rendezvous::preferred_owner;
 
 pub const LEASE_TTL: Duration = Duration::from_secs(45);
 pub const RENEW_EVERY: Duration = Duration::from_secs(15);
-pub const FAILED_START_BACKOFF: Duration = Duration::from_secs(60);
+pub(crate) const FAILED_START_BACKOFF: Duration = Duration::from_secs(60);
 pub const CLAIM_RETRY_EVERY: Duration = Duration::from_secs(2);
 
 /// Whether a supervision tick settles every lease or only retries claims.

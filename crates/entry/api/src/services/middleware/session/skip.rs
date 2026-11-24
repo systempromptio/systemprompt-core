@@ -36,7 +36,7 @@ pub fn should_skip_session_tracking(path: &str) -> bool {
         return true;
     }
 
-    if path == "/health" || path == ApiPaths::LIVEZ || path == ApiPaths::READYZ {
+    if path == ApiPaths::HEALTH_ROOT || path == ApiPaths::LIVEZ || path == ApiPaths::READYZ {
         return true;
     }
 

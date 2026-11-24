@@ -7,14 +7,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BuildExtensionRow {
+pub(crate) struct BuildExtensionRow {
     pub name: String,
     pub build_type: String,
     pub status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct BuildOutput {
+pub(crate) struct BuildOutput {
     pub extensions: Vec<BuildExtensionRow>,
     pub total: usize,
     pub successful: usize,
@@ -22,7 +22,7 @@ pub struct BuildOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CoreBuildOutput {
+pub(crate) struct CoreBuildOutput {
     pub target: String,
     pub mode: String,
     pub status: String,

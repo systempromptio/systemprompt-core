@@ -11,6 +11,7 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Json, Router};
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::instance::{BridgeDiscovery, DISCOVERY_CONTRACT};
@@ -23,7 +24,7 @@ use systemprompt_extension::LoaderError;
 const DISCOVERY_RATE_LIMIT_PER_SECOND: u64 = 5;
 
 pub fn bridge_discovery_router(ctx: &AppContext) -> Result<Router, LoaderError> {
-    let limits = RateLimitState::from_context(ctx);
+    let limits = RateLimitState::from_context(ctx)?;
     Router::new()
         .route(ApiPaths::WELLKNOWN_BRIDGE, get(handle_discovery))
         .with_state(ctx.clone())
@@ -33,7 +34,7 @@ pub fn bridge_discovery_router(ctx: &AppContext) -> Result<Router, LoaderError> 
 async fn handle_discovery(
     State(ctx): State<AppContext>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    discovery_document(&ctx.services_config())
+    discovery_document(&ctx.kernel().state().get::<ServicesState>()?.config())
         .map(Json)
         .ok_or_else(|| {
             ApiError::not_found("bridge discovery is not configured on this instance")

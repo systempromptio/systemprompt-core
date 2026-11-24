@@ -28,3 +28,13 @@ pub enum BaseRef {
     Path(BasePath),
     Gateway(GatewayPath),
 }
+
+impl BaseRef {
+    #[must_use]
+    pub fn path(self) -> &'static str {
+        match self {
+            Self::Path(base) => base.path(),
+            Self::Gateway(_) => ApiPaths::GATEWAY_BASE,
+        }
+    }
+}

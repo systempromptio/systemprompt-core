@@ -57,7 +57,7 @@ async fn create_session(
     let routes = GatewayHttpSurface
         .build(GatewayRouteState {
             resolved: ctx.kernel().route_scoped(&owner, standing, &[]),
-            host: systemprompt_api::routes::gateway::host_handles(&ctx),
+            host: systemprompt_api::routes::gateway::host_handles(&ctx).expect("host handles"),
         })
         .expect("the gateway surface builds");
     let response = routes

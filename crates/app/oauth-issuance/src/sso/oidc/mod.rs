@@ -28,6 +28,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_client::{GuardedClientConfig, guarded_client};
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_security::keys::JwksClient;
 use systemprompt_traits::SecretStore;
 use systemprompt_traits::sso::{
@@ -49,8 +50,8 @@ use token::{CodeRedemption, redeem_code};
 pub const ID: &str = "oidc";
 
 const PATHS: SsoPaths = SsoPaths {
-    start: "/api/v1/core/sso/oidc/start",
-    callback: "/api/v1/core/sso/oidc/callback",
+    start: ApiPaths::SSO_OIDC_START,
+    callback: ApiPaths::SSO_OIDC_CALLBACK,
     metadata: None,
 };
 
@@ -125,7 +126,7 @@ pub fn build(ctx: &SsoHookContext) -> Result<Option<OidcProvider>, OidcConfigErr
     if !cfg.enabled {
         return Ok(None);
     }
-    OidcProvider::new(cfg, Arc::clone(&ctx.secrets), &ctx.config.api_external_url).map(Some)
+    OidcProvider::new(cfg, Arc::clone(&ctx.secrets), &ctx.edge.api_external_url).map(Some)
 }
 
 pub(crate) fn factory(

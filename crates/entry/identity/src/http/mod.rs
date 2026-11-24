@@ -30,6 +30,7 @@ use axum::routing::get;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_models::auth::TokenAuthority;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::{OAuthSigning, OAuthState};
@@ -124,7 +125,7 @@ impl IdentitySurface for IdentityHttpSurface {
             oauth_revocation: oauth::revocation_router(&host.config).with_state(oauth_state),
             sso: sso::router(sso),
             passkey_link_page: Router::new().route(
-                "/auth/link-passkey",
+                ApiPaths::AUTH_LINK_PASSKEY,
                 get(oauth::webauthn::link::link_passkey_page),
             ),
             wellknown: oauth::wellknown_routes(discovery),

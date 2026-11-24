@@ -29,7 +29,7 @@ impl SchedulerService {
     ) -> SchedulerResult<usize> {
         let resolved = self.resolve_owners(false).await?;
         self.validate_configured_jobs()?;
-        let system_admin_id = self.app_context.system_admin().id().clone();
+        let system_admin_id = self.system_admin_id.clone();
         let skipped: HashSet<&JobName> = resolved.skipped_names().collect();
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
         let ctx = BootstrapCtx {
@@ -74,7 +74,7 @@ impl SchedulerService {
             &self.config,
             config_entry,
             Some(job.as_ref()),
-            &self.app_context.config().instance_id,
+            &self.instance_id,
         );
         dispatch::execute_job(
             dispatch::JobDispatch {
@@ -83,6 +83,8 @@ impl SchedulerService {
                 actor,
                 repository: self.repository.clone(),
                 app_context: Arc::clone(&self.app_context),
+                db_pool: self.db_pool.clone(),
+                instance_id: self.instance_id.clone(),
                 running_jobs: Arc::clone(ctx.running_jobs),
                 claim_policy,
                 enforce: config_entry.is_some_and(|job| job.enforce),

@@ -30,8 +30,6 @@ use systemprompt_extension::prelude::{MissingDependency, Resolved};
 use systemprompt_files::documents::DocumentsUnbound;
 use systemprompt_traits::UserProvider;
 
-pub const ISSUES_PATH: &str = "/api/v1/issues";
-
 /// Builds the document, upload and issue handler routes from the
 /// `files-http` route state.
 pub trait FilesSurface: Send + Sync + std::fmt::Debug {

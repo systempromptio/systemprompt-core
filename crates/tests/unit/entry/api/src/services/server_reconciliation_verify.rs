@@ -17,7 +17,7 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{McpServerConfig, McpServerType};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
+    AppContextSeeds as _, ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
 };
 
 fn orchestrator(

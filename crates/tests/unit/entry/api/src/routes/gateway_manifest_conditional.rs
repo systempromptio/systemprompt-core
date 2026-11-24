@@ -3,6 +3,7 @@
 //! revalidates its stored signed envelope instead of downloading it again.
 
 use std::sync::{Arc, OnceLock};
+use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::body::to_bytes;
 use axum::http::{HeaderMap, StatusCode, header};

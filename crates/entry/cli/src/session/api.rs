@@ -9,7 +9,7 @@ use systemprompt_security::keys::SigningKeys;
 
 pub const DEFAULT_CLI_SESSION_HOURS: i64 = 24;
 
-pub fn load_signing_keys(boot: &BootContext) -> Result<SigningKeys> {
+pub(crate) fn load_signing_keys(boot: &BootContext) -> Result<SigningKeys> {
     let config = boot
         .try_init_config(None)
         .context("Failed to build the configuration for the signing keys")?;
