@@ -28,6 +28,7 @@ use super::winnt as platform;
 
 const EXIT_POLL: Duration = Duration::from_millis(25);
 const KILL_SETTLE: Duration = Duration::from_secs(5);
+const DISOWN_SETTLE: Duration = Duration::from_millis(500);
 
 /// How a termination request ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -178,13 +179,17 @@ async fn terminate_verified(
     if delivery == platform::Delivery::NoSuchProcess || wait_for_exit(pid, grace).await {
         return Ok(Verified::Ended(Termination::Exited));
     }
+    // Why: a signalled process loses its readable environment while it exits
+    // (`/proc/<pid>/environ` answers EACCES once its memory is torn down), so a
+    // failed identity check right after the signal is first given the exit
+    // window before the pid is judged disowned.
     if let Some(claim) = claim
         && !owns(pid, claim).await
     {
-        return Ok(if is_running(pid).await {
-            Verified::Disowned
-        } else {
+        return Ok(if wait_for_exit(pid, DISOWN_SETTLE).await {
             Verified::Ended(Termination::Exited)
+        } else {
+            Verified::Disowned
         });
     }
     let delivery = blocking_on_windows(move || platform::send(pid, true, group)).await??;
