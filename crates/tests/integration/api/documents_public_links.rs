@@ -13,7 +13,7 @@ use axum::extract::connect_info::MockConnectInfo;
 use axum::http::{Method, StatusCode, header};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use systemprompt_api::routes::documents::{document_service, files_host_handles};
+use systemprompt_api::routes::documents::files_host_handles;
 use systemprompt_files::{DocumentsConfig, ExternalSharingConfig};
 use systemprompt_files_entry::http::documents::{DocumentsState, public_link};
 use systemprompt_models::documents::DocumentFormat;
@@ -46,7 +46,10 @@ pub(super) async fn instance(sharing: ExternalSharingConfig) -> Result<Instance>
     )
     .await?;
     let public = public_link::router(
-        document_service(&ctx).expect("the document store is enabled"),
+        systemprompt_test_fixtures::documents_handles(&ctx)
+            .service
+            .clone()
+            .expect("the document store is enabled"),
         files_host_handles(&ctx).client_ip,
     )
     .layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 7], 4000))));

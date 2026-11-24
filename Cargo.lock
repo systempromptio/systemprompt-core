@@ -7102,6 +7102,7 @@ dependencies = [
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-traits",
  "systemprompt-users",
  "tokio",

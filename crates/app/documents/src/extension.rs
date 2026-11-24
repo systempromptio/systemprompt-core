@@ -8,9 +8,9 @@
 //! read. From the sealed token authority it builds two narrow views (see
 //! [`crate::tokens`]):
 //! [`DocumentLinkTokens`](crate::tokens::DocumentLinkTokens), conferred on
-//! `files-http`, and the `DynDriveTokens` view, provided sealed for the
-//! kernel's bridge Drive routes, which the API mounts whenever this member is
-//! admitted, whatever `gateway-http`'s standing.
+//! `files-http`, and the `DynDriveTokens` view, conferred on `files-http`
+//! for the bridge Drive routes that member builds; the API mounts them under
+//! the gateway whatever `gateway-http`'s standing.
 //!
 //! It also provides, sealed, the user lookup a hosted MCP server's document
 //! tools read (`Arc<DocumentsMcpUsers>`), so the child host builds no user
@@ -55,9 +55,10 @@ impl Extension for DocumentsExtension {
                     Ok(link_tokens(r))
                 },
             )
-            .provide_sealed(|r: &Resolved<'_>| -> Result<DynDriveTokens, ProvideError> {
-                Ok(drive_tokens(r))
-            });
+            .provide_conferred(
+                ConferralRow::DriveTokens,
+                |r: &Resolved<'_>| -> Result<DynDriveTokens, ProvideError> { Ok(drive_tokens(r)) },
+            );
         Ok(())
     }
 }

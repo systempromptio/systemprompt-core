@@ -1,38 +1,21 @@
-//! The systemprompt credential a gateway request presents.
+//! The caller credential a gateway request forwards upstream.
 //!
-//! The credential is read from `x-systemprompt-authorization` when that
-//! header is present, and otherwise from `Authorization` or `x-api-key`. A
-//! request that names it in the dedicated header keeps `Authorization` for
-//! the upstream: it is never read as identity, and it is the only credential
-//! a caller-credential hop presents ([`caller_auth`],
-//! [`presented_credential`]).
+//! A request that names its systemprompt credential in the dedicated
+//! `x-systemprompt-authorization` header keeps `Authorization` for the
+//! upstream: it is never read as identity, and it is the only credential a
+//! caller-credential hop presents ([`caller_auth`],
+//! [`presented_credential`]). The systemprompt credential itself is read by
+//! [`systemprompt_security::extraction::extract_credential`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
 use systemprompt_ai::PresentedCredential;
-use systemprompt_identifiers::headers::{API_KEY, AUTHORIZATION, SYSTEMPROMPT_AUTHORIZATION};
+use systemprompt_identifiers::headers::{AUTHORIZATION, SYSTEMPROMPT_AUTHORIZATION};
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 
 const BEARER_PREFIX: &str = "Bearer ";
-
-pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
-    let raw = match headers.get(SYSTEMPROMPT_AUTHORIZATION) {
-        Some(dedicated) => dedicated.to_str().ok()?,
-        None => headers
-            .get(AUTHORIZATION)
-            .or_else(|| headers.get(API_KEY))
-            .and_then(|v| v.to_str().ok())?,
-    };
-
-    let trimmed = raw.strip_prefix(BEARER_PREFIX).unwrap_or(raw).trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_owned())
-    }
-}
 
 pub fn caller_auth(headers: &HeaderMap) -> Option<AuthHeader> {
     headers.get(SYSTEMPROMPT_AUTHORIZATION)?;

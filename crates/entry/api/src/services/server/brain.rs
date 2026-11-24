@@ -22,11 +22,11 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use systemprompt_extension::brain::{BrainModelClient, DynBrainConsumerStart};
-use systemprompt_files::documents::BRAIN_ACTOR;
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_gateway::client::principal::{ServiceIdentity, ServicePrincipal};
 use systemprompt_gateway::client::{GatewayClient, GatewayClientParts};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_models::brain::BRAIN_ACTOR;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, RunnerService};
 

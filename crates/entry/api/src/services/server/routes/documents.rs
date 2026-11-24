@@ -42,9 +42,7 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
 use super::protocol::{MountCtx, declare};
-use crate::routes::documents::{
-    DocumentsMountError, documents_handles, files_host_handles, link_tokens,
-};
+use crate::routes::documents::{DocumentsMountError, files_host_handles, link_tokens};
 use crate::routes::internal::links_router;
 
 const DOCUMENTS_RATE: RateLimit = RateLimit::new("documents", RateBudget::Content);
@@ -154,7 +152,7 @@ pub(super) fn mount_internal_links(
     if !mount.ctx.files_config().documents_config().is_enabled() {
         return Ok(router);
     }
-    let handles = documents_handles(mount.ctx)
+    let handles = systemprompt_documents::bound_handles(mount.ctx.kernel().state())
         .map_err(|source| RouteMountError::initialization("internal_links", source))?;
     let documents = handles.service.clone().ok_or_else(|| {
         RouteMountError::initialization("internal_links", DocumentsMountError::Disabled)

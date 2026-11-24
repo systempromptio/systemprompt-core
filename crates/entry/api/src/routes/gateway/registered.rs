@@ -34,11 +34,11 @@ use axum::middleware::Next;
 use axum::response::IntoResponse;
 use systemprompt_extension::router::GatewayPrincipal;
 use systemprompt_extension::{Admitted, RouteProtection};
-use systemprompt_gateway::surface::credential::extract_credential;
 use systemprompt_identifiers::JwtToken;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_runtime::Kernel;
+use systemprompt_security::extraction::extract_credential;
 
 use crate::kernel::ApiHttpError;
 use crate::services::middleware::{MountError, gateway_routes};

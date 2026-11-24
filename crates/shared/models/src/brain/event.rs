@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 
 pub const BRAIN_CONSUMER: &str = "brain";
+
+pub const BRAIN_ACTOR: &str = "brain";
 pub const BRAIN_EVENT_VERSION: u32 = 1;
 
 /// A brain event kind: `.`-separated segments of `[a-z0-9_]`, such as

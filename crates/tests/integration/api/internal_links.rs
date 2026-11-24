@@ -15,7 +15,6 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::routes::documents::document_service;
 use systemprompt_api::routes::internal::links_router;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
@@ -78,7 +77,10 @@ async fn person(pool: &systemprompt_database::DbPool, prefix: &str) -> Result<Au
 async fn serve(ctx: &Arc<AppContext>) -> Result<String> {
     let minter = LinkMinter {
         tokens: systemprompt_test_fixtures::document_link_tokens(ctx),
-        documents: document_service(ctx).expect("the document store is enabled"),
+        documents: systemprompt_test_fixtures::documents_handles(ctx)
+            .service
+            .clone()
+            .expect("the document store is enabled"),
         uploads: Arc::clone(&systemprompt_test_fixtures::documents_handles(ctx).uploads),
         services: services_hosting(SERVER, &["documents"]),
         api_external_url: "https://links.example.test".to_owned(),

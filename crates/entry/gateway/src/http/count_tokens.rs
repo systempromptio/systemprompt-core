@@ -30,7 +30,7 @@ use super::messages::error::RejectionError;
 use super::messages::extract::headers::body_read_error;
 use crate::http::state::GatewayHttpState;
 use systemprompt_extension::router::read_body_bounded;
-use systemprompt_gateway::surface::credential::extract_credential;
+use systemprompt_security::extraction::extract_credential;
 
 const CHARS_PER_TOKEN: usize = 4;
 

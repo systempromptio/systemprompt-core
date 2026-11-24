@@ -34,6 +34,7 @@ http = [
     "dep:systemprompt-manifest",
     "dep:systemprompt-models",
     "dep:systemprompt-provider-contracts",
+    "dep:systemprompt-security",
     "dep:systemprompt-traits",
     "dep:systemprompt-users",
     "dep:async-stream",
@@ -77,6 +78,7 @@ systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-provider-contracts = { workspace = true, optional = true }
+systemprompt-security = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }

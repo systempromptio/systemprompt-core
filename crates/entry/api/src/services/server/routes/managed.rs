@@ -22,8 +22,8 @@ use systemprompt_extension::reserved::CoreId;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteProtection,
 };
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_gateway::surface::ManagedConsumer;
+use systemprompt_identifiers::ExtensionId;
 
 use super::RouteMountError;
 use super::protocol::MountCtx;

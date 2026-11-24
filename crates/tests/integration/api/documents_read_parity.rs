@@ -8,7 +8,6 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::document_service;
 use systemprompt_documents::mcp::{
     DocumentsMcpConfig, DocumentsMcpTools, ReadHandler, refusal_result,
 };
@@ -43,7 +42,10 @@ fn get(uri: &str) -> Request<Body> {
 
 fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
     DocumentsMcpTools::new(DocumentsMcpConfig {
-        service: document_service(ctx).expect("the document store is enabled"),
+        service: systemprompt_test_fixtures::documents_handles(ctx)
+            .service
+            .clone()
+            .expect("the document store is enabled"),
         notifications: Some(systemprompt_test_fixtures::notifications_service(ctx)),
         uploads: Some(Arc::clone(
             &systemprompt_test_fixtures::documents_handles(ctx).uploads,

@@ -48,7 +48,8 @@ pub use declarations::{
 pub use enter::{EnteredFact, EnteredStatus};
 pub use envelope::{BrainEnvelope, Pathway, PathwayWeight};
 pub use event::{
-    BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent, BrainEventKind, BrainEventKindError,
+    BRAIN_ACTOR, BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent, BrainEventKind,
+    BrainEventKindError,
 };
 pub use extraction::{
     BRAIN_CONSOLIDATE_PURPOSE, BRAIN_EXTRACT_PURPOSE, BrainModelRequest, BrainModelResponse,

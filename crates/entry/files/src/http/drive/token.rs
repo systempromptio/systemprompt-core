@@ -21,14 +21,14 @@ use axum::http::HeaderMap;
 use systemprompt_documents::actor::bearer_actor;
 use systemprompt_documents::http::error::DocumentsResult;
 use systemprompt_files::documents::agents::{AgentChannel, DocumentActor};
-use systemprompt_gateway::surface::credential::extract_credential;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::{AuthenticatedUser, TokenInteraction};
 use systemprompt_models::documents::DriveSyncToken;
+use systemprompt_security::extraction::extract_credential;
 use systemprompt_traits::{DriveSyncAttendance, DriveTokenError};
 
-use super::drive::DriveState;
-use crate::kernel::ApiHttpError;
+use super::DriveState;
+use crate::http::error::ApiHttpError;
 
 pub(super) async fn issue(
     State(state): State<DriveState>,

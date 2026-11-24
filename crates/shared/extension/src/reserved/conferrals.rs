@@ -33,6 +33,7 @@ pub enum ConferralRow {
     BridgeReleaseSource,
     GatewaySettings,
     BridgeEventStream,
+    DriveTokens,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -57,6 +58,7 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::BridgeReleaseSource.entry(),
     ConferralRow::GatewaySettings.entry(),
     ConferralRow::BridgeEventStream.entry(),
+    ConferralRow::DriveTokens.entry(),
 ];
 
 impl ConferralRow {
@@ -76,6 +78,7 @@ impl ConferralRow {
             Self::BridgeReleaseSource => "bridge-release-source",
             Self::GatewaySettings => "gateway-settings",
             Self::BridgeEventStream => "bridge-event-stream",
+            Self::DriveTokens => "drive-tokens",
         }
     }
 
@@ -94,7 +97,7 @@ impl ConferralRow {
             | Self::IdentitySigningKeys
             | Self::IdentityOAuthRepositories => (CoreId::Kernel.id(), CoreId::IdentityHttp),
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
-            Self::DocumentLinkTokens => ("documents", CoreId::FilesHttp),
+            Self::DocumentLinkTokens | Self::DriveTokens => ("documents", CoreId::FilesHttp),
         };
         SealedConferral {
             row: self,

@@ -132,7 +132,10 @@ async fn serve_static_asset(
 
     stored::serve_files_path(
         ctx,
-        files_config,
+        stored::StoredFiles {
+            root: files_config.files(),
+            cache_control: files_config.cache_control(),
+        },
         stored::FilesRequest {
             relative_path,
             method,

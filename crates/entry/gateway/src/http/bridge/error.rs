@@ -25,8 +25,8 @@ use systemprompt_traits::{AuthUser, BoxedSource};
 use systemprompt_users::UserError;
 
 use systemprompt_extension::router::{ApiHttpError, unreadable_body};
-use systemprompt_gateway::surface::credential::extract_credential;
 use systemprompt_models::auth::{DynRequestAuthenticator, JwtUserContext};
+use systemprompt_security::extraction::extract_credential;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BridgeError {

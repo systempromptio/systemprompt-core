@@ -21,12 +21,12 @@
 //! is. An admitted capability route (the bridge inbox) carries its own budget,
 //! so its polling and inference never starve each other.
 //!
-//! The bridge Drive routes are mounted whenever the `documents` member is
-//! admitted and the document store is enabled; they hold the sealed
-//! `DynDriveTokens` view the kernel reads, never the token authority, and do
-//! not depend on `gateway-http`'s standing. The view is read by type, so the
-//! mount checks that the `documents` member provided it and refuses boot with
-//! [`GatewayBindingError::ForeignDriveTokens`] when any other member did.
+//! The bridge Drive routes are the `files-http` member's
+//! [`DriveSurface`](systemprompt_documents::http::surface::DriveSurface),
+//! built with that member's route-scoped state: they hold the `DynDriveTokens`
+//! view the `documents` member confers on `files-http`, never the token
+//! authority, and do not depend on `gateway-http`'s standing. They are
+//! mounted when `files-http` is admitted and the document store is enabled.
 //!
 //! The gateway repositories are built from the unscoped kernel resolution
 //! only for the boot paths inside this crate (settlement recovery, the brain
@@ -50,7 +50,7 @@ pub mod registered;
 
 use axum::Router;
 use std::sync::Arc;
-use systemprompt_documents::extension::DOCUMENTS_EXTENSION;
+use systemprompt_documents::http::surface::{DynDriveSurface, FilesSurfaceError};
 use systemprompt_extension::Admitted;
 use systemprompt_extension::reserved::CoreId;
 use systemprompt_gateway::surface::ManagedConsumer;
@@ -63,7 +63,7 @@ use systemprompt_logging::LoggingRuntime;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_provider_contracts::DependencyProvider;
 use systemprompt_runtime::{AppContext, Kernel};
-use systemprompt_traits::{AppContext as _, DynDriveTokens};
+use systemprompt_traits::AppContext as _;
 
 use self::access_log::log_gateway_request;
 use self::builtin::confined;
@@ -118,26 +118,17 @@ pub(crate) fn gateway_repositories(
     )
 }
 
-fn drive_routes(ctx: &AppContext, kernel: &Kernel) -> Result<Router, GatewayBindingError> {
-    let (Some(service), Ok(tokens)) = (
-        crate::routes::documents::document_service(ctx),
-        kernel.resolved().get::<DynDriveTokens>(),
+fn drive_routes(admitted: &Admitted, kernel: &Kernel) -> Result<Router, FilesSurfaceError> {
+    let owner = ExtensionId::new(CoreId::FilesHttp.id());
+    let (Some(standing), Some(surface)) = (
+        admitted.built().standing_of(&owner),
+        kernel.state().find::<DynDriveSurface>(),
     ) else {
         return Ok(Router::new());
     };
-    provided_by::<DynDriveTokens>(kernel, DOCUMENTS_EXTENSION)
-        .map_err(|provider| GatewayBindingError::ForeignDriveTokens { provider })?;
-    Ok(crate::routes::documents::drive::router(
-        crate::routes::documents::drive::DriveState::new(service, tokens),
-    ))
-}
-
-/// A value the gateway mount reads by type from the unscoped kernel state was
-/// provided by a member other than its owner.
-#[derive(Debug, thiserror::Error)]
-pub enum GatewayBindingError {
-    #[error("the Drive token view is provided by {provider}, not the documents member")]
-    ForeignDriveTokens { provider: DependencyProvider },
+    Ok(surface
+        .build(&kernel.route_scoped(&owner, standing, &[]))?
+        .unwrap_or_default())
 }
 
 pub(crate) fn provided_by<T: Send + Sync + 'static>(
@@ -170,7 +161,7 @@ pub(crate) fn gateway_mount_parts(
     let routes = surface_routes(ctx, admitted, kernel)?;
     let registered = registered::admitted_gateway_routes(admitted, kernel, &authenticator)?;
     let principal_bound = registered::verified(routes.principal_bound, &authenticator);
-    let drive = drive_routes(ctx, kernel)?;
+    let drive = drive_routes(admitted, kernel)?;
     let traffic = routes.traffic.merge(principal_bound).merge(drive);
     Ok(GatewayMountParts {
         traffic: confined(traffic),

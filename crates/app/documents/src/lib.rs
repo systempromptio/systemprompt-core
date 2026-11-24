@@ -43,6 +43,7 @@ pub mod views;
 mod wiring;
 
 pub use directory::UserSubjectDirectory;
+pub use runtime_handles::bound_handles;
 pub use subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND, active_user_display, subject_display};
 pub use unavailable_brain_sink::BrainUnavailableSink;
 pub use unavailable_contexts::ContextsUnavailable;

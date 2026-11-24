@@ -16,10 +16,11 @@ use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
 use std::sync::Arc;
 use systemprompt_ai::PresentedCredential;
-use systemprompt_gateway::surface::credential::{extract_credential, presented_credential};
+use systemprompt_gateway::surface::credential::presented_credential;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, MEMORY, SESSION_ID, TRACEPARENT};
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
 use systemprompt_models::origin::MemoryPreference;
+use systemprompt_security::extraction::extract_credential;
 use systemprompt_wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
