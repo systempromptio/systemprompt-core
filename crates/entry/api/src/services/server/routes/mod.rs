@@ -123,26 +123,15 @@ fn build_routes(
     } else {
         (None, None, None)
     };
-    let (agent_webhook, agent_stream, agent_cards) = match protocol::agent_routes(&mount)? {
-        Some(routes) => (
-            Some(routes.webhook),
-            Some(routes.stream),
-            Some(routes.agent_cards),
-        ),
-        None => (None, None, None),
-    };
+    let agent = protocol::agent_routes(&mount)?;
     if serves(RouteGroup::Agent) {
-        router = protocol::mount_agent(router, &mount, agent_webhook)?;
+        router = protocol::mount_agent(router, &mount, agent.webhook)?;
     }
     if serves(RouteGroup::McpAndStream) {
         router = protocol::mount_mcp(router, &mount)?;
-        router = protocol::mount_stream(router, &mount, agent_stream)?;
+        router = protocol::mount_stream(router, &mount, agent.stream)?;
     }
-    if serves(RouteGroup::WellKnown)
-        && let Some(cards) = agent_cards
-    {
-        router = protocol::mount_agent_cards(router, &mount, cards)?;
-    }
+    router = protocol::mount_agent_cards(router, &mount, agent.cards)?;
     if serves(RouteGroup::ContentAndMisc) {
         router = mount_content(router, &mount)?;
         if let Some((sessions, api_keys)) = identity_accounts {

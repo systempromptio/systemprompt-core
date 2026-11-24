@@ -112,11 +112,12 @@ pub fn bind_dispatchers(ctx: &AppContext) -> Result<(), DispatcherBindError> {
         .take_late_binders()
         .ok_or(DispatcherBindError::BindersTaken)?;
     bind_agent_dispatch(ctx, binders.agent_dispatch)?;
-    match ctx.kernel().state().find::<Arc<dyn MessagingDispatcher>>() {
-        Some(dispatcher) => binders.messaging.bind(Arc::clone(dispatcher))?,
-        None => tracing::info!(
+    if let Some(dispatcher) = ctx.kernel().state().find::<Arc<dyn MessagingDispatcher>>() {
+        binders.messaging.bind(Arc::clone(dispatcher))?;
+    } else {
+        tracing::info!(
             "agent-http is not admitted; chat-platform messages are refused at dispatch"
-        ),
+        );
     }
     Ok(())
 }

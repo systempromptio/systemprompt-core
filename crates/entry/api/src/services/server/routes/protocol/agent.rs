@@ -32,22 +32,41 @@ use crate::services::middleware::MountError;
 
 pub const WEBHOOK_RATE: RateLimit = RateLimit::new("webhook", RateBudget::PerSecond(200));
 
+/// The routers the `agent-http` surface built, each absent when the member
+/// is not admitted.
+#[derive(Debug, Default)]
+pub(in crate::services::server::routes) struct AgentMounts {
+    pub(in crate::services::server::routes) webhook: Option<Router>,
+    pub(in crate::services::server::routes) stream: Option<Router>,
+    pub(in crate::services::server::routes) cards: Option<Router>,
+}
+
+impl From<AgentSurfaceRoutes> for AgentMounts {
+    fn from(routes: AgentSurfaceRoutes) -> Self {
+        Self {
+            webhook: Some(routes.webhook),
+            stream: Some(routes.stream),
+            cards: Some(routes.agent_cards),
+        }
+    }
+}
+
 pub(in crate::services::server::routes) fn agent_routes(
     mount: &MountCtx<'_>,
-) -> Result<Option<AgentSurfaceRoutes>, RouteMountError> {
+) -> Result<AgentMounts, RouteMountError> {
     let owner = ExtensionId::new(CoreId::AgentHttp.id());
     let kernel = mount.composed.kernel;
     let (Some(standing), Some(surface)) = (
         mount.composed.admitted.built().standing_of(&owner),
         kernel.state().find::<DynAgentSurface>(),
     ) else {
-        return Ok(None);
+        return Ok(AgentMounts::default());
     };
     surface
         .build(AgentRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
         })
-        .map(Some)
+        .map(AgentMounts::from)
         .map_err(|source| RouteMountError::initialization("agent_surface", source))
 }
 
@@ -103,8 +122,11 @@ pub(in crate::services::server::routes) fn mount_agent(
 pub(in crate::services::server::routes) fn mount_agent_cards(
     router: Router,
     mount: &MountCtx<'_>,
-    cards: Router,
+    cards: Option<Router>,
 ) -> Result<Router, MountError> {
+    let Some(cards) = cards.filter(|_| (mount.serves)(RouteGroup::WellKnown)) else {
+        return Ok(router);
+    };
     mount.mount(
         router,
         declare(
