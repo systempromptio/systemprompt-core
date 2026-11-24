@@ -5,4 +5,6 @@ mod event_cross_instance;
 #[cfg(test)]
 mod instance_claim;
 #[cfg(test)]
+mod streaming_outbox_rate;
+#[cfg(test)]
 mod task_creation_tests;
