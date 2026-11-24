@@ -2,7 +2,6 @@
 
 mod ai_crawler;
 mod behavioral_detector;
-mod bot_keywords;
 mod detection;
 mod extractor;
 mod ghost_and_no_js;

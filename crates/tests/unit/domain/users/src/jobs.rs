@@ -1,13 +1,25 @@
 //! Unit tests for user-related jobs.
 //!
 //! Tests cover:
-//! - CleanupAnonymousUsersJob trait methods (name, description, schedule)
+//! - CleanupAnonymousUsersJob and CleanupInactiveSessionsJob trait methods
+//!   (name, description, schedule)
 //!
 //! Note: The execute method requires database integration and is tested
 //! in integration tests.
 
 use systemprompt_traits::Job;
-use systemprompt_users::jobs::CleanupAnonymousUsersJob;
+use systemprompt_users::jobs::{CleanupAnonymousUsersJob, CleanupInactiveSessionsJob};
+
+#[test]
+fn cleanup_inactive_sessions_job_properties() {
+    let job = CleanupInactiveSessionsJob;
+    assert_eq!(job.name(), "cleanup_inactive_sessions");
+    assert_eq!(
+        job.description(),
+        "Closes inactive sessions (parameter inactive_hours, default 1)"
+    );
+    assert_eq!(job.schedule(), "0 */10 * * * *");
+}
 
 mod cleanup_anonymous_users_job_tests {
     use super::*;

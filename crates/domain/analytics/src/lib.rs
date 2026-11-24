@@ -20,6 +20,7 @@ pub mod error;
 pub mod extension;
 pub mod jobs;
 pub mod models;
+mod provides;
 pub mod repository;
 pub mod resource_metrics;
 pub mod services;
@@ -44,7 +45,6 @@ pub use repository::{
     SUSTAINED_VELOCITY_MINUTES, SessionSignalsRepository, ToolAnalyticsRepository, ToolListParams,
     TrafficAnalyticsRepository,
 };
-pub use services::bot_keywords::matches_bot_pattern;
 pub use services::{
     AnalyticsService, BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralAnalysisResult,
     BehavioralBotDetector, BehavioralSignal, ProfileUsageService, SessionAnalytics,

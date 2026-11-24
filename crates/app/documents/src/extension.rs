@@ -12,6 +12,10 @@
 //! kernel's bridge Drive routes, which the API mounts whenever this member is
 //! admitted, whatever `gateway-http`'s standing.
 //!
+//! It also provides, sealed, the user lookup a hosted MCP server's document
+//! tools read (`Arc<DocumentsMcpUsers>`), so the child host builds no user
+//! repository of its own.
+//!
 //! With `files.documents.enabled` off the store is still built and the
 //! bound handles carry no document service.
 //!
@@ -44,6 +48,7 @@ impl Extension for DocumentsExtension {
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         c.provide_sealed_after_governance(documents_handles)
+            .provide_sealed(crate::provides::mcp_users)
             .provide_conferred(
                 ConferralRow::DocumentLinkTokens,
                 |r: &Resolved<'_>| -> Result<Arc<DocumentLinkTokens>, ProvideError> {

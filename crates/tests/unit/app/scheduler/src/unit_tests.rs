@@ -1091,25 +1091,11 @@ fn test_database_cleanup_job_properties() {
 }
 
 #[test]
-fn test_cleanup_inactive_sessions_job_properties() {
-    use systemprompt_scheduler::CleanupInactiveSessionsJob;
-    use systemprompt_traits::Job;
-
-    let job = CleanupInactiveSessionsJob;
-    assert_eq!(job.name(), "cleanup_inactive_sessions");
-    assert_eq!(
-        job.description(),
-        "Closes inactive sessions (parameter inactive_hours, default 1)"
-    );
-    assert_eq!(job.schedule(), "0 */10 * * * *"); // Every 10 minutes
-}
-
-#[test]
 fn test_job_schedules_are_valid_cron_format() {
-    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
-    let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob, &CleanupInactiveSessionsJob];
+    let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob];
 
     for job in jobs {
         let schedule = job.schedule();
@@ -1125,10 +1111,10 @@ fn test_job_schedules_are_valid_cron_format() {
 
 #[test]
 fn test_all_jobs_have_unique_names() {
-    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
-    let names: Vec<&str> = vec![DatabaseCleanupJob.name(), CleanupInactiveSessionsJob.name()];
+    let names: Vec<&str> = vec![DatabaseCleanupJob.name()];
 
     let mut unique_names = names.clone();
     unique_names.sort_unstable();
@@ -1307,10 +1293,10 @@ fn test_reconciliation_result_debug() {
 
 #[test]
 fn test_all_jobs_have_non_empty_names() {
-    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
-    let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob, &CleanupInactiveSessionsJob];
+    let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob];
 
     for job in jobs {
         assert!(!job.name().is_empty(), "Job name should not be empty");
@@ -1324,10 +1310,10 @@ fn test_all_jobs_have_non_empty_names() {
 
 #[test]
 fn test_all_jobs_have_snake_case_names() {
-    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
-    let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob, &CleanupInactiveSessionsJob];
+    let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob];
 
     for job in jobs {
         let name = job.name();

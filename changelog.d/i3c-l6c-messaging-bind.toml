@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "The context builder binds the sealed messaging cell to the dispatcher the `agent-http` member provides as soon as the kernel resolves; `ApiLateBinders` carries only `agent_dispatch` and `ApiKernelBinders` gains `messaging`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "`bind_dispatchers` binds only the agent dispatch; the messaging cell is bound by the kernel."

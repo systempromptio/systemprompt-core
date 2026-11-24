@@ -23,7 +23,7 @@ systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
 systemprompt-identity-entry = { workspace = true, features = ["http"] }
 systemprompt-brain-entry = { workspace = true, features = ["http"] }
 systemprompt-gateway = { workspace = true }
-systemprompt-runtime = { workspace = true, features = ["notifications"] }
+systemprompt-runtime = { workspace = true }
 systemprompt-documents = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-models = { workspace = true }

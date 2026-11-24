@@ -7,7 +7,7 @@
 //! shutdown drains every pending write.
 //!
 //! The session store, the behavioural scorer, the content catalog the scorer
-//! counts site pages from and the analytics repositories are read from the
+//! counts site pages from and the request-analytics write are read from the
 //! extension state (provided by the `users`, `analytics` and `content`
 //! members). Recording is not a guard: when one is absent the request is
 //! served and that part of the record is skipped.
@@ -23,15 +23,13 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
-use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_identifiers::SessionId;
-use systemprompt_logging::AnalyticsRepository;
 use systemprompt_models::{RequestContext, RouteClassifier};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
 use systemprompt_traits::{
-    BackgroundTasks, DetectionSubject, DynContentCatalogStats, DynSessionBehaviourScorer,
-    DynSessionTelemetry,
+    BackgroundTasks, DetectionSubject, DynContentCatalogStats, DynRequestAnalytics,
+    DynSessionBehaviourScorer, DynSessionTelemetry,
 };
 
 pub use events::AnalyticsEventParams;
@@ -52,7 +50,7 @@ struct TrackingParams<'a> {
 pub struct AnalyticsMiddleware {
     sessions: Option<DynSessionTelemetry>,
     scoring: Option<(DynSessionBehaviourScorer, DynContentCatalogStats)>,
-    analytics_repo: Option<Arc<AnalyticsRepository>>,
+    events: Option<DynRequestAnalytics>,
     route_classifier: Arc<RouteClassifier>,
     background: BackgroundTasks,
 }
@@ -62,7 +60,7 @@ impl std::fmt::Debug for AnalyticsMiddleware {
         f.debug_struct("AnalyticsMiddleware")
             .field("records_sessions", &self.sessions.is_some())
             .field("scores_behaviour", &self.scoring.is_some())
-            .field("records_events", &self.analytics_repo.is_some())
+            .field("records_events", &self.events.is_some())
             .field("route_classifier", &self.route_classifier)
             .field("background", &self.background)
             .finish_non_exhaustive()
@@ -77,15 +75,13 @@ impl AnalyticsMiddleware {
             .find::<DynSessionBehaviourScorer>()
             .cloned()
             .zip(state.find::<DynContentCatalogStats>().cloned());
-        let analytics_repo = state
-            .find::<Arc<AnalyticsRepositories>>()
-            .map(|repositories| Arc::clone(&repositories.event_log));
+        let events = state.find::<DynRequestAnalytics>().cloned();
         let route_classifier = Arc::clone(app_context.route_classifier());
 
         Self {
             sessions,
             scoring,
-            analytics_repo,
+            events,
             route_classifier,
             background: app_context.background_tasks().clone(),
         }
@@ -200,10 +196,10 @@ impl AnalyticsMiddleware {
             );
         }
 
-        if let Some(analytics_repo) = &self.analytics_repo {
+        if let Some(recorder) = &self.events {
             events::spawn_analytics_event_task(
                 &self.background,
-                Arc::clone(analytics_repo),
+                Arc::clone(recorder),
                 Arc::clone(&self.route_classifier),
                 AnalyticsEventParams {
                     req_ctx: req_ctx.clone(),

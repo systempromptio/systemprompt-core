@@ -35,9 +35,8 @@ use crate::contract::NotificationSeams;
 use crate::defaults::{DefaultPublishPolicy, DefaultRouter};
 use crate::pipeline::{NotificationPipeline, PipelineParts};
 use crate::repository::NotificationRepositories;
-use crate::service::{
-    EscalationDelivery, NotificationsService, NotificationsServiceParts, NotificationsServiceSlot,
-};
+use crate::service::{NotificationsService, NotificationsServiceParts, NotificationsServiceSlot};
+use systemprompt_traits::EscalationDelivery;
 
 const SLOT: &str = "notifications";
 

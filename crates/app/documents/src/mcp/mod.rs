@@ -103,6 +103,11 @@ use crate::links::LinkIssuer;
 
 pub const TOOLSET_ID: &str = "documents";
 
+/// The user lookup a hosted server's document tools resolve mentions and
+/// share subjects through, provided sealed by the documents member.
+#[derive(Debug, Clone)]
+pub struct DocumentsMcpUsers(pub(crate) Arc<UserRepository>);
+
 /// What [`DocumentsMcpTools`] is built from.
 #[derive(Clone)]
 pub struct DocumentsMcpConfig {
@@ -170,18 +175,9 @@ impl DocumentsMcpTools {
         }
     }
 
-    #[cfg_attr(
-        not(feature = "notifications"),
-        expect(
-            unused_variables,
-            reason = "the notification service is read from the extension state only with the \
-                      notifications feature"
-        )
-    )]
     #[must_use]
     pub fn for_host(
         handles: &DocumentsHandles,
-        users: Arc<UserRepository>,
         extension_state: &Dependencies,
         links: Arc<dyn LinkIssuer>,
         server_name: McpServerId,
@@ -193,7 +189,7 @@ impl DocumentsMcpTools {
                 .find::<Arc<NotificationsServiceSlot>>()
                 .and_then(|slot| slot.get().cloned()),
             uploads: Some(Arc::clone(&handles.uploads)),
-            users,
+            users: Arc::clone(&extension_state.find::<Arc<DocumentsMcpUsers>>()?.0),
             links,
             contexts: Arc::clone(&handles.contexts),
             server_name,

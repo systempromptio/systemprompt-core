@@ -17,9 +17,9 @@ use systemprompt_test_fixtures::{
     fixture_config, fixture_core_members,
 };
 use systemprompt_traits::core_seam::RoleAudience;
-use systemprompt_traits::{CoreSeam, DynSessionStore, DynSessionTelemetry};
+use systemprompt_traits::{CoreSeam, DynSessionStore, DynSessionTelemetry, DynUserProvider};
 use systemprompt_users::{
-    SessionRepository, UserRepository, UserRoleAudienceResolver, UsersRoleDirectory,
+    SessionRepository, UserRepository, UserRoleAudienceResolver, UserService, UsersRoleDirectory,
 };
 
 fn users_without_bans() -> Probe {
@@ -33,6 +33,12 @@ fn users_without_bans() -> Probe {
             let db = r.get::<DbPool>()?;
             let telemetry: DynSessionTelemetry = Arc::new(SessionRepository::new(&db));
             Ok(telemetry)
+        })
+        .provide(|r: &Resolved<'_>| {
+            let db = r.get::<DbPool>()?;
+            let users: DynUserProvider =
+                Arc::new(UserService::new(Arc::new(UserRepository::new(&db))));
+            Ok(users)
         })
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;

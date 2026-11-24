@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::content_repositories`, `AppContext::content_config`, `DataPlane::content_repositories` and `ConfigPlane::content_config` are removed: the `content` member provides `Arc<ContentRepositories>` and the kernel seeds the loaded `Arc<ContentConfigRaw>`; read either from the kernel state. `RuntimeError::Content` is removed and the crate no longer depends on `systemprompt-content`."

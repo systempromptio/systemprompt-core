@@ -149,24 +149,30 @@ pub struct OwnedContextSummary {
     pub name: String,
 }
 
-/// Lookups of the conversation contexts one user owns.
+/// The directory of conversation contexts, read one caller at a time.
 ///
 /// For surfaces outside the agent domain that attribute work to a
-/// conversation (the document store): a context another user owns reads as
-/// absent, so a caller can never learn that it exists.
-///
-/// Injected as `dyn ContextDirectory`, hence `#[async_trait]`.
-#[async_trait]
+/// conversation (the document store): [`ContextDirectory::for_caller`] binds
+/// the view to the caller once, and every lookup through it names only the
+/// context, so no lookup can be asked on another user's behalf. A context
+/// another user owns reads as absent, so a caller can never learn that it
+/// exists.
 pub trait ContextDirectory: Send + Sync {
+    fn for_caller(&self, caller: &UserId) -> Box<dyn CallerContexts + '_>;
+}
+
+/// The contexts one caller owns, bound by [`ContextDirectory::for_caller`].
+///
+/// Returned as `dyn CallerContexts`, hence `#[async_trait]`.
+#[async_trait]
+pub trait CallerContexts: Send + Sync {
     async fn owned_context(
         &self,
-        user_id: &UserId,
         context_id: &ContextId,
     ) -> Result<Option<OwnedContextSummary>, ContextProviderError>;
 
     async fn owned_names(
         &self,
-        user_id: &UserId,
         context_ids: &[ContextId],
     ) -> Result<HashMap<ContextId, String>, ContextProviderError>;
 }
@@ -177,15 +183,22 @@ pub type DynContextDirectory = Arc<dyn ContextDirectory>;
 ///
 /// For the CLI kernel, which issues a session before any command runs and
 /// cannot name the agent domain that owns the contexts table: the one context
-/// of a user's session with the given name, created on first use and returned
-/// unchanged after. Ownership checks go through [`ContextDirectory`].
-///
-/// Injected as `dyn SessionContextIssuer`, hence `#[async_trait]`.
-#[async_trait]
+/// of the caller's session with the given name, created on first use and
+/// returned unchanged after. The view is bound to the caller once
+/// ([`SessionContextIssuer::for_caller`]). Ownership checks go through
+/// [`ContextDirectory`].
 pub trait SessionContextIssuer: Send + Sync {
+    fn for_caller(&self, caller: &UserId) -> Box<dyn CallerSessionContexts + '_>;
+}
+
+/// The caller's session contexts, bound by
+/// [`SessionContextIssuer::for_caller`].
+///
+/// Returned as `dyn CallerSessionContexts`, hence `#[async_trait]`.
+#[async_trait]
+pub trait CallerSessionContexts: Send + Sync {
     async fn session_context(
         &self,
-        user_id: &UserId,
         session_id: &SessionId,
         name: &str,
     ) -> Result<ContextId, ContextProviderError>;

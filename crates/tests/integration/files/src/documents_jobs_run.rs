@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_files::documents::collab::{CollabService, CollabTuning};
 use systemprompt_identifiers::{ContextId, UserId};
-use systemprompt_traits::{ContextDirectory, ContextProviderError, OwnedContextSummary};
+use systemprompt_traits::{
+    CallerContexts, ContextDirectory, ContextProviderError, OwnedContextSummary,
+};
 
 use systemprompt_database::DbPool;
 use systemprompt_files::documents::jobs::{
@@ -27,11 +29,16 @@ use crate::documents_service_fixture::{
 #[derive(Debug)]
 struct NoContexts;
 
-#[async_trait::async_trait]
 impl ContextDirectory for NoContexts {
+    fn for_caller(&self, _caller: &UserId) -> Box<dyn CallerContexts + '_> {
+        Box::new(Self)
+    }
+}
+
+#[async_trait::async_trait]
+impl CallerContexts for NoContexts {
     async fn owned_context(
         &self,
-        _user_id: &UserId,
         _context_id: &ContextId,
     ) -> Result<Option<OwnedContextSummary>, ContextProviderError> {
         Ok(None)
@@ -39,7 +46,6 @@ impl ContextDirectory for NoContexts {
 
     async fn owned_names(
         &self,
-        _user_id: &UserId,
         _context_ids: &[ContextId],
     ) -> Result<std::collections::HashMap<ContextId, String>, ContextProviderError> {
         Ok(std::collections::HashMap::new())

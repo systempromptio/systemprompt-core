@@ -5,13 +5,12 @@
 //! kernel handles, and a hand-built context without them is refused.
 
 use std::collections::HashMap;
+
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
-use systemprompt_scheduler::{
-    CleanupInactiveSessionsJob, DatabaseCleanupJob, JobConfig, JobExecutionService, SchedulerConfig,
-};
+use systemprompt_scheduler::{DatabaseCleanupJob, JobConfig, JobExecutionService, SchedulerConfig};
 use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
@@ -66,20 +65,8 @@ async fn database_cleanup_job_without_its_kernel_handles_fails() {
 }
 
 #[tokio::test]
-async fn cleanup_inactive_sessions_job_execute_succeeds() {
-    let pool = test_db_pool().await;
-    let ctx = make_ctx(&pool);
-    let result = CleanupInactiveSessionsJob
-        .execute(&ctx)
-        .await
-        .expect("job runs");
-    assert!(result.success);
-}
-
-#[tokio::test]
 async fn jobs_fail_when_dbpool_missing() {
     let ctx = JobContext::new(fixture_actor(), Dependencies::new());
 
     assert!(DatabaseCleanupJob.execute(&ctx).await.is_err());
-    assert!(CleanupInactiveSessionsJob.execute(&ctx).await.is_err());
 }

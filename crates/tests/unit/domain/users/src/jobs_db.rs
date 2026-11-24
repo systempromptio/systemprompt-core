@@ -1,5 +1,5 @@
-//! DB-backed execution paths for `CleanupAnonymousUsersJob::execute` and
-//! `UserRateLimitPruneJob::execute`.
+//! DB-backed execution paths for `CleanupAnonymousUsersJob::execute`,
+//! `CleanupInactiveSessionsJob::execute` and `UserRateLimitPruneJob::execute`.
 
 use std::collections::HashMap;
 
@@ -9,7 +9,9 @@ use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext, RateLimitBuckets};
 use systemprompt_users::UserRateLimitBucketRepository;
-use systemprompt_users::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
+use systemprompt_users::jobs::{
+    CleanupAnonymousUsersJob, CleanupInactiveSessionsJob, UserRateLimitPruneJob,
+};
 use uuid::Uuid;
 
 fn ctx_with_pool(dependencies: Dependencies) -> JobContext {
@@ -122,4 +124,23 @@ async fn rate_limit_prune_fails_without_db_pool_in_context() {
         .await
         .expect_err("missing pool must fail");
     assert!(err.to_string().contains("Database"));
+}
+
+#[tokio::test]
+async fn cleanup_inactive_sessions_executes_with_real_pool() {
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = ctx_with_pool(Dependencies::new().with(pool));
+    let result = CleanupInactiveSessionsJob
+        .execute(&ctx)
+        .await
+        .expect("job execute");
+    assert!(result.success);
+}
+
+#[tokio::test]
+async fn cleanup_inactive_sessions_fails_without_db_pool_in_context() {
+    ensure_test_bootstrap();
+    let ctx = ctx_with_pool(Dependencies::new());
+    assert!(CleanupInactiveSessionsJob.execute(&ctx).await.is_err());
 }

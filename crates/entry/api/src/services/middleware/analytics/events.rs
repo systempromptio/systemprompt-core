@@ -12,10 +12,9 @@
 use serde_json::json;
 use std::sync::Arc;
 
-use systemprompt_logging::{AnalyticsEvent, AnalyticsRepository};
 use systemprompt_models::routing::EventMetadata;
 use systemprompt_models::{RequestContext, RouteClassifier};
-use systemprompt_traits::BackgroundTasks;
+use systemprompt_traits::{BackgroundTasks, DynRequestAnalytics, RequestAnalyticsEvent};
 
 #[derive(Debug)]
 pub struct AnalyticsEventParams {
@@ -42,7 +41,7 @@ pub fn event_metadata_for(classified: EventMetadata, html_response: bool) -> Eve
 
 pub(super) fn spawn_analytics_event_task(
     background: &BackgroundTasks,
-    analytics_repo: Arc<AnalyticsRepository>,
+    recorder: DynRequestAnalytics,
     route_classifier: Arc<RouteClassifier>,
     params: AnalyticsEventParams,
 ) {
@@ -76,7 +75,7 @@ pub(super) fn spawn_analytics_event_task(
             "info"
         };
 
-        let event = AnalyticsEvent {
+        let event = RequestAnalyticsEvent {
             user_id: params.req_ctx.auth.actor.user_id.clone(),
             session_id: params.req_ctx.request.session_id.clone(),
             context_id: params.req_ctx.execution.context_id.clone(),
@@ -90,13 +89,12 @@ pub(super) fn spawn_analytics_event_task(
                 None
             },
             response_time_ms: Some(params.response_time_ms as i32),
-            agent_id: None,
             task_id: params.req_ctx.task_id().cloned(),
             message: Some(message.clone()),
             metadata: metadata.clone(),
         };
 
-        if let Err(e) = analytics_repo.log_event(&event).await {
+        if let Err(e) = recorder.record(event).await {
             tracing::error!(error = %e, "Failed to log analytics event");
         }
 

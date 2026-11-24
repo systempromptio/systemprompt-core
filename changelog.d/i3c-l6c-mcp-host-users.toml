@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "`HostContext::user_repository` is removed and the crate no longer depends on `systemprompt-users`; the document tools read their user lookup from the host's kernel state."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`HostParts::user_repository` is removed."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Breaking"
+text = "`DocumentsMcpTools::for_host` takes no user repository; it reads `Arc<mcp::DocumentsMcpUsers>`, which `DocumentsExtension` provides sealed, from the state it is handed, and returns `None` when that state holds none."

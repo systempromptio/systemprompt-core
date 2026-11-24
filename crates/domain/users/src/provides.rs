@@ -1,9 +1,13 @@
 //! The users member's composed provides: the sealed gateway session mint
 //! conferred on `gateway-http`, the sealed sign-in session view conferred on
 //! `identity-http`, the open request authenticator, the open per-user
-//! rate-limit windows the API's global limiter charges, and the pre-kernel
+//! rate-limit windows the API's global limiter charges, the pre-kernel
 //! admin-bootstrap constructor the CLI host calls with an open database
-//! handle.
+//! handle, the sealed retention answers the kernel's `database_cleanup` job
+//! reads (`DynUserRetention`), and the sealed user directory
+//! (`DynUserProvider`: find, create and promote users, with the admitted owner
+//! reassignments applied on merge), which only kernel code and core provide
+//! fns read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +16,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedOwnerReassignments;
 use systemprompt_extension::prelude::{ProvideError, Resolved};
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_manifest::Config;
@@ -23,13 +28,30 @@ use systemprompt_security::{
 use systemprompt_traits::{
     AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion, DatabaseHandle,
     DynAdminBootstrap, DynGatewaySessionMint, DynRateLimitBuckets, DynSignInSessions,
+    DynUserProvider, DynUserRetention,
 };
 
 use crate::repository::{SessionRepository, UserRateLimitBucketRepository, UserRepository};
+use crate::services::UsersRetention;
 use crate::{
     ApiKeyLifetime, PromoteResult, User, UserAdminService, UserRole, UserService,
     UsersGatewaySessionMint,
 };
+
+pub(crate) fn user_retention(r: &Resolved<'_>) -> Result<DynUserRetention, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(UsersRetention::new(Arc::new(
+        UserRepository::new(&db),
+    ))))
+}
+
+pub(crate) fn user_provider(r: &Resolved<'_>) -> Result<DynUserProvider, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(
+        UserService::new(Arc::new(UserRepository::new(&db)))
+            .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
+    ))
+}
 
 pub(crate) fn gateway_session_mint(
     r: &Resolved<'_>,

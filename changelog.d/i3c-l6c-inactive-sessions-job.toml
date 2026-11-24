@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Scheduler"
+text = "The `cleanup_inactive_sessions` job is contributed by the `users` member; the scheduler no longer carries it."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`CleanupInactiveSessionsJob` is removed from the crate; it is `systemprompt_users::jobs::CleanupInactiveSessionsJob`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "`jobs::CleanupInactiveSessionsJob`, contributed by `UsersExtension`, ends sessions idle past `inactive_hours` (default 1) every ten minutes."

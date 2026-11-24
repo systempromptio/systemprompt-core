@@ -4,8 +4,8 @@
 //! signatures (services, repositories, lifecycle helpers). It composes
 //! [`tokio_cron_scheduler::JobSchedulerError`],
 //! [`systemprompt_traits::RepositoryError`] and
-//! [`systemprompt_users::UserError`] via `#[from]` so `?` propagation works
-//! transparently for every internal call site. A [`sqlx::Error`] is
+//! [`systemprompt_traits::AuthProviderError`] via `#[from]` so `?` propagation
+//! works transparently for every internal call site. A [`sqlx::Error`] is
 //! classified through [`systemprompt_traits::RepositoryError`] so a
 //! not-found or constraint failure keeps its class.
 //!
@@ -62,8 +62,8 @@ pub enum SchedulerError {
     #[error("Repository error: {0}")]
     Repository(#[from] RepositoryError),
 
-    #[error("Users error: {0}")]
-    Users(#[from] systemprompt_users::UserError),
+    #[error("User lookup error: {0}")]
+    UserLookup(#[from] systemprompt_traits::AuthProviderError),
 
     #[error("Cron scheduler error: {0}")]
     CronScheduler(#[from] tokio_cron_scheduler::JobSchedulerError),

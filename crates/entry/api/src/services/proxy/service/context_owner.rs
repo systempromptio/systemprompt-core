@@ -55,7 +55,7 @@ pub(super) async fn ensure_owned(
         .state()
         .get::<DynContextDirectory>()
         .map_err(|absent| lookup_failed(Box::new(absent)))?;
-    match directory.owned_context(&user.id, &context).await {
+    match directory.for_caller(&user.id).owned_context(&context).await {
         Ok(Some(_)) => Ok(()),
         Ok(None) => Err(not_owned()),
         Err(source) => Err(lookup_failed(Box::new(source))),

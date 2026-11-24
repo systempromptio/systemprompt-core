@@ -1,14 +1,13 @@
-//! Debug-format contracts of the four `AppContext` planes and the
-//! `content_routing` accessor's Some arm. Planes are assembled directly (the
-//! `from_parts` embedder path) against the test database; tests skip when no
-//! database is configured.
+//! Debug-format contracts of the four `AppContext` planes. Planes are
+//! assembled directly (the `from_parts` embedder path) against the test
+//! database; tests skip when no database is configured.
 
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_models::{ContentConfigRaw, RouteClassifier};
+use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{
     AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems,
 };
@@ -28,10 +27,6 @@ fn tmp_paths() -> PathsConfig {
     }
 }
 
-fn content_config() -> Arc<ContentConfigRaw> {
-    Arc::new(serde_yaml::from_str("{}").expect("empty content config"))
-}
-
 #[tokio::test]
 async fn plane_debug_impls_flag_optional_members() {
     let test_instance = unique_instance();
@@ -42,9 +37,6 @@ async fn plane_debug_impls_flag_optional_members() {
         database: Arc::clone(&pool),
         fingerprint_repo: None,
         user_service: None,
-        content_repositories: Arc::new(systemprompt_content::repository::ContentRepositories::new(
-            &pool,
-        )),
         oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
             &pool,
             Arc::from("pepper"),
@@ -81,7 +73,6 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_files::FilesConfigYaml::default(),
         )),
         app_paths,
-        content_config: Some(content_config()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
         build: systemprompt_models::BuildIdentity::core(),
         boot: systemprompt_test_fixtures::ensure_test_bootstrap()
@@ -90,7 +81,6 @@ async fn plane_debug_impls_flag_optional_members() {
     };
     let dbg = format!("{cfg:?}");
     assert!(dbg.contains("ConfigPlane"), "got: {dbg}");
-    assert!(dbg.contains("content_config: true"), "got: {dbg}");
 
     let plugins = Plugins {
         subject_providers: Default::default(),
@@ -141,7 +131,7 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
     let resolved = systemprompt_test_fixtures::test_app_context(&url).await;
-    let ctx = AppContext::from_parts(
+    AppContext::from_parts(
         ContextPlanes {
             data,
             cfg,
@@ -152,8 +142,4 @@ async fn plane_debug_impls_flag_optional_members() {
         Arc::clone(resolved.admitted()),
     )
     .expect("context over the resolved core kernel");
-    assert!(
-        ctx.content_config().is_some(),
-        "content_config accessor must expose the raw config"
-    );
 }

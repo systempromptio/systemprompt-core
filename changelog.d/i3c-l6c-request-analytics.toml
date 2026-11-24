@@ -1,0 +1,24 @@
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`RequestAnalytics`, `DynRequestAnalytics`, `RequestAnalyticsEvent` and `RequestAnalyticsError`: the write the request-analytics middleware records a served request through."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Added"
+text = "`AnalyticsExtension` provides `DynRequestAnalytics` open; it appends one `analytics_events` row per recorded request."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`services::bot_keywords` and the `matches_bot_pattern` re-export are removed; the matchers are `systemprompt_models::analytics::bot_keywords`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`analytics::bot_keywords`: the pure bot user-agent and IP-range matchers."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The request-analytics middleware records through `DynRequestAnalytics`; with no provider the request is served and no event is recorded. The crate no longer depends on `systemprompt-analytics`."

@@ -20,7 +20,6 @@ use systemprompt_config::paths::PathError;
 use systemprompt_config::{
     ConfigError as ProfileConfigError, ProfileBootstrapError, SecretsBootstrapError,
 };
-use systemprompt_content::ContentError;
 use systemprompt_extension::LoaderError;
 use systemprompt_files::FilesError;
 use systemprompt_governance::authz::AuthzError;
@@ -64,9 +63,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Analytics(#[from] AnalyticsError),
-
-    #[error(transparent)]
-    Content(#[from] ContentError),
 
     #[error(transparent)]
     Oauth(#[from] OauthError),

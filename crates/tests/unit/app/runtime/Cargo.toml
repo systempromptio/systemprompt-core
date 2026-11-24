@@ -17,7 +17,7 @@ systemprompt-issues = { workspace = true }
 systemprompt-documents = { workspace = true }
 systemprompt-files-entry = { workspace = true, features = ["http"] }
 systemprompt-identity-entry = { workspace = true, features = ["http"] }
-systemprompt-runtime = { workspace = true, features = ["geolocation", "notifications"] }
+systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-mcp-host = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -39,7 +39,6 @@ systemprompt-provider-contracts = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-agent-entry = { workspace = true, features = ["http"] }
 systemprompt-brain = { workspace = true }
-systemprompt-content = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-mcp = { workspace = true }

@@ -148,9 +148,8 @@ async fn an_escalation_from_a_core_only_process_is_delivered_by_the_consumer_wit
 
     use systemprompt_events::{EventBroadcasters, EventRouter};
     use systemprompt_notifications::pipeline::{NotificationPipeline, PipelineParts};
-    use systemprompt_notifications::service::{
-        EscalationDelivery, NotificationsService, NotificationsServiceParts,
-    };
+    use systemprompt_notifications::service::{NotificationsService, NotificationsServiceParts};
+    use systemprompt_traits::EscalationDelivery;
 
     let pager = Arc::new(Pager::default());
     let paging = Arc::clone(&pager);

@@ -6,8 +6,8 @@
 //! geo operations the analytics member and the request-analytics middleware
 //! use, with no create, revoke or end), the user-role audience resolver the
 //! notifications and brain slots append as a core default (`CoreSeam<dyn
-//! NotificationAudienceResolver, RoleAudience>`), its two maintenance jobs, the
-//! role directory governance's `RoleDirectorySlot` holds, the `role`
+//! NotificationAudienceResolver, RoleAudience>`), its three maintenance jobs,
+//! the role directory governance's `RoleDirectorySlot` holds, the `role`
 //! subject-attribute provider, and the purge of its own user-keyed tables a
 //! user delete clears. It also provides the AI session provider
 //! (`DynAiSessionProvider`) **sealed**: it creates and meters a session for any
@@ -40,7 +40,7 @@ use systemprompt_traits::{
     CoreSeam, DynIpBanStore, DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters,
 };
 
-use crate::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
+use crate::jobs::{CleanupAnonymousUsersJob, CleanupInactiveSessionsJob, UserRateLimitPruneJob};
 use crate::repository::{
     BannedIpRepository, SessionRepository, UserRepository, UsersRoleDirectory,
     UsersRoleSubjectProvider,
@@ -128,7 +128,10 @@ impl Extension for UsersExtension {
             Ok(provider)
         })
         .job(UserRateLimitPruneJob)
-        .job(CleanupAnonymousUsersJob);
+        .provide_sealed(crate::provides::user_retention)
+        .provide_sealed_after_governance(crate::provides::user_provider)
+        .job(CleanupAnonymousUsersJob)
+        .job(CleanupInactiveSessionsJob);
         c.slot::<RoleDirectorySlot>().directory(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let directory: SharedRoleDirectory = UsersRoleDirectory::shared(db.write_pool());

@@ -13,9 +13,8 @@ use std::time::Duration;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_security::{
-    HeaderExtractor, TokenExtractionError, TokenExtractor, attest_session,
-};
+use systemprompt_security::{HeaderExtractor, TokenExtractionError, TokenExtractor};
+use systemprompt_traits::DynSessionIssuer;
 use uuid::Uuid;
 
 use super::{RequestMeta, SessionMiddleware, lifecycle};
@@ -31,15 +30,21 @@ impl SessionMiddleware {
         meta: &RequestMeta<'_>,
         path: &str,
     ) -> (RequestContext, Option<String>) {
+        let Some(issuer) = &self.issuer else {
+            self.warn_degraded(
+                path,
+                "no session issuer is provided; the oauth member is not admitted",
+            );
+            return (Self::degraded_context(trace_id), None);
+        };
         let establish = async {
             if should_skip {
                 Ok((
-                    self.anonymous_context("untracked", trace_id.clone(), meta)
-                        .await?,
+                    Self::anonymous_context(issuer, "untracked", trace_id.clone(), meta).await?,
                     None,
                 ))
             } else {
-                self.tracked_context(trace_id.clone(), meta).await
+                self.tracked_context(issuer, trace_id.clone(), meta).await
             }
         };
 
@@ -85,16 +90,15 @@ impl SessionMiddleware {
     }
 
     async fn anonymous_context(
-        &self,
+        issuer: &DynSessionIssuer,
         session_prefix: &str,
         trace_id: systemprompt_identifiers::TraceId,
         meta: &RequestMeta<'_>,
     ) -> Result<RequestContext, ApiHttpError> {
-        let (user_id, fingerprint) = self
-            .session_creation_service
-            .ensure_anonymous_user(meta.analytics)
+        let (user_id, fingerprint) = issuer
+            .anonymous_user(meta.analytics)
             .await
-            .map_err(ApiHttpError::from)?;
+            .map_err(|e| ApiHttpError::internal("Service temporarily unavailable", e))?;
 
         let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
@@ -112,6 +116,7 @@ impl SessionMiddleware {
 
     async fn tracked_context(
         &self,
+        issuer: &DynSessionIssuer,
         trace_id: systemprompt_identifiers::TraceId,
         meta: &RequestMeta<'_>,
     ) -> Result<(RequestContext, Option<String>), ApiHttpError> {
@@ -123,7 +128,10 @@ impl SessionMiddleware {
         );
 
         if meta.analytics.skip_tracking {
-            return Ok((self.anonymous_context("bot", trace_id, meta).await?, None));
+            return Ok((
+                Self::anonymous_context(issuer, "bot", trace_id, meta).await?,
+                None,
+            ));
         }
 
         let token_result = match TokenExtractor::browser_only().extract(meta.headers) {
@@ -136,7 +144,7 @@ impl SessionMiddleware {
         };
 
         let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
-            self.resolve_session(token_result, meta).await?;
+            self.resolve_session(issuer, token_result, meta).await?;
 
         let context_id = HeaderExtractor::extract_context_id(meta.headers)
             .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
@@ -159,30 +167,29 @@ impl SessionMiddleware {
 
     async fn resolve_session(
         &self,
+        issuer: &DynSessionIssuer,
         token_result: Option<String>,
         meta: &RequestMeta<'_>,
     ) -> Result<(SessionId, UserId, String, Option<String>, Option<String>), ApiHttpError> {
         let Some(token) = token_result else {
-            let (sid, uid, token, is_new, fp) =
-                lifecycle::create_new_session(&self.session_creation_service, meta).await?;
+            let (sid, uid, token, is_new, fp) = lifecycle::create_new_session(issuer, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
         let Some(jwt_context) = self.claims.verified_claims(&token) else {
-            let (sid, uid, token, is_new, fp) =
-                lifecycle::create_new_session(&self.session_creation_service, meta).await?;
+            let (sid, uid, token, is_new, fp) = lifecycle::create_new_session(issuer, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        match attest_session(
-            &self.sessions,
-            &jwt_context.session_id,
-            &jwt_context.user_id,
-            "session_middleware",
-        )
-        .await
+        match issuer
+            .attest(
+                &jwt_context.session_id,
+                &jwt_context.user_id,
+                "session_middleware",
+            )
+            .await
         {
             Ok(()) => {
                 return Ok((
@@ -201,14 +208,7 @@ impl SessionMiddleware {
             ),
         }
 
-        match lifecycle::refresh_session_for_user(
-            &self.session_creation_service,
-            &self.config,
-            &jwt_context.user_id,
-            meta,
-        )
-        .await
-        {
+        match lifecycle::refresh_session_for_user(issuer, &jwt_context.user_id, meta).await {
             Ok((sid, uid, new_token, _, fp)) => {
                 Ok((sid, uid, new_token.clone(), Some(new_token), Some(fp)))
             },
@@ -217,8 +217,7 @@ impl SessionMiddleware {
                     user_id = %jwt_context.user_id,
                     "JWT references non-existent user, creating new anonymous session"
                 );
-                let (sid, uid, token, _, fp) =
-                    lifecycle::create_new_session(&self.session_creation_service, meta).await?;
+                let (sid, uid, token, _, fp) = lifecycle::create_new_session(issuer, meta).await?;
                 Ok((sid, uid, token.clone(), Some(token), Some(fp)))
             },
             Err(e) => Err(e),

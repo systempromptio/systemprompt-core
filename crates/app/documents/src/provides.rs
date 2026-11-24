@@ -97,6 +97,15 @@ pub(crate) fn documents_handles(r: &Resolved<'_>) -> Result<Arc<DocumentsHandles
     ))
 }
 
+pub(crate) fn mcp_users(
+    r: &Resolved<'_>,
+) -> Result<Arc<crate::mcp::DocumentsMcpUsers>, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(crate::mcp::DocumentsMcpUsers(Arc::new(
+        UserRepository::new(&db),
+    ))))
+}
+
 pub(crate) fn link_tokens(r: &Resolved<'_>) -> Arc<DocumentLinkTokens> {
     Arc::new(DocumentLinkTokens::new(
         r.optional::<Arc<dyn TokenAuthority>>(),

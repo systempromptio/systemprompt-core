@@ -74,7 +74,10 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
         "write url from secrets must be threaded into the config"
     );
     assert!(
-        ctx.content_config().is_some(),
+        ctx.kernel()
+            .state()
+            .find::<std::sync::Arc<systemprompt_models::ContentConfigRaw>>()
+            .is_some(),
         "the fixture services/content/config.yaml must be loaded"
     );
     assert!(ctx.geoip_reader().is_none());

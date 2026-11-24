@@ -13,9 +13,9 @@ use systemprompt_models::notifications::{
     ReceiptState, SURFACE_API,
 };
 
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{EscalationDelivery, RepositoryError};
 
-use super::{EscalationDelivery, NotificationsService};
+use super::NotificationsService;
 use crate::error::{NotificationsError, NotificationsResult};
 use crate::models::FeedFilter;
 

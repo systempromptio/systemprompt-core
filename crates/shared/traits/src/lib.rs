@@ -78,6 +78,7 @@ pub mod core_seam;
 pub use core_seam::CoreSeam;
 pub mod coordination;
 pub mod drive_tokens;
+pub mod escalation;
 pub mod events;
 pub mod extension_error;
 pub mod gateway_session;
@@ -101,6 +102,7 @@ pub use admin_bootstrap::{
 };
 pub mod registry;
 pub mod repository;
+pub mod request_analytics;
 pub mod retention_purge;
 pub mod run_origin;
 pub mod runner_service;
@@ -121,6 +123,7 @@ pub mod storage;
 pub mod stream_drain;
 pub mod tool_executions;
 pub mod traffic_class_counts;
+pub mod user_retention;
 pub mod validation;
 
 pub use systemprompt_provider_contracts::{
@@ -171,9 +174,10 @@ pub use managed_resources::{
 };
 
 pub use context_provider::{
-    ContextDirectory, ContextMaterializer, ContextProvider, ContextProviderError, ContextStats,
-    ContextWithStats, DynContextDirectory, DynContextMaterializer, DynSessionContextIssuer,
-    EnsureContextParams, OwnedContextSummary, SessionContextIssuer,
+    CallerContexts, CallerSessionContexts, ContextDirectory, ContextMaterializer, ContextProvider,
+    ContextProviderError, ContextStats, ContextWithStats, DynContextDirectory,
+    DynContextMaterializer, DynSessionContextIssuer, EnsureContextParams, OwnedContextSummary,
+    SessionContextIssuer,
 };
 
 pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};
@@ -185,8 +189,9 @@ pub use analytics::{
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, FederatedLink,
-    FederatedRefusal, FederatedResolution, LinkPolicy, RoleProvider, SenderIdentity, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, DynUserProvider, FederatedIdentityClaims,
+    FederatedLink, FederatedRefusal, FederatedResolution, LinkPolicy, RoleProvider, SenderIdentity,
+    UserProvider,
 };
 
 pub use storage::{
@@ -216,6 +221,7 @@ pub use startup_events::{
 };
 
 pub mod session_behaviour;
+pub mod session_issuer;
 pub mod session_store;
 pub mod sso;
 pub use analytics::{DynSignInSessions, SessionProvider};
@@ -224,8 +230,16 @@ pub use drive_tokens::{
     DriveSyncAttendance, DriveSyncGrant, DriveSyncPrincipal, DriveTokenError, DriveTokens,
     DynDriveTokens,
 };
+pub use escalation::EscalationDelivery;
 pub use gateway_session::{
     DynGatewaySessionMint, GatewaySessionMint, GatewaySessionMintError, MintedGatewaySession,
 };
+pub use request_analytics::{
+    DynRequestAnalytics, RequestAnalytics, RequestAnalyticsError, RequestAnalyticsEvent,
+};
 pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
+pub use session_issuer::{
+    BrowserSession, DynSessionIssuer, IssuedSession, SessionIssueError, SessionIssuer,
+};
 pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};
+pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};

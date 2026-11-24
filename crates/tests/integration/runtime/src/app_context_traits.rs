@@ -69,7 +69,6 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     let _ = ctx.event_bridge();
     let _ = ctx.route_classifier();
     let _ = ctx.geoip_reader();
-    let _ = ctx.content_config();
     let _ = ctx.system_admin();
     let _ = ctx.authz_hook();
     let addr = ctx.server_address();

@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The `database_cleanup` job asks the `users` member which log owners no longer exist and has it purge archived accounts, through the sealed `DynUserRetention`; scheduled-job owners resolve through the sealed `DynUserProvider` the `users` member provides. With `users` not admitted neither user pass runs and a job naming an explicit owner is skipped."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`UserRetention`, `DynUserRetention` and `ArchivedUserPurge`: the users member's half of the retention job. `DynUserProvider` names `Arc<dyn UserProvider>`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "`UsersExtension` provides `DynUserRetention` and `DynUserProvider` sealed; the user directory applies the admitted owner reassignments on merge."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`SchedulerError::Users(UserError)` is replaced by `SchedulerError::UserLookup(AuthProviderError)`; the crate no longer depends on `systemprompt-users`."

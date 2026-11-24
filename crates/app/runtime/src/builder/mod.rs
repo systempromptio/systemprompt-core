@@ -178,8 +178,7 @@ impl AppContextBuilder {
                 event_router: &router,
                 documents: documents_slot,
                 catalog_roles: composition::catalog_roles(&self.admitted),
-                #[cfg(feature = "notifications")]
-                escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
+                escalation: systemprompt_traits::EscalationDelivery::InProcess,
             },
             signing_keys: &signing_keys,
             token_authority: &token_authority,
@@ -204,6 +203,14 @@ impl AppContextBuilder {
         if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
             documents_binder.bind(documents)?;
         }
+        if let Some(dispatcher) = r.optional::<Arc<dyn systemprompt_traits::MessagingDispatcher>>()
+        {
+            binders.messaging.bind(dispatcher)?;
+        } else {
+            tracing::info!(
+                "agent-http is not admitted; chat-platform messages are refused at dispatch"
+            );
+        }
 
         let (authz_hook, market) = authz_stage(
             profile,
@@ -226,7 +233,6 @@ impl AppContextBuilder {
                 .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
         );
         let repositories = build_domain_layer(
-            &database,
             &seeded,
             &system_admin,
             r.optional::<systemprompt_traits::DynContextMaterializer>(),
@@ -266,7 +272,6 @@ impl AppContextBuilder {
                     config,
                     app_paths,
                     files_config,
-                    content_config: content.content_config,
                     route_classifier: content.route_classifier,
                     build: self.build,
                 },
