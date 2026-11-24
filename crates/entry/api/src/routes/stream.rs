@@ -1,73 +1,28 @@
-//! Server-sent event stream routes for live A2A, `AgUI`, and context-state
-//! feeds.
+//! The server-sent event helper the API's own streams use (the bridge event
+//! stream).
 //!
-//! Each route opens a per-user SSE connection backed by a broadcaster from
-//! `systemprompt_events`. [`create_sse_stream`] registers the connection (with
-//! a per-user cap), wraps the receiver in a [`StreamWithGuard`] so the
-//! [`ConnectionGuard`] deregisters it on drop, and emits keep-alive frames.
+//! [`create_sse_stream`] registers a per-user connection with a broadcaster
+//! from `systemprompt_events` (with a per-user cap), wraps the receiver in a
+//! [`StreamWithGuard`] so the [`ConnectionGuard`] deregisters it on drop, and
+//! emits keep-alive frames. The A2A, `AgUI` and context-state stream routes are
+//! the `agent-http` member's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::Router;
-use axum::extract::{Extension, State};
 use axum::response::IntoResponse;
 use axum::response::sse::Sse;
-use axum::routing::get;
 use std::convert::Infallible;
 use std::sync::Arc;
-use systemprompt_agent::services::ContextProviderService;
 use systemprompt_events::{
-    Broadcaster, ConnectionGuard, EventBroadcasters, GenericBroadcaster, ToSse, standard_keep_alive,
+    Broadcaster, ConnectionGuard, GenericBroadcaster, ToSse, standard_keep_alive,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::kernel::ApiHttpError;
-
-pub mod contexts;
-
-#[derive(Clone, Debug)]
-pub struct StreamState {
-    pub context_provider: Arc<ContextProviderService>,
-    pub broadcasters: Arc<EventBroadcasters>,
-}
-
-pub fn stream_router(ctx: &AppContext) -> Router {
-    let context_provider = crate::repository::context_provider(ctx.db_pool());
-    let state = StreamState {
-        context_provider: Arc::new(context_provider),
-        broadcasters: Arc::clone(ctx.event_broadcasters()),
-    };
-
-    Router::new()
-        .route("/contexts", get(contexts::stream_context_state))
-        .route("/agui", get(stream_agui_events))
-        .route("/a2a", get(stream_a2a_events))
-        .with_state(state)
-}
-
-pub async fn stream_a2a_events(
-    Extension(request_context): Extension<RequestContext>,
-    State(state): State<StreamState>,
-) -> impl IntoResponse {
-    create_sse_stream(request_context, Arc::clone(&state.broadcasters.a2a), "A2A").await
-}
-
-pub async fn stream_agui_events(
-    Extension(request_context): Extension<RequestContext>,
-    State(state): State<StreamState>,
-) -> impl IntoResponse {
-    create_sse_stream(
-        request_context,
-        Arc::clone(&state.broadcasters.agui),
-        "AgUI",
-    )
-    .await
-}
 
 #[derive(Debug)]
 pub struct StreamWithGuard<E: ToSse + Clone + Send + Sync + 'static> {

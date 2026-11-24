@@ -16,21 +16,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_runtime::AppContext;
 use systemprompt_traits::{FederatedIdentityClaims, LinkPolicy};
-use systemprompt_users::User;
+use systemprompt_users::{User, UserRepository};
 
 use super::MessagingError;
 
 pub async fn resolve_or_link_user(
-    ctx: &AppContext,
+    users: &UserRepository,
     issuer: &str,
     external_user_id: &str,
     claims: &FederatedIdentityClaims,
     policy: &LinkPolicy,
 ) -> Result<User, MessagingError> {
-    let repo = ctx.user_repository();
-    repo.resolve_federated(issuer, external_user_id, claims, policy)
+    users
+        .resolve_federated(issuer, external_user_id, claims, policy)
         .await
         .map(|(user, _link)| user)
         .map_err(MessagingError::Identity)

@@ -16,6 +16,10 @@
 //! exactly. Every accessor checks ownership against the authenticated caller
 //! before it returns data.
 //!
+//! [`AgentHttpSurface`] builds the routers the API mounts with its own
+//! layering: the webhook broadcasts (`/api/v1/webhook`), the SSE streams
+//! (`/api/v1/stream`) and the well-known agent cards.
+//!
 //! Handlers read [`AgentHttpState`] (repositories built from the database
 //! handle, the [`ContextEventPublisher`] the member provides, and the UI
 //! renderer registry when the `mcp` member provides one) or
@@ -25,13 +29,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_cards;
 pub mod artifacts;
 pub mod contexts;
 mod error;
 pub mod events;
 pub mod registry;
 pub mod responses;
+pub mod stream;
+mod surface;
 pub mod tasks;
+pub mod webhook;
+
+pub use surface::AgentHttpSurface;
 
 use std::sync::Arc;
 

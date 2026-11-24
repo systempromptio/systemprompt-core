@@ -129,7 +129,9 @@ pub(crate) fn gateway_repositories(
     systemprompt_gateway::surface::repositories::gateway_repositories(
         &ctx.kernel().resolved(),
         &host_handles(ctx),
-        Arc::new(crate::repository::context_provider(ctx.db_pool())),
+        ctx.kernel()
+            .resolved()
+            .get::<systemprompt_traits::DynContextMaterializer>()?,
         ctx.db_pool(),
     )
 }

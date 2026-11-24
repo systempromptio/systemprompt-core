@@ -225,7 +225,13 @@ impl AppContextBuilder {
             UserService::new(Arc::clone(&seeded.users))
                 .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
         );
-        let repositories = build_domain_layer(&database, &seeded, &system_admin).await?;
+        let repositories = build_domain_layer(
+            &database,
+            &seeded,
+            &system_admin,
+            r.optional::<systemprompt_traits::DynContextMaterializer>(),
+        )
+        .await?;
         let plugins = new_plugins(&market);
         let subsystems = Subsystems {
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),

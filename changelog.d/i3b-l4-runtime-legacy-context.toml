@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Runtime"
+text = "`systemprompt-runtime` no longer depends on `systemprompt-agent`: the legacy conversation context is ensured at boot through the agent member's `DynContextMaterializer` (skipped when no materializer is provided)."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`RuntimeError` gains `LegacyContext`."

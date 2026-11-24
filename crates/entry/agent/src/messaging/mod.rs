@@ -3,17 +3,20 @@
 //! [`A2aMessagingDispatcher`] implements the shared
 //! [`MessagingDispatcher`] seam: federated identity, the authorization hook,
 //! the deterministic conversation context, per-user A2A token minting, the
-//! blocking `SendMessage` through the agent proxy, and reply extraction. The
-//! platform surfaces (the Slack and Teams entry crates) never name this
-//! module. The kernel seeds the read half of the dispatcher cell
-//! (`LateRead<dyn MessagingDispatcher>`) **sealed**, and [`bind_dispatcher`]
-//! binds it, after the agent dispatch it sends through, while the server
-//! builds its routes, through the binders the context kept outside the
-//! extension state; binders already taken, or a cell already bound, fail the
-//! boot. The Slack and Teams members read the sealed read half only in their
-//! own provide fns, where they wrap it in a handle that dispatches only a
-//! request their platform verifier has verified. A cell that is never bound
-//! refuses every dispatch with [`MessagingDispatchError::Unavailable`].
+//! blocking `SendMessage` through the agent dispatch, and reply extraction.
+//! The platform surfaces (the Slack and Teams entry crates) never name this
+//! module.
+//!
+//! The `agent-http` member builds it in its provide fn and provides it
+//! **sealed** (`Arc<dyn MessagingDispatcher>`): it mints a token for the user
+//! it resolves and sends as them. It reads, there, the host's sealed authz
+//! hook cell (decided through [`LateAuthzHook`], which refuses every request
+//! until the host binds the composed hook), the signing keys and issuer it
+//! mints with (`A2aTokenIssuer`), the sealed agent dispatch cell, and a user
+//! repository it builds over the database. The kernel binds the sealed
+//! messaging cell to it while the server builds its routes; with `agent-http`
+//! not admitted the cell stays unbound and every dispatch is refused with
+//! `MessagingDispatchError::Unavailable`.
 //!
 //! The pipeline is synchronous and spawned: the platform route acks within
 //! its timeout, then a spawned task runs this blocking dispatch and posts the
@@ -30,20 +33,22 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::json;
-use systemprompt_extension::AlreadyBound;
-use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
+use systemprompt_governance::authz::{
+    AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzHookCell, AuthzRequest, EntityRef,
+    LateAuthzHook,
+};
 use systemprompt_identifiers::{Actor, SessionId, TraceId};
+use systemprompt_models::a2a::dispatch::{AgentDispatchCell, AgentDispatchError};
 use systemprompt_oauth::OauthError;
-use systemprompt_runtime::AppContext;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     DispatchOutcome, MessagingConversation, MessagingDispatchError, MessagingDispatcher,
     MessagingInbound,
 };
-use systemprompt_users::UserError;
+use systemprompt_users::{UserError, UserRepository};
 
-use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
+use a2a::{A2aTokenIssuer, authenticated_user, build_a2a_request, run_agent};
 use identity::resolve_or_link_user;
-use systemprompt_models::a2a::dispatch::{AgentDispatchCell, AgentDispatchError};
 
 /// Failures along the dispatch pipeline. This is an internal system surface;
 /// messages are deliberately descriptive for operator debugging.
@@ -65,10 +70,28 @@ pub enum MessagingError {
     Response(#[source] serde_json::Error),
 }
 
-/// The [`MessagingDispatcher`] the API binds into the extension state.
-#[derive(Clone)]
+/// The collaborators [`A2aMessagingDispatcher`] is built from, each read by
+/// the `agent-http` provide fn.
+pub struct DispatcherInputs {
+    pub users: Arc<UserRepository>,
+    pub authz: AuthzHookCell,
+    pub issuer: String,
+    pub keys: SigningKeys,
+    pub dispatch: AgentDispatchCell,
+}
+
+impl std::fmt::Debug for DispatcherInputs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DispatcherInputs").finish_non_exhaustive()
+    }
+}
+
+/// The [`MessagingDispatcher`] the `agent-http` member provides sealed.
 pub struct A2aMessagingDispatcher {
-    ctx: AppContext,
+    users: Arc<UserRepository>,
+    authz: LateAuthzHook,
+    tokens: A2aTokenIssuer,
+    dispatch: AgentDispatchCell,
 }
 
 impl std::fmt::Debug for A2aMessagingDispatcher {
@@ -80,14 +103,21 @@ impl std::fmt::Debug for A2aMessagingDispatcher {
 
 impl A2aMessagingDispatcher {
     #[must_use]
-    pub const fn new(ctx: AppContext) -> Self {
-        Self { ctx }
+    pub fn new(inputs: DispatcherInputs) -> Self {
+        Self {
+            users: inputs.users,
+            authz: LateAuthzHook::new(inputs.authz),
+            tokens: A2aTokenIssuer {
+                issuer: inputs.issuer,
+                keys: inputs.keys,
+            },
+            dispatch: inputs.dispatch,
+        }
     }
 
     pub async fn run(&self, inbound: MessagingInbound) -> Result<DispatchOutcome, MessagingError> {
-        let ctx = &self.ctx;
         let user = match resolve_or_link_user(
-            ctx,
+            &self.users,
             &inbound.issuer,
             inbound.conversation.sender_wire_id(),
             &inbound.sender.claims(),
@@ -124,19 +154,18 @@ impl A2aMessagingDispatcher {
             task_id: None,
             act_chain: Vec::new(),
         };
-        if let AuthzDecision::Deny { reason, policy } = ctx.authz_hook().evaluate(authz).await {
+        if let AuthzDecision::Deny { reason, policy } = self.authz.evaluate(authz).await {
             return Ok(DispatchOutcome::Denied(format!("{policy}: {reason}")));
         }
 
         let session_id = SessionId::new(uuid::Uuid::new_v4().to_string());
-        let token = mint_a2a_token(ctx, &authed, &session_id)?;
+        let token = self.tokens.mint(&authed, &session_id)?;
 
         let request = build_a2a_request(&inbound, &authed, &session_id, &token, &context_id)?;
-        let dispatch = ctx
-            .kernel()
-            .state()
-            .find::<AgentDispatchCell>()
-            .and_then(|cell| cell.get().cloned())
+        let dispatch = self
+            .dispatch
+            .get()
+            .cloned()
             .ok_or(MessagingError::DispatchUnbound)?;
         let reply = run_agent(dispatch.as_ref(), &inbound.agent_name, request).await?;
         Ok(DispatchOutcome::Replied(reply))
@@ -155,25 +184,19 @@ impl MessagingDispatcher for A2aMessagingDispatcher {
     }
 }
 
-/// Binding the agent dispatch and the messaging dispatcher failed; the
-/// server refuses to boot.
-#[derive(Debug, Clone, Copy, thiserror::Error)]
-pub enum DispatcherBindError {
-    #[error("the late binders were already taken from this context")]
-    BindersTaken,
-    #[error("a dispatch cell was already bound")]
-    AlreadyBound(#[from] AlreadyBound),
-}
+/// The dispatcher `agent-http` provides on a host that seeds no signing keys
+/// or agent dispatch (a child host): every dispatch is refused.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoMessagingDispatch;
 
-pub fn bind_dispatcher(ctx: &AppContext) -> Result<(), DispatcherBindError> {
-    let binders = ctx
-        .take_late_binders()
-        .ok_or(DispatcherBindError::BindersTaken)?;
-    crate::services::agent_dispatch::bind_agent_dispatch(ctx, binders.agent_dispatch)?;
-    binders
-        .messaging
-        .bind(Arc::new(A2aMessagingDispatcher::new(ctx.clone())))?;
-    Ok(())
+#[async_trait]
+impl MessagingDispatcher for NoMessagingDispatch {
+    async fn dispatch(
+        &self,
+        _inbound: MessagingInbound,
+    ) -> Result<DispatchOutcome, MessagingDispatchError> {
+        Err(MessagingDispatchError::Unavailable)
+    }
 }
 
 fn authz_entity(conversation: &MessagingConversation) -> EntityRef {

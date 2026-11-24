@@ -140,6 +140,14 @@ impl ContextMaterializer for ContextProviderService {
             .parse::<ContextKind>()
             .map_err(|e| ContextProviderError::Internal(e.into()))?;
 
+        if kind == ContextKind::Legacy {
+            return self
+                .repo
+                .ensure_legacy_context(params.user_id)
+                .await
+                .map_err(|e| ContextProviderError::Database(e.into()));
+        }
+
         self.repo
             .ensure_context(&params, kind)
             .await

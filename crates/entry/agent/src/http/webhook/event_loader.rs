@@ -7,13 +7,13 @@ use serde_json::json;
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 use systemprompt_models::ExecutionStep;
 
-use super::WebhookRepositories;
 use super::error::LoadEventError;
 use super::types::{AgUiWebhookData, WebhookRequest};
 use super::validation::validate_json_serializable;
+use crate::repository::ConversationRepositories;
 
 pub(super) async fn load_event_data(
-    repos: &WebhookRepositories,
+    repos: &ConversationRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     match request.event_type.as_str() {
@@ -42,7 +42,7 @@ fn ensure_in_context(
 }
 
 async fn load_task_completed(
-    repos: &WebhookRepositories,
+    repos: &ConversationRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let task_repo = &repos.tasks;
@@ -105,7 +105,7 @@ async fn load_task_completed(
 }
 
 async fn load_artifact_created(
-    repos: &WebhookRepositories,
+    repos: &ConversationRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let artifact_repo = &repos.artifacts;
@@ -127,7 +127,7 @@ async fn load_artifact_created(
 }
 
 async fn load_message_received(
-    repos: &WebhookRepositories,
+    repos: &ConversationRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let task_repo = &repos.tasks;
@@ -155,7 +155,7 @@ async fn load_message_received(
 }
 
 async fn load_context_updated(
-    repos: &WebhookRepositories,
+    repos: &ConversationRepositories,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let context_repo = &repos.contexts;

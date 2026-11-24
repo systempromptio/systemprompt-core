@@ -21,7 +21,8 @@ mod content;
 mod mcp;
 mod stream;
 
-pub(super) use agent::mount_agent;
+pub use agent::WEBHOOK_RATE;
+pub(super) use agent::{agent_routes, mount_agent, mount_agent_cards};
 pub(super) use content::mount_content_and_misc;
 pub(super) use mcp::mount_mcp;
 pub(super) use stream::mount_stream;

@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Agent routes"
+text = "With `agent-http` disabled an authenticated `/api/v1/agents/registry` answers 404 instead of reaching the A2A proxy and failing body parsing with 400."

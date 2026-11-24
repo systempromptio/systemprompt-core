@@ -19,7 +19,7 @@ async fn jwks_route_executes() -> anyhow::Result<()> {
 #[tokio::test]
 async fn default_agent_card_returns_error_without_profile() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_router(&ctx)?;
+    let app = crate::common::agent_cards_app(&ctx);
     let resp = app
         .oneshot(empty_get("/.well-known/agent-card.json"))
         .await?;

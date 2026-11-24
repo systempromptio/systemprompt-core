@@ -5,15 +5,18 @@
 
 use std::sync::Arc;
 
+use systemprompt_agent_entry::http::stream::StreamFeeds;
 use systemprompt_ai::PersonalProviderCredentials;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_database::DbPool;
 use systemprompt_documents::tokens::DocumentLinkTokens;
 use systemprompt_extension::reserved::ConferralRow;
+use systemprompt_extension::router::DynAgentSurface;
 use systemprompt_extension::{DynBrainSink, Resolved, StandingTag};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_gateway::{GatewayAtRest, GatewayEngines};
+use systemprompt_governance::authz::AuthzHookCell;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_mcp::ArtifactIngest;
@@ -27,7 +30,7 @@ use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, CacheEpochView, CacheEpochs,
     DynAiSessionProvider, DynContextDirectory, DynGatewaySessionMint, DynSessionContextIssuer,
     DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters, DynSignInSessions, FileStorage,
-    SecretStore,
+    MessagingDispatcher, SecretStore,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -400,4 +403,87 @@ async fn identity_http_alone_reads_the_conferred_oauth_repositories() {
         ConferralRow::IdentityOAuthRepositories.name()
     );
     conferred_on_identity_http_alone::<Arc<OAuthRepositories>>(&ctx);
+}
+
+async fn agent_http_context() -> Arc<AppContext> {
+    let bootstrap = ensure_test_bootstrap();
+    let mut members = systemprompt_test_fixtures::fixture_core_members();
+    members.push(Box::new(
+        systemprompt_agent_entry::extension::AgentHttpExtension,
+    ));
+    systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        systemprompt_test_fixtures::fixture_config(&bootstrap.database_url),
+        systemprompt_test_fixtures::fixture_admitted_of(members),
+    )
+    .await
+    .expect("the context with agent-http builds")
+}
+
+#[tokio::test]
+async fn agent_http_route_state_alone_reads_its_stream_feeds() {
+    let ctx = agent_http_context().await;
+    assert!(route_reads::<Arc<StreamFeeds>>(&ctx, "agent-http"));
+    for owner in ["gateway-http", "identity-http", "files-http", "agent"] {
+        assert!(
+            !route_reads::<Arc<StreamFeeds>>(&ctx, owner),
+            "{owner} subscribes to no user's streams"
+        );
+    }
+    assert!(!install_reads::<Arc<StreamFeeds>>(&ctx));
+    assert!(!member_command_reads::<Arc<StreamFeeds>>(&ctx));
+}
+
+#[tokio::test]
+async fn the_agent_surface_is_open_to_the_api_mount() {
+    let ctx = agent_http_context().await;
+    assert!(route_reads::<DynAgentSurface>(&ctx, "agent-http"));
+    assert!(ctx.kernel().state().find::<DynAgentSurface>().is_some());
+}
+
+#[tokio::test]
+async fn the_messaging_dispatcher_agent_http_provides_reaches_no_other_member() {
+    let ctx = agent_http_context().await;
+    assert!(
+        ctx.kernel()
+            .state()
+            .find::<Arc<dyn MessagingDispatcher>>()
+            .is_some(),
+        "the kernel finds the dispatcher it binds"
+    );
+    for owner in ["gateway-http", "identity-http", "files-http", "agent"] {
+        assert!(
+            !route_reads::<Arc<dyn MessagingDispatcher>>(&ctx, owner),
+            "{owner} cannot dispatch as a resolved user"
+        );
+    }
+    assert!(!install_reads::<Arc<dyn MessagingDispatcher>>(&ctx));
+    assert!(!member_command_reads::<Arc<dyn MessagingDispatcher>>(&ctx));
+    assert!(!job_reads::<Arc<dyn MessagingDispatcher>>(&ctx));
+}
+
+#[tokio::test]
+async fn the_authz_hook_cell_is_read_in_agent_http_provide_and_by_no_route_state() {
+    let ctx = agent_http_context().await;
+    let agent_http = ctx
+        .admitted()
+        .built()
+        .members()
+        .find(|member| member.owner.as_str() == "agent-http")
+        .expect("agent-http is admitted")
+        .scope();
+    assert!(
+        ctx.kernel()
+            .member_resolved(&agent_http)
+            .get::<AuthzHookCell>()
+            .is_ok(),
+        "agent-http's provide fns read the sealed authz hook cell"
+    );
+    for owner in ["agent-http", "gateway-http", "identity-http", "files-http"] {
+        assert!(
+            !route_reads::<AuthzHookCell>(&ctx, owner),
+            "{owner} route state resolves no authz hook"
+        );
+    }
+    assert!(!install_reads::<AuthzHookCell>(&ctx));
+    assert!(!member_command_reads::<AuthzHookCell>(&ctx));
 }

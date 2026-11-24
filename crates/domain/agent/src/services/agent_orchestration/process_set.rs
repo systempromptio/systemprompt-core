@@ -3,6 +3,9 @@
 //! Built by the member's slot factory from sealed seeds (spawner, child
 //! secret environment) and open values (verification keys, services view), it
 //! builds an [`AgentOrchestrator`] per operation, as the kernel commands did.
+//! A restart starts the agent into a known-clean state
+//! ([`AgentOrchestrator::start_clean`]): a running agent is stopped through its
+//! recorded pid, its record dropped and its port freed before it starts.
 //! On a host that seeds no spawner (a child host) every operation refuses
 //! with `ServiceProcessError::Unavailable`.
 //!
@@ -160,6 +163,21 @@ impl AgentProcessSet {
             })
     }
 
+    fn resolve_with_port(
+        &self,
+        name: &ServiceName,
+    ) -> Result<(AgentName, u16), ServiceProcessError> {
+        let registry = AgentRegistry::new(&self.inputs()?.services);
+        registry
+            .get_agent(name.as_str())
+            .ok()
+            .map(|agent| (AgentName::new(agent.name), agent.port))
+            .ok_or_else(|| ServiceProcessError::Unknown {
+                kind: KIND,
+                name: name.clone(),
+            })
+    }
+
     fn named<'n>(
         name: Option<&'n ServiceName>,
         operation: &'static str,
@@ -227,13 +245,12 @@ impl ServiceProcessSet for AgentProcessSet {
                 operation: "rebuild",
             });
         }
-        let agent = self.resolve(Self::named(name, "restart every agent")?)?;
+        let (agent, port) = self.resolve_with_port(Self::named(name, "restart every agent")?)?;
         let outcome = self
             .orchestrator()
             .await?
-            .restart_agent(&agent, None)
+            .start_clean(&agent, port)
             .await
-            .map(drop)
             .map_err(failed);
         Ok(vec![ServiceRun {
             name: ServiceName::new(agent.as_str()),
