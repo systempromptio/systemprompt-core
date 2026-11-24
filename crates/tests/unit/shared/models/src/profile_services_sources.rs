@@ -38,6 +38,7 @@ pub(crate) fn local_profile() -> Profile {
             external_db_access: false,
             migrate_on_boot: true,
             connection_budget: None,
+            schema_install_roles: None,
             pool: None,
         },
         server: ServerConfig {

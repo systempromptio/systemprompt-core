@@ -58,6 +58,15 @@ domain_error! {
         #[error("account merge is unavailable: no owner reassignments are configured")]
         MergeUnavailable,
 
+        #[error(
+            "owner reassignment over security table {table} declared by '{owner}' is refused; its \
+             rows die with the source user"
+        )]
+        SecurityTableReassignment {
+            owner: ExtensionId,
+            table: &'static str,
+        },
+
         #[error("owner reassignment of {table}.{column} declared by '{owner}' failed")]
         OwnerReassignment {
             owner: ExtensionId,
@@ -92,6 +101,7 @@ impl From<UserError> for systemprompt_models::api::ApiError {
             | UserError::InvalidRoles(_)
             | UserError::ApiKeyLifetimeExceeded { .. }) => Self::bad_request(e.to_string()),
             e @ (UserError::MergeUnavailable
+            | UserError::SecurityTableReassignment { .. }
             | UserError::PurgeIdentifier { .. }
             | UserError::OwnerReassignment { .. }) => Self::internal("User operation failed", e),
         }

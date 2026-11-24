@@ -72,6 +72,37 @@ pub fn release_key(version: &str) -> Vec<u64> {
         .collect()
 }
 
+pub(crate) async fn recorded_release(
+    pool: &PgPool,
+    name: &JobName,
+) -> Result<Option<String>, RepositoryError> {
+    let version = sqlx::query_scalar!(
+        "SELECT version FROM release_stamps WHERE name = $1",
+        name.as_str()
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(version)
+}
+
+pub(crate) async fn stamp_release(
+    pool: &PgPool,
+    name: &JobName,
+    release: &str,
+) -> Result<(), RepositoryError> {
+    sqlx::query!(
+        "INSERT INTO release_stamps (name, version, stamped_at)
+             VALUES ($1, $2, CURRENT_TIMESTAMP)
+             ON CONFLICT (name) DO UPDATE SET version = EXCLUDED.version,
+                                              stamped_at = EXCLUDED.stamped_at",
+        name.as_str(),
+        release
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 impl ReleaseStampRepository {
     pub fn new(db: &DbPool) -> Self {
         Self {
@@ -81,27 +112,11 @@ impl ReleaseStampRepository {
     }
 
     pub async fn recorded(&self, name: &JobName) -> Result<Option<String>, RepositoryError> {
-        let version = sqlx::query_scalar!(
-            "SELECT version FROM release_stamps WHERE name = $1",
-            name.as_str()
-        )
-        .fetch_optional(&*self.write_pool)
-        .await?;
-        Ok(version)
+        recorded_release(&self.write_pool, name).await
     }
 
     async fn stamp(&self, name: &JobName, release: &str) -> Result<(), RepositoryError> {
-        sqlx::query!(
-            "INSERT INTO release_stamps (name, version, stamped_at)
-             VALUES ($1, $2, CURRENT_TIMESTAMP)
-             ON CONFLICT (name) DO UPDATE SET version = EXCLUDED.version,
-                                              stamped_at = EXCLUDED.stamped_at",
-            name.as_str(),
-            release
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(())
+        stamp_release(&self.write_pool, name, release).await
     }
 
     pub async fn run_once<F, Fut, T, E>(

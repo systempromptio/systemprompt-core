@@ -24,7 +24,9 @@
 //! of this binary (see [`current`]): a newer release owns an ahead extension's
 //! schema, so this binary applies nothing to that extension — no declarative
 //! DDL, no migrations — while every other extension installs as usual, and
-//! the report carries the ahead migrations.
+//! the report carries the ahead migrations. Before any of that the install
+//! reads the release that last completed it ([`release_order`]): a binary
+//! older than that release applies nothing at all.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,6 +40,8 @@ mod object_owners;
 pub(crate) mod ownership;
 mod phase;
 mod purge_records;
+mod reassignment_targets;
+pub(crate) mod release_order;
 mod retire;
 mod routine_prepass;
 mod settled;
@@ -65,7 +69,7 @@ use super::migration_owners::MigrationMembers;
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
-use super::routine_refs::check_trigger_routines;
+use super::routine_refs::check_trigger_routines_held;
 use super::seeds::apply_seeds;
 use super::undeclared::residue_including;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
@@ -92,6 +96,7 @@ pub async fn install_schema_members(
         return Ok(SchemaInstallReport::default());
     }
     admit_purges(schema_extensions)?;
+    reassignment_targets::refuse_security_tables(schema_extensions)?;
 
     info!(
         extensions = schema_extensions.len(),
@@ -99,37 +104,51 @@ pub async fn install_schema_members(
     );
 
     let guard = BootstrapLockGuard::acquire(db).await?;
-
-    let result = match current::members_currency(db, schema_extensions).await {
-        Ok(currency) => {
-            let (held_back, active): (Vec<_>, Vec<_>) =
-                schema_extensions.iter().cloned().partition(|ext| {
-                    currency
-                        .ahead
-                        .iter()
-                        .any(|m| m.extension_id.as_str() == ext.id())
-                });
-            settled::install_unless_settled(
-                db,
-                settled::InstallSets::new(schema_extensions, &active, &held_back),
-                &currency,
-                migration_config,
-            )
-            .await
-            .map(|report| SchemaInstallReport {
-                ahead: super::report::SchemaAhead::from_currency(&currency),
-                ..report
-            })
-        },
-        Err(e) => Err(e),
-    };
-
+    let result = install_in_release_order(db, schema_extensions, migration_config).await;
     guard.release().await;
 
     let report = result?;
 
     report.log_outcome();
     Ok(report)
+}
+
+async fn install_in_release_order(
+    db: &dyn DatabaseProvider,
+    schema_extensions: &ExtensionSet,
+    migration_config: MigrationConfig,
+) -> Result<SchemaInstallReport, LoaderError> {
+    if let Some(superseded) = release_order::newer_recorded(db).await? {
+        let currency = current::members_currency(db, schema_extensions).await?;
+        release_order::judge_superseded(&superseded, &currency)?;
+        return Ok(SchemaInstallReport {
+            ahead: super::report::SchemaAhead::from_currency(&currency),
+            superseded: Some(superseded),
+            ..SchemaInstallReport::default()
+        });
+    }
+    let currency = current::members_currency(db, schema_extensions).await?;
+    let (held_back, active): (Vec<_>, Vec<_>) =
+        schema_extensions.iter().cloned().partition(|ext| {
+            currency
+                .ahead
+                .iter()
+                .any(|m| m.extension_id.as_str() == ext.id())
+        });
+    let report = settled::install_unless_settled(
+        db,
+        settled::InstallSets::new(schema_extensions, &active, &held_back),
+        &currency,
+        migration_config,
+    )
+    .await?;
+    if held_back.is_empty() {
+        release_order::record(db).await?;
+    }
+    Ok(SchemaInstallReport {
+        ahead: super::report::SchemaAhead::from_currency(&currency),
+        ..report
+    })
 }
 
 async fn fresh_extension_ids(
@@ -187,13 +206,14 @@ async fn run_install(
     // Why: after every phase, so the schema checked is the one the server
     // will write to; a trigger left writing a dropped table fails every
     // request that touches its table.
-    check_trigger_routines(db).await?;
+    check_trigger_routines_held(db).await?;
 
     for ext in schema_extensions {
         apply_seeds(ext.as_ref(), db).await?;
     }
 
     record_owners(db, &prepared, members).await?;
+    reassignment_targets::check_catalog_targets(db, schema_extensions).await?;
     record_purges(db, schema_extensions).await?;
     report.residue = residue_including(db, &prepared, members.held_back()).await?;
 

@@ -145,7 +145,8 @@ pub use contribute::{
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
-    ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault,
+    ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, ReassignmentRefusal,
+    SchemaFault,
 };
 pub use frame_options::FrameOptionsOverride;
 #[cfg(feature = "router")]

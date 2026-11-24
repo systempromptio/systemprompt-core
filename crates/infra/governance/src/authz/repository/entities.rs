@@ -11,6 +11,8 @@ use super::AccessControlRepository;
 use crate::authz::error::AuthzResult;
 use crate::authz::types::{EntityKind, EntityRow};
 
+const INSERT_MISSING_BATCH: usize = 5_000;
+
 impl AccessControlRepository {
     pub async fn get_entity(
         &self,
@@ -115,6 +117,35 @@ impl AccessControlRepository {
         .execute(&*self.write_pool)
         .await?;
         Ok(())
+    }
+
+    pub async fn insert_missing_entities(
+        &self,
+        entity_type: EntityKind,
+        entity_ids: &[&str],
+        default_included: bool,
+        source: &str,
+    ) -> AuthzResult<u64> {
+        let mut inserted = 0;
+        for batch in entity_ids.chunks(INSERT_MISSING_BATCH) {
+            let ids: Vec<String> = batch.iter().map(|id| (*id).to_owned()).collect();
+            inserted += sqlx::query!(
+                r#"
+                INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
+                SELECT $1, id, $3, $4
+                FROM UNNEST($2::text[]) AS id
+                ON CONFLICT (entity_type, entity_id) DO NOTHING
+                "#,
+                entity_type.as_str(),
+                &ids,
+                default_included,
+                source,
+            )
+            .execute(&*self.write_pool)
+            .await?
+            .rows_affected();
+        }
+        Ok(inserted)
     }
 
     pub async fn reconcile_entities(

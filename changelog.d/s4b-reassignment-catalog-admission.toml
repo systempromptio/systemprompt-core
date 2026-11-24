@@ -1,0 +1,19 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "Owner reassignments and user purges are admitted against the catalog at every schema install, not only against the member's declared SQL: a reassignment over a credential or session table (`MERGE_EXCLUDED_SECURITY_TABLES`) is refused before any DDL, and after the ownership records are written a reassignment target must be a live table carrying every column the declaration names and not be recorded to another member, and a purge target must not be recorded to another member. Each refusal is `LoaderError::ReassignmentTargetRefused`. An account merge refuses a reassignment over a security table before moving any row."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`LoaderError` gains `ReassignmentTargetRefused { member, table, refusal: ReassignmentRefusal }`. Migrate by adding the arm to exhaustive matches."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`SchemaMember` gains `reassignments()` and `SchemaUnit` the `reassignments` field. Migrate implementations and struct literals."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "`MERGE_EXCLUDED_SECURITY_TABLES` moves to `systemprompt_traits`; `UserError` gains `SecurityTableReassignment`. Migrate imports to `systemprompt_traits::MERGE_EXCLUDED_SECURITY_TABLES`."

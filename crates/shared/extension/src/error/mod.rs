@@ -22,6 +22,19 @@ impl LoaderError {
     }
 }
 
+/// Why the catalog refuses a member's owner reassignment or purge target.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ReassignmentRefusal {
+    #[error("it is a security table, whose rows die with the source user")]
+    SecurityTable,
+    #[error("no such table is in the catalog")]
+    AbsentTable,
+    #[error("the catalog records the table to member '{0}'")]
+    RecordedToPeer(ExtensionId),
+    #[error("column '{0}' is not a column of the live table")]
+    AbsentColumn(String),
+}
+
 #[derive(Debug, Error)]
 pub enum LoaderError {
     #[error("Extension '{extension}' requires dependency '{dependency}' which is not registered")]
@@ -209,6 +222,26 @@ pub enum LoaderError {
         table: String,
         extension_a: ExtensionId,
         extension_b: ExtensionId,
+    },
+
+    #[error(
+        "Member '{member}' declares an owner reassignment over '{table}', which the catalog \
+         refuses: {refusal}"
+    )]
+    ReassignmentTargetRefused {
+        member: ExtensionId,
+        table: String,
+        refusal: ReassignmentRefusal,
+    },
+
+    #[error(
+        "Schema install refused: release {release} is older than release {recorded}, which \
+         installed this database, and the schema this release reads is not present ({unmet:?})"
+    )]
+    SchemaInstallSuperseded {
+        release: String,
+        recorded: String,
+        unmet: Vec<String>,
     },
 
     #[error(

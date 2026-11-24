@@ -197,6 +197,11 @@ fn test_loader_error_variant_matching() {
             name: "users".to_string(),
             owner: ExtensionId::new("acme"),
         },
+        LoaderError::SchemaInstallSuperseded {
+            release: "0.86.0".to_string(),
+            recorded: "0.87.0".to_string(),
+            unmet: vec!["table schema_install".to_string()],
+        },
         LoaderError::PurgeAdmission(PurgeAdmissionError::EmptyPredicate {
             member: ExtensionId::new("q"),
             table: "notes".to_string(),
@@ -273,6 +278,16 @@ fn test_loader_error_variant_matching() {
             },
             LoaderError::PurgeAdmission(source) => {
                 assert!(source.to_string().contains("notes"));
+            },
+            LoaderError::ReassignmentTargetRefused { member, table, .. } => {
+                assert!(!member.as_str().is_empty());
+                assert!(!table.is_empty());
+            },
+            LoaderError::SchemaInstallSuperseded {
+                release, recorded, ..
+            } => {
+                assert!(!release.is_empty());
+                assert!(!recorded.is_empty());
             },
             LoaderError::CrossExtensionAlterUndeclared { extension, table } => {
                 assert!(!extension.as_str().is_empty());

@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Schema install"
+text = "The schema install is release-ordered. It records the release that completed it under the `schema_install` release stamp; a binary older than the recorded release applies nothing (no DDL, routine, view, trigger, migration, seed or ownership record) and boots on the schema as it stands when everything it reads is present, otherwise it refuses with `LoaderError::SchemaInstallSuperseded`. `infra db migrate` and the migration drift repairs refuse outright on an older binary. A new profile field `database.schema_install_roles` limits which `server.role`s install at boot; omitted, every role installs as before."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`LoaderError` gains `SchemaInstallSuperseded { release, recorded, unmet }`. Migrate by adding the arm to exhaustive matches."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`SchemaInstallReport` gains `superseded: Option<SupersededInstall>`; `SCHEMA_INSTALL_STAMP` and `SCHEMA_INSTALL_RELEASE` name the stamp and the release an install records. Migrate struct literals by adding `superseded: None` or `..Default::default()`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`DatabaseConfig` gains `schema_install_roles: Option<Vec<NodeRole>>` and `installs_on_boot(role)`. Migrate struct literals by adding `schema_install_roles: None`."

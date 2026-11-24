@@ -6,10 +6,12 @@
 //! covers every table's columns, view, index, function, trigger and
 //! constraint outside the system schemas and outside Postgres extensions, so
 //! any definition changed or dropped since the last complete install sends the
-//! next install down the full path. It reads `pg_catalog` only and takes no
-//! locks a `SELECT` would not. Another session may drop an object between the
-//! scan listing it and the `pg_get_*def` call opening it, or deadlock with the
-//! scan's `ACCESS SHARE` locks; the read is taken again, a bounded number of
+//! next install down the full path. It reads `pg_catalog` only. An install
+//! reads it under the bootstrap lock it holds exclusively
+//! ([`catalog_digest_held`]); any other reader ([`catalog_digest`]) holds that
+//! lock shared for the scan, so no install's DDL drops an object between the
+//! scan listing it and the `pg_get_*def` call opening it. A lock conflict
+//! (SQLSTATE `40P01`, `55P03`, `40001`) reads it again, a bounded number of
 //! times.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -19,9 +21,17 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::lock_conflict::read_catalog;
+use super::lock::BootstrapLockGuard;
 use crate::services::DatabaseProvider;
 
 pub async fn catalog_digest(db: &dyn DatabaseProvider) -> Result<String, LoaderError> {
+    let lock = BootstrapLockGuard::acquire_shared(db).await?;
+    let digest = catalog_digest_held(db).await;
+    lock.release().await;
+    digest
+}
+
+pub(crate) async fn catalog_digest_held(db: &dyn DatabaseProvider) -> Result<String, LoaderError> {
     read_catalog("schema catalog digest", || read_digest(db))
         .await
         .map_err(|e| LoaderError::SchemaInstallationStepFailed {

@@ -30,8 +30,7 @@ pub(super) fn resolve_manifest(
             ..PluginManifest::default()
         });
     }
-    let text =
-        std::fs::read_to_string(&path).map_err(|e| MarketplaceError::import(&path, "read", e))?;
+    let text = super::super::writer::read_source(dir, &path)?;
     let mut manifest: PluginManifest = serde_json::from_str(&text)
         .map_err(|e| MarketplaceError::import(&path, "plugin.json is not valid", e))?;
     if manifest.skills.is_none() {

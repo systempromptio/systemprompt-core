@@ -1,7 +1,9 @@
 //! Outcome of a schema installation that succeeded but left typed drift
 //! behind: a declared foreign key an established database could not create.
 //! Callers surface the report — health endpoints, `infra db migrate` — rather
-//! than reading it from the log.
+//! than reading it from the log. `superseded` is set when a newer release
+//! installed the database and this one applied nothing (see
+//! `extension::release_order`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -35,6 +37,14 @@ pub struct SchemaInstallReport {
     pub foreign_key_drift: Vec<ForeignKeyDrift>,
     pub residue: SchemaResidue,
     pub ahead: Vec<SchemaAhead>,
+    pub superseded: Option<SupersededInstall>,
+}
+
+/// A newer release installed this database; this release applied nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SupersededInstall {
+    pub release: String,
+    pub recorded: String,
 }
 
 impl SchemaInstallReport {

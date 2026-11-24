@@ -32,7 +32,7 @@ mod updates;
 
 pub use archive::{ArchiveOutcome, ArchiveParams, ArchiveState};
 pub use declared::{DeclaredUserRow, DeclaredUserWrite};
-pub use merge::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult};
+pub use merge::MergeResult;
 pub use operations::UpdateUserParams;
 pub use purge::{PurgeCount, PurgeOutcome, SkippedPurge};
 pub use service_account::{EnsuredServiceAccount, NewServiceAccount};

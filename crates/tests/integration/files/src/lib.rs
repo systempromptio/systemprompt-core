@@ -86,6 +86,8 @@ mod documents_engine_review;
 #[cfg(test)]
 mod documents_feed_delivery;
 #[cfg(test)]
+mod documents_folder_reconcile;
+#[cfg(test)]
 mod documents_folders;
 #[cfg(test)]
 mod documents_foreign_lock;
