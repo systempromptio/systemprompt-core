@@ -14,7 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod admin_keys;
+pub mod admin_keys;
 pub mod oauth;
 pub mod sso;
 pub mod users;

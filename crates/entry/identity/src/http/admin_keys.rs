@@ -21,12 +21,12 @@ use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 
 #[derive(Clone)]
-pub(crate) struct ApiKeysState {
-    pub(crate) keys: Arc<ApiKeyService>,
-    pub(crate) subjects: Arc<SubjectProviderSet>,
+pub struct ApiKeysState {
+    pub keys: Arc<ApiKeyService>,
+    pub subjects: Arc<SubjectProviderSet>,
 }
 
-pub(crate) fn router(state: ApiKeysState) -> Router {
+pub fn router(state: ApiKeysState) -> Router {
     Router::new()
         .route("/", post(issue_key).get(list_keys))
         .route("/{key_id}", delete(revoke_key))

@@ -6,6 +6,7 @@ publish = false
 license.workspace = true
 
 [dependencies]
+systemprompt-identity-entry = { workspace = true, features = ["http"] }
 reqwest = { workspace = true }
 anyhow = { workspace = true }
 lopdf = { workspace = true }

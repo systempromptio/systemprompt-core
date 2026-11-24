@@ -12624,6 +12624,7 @@ dependencies = [
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-identity-entry",
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",

@@ -8,7 +8,7 @@
 
 use axum::{Extension, Router};
 use http_body_util::BodyExt;
-use systemprompt_api::routes::admin;
+use systemprompt_identity_entry::http::admin_keys;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::seed_user_row;
@@ -18,8 +18,22 @@ use uuid::Uuid;
 use super::common::{empty_delete, empty_get, json_post, request_context, setup_ctx};
 
 fn app(ctx: &AppContext, user: &UserId) -> Router {
-    admin::router()
-        .with_state(ctx.clone())
+    let state = admin_keys::ApiKeysState {
+        keys: std::sync::Arc::new(systemprompt_users::ApiKeyService::new(
+            std::sync::Arc::clone(ctx.user_repository()),
+            systemprompt_users::ApiKeyLifetime::from_max_days(
+                ctx.config().api_key_max_lifetime_days,
+            ),
+        )),
+        subjects: ctx
+            .kernel()
+            .state()
+            .find::<std::sync::Arc<systemprompt_governance::authz::SubjectProviderSet>>()
+            .cloned()
+            .expect("subject providers"),
+    };
+    Router::new()
+        .nest("/api-keys", admin_keys::router(state))
         .layer(Extension(request_context(user.as_str())))
 }
 

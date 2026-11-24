@@ -3,18 +3,28 @@
 //! enforce ownership via RequestContext.
 
 use axum::{Extension, Router};
-use systemprompt_api::routes::admin;
+use systemprompt_identity_entry::http::admin_keys;
 use tower::ServiceExt;
 
 use super::common::{empty_delete, empty_get, json_post, request_context, setup_ctx};
 
-// `admin::keys::router` is pub(super), so wire the routes directly via the
-// re-exported handlers — handler functions are not pub here, so we mount the
-// admin parent router instead.
-
 fn keys_app(ctx: &systemprompt_runtime::AppContext) -> Router {
-    admin::router()
-        .with_state(ctx.clone())
+    let state = admin_keys::ApiKeysState {
+        keys: std::sync::Arc::new(systemprompt_users::ApiKeyService::new(
+            std::sync::Arc::clone(ctx.user_repository()),
+            systemprompt_users::ApiKeyLifetime::from_max_days(
+                ctx.config().api_key_max_lifetime_days,
+            ),
+        )),
+        subjects: ctx
+            .kernel()
+            .state()
+            .find::<std::sync::Arc<systemprompt_governance::authz::SubjectProviderSet>>()
+            .cloned()
+            .expect("subject providers"),
+    };
+    Router::new()
+        .nest("/api-keys", admin_keys::router(state))
         .layer(Extension(request_context("user_admin")))
 }
 

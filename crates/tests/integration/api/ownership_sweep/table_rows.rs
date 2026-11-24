@@ -25,7 +25,7 @@ const NOTIFY: &str = "notifications/http/mod.rs::user_routes";
 const BRIDGE_NOTIFY: &str = "notifications/http/mod.rs::bridge_routes";
 const BYOK: &str = "routes/gateway/provider_credentials.rs::routes";
 const BRAIN: &str = "brain/http/mount.rs::user_routes";
-const CLIENTS: &str = "routes/oauth/clients.rs::router";
+const CLIENTS: &str = "identity/http/oauth/clients.rs::router";
 
 const SHARE: &str = r#"{"subject_kind":"user","subject_value":"sweep-nobody","level":"view"}"#;
 const COMMIT: &str = r#"{"document_id":"$ID","path":"sweep-probe.md","content_sha256":"25be323556dad377abb57fe7ec8c4b99a6527f488dda28d0c9b686528659c909","size_bytes":6,"device_id":"sweep"}"#;
