@@ -116,7 +116,7 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
         .execute(pool.pool().as_ref())
         .await?;
     let issued = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
+        systemprompt_test_fixtures::user_repository(&ctx),
         systemprompt_users::ApiKeyLifetime::unbounded(),
     )
     .issue(IssueApiKeyParams {

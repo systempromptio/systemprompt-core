@@ -177,7 +177,7 @@ async fn minting_a_session_for_an_unknown_user_fails() {
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         ),
-        systemprompt_test_fixtures::test_config(),
+        systemprompt_test_fixtures::test_config().jwt_access_token_expiration,
     );
     let user_id = UserId::new(unique("nobody"));
 

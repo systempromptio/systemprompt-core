@@ -27,7 +27,7 @@ impl SessionCreationService {
             })?;
         let user_id = UserId::new(anonymous_user.id);
 
-        let jwt_expiration_seconds = self.config.jwt_access_token_expiration;
+        let jwt_expiration_seconds = self.access_token_expiration;
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
 
         self.session_provider

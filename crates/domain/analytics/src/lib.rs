@@ -18,6 +18,7 @@
 
 pub mod error;
 pub mod extension;
+mod geoip;
 pub mod jobs;
 pub mod models;
 mod provides;
@@ -26,6 +27,7 @@ pub mod resource_metrics;
 pub mod services;
 
 pub use extension::AnalyticsExtension;
+pub use geoip::{GeoIpDatabase, GeoIpUnreadable};
 
 pub use error::{AnalyticsError, Result};
 

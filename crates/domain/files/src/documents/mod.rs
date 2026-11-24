@@ -70,7 +70,7 @@ pub use access::{
     SubjectValidation,
 };
 pub use brain_access::DocumentSourceAccess;
-pub use brain_content::{BRAIN_ACTOR, DocumentSourceContent, DocumentsSourceUnavailable};
+pub use brain_content::{DocumentSourceContent, DocumentsSourceUnavailable};
 pub use error::DocumentsError;
 pub use events::DocumentEvents;
 pub use handles::{

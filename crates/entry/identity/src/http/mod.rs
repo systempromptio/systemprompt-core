@@ -83,7 +83,8 @@ impl IdentitySurface for IdentityHttpSurface {
             tracing::info!("No MCP registry; authorization requests naming a resource are refused");
         }
         match WebAuthnService::new(
-            &host.config,
+            &host.config.api_external_url,
+            &host.config.sitename,
             oauth_repositories.oauth.clone(),
             Arc::clone(&users),
         ) {

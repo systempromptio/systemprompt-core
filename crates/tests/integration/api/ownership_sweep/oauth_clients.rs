@@ -24,7 +24,9 @@ struct Clients {
 
 pub(super) fn clients_as(ctx: &AppContext, user: &UserId, user_type: UserType) -> Router {
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("users"),

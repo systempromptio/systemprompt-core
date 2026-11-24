@@ -42,13 +42,18 @@ async fn setup_link_ctx() -> anyhow::Result<(
 
 fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthState> {
     let webauthn = WebAuthnService::new(
-        ctx.config(),
-        ctx.oauth_repositories().oauth.clone(),
+        &ctx.config().api_external_url,
+        &ctx.config().sitename,
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.user_provider().expect("user"),
     )
     .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     Ok(OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -239,7 +244,7 @@ async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, St
         .await
         .expect("seed user");
     let raw = format!("link-{}", Uuid::new_v4().simple());
-    ctx.oauth_repositories()
+    systemprompt_test_fixtures::oauth_repositories(&ctx)
         .oauth
         .store_setup_token(CreateSetupTokenParams {
             user_id: user_id.clone(),
@@ -339,8 +344,7 @@ async fn link_finish_accepts_the_id_from_either_start() -> anyhow::Result<()> {
     assert_eq!(v["success"].as_bool(), Some(true), "{v}");
     assert_eq!(v["user_id"].as_str(), Some(user_id.as_str()), "{v}");
 
-    let creds = ctx
-        .oauth_repositories()
+    let creds = systemprompt_test_fixtures::oauth_repositories(&ctx)
         .oauth
         .list_webauthn_credentials(&user_id)
         .await?;
@@ -366,7 +370,7 @@ async fn link_finish_with_a_superseded_challenge_is_rejected() -> anyhow::Result
     let (app, ctx) = linked_app().await?;
     let (user_id, token_a) = issue_link_token(&ctx).await;
     let raw_b = format!("link-{}", Uuid::new_v4().simple());
-    ctx.oauth_repositories()
+    systemprompt_test_fixtures::oauth_repositories(&ctx)
         .oauth
         .store_setup_token(CreateSetupTokenParams {
             user_id: user_id.clone(),
@@ -396,8 +400,7 @@ async fn link_finish_with_a_superseded_challenge_is_rejected() -> anyhow::Result
         .await?;
     assert_ne!(resp.status(), StatusCode::OK, "{}", resp.status());
 
-    let creds = ctx
-        .oauth_repositories()
+    let creds = systemprompt_test_fixtures::oauth_repositories(&ctx)
         .oauth
         .list_webauthn_credentials(&user_id)
         .await?;

@@ -16,12 +16,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{JwtToken, headers};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_oauth::services::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeRequest, BridgeOAuthClient,
     exchange_bridge_session_code, issue_bridge_access, provision_bridge_oauth_client,
 };
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_security::http::{ClientIp, resolve_client_ip, resolve_request_base_url};
 
 use super::{BridgeAuthState, credential_error, oauth_error, users_error};
@@ -90,7 +90,7 @@ pub async fn pat(
         state.users.as_ref(),
         bridge_access_from_pat(
             BridgeAccessRequest::bridge(
-                &state.config,
+                &state.config.jwt_issuer,
                 request.headers(),
                 caller_ip,
                 &record.user_id,
@@ -136,7 +136,7 @@ pub async fn session(
             caller_ip,
             code: body.code.trim(),
             keys: &state.keys,
-            config: &state.config,
+            issuer: &state.config.jwt_issuer,
         },
     )
     .await
@@ -170,7 +170,10 @@ pub async fn provision_oauth_client(
     Ok(Json(result))
 }
 
-fn build_token_endpoint(cfg: &Config, headers: &HeaderMap) -> Result<String, ApiHttpError> {
+fn build_token_endpoint(
+    cfg: &IdentityConfigView,
+    headers: &HeaderMap,
+) -> Result<String, ApiHttpError> {
     let configured = url::Url::parse(&cfg.api_external_url)
         .map_err(|e| ApiHttpError::internal("Configured external URL is invalid", e))?;
     let raw_host = headers.get(header::HOST).and_then(|v| v.to_str().ok());

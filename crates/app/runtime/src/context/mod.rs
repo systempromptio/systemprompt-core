@@ -12,7 +12,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::{AnalyticsService, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBridgeHandle, EventRouter};
@@ -22,7 +21,7 @@ use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_traits::FileStorage;
+use systemprompt_traits::{AnalyticsProvider, FileStorage};
 
 mod accessors;
 mod context_loaders;
@@ -57,7 +56,7 @@ pub struct AppContext {
     pub(crate) subsystems: Subsystems,
     pub(crate) kernel: Arc<Kernel>,
     pub(crate) admitted: Arc<Admitted>,
-    pub(crate) analytics: Arc<AnalyticsService>,
+    pub(crate) analytics: Arc<dyn AnalyticsProvider>,
 }
 
 impl AppContext {
@@ -81,7 +80,7 @@ impl AppContext {
             plugins,
             subsystems,
         } = planes;
-        let analytics = kernel.resolved().get::<Arc<AnalyticsService>>()?;
+        let analytics = kernel.resolved().get::<Arc<dyn AnalyticsProvider>>()?;
         Ok(Self {
             data,
             cfg,
@@ -108,13 +107,6 @@ impl AppContext {
         &self.admitted
     }
 
-    pub fn load_geoip_database(
-        config: &Config,
-        show_warnings: bool,
-    ) -> Result<Option<GeoIpReader>, crate::error::RuntimeError> {
-        context_loaders::load_geoip_database(config, show_warnings)
-    }
-
     pub fn load_content_config(
         config: &Config,
         app_paths: &AppPaths,
@@ -132,10 +124,6 @@ impl AppContext {
 
     pub fn server_address(&self) -> String {
         format!("{}:{}", self.cfg.config.host, self.cfg.config.port)
-    }
-
-    pub const fn geoip_reader(&self) -> Option<&GeoIpReader> {
-        self.subsystems.geoip_reader.as_ref()
     }
 
     pub const fn file_storage(&self) -> &Arc<dyn FileStorage> {

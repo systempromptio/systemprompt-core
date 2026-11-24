@@ -120,7 +120,7 @@ pub async fn generate_tokens_by_user_id(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
         Arc::clone(state.token_authority()),
-        Arc::clone(config),
+        config.jwt_access_token_expiration,
     );
     let analytics = state.analytics_provider().extract_analytics(
         params.origin.headers,

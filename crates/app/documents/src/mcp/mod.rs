@@ -28,6 +28,7 @@ mod guide;
 mod guide_model;
 mod guide_refusals;
 mod guide_topics;
+mod hosted;
 mod import;
 #[cfg(feature = "notifications")]
 mod inbox;
@@ -74,6 +75,7 @@ pub use create::{CreateHandler, create_content};
 pub use export::ExportHandler;
 pub use folders::FolderHandler;
 pub use guide::GuideHandler;
+pub use hosted::DocumentsMcpError;
 pub use import::ImportHandler;
 #[cfg(feature = "notifications")]
 pub use inbox::{InboxAction, InboxHandler, InboxInput, InboxOutput};

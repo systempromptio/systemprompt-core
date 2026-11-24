@@ -4,7 +4,9 @@
 //! With `http` it contributes the open
 //! [`DynFilesSurface`](systemprompt_documents::http::surface::DynFilesSurface)
 //! the API mount builds the document, upload, public-link and issue routes
-//! from (see [`crate::http`]) and the open
+//! from (see [`crate::http`]), the open
+//! [`DynDriveSurface`](systemprompt_documents::http::surface::DynDriveSurface)
+//! the bridge Drive feed is built from, and the open
 //! [`FilesHttpSettings`](crate::http::FilesHttpSettings) it copies out of the
 //! application configuration, and provides sealed the
 //! [`FilesHttpRepositories`](crate::http::FilesHttpRepositories) those routes
@@ -18,7 +20,7 @@
 //! stays reserved to the kernel and the `/files/*` static fallback is
 //! kernel-served.
 //!
-//! | profile disables | document, upload, public-link and issue routes | CLI |
+//! | profile disables | document, upload, public-link, issue and bridge Drive routes | CLI |
 //! |---|---|---|
 //! | `files-http` | 404 | `core files` refused at dispatch |
 //! | `files` | boot refused (`files` is a required member) | |
@@ -64,18 +66,24 @@ mod surface {
     use std::sync::Arc;
 
     use systemprompt_database::DbPool;
-    use systemprompt_documents::http::surface::DynFilesSurface;
+    use systemprompt_documents::http::surface::{DynDriveSurface, DynFilesSurface};
     use systemprompt_extension::prelude::*;
     use systemprompt_users::UserRepository;
 
     use systemprompt_manifest::Config;
 
+    use crate::http::drive::FilesDriveSurface;
     use crate::http::{FilesHttpRepositories, FilesHttpSettings, FilesHttpSurface};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.provide(
             |_r: &Resolved<'_>| -> Result<DynFilesSurface, ProvideError> {
                 Ok(Arc::new(FilesHttpSurface))
+            },
+        )
+        .provide(
+            |_r: &Resolved<'_>| -> Result<DynDriveSurface, ProvideError> {
+                Ok(Arc::new(FilesDriveSurface))
             },
         )
         .provide(

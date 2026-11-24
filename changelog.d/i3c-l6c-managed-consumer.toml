@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Gateway"
+text = "`GatewaySurfaceRoutes::consumer_catalog` is replaced by `managed_consumer: Option<ManagedConsumer>`, which builds the `marketplace-http` consumer routes from the marketplace route state; the API no longer depends on `systemprompt-marketplace`. Migrate by reading `ManagedConsumer::catalog`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewaySurfaceRoutes::consumer_catalog` is replaced by `managed_consumer: Option<surface::ManagedConsumer>`; `ManagedConsumer::build` returns the managed consumer routes, or `None` when no `DynManagedSurface` is provided."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The managed consumer mount builds through `systemprompt_gateway::surface::ManagedConsumer`; the crate no longer depends on `systemprompt-marketplace`."

@@ -112,10 +112,16 @@ async fn serve_static_asset(
     dist_dir: &std::path::Path,
     headers: &HeaderMap,
 ) -> axum::response::Response {
-    let files_config = ctx.files_config();
-
-    let files_prefix = format!("{}/", files_config.url_prefix());
-    let Some(relative_path) = path.strip_prefix(&files_prefix) else {
+    let files = ctx
+        .kernel()
+        .state()
+        .find::<Arc<systemprompt_traits::FilesConfigView>>()
+        .cloned();
+    let files_prefix = files.as_ref().map(|view| format!("{}/", view.url_prefix));
+    let stored_path = files_prefix
+        .as_deref()
+        .and_then(|prefix| path.strip_prefix(prefix));
+    let (Some(files), Some(relative_path)) = (files.as_ref(), stored_path) else {
         let asset_path = dist_dir.join(path.trim_start_matches('/'));
         if asset_path.is_file() {
             let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
@@ -132,7 +138,10 @@ async fn serve_static_asset(
 
     stored::serve_files_path(
         ctx,
-        files_config,
+        stored::StoredFiles {
+            root: files.files_root.clone(),
+            cache_control: files.cache_control.as_deref(),
+        },
         stored::FilesRequest {
             relative_path,
             method,

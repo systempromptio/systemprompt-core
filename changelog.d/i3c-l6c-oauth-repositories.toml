@@ -1,0 +1,24 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The oauth member builds its repositories over the kernel's sealed at-rest pepper and confers them on identity-http; the runtime no longer constructs them or depends on `systemprompt-oauth`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`ProvideError::Withheld`: a provide fn whose value cannot exist on this host withholds it, and the kernel reserves the type so every read is a typed missing dependency."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`AtRestPepper`: the OAuth at-rest pepper, sealed into the API host's kernel state."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Added"
+text = "`OauthExtension` provides `Arc<OAuthRepositories>` conferred on identity-http under the `identity-oauth-repositories` row; a host without the pepper withholds it."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::oauth_repositories`, `DataPlane::oauth_repositories`, `ApiKernelSeed::oauth` and `RuntimeError::Oauth` are removed; `ApiKernelSeed::at_rest_pepper` is added. Read `Arc<OAuthRepositories>` from the kernel state."

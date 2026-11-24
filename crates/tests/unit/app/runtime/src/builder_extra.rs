@@ -6,11 +6,9 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted};
 #[test]
 fn chain_combines_all_flags() {
     let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
-        .with_startup_warnings(true)
         .with_migrations(true)
         .with_migration_config(MigrationConfig::default());
     let dbg = format!("{:?}", builder);
-    assert!(dbg.contains("show_startup_warnings: true"));
     assert!(dbg.contains("install_schemas: true"));
 }
 
@@ -35,14 +33,6 @@ fn with_shared_authz_hook_records_hook() {
         .with_shared_authz_hook(hook);
     let dbg = format!("{:?}", builder);
     assert!(dbg.contains("authz_hook: true"));
-}
-
-#[test]
-fn with_startup_warnings_false_is_default() {
-    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone(), fixture_admitted())
-        .with_startup_warnings(false);
-    let dbg = format!("{:?}", builder);
-    assert!(dbg.contains("show_startup_warnings: false"));
 }
 
 #[test]

@@ -126,8 +126,7 @@ extensions:
     )
     .expect("app paths");
 
-    let files_config = FilesConfig::from_profile(profile.profile(), &app_paths)
-        .expect("files config from profile");
+    let files_config = FilesConfig::from_app_paths(&app_paths).expect("files config from profile");
 
     TestEnv {
         _tmp: tmp,

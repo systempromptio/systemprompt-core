@@ -34,6 +34,7 @@ pub enum ConferralRow {
     BridgeReleaseSource,
     GatewaySettings,
     BridgeEventStream,
+    DriveTokens,
     IdentityOwnerReassignments,
     IdentityPluginTokens,
 }
@@ -60,6 +61,7 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::BridgeReleaseSource.entry(),
     ConferralRow::GatewaySettings.entry(),
     ConferralRow::BridgeEventStream.entry(),
+    ConferralRow::DriveTokens.entry(),
     ConferralRow::IdentityOwnerReassignments.entry(),
     ConferralRow::IdentityPluginTokens.entry(),
 ];
@@ -81,6 +83,7 @@ impl ConferralRow {
             Self::BridgeReleaseSource => "bridge-release-source",
             Self::GatewaySettings => "gateway-settings",
             Self::BridgeEventStream => "bridge-event-stream",
+            Self::DriveTokens => "drive-tokens",
             Self::IdentityOwnerReassignments => "identity-owner-reassignments",
             Self::IdentityPluginTokens => "identity-plugin-tokens",
         }
@@ -99,11 +102,12 @@ impl ConferralRow {
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
             Self::IdentityTokenAuthority
             | Self::IdentitySigningKeys
-            | Self::IdentityOAuthRepositories
             | Self::IdentityOwnerReassignments => (CoreId::Kernel.id(), CoreId::IdentityHttp),
+            Self::IdentityOAuthRepositories | Self::IdentityPluginTokens => {
+                ("oauth", CoreId::IdentityHttp)
+            },
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
-            Self::IdentityPluginTokens => ("oauth", CoreId::IdentityHttp),
-            Self::DocumentLinkTokens => ("documents", CoreId::FilesHttp),
+            Self::DocumentLinkTokens | Self::DriveTokens => ("documents", CoreId::FilesHttp),
         };
         SealedConferral {
             row: self,

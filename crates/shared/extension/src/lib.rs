@@ -138,7 +138,7 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use contribute::{
     AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory,
-    FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle, MemberResolved,
+    FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle, LateCell, MemberResolved,
     MemberScope, MemberSecrets, ProvideError, ProvideFn, ProvidePhase, Resolved,
     SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
     handles,
@@ -187,7 +187,7 @@ pub use systemprompt_provider_contracts::DoctorProbeSource;
 pub use systemprompt_provider_contracts::{MissingDependency, StateRequirement};
 pub use traits::Extension;
 
-pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
+pub use capabilities::HasRouteClassifier;
 
 pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};

@@ -133,7 +133,8 @@ fn files_config_validator_round_trip() {
     let validator = FilesConfigValidator::new(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
-            .clone(),
+            .system()
+            .services(),
     );
     assert_eq!(validator.domain_id(), "files");
     let dbg = format!("{:?}", validator);

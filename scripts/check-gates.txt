@@ -35,6 +35,7 @@ lint-http-errors
 lint-no-untyped-admin
 check-headers
 lint-layers
+lint-kernel-deps
 lint-kernel-identity
 lint-contributions-surface
 lint-hidden-constructors

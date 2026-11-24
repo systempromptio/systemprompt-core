@@ -33,14 +33,16 @@ pub mod views;
 use std::sync::Arc;
 
 use axum::Router;
-use systemprompt_extension::prelude::{MissingDependency, Resolved};
+use systemprompt_extension::prelude::{Dependencies, MissingDependency, Resolved};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_identifiers::{SessionId, TenantId, TraceId, UserId};
 use systemprompt_loader::ServicesState;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::profile::{BrainProfile, QuotaConfig, UnappliedPlaneMode};
-use systemprompt_marketplace::surface::DynConsumerCatalog;
+use systemprompt_marketplace::surface::{
+    DynConsumerCatalog, DynManagedSurface, ManagedRouteState, ManagedRoutes,
+};
 use systemprompt_traits::{AnalyticsProvider, ConfigWatch};
 
 /// Builds the gateway's handler routes from the `gateway-http` route state.
@@ -58,7 +60,7 @@ pub trait GatewaySurface: Send + Sync + std::fmt::Debug {
 /// [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal)
 /// before a handler runs. `public_sessions` is the API-key session mint the
 /// mount places under the public gateway base with its own rate scope.
-/// `consumer_catalog` is the bridge manifest's candidate resolution the
+/// `managed_consumer` is the bridge manifest's candidate resolution the
 /// `marketplace-http` consumer routes read; absent when `gateway-http` is not
 /// admitted, and those routes are then not mounted.
 #[derive(Default)]
@@ -66,18 +68,63 @@ pub struct GatewaySurfaceRoutes {
     pub traffic: Router,
     pub principal_bound: Router,
     pub public_sessions: Router,
-    pub consumer_catalog: Option<DynConsumerCatalog>,
+    pub managed_consumer: Option<ManagedConsumer>,
 }
 
 impl std::fmt::Debug for GatewaySurfaceRoutes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GatewaySurfaceRoutes")
-            .field("consumer_catalog", &self.consumer_catalog.is_some())
+            .field("managed_consumer", &self.managed_consumer.is_some())
             .finish_non_exhaustive()
     }
 }
 
 pub type DynGatewaySurface = Arc<dyn GatewaySurface>;
+
+/// The bridge manifest's candidate resolution, and the build of the
+/// `marketplace-http` consumer routes over it.
+///
+/// The API mount hands it the `marketplace-http` route state; the consumer
+/// routes exist only when both `gateway-http` built this value and the
+/// marketplace member provided its surface.
+#[derive(Clone)]
+pub struct ManagedConsumer {
+    catalog: DynConsumerCatalog,
+}
+
+impl ManagedConsumer {
+    #[must_use]
+    pub const fn new(catalog: DynConsumerCatalog) -> Self {
+        Self { catalog }
+    }
+
+    #[must_use]
+    pub const fn catalog(&self) -> &DynConsumerCatalog {
+        &self.catalog
+    }
+
+    pub fn build(
+        self,
+        state: &Dependencies,
+        resolved: Resolved<'_>,
+    ) -> Result<Option<ManagedRoutes>, MissingDependency> {
+        let Some(surface) = state.find::<DynManagedSurface>() else {
+            return Ok(None);
+        };
+        surface
+            .build(ManagedRouteState {
+                resolved,
+                catalog: self.catalog,
+            })
+            .map(Some)
+    }
+}
+
+impl std::fmt::Debug for ManagedConsumer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ManagedConsumer").finish_non_exhaustive()
+    }
+}
 
 /// The state the API mount hands a [`GatewaySurface`].
 #[derive(Debug)]

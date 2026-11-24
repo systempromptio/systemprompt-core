@@ -1,16 +1,17 @@
 //! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
 //! migrations, the expired-grant cleanup job, the sealed browser-session
 //! issuer (`DynSessionIssuer`), which requires the users member's sealed user
-//! directory (`DynUserProvider`), the plugin-token minter
-//! (`DynPluginTokenMinter`) conferred on `identity-http`, and the sealed
+//! directory (`DynUserProvider`), its repositories
+//! (`Arc<OAuthRepositories>`) and the plugin-token minter
+//! (`DynPluginTokenMinter`), both conferred on `identity-http`, and the sealed
 //! `DynBridgeHostFilterMigration` `admin config migrate --data` runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::prelude::*;
-
 use std::sync::Arc;
+
+use systemprompt_extension::prelude::*;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::reserved::ConferralRow;
@@ -42,6 +43,10 @@ impl Extension for OauthExtension {
         }
         c.migrations(extension_migrations!())
             .requires::<systemprompt_traits::DynUserProvider>()
+            .provide_conferred(
+                ConferralRow::IdentityOAuthRepositories,
+                crate::provides::oauth_repositories,
+            )
             .provide_sealed_after_governance(crate::provides::session_issuer)
             .provide_conferred_after_governance(
                 ConferralRow::IdentityPluginTokens,

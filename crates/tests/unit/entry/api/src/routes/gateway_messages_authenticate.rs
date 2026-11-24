@@ -30,7 +30,7 @@ fn gateway_http_state(
             .expect("request authenticator"),
         api_keys: systemprompt_gateway_entry::http::state::GatewayApiKeys::new(
             systemprompt_users::ApiKeyService::new(
-                std::sync::Arc::clone(ctx.user_repository()),
+                systemprompt_test_fixtures::user_repository(&ctx),
                 systemprompt_users::ApiKeyLifetime::from_max_days(
                     ctx.config().api_key_max_lifetime_days,
                 ),

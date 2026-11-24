@@ -17,12 +17,6 @@ use crate::context::ShutdownRequest;
 
 impl AppContextBuilder {
     #[must_use]
-    pub const fn with_startup_warnings(mut self, show: bool) -> Self {
-        self.show_startup_warnings = show;
-        self
-    }
-
-    #[must_use]
     pub const fn with_migrations(mut self, install: bool) -> Self {
         self.schema.install = install;
         self

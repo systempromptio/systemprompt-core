@@ -41,7 +41,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth_issuance::contract::SsoProviders;
 use systemprompt_oauth_issuance::surface::{
-    DynIdentitySurface, IdentityHostHandles, IdentityRouteState, IdentityRoutes,
+    DynIdentitySurface, IdentityConfigView, IdentityHostHandles, IdentityRouteState, IdentityRoutes,
 };
 use systemprompt_provider_contracts::DependencyProvider;
 use systemprompt_traits::AppContext as _;
@@ -108,7 +108,7 @@ fn build_identity_routes(
         .build(IdentityRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
             host: IdentityHostHandles {
-                config: Arc::clone(ctx.config_arc()),
+                config: Arc::new(IdentityConfigView::of(ctx.config())),
                 analytics: ctx.analytics_provider(),
                 users: ctx.user_provider(),
                 sso,

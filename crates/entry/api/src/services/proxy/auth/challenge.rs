@@ -23,9 +23,9 @@ use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::http::resolve_request_base_url;
+use systemprompt_security::jwt::AuthorizationService;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct AuthValidator;
@@ -38,8 +38,12 @@ impl AuthValidator {
         service_name: &ServiceName,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let result =
-            AuthService::authorize_service_access(authority, config, headers, service_name);
+        let result = AuthorizationService::authorize_service_access(
+            authority,
+            config,
+            headers,
+            service_name,
+        );
 
         if let Err(status) = &result {
             let trace_id =

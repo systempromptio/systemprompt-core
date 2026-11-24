@@ -74,7 +74,8 @@ async fn service_new_rejects_ip_address_relying_party() {
     let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
     let err = WebAuthnService::new(
-        &systemprompt_test_fixtures::test_config(),
+        &systemprompt_test_fixtures::test_config().api_external_url,
+        &systemprompt_test_fixtures::test_config().sitename,
         repo,
         Arc::new(NoopUsers),
     )

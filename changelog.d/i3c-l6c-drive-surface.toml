@@ -1,0 +1,44 @@
+[root]
+section = "Breaking"
+area = "Documents"
+text = "The bridge Drive routes are the `files-http` member's `DriveSurface`, built from that member's route state with the `DynDriveTokens` view the `documents` member confers on it (conferral row `drive-tokens`); they are mounted under the gateway only when `files-http` is admitted. `systemprompt_api::routes::documents::{drive, documents_handles, document_service}` are removed. Migrate by reading the bound store with `systemprompt_documents::bound_handles`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::documents::{drive, documents_handles, document_service}`, `DocumentsMountError::Unbound` and `routes::gateway::GatewayBindingError` are removed; the bridge Drive feed is built by the `files-http` `DriveSurface`."
+
+[[crate]]
+name = "systemprompt-files-entry"
+section = "Added"
+text = "`http::drive`: the bridge Drive feed and `FilesDriveSurface`, provided open as `DynDriveSurface`."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "`http::surface::{DriveSurface, DynDriveSurface}` and `bound_handles`, the one read of the bound document store from the kernel state; `DynDriveTokens` is provided conferred on `files-http` rather than sealed for the host."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`reserved::ConferralRow::DriveTokens` (`drive-tokens`: provider `documents`, holder `files-http`)."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`extraction::extract_credential`, the systemprompt credential a gateway-style request presents."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`surface::credential::extract_credential` is removed; read the credential with `systemprompt_security::extraction::extract_credential`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`brain::BRAIN_ACTOR`, the brain's service actor name."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "`documents::BRAIN_ACTOR` is removed; it is `systemprompt_models::brain::BRAIN_ACTOR`."

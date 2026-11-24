@@ -127,7 +127,7 @@ pub(crate) fn plugin_token_minter(r: &Resolved<'_>) -> Result<DynPluginTokenMint
             sessions,
             Arc::clone(&users),
             Arc::clone(&authority),
-            config,
+            config.jwt_access_token_expiration,
         ),
         users,
         authority,

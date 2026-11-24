@@ -37,7 +37,7 @@ fn error_fields(yaml: &str) -> Vec<String> {
     let bootstrap = ensure_test_bootstrap();
     std::fs::write(bootstrap.services_path.join("config/files.yaml"), yaml)
         .expect("write files.yaml");
-    let mut validator = FilesConfigValidator::new(bootstrap.app_paths.clone());
+    let mut validator = FilesConfigValidator::new(bootstrap.app_paths.system().services());
     validator.load(&StubProvider).expect("load");
     validator
         .validate()

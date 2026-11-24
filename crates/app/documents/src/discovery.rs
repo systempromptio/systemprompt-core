@@ -15,7 +15,7 @@ use systemprompt_models::modules::ApiPaths;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct DocumentsDiscovery {
+pub struct DocumentsDiscovery {
     enabled: bool,
     #[serde(flatten)]
     surface: Option<DocumentsSurface>,
@@ -44,7 +44,20 @@ struct DocumentsLimits {
 }
 
 impl DocumentsDiscovery {
-    pub(super) fn new(config: &DocumentsConfig, base: &str) -> Self {
+    #[must_use]
+    pub fn of_state(state: &systemprompt_provider_contracts::Dependencies, base: &str) -> Self {
+        state
+            .find::<std::sync::Arc<systemprompt_files::FilesConfig>>()
+            .map_or(
+                Self {
+                    enabled: false,
+                    surface: None,
+                },
+                |config| Self::new(config.documents_config(), base),
+            )
+    }
+
+    pub fn new(config: &DocumentsConfig, base: &str) -> Self {
         if !config.is_enabled() {
             return Self {
                 enabled: false,

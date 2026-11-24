@@ -19,9 +19,6 @@ pub(crate) mod core_toolsets;
 mod factory;
 mod serve;
 
-pub use core_toolsets::{
-    DOCUMENTS_TOOLSET, DocumentsMcpError, ISSUES_TOOLSET, IssuesMcpError, documents_tools,
-    issues_tools,
-};
+pub use core_toolsets::{DOCUMENTS_TOOLSET, ISSUES_TOOLSET, documents_tools, issues_tools};
 pub use factory::{ToolsetBuildError, ToolsetBuildResult};
 pub use serve::{McpHostError, build_server, serve, serve_on};

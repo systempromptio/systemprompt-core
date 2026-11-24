@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
-use systemprompt_manifest::Config;
 use webauthn_rs::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -18,9 +17,9 @@ pub struct WebAuthnConfig {
 }
 
 impl WebAuthnConfig {
-    pub fn new(config: &Config) -> crate::error::OauthResult<Self> {
-        let api_url = &config.api_external_url;
-        let parsed_url = Url::parse(api_url).map_err(crate::error::OauthError::ExternalUrl)?;
+    pub fn new(api_external_url: &str, sitename: &str) -> crate::error::OauthResult<Self> {
+        let parsed_url =
+            Url::parse(api_external_url).map_err(crate::error::OauthError::ExternalUrl)?;
 
         let rp_id = parsed_url
             .host_str()
@@ -32,7 +31,7 @@ impl WebAuthnConfig {
         Ok(Self {
             rp_id,
             rp_origin: parsed_url,
-            rp_name: format!("{} OAuth", config.sitename),
+            rp_name: format!("{sitename} OAuth"),
             challenge_expiry: Duration::from_secs(
                 crate::constants::webauthn::CHALLENGE_EXPIRY_SECONDS,
             ),

@@ -16,12 +16,15 @@
 //! core codecs and the core template provider; it contributes no agent
 //! access policy, so the default applies unless one other member does.
 //!
-//! It provides the core defaults other domains' slots append, each a
-//! [`CoreSeam`] that reads the [`DocumentsHandlesSlot`] the host seeds and
-//! binds once it has built the document store from the resolved state: the
+//! It provides its loaded configuration (`Arc<FilesConfig>`) and the open
+//! view the API host reads (`Arc<FilesConfigView>`), contributes the files
+//! startup validator, and declares the document store late cell
+//! ([`DocumentsHandlesSlot`]) the kernel seeds and binds. It provides the
+//! core defaults other domains' slots append, each a [`CoreSeam`] that reads
+//! that cell: the
 //! document and issue visibilities the notifications slot appends, and the
 //! document source access and source content the brain slot reads. A seam
-//! called before the host binds the slot fails with `DocumentsUnbound`. The
+//! called before the kernel binds the cell fails with `DocumentsUnbound`. The
 //! issue visibility asks the user-role audience resolver the `users` member
 //! provides for triage-role membership, so a composition without `users`
 //! refuses this member's provide.
@@ -72,7 +75,11 @@ impl Extension for FilesExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
-        c.migrations(extension_migrations!());
+        c.migrations(extension_migrations!())
+            .late_cell::<DocumentsHandlesSlot>()
+            .domain_config(crate::FilesConfigValidator::boxed)
+            .provide(crate::provides::files_config)
+            .provide(crate::provides::files_config_view);
         contribute_files(c);
         contribute_documents_and_issues(c);
         c.owner_reassignment(OwnerReassignment {

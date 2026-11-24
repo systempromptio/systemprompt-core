@@ -39,7 +39,7 @@ fn write_files_yaml(content: &str) {
 }
 
 fn loaded_validator() -> FilesConfigValidator {
-    let mut v = FilesConfigValidator::new(ensure_test_bootstrap().app_paths.clone());
+    let mut v = FilesConfigValidator::new(ensure_test_bootstrap().app_paths.system().services());
     v.load(&StubProvider).expect("load files.yaml");
     v
 }
@@ -105,7 +105,7 @@ fn video_enabled_with_small_max_size_warns() {
 #[test]
 fn malformed_yaml_fails_load_with_parse_error() {
     write_files_yaml("files: [notamap\n");
-    let mut v = FilesConfigValidator::new(ensure_test_bootstrap().app_paths.clone());
+    let mut v = FilesConfigValidator::new(ensure_test_bootstrap().app_paths.system().services());
     let err = v.load(&StubProvider).expect_err("malformed yaml");
     match err {
         DomainConfigError::Load { source, .. } => {
@@ -129,7 +129,7 @@ fn unreadable_files_yaml_fails_load_with_read_error() {
         std::fs::remove_file(&files_yaml).expect("remove the bootstrap files.yaml");
     }
     std::fs::create_dir_all(&files_yaml).expect("mkdir files.yaml");
-    let mut v = FilesConfigValidator::new(ensure_test_bootstrap().app_paths.clone());
+    let mut v = FilesConfigValidator::new(ensure_test_bootstrap().app_paths.system().services());
     let err = v.load(&StubProvider).expect_err("unreadable yaml");
     match err {
         DomainConfigError::Load { source, .. } => {

@@ -1,4 +1,6 @@
-//! The admin-bootstrap view the CLI host builds before any kernel state.
+//! The admin-bootstrap view a host builds before any kernel state: the API
+//! and child hosts resolve the configured system admin through it, the CLI
+//! host its admin flows.
 //!
 //! [`admin_bootstrap`] reads the one constructor a core-standing `users`
 //! member contributes (`Contributions::admin_bootstrap`) from the admitted

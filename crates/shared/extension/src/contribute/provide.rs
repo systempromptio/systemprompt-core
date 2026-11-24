@@ -7,6 +7,10 @@
 //! gateway guards) are built, for a value assembled from them. A provide fn
 //! reads its dependencies with `r.get`, and a missing dependency fails the
 //! boot; a consumer that may run without a value reads it with `r.optional`.
+//! A provide fn whose value cannot exist on this host (it is built from a
+//! seed only the API host holds) returns `ProvideError::Withheld`: the kernel
+//! reserves the type instead, so every `get` of it is a typed missing
+//! dependency and no member can provide a substitute.
 //!
 //! [`Contributions::provide_sealed`] and
 //! [`Contributions::provide_sealed_after_governance`] provide a value that
@@ -17,6 +21,8 @@
 //! route state of any member but its provider are refused it as missing.
 //! [`Contributions::provide_conferred`] provides it sealed and confers it on
 //! the one core holder its reserved row names (`reserved::SEALED_CONFERRALS`).
+//! [`Contributions::late_cell`] is not a provide either: it declares a cell
+//! the kernel seeds and binds (`contribute::LateCell`).
 //! [`Contributions::admin_bootstrap`] is not a provide: it stores the
 //! pre-kernel admin-bootstrap constructor, which the CLI host calls only for a
 //! core-standing `users` member.
@@ -32,6 +38,16 @@ use crate::reserved::ConferralRow;
 impl Contributions<'_> {
     pub fn admin_bootstrap(&mut self, f: AdminBootstrapFn) -> &mut Self {
         self.sink.admin_bootstrap = Some(f);
+        self
+    }
+
+    pub fn domain_config(&mut self, f: super::DomainConfigFn) -> &mut Self {
+        self.sink.domain_configs.push(f);
+        self
+    }
+
+    pub fn late_cell<C: super::LateCell>(&mut self) -> &mut Self {
+        self.sink.late_cells.push(super::LateCellEntry::of::<C>());
         self
     }
 

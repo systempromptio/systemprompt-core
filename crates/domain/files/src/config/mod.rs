@@ -35,7 +35,6 @@ use std::path::{Path, PathBuf};
 use systemprompt_cloud::constants::storage;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::env::untyped;
-use systemprompt_manifest::profile::Profile;
 use systemprompt_manifest::{interpolate_yaml, read_env_optional};
 
 use crate::error::{FilesError, FilesResult};
@@ -52,17 +51,9 @@ pub struct FilesConfig {
 }
 
 impl FilesConfig {
-    pub fn from_profile(profile: &Profile, paths: &AppPaths) -> FilesResult<Self> {
-        let storage_root = profile
-            .paths
-            .storage
-            .as_ref()
-            .ok_or_else(|| FilesError::Config("paths.storage not configured in profile".into()))?
-            .clone();
-
-        let yaml_config = Self::load_yaml_config(paths)?;
-
-        Ok(Self::new(PathBuf::from(storage_root), yaml_config))
+    pub fn from_app_paths(paths: &AppPaths) -> FilesResult<Self> {
+        let yaml_config = Self::load_yaml_config(paths.system().services())?;
+        Ok(Self::new(paths.storage().root().to_path_buf(), yaml_config))
     }
 
     #[must_use]
@@ -77,8 +68,8 @@ impl FilesConfig {
         }
     }
 
-    pub(super) fn load_yaml_config(paths: &AppPaths) -> FilesResult<FilesConfigYaml> {
-        let config_path = paths.system().services().join("config/files.yaml");
+    pub(super) fn load_yaml_config(services: &Path) -> FilesResult<FilesConfigYaml> {
+        let config_path = services.join("config/files.yaml");
 
         if !config_path.exists() {
             return Ok(FilesConfigYaml::default());

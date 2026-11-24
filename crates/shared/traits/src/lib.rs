@@ -101,6 +101,7 @@ pub use admin_bootstrap::{
     AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion,
     DynAdminBootstrap,
 };
+pub mod files_config;
 pub mod plugin_token;
 pub use plugin_token::{
     DynPluginTokenMinter, MintedPluginToken, PLUGIN_TOKEN_MAX_DAYS, PluginTokenHolder,
@@ -114,16 +115,22 @@ pub mod run_origin;
 pub mod runner_service;
 pub mod secret;
 pub mod secret_pattern;
+pub use files_config::FilesConfigView;
+pub mod service_accounts;
 pub use process_liveness::ProcessLiveness;
 pub use run_origin::RunOrigin;
 pub use runner_service::RunnerService;
 pub use secret::{
-    DeclaredSecrets, ExtensionSecret, PINNED_SECRET_KEYS, ReloadOutcome, SECRET_SEED_BYTES,
-    SecretLookup, SecretReferences, SecretStore, SecretStoreError, SecretsStatus,
+    AtRestPepper, DeclaredSecrets, ExtensionSecret, PINNED_SECRET_KEYS, ReloadOutcome,
+    SECRET_SEED_BYTES, SecretLookup, SecretReferences, SecretStore, SecretStoreError,
+    SecretsStatus,
 };
 pub use secret_pattern::{
     CORE_SECRET_NAMES, LICENCE_SIGNING_SECRET, MCP_CREDENTIAL_BROKER_SECRET, SecretPattern,
     SecretPatternError, is_core_secret_name,
+};
+pub use service_accounts::{
+    DynServiceAccounts, ServiceAccount, ServiceAccountError, ServiceAccountRequest, ServiceAccounts,
 };
 pub mod storage;
 pub mod stream_drain;

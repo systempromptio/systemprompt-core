@@ -14,6 +14,7 @@ mod api_key_service;
 mod api_key_validation;
 mod device_cert_service;
 mod role_audience;
+mod service_accounts;
 mod sso_events;
 mod user;
 mod user_retention;
@@ -26,6 +27,7 @@ pub use device_cert_service::{
     EnrollParams as EnrollDeviceCertServiceParams,
 };
 pub use role_audience::UserRoleAudienceResolver;
+pub use service_accounts::UsersServiceAccounts;
 pub use sso_events::{OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink};
 pub use user::{PurgedArchive, UserService};
 pub(crate) use user_retention::UsersRetention;

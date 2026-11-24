@@ -26,7 +26,7 @@ async fn discover_with_oidc(oidc_yaml: &str) -> Result<SsoDriver, SsoProviderErr
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         ),
-        Arc::clone(&config),
+        config.jwt_access_token_expiration,
     );
     let hook = SsoHookContext {
         db: Arc::clone(&db),
@@ -56,7 +56,7 @@ async fn discover_with_oidc(oidc_yaml: &str) -> Result<SsoDriver, SsoProviderErr
     Ok(SsoDriver::new(
         &built,
         &db,
-        config,
+        Arc::new(systemprompt_oauth_issuance::surface::IdentityConfigView::of(&config)),
         systemprompt_test_fixtures::oauth_fixture_repository(&db),
         Arc::new(service),
     ))

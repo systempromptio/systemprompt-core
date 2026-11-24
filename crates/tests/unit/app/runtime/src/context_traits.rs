@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
+use systemprompt_extension::HasRouteClassifier;
 use systemprompt_identifiers::{InstanceId, LeaseKey};
 use systemprompt_models::RouteType;
 use systemprompt_runtime::AppContext;
@@ -14,6 +14,13 @@ use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, DynAdvisoryLocks, DynInstanceRegistry,
     DynLeaseRepository, FileStorage, SecretStore,
 };
+
+fn state_has_user_provider(ctx: &AppContext) -> bool {
+    ctx.kernel()
+        .state()
+        .find::<systemprompt_traits::DynUserProvider>()
+        .is_some()
+}
 
 async fn context() -> (Arc<AppContext>, String) {
     ensure_test_bootstrap();
@@ -36,11 +43,14 @@ async fn the_provider_view_shares_the_concrete_config_and_database() {
     assert!(view.session_provider().is_some());
     assert_eq!(
         view.user_provider().is_some(),
-        HasUserService::user_service(ctx.as_ref()).is_some()
+        state_has_user_provider(&ctx)
     );
     assert_eq!(
         view.fingerprint_provider().is_some(),
-        HasFingerprint::fingerprint(ctx.as_ref()).is_some()
+        ctx.kernel()
+            .state()
+            .find::<Arc<dyn systemprompt_traits::FingerprintProvider>>()
+            .is_some()
     );
 }
 
@@ -81,12 +91,13 @@ async fn the_sealed_secret_store_resolves_loaded_secrets_and_refuses_unknown_one
 async fn the_capability_traits_expose_the_shared_services() {
     let (ctx, _url) = context().await;
 
-    let analytics = HasAnalytics::analytics(ctx.as_ref());
+    let analytics = ctx
+        .kernel()
+        .state()
+        .get::<Arc<dyn systemprompt_traits::AnalyticsProvider>>()
+        .expect("the analytics member provides its open provider view");
     let provider = AppContextTrait::analytics_provider(ctx.as_ref());
-    assert!(std::ptr::addr_eq(
-        Arc::as_ptr(analytics),
-        Arc::as_ptr(&provider)
-    ));
+    assert!(Arc::ptr_eq(analytics, &provider));
     let classifier = HasRouteClassifier::route_classifier(ctx.as_ref());
     assert!(matches!(
         classifier.classify("/assets/app.js", "GET"),
@@ -144,13 +155,17 @@ async fn the_background_task_seed_shares_the_context_owner() {
 }
 
 #[tokio::test]
-async fn the_kernel_state_carries_the_oauth_repositories() {
+async fn the_oauth_repositories_are_the_oauth_members_provide() {
     let (ctx, _url) = context().await;
     let state = ctx.kernel().state();
-    let repos = state
-        .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
-        .expect("the oauth repositories are a kernel state entry");
-    assert!(std::sync::Arc::ptr_eq(repos, ctx.oauth_repositories()));
+    let provider = state
+        .provider_of::<Arc<systemprompt_oauth::repository::OAuthRepositories>>()
+        .expect("the oauth repositories are provided by a member");
+    assert!(matches!(
+        provider,
+        systemprompt_provider_contracts::DependencyProvider::Extension(id) if id.as_str() == "oauth"
+    ));
+    assert!(state.is_sealed::<systemprompt_traits::AtRestPepper>());
 }
 
 #[tokio::test]

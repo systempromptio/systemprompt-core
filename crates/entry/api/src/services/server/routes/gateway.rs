@@ -19,7 +19,7 @@
 
 use axum::Router;
 use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
-use systemprompt_marketplace::surface::DynConsumerCatalog;
+use systemprompt_gateway::surface::ManagedConsumer;
 use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
@@ -31,14 +31,14 @@ fn mount_gateway(
     mut router: Router,
     mount: &MountCtx<'_>,
     identity_bridge_auth: Option<Router>,
-) -> Result<(Router, Option<DynConsumerCatalog>), RouteMountError> {
+) -> Result<(Router, Option<ManagedConsumer>), RouteMountError> {
     let ctx = mount.ctx;
     let base = ApiPaths::GATEWAY_BASE;
     let GatewayMountParts {
         traffic,
         bridge_auth,
         public_sessions,
-        consumer_catalog,
+        managed_consumer,
         registered,
     } = gateway_mount_parts(
         ctx,
@@ -73,7 +73,7 @@ fn mount_gateway(
         )
         .with_rate_limit(RateLimit::new("oauth_public", RateBudget::OauthPublic)),
     )?;
-    Ok((router, consumer_catalog))
+    Ok((router, managed_consumer))
 }
 
 pub(super) fn mount_with_features(
@@ -82,10 +82,10 @@ pub(super) fn mount_with_features(
     gateway_on: bool,
     identity_bridge_auth: Option<Router>,
 ) -> Result<Router, RouteMountError> {
-    let (router, catalog) = if gateway_on {
+    let (router, managed_consumer) = if gateway_on {
         mount_gateway(router, mount, identity_bridge_auth)?
     } else {
         (router, None)
     };
-    super::feature_mount::mount_feature_routes(router, mount, catalog.as_ref())
+    super::feature_mount::mount_feature_routes(router, mount, managed_consumer)
 }

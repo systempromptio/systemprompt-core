@@ -20,7 +20,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod audience;
 pub mod authority;
+pub mod authorization;
 pub mod decode;
 pub mod hop;
 pub mod lifetime;
@@ -29,7 +31,9 @@ pub mod owner_hop;
 pub mod validate;
 pub mod verifying;
 
+pub use audience::{validate_any_audience, validate_required_audience, validate_service_access};
 pub use authority::{DeploymentTokenAuthority, encode_rs256, user_claims};
+pub use authorization::AuthorizationService;
 pub use decode::{extract_user_context, extract_user_context_for};
 pub use hop::{
     MCP_HOP_LEEWAY_SECONDS, decode_mcp_hop, encode_mcp_hop, mcp_hop_claims, mint_mcp_hop,

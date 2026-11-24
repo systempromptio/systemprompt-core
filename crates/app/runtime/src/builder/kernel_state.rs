@@ -16,10 +16,10 @@
 //! assembles its service with (`InProcess` on the API, `Consumer` on a
 //! child host, which delivers through the serving host's consumer), and the
 //! names of the roles the admitted members declare (`CatalogRoleNames`).
-//! The authz hook and the document store are built from the resolved state,
-//! so neither is seeded; the read half of each cell is (`AuthzHookCell`
-//! sealed, `DocumentsHandlesSlot` open); the host keeps each bind half and
-//! binds it once the value is built (the store from the `documents` member).
+//! The authz hook is built from the resolved state, so it is not seeded; the
+//! read half of its cell is (`AuthzHookCell`, sealed), and the host keeps the
+//! bind half and binds it once the hook is built. The document store cell is
+//! the files member's declared late cell, which the kernel seeds and binds.
 //!
 //! The provider-key lookup (`Arc<dyn SecretLookup>`: the whole secrets
 //! document on the API, the granted set on a child host) and the connector
@@ -48,13 +48,12 @@
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
 //! conferral row; `AppContext::token_authority` hands out the same value. The
 //! signing keys are recorded under the `identity-signing-keys` row: both are
-//! conferred on `identity-http`, the issuer. The OAuth repositories
-//! (`Arc<OAuthRepositories>`: clients, authorization codes, refresh tokens,
-//! passkeys) are sealed the same way under the `identity-oauth-repositories`
-//! row, so no install's provide fn or route state reads them; the agent-runs
-//! member's runner factory reads them as a core member's factory. A child host
-//! holds verification keys only, so it seeds no token authority and no OAuth
-//! repositories.
+//! conferred on `identity-http`, the issuer. The API seeds the OAuth
+//! at-rest pepper (`AtRestPepper`) sealed; the oauth member builds its
+//! repositories over it in its own provide and confers them on
+//! `identity-http`. A child host holds verification keys only, so it seeds no
+//! token authority and no pepper, and the oauth member withholds its
+//! repositories there.
 //!
 //! Every host seeds its verification keyring (`VerificationKeyring`, public
 //! keys only: the API's from its signing keys, a child host's from the
@@ -86,13 +85,12 @@
 //! and Teams members wrap it, in their own provide fns, in a handle that
 //! dispatches only a request their verifier has verified.
 //!
-//! The API also seeds the read-side handles a capability's routes are built
-//! from: the loaded content configuration (`Arc<ContentConfigRaw>`, whose
-//! `ContentRouting` resolves a page URL to a slug) and the configured
-//! `GeoIP` database (`GeoIpReader`). Both are optional: when either is not
-//! configured its type is reserved, so a reader's `find` is `None` (`get` is
-//! a typed `MissingDependency`) and no extension can `provide` a substitute.
-//! The analytics repositories are not seeded: the analytics member provides
+//! The API also seeds the loaded content configuration
+//! (`Arc<ContentConfigRaw>`, whose `ContentRouting` resolves a page URL to a
+//! slug). It is optional: when it is not configured its type is reserved, so a
+//! reader's `find` is `None` (`get` is a typed `MissingDependency`) and no
+//! extension can `provide` a substitute. The analytics repositories and the
+//! `GeoIP` database are not seeded: the analytics member opens and provides
 //! them.
 //!
 //! No event broadcaster is seeded: a broadcaster's holder can subscribe to,
@@ -105,7 +103,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::GeoIpReader;
 use systemprompt_governance::authz::AuthzDecisionHook;
 use systemprompt_governance::policy::secrets::SecretScanner;
 use systemprompt_loader::bundle::BundleSources;
@@ -114,10 +111,10 @@ use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::{ContentConfigRaw, late_pair};
 
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
+use systemprompt_database::JtiRevocationChecker;
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::auth::DynTokenRevocations;
-use systemprompt_oauth::repository::JtiRevocationChecker;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_traits::MessagingDispatcher;
 
@@ -135,7 +132,6 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with(revocations)
         .with(Arc::clone(seed.database))
         .with(Arc::clone(seed.app_paths))
-        .with(Arc::clone(seed.files_config))
         .with(Arc::new(seed.profile.notifications))
         .with(Arc::new(seed.profile.brain.clone()))
         .with(seed.profile.unapplied_plane_mode())
@@ -161,7 +157,6 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(Arc::new(seed.event_router.clone()))
         .with_sealed(authz_cell)
         .with(Arc::new(seed.catalog_roles))
-        .with(seed.documents)
         .with(seed.escalation)
         .with(seed.audit_spans);
     (
@@ -195,21 +190,9 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
         .with(seed.signing_keys.verification_keys().clone())
-        .with_sealed_conferred(
-            Arc::clone(seed.oauth),
-            Conferred {
-                holder: ExtensionId::new(
-                    ConferralRow::IdentityOAuthRepositories.entry().holder.id(),
-                ),
-                row: ConferralRow::IdentityOAuthRepositories.name(),
-            },
-        )
+        .with_sealed(seed.at_rest_pepper)
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
-    match seed.geoip {
-        Some(reader) => state.insert(Arc::clone(reader)),
-        None => state.reserve::<GeoIpReader>(),
-    }
     match seed.content_config {
         Some(config) => state.insert(Arc::clone(config)),
         None => state.reserve::<Arc<ContentConfigRaw>>(),

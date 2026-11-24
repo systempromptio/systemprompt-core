@@ -14,6 +14,7 @@ use systemprompt_manifest::profile::UiSessionDiscovery;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_security::http::RequestBaseUrl;
 use systemprompt_traits::McpRegistryProvider;
 
@@ -32,7 +33,7 @@ pub struct DiscoveryState {
 impl DiscoveryState {
     #[must_use]
     pub fn from_config(
-        config: &systemprompt_manifest::Config,
+        config: &IdentityConfigView,
         mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
     ) -> Self {
         Self {

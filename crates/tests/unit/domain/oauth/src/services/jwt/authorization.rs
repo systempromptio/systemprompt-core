@@ -9,7 +9,7 @@
 
 use http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::ServiceName;
-use systemprompt_oauth::services::jwt::AuthorizationService;
+use systemprompt_security::jwt::AuthorizationService;
 
 #[test]
 fn authorize_service_access_returns_unauthorized_without_token() {

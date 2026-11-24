@@ -43,7 +43,9 @@ fn ctx_for(user: &UserId) -> RequestContext {
 async fn clients_app(user: UserId) -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -65,7 +67,9 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
 async fn client_config_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),

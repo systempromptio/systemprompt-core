@@ -215,9 +215,10 @@ pub fn fixture_request_authenticator(
             users: std::sync::Arc::new(systemprompt_users::UserService::new(std::sync::Arc::new(
                 systemprompt_users::UserRepository::new(db),
             ))),
-            revocations: std::sync::Arc::new(
-                systemprompt_oauth::repository::JtiRevocationChecker::new(db, epochs.view()),
-            ),
+            revocations: std::sync::Arc::new(systemprompt_database::JtiRevocationChecker::new(
+                db,
+                epochs.view(),
+            )),
             issuer: crate::FIXTURE_JWT_ISSUER.to_owned(),
             keyring: test_signing_keys().keyring().clone(),
         },

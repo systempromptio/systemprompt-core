@@ -1,37 +1,25 @@
-//! The bridge Drive feed under `/v1/bridge/drive/`.
+//! The `files-http` host handles and the document link token view the API
+//! reads from the kernel state.
 //!
-//! The gateway mounts the feed. This module also carries the document store
-//! handles the API reads from the kernel state: the
-//! cell the `documents` member binds and the link token view it confers on
-//! `files-http`, and the host handles the `files-http` surface is built
-//! with. The document, folder, upload, public-link and issue
-//! handlers are the `files-http` member's.
+//! The document, folder, upload, public-link, issue and bridge Drive handlers
+//! are the `files-http` member's; the API reads the bound document store
+//! through [`systemprompt_documents::bound_handles`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-pub mod drive;
-mod drive_commit;
-mod drive_local;
-mod drive_token;
-mod handles;
 
 use std::sync::Arc;
 
 use systemprompt_documents::http::error::DocumentsHttpError;
 use systemprompt_documents::http::surface::FilesHostHandles;
-use systemprompt_files::documents::{DocumentService, DocumentsUnbound};
+use systemprompt_documents::tokens::DocumentLinkTokens;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
-
-pub use handles::{documents_handles, link_tokens};
 
 use crate::kernel::{ApiHttpError, resolve_client_ip};
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 pub enum DocumentsMountError {
-    #[error("document routes need the document store")]
-    Unbound(#[from] DocumentsUnbound),
     #[error("document routes need the document store enabled")]
     Disabled,
     #[error("document routes need the documents member's link token view")]
@@ -49,8 +37,11 @@ pub fn files_host_handles(ctx: &AppContext) -> FilesHostHandles {
     }
 }
 
-pub fn document_service(ctx: &AppContext) -> Option<Arc<DocumentService>> {
-    documents_handles(ctx).ok()?.service.clone()
+pub fn link_tokens(ctx: &AppContext) -> Option<Arc<DocumentLinkTokens>> {
+    ctx.kernel()
+        .state()
+        .find::<Arc<DocumentLinkTokens>>()
+        .cloned()
 }
 
 impl From<ApiHttpError> for DocumentsHttpError {

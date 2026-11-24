@@ -6,11 +6,9 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::{FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
-use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_loader::BootContext;
@@ -18,10 +16,8 @@ use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_models::RouteClassifier;
-use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
-use systemprompt_users::{UserRepository, UserService};
 
 use super::ShutdownRequest;
 
@@ -34,17 +30,10 @@ pub struct ContextPlanes {
     pub subsystems: Subsystems,
 }
 
-/// Database pool and the data-access services layered on it.
-///
-/// `fingerprint_repo` and `user_service` are `None` when the corresponding
-/// resource failed to initialise; callers must degrade gracefully.
+/// Database pool and the platform repositories layered on it.
 #[derive(Clone)]
 pub struct DataPlane {
     pub database: DbPool,
-    pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
-    pub user_service: Option<Arc<UserService>>,
-    pub oauth_repositories: Arc<OAuthRepositories>,
-    pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
 }
@@ -54,7 +43,6 @@ pub struct ConfigPlane {
     pub boot: BootContext,
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
-    pub files_config: Arc<FilesConfig>,
     pub route_classifier: Arc<RouteClassifier>,
     pub build: systemprompt_models::BuildIdentity,
 }
@@ -78,7 +66,6 @@ pub struct Subsystems {
     pub schema_install: Arc<crate::SchemaState>,
     pub event_bridge: Arc<EventBridgeHandle>,
     pub event_router: EventRouter,
-    pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,

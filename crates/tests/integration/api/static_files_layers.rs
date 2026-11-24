@@ -44,7 +44,10 @@ async fn layers() -> anyhow::Result<Layers> {
 }
 
 fn files_url(state: &StaticContentState, relative: &str) -> String {
-    format!("{}/{relative}", state.ctx.files_config().url_prefix())
+    format!(
+        "{}/{relative}",
+        systemprompt_test_fixtures::files_config(&state.ctx).url_prefix()
+    )
 }
 
 async fn get(state: &StaticContentState, uri: &str) -> (StatusCode, HeaderMap, Vec<u8>) {
@@ -104,7 +107,9 @@ async fn a_file_only_in_the_shipped_layer_is_served() -> anyhow::Result<()> {
 async fn the_writable_layer_wins_over_the_shipped_layer() -> anyhow::Result<()> {
     let l = layers().await?;
     let rel = format!("css/override-{}.css", FileId::generate().as_str());
-    let writable = l.state.ctx.files_config().files().join(&rel);
+    let writable = systemprompt_test_fixtures::files_config(&l.state.ctx)
+        .files()
+        .join(&rel);
     write(&writable, "operator");
     write(&l.shipped.join(&rel), "image");
     let (status, _, body) = get(&l.state, &files_url(&l.state, &rel)).await;
@@ -138,7 +143,7 @@ async fn an_upload_is_served_at_its_public_url_until_it_is_deleted() -> anyhow::
     let repository = FileRepository::new(ctx.db_pool());
     let uploads = FileUploadService::new(
         repository.clone(),
-        (**ctx.files_config()).clone(),
+        (*systemprompt_test_fixtures::files_config(&ctx)).clone(),
         Arc::clone(ctx.file_storage()),
     );
     let uploaded = uploads

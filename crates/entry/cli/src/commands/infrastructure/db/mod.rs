@@ -121,7 +121,7 @@ async fn execute_connected(cmd: DbCommands, host: &dyn KernelHost) -> Result<Com
                 bail!("assign-admin requires full profile context");
             }
             let app = app_context(host).await?;
-            let admins = crate::kernel::admin_bootstrap(
+            let admins = systemprompt_runtime::admin_bootstrap(
                 host.admitted()?,
                 Arc::<systemprompt_database::Database>::clone(app.db_pool()),
             )?;

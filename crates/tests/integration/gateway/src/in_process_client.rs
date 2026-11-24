@@ -22,7 +22,7 @@ use systemprompt_test_fixtures::{
     seed_admin_credential,
 };
 use systemprompt_traits::{DatabaseHandle, SessionProvider};
-use systemprompt_users::{SessionRepository, UserRepository};
+use systemprompt_users::{SessionRepository, UserRepository, UsersServiceAccounts};
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -84,7 +84,7 @@ async fn fixture(schema: &str, policy: Option<serde_json::Value>) -> anyhow::Res
     let admin = seed_admin_credential(&pool, &format!("{schema}@example.invalid")).await?;
     let sessions: Arc<dyn SessionProvider> = Arc::new(SessionRepository::new(&pool));
     let principal = ServicePrincipal::resolve(
-        &UserRepository::new(&pool),
+        &UsersServiceAccounts::new(UserRepository::new(&pool)),
         sessions,
         ServiceIdentity {
             name: ServiceName::try_new("brain")?,

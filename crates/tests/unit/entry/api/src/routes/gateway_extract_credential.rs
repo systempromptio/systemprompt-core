@@ -3,9 +3,8 @@
 //! and trims whitespace.
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_gateway::surface::credential::{
-    caller_auth, extract_credential, presented_credential,
-};
+use systemprompt_gateway::surface::credential::{caller_auth, presented_credential};
+use systemprompt_security::extraction::extract_credential;
 
 fn hm(name: &'static str, value: &str) -> HeaderMap {
     let mut h = HeaderMap::new();

@@ -198,7 +198,8 @@ fn test_files_domain_priority() {
     let validator = FilesConfigValidator::new(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
-            .clone(),
+            .system()
+            .services(),
     );
     let priority = validator.priority();
     assert!(priority > 0);

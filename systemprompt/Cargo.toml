@@ -226,7 +226,7 @@ systemprompt-security = { workspace = true, optional = true }
 systemprompt-governance = { workspace = true, optional = true }
 
 # Application
-systemprompt-runtime = { workspace = true, optional = true, features = ["geolocation"] }
+systemprompt-runtime = { workspace = true, optional = true }
 systemprompt-mcp-host = { workspace = true, optional = true }
 systemprompt-generator = { workspace = true, optional = true }
 systemprompt-oauth-issuance = { workspace = true, optional = true }
@@ -253,7 +253,7 @@ systemprompt-agent-entry = { workspace = true, optional = true }
 systemprompt-brain-entry = { workspace = true, optional = true }
 systemprompt-gateway-entry = { workspace = true, optional = true }
 systemprompt-identity-entry = { workspace = true, optional = true }
-systemprompt-analytics = { workspace = true, optional = true }
+systemprompt-analytics = { workspace = true, optional = true, features = ["geolocation"] }
 systemprompt-analytics-entry = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-slack = { workspace = true, optional = true }

@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The token revocation check the kernel seeds on every host is `systemprompt_database::JtiRevocationChecker`; the runtime no longer names the oauth crate for it."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`JtiRevocationChecker`, `JtiRevocationCache` and `jti_revoked`: the cached, fail-closed `oauth_jti_revocations` read the request authenticator runs."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`repository::JtiRevocationChecker` and `repository::JtiRevocationCache` are removed; use `systemprompt_database::{JtiRevocationChecker, JtiRevocationCache}`."

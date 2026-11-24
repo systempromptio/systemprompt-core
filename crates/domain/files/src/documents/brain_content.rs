@@ -24,9 +24,7 @@ use async_trait::async_trait;
 use systemprompt_extension::brain::{SourceContent, SourceContentError};
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::brain::{FactSource, SourceNode, SourceText};
-
-pub const BRAIN_ACTOR: &str = "brain";
+use systemprompt_models::brain::{BRAIN_ACTOR, FactSource, SourceNode, SourceText};
 
 /// The documents store a [`DocumentSourceContent`] reads is not enabled on
 /// this host.

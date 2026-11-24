@@ -16,9 +16,9 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde::Serialize;
 use systemprompt_extension::router::ApiHttpError;
-use systemprompt_gateway::surface::credential::extract_credential;
 use systemprompt_identifiers::SessionId;
 use systemprompt_models::auth::API_KEY_PREFIX;
+use systemprompt_security::extraction::extract_credential;
 use systemprompt_traits::{DynGatewaySessionMint, ExtractSignals};
 
 use std::sync::Arc;

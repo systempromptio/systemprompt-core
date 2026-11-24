@@ -41,6 +41,8 @@ pub enum ProvideError {
     Missing(#[from] MissingDependency),
     #[error("provider failed")]
     Failed(#[source] BoxedSource),
+    #[error("the value is withheld on this host")]
+    Withheld,
 }
 
 #[derive(Debug, thiserror::Error)]

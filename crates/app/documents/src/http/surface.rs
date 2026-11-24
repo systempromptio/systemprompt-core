@@ -14,7 +14,8 @@
 //! `files-http`: it serves the open state and the sealed values conferred on
 //! `files-http` (the document link token view) and nothing else sealed.
 //! [`FilesHostHandles`] carries the live process handles the kernel state
-//! does not hold.
+//! does not hold. [`DriveSurface`] builds the bridge Drive feed the API
+//! mounts under the gateway from the same route-scoped resolution.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,6 +39,17 @@ pub trait FilesSurface: Send + Sync + std::fmt::Debug {
 }
 
 pub type DynFilesSurface = Arc<dyn FilesSurface>;
+
+/// Builds the bridge Drive feed from the `files-http` route state.
+///
+/// The API mounts what it builds inside the gateway's traffic; `None` when
+/// the document store is disabled or the Drive token view is not conferred,
+/// and the feed is then not mounted (404).
+pub trait DriveSurface: Send + Sync + std::fmt::Debug {
+    fn build(&self, resolved: &Resolved<'_>) -> Result<Option<Router>, FilesSurfaceError>;
+}
+
+pub type DynDriveSurface = Arc<dyn DriveSurface>;
 
 pub type ClientIpResolver =
     Arc<dyn Fn(&HeaderMap, Option<&ConnectInfo<SocketAddr>>) -> Option<IpAddr> + Send + Sync>;

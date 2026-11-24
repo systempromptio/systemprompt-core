@@ -5,10 +5,11 @@
 //! [`BridgeAuthState`] is built from the `identity-http` route state: the
 //! request authenticator, the signing keys and OAuth repositories conferred
 //! on `identity-http`, the users member's sign-in sessions, the member's own
-//! API-key service and the host's configuration, analytics extractor and user
-//! provider. Bridge tokens are minted through the one signing-keys seed the
-//! identity routes already hold. The API mount owns the `bridge_auth` rate
-//! scope, the confinement and the access log around these routes.
+//! API-key service and the host's identity configuration view, analytics
+//! extractor and user provider. Bridge tokens are minted through the one
+//! signing-keys seed the identity routes already hold. The API mount owns the
+//! `bridge_auth` rate scope, the confinement and the access log around these
+//! routes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,13 +22,13 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::{get, post};
 use systemprompt_extension::router::ApiHttpError;
-use systemprompt_manifest::Config;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{AnalyticsProvider, DynSignInSessions, UserProvider};
 use systemprompt_users::{ApiKeyService, UserError};
@@ -42,7 +43,7 @@ pub struct BridgeAuthState {
     pub users: Arc<dyn UserProvider>,
     pub api_keys: Arc<ApiKeyService>,
     pub analytics: Arc<dyn AnalyticsProvider>,
-    pub config: Arc<Config>,
+    pub config: Arc<IdentityConfigView>,
 }
 
 impl std::fmt::Debug for BridgeAuthState {

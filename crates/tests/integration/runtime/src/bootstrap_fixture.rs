@@ -23,9 +23,7 @@ fn bootstrap_resolves_profile_secrets_config_and_files_config() {
     assert_eq!(cfg.system_admin_username, "testadmin");
     assert_eq!(cfg.sitename, "testsite");
 
-    assert!(
-        systemprompt_files::FilesConfig::from_profile(env.boot.profile(), &env.app_paths).is_ok()
-    );
+    assert!(systemprompt_files::FilesConfig::from_app_paths(&env.app_paths).is_ok());
 }
 
 #[test]

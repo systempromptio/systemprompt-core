@@ -2,10 +2,8 @@
 //!
 //! These run during [`crate::AppContextBuilder::build`] but are split
 //! out of `context.rs` to keep the main type definition under 300
-//! lines. Absent optional state (no `GeoIP` path configured, missing
-//! content config) degrades gracefully with a CLI warning; an explicitly
-//! configured but unreadable `GeoIP` database fails startup, since that is
-//! a misconfiguration the operator asked for.
+//! lines. A missing or unreadable content config degrades gracefully with a
+//! CLI warning.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,56 +14,6 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Config;
 use systemprompt_models::ContentConfigRaw;
-
-#[cfg(feature = "geolocation")]
-use systemprompt_analytics::GeoIpReader;
-
-#[cfg(feature = "geolocation")]
-use crate::error::RuntimeError;
-
-#[cfg(feature = "geolocation")]
-pub(super) fn load_geoip_database(
-    config: &Config,
-    show_warnings: bool,
-) -> Result<Option<GeoIpReader>, RuntimeError> {
-    let Some(geoip_path) = &config.geoip_database_path else {
-        if show_warnings {
-            CliService::warning(
-                "GeoIP database not configured - geographic data will not be available",
-            );
-            CliService::info("  To enable geographic data:");
-            CliService::info(
-                "  1. Download MaxMind GeoLite2-City database from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data",
-            );
-            CliService::info(
-                "  2. Add paths.geoip_database to your profile pointing to the .mmdb file",
-            );
-        }
-        return Ok(None);
-    };
-
-    match maxminddb::Reader::open_readfile(geoip_path) {
-        Ok(reader) => Ok(Some(Arc::new(reader))),
-        Err(e) => Err(RuntimeError::GeoIpUnreadable {
-            path: geoip_path.clone(),
-            source: Box::new(e),
-        }),
-    }
-}
-
-#[cfg(not(feature = "geolocation"))]
-#[expect(
-    clippy::missing_const_for_fn,
-    clippy::unnecessary_wraps,
-    reason = "mirrors the geolocation loader signature; const or an unwrapped \
-              return would propagate a feature-forked shape to callers"
-)]
-pub(super) fn load_geoip_database(
-    _config: &Config,
-    _show_warnings: bool,
-) -> Result<Option<systemprompt_analytics::GeoIpReader>, crate::error::RuntimeError> {
-    Ok(None)
-}
 
 pub(super) fn load_content_config(
     config: &Config,

@@ -7,13 +7,10 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::GeoIpReader;
 use systemprompt_config::DynChildSecretEnv;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_files::FilesConfig;
-use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_manifest::services::root::{ActiveProfilePath, ActiveServicesRoot};
@@ -22,12 +19,11 @@ use systemprompt_models::ContentConfigRaw;
 use systemprompt_models::authz::CatalogRoleNames;
 
 use systemprompt_models::auth::TokenAuthority;
-use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
 use systemprompt_traits::{
-    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
-    EscalationDelivery, FileStorage, SecretLookup, SecretStore,
+    AtRestPepper, BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry,
+    DynLeaseRepository, EscalationDelivery, FileStorage, SecretLookup, SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.
@@ -41,7 +37,6 @@ pub struct KernelCoordination {
 pub struct KernelSeed<'a> {
     pub database: &'a DbPool,
     pub app_paths: &'a Arc<AppPaths>,
-    pub files_config: &'a Arc<FilesConfig>,
     pub profile: &'a Profile,
     pub config: &'a Arc<Config>,
     pub cache_epochs: &'a CacheEpochs,
@@ -57,7 +52,6 @@ pub struct KernelSeed<'a> {
     pub coordination: KernelCoordination,
     pub system_admin: &'a SystemAdmin,
     pub event_router: &'a EventRouter,
-    pub documents: DocumentsHandlesSlot,
     pub catalog_roles: CatalogRoleNames,
     pub escalation: EscalationDelivery,
     pub audit_spans: systemprompt_models::audit_spans::DynAuditSpanSink,
@@ -70,8 +64,7 @@ pub struct ApiKernelSeed<'a> {
     pub token_authority: &'a Arc<dyn TokenAuthority>,
     pub spawner: &'a Arc<Spawner>,
     pub child_secrets: DynChildSecretEnv,
-    pub oauth: &'a Arc<OAuthRepositories>,
-    pub geoip: Option<&'a GeoIpReader>,
+    pub at_rest_pepper: AtRestPepper,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
 

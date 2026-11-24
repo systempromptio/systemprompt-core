@@ -116,6 +116,29 @@ impl SecretStoreError {
     }
 }
 
+/// The pepper OAuth secrets are hashed with at rest, sealed into the API
+/// host's kernel state only; a child host never holds it.
+#[derive(Clone)]
+pub struct AtRestPepper(std::sync::Arc<str>);
+
+impl AtRestPepper {
+    #[must_use]
+    pub fn new(pepper: &str) -> Self {
+        Self(std::sync::Arc::from(pepper))
+    }
+
+    #[must_use]
+    pub fn shared(&self) -> std::sync::Arc<str> {
+        std::sync::Arc::clone(&self.0)
+    }
+}
+
+impl fmt::Debug for AtRestPepper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("AtRestPepper(<redacted>)")
+    }
+}
+
 /// The deployment's live secrets. Held as `Arc<dyn SecretStore>`, so it uses
 /// `#[async_trait]` for `reload`; native `async fn` is not `dyn`-compatible.
 #[async_trait::async_trait]

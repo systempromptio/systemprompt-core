@@ -1,9 +1,8 @@
-//! OAuth parameter, audience, redirect URI and JWT validation.
+//! OAuth parameter, redirect URI and JWT validation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod audience;
 pub mod client_credentials;
 pub mod id_jag;
 pub mod jwt;
@@ -11,7 +10,6 @@ pub mod oauth_params;
 pub mod redirect_uri;
 pub mod registration_redirect;
 
-pub use audience::{validate_any_audience, validate_required_audience, validate_service_access};
 pub use client_credentials::{validate_client_credentials, verify_client_authentication};
 pub use id_jag::{
     ClaimPolicy, ID_JAG_TOKEN_TYPE, ID_JAG_TYP, IdJagClaims, IdJagError, validate_claims,

@@ -1,21 +1,18 @@
 //! Builder that assembles an [`AppContext`] from profile + config state over
 //! the admitted composition.
 //!
-//! The builder owns the bootstrap order: profile -> paths -> files -> database
+//! The builder owns the bootstrap order: profile -> paths -> database
 //! -> logging -> schema install over the admitted members -> kernel seeds ->
 //! [`Kernel::resolve`] -> the stages that read the resolved state (authz,
 //! governance, repositories) -> the context. The kernel is seeded with plain
 //! handles ([`kernel_state`]) before it resolves, so every member's provide
-//! fn, slot and governance surface reads the kernel seeds; the authz hook,
-//! policy engine and user service (over the admitted owner reassignments) are
-//! built from what it resolved. The host seeds the read half of the authz hook
-//! cell (`AuthzHookCell`) and binds it, through the binder it kept out of the
-//! state, as soon as the hook exists, so a member service that decides
-//! through the cell denies until then and decides through the one hook from
-//! then on. The host seeds the read half of the document store cell
-//! (`DocumentsHandlesSlot`) too and binds it, through its binder, to the
-//! handles the `documents` member provides sealed, right after the kernel
-//! resolves. A failing step propagates as
+//! fn, slot and governance surface reads the kernel seeds; the authz hook and
+//! policy engine are built from what it resolved, and the system admin is
+//! resolved before it through the users member's admin-bootstrap view. The host
+//! seeds the read half of the authz hook cell (`AuthzHookCell`) and binds it,
+//! through the binder it kept out of the state, as soon as the hook exists, so
+//! a member service that decides through the cell denies until then and decides
+//! through the one hook from then on. A failing step propagates as
 //! [`RuntimeError`](crate::error::RuntimeError); helpers are in [`assembly`].
 //!
 //! [`Kernel::resolve`]: crate::Kernel::resolve
@@ -43,15 +40,13 @@ use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::{Admitted, AdmittedOwnerReassignments};
-use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
+use systemprompt_extension::Admitted;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::services::root::ActiveProfilePath;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch, DatabaseHandle, SecretStore};
-use systemprompt_users::UserService;
 
 use crate::context::{
     AppContext, ConfigPlane, ContextPlanes, DataPlane, ShutdownRequest, Subsystems,
@@ -74,7 +69,6 @@ use kernel_state::{ApiKernelSeed, KernelCoordination, KernelSeed, kernel_state};
 pub struct AppContextBuilder {
     boot: BootContext,
     admitted: Arc<Admitted>,
-    show_startup_warnings: bool,
     core: CoreOverrides,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
@@ -90,7 +84,6 @@ impl AppContextBuilder {
         Self {
             boot,
             admitted,
-            show_startup_warnings: false,
             core: CoreOverrides::default(),
             schema: SchemaPolicy::default(),
             migration_config: MigrationConfig::default(),
@@ -109,7 +102,6 @@ impl AppContextBuilder {
         let CoreLayer {
             config,
             app_paths,
-            files_config,
             database,
             authz_hook_override,
             signing_keys,
@@ -130,21 +122,14 @@ impl AppContextBuilder {
         )
         .await?;
 
-        let content = assembly::assemble_content_and_geoip(
-            &config,
-            &app_paths,
-            &database,
-            self.show_startup_warnings,
-        )?;
-        let seeded =
-            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id);
-        let system_admin = load_identity(&self.boot, &seeded.users).await?;
+        let content = assembly::assemble_content(&config, &app_paths);
+        let seeded = seeded_repositories(&database, &config.instance_id);
+        let system_admin = load_identity(&self.boot, &self.admitted, &database).await?;
         let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let background_tasks = self.background_tasks.unwrap_or_default();
         database.bind_notifications(&background_tasks);
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
-        let (documents_slot, documents_binder) = DocumentsHandlesSlot::unbound();
         let spawner = new_spawner()?;
         let token_authority: Arc<dyn systemprompt_models::auth::TokenAuthority> =
             Arc::new(systemprompt_security::DeploymentTokenAuthority::new(
@@ -155,7 +140,6 @@ impl AppContextBuilder {
             base: KernelSeed {
                 database: &database,
                 app_paths: &app_paths,
-                files_config: &files_config,
                 profile,
                 config: &config,
                 cache_epochs: &cache_epochs,
@@ -175,7 +159,6 @@ impl AppContextBuilder {
                 coordination: KernelCoordination::over(&seeded.services, &seeded.coordination),
                 system_admin: &system_admin,
                 event_router: &router,
-                documents: documents_slot,
                 catalog_roles: composition::catalog_roles(&self.admitted),
                 escalation: systemprompt_traits::EscalationDelivery::InProcess,
                 audit_spans: Arc::new(log_sink.clone()),
@@ -184,8 +167,9 @@ impl AppContextBuilder {
             token_authority: &token_authority,
             spawner: &spawner,
             child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
-            oauth: &seeded.oauth,
-            geoip: content.geoip_reader.as_ref(),
+            at_rest_pepper: systemprompt_traits::AtRestPepper::new(
+                &self.boot.secrets().get().oauth_at_rest_pepper,
+            ),
             content_config: content.content_config.as_ref(),
         });
         let handle: Arc<dyn DatabaseHandle> =
@@ -200,9 +184,6 @@ impl AppContextBuilder {
         );
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
-        if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
-            documents_binder.bind(documents)?;
-        }
         if let Some(dispatcher) = r.optional::<Arc<dyn systemprompt_traits::MessagingDispatcher>>()
         {
             binders.messaging.bind(dispatcher)?;
@@ -229,10 +210,6 @@ impl AppContextBuilder {
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
         bind_secret_scanner(&governance.get(), binders.base.secret_scanner)?;
-        let user_service = Arc::new(
-            UserService::new(Arc::clone(&seeded.users))
-                .with_owner_reassignments(r.get::<Arc<AdmittedOwnerReassignments>>()?),
-        );
         let repositories = build_domain_layer(
             &seeded,
             &system_admin,
@@ -252,7 +229,6 @@ impl AppContextBuilder {
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(bridge),
             event_router: router,
-            geoip_reader: content.geoip_reader,
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks,
@@ -262,17 +238,11 @@ impl AppContextBuilder {
 
         AppContext::from_parts(
             ContextPlanes {
-                data: build_data_plane(
-                    database,
-                    content.fingerprint_repo,
-                    user_service,
-                    repositories,
-                ),
+                data: build_data_plane(database, repositories),
                 cfg: ConfigPlane {
                     boot: self.boot,
                     config,
                     app_paths,
-                    files_config,
                     route_classifier: content.route_classifier,
                     build: self.build,
                 },

@@ -25,7 +25,9 @@ use super::common::{read_json, setup_ctx};
 async fn oauth_state() -> anyhow::Result<OAuthState> {
     let (_pool, ctx) = setup_ctx().await?;
     Ok(OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -64,7 +66,9 @@ fn json_post(uri: &str, body: serde_json::Value) -> Request<Body> {
 async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -127,7 +131,7 @@ async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
@@ -155,7 +159,7 @@ async fn wellknown_options_preflight_returns_200() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

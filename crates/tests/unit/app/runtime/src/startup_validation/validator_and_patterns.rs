@@ -228,7 +228,8 @@ fn test_files_config_validator_domain_id() {
     let validator = FilesConfigValidator::new(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
-            .clone(),
+            .system()
+            .services(),
     );
     assert_eq!(validator.domain_id(), "files");
 }
@@ -241,7 +242,8 @@ fn test_files_config_validator_priority() {
     let validator = FilesConfigValidator::new(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
-            .clone(),
+            .system()
+            .services(),
     );
     assert_eq!(validator.priority(), 10);
 }

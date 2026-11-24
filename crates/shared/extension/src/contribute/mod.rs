@@ -24,6 +24,7 @@ mod entries;
 mod error;
 mod factories;
 pub mod handles;
+mod late_cell;
 mod member;
 mod provide;
 mod resolved;
@@ -50,13 +51,14 @@ pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidePhase, 
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
 pub use factories::{Factory, FactoryKind, SecretReferenceFactory, build_factories};
 pub use handles::{Handed, HandleId, KernelHandle};
+pub use late_cell::{LateCell, LateCellEntry, PendingBind};
 pub use member::{MemberResolved, MemberScope};
 pub use resolved::{FromState, KernelAccess, ProvideFn, Resolved};
 pub use secrets::{MemberSecrets, SecretDeclarations};
 pub use sink::{
     AdminBootstrapFn, AssetFn, AudienceResolverFactory, ContributionSink, DiagnosticFactory,
-    DoctorCheckRef, GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
-    SubjectProviderFactory,
+    DoctorCheckRef, DomainConfigFn, GatewayGuardFactory, PolicyFactory, ReadinessFactory,
+    RunnerServiceFactory, SubjectProviderFactory,
 };
 pub use slot::{Slot, SlotBuildInput, SlotEntry, SlotOrder, SlotRecord, build_slot};
 pub use slot_insert::SlotBuilt;

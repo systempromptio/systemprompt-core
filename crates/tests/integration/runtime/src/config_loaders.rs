@@ -1,10 +1,11 @@
-//! Exercises `AppContext::load_geoip_database` and
+//! Exercises `GeoIpDatabase::open` and
 //! `AppContext::load_content_config` against synthesised configs that
 //! cover both the missing-file and present-file branches.
 
 use std::fs;
 use std::path::PathBuf;
 
+use systemprompt_analytics::GeoIpDatabase;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
@@ -104,23 +105,18 @@ fn make_app_paths(base: &std::path::Path) -> AppPaths {
 
 #[test]
 fn load_geoip_database_returns_none_when_not_configured() {
-    let cfg = minimal_config(String::new(), None, String::new(), String::new());
-    let reader =
-        AppContext::load_geoip_database(&cfg, false).expect("unconfigured geoip is not an error");
-    assert!(reader.is_none(), "unconfigured geoip must yield None");
+    let db = GeoIpDatabase::open(None).expect("unconfigured geoip is not an error");
+    assert!(
+        db.reader().is_none(),
+        "unconfigured geoip must yield no reader"
+    );
 }
 
 #[test]
 fn load_geoip_database_errors_when_path_missing() {
-    let cfg = minimal_config(
-        String::new(),
-        Some("/does/not/exist.mmdb".to_string()),
-        String::new(),
-        String::new(),
-    );
-    let reader = AppContext::load_geoip_database(&cfg, true);
+    let db = GeoIpDatabase::open(Some("/does/not/exist.mmdb"));
     assert!(
-        reader.is_err(),
+        db.is_err(),
         "a configured but missing .mmdb must fail startup"
     );
 }

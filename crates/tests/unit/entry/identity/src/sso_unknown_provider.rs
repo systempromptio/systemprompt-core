@@ -15,14 +15,18 @@ async fn app() -> axum::Router {
     ensure_test_bootstrap();
     let ctx = test_app_context(&url).await;
     let oauth = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     router(SsoRouteState::build(
-        ctx.config_arc(),
+        &std::sync::Arc::new(
+            systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
+        ),
         ctx.db_pool(),
         &oauth,
         &systemprompt_oauth_issuance::contract::SsoProviders::default(),

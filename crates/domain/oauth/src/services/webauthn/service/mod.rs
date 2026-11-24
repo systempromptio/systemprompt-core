@@ -51,11 +51,16 @@ impl std::fmt::Debug for WebAuthnService {
 
 impl WebAuthnService {
     pub fn new(
-        config: &systemprompt_manifest::Config,
+        api_external_url: &str,
+        sitename: &str,
         oauth_repo: OAuthRepository,
         user_provider: Arc<dyn UserProvider>,
     ) -> Result<Self> {
-        Self::with_config(WebAuthnConfig::new(config)?, oauth_repo, user_provider)
+        Self::with_config(
+            WebAuthnConfig::new(api_external_url, sitename)?,
+            oauth_repo,
+            user_provider,
+        )
     }
 
     pub fn with_config(

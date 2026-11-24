@@ -41,7 +41,9 @@ fn ctx_for(user: &UserId) -> RequestContext {
 async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -194,7 +196,10 @@ fn token_jti(token: &str) -> anyhow::Result<String> {
 async fn jti_revoked(jti: &str) -> anyhow::Result<bool> {
     let (_pool, ctx) = setup_ctx().await?;
     let jti = systemprompt_identifiers::AccessTokenId::try_new(jti)?;
-    Ok(ctx.oauth_repositories().oauth.is_jti_revoked(&jti).await?)
+    Ok(systemprompt_test_fixtures::oauth_repositories(&ctx)
+        .oauth
+        .is_jti_revoked(&jti)
+        .await?)
 }
 
 #[tokio::test]

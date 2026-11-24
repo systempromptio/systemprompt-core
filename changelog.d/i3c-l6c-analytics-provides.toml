@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Analytics"
+text = "The analytics member opens the GeoIP database and provides the analytics and fingerprint views; the runtime no longer depends on `systemprompt-analytics`."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Added"
+text = "`GeoIpDatabase` and `GeoIpUnreadable`: the analytics member opens the configured GeoIP database in its own provide and provides it with the open `Arc<dyn AnalyticsProvider>` and `Arc<dyn FingerprintProvider>` views."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::geoip_reader`, `AppContext::load_geoip_database`, `AppContextBuilder::with_startup_warnings`, `RuntimeError::Analytics` and `RuntimeError::GeoIpUnreadable` are removed; the crate no longer depends on `systemprompt-analytics`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "The `HasAnalytics` and `HasFingerprint` capability traits are removed; read `Arc<dyn AnalyticsProvider>` and `Arc<dyn FingerprintProvider>` from the kernel state."

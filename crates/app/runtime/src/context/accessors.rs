@@ -1,6 +1,6 @@
 //! Accessors for the handles the composition root injects into the context:
-//! the route classifier, the identity of the binary being served, the files
-//! configuration and the event broadcaster set, and the deployment token
+//! the route classifier, the identity of the binary being served, the event
+//! broadcaster set, and the deployment token
 //! authority built over the signing keys.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use systemprompt_config::SecretsService;
 use systemprompt_events::EventBroadcasters;
-use systemprompt_files::FilesConfig;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::auth::TokenAuthority;
@@ -40,10 +39,6 @@ impl AppContext {
 
     pub const fn config_arc(&self) -> &Arc<Config> {
         &self.cfg.config
-    }
-
-    pub const fn files_config(&self) -> &Arc<FilesConfig> {
-        &self.cfg.files_config
     }
 
     pub const fn event_broadcasters(&self) -> &Arc<EventBroadcasters> {

@@ -88,7 +88,7 @@ async fn connect_profile_database(
     let db = Database::new_postgres(database_url)
         .await
         .context("Failed to connect to database")?;
-    Ok(crate::kernel::admin_bootstrap(
+    Ok(systemprompt_runtime::admin_bootstrap(
         host.admitted()?,
         Arc::new(db),
     )?)

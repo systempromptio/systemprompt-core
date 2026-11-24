@@ -53,7 +53,7 @@ pub fn with_app(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) -> Comm
     let admitted = Arc::clone(app.admitted());
     let kernel = files_kernel(
         app.db_pool(),
-        Arc::clone(app.files_config()),
+        systemprompt_test_fixtures::files_config(&app),
         Arc::clone(app.file_storage()),
     );
     CommandContext::with_app_context(cli, env, app)

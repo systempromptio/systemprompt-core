@@ -19,6 +19,7 @@ type ComputeFn = Box<dyn Fn(&Resolved<'_>) -> Result<ErasedValue, ProvideError> 
 type InsertFn = fn(&mut Dependencies, &ExtensionId, ErasedValue) -> Result<(), DuplicateDependency>;
 type ConferFn =
     fn(&mut Dependencies, &ExtensionId, ErasedValue, Conferred) -> Result<(), DuplicateDependency>;
+type ReserveFn = fn(&mut Dependencies);
 
 /// When the kernel runs a provide fn.
 ///
@@ -43,6 +44,7 @@ pub struct ProvideEntry {
     type_name: &'static str,
     compute: ComputeFn,
     insert: InsertFn,
+    reserve: ReserveFn,
 }
 
 impl ProvideEntry {
@@ -93,6 +95,7 @@ impl ProvideEntry {
             } else {
                 insert_provided::<T>
             },
+            reserve: Dependencies::reserve::<T>,
         }
     }
 
@@ -104,6 +107,10 @@ impl ProvideEntry {
     #[must_use]
     pub const fn type_name(&self) -> &'static str {
         self.type_name
+    }
+
+    pub fn withhold_into(&self, state: &mut Dependencies) {
+        (self.reserve)(state);
     }
 
     pub fn compute(&self, r: &Resolved<'_>) -> Result<ProvidedValue, ProvideError> {

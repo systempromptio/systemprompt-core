@@ -47,7 +47,6 @@ pub async fn execute_with_events(
 
     let app = Arc::new(
         host.server_builder()?
-            .with_startup_warnings(true)
             .with_shutdown(shutdown)
             .with_migrations(run_migrations)
             .with_schema_verification(!run_migrations)

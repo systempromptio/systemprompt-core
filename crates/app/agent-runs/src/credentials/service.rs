@@ -71,7 +71,7 @@ impl RunCredentialService {
                 session_provider,
                 Arc::clone(&user_provider),
                 Arc::clone(&authority),
-                config,
+                config.jwt_access_token_expiration,
             ),
             user_provider,
             oauth,

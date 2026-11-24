@@ -15,7 +15,9 @@ use super::common::{empty_get, json_post, setup_ctx};
 async fn public_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -31,7 +33,9 @@ async fn public_app() -> anyhow::Result<Router> {
 async fn authenticated_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -198,7 +202,9 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
     req_ctx.auth.actor.user_id = user_id.clone();
 
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -266,7 +272,9 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
     req_ctx.auth.actor.user_id = user_id.clone();
 
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -355,7 +363,9 @@ async fn dcr_app() -> anyhow::Result<Router> {
     let mut req_ctx = super::common::request_context("ignored");
     req_ctx.auth.actor.user_id = user_id;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),

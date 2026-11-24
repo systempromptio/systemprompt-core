@@ -10,12 +10,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use systemprompt_files::FilesConfig;
 use systemprompt_manifest::paths::constants::storage;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
@@ -33,9 +32,15 @@ pub(super) struct FilesRequest<'a> {
     pub headers: &'a HeaderMap,
 }
 
+/// The writable files root and the configured cache policy of `/files/*`.
+pub(super) struct StoredFiles<'a> {
+    pub root: PathBuf,
+    pub cache_control: Option<&'a str>,
+}
+
 pub(super) async fn serve_files_path(
     ctx: &AppContext,
-    files_config: &FilesConfig,
+    files: StoredFiles<'_>,
     req: FilesRequest<'_>,
 ) -> Response {
     if req.relative_path.chars().any(char::is_control)
@@ -52,7 +57,7 @@ pub(super) async fn serve_files_path(
         .and_then(|v| v.to_str().ok())
         .and_then(ByteRange::parse);
 
-    let writable = LocalFileStorage::new(files_config.files());
+    let writable = LocalFileStorage::new(files.root);
     let shipped = ctx
         .app_paths()
         .storage()
@@ -69,7 +74,7 @@ pub(super) async fn serve_files_path(
     for (layer, id) in layers {
         let opened = open_layer(layer, id, range, &req).await;
         match opened {
-            Ok(read) => return respond(read, files_config, &req),
+            Ok(read) => return respond(read, files.cache_control, &req),
             Err(FileStorageError::NotFound(_) | FileStorageError::Validation(_)) => {},
             Err(FileStorageError::RangeNotSatisfiable { size }) => {
                 return range_not_satisfiable(size);
@@ -124,11 +129,9 @@ fn range_not_satisfiable(size: u64) -> Response {
         .into_response()
 }
 
-fn respond(read: StoredFileRead, files_config: &FilesConfig, req: &FilesRequest<'_>) -> Response {
+fn respond(read: StoredFileRead, cache_control: Option<&str>, req: &FilesRequest<'_>) -> Response {
     let path = Path::new(req.relative_path);
-    let cache_control = files_config
-        .cache_control()
-        .unwrap_or_else(|| asset_cache_policy(path));
+    let cache_control = cache_control.unwrap_or_else(|| asset_cache_policy(path));
     if let Some(etag) = read.metadata.etag.as_deref()
         && etag_matches(req.headers, etag)
     {

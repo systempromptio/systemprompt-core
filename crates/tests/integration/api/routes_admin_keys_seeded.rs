@@ -20,7 +20,7 @@ use super::common::{empty_delete, empty_get, json_post, request_context, setup_c
 fn app(ctx: &AppContext, user: &UserId) -> Router {
     let state = admin_keys::ApiKeysState {
         keys: std::sync::Arc::new(systemprompt_users::ApiKeyService::new(
-            std::sync::Arc::clone(ctx.user_repository()),
+            systemprompt_test_fixtures::user_repository(&ctx),
             systemprompt_users::ApiKeyLifetime::from_max_days(
                 ctx.config().api_key_max_lifetime_days,
             ),

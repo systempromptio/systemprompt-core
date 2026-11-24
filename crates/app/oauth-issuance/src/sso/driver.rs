@@ -12,7 +12,6 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::{OAuthRepository, PostgresReplayGuard};
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::sso::{
@@ -22,6 +21,7 @@ use systemprompt_traits::sso::{
 use systemprompt_users::PostgresAuthEventSink;
 
 use crate::repository::SsoRepositories;
+use crate::surface::IdentityConfigView;
 
 use super::cookie::CookieSpec;
 use super::roles::RoleResolver;
@@ -62,7 +62,7 @@ pub(super) struct DriverInner {
     pub(super) sinks: Vec<Arc<dyn AuthEventSink>>,
     pub(super) roles: Arc<dyn RoleResolver>,
     pub(super) session_service: Arc<SessionCreationService>,
-    pub(super) config: Arc<Config>,
+    pub(super) config: Arc<IdentityConfigView>,
 }
 
 impl std::fmt::Debug for SsoDriver {
@@ -78,7 +78,7 @@ impl SsoDriver {
     pub fn new(
         sso: &SsoProviders,
         db: &DbPool,
-        config: Arc<Config>,
+        config: Arc<IdentityConfigView>,
         oauth: OAuthRepository,
         session_service: Arc<SessionCreationService>,
     ) -> Self {
@@ -129,7 +129,7 @@ impl SsoDriver {
     }
 
     #[must_use]
-    pub fn config(&self) -> &Config {
+    pub fn config(&self) -> &IdentityConfigView {
         &self.inner.config
     }
 

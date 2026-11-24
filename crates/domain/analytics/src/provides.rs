@@ -1,7 +1,9 @@
 //! The analytics member's composed provides: the open request-analytics
 //! write (`DynRequestAnalytics`) the API's request-analytics middleware
-//! records a served request through. It appends one `analytics_events` row
-//! and reads nothing back.
+//! records a served request through (it appends one `analytics_events` row
+//! and reads nothing back); the `GeoIP` database opened from the configured
+//! path; and the open `AnalyticsProvider` and `FingerprintProvider` views
+//! the hosts read by trait type.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,9 +14,13 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::{ProvideError, Resolved};
 use systemprompt_logging::{AnalyticsEvent, AnalyticsRepository};
+use systemprompt_manifest::Config;
 use systemprompt_traits::{
-    DynRequestAnalytics, RequestAnalytics, RequestAnalyticsError, RequestAnalyticsEvent,
+    AnalyticsProvider, DynRequestAnalytics, DynSessionTelemetry, FingerprintProvider,
+    RequestAnalytics, RequestAnalyticsError, RequestAnalyticsEvent,
 };
+
+use crate::{AnalyticsService, FingerprintRepository, GeoIpDatabase};
 
 #[derive(Debug)]
 struct RequestEventLog {
@@ -52,4 +58,28 @@ pub(crate) fn request_analytics(r: &Resolved<'_>) -> Result<DynRequestAnalytics,
     Ok(Arc::new(RequestEventLog {
         log: AnalyticsRepository::new(&db),
     }))
+}
+
+pub(crate) fn geoip_database(r: &Resolved<'_>) -> Result<Arc<GeoIpDatabase>, ProvideError> {
+    let config = r.get::<Arc<Config>>()?;
+    GeoIpDatabase::open(config.geoip_database_path.as_deref())
+        .map(Arc::new)
+        .map_err(|source| ProvideError::Failed(Box::new(source)))
+}
+
+pub(crate) fn analytics_provider(
+    r: &Resolved<'_>,
+) -> Result<Arc<dyn AnalyticsProvider>, ProvideError> {
+    let service: Arc<dyn AnalyticsProvider> = r.get::<Arc<AnalyticsService>>()?;
+    Ok(service)
+}
+
+pub(crate) fn fingerprint_provider(
+    r: &Resolved<'_>,
+) -> Result<Arc<dyn FingerprintProvider>, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    let sessions = r.get::<DynSessionTelemetry>()?;
+    let fingerprints: Arc<dyn FingerprintProvider> =
+        Arc::new(FingerprintRepository::new(&db, sessions));
+    Ok(fingerprints)
 }

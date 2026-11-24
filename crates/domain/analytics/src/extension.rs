@@ -11,9 +11,12 @@
 //!
 //! It provides its repositories (`Arc<AnalyticsRepositories>`), built from the
 //! kernel's database pool, the session store the `users` member provides and
-//! the logging event store; the `Arc<AnalyticsService>` over them, enriched
-//! with the `GeoIP` reader and the content routing when the kernel seeds
-//! them; and the
+//! the logging event store; the `GeoIP` database it opens from the
+//! configured path (`Arc<GeoIpDatabase>`, empty when none is configured);
+//! the `Arc<AnalyticsService>` over them, enriched with that database and the
+//! content routing when the kernel seeds it, and the same service as the open
+//! `Arc<dyn AnalyticsProvider>`; the open `Arc<dyn FingerprintProvider>` over
+//! the fingerprint repository; and the
 //! [`DynSessionBehaviourScorer`]
 //! the request-analytics middleware hands each tracked request's session to,
 //! and the open request-analytics write (`DynRequestAnalytics`) that
@@ -48,7 +51,7 @@ use crate::jobs::{
     MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
 use crate::repository::{AnalyticsRepositories, ContentAnalyticsRepository};
-use crate::{AnalyticsService, GeoIpReader, SessionBehaviourService};
+use crate::{AnalyticsService, GeoIpDatabase, SessionBehaviourService};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
@@ -69,6 +72,7 @@ impl Extension for AnalyticsExtension {
         c.migrations(extension_migrations!())
             .requires::<DynIpBanStore>()
             .provide(crate::provides::request_analytics)
+            .provide(crate::provides::geoip_database)
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
                 let popularity: DynContentPopularity =
@@ -90,11 +94,13 @@ impl Extension for AnalyticsExtension {
                     routing
                 });
                 Ok(Arc::new(AnalyticsService::new(
-                    r.optional::<GeoIpReader>(),
+                    r.get::<Arc<GeoIpDatabase>>()?.reader().cloned(),
                     routing,
                     &repositories,
                 )))
             })
+            .provide(crate::provides::analytics_provider)
+            .provide(crate::provides::fingerprint_provider)
             .provide(|r: &Resolved<'_>| {
                 let repositories = r.get::<Arc<AnalyticsRepositories>>()?;
                 let sessions = r.get::<DynSessionTelemetry>()?;

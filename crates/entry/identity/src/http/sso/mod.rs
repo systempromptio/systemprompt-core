@@ -23,10 +23,10 @@ use axum::routing::get;
 use systemprompt_oauth::OAuthState;
 
 use systemprompt_database::DbPool;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::contract::SsoProviders;
 use systemprompt_oauth_issuance::sso::SsoDriver;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_security::http::SessionCookie;
 use systemprompt_traits::AnalyticsProvider;
 
@@ -49,7 +49,7 @@ impl std::fmt::Debug for SsoRouteState {
 
 impl SsoRouteState {
     pub fn build(
-        config: &Arc<Config>,
+        config: &Arc<IdentityConfigView>,
         db: &DbPool,
         oauth: &OAuthState,
         sso: &SsoProviders,
@@ -58,7 +58,7 @@ impl SsoRouteState {
             Arc::clone(oauth.session_provider()),
             Arc::clone(oauth.user_provider()),
             Arc::clone(oauth.token_authority()),
-            Arc::clone(config),
+            config.jwt_access_token_expiration,
         );
         let driver = SsoDriver::new(
             sso,
@@ -70,7 +70,7 @@ impl SsoRouteState {
         Self {
             driver,
             analytics: Arc::clone(oauth.analytics_provider()),
-            cookie: SessionCookie::from_config(config),
+            cookie: SessionCookie::for_external_url(&config.api_external_url),
         }
     }
 }

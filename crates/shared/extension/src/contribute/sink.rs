@@ -35,7 +35,7 @@ use super::factories::DoctorProbeSourceRef;
 use super::factories::SecretReferenceFactory;
 pub use super::factories::{
     AdminBootstrapFn, AssetFn, AudienceResolverFactory, DiagnosticFactory, DoctorCheckRef,
-    GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
+    DomainConfigFn, GatewayGuardFactory, PolicyFactory, ReadinessFactory, RunnerServiceFactory,
     SubjectProviderFactory,
 };
 
@@ -78,6 +78,8 @@ pub struct ContributionSink {
     pub(crate) declared_secrets: Vec<SecretPattern>,
     pub(crate) secret_references: Vec<SecretReferenceFactory>,
     pub(crate) slots: Vec<SlotRecord>,
+    pub(crate) late_cells: Vec<super::late_cell::LateCellEntry>,
+    pub(crate) domain_configs: Vec<DomainConfigFn>,
     #[cfg(feature = "router")]
     pub(crate) routes: Vec<crate::router::RouteSet>,
     #[cfg(feature = "router")]
@@ -141,6 +143,16 @@ impl ContributionSink {
     #[must_use]
     pub fn configs(&self) -> &[ConfigDecl] {
         &self.configs
+    }
+
+    #[must_use]
+    pub fn domain_configs(&self) -> &[DomainConfigFn] {
+        &self.domain_configs
+    }
+
+    #[must_use]
+    pub fn late_cells(&self) -> &[super::late_cell::LateCellEntry] {
+        &self.late_cells
     }
 
     #[must_use]

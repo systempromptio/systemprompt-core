@@ -35,10 +35,6 @@ use systemprompt_config::GrantedSecrets;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_documents::links::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
-use systemprompt_files::FilesConfig;
-use systemprompt_files::documents::{
-    DocumentsHandles, DocumentsHandlesSlot, DocumentsUnbound, bound,
-};
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
 use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_loader::ServicesState;
@@ -102,11 +98,6 @@ impl HostContext {
     }
 
     #[must_use]
-    pub const fn files_config(&self) -> &Arc<FilesConfig> {
-        &self.parts.files_config
-    }
-
-    #[must_use]
     pub const fn db_pool(&self) -> &DbPool {
         &self.parts.database
     }
@@ -140,13 +131,6 @@ impl HostContext {
     #[must_use]
     pub const fn subject_providers(&self) -> &SubjectProviderSet {
         &self.parts.subject_providers
-    }
-
-    pub fn documents(&self) -> Result<&Arc<DocumentsHandles>, DocumentsUnbound> {
-        self.state()
-            .find::<DocumentsHandlesSlot>()
-            .ok_or(DocumentsUnbound)
-            .and_then(bound)
     }
 
     #[must_use]

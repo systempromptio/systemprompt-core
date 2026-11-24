@@ -35,13 +35,6 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let data = DataPlane {
         database: Arc::clone(&pool),
-        fingerprint_repo: None,
-        user_service: None,
-        oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
-            &pool,
-            Arc::from("pepper"),
-        )),
-        user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
             &pool,
             test_instance.clone(),
@@ -53,8 +46,6 @@ async fn plane_debug_impls_flag_optional_members() {
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");
-    assert!(dbg.contains("fingerprint_repo: false"), "got: {dbg}");
-    assert!(dbg.contains("user_service: false"), "got: {dbg}");
 
     let app_paths = Arc::new(
         AppPaths::from_profile(
@@ -67,10 +58,6 @@ async fn plane_debug_impls_flag_optional_members() {
     let cfg = ConfigPlane {
         config: Arc::new(systemprompt_test_fixtures::app_context::fixture_config(
             &url,
-        )),
-        files_config: Arc::new(systemprompt_files::FilesConfig::new(
-            app_paths.storage().root().to_path_buf(),
-            systemprompt_files::FilesConfigYaml::default(),
         )),
         app_paths,
         route_classifier: Arc::new(RouteClassifier::new(None)),
@@ -116,7 +103,6 @@ async fn plane_debug_impls_flag_optional_members() {
         )),
         event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
         event_router,
-        geoip_reader: None,
         file_storage: Arc::clone(&file_storage),
         shutdown: Default::default(),
         background_tasks: Default::default(),
@@ -128,7 +114,6 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("system_admin: \"planeadmin\""), "got: {dbg}");
     assert!(dbg.contains("event_bridge: NotStarted"), "got: {dbg}");
     assert!(dbg.contains("outbox: None"), "got: {dbg}");
-    assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
     let resolved = systemprompt_test_fixtures::test_app_context(&url).await;
     AppContext::from_parts(

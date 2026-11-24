@@ -118,7 +118,6 @@ systemprompt-marketplace-entry = { path = "../../../entry/marketplace", features
 systemprompt-mcp-entry = { path = "../../../entry/mcp", features = ["cli", "http"] }
 systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
 systemprompt-provider-contracts = { path = "../../../shared/provider-contracts", default-features = false, features = ["sqlx"] }
-systemprompt-runtime = { path = "../../../app/runtime", features = ["geolocation"] }
 systemprompt-teams-entry = { path = "../../../entry/teams", features = ["http"] }
 systemprompt-traits = { path = "../../../shared/traits", features = ["sqlx"] }
 thiserror = { version = "2" }

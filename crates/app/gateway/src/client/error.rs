@@ -66,7 +66,7 @@ pub enum DecodeError {
 #[derive(Debug, thiserror::Error)]
 pub enum PrincipalError {
     #[error("service account could not be ensured")]
-    Account(#[source] systemprompt_users::UserError),
+    Account(#[source] systemprompt_traits::ServiceAccountError),
     #[error("service account email belongs to a non-service account")]
     NotService,
     #[error("service principal identifier is invalid")]

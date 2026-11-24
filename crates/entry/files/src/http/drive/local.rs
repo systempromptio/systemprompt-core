@@ -12,8 +12,8 @@ use systemprompt_identifiers::TraceId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::{DriveMoveRequest, DriveTrashRequest, DriveTrashResponse};
 
-use super::drive::DriveState;
-use super::drive_token::device_user;
+use super::DriveState;
+use super::token::device_user;
 use systemprompt_documents::http::error::DocumentsResult;
 use systemprompt_documents::http::headers::base_revision;
 

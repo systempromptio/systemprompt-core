@@ -41,11 +41,19 @@ use systemprompt_models::documents::{
     DriveChanges, DriveManifest, DriveProposal, DriveProposals, PresenceBeacon,
 };
 
-use super::drive_commit::commit;
-use super::drive_token::device_user;
 use systemprompt_documents::http::error::DocumentsResult;
 use systemprompt_documents::http::headers::{hash_etag, none_match, range};
+use systemprompt_documents::http::surface::{DriveSurface, FilesSurfaceError};
+use systemprompt_extension::prelude::Resolved;
+use systemprompt_files::documents::{DocumentsHandlesSlot, bound};
 use systemprompt_traits::{DriveTokens, DynDriveTokens};
+
+use self::commit::commit;
+use self::token::device_user;
+
+mod commit;
+mod local;
+mod token;
 
 const DEFAULT_CHANGES: i64 = 500;
 
@@ -74,6 +82,25 @@ impl DriveState {
     }
 }
 
+/// The `files-http` member's [`DriveSurface`]: the document service of the
+/// bound store and the Drive token view the `documents` member confers on
+/// `files-http`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FilesDriveSurface;
+
+impl DriveSurface for FilesDriveSurface {
+    fn build(&self, resolved: &Resolved<'_>) -> Result<Option<Router>, FilesSurfaceError> {
+        let slot = resolved.get::<DocumentsHandlesSlot>()?;
+        let (Some(service), Some(tokens)) = (
+            bound(&slot)?.service.clone(),
+            resolved.optional::<DynDriveTokens>(),
+        ) else {
+            return Ok(None);
+        };
+        Ok(Some(router(DriveState::new(service, tokens))))
+    }
+}
+
 pub fn router(state: DriveState) -> Router {
     let limit = systemprompt_documents::http::body_limit(&state.service);
     Router::new()
@@ -95,11 +122,11 @@ pub fn router(state: DriveState) -> Router {
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_TRASH),
-            post(super::drive_local::trash),
+            post(local::trash),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_MOVE),
-            post(super::drive_local::move_document),
+            post(local::move_document),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_PRESENCE),
@@ -107,7 +134,7 @@ pub fn router(state: DriveState) -> Router {
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_TOKEN),
-            post(super::drive_token::issue),
+            post(token::issue),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_PROPOSALS),

@@ -80,7 +80,6 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
             .is_some(),
         "the fixture services/content/config.yaml must be loaded"
     );
-    assert!(ctx.geoip_reader().is_none());
     assert_eq!(
         ctx.admitted().built().members().count(),
         fixture_core_members().len()

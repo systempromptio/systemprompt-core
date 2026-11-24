@@ -26,7 +26,9 @@ const FUTURE_EXP: i64 = 4_102_444_800;
 async fn logout_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
@@ -118,8 +120,7 @@ async fn logout_non_uuid_user_revokes_and_returns_204() -> anyhow::Result<()> {
     assert_eq!(resp.status(), StatusCode::NO_CONTENT, "{}", resp.status());
 
     let (_pool, ctx) = setup_ctx().await?;
-    let revoked = ctx
-        .oauth_repositories()
+    let revoked = systemprompt_test_fixtures::oauth_repositories(&ctx)
         .oauth
         .is_jti_revoked(&AccessTokenId::new(jti))
         .await?;

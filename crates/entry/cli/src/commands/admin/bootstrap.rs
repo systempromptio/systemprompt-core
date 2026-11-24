@@ -130,7 +130,10 @@ async fn connect_admin_bootstrap(
         .await
         .context("Failed to connect to database")?,
     );
-    Ok(crate::kernel::admin_bootstrap(host.admitted()?, database)?)
+    Ok(systemprompt_runtime::admin_bootstrap(
+        host.admitted()?,
+        database,
+    )?)
 }
 
 async fn ensure_admin_role(

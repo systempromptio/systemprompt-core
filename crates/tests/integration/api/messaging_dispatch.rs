@@ -8,8 +8,6 @@
 //! authz hook, token mint, blocking `SendMessage`, reply extraction — runs
 //! against live infrastructure.
 
-use std::sync::Arc;
-
 use systemprompt_agent_entry::messaging::{
     A2aMessagingDispatcher, DispatcherInputs, MessagingError,
 };
@@ -61,7 +59,7 @@ pub(crate) async fn dispatch_messaging(
 pub(crate) fn dispatcher(ctx: &AppContext) -> A2aMessagingDispatcher {
     let state = ctx.kernel().state();
     A2aMessagingDispatcher::new(DispatcherInputs {
-        users: Arc::clone(ctx.user_repository()),
+        users: systemprompt_test_fixtures::user_repository(&ctx),
         authz: state
             .find::<AuthzHookCell>()
             .cloned()

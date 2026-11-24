@@ -36,7 +36,6 @@ systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-documents = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["mcp"] }
-systemprompt-files = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-issues = { workspace = true }
