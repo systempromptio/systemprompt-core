@@ -192,8 +192,13 @@ fn update_agent_writes_through_content_scan_when_filename_differs() {
 
     let mut updated = test_agent("scanned");
     updated.card.description = "updated via scan".to_string();
-    ConfigWriter::update_agent(&AgentName::new("scanned"), &updated, temp.path(), |_| Ok(()))
-        .expect("update must locate the file via the content scan and rewrite it");
+    ConfigWriter::update_agent(
+        &AgentName::new("scanned"),
+        &updated,
+        temp.path(),
+        |_| Ok(()),
+    )
+    .expect("update must locate the file via the content scan and rewrite it");
 
     let content = std::fs::read_to_string(&mismatched_file).expect("read rewritten file");
     assert!(

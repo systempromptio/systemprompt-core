@@ -116,7 +116,10 @@ async fn a_port_nobody_holds_is_a_no_op_rather_than_an_error() {
         stamp: &stamp,
         grace: std::time::Duration::from_secs(5),
     };
-    cleanup_port_processes(systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(), &holder)
-        .await
-        .expect("an unheld port needs no reclaiming and must not error");
+    cleanup_port_processes(
+        systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(),
+        &holder,
+    )
+    .await
+    .expect("an unheld port needs no reclaiming and must not error");
 }

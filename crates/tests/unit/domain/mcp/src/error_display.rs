@@ -93,9 +93,8 @@ fn mcp_domain_result_ok_propagates() {
 
 #[test]
 fn mcp_domain_result_err_propagates() {
-    let r: systemprompt_mcp::McpDomainResult<u32> =
-        Err(McpDomainError::ServerNotFound {
-            server: "x".to_owned(),
-        });
+    let r: systemprompt_mcp::McpDomainResult<u32> = Err(McpDomainError::ServerNotFound {
+        server: "x".to_owned(),
+    });
     assert!(r.is_err());
 }

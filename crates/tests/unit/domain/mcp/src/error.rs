@@ -1,7 +1,9 @@
 //! Unit tests for McpError types
 
-use systemprompt_mcp::McpDomainError as McpError;
-use systemprompt_mcp::{AuthRequirement, ConfigurationIssue, RegistryViolation, SchemaViolation};
+use systemprompt_mcp::{
+    AuthRequirement, ConfigurationIssue, McpDomainError as McpError, RegistryViolation,
+    SchemaViolation,
+};
 
 #[test]
 fn test_mcp_error_server_not_found_display() {
@@ -49,7 +51,10 @@ fn test_mcp_error_schema_validation_display() {
 #[test]
 fn test_mcp_error_registry_validation_display() {
     let error = McpError::from(RegistryViolation::ServerConfigs {
-        issues: vec!["a: missing display_name".to_string(), "b: missing description".to_string()],
+        issues: vec![
+            "a: missing display_name".to_string(),
+            "b: missing description".to_string(),
+        ],
     });
     let display = error.to_string();
     assert_eq!(

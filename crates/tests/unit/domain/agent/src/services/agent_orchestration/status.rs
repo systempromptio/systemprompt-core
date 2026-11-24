@@ -218,8 +218,7 @@ fn test_orchestration_result_ok() {
 
 #[test]
 fn test_orchestration_result_err() {
-    let result: Result<i32, OrchestrationError> =
-        Err(OrchestrationError::AgentNotFound {
+    let result: Result<i32, OrchestrationError> = Err(OrchestrationError::AgentNotFound {
         agent: AgentName::new("test"),
     });
     result.unwrap_err();

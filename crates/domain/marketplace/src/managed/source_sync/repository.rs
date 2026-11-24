@@ -32,7 +32,9 @@ impl ManagedRepository {
         let changed = sqlx::query!("UPDATE managed_withdrawal_proposals SET status=$4,decided_by=$2,decided_at=NOW() WHERE id=$1 AND owner_id=$3 AND status='pending'",
             proposal.as_str(), actor.as_str(), owner.as_str(), status.as_str()).execute(&self.pool).await?;
         if changed.rows_affected() != 1 {
-            return Err(ManagedError::Conflict { reason: "Withdrawal proposal is stale or unavailable" });
+            return Err(ManagedError::Conflict {
+                reason: "Withdrawal proposal is stale or unavailable",
+            });
         }
         Ok(())
     }

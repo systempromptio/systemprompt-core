@@ -110,9 +110,10 @@ pub(super) fn hash_entries(
 
     let mut out = Vec::with_capacity(bundles.len());
     for (id, bundle) in bundles {
-        let config = configs.get(id.as_str()).copied().ok_or_else(|| {
-            MarketplaceError::PluginUnconfigured { plugin: id.clone() }
-        })?;
+        let config = configs
+            .get(id.as_str())
+            .copied()
+            .ok_or_else(|| MarketplaceError::PluginUnconfigured { plugin: id.clone() })?;
         out.push(hash_entry(id.clone(), config, bundle)?);
     }
     Ok(out)

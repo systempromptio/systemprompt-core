@@ -20,8 +20,7 @@ use systemprompt_database::DbPool;
 use systemprompt_mcp_entry::cli as mcp;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ReservedPort, TestBootstrap, init_services_bootstrap, seed_fixture_system_admin,
-    test_db_pool,
+    ReservedPort, TestBootstrap, init_services_bootstrap, seed_fixture_system_admin, test_db_pool,
 };
 
 use crate::common::{json_cli, marked_json, member, parse, rendered, with_app};

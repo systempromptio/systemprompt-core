@@ -432,7 +432,10 @@ fn the_check_sees_the_staged_bytes_before_the_live_file_changes() {
     let path = temp_dir.path().join("agents/seen.yaml");
     let probe = path.clone();
     ConfigWriter::create_agent(&create_test_agent("seen"), temp_dir.path(), move |staged| {
-        assert!(!probe.exists(), "the live file is untouched while the check runs");
+        assert!(
+            !probe.exists(),
+            "the live file is untouched while the check runs"
+        );
         assert_eq!(staged.live_path(), probe.as_path());
         let staged_bytes = std::fs::read(staged.staged_path()).expect("staged file is readable");
         assert_eq!(staged_bytes.as_slice(), staged.contents());
@@ -472,7 +475,10 @@ fn a_refusing_check_never_exposes_unvalidated_bytes_and_leaves_no_staged_file() 
                 .expect("staged name")
                 .to_string_lossy()
                 .into_owned();
-            assert_ne!(name, ".guarded.yaml.staged", "the staged name is not predictable");
+            assert_ne!(
+                name, ".guarded.yaml.staged",
+                "the staged name is not predictable"
+            );
             assert_eq!(staged.staged_path().parent(), live_probe.parent());
             staged_seen = Some(staged.staged_path().to_path_buf());
             Err("refused".into())

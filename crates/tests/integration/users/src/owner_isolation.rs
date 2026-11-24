@@ -26,10 +26,17 @@ async fn sessions_are_read_through_their_owner_only(label: &str) -> Result<()> {
         .collect();
     read.sort_by(|a, b| a.as_str().cmp(b.as_str()));
     written.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-    assert_eq!(read, written, "the owner reads exactly the sessions it wrote");
+    assert_eq!(
+        read, written,
+        "the owner reads exactly the sessions it wrote"
+    );
 
     let admin_sessions = repo.list_sessions(&owners.admin.user_id).await?;
-    assert_eq!(admin_sessions.len(), 1, "the admin sees only its own session");
+    assert_eq!(
+        admin_sessions.len(),
+        1,
+        "the admin sees only its own session"
+    );
     assert_eq!(admin_sessions[0].session_id, owners.admin.session_id);
     Ok(())
 }

@@ -160,8 +160,8 @@ impl SessionManager for DatabaseSessionHandler {
                         }
                         self.persist_close(id).await;
                         Err(DatabaseSessionHandlerError::SessionNotFound {
-                session_id: id.to_string(),
-            })
+                            session_id: id.to_string(),
+                        })
                     },
                 }
             },

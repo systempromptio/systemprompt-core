@@ -33,7 +33,9 @@ pub enum ManagedError {
     Conflict { reason: &'static str },
     #[error("Managed resource conflict: Publication gate {gate} refused the publication: {reason}")]
     GateRefused { gate: &'static str, reason: String },
-    #[error("Managed resource conflict: Resolved revision differs from the recorded merge at {path}")]
+    #[error(
+        "Managed resource conflict: Resolved revision differs from the recorded merge at {path}"
+    )]
     MergeMismatch { path: String },
     #[error("Managed resource conflict: Expected publication generation {expected}, found {found}")]
     GenerationMismatch { expected: i64, found: i64 },

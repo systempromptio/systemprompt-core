@@ -48,9 +48,12 @@ async fn protected_database_ports_are_never_signalled() {
 
 #[tokio::test]
 async fn an_unbound_port_is_free() {
-    wait_for_port_free(systemprompt_test_fixtures::ReservedPort::below_ephemeral_range().release_for_child(), Duration::ZERO)
-        .await
-        .expect("unbound port reported free");
+    wait_for_port_free(
+        systemprompt_test_fixtures::ReservedPort::below_ephemeral_range().release_for_child(),
+        Duration::ZERO,
+    )
+    .await
+    .expect("unbound port reported free");
 }
 
 #[tokio::test]

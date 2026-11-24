@@ -130,12 +130,13 @@ fn scan_catalog_directory(
         if entries.len() >= 10_000 {
             return Err(invalid("Inventory exceeds 10000 configured entries"));
         }
-        let name = entry
-            .file_name()
-            .into_string()
-            .map_err(|name| ManagedError::NonUtf8EntryName {
-                name: name.to_string_lossy().into_owned(),
-            })?;
+        let name =
+            entry
+                .file_name()
+                .into_string()
+                .map_err(|name| ManagedError::NonUtf8EntryName {
+                    name: name.to_string_lossy().into_owned(),
+                })?;
         if name.starts_with('.') {
             continue;
         }

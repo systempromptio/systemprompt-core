@@ -105,7 +105,9 @@ pub fn validate(
     if let Some(settings) = next.document.as_deref()
         && !bounds::settings_ok(settings)
     {
-        return Err(ModelRejection::BadAttribute { block: "document".to_owned() });
+        return Err(ModelRejection::BadAttribute {
+            block: "document".to_owned(),
+        });
     }
     for part in next.running() {
         check_blocks(part, limits, 1, &mut ids)?;
@@ -128,7 +130,9 @@ fn check_blocks<'a>(
     }
     for block in &model.blocks {
         if block.id.is_empty() || block.id.len() > limits.attr_chars || !ids.insert(&block.id) {
-            return Err(ModelRejection::BadBlockId { block: block.id.clone() });
+            return Err(ModelRejection::BadBlockId {
+                block: block.id.clone(),
+            });
         }
         check_block(block, limits)?;
         let shape_ok =
@@ -159,7 +163,9 @@ fn check_blocks<'a>(
                 | BlockKind::Raw { .. } => true,
             };
         if !shape_ok {
-            return Err(ModelRejection::BadAttribute { block: block.id.clone() });
+            return Err(ModelRejection::BadAttribute {
+                block: block.id.clone(),
+            });
         }
         for nested in block.kind.nested() {
             check_blocks(nested, limits, depth + 1, ids)?;
@@ -224,11 +230,15 @@ fn check_mark(
     limits: &Limits,
 ) -> Result<(), ModelRejection> {
     if mark.start >= mark.end || mark.end > len {
-        return Err(ModelRejection::MarkOutOfRange { block: block.id.clone() });
+        return Err(ModelRejection::MarkOutOfRange {
+            block: block.id.clone(),
+        });
     }
     let value = mark.kind.value();
     if value.len() > limits.attr_chars {
-        return Err(ModelRejection::BadAttribute { block: block.id.clone() });
+        return Err(ModelRejection::BadAttribute {
+            block: block.id.clone(),
+        });
     }
     let allowed = match &mark.kind {
         MarkKind::Link { href } => is_safe_url(href, &LINK_SCHEMES),
@@ -252,9 +262,13 @@ fn check_mark(
     if allowed {
         Ok(())
     } else if matches!(mark.kind, MarkKind::Link { .. }) {
-        Err(ModelRejection::LinkNotAllowed { block: block.id.clone() })
+        Err(ModelRejection::LinkNotAllowed {
+            block: block.id.clone(),
+        })
     } else {
-        Err(ModelRejection::BadAttribute { block: block.id.clone() })
+        Err(ModelRejection::BadAttribute {
+            block: block.id.clone(),
+        })
     }
 }
 

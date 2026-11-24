@@ -114,7 +114,10 @@ async fn an_unavailable_context_provider_is_reported_not_treated_as_valid() {
     .await;
 
     assert!(
-        matches!(outcome, ContextCheck::Unverified(SessionContextError::Unprovided(_))),
+        matches!(
+            outcome,
+            ContextCheck::Unverified(SessionContextError::Unprovided(_))
+        ),
         "{outcome:?}"
     );
     assert!(!outcome.is_verified());

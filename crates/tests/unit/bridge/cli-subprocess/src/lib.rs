@@ -1,9 +1,9 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
-mod bridge_binary;
-#[cfg(test)]
 mod black_box;
+#[cfg(test)]
+mod bridge_binary;
 #[cfg(test)]
 mod drive_cli;
 

@@ -269,7 +269,8 @@ impl SsoProvider for OidcProvider {
         if let Some(code) = ret.param("error") {
             return Err(OidcProviderError::IdpError {
                 code: code.to_owned(),
-            }.into());
+            }
+            .into());
         }
         let code = ret.param("code").ok_or(OidcProviderError::NoCode)?;
         let (Some(nonce), Some(verifier)) = (state.nonce, state.pkce_verifier) else {

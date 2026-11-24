@@ -11,9 +11,9 @@
 //!   bind the port itself keeps the reservation until the moment it hands the
 //!   port over ([`ReservedPort::release_for_child`]), which is the only window
 //!   in which another binder can take it.
-//! - A test that needs a port nothing answers on releases a reservation too:
-//!   a bound socket that is not listening refuses a connection on Linux but
-//!   has its SYN silently dropped on macOS, so only a released port refuses on
+//! - A test that needs a port nothing answers on releases a reservation too: a
+//!   bound socket that is not listening refuses a connection on Linux but has
+//!   its SYN silently dropped on macOS, so only a released port refuses on
 //!   both.
 //!
 //! Binding `127.0.0.1` alone does not prove a port free for the production

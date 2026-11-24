@@ -56,7 +56,10 @@ async fn cleanup_port_if_needed_non_agent_holder_is_refused() {
 async fn wait_for_port_available_free_port_returns_immediately() {
     let service = PortService::new(Duration::from_secs(5));
     service
-        .wait_for_port_available(systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(), 1)
+        .wait_for_port_available(
+            systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(),
+            1,
+        )
         .await
         .expect("free port");
 }

@@ -89,12 +89,11 @@ pub fn agent_child_secrets(
     agent_name: &AgentName,
 ) -> OrchestrationResult<Vec<(String, String)>> {
     let services = environment.services.config();
-    let agent = services
-        .agents
-        .get(agent_name.as_str())
-        .ok_or_else(|| OrchestrationError::AgentNotDeclared {
+    let agent = services.agents.get(agent_name.as_str()).ok_or_else(|| {
+        OrchestrationError::AgentNotDeclared {
             agent: agent_name.clone(),
-        })?;
+        }
+    })?;
     let derived = grants::model_credential_secrets(agent, &environment.services.catalog);
     let mut env = environment
         .secrets

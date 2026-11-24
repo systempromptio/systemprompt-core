@@ -57,22 +57,28 @@ fn expected_file<'a>(
     let conflict = conflicts
         .iter()
         .find(|conflict| conflict.path == path)
-        .ok_or_else(|| ManagedError::Conflict { reason: "Three-way conflict record is missing" })?;
+        .ok_or_else(|| ManagedError::Conflict {
+            reason: "Three-way conflict record is missing",
+        })?;
     match conflict.resolution.as_deref() {
         Some("candidate") => Ok(candidate_file),
         Some("incoming") => Ok(incoming_file),
         Some("delete") => Ok(None),
         Some("manual") => {
-            let actual = resolved.0.get(path).ok_or_else(|| {
-                ManagedError::Conflict { reason: "Manual resolution content is missing" }
+            let actual = resolved.0.get(path).ok_or_else(|| ManagedError::Conflict {
+                reason: "Manual resolution content is missing",
             })?;
             let digest = super::super::AssetDigest::of(&actual.bytes);
             if conflict.resolved_digest.as_deref() != Some(digest.as_str()) {
-                return Err(ManagedError::Conflict { reason: "Manual resolution digest does not match supplied content" });
+                return Err(ManagedError::Conflict {
+                    reason: "Manual resolution digest does not match supplied content",
+                });
             }
             Ok(Some(actual))
         },
-        _ => Err(ManagedError::Conflict { reason: "Invalid reconciliation resolution" }),
+        _ => Err(ManagedError::Conflict {
+            reason: "Invalid reconciliation resolution",
+        }),
     }
 }
 

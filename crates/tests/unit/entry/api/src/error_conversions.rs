@@ -61,7 +61,10 @@ fn marketplace_error_maps_every_class() {
         ErrorCode::NotFound
     );
     assert_eq!(
-        marketplace_code(MarketplaceError::Managed(ManagedError::Invalid { reason: "x" })).code,
+        marketplace_code(MarketplaceError::Managed(ManagedError::Invalid {
+            reason: "x"
+        }))
+        .code,
         ErrorCode::BadRequest
     );
     assert_eq!(
@@ -93,7 +96,8 @@ fn marketplace_error_maps_every_class() {
     assert_eq!(
         marketplace_code(MarketplaceError::PluginUnconfigured {
             plugin: PluginId::new("x")
-        }).code,
+        })
+        .code,
         ErrorCode::InternalError
     );
     assert_eq!(

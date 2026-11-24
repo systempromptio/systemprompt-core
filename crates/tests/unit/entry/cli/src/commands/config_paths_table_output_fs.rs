@@ -96,5 +96,8 @@ fn a_home_relative_profile_path_is_expanded_before_it_is_probed() {
 fn a_bare_tilde_is_also_expanded() {
     let err = resolve_profile_from_path("~cov-absent").unwrap_err();
 
-    assert!(matches!(err, ProfileResolutionError::ProfileNotFound { .. }));
+    assert!(matches!(
+        err,
+        ProfileResolutionError::ProfileNotFound { .. }
+    ));
 }

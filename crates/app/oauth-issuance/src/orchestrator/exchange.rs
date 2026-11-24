@@ -155,7 +155,9 @@ fn map_client_credentials_error(
         ClientCredentialsError::ClientNotFound
         | ClientCredentialsError::OwnerNotFound
         | ClientCredentialsError::OwnerInactive => IssuanceError::InvalidClient,
-        ClientCredentialsError::InvalidScope { reason } => IssuanceError::InvalidScope { message: reason },
+        ClientCredentialsError::InvalidScope { reason } => {
+            IssuanceError::InvalidScope { message: reason }
+        },
         ClientCredentialsError::UnparseableScope(_) => IssuanceError::InvalidScope {
             message: "scope contains an unknown permission".to_owned(),
         },

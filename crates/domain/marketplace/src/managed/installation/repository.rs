@@ -122,7 +122,9 @@ impl ManagedRepository {
             || existing.publication_id != claim.publication_id.as_str()
             || existing.generation != claim.generation
         {
-            return Err(ManagedError::Conflict { reason: "Distribution claim does not match retained delivery" });
+            return Err(ManagedError::Conflict {
+                reason: "Distribution claim does not match retained delivery",
+            });
         }
         if existing.status == status && existing.error.as_deref() == error {
             tx.commit().await?;
@@ -131,7 +133,9 @@ impl ManagedRepository {
         let changed = sqlx::query!("UPDATE managed_distribution_deliveries SET status=$4,delivered_at=CASE WHEN $5 THEN NOW() ELSE NULL END,error=$6 WHERE id=$1 AND owner_id=$2 AND claim_token=$3 AND status IN ('claimed','failed')",
             claim.id.as_str(), owner.as_str(), &claim.claim_token, status.as_str(), delivered, error).execute(&mut *tx).await?;
         if changed.rows_affected() != 1 {
-            return Err(ManagedError::Conflict { reason: "Distribution claim is stale or already completed" });
+            return Err(ManagedError::Conflict {
+                reason: "Distribution claim is stale or already completed",
+            });
         }
         if delivered {
             sqlx::query!("UPDATE managed_distribution_outbox SET delivered_at=NOW() WHERE id=$1 AND owner_id=$2 AND delivered_at IS NULL",

@@ -268,11 +268,11 @@ fn seq_scans_on(plan: &serde_json::Value, relation: &str, found: &mut Vec<String
 
 fn assert_is_the_production_statement(statement: &str) {
     let record = compiled_query_record(statement);
-    let stored: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(&record)
-            .unwrap_or_else(|e| panic!("no query! macro compiled this statement ({record:?}): {e}")),
-    )
-    .expect("the offline query record parses");
+    let stored: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&record).unwrap_or_else(|e| {
+            panic!("no query! macro compiled this statement ({record:?}): {e}")
+        }))
+        .expect("the offline query record parses");
     assert_eq!(
         stored["query"].as_str(),
         Some(statement),

@@ -178,11 +178,10 @@ impl RegistryService {
     }
 
     pub fn get_server(&self, name: &str) -> McpDomainResult<crate::McpServerConfig> {
-        self.find_server(name)?.ok_or_else(|| {
-            McpDomainError::ServerNotFound {
+        self.find_server(name)?
+            .ok_or_else(|| McpDomainError::ServerNotFound {
                 server: name.to_owned(),
-            }
-        })
+            })
     }
 }
 

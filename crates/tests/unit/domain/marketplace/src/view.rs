@@ -87,7 +87,8 @@ fn render_list_wraps_in_marketplaces_key() {
 fn render_list_contains_id_name_version() {
     let mp = marketplace("solo");
     let id = MarketplaceId::new("solo");
-    let json = serde_json::to_value(render_marketplace_list([(&id, &mp)])).expect("listing serialises");
+    let json =
+        serde_json::to_value(render_marketplace_list([(&id, &mp)])).expect("listing serialises");
 
     let entry = &json["marketplaces"][0];
     assert_eq!(entry["id"], "solo");
@@ -97,8 +98,8 @@ fn render_list_contains_id_name_version() {
 
 #[test]
 fn render_list_empty_input_gives_empty_array() {
-    let json =
-        serde_json::to_value(render_marketplace_list(std::iter::empty())).expect("listing serialises");
+    let json = serde_json::to_value(render_marketplace_list(std::iter::empty()))
+        .expect("listing serialises");
 
     let entries = json["marketplaces"].as_array().expect("marketplaces array");
     assert!(entries.is_empty());

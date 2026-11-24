@@ -86,10 +86,14 @@ pub enum OrchestrationError {
     #[error("Agent {agent} already running")]
     AgentAlreadyRunning { agent: AgentName },
 
-    #[error("Process spawn failed: Port {port} did not become available within {timeout_secs} seconds")]
+    #[error(
+        "Process spawn failed: Port {port} did not become available within {timeout_secs} seconds"
+    )]
     PortNotReleased { port: u16, timeout_secs: u64 },
 
-    #[error("Process spawn failed: Port {port} is in use but no listening process can be identified")]
+    #[error(
+        "Process spawn failed: Port {port} is in use but no listening process can be identified"
+    )]
     PortHolderUnidentified { port: u16 },
 
     #[error("Process spawn failed: profile path {} is not valid UTF-8", path.display())]

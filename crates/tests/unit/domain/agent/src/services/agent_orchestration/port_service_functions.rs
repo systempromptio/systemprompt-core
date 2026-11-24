@@ -7,9 +7,12 @@ use systemprompt_loader::subprocess::SpawnStamp;
 #[tokio::test]
 async fn port_service_wait_for_port_available_succeeds_when_free() {
     let svc = PortService::new(Duration::from_secs(5));
-    svc.wait_for_port_available(systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(), 1)
-        .await
-        .expect("free port must be reported available");
+    svc.wait_for_port_available(
+        systemprompt_test_fixtures::ReservedPort::loopback().release_for_child(),
+        1,
+    )
+    .await
+    .expect("free port must be reported available");
 }
 
 #[tokio::test]

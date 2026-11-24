@@ -5,10 +5,10 @@
 //! state transitions, not row removals, and must not trigger cascades.
 //!
 //! Each test works in its own [`ScratchSchema`], so its tables never land in
-//! the shared database's `public` schema and parallel runs cannot collide. The shapes mirror the production
-//! domain — `users` is the parent; `user_api_keys`-style children cascade;
-//! `user_sessions`-style children set NULL; `governance_decisions`-style
-//! audit rows have no FK at all.
+//! the shared database's `public` schema and parallel runs cannot collide. The
+//! shapes mirror the production domain — `users` is the parent;
+//! `user_api_keys`-style children cascade; `user_sessions`-style children set
+//! NULL; `governance_decisions`-style audit rows have no FK at all.
 
 use sqlx::{PgPool, Row};
 use systemprompt_test_fixtures::ScratchSchema;

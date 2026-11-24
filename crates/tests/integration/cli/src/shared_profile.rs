@@ -73,7 +73,10 @@ fn resolve_profile_from_path_directory_with_profile_yaml() {
 #[test]
 fn resolve_profile_from_path_missing_returns_not_found() {
     let err = resolve_profile_from_path("/does/not/exist/profile.yaml").unwrap_err();
-    assert!(matches!(err, ProfileResolutionError::ProfileNotFound { .. }));
+    assert!(matches!(
+        err,
+        ProfileResolutionError::ProfileNotFound { .. }
+    ));
 }
 
 #[test]

@@ -91,8 +91,7 @@ fn from_repository_errors_map_to_repository() {
 
 #[test]
 fn from_agent_error_maps_to_agent() {
-    let err: AgentServiceError =
-        systemprompt_agent::AgentError::NotFound {
+    let err: AgentServiceError = systemprompt_agent::AgentError::NotFound {
         name: "ghost".to_owned(),
     }
     .into();

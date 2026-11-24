@@ -62,7 +62,9 @@ impl ManagedRepository {
         let row = sqlx::query!("SELECT id,consumer_evidence,verified_at,fully_verified FROM managed_installation_receipts WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND installation_id=$4 AND publication_id=$5", identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.installation_id.as_str(), request.publication_id.as_str())
             .fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict { reason: "Installation identity belongs to different immutable evidence" })?;
         if row.consumer_evidence.as_ref() != Some(&evidence) {
-            return Err(ManagedError::Conflict { reason: "Receipt retry conflicts with immutable readback evidence" });
+            return Err(ManagedError::Conflict {
+                reason: "Receipt retry conflicts with immutable readback evidence",
+            });
         }
         tx.commit().await?;
         Ok(ConsumerReceiptResponse {

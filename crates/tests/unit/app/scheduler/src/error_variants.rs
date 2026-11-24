@@ -224,7 +224,8 @@ mod error_constructor_round_trips {
         let via_ctor = SchedulerError::panic("kaboom").to_string();
         let via_struct = SchedulerError::Panic {
             payload: "kaboom".to_string(),
-        }.to_string();
+        }
+        .to_string();
         assert_eq!(via_ctor, via_struct);
     }
 }

@@ -49,8 +49,8 @@ fn agent_error_not_found_display() {
         AgentError::NotFound {
             name: "agent-z".to_string(),
         }
-            .to_string()
-            .contains("agent-z")
+        .to_string()
+        .contains("agent-z")
     );
 }
 

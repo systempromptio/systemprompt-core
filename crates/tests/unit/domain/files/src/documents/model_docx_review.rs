@@ -36,7 +36,9 @@ fn raw_markup_in_a_final_section_header_is_refused() {
     let before = import_rich(&written()).expect("import");
     assert_eq!(
         validate(&before, &model, EditLevel::Edit, &Limits::default()),
-        Err(ModelRejection::RawChanged { block: "evil".to_owned() })
+        Err(ModelRejection::RawChanged {
+            block: "evil".to_owned()
+        })
     );
 }
 
@@ -60,7 +62,9 @@ fn raw_markup_in_a_section_break_footer_is_refused() {
             EditLevel::Edit,
             &Limits::default()
         ),
-        Err(ModelRejection::RawChanged { block: "evil".to_owned() })
+        Err(ModelRejection::RawChanged {
+            block: "evil".to_owned()
+        })
     );
 }
 

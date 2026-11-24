@@ -143,10 +143,9 @@ fn resolve_profile_input(input: &str) -> Result<PathBuf, ProfileResolutionError>
     if is_path_input(input) {
         return resolve_profile_from_path(input);
     }
-    resolve_profile_by_name(input)?
-        .ok_or_else(|| ProfileResolutionError::ProfileNotFound {
-            name: input.to_owned(),
-        })
+    resolve_profile_by_name(input)?.ok_or_else(|| ProfileResolutionError::ProfileNotFound {
+        name: input.to_owned(),
+    })
 }
 
 pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResolutionError> {

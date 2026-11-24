@@ -139,10 +139,18 @@ fn opening_a_missing_log_file_errors() {
 fn a_found_log_reads_through_its_held_handle_after_the_path_is_swapped() {
     let dir = TempDir::new().unwrap();
     let outside = TempDir::new().unwrap();
-    write(dir.path(), "agent-swap.log", "inside
-");
-    write(outside.path(), "secret.log", "secret
-");
+    write(
+        dir.path(),
+        "agent-swap.log",
+        "inside
+",
+    );
+    write(
+        outside.path(),
+        "secret.log",
+        "secret
+",
+    );
 
     let found = find_log_file(dir.path(), "agent-", "agent name", "swap").unwrap();
     fs::remove_file(dir.path().join("agent-swap.log")).unwrap();
@@ -162,7 +170,8 @@ fn opening_a_log_linked_out_of_the_logs_dir_is_refused() {
     let dir = TempDir::new().unwrap();
     let outside = TempDir::new().unwrap();
     write(outside.path(), "secret.log", "secret");
-    std::os::unix::fs::symlink(outside.path().join("secret.log"), dir.path().join("a.log")).unwrap();
+    std::os::unix::fs::symlink(outside.path().join("secret.log"), dir.path().join("a.log"))
+        .unwrap();
 
     let err = LogFile::open_within(dir.path(), &dir.path().join("a.log")).unwrap_err();
     assert!(err.to_string().contains("resolves outside"), "{err}");

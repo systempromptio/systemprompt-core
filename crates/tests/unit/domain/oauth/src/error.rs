@@ -6,8 +6,7 @@
 
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_oauth::{OauthError, OauthErrorKind, ValidationError};
-use systemprompt_traits::FederatedRefusal;
-use systemprompt_traits::{AuthProviderError, RepositoryError};
+use systemprompt_traits::{AuthProviderError, FederatedRefusal, RepositoryError};
 
 #[test]
 fn user_provider_variant_keeps_context_and_source() {

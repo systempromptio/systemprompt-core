@@ -90,7 +90,10 @@ impl ConfigLoader {
 
     #[must_use]
     pub fn with_staged(mut self, staged: &StagedAgentFile<'_>) -> Self {
-        self.staged = Some(StagedSubstitute::new(staged.live_path(), staged.staged_path()));
+        self.staged = Some(StagedSubstitute::new(
+            staged.live_path(),
+            staged.staged_path(),
+        ));
         self
     }
 

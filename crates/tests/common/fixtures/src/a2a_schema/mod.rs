@@ -2,7 +2,7 @@
 
 pub mod conformance;
 
-use serde_json::{Map, Value, json};
+use serde_json::{json, Map, Value};
 use std::sync::OnceLock;
 
 const SCHEMA: &str = include_str!("a2a-1.0.1.schema.json");

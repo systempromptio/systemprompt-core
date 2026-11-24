@@ -33,8 +33,8 @@ use crate::env_overrides::EnvOverrides;
 use crate::session::contexts::SessionContexts;
 pub use context_resolver::extract_profile_name;
 use context_resolver::{
-    create_new_session, resolve_profile_path_from_session, resolve_profile_path_without_session,
-    try_session_from_env, try_validate_context, ContextCheck,
+    ContextCheck, create_new_session, resolve_profile_path_from_session,
+    resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_cloud::profile::ProfileSource;

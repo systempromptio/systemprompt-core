@@ -36,7 +36,10 @@ fn dead_pid() -> i32 {
     let pid = child.id() as i32;
     child.kill().expect("kill child");
     let status = child.wait().expect("reap child");
-    assert!(!status.success(), "the killed child exited on its own: {status}");
+    assert!(
+        !status.success(),
+        "the killed child exited on its own: {status}"
+    );
     pid
 }
 

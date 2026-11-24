@@ -27,7 +27,7 @@ domain_error! {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum ContentParseError {
     #[error("Failed to create datetime")]
     InvalidDatetime,

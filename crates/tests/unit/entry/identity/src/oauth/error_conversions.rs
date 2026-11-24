@@ -5,9 +5,8 @@
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_identity_entry::http::oauth::{OAuthErrorCode, OAuthHttpError};
 use systemprompt_oauth::{OauthError, ValidationError};
-use systemprompt_traits::FederatedRefusal;
-use systemprompt_traits::RepositoryError;
 use systemprompt_traits::auth::AuthProviderError;
+use systemprompt_traits::{FederatedRefusal, RepositoryError};
 
 #[test]
 fn oauth_invalid_client_maps_to_invalid_client_code() {

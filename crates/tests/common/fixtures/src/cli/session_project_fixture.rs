@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use systemprompt_runtime::Kernel;
 
+use crate::ensure_test_bootstrap;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use crate::ensure_test_bootstrap;
 
 pub struct Project {
     previous: PathBuf,

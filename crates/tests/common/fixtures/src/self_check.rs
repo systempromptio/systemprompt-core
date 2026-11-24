@@ -44,7 +44,10 @@ async fn each_owner_pair_is_minted_for_its_caller() {
         &second.user.email,
     ];
     for (i, id) in ids.iter().enumerate() {
-        assert!(ids[i + 1..].iter().all(|other| other != id), "owner ids are distinct");
+        assert!(
+            ids[i + 1..].iter().all(|other| other != id),
+            "owner ids are distinct"
+        );
         assert!(
             emails[i + 1..].iter().all(|other| *other != emails[i]),
             "owner emails are distinct"

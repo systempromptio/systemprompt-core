@@ -31,32 +31,44 @@ pub enum MarketplaceError {
     #[error("no default marketplace configured")]
     NoDefault,
 
-    #[error("catalogue load failed: skill id '{declared}' does not match its directory name '{dir_name}'")]
+    #[error(
+        "catalogue load failed: skill id '{declared}' does not match its directory name '{dir_name}'"
+    )]
     SkillIdMismatch { declared: SkillId, dir_name: String },
 
-    #[error("catalogue load failed: rule id '{declared}' does not match its directory name '{dir_name}'")]
+    #[error(
+        "catalogue load failed: rule id '{declared}' does not match its directory name '{dir_name}'"
+    )]
     RuleIdMismatch {
         declared: MarketplaceRuleId,
         dir_name: String,
     },
 
-    #[error("catalogue load failed: rule '{rule}' names content file '{content_file}' which does not exist")]
+    #[error(
+        "catalogue load failed: rule '{rule}' names content file '{content_file}' which does not exist"
+    )]
     RuleContentMissing { rule: String, content_file: String },
 
-    #[error("catalogue load failed: artifact '{artifact}': mcp_tools entry '{tool}' is not of the form mcp__<server>__<tool>")]
+    #[error(
+        "catalogue load failed: artifact '{artifact}': mcp_tools entry '{tool}' is not of the form mcp__<server>__<tool>"
+    )]
     ArtifactToolMalformed {
         artifact: LibraryArtifactId,
         tool: String,
     },
 
-    #[error("catalogue load failed: artifact '{artifact}': mcp_tools entry '{tool}' names unknown mcp_server '{server}'")]
+    #[error(
+        "catalogue load failed: artifact '{artifact}': mcp_tools entry '{tool}' names unknown mcp_server '{server}'"
+    )]
     ArtifactServerUnknown {
         artifact: LibraryArtifactId,
         tool: String,
         server: String,
     },
 
-    #[error("catalogue load failed: artifact '{artifact}' is enabled but depends on disabled mcp_server '{server}' — enable the server or disable the artifact")]
+    #[error(
+        "catalogue load failed: artifact '{artifact}' is enabled but depends on disabled mcp_server '{server}' — enable the server or disable the artifact"
+    )]
     ArtifactServerDisabled {
         artifact: LibraryArtifactId,
         server: String,
