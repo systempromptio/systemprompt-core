@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use futures::TryStreamExt;
 use systemprompt_traits::{
-    ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, StoredFileId,
-    StoredFileMetadata, StoredFileRead,
+    ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, StorageValidation,
+    StoredFileId, StoredFileMetadata, StoredFileRead,
 };
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -50,10 +50,11 @@ impl LocalFileStorage {
             current.push(component);
             match fs::symlink_metadata(&current).await {
                 Ok(meta) if meta.file_type().is_symlink() => {
-                    return Err(FileStorageError::Validation(format!(
-                        "storage path {} passes through a symbolic link",
-                        relative.display()
-                    )));
+                    return Err(FileStorageError::Validation(
+                        StorageValidation::SymbolicLink {
+                            path: relative.to_path_buf(),
+                        },
+                    ));
                 },
                 Ok(_) => {},
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => break,
@@ -111,7 +112,7 @@ fn describe(id: &StoredFileId, full: &Path, meta: &std::fs::Metadata) -> StoredF
 
 fn not_found(id: &StoredFileId, err: std::io::Error) -> FileStorageError {
     if err.kind() == std::io::ErrorKind::NotFound {
-        FileStorageError::NotFound(id.as_str().to_owned())
+        FileStorageError::NotFound(id.clone())
     } else {
         FileStorageError::Backend(Box::new(StoredFileIoError {
             id: id.clone(),
@@ -210,7 +211,7 @@ impl FileStorage for LocalFileStorage {
             .map_err(|err| not_found(id, err))?;
         let meta = file.metadata().await?;
         if !meta.is_file() {
-            return Err(FileStorageError::NotFound(id.as_str().to_owned()));
+            return Err(FileStorageError::NotFound(id.clone()));
         }
         let size = meta.len();
         let served = range.map(|r| r.resolve(size)).transpose()?;
@@ -239,7 +240,7 @@ impl FileStorage for LocalFileStorage {
             .await
             .map_err(|err| not_found(id, err))?;
         if !meta.is_file() {
-            return Err(FileStorageError::NotFound(id.as_str().to_owned()));
+            return Err(FileStorageError::NotFound(id.clone()));
         }
         Ok(describe(id, &full, &meta))
     }

@@ -35,8 +35,8 @@ pub type ContextPropagationResult<T> = Result<T, ContextPropagationError>;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ContextPropagationError {
-    #[error("missing header: {0}")]
-    MissingHeader(String),
+    #[error("missing header: {header}")]
+    MissingHeader { header: &'static str },
 
     #[error("invalid header {name}: {source}")]
     InvalidHeader {

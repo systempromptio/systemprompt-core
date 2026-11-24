@@ -34,18 +34,16 @@ use context::{create_request_context, load_agent_servers};
 use conversions::{to_tool_definition, to_tool_result};
 use health::{check_server_connection, check_server_health};
 
-fn map_resilience_err(err: ResilienceError<McpDomainError>, server: &str) -> ToolProviderError {
+fn map_resilience_err(
+    err: ResilienceError<McpDomainError>,
+    server: &McpServerId,
+) -> ToolProviderError {
+    let server = server.clone();
     match err {
         ResilienceError::Inner(inner) => ToolProviderError::Execution(Box::new(inner)),
-        ResilienceError::CircuitOpen { .. } => ToolProviderError::ExecutionFailed(format!(
-            "circuit breaker open for MCP server {server}; failing fast"
-        )),
-        ResilienceError::BulkheadFull { .. } => ToolProviderError::ExecutionFailed(format!(
-            "MCP server {server} unavailable: concurrency limit reached"
-        )),
-        ResilienceError::Timeout { after } => ToolProviderError::ExecutionFailed(format!(
-            "MCP server {server} timed out after {after:?}"
-        )),
+        ResilienceError::CircuitOpen { .. } => ToolProviderError::CircuitOpen { server },
+        ResilienceError::BulkheadFull { .. } => ToolProviderError::ConcurrencyLimit { server },
+        ResilienceError::Timeout { after } => ToolProviderError::TimedOut { server, after },
     }
 }
 
@@ -202,7 +200,7 @@ impl ToolProvider for McpToolProvider {
                 )
             })
             .await
-            .map_err(|err| map_resilience_err(err, service_id.as_str()))?;
+            .map_err(|err| map_resilience_err(err, service_id))?;
 
         Ok(to_tool_result(&result))
     }

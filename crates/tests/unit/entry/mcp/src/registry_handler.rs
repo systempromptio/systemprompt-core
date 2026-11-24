@@ -20,7 +20,9 @@ enum Stub {
 #[async_trait]
 impl McpRegistryProvider for Stub {
     async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
-        Err(RegistryError::NotFound(name.to_owned()))
+        Err(RegistryError::NotFound {
+            service: systemprompt_identifiers::ServiceName::new(name),
+        })
     }
 
     async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {

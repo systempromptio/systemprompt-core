@@ -171,13 +171,17 @@ impl SsoProvider for FakeProvider {
         state: Option<SsoStateContext>,
     ) -> Result<ExternalIdentity, SsoError> {
         if ret.param("fail").is_some() {
-            return Err(SsoError::InvalidAssertion("idp said no".to_owned()));
+            return Err(SsoError::InvalidAssertion {
+                reason: "idp said no",
+            });
         }
         if let Some(ctx) = state.as_ref()
             && let Some(echoed) = ret.param("state")
             && ctx.nonce.as_deref() != Some(nonce_for(echoed).as_str())
         {
-            return Err(SsoError::InvalidAssertion("nonce mismatch".to_owned()));
+            return Err(SsoError::InvalidAssertion {
+                reason: "nonce mismatch",
+            });
         }
         let groups = ret
             .param("groups")

@@ -26,7 +26,7 @@ mod validate_outbound_url_tests {
                 "https://169.254.169.254/latest/meta-data",
                 LoopbackPolicy::Allow
             ),
-            Err(OutboundUrlError::BlockedHost(_))
+            Err(OutboundUrlError::BlockedHost { .. })
         ));
     }
 
@@ -40,7 +40,7 @@ mod validate_outbound_url_tests {
             assert!(
                 matches!(
                     validate_outbound_url(url, LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{url} should be blocked",
             );
@@ -65,7 +65,7 @@ mod validate_outbound_url_tests {
     fn rejects_non_http_scheme() {
         assert!(matches!(
             validate_outbound_url("ftp://example.com/h", LoopbackPolicy::Allow),
-            Err(OutboundUrlError::Scheme(_))
+            Err(OutboundUrlError::Scheme { .. })
         ));
     }
 
@@ -105,7 +105,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{ip}/h"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{ip} should be blocked",
             );
@@ -118,7 +118,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{ip}/h"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{ip} should be blocked",
             );
@@ -131,7 +131,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{ip}/h"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{ip} should be blocked",
             );
@@ -146,7 +146,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{ip}/h"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{ip} should be blocked (link-local / AWS+GCP metadata)",
             );
@@ -161,7 +161,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{ip}/h"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{ip} should be blocked (CGNAT)",
             );
@@ -183,7 +183,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{ip}/h"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{ip} should be blocked",
             );
@@ -200,7 +200,7 @@ mod ssrf_adversarial_tests {
         assert!(validate_outbound_url("https://[::1]/h", LoopbackPolicy::Allow).is_ok());
         assert!(matches!(
             validate_outbound_url("https://[::]/h", LoopbackPolicy::Allow),
-            Err(OutboundUrlError::BlockedHost(_))
+            Err(OutboundUrlError::BlockedHost { .. })
         ));
     }
 
@@ -211,7 +211,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&url, LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{url} should be blocked (fe80::/10)",
             );
@@ -225,7 +225,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&url, LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{url} should be blocked (fc00::/7)",
             );
@@ -239,7 +239,7 @@ mod ssrf_adversarial_tests {
                 "https://[fd00:ec2::254]/latest/meta-data",
                 LoopbackPolicy::Allow
             ),
-            Err(OutboundUrlError::BlockedHost(_))
+            Err(OutboundUrlError::BlockedHost { .. })
         ));
     }
 
@@ -259,7 +259,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{host}/"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{host} must be blocked"
             );
@@ -272,7 +272,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&format!("https://{host}/"), LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{host} must be blocked"
             );
@@ -283,7 +283,7 @@ mod ssrf_adversarial_tests {
     fn rejects_ipv6_multicast() {
         assert!(matches!(
             validate_outbound_url("https://[ff02::1]/", LoopbackPolicy::Allow),
-            Err(OutboundUrlError::BlockedHost(_))
+            Err(OutboundUrlError::BlockedHost { .. })
         ));
     }
 
@@ -306,7 +306,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&url, LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{url} should be blocked (v4-mapped loopback)",
             );
@@ -320,7 +320,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&url, LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{url} should be blocked (v4-mapped metadata)",
             );
@@ -338,7 +338,7 @@ mod ssrf_adversarial_tests {
             assert!(
                 matches!(
                     validate_outbound_url(&url, LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{url} should be blocked (v4-mapped RFC1918)",
             );
@@ -351,7 +351,7 @@ mod ssrf_adversarial_tests {
     fn rejects_file_scheme() {
         assert!(matches!(
             validate_outbound_url("file:///etc/passwd", LoopbackPolicy::Allow),
-            Err(OutboundUrlError::Scheme(_))
+            Err(OutboundUrlError::Scheme { .. })
                 | Err(OutboundUrlError::Parse(_))
                 | Err(OutboundUrlError::MissingHost)
         ));
@@ -361,7 +361,7 @@ mod ssrf_adversarial_tests {
     fn rejects_gopher_scheme() {
         assert!(matches!(
             validate_outbound_url("gopher://example.com/_GET", LoopbackPolicy::Allow),
-            Err(OutboundUrlError::Scheme(_))
+            Err(OutboundUrlError::Scheme { .. })
         ));
     }
 
@@ -369,7 +369,7 @@ mod ssrf_adversarial_tests {
     fn rejects_ftp_scheme() {
         assert!(matches!(
             validate_outbound_url("ftp://example.com/x", LoopbackPolicy::Allow),
-            Err(OutboundUrlError::Scheme(_))
+            Err(OutboundUrlError::Scheme { .. })
         ));
     }
 
@@ -381,7 +381,7 @@ mod ssrf_adversarial_tests {
             validate_outbound_url("data:,Hello%2C%20World", LoopbackPolicy::Allow).unwrap_err();
         assert!(matches!(
             err,
-            OutboundUrlError::Scheme(_)
+            OutboundUrlError::Scheme { .. }
                 | OutboundUrlError::Parse(_)
                 | OutboundUrlError::MissingHost
         ));
@@ -400,7 +400,7 @@ mod ssrf_adversarial_tests {
         ));
         assert!(matches!(
             validate_outbound_url("https://user:pass@169.254.169.254/", LoopbackPolicy::Allow),
-            Err(OutboundUrlError::BlockedHost(_))
+            Err(OutboundUrlError::BlockedHost { .. })
         ));
     }
 
@@ -549,7 +549,7 @@ mod ssrf_adversarial_tests {
                 &trusted,
                 LoopbackPolicy::Allow
             ),
-            Err(OutboundUrlError::BlockedHost(_))
+            Err(OutboundUrlError::BlockedHost { .. })
         ));
     }
 

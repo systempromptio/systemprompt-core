@@ -55,7 +55,7 @@ pub(super) fn validate_resource_uri(
         systemprompt_models::net::LoopbackPolicy::Deny,
     ) {
         Ok(_) | Err(OutboundUrlError::NonLoopbackHttp) => Ok(()),
-        Err(e @ (OutboundUrlError::BlockedHost(_) | OutboundUrlError::Loopback(_))) => {
+        Err(e @ (OutboundUrlError::BlockedHost { .. } | OutboundUrlError::Loopback { .. })) => {
             Err(AuthorizeParamError::BlockedResource(e))
         },
         Err(e) => Err(AuthorizeParamError::InvalidResource(e)),

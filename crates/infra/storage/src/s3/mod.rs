@@ -200,7 +200,7 @@ impl FileStorage for S3FileStorage {
         let name = self.object_name(id)?;
         let head = match self.head(&name).await.map_err(|e| e.into_storage(id))? {
             Lookup::Found(head) => head,
-            Lookup::Missing => return Err(FileStorageError::NotFound(id.as_str().to_owned())),
+            Lookup::Missing => return Err(FileStorageError::NotFound(id.clone())),
         };
         Ok(StoredFileMetadata {
             id: id.clone(),

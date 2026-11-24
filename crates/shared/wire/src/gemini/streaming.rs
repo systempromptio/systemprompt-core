@@ -20,11 +20,11 @@ use futures_util::stream::{self, BoxStream, Stream, StreamExt};
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::response::{blocked_prompt_message, empty_terminal_message, stop_reason};
+use super::response::stop_reason;
 use super::streaming_parts::{close_text, close_thinking, emit_part};
 use super::wire::GeminiResponse;
 use crate::canonical::{CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate};
-use crate::error::WireStreamError;
+use crate::error::{WireParseError, WireStreamError};
 use crate::sse::{FrameLedger, SseFramer};
 
 const WIRE: &str = "gemini";
@@ -167,9 +167,9 @@ fn handle_chunk(
             .prompt_feedback
             .as_ref()
             .and_then(|f| f.block_reason_message.as_deref());
-        events.push(Ok(CanonicalEvent::Error(blocked_prompt_message(
-            reason, detail,
-        ))));
+        events.push(Ok(CanonicalEvent::Error(
+            WireParseError::prompt_blocked(reason, detail).to_string(),
+        )));
         return;
     }
     if !state.started {
@@ -199,10 +199,10 @@ fn handle_chunk(
         let reason = stop_reason(finish).with_tool_use(state.emitted_tool_use);
         if reason.empty_terminal_is_error() && !state.emitted_part {
             state.stopped = true;
-            events.push(Ok(CanonicalEvent::Error(empty_terminal_message(
-                finish,
-                candidate.finish_message.as_deref(),
-            ))));
+            events.push(Ok(CanonicalEvent::Error(
+                WireParseError::empty_terminal(finish, candidate.finish_message.as_deref())
+                    .to_string(),
+            )));
             return;
         }
         emit_stop(state, reason, finish, events);

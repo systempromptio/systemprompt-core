@@ -96,7 +96,7 @@ fn required_header<'h>(
     hdrs: &'h HeaderMap,
     name: &'static str,
 ) -> ContextPropagationResult<&'h str> {
-    header_str(hdrs, name).ok_or_else(|| ContextPropagationError::MissingHeader(name.to_owned()))
+    header_str(hdrs, name).ok_or(ContextPropagationError::MissingHeader { header: name })
 }
 
 fn invalid_header(

@@ -37,7 +37,9 @@ impl FromStr for Access {
         match s {
             "allow" => Ok(Self::Allow),
             "deny" => Ok(Self::Deny),
-            other => Err(GovernanceParseError::InvalidAccess(other.to_owned())),
+            other => Err(GovernanceParseError::InvalidAccess {
+                value: other.to_owned(),
+            }),
         }
     }
 }
@@ -122,7 +124,9 @@ impl FromStr for EntityKind {
             "provider" => Ok(Self::Provider),
             "document" => Ok(Self::Document),
             "folder" => Ok(Self::Folder),
-            other => Err(GovernanceParseError::UnknownEntityKind(other.to_owned())),
+            other => Err(GovernanceParseError::UnknownEntityKind {
+                value: other.to_owned(),
+            }),
         }
     }
 }

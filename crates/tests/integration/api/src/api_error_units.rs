@@ -12,9 +12,9 @@ use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
 use systemprompt_api::services::proxy::{ProxyError, ResponseBuildError};
 use systemprompt_api::services::static_content::fallback::{get_api_suggestions, is_api_path};
-use systemprompt_identifiers::MarketplaceId;
+use systemprompt_identifiers::{MarketplaceId, UserId};
 use systemprompt_marketplace::MarketplaceError;
-use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_models::execution::{ContextExtractionError, UserUnavailable};
 use systemprompt_traits::RepositoryError;
 
 fn status_of(err: ApiHttpError) -> StatusCode {
@@ -106,10 +106,6 @@ fn context_extraction_error_into_apihttperror_classifies() {
             StatusCode::BAD_REQUEST,
         ),
         (
-            ContextExtractionError::InvalidUserId("x".to_owned()),
-            StatusCode::BAD_REQUEST,
-        ),
-        (
             ContextExtractionError::ForbiddenHeader {
                 header: "h".to_owned(),
                 reason: "r".to_owned(),
@@ -117,7 +113,10 @@ fn context_extraction_error_into_apihttperror_classifies() {
             StatusCode::FORBIDDEN,
         ),
         (
-            ContextExtractionError::UserNotFound("u".to_owned()),
+            ContextExtractionError::UserNotFound {
+                user_id: UserId::new("u"),
+                state: UserUnavailable::Missing,
+            },
             StatusCode::NOT_FOUND,
         ),
         (
@@ -140,16 +139,20 @@ fn extraction_error_to_api_error_covers_all_variants() {
         ContextExtractionError::MissingAuthHeader,
         ContextExtractionError::InvalidToken("t".into()),
         ContextExtractionError::Revoked,
-        ContextExtractionError::UserNotFound("u".to_owned()),
+        ContextExtractionError::UserNotFound {
+            user_id: UserId::new("u"),
+            state: UserUnavailable::Missing,
+        },
         ContextExtractionError::MissingSessionId,
         ContextExtractionError::MissingUserId,
         ContextExtractionError::MissingContextId,
-        ContextExtractionError::MissingHeader("x-foo".to_owned()),
+        ContextExtractionError::MissingHeader {
+            header: "x-foo".to_owned(),
+        },
         ContextExtractionError::InvalidHeaderValue {
             header: "h".to_owned(),
             reason: "r".to_owned(),
         },
-        ContextExtractionError::InvalidUserId("bad".to_owned()),
         ContextExtractionError::DatabaseError {
             context: "db".to_owned(),
             source: "db".into(),

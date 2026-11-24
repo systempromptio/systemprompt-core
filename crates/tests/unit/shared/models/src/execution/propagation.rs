@@ -49,7 +49,7 @@ fn missing_required_header_is_an_error() {
     let err = RequestContext::from_headers(&hdrs).unwrap_err();
     assert!(matches!(
         err,
-        ContextPropagationError::MissingHeader(name) if name == headers::TRACE_ID
+        ContextPropagationError::MissingHeader { header } if header == headers::TRACE_ID
     ));
 }
 

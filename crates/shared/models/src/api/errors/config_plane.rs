@@ -20,7 +20,7 @@ impl From<ConfigPlaneError> for ApiError {
             ConfigPlaneError::FileManaged { .. } => {
                 Self::conflict(err.to_string()).with_error_key("config_plane_file_managed")
             },
-            ConfigPlaneError::UnknownPlane(_) => Self::not_found(err.to_string()),
+            ConfigPlaneError::UnknownPlane { .. } => Self::not_found(err.to_string()),
             ConfigPlaneError::Invalid { .. } | ConfigPlaneError::Unsupported { .. } => {
                 Self::bad_request(err.to_string())
             },

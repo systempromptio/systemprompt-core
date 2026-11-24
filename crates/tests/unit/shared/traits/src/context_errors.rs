@@ -9,7 +9,9 @@ use systemprompt_traits::context::{
 
 #[test]
 fn missing_header_display_contains_name() {
-    let e = ContextPropagationError::MissingHeader("x-tenant-id".to_owned());
+    let e = ContextPropagationError::MissingHeader {
+        header: "x-tenant-id",
+    };
     assert!(format!("{e}").contains("x-tenant-id"));
 }
 
@@ -27,7 +29,7 @@ fn invalid_header_display_contains_name_and_message() {
 #[test]
 fn context_propagation_errors_are_debug() {
     let variants: &[ContextPropagationError] = &[
-        ContextPropagationError::MissingHeader("h".into()),
+        ContextPropagationError::MissingHeader { header: "h" },
         ContextPropagationError::InvalidHeader {
             name: "n".into(),
             source: "m".into(),
@@ -42,7 +44,7 @@ fn context_propagation_errors_are_debug() {
 #[test]
 fn context_propagation_error_is_error_trait() {
     let e: Box<dyn std::error::Error> =
-        Box::new(ContextPropagationError::MissingHeader("hdr".into()));
+        Box::new(ContextPropagationError::MissingHeader { header: "hdr" });
     assert!(e.to_string().contains("hdr"));
 }
 
@@ -56,7 +58,8 @@ fn result_alias_ok_carries_value() {
 
 #[test]
 fn result_alias_err_carries_error() {
-    let r: ContextPropagationResult<()> = Err(ContextPropagationError::MissingHeader("bad".into()));
+    let r: ContextPropagationResult<()> =
+        Err(ContextPropagationError::MissingHeader { header: "bad" });
     assert!(r.is_err());
 }
 

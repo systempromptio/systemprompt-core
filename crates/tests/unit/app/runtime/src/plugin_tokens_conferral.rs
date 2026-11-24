@@ -136,7 +136,7 @@ async fn the_minter_issues_a_hook_token_for_an_admin_over_one_session_row_and_re
         minter
             .mint(request(PluginTokenHolder::Email(member_email), 7))
             .await,
-        Err(PluginTokenMintError::NotAdmin(_))
+        Err(PluginTokenMintError::NotAdmin { .. })
     ));
     assert!(sessions_of(&ctx, &member).await.is_empty());
     assert!(matches!(
@@ -146,7 +146,7 @@ async fn the_minter_issues_a_hook_token_for_an_admin_over_one_session_row_and_re
                 7
             ))
             .await,
-        Err(PluginTokenMintError::UserNotFound(_))
+        Err(PluginTokenMintError::UserNotFound { .. })
     ));
     for days in [0, 366] {
         assert!(matches!(

@@ -94,7 +94,7 @@ async fn start_for_an_unknown_provider_is_unavailable() {
         .await
         .expect_err("unknown id");
 
-    assert!(matches!(err, SsoError::Unavailable(_)), "{err:?}");
+    assert!(matches!(err, SsoError::Unavailable { .. }), "{err:?}");
 }
 
 #[tokio::test]

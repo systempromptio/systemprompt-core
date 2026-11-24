@@ -22,10 +22,10 @@ use super::subject::SubjectKey;
 pub enum StatementError {
     #[error("statement template has an unbalanced brace at byte {0}")]
     Unbalanced(usize),
-    #[error("statement placeholder {0:?} is not a field name")]
-    BadPlaceholder(String),
-    #[error("statement field {0:?} has no value")]
-    MissingField(String),
+    #[error("statement placeholder {placeholder:?} is not a field name")]
+    BadPlaceholder { placeholder: String },
+    #[error("statement field {field:?} has no value")]
+    MissingField { field: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,10 +76,13 @@ fn render_into(
     for segment in segments {
         match segment {
             Segment::Text(text) => out.push_str(text),
-            Segment::Field(name) => out.push_str(
-                &lookup(name, subject, fields)
-                    .ok_or_else(|| StatementError::MissingField(name.clone()))?,
-            ),
+            Segment::Field(name) => {
+                out.push_str(&lookup(name, subject, fields).ok_or_else(|| {
+                    StatementError::MissingField {
+                        field: name.clone(),
+                    }
+                })?)
+            },
             Segment::Optional { field, body } => {
                 if lookup(field, subject, fields).is_some() {
                     render_into(body, subject, fields, out)?;
@@ -161,9 +164,9 @@ fn parse_placeholder(template: &str, open: usize) -> Result<(Segment, usize), St
             let (body, next) = parse(template, after + 1, true)?;
             Ok((Segment::Optional { field: name, body }, next))
         },
-        _ => Err(StatementError::BadPlaceholder(
-            template[open..=after].to_owned(),
-        )),
+        _ => Err(StatementError::BadPlaceholder {
+            placeholder: template[open..=after].to_owned(),
+        }),
     }
 }
 

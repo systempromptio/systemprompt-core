@@ -85,9 +85,9 @@ fn load_error_display_contains_message() {
 }
 
 #[test]
-fn not_found_display_contains_path() {
-    let e = DomainConfigError::NotFound("/etc/foo.yaml".to_owned());
-    assert!(format!("{e}").contains("/etc/foo.yaml"));
+fn skills_path_not_configured_display_names_the_key() {
+    let e = DomainConfigError::SkillsPathNotConfigured;
+    assert!(format!("{e}").contains("skills_path"));
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn domain_config_errors_are_debug() {
         DomainConfigError::LoadError {
             message: "a".into(),
         },
-        DomainConfigError::NotFound("b".into()),
+        DomainConfigError::SkillsPathNotConfigured,
         DomainConfigError::ParseError {
             message: "c".into(),
         },

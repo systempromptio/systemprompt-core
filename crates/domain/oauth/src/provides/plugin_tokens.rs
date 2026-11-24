@@ -43,19 +43,17 @@ fn is_admin(user: &AuthUser) -> bool {
 
 impl OauthPluginTokenMinter {
     async fn holder(&self, holder: &PluginTokenHolder) -> Result<AuthUser, PluginTokenMintError> {
-        let (found, named) = match holder {
-            PluginTokenHolder::Email(email) => (
-                self.users.find_by_email(email).await.map_err(failed)?,
-                email.clone(),
-            ),
-            PluginTokenHolder::User(id) => (
-                self.users.find_by_id(id).await.map_err(failed)?,
-                id.as_str().to_owned(),
-            ),
+        let found = match holder {
+            PluginTokenHolder::Email(email) => {
+                self.users.find_by_email(email).await.map_err(failed)?
+            },
+            PluginTokenHolder::User(id) => self.users.find_by_id(id).await.map_err(failed)?,
         };
-        let user = found.ok_or(PluginTokenMintError::UserNotFound(named))?;
+        let user = found.ok_or_else(|| PluginTokenMintError::UserNotFound {
+            holder: holder.clone(),
+        })?;
         if !user.is_active || !is_admin(&user) {
-            return Err(PluginTokenMintError::NotAdmin(user.email));
+            return Err(PluginTokenMintError::NotAdmin { email: user.email });
         }
         Ok(user)
     }

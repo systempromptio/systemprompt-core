@@ -114,14 +114,6 @@ fn loader_error_is_std_error() {
 }
 
 #[test]
-fn config_error_not_found_display() {
-    let err = ExtensionConfigError::NotFound("database.url".to_string());
-    let msg = err.to_string();
-    assert!(msg.contains("database.url"));
-    assert!(msg.contains("not found"));
-}
-
-#[test]
 fn config_error_invalid_value_display() {
     let err = ExtensionConfigError::InvalidValue {
         key: "port".to_string(),
@@ -150,7 +142,10 @@ fn config_error_schema_validation_display() {
 
 #[test]
 fn config_error_is_std_error() {
-    let err = ExtensionConfigError::NotFound("key".to_string());
+    let err = ExtensionConfigError::InvalidValue {
+        key: "key".to_string(),
+        message: "msg".to_string(),
+    };
     let _: &dyn std::error::Error = &err;
     assert!(!err.to_string().is_empty());
 }

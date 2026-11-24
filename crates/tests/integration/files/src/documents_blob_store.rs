@@ -191,7 +191,9 @@ impl FileStorage for FailingDelete {
 
     async fn delete(&self, _id: &StoredFileId) -> FileStorageResult<()> {
         self.attempts.fetch_add(1, Ordering::SeqCst);
-        Err(FileStorageError::Validation("delete refused".to_owned()))
+        Err(FileStorageError::Validation(
+            systemprompt_traits::StorageValidation::EmptyPath,
+        ))
     }
 
     async fn metadata(&self, id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {

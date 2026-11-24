@@ -170,8 +170,10 @@ pub(crate) async fn mcp_oauth_requirement(
 
 fn registry_lookup_error(service_name: &ServiceName, error: RegistryError) -> ProxyError {
     match error {
-        RegistryError::NotFound(_) => ProxyError::ServiceNotFound {
-            service: service_name.to_string(),
+        RegistryError::NotFound { .. } | RegistryError::NoDefaultAgent => {
+            ProxyError::ServiceNotFound {
+                service: service_name.to_string(),
+            }
         },
         source => ProxyError::RegistryLookupFailed {
             service: service_name.to_string(),

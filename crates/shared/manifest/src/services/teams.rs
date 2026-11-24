@@ -18,7 +18,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, SecretName, TeamsAppId, TeamsTenantId};
 
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 
 use crate::secrets::Secrets;
 
@@ -87,14 +87,16 @@ impl TeamsAppConfig {
             &self.app_password_ref,
         )?;
         if self.app_id.as_str().is_empty() {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "teams app '{name}' has an empty app_id"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("teams app", name),
+                "has an empty app_id",
+            ));
         }
         if self.default_agent.is_none() && self.routing.is_empty() {
-            return Err(ServicesValidationError::required(format!(
-                "teams app '{name}' must set default_agent or at least one routing entry"
-            )));
+            return Err(ServicesValidationError::required(
+                ValidationSubject::clause("teams app", name),
+                "must set default_agent or at least one routing entry",
+            ));
         }
         Ok(())
     }

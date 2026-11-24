@@ -151,9 +151,9 @@ impl McpRegistryProvider for NullRegistry {
         &self,
         name: &str,
     ) -> Result<systemprompt_traits::McpServerInfo, systemprompt_traits::RegistryError> {
-        Err(systemprompt_traits::RegistryError::NotFound(
-            name.to_owned(),
-        ))
+        Err(systemprompt_traits::RegistryError::NotFound {
+            service: systemprompt_identifiers::ServiceName::new(name),
+        })
     }
     async fn list_enabled_servers(
         &self,

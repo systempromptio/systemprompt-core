@@ -98,13 +98,13 @@ async fn a_group_overage_is_refused() {
 #[tokio::test]
 async fn a_provider_rejection_is_an_invalid_assertion() {
     let h = harness().await;
-    let before = refusals_with_reason(SsoError::InvalidAssertion(String::new()).audit_reason());
+    let before = refusals_with_reason(SsoError::InvalidAssertion { reason: "" }.audit_reason());
 
     let outcome = sign_in(&h, &[("fail", "1")]).await;
 
     assert_eq!(refusal_reason(&outcome), "invalid_assertion");
     assert!(
-        refusals_with_reason(SsoError::InvalidAssertion(String::new()).audit_reason()) > before
+        refusals_with_reason(SsoError::InvalidAssertion { reason: "" }.audit_reason()) > before
     );
 }
 

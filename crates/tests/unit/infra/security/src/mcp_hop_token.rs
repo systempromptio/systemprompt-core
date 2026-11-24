@@ -93,7 +93,7 @@ fn a_hop_token_signed_by_an_unknown_key_is_refused() {
     let err = authority()
         .verify_mcp_hop(&token, &server())
         .expect_err("kid");
-    assert!(matches!(err, TokenError::UnknownKid(_)), "{err:?}");
+    assert!(matches!(err, TokenError::UnknownKid { .. }), "{err:?}");
 }
 
 #[test]

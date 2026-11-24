@@ -76,7 +76,9 @@ pub(super) async fn check_catalog_targets(
                 return Err(refused(
                     member.id(),
                     reassignment.table,
-                    ReassignmentRefusal::AbsentColumn(column.to_owned()),
+                    ReassignmentRefusal::AbsentColumn {
+                        column: column.to_owned(),
+                    },
                 ));
             }
         }

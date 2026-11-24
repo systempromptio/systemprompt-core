@@ -68,11 +68,11 @@ fn test_scheduler_error_invalid_schedule() {
 fn test_scheduler_error_job_execution_failed() {
     let error = SchedulerError::job_execution_failed(
         JobName::new("test_job"),
-        ProviderError::InvalidInput("connection timeout".to_owned()),
+        ProviderError::Internal("connection timeout".into()),
     );
     assert_eq!(
         error.to_string(),
-        "Job execution failed: test_job - Invalid input: connection timeout"
+        "Job execution failed: test_job - Internal provider error: connection timeout"
     );
 }
 
@@ -1255,9 +1255,9 @@ fn test_scheduler_error_display_all_variants() {
         (
             SchedulerError::job_execution_failed(
                 JobName::new("job"),
-                ProviderError::InvalidInput("error".to_owned()),
+                ProviderError::Internal("error".into()),
             ),
-            "Job execution failed: job - Invalid input: error",
+            "Job execution failed: job - Internal provider error: error",
         ),
         (SchedulerError::AlreadyRunning, "Scheduler already running"),
         (SchedulerError::NotInitialized, "Scheduler not initialized"),

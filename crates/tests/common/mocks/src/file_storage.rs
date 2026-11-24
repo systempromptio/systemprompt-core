@@ -108,7 +108,7 @@ impl FileStorage for MockFileStorage {
             .await
             .get(id.as_str())
             .cloned()
-            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))?;
+            .ok_or_else(|| FileStorageError::NotFound(id.clone()))?;
         let metadata = self.metadata(id).await?;
         let served = range.map(|r| r.resolve(content.len() as u64)).transpose()?;
         let bytes = served.map_or_else(
@@ -135,7 +135,7 @@ impl FileStorage for MockFileStorage {
             .await
             .get(id.as_str())
             .cloned()
-            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
+            .ok_or_else(|| FileStorageError::NotFound(id.clone()))
     }
 
     async fn exists(&self, id: &StoredFileId) -> FileStorageResult<bool> {

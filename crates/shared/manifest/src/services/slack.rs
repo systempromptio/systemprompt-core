@@ -18,7 +18,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId};
 
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_traits::LinkPolicy;
 
 use crate::secrets::Secrets;
@@ -64,9 +64,10 @@ impl SlackAppConfig {
         Secrets::require_custom_ref(&owner, "signing_secret_ref", &self.signing_secret_ref)?;
         Secrets::require_custom_ref(&owner, "bot_token_ref", &self.bot_token_ref)?;
         if self.default_agent.is_none() && self.routing.is_empty() {
-            return Err(ServicesValidationError::required(format!(
-                "slack app '{name}' must set default_agent or at least one routing entry"
-            )));
+            return Err(ServicesValidationError::required(
+                ValidationSubject::clause("slack app", name),
+                "must set default_agent or at least one routing entry",
+            ));
         }
         Ok(())
     }

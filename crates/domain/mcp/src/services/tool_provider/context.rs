@@ -57,13 +57,7 @@ pub(super) fn create_request_context(
         .get(headers::USER_ID)
         .filter(|s| !s.is_empty())
         .and_then(|s| UserId::try_new(s.clone()).ok())
-        .ok_or_else(|| {
-            ToolProviderError::AuthorizationFailed(
-            "Missing or invalid x-user-id header - the caller identity must be propagated from \
-             the parent request"
-                .into(),
-        )
-        })?;
+        .ok_or(ToolProviderError::MissingCallerIdentity)?;
 
     let mut request_ctx = RequestContext::new(
         session_id,

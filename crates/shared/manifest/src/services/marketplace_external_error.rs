@@ -18,20 +18,20 @@ pub(super) enum ExternalEntryError {
     #[error("`ref` must be at most {MAX_GIT_REF_CHARS} characters")]
     RefTooLong,
 
-    #[error("`ref` {0:?} must not contain whitespace")]
-    RefWhitespace(String),
+    #[error("`ref` {reference:?} must not contain whitespace")]
+    RefWhitespace { reference: String },
 
-    #[error("`ref` {0:?} must not contain '..'")]
-    RefParentTraversal(String),
+    #[error("`ref` {reference:?} must not contain '..'")]
+    RefParentTraversal { reference: String },
 
-    #[error("`ref` {0:?} must not start with '-'")]
-    RefLeadingDash(String),
+    #[error("`ref` {reference:?} must not start with '-'")]
+    RefLeadingDash { reference: String },
 
     #[error("must be named with letters, digits, '-', '_' and '.' only")]
     InvalidName,
 
-    #[error("github repo '{0}' must be 'owner/repository'")]
-    GithubRepo(String),
+    #[error("github repo '{repo}' must be 'owner/repository'")]
+    GithubRepo { repo: String },
 
     #[error("path '{path}' must be a relative path: {source}")]
     Path {
@@ -47,12 +47,12 @@ pub(super) enum ExternalEntryError {
         source: OutboundUrlError,
     },
 
-    #[error("url '{0}' must use https")]
-    NotHttps(String),
+    #[error("url '{url}' must use https")]
+    NotHttps { url: String },
 
     #[error(
-        "`sha` '{0}' must be a full lowercase commit id — a pass-through plugin is never \
+        "`sha` '{sha}' must be a full lowercase commit id — a pass-through plugin is never \
          inspected, so it must be pinned"
     )]
-    UnpinnedSha(String),
+    UnpinnedSha { sha: String },
 }

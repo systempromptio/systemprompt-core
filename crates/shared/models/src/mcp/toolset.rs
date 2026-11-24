@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::deployment::{Deployment, McpServerType};
 use crate::auth::{AuthenticatedUser, Permission};
-use crate::errors::ServicesValidationError;
+use crate::errors::{ServicesValidationError, ValidationSubject};
 
 /// A toolset a deployment hosts, by the id its factory registers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -115,37 +115,45 @@ impl Deployment {
             return Ok(());
         }
         if !matches!(self.server_type, McpServerType::Internal) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': toolsets are only valid on internal servers."
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "toolsets are only valid on internal servers.",
+            ));
         }
         let mut seen = std::collections::HashSet::new();
         for toolset in &self.toolsets {
             if toolset.id.trim().is_empty() {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': a toolset entry has an empty id."
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("MCP server", name),
+                    "a toolset entry has an empty id.",
+                ));
             }
             if !seen.insert(toolset.id.as_str()) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': toolset '{}' is listed twice.",
-                    toolset.id
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("MCP server", name),
+                    format!("toolset '{}' is listed twice.", toolset.id),
+                ));
             }
             if toolset.access.as_ref().is_some_and(ToolAccess::is_empty) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': toolset '{}' declares an empty access block; list \
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("MCP server", name),
+                    format!(
+                        "toolset '{}' declares an empty access block; list \
                      scopes, roles or groups, or remove it.",
-                    toolset.id
-                )));
+                        toolset.id
+                    ),
+                ));
             }
         }
         for (tool, meta) in &self.tools {
             if meta.access.as_ref().is_some_and(ToolAccess::is_empty) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': tool '{tool}' declares an empty access block; list \
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("MCP server", name),
+                    format!(
+                        "tool '{tool}' declares an empty access block; list \
                      scopes, roles or groups, or remove it."
-                )));
+                    ),
+                ));
             }
         }
         Ok(())

@@ -30,10 +30,10 @@ pub enum ChangeSource {
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ChangeSourceError {
     #[error(
-        "'{0}' is not a change source: expected code:<file>, bundle:<name>, console:<user> or \
+        "'{text}' is not a change source: expected code:<file>, bundle:<name>, console:<user> or \
          migration"
     )]
-    Unknown(String),
+    Unknown { text: String },
     #[error("change source '{0}:' names no {0}")]
     Empty(&'static str),
 }
@@ -69,13 +69,19 @@ impl FromStr for ChangeSource {
             return Ok(Self::Migration);
         }
         let Some((kind, rest)) = text.split_once(':') else {
-            return Err(ChangeSourceError::Unknown(text.to_owned()));
+            return Err(ChangeSourceError::Unknown {
+                text: text.to_owned(),
+            });
         };
         let (kind, build): (&'static str, fn(&str) -> Self) = match kind {
             "code" => ("code", |rest| Self::Code(rest.to_owned())),
             "bundle" => ("bundle", |rest| Self::Bundle(rest.to_owned())),
             "console" => ("console", |rest| Self::Console(UserId::new(rest))),
-            _ => return Err(ChangeSourceError::Unknown(text.to_owned())),
+            _ => {
+                return Err(ChangeSourceError::Unknown {
+                    text: text.to_owned(),
+                });
+            },
         };
         if rest.is_empty() {
             return Err(ChangeSourceError::Empty(kind));

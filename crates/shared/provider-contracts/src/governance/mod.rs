@@ -33,10 +33,10 @@ pub use policy::{
 /// variant.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum GovernanceParseError {
-    #[error("invalid access value: {0}")]
-    InvalidAccess(String),
-    #[error("unknown entity_type: {0}")]
-    UnknownEntityKind(String),
-    #[error("unknown access scope: {0}")]
-    UnknownAccessScope(String),
+    #[error("invalid access value: {value}")]
+    InvalidAccess { value: String },
+    #[error("unknown entity_type: {value}")]
+    UnknownEntityKind { value: String },
+    #[error("unknown access scope: {value}")]
+    UnknownAccessScope { value: String },
 }

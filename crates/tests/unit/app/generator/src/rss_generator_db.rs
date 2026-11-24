@@ -273,7 +273,7 @@ impl RssFeedProvider for StubRssProvider {
 
     async fn feed_metadata(&self, _ctx: &RssFeedContext<'_>) -> ProviderResult<RssFeedMetadata> {
         if self.metadata_fails {
-            return Err(ProviderError::Configuration("meta boom".into()));
+            return Err(ProviderError::Internal("meta boom".into()));
         }
         Ok(RssFeedMetadata {
             title: "Stub".to_owned(),
@@ -289,7 +289,7 @@ impl RssFeedProvider for StubRssProvider {
         _limit: i64,
     ) -> ProviderResult<Vec<RssFeedItem>> {
         if self.items_fail {
-            return Err(ProviderError::RenderFailed("items boom".into()));
+            return Err(ProviderError::Internal("items boom".into()));
         }
         Ok(vec![RssFeedItem {
             title: "Stub Item".to_owned(),
