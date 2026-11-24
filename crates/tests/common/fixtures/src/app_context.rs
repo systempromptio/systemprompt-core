@@ -195,6 +195,13 @@ pub fn fixture_core_members() -> Vec<Box<dyn Extension>> {
     members.push(Box::new(
         systemprompt_identity_entry::extension::IdentityHttpExtension,
     ));
+    members.push(Box::new(
+        systemprompt_mcp_entry::extension::McpHttpExtension,
+    ));
+    members.push(Box::new(
+        systemprompt_marketplace_entry::extension::MarketplaceHttpExtension,
+    ));
+    members.push(Box::new(systemprompt_cloud_entry::CloudCliExtension));
     members
 }
 

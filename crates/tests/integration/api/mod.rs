@@ -241,6 +241,7 @@ mod files_http_surface;
 mod internal_links;
 #[cfg(test)]
 mod internal_links_worker;
+#[cfg(test)]
 mod member_surfaces;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]

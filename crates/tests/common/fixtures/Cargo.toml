@@ -39,6 +39,9 @@ systemprompt-storage = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-files-entry = { workspace = true, features = ["http"] }
+systemprompt-mcp-entry = { workspace = true, features = ["http"] }
+systemprompt-marketplace-entry = { workspace = true, features = ["http"] }
+systemprompt-cloud-entry = { workspace = true, features = ["http"] }
 systemprompt-gateway = { workspace = true }
 systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
 tempfile = { workspace = true }

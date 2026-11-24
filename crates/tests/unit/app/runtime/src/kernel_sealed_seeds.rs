@@ -331,6 +331,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_users::UserRepository>(),
         ),
         (
+            type_name::<Arc<systemprompt_mcp_entry::http::McpHttpRepositories>>(),
+            carrier::<systemprompt_mcp::repository::ToolUsageRepository>(),
+        ),
+        (
             type_name::<systemprompt_traits::DynDriveTokens>(),
             carrier::<systemprompt_documents::tokens::DocumentDriveTokens>(),
         ),
