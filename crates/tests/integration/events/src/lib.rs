@@ -22,6 +22,9 @@ mod durable_batch;
 mod claim_throughput;
 
 #[cfg(test)]
+mod claim_order;
+
+#[cfg(test)]
 mod config_watch_notify;
 
 #[cfg(test)]

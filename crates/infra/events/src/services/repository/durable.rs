@@ -12,7 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{PgConnection, PgPool};
-use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
+use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, OutboxAggregateKey};
 
 use crate::services::durable::ReportingFactRaw;
 use crate::services::routing::{NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel};
@@ -51,6 +51,7 @@ pub(crate) struct DurableRow<'a> {
     pub payload: serde_json::Value,
     // JSON: the encoded `ReportingFact` envelope.
     pub fact: serde_json::Value,
+    pub aggregate: Option<&'a OutboxAggregateKey>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -65,8 +66,11 @@ impl DurableOutboxRepository {
         sqlx::query!(
             "INSERT INTO event_outbox \
              (id, channel, user_id, payload, actor_kind, actor_id, origin_instance_id, \
-              consumer, fact, deliver_to_origin) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE)",
+              consumer, fact, deliver_to_origin, aggregate_key, aggregate_seq) \
+             SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10::text, \
+                    CASE WHEN $10::text = '' THEN 0 ELSE COALESCE( \
+                        (SELECT max(e.aggregate_seq) FROM event_outbox e \
+                         WHERE e.consumer = $8 AND e.aggregate_key = $10::text), 0) + 1 END",
             row.id.as_str(),
             row.channel.as_str(),
             row.actor.user_id.as_str(),
@@ -75,7 +79,8 @@ impl DurableOutboxRepository {
             actor_id,
             row.origin.as_str(),
             row.consumer,
-            row.fact
+            row.fact,
+            row.aggregate.map_or("", OutboxAggregateKey::as_str)
         )
         .execute(&mut *conn)
         .await?;
@@ -99,9 +104,15 @@ impl DurableOutboxRepository {
         let skipped: Vec<String> = skipped.iter().map(ToString::to_string).collect();
         sqlx::query_as!(
             FactRow,
-            r#"SELECT id AS "id: EventOutboxId", fact AS "fact!" FROM event_outbox
-             WHERE consumer = $1 AND processed_at IS NULL AND id <> ALL($3)
-             ORDER BY created_at, id LIMIT $2 FOR UPDATE SKIP LOCKED"#,
+            r#"SELECT o.id AS "id: EventOutboxId", o.fact AS "fact!" FROM event_outbox o
+             WHERE o.consumer = $1 AND o.processed_at IS NULL AND o.id <> ALL($3)
+               AND (o.aggregate_key = '' OR NOT EXISTS (
+                   SELECT 1 FROM event_outbox e
+                   WHERE e.consumer = o.consumer AND e.aggregate_key = o.aggregate_key
+                     AND e.processed_at IS NULL
+                     AND (e.aggregate_seq, e.created_at, e.id)
+                         < (o.aggregate_seq, o.created_at, o.id)))
+             ORDER BY o.created_at, o.id LIMIT $2 FOR UPDATE OF o SKIP LOCKED"#,
             consumer,
             limit,
             &skipped
@@ -116,9 +127,15 @@ impl DurableOutboxRepository {
     ) -> Result<Option<FactRow>, sqlx::Error> {
         sqlx::query_as!(
             FactRow,
-            r#"SELECT id AS "id: EventOutboxId", fact AS "fact!" FROM event_outbox
-             WHERE consumer = $1 AND processed_at IS NULL
-             ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"#,
+            r#"SELECT o.id AS "id: EventOutboxId", o.fact AS "fact!" FROM event_outbox o
+             WHERE o.consumer = $1 AND o.processed_at IS NULL
+               AND (o.aggregate_key = '' OR NOT EXISTS (
+                   SELECT 1 FROM event_outbox e
+                   WHERE e.consumer = o.consumer AND e.aggregate_key = o.aggregate_key
+                     AND e.processed_at IS NULL
+                     AND (e.aggregate_seq, e.created_at, e.id)
+                         < (o.aggregate_seq, o.created_at, o.id)))
+             ORDER BY o.created_at, o.id LIMIT 1 FOR UPDATE OF o SKIP LOCKED"#,
             consumer
         )
         .fetch_optional(&mut *conn)

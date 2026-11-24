@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS event_outbox (
     fact JSONB,
     processed_at TIMESTAMPTZ,
     deliver_to_origin BOOLEAN NOT NULL DEFAULT FALSE,
+    aggregate_key TEXT NOT NULL DEFAULT '',
+    aggregate_seq BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT event_outbox_fact_pair CHECK (
         (consumer IS NULL AND fact IS NULL AND processed_at IS NULL)
         OR (consumer IS NOT NULL AND length(consumer) > 0 AND fact IS NOT NULL)
@@ -22,3 +24,6 @@ CREATE INDEX IF NOT EXISTS idx_event_outbox_actor ON event_outbox(actor_kind, ac
 CREATE INDEX IF NOT EXISTS idx_event_outbox_pending
     ON event_outbox(consumer, created_at, id)
     WHERE consumer IS NOT NULL AND processed_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_event_outbox_aggregate_pending
+    ON event_outbox (consumer, aggregate_key, aggregate_seq, created_at, id)
+    WHERE aggregate_key <> '' AND processed_at IS NULL;

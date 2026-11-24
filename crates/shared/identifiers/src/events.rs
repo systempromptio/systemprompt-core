@@ -4,3 +4,4 @@
 //! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(EventOutboxId, generate);
+crate::define_id!(OutboxAggregateKey);
