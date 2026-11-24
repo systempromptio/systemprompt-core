@@ -32,11 +32,10 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use systemprompt_database::{
-    CoordinationRepositories, DbPool, InstanceLeaseRepository, ProcessOwnershipWake, ServiceModule,
+    CoordinationRepositories, DbPool, InstanceLeaseRepository, ProcessOwnershipWake,
     ServiceRepository,
 };
-use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp, StopOutcome};
+use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{NodeRole, ShutdownConfig};
 use systemprompt_runtime::AppContext;
@@ -48,6 +47,10 @@ use super::process_ownership::{
     FAILED_START_BACKOFF, KeyAction, LEASE_TTL, OwnershipStep, ProcessKey, TickKind, key_action,
     next_tick, ownership_step, renewal_overdue, tick_kind, with_self,
 };
+
+mod targets;
+pub(crate) use targets::desired_processes;
+use targets::{RELEASE_MARGIN, stop_held};
 
 struct Held {
     lease: Lease,
@@ -284,58 +287,4 @@ impl LeaseLoop {
         .await;
         self.withdraw_presence().await;
     }
-}
-
-const RELEASE_MARGIN: Duration = Duration::from_secs(1);
-
-async fn stop_held(services: &ServiceRepository, key: &ProcessKey, grace: Duration) -> bool {
-    let service = match services.find_service_by_name(key.name()).await {
-        Ok(service) => service,
-        Err(error) => {
-            tracing::warn!(service = %key.name(), error = %error, "process row unreadable on shutdown");
-            return false;
-        },
-    };
-    let Some(row) = service else {
-        tracing::warn!(service = %key.name(), "no pid recorded on shutdown; leaving its lease to expire");
-        return false;
-    };
-    let Some(pid) = row.pid.and_then(|pid| u32::try_from(pid).ok()) else {
-        tracing::warn!(service = %key.name(), "no pid recorded on shutdown; leaving its lease to expire");
-        return false;
-    };
-    let kind = match key.module() {
-        ServiceModule::Mcp => ChildKind::Mcp,
-        ServiceModule::Agent => ChildKind::Agent,
-    };
-    let claim = ChildClaim::spawned(
-        kind,
-        key.name(),
-        SpawnStamp::recorded(row.pid, row.spawn_nonce.as_ref()),
-    );
-    match subprocess::stop_owned(pid, &claim, grace).await {
-        Ok(StopOutcome::NotRunning | StopOutcome::Stopped(_) | StopOutcome::NotOurs) => true,
-        Err(error) => {
-            tracing::warn!(service = %key.name(), pid, error = %error, "process survived shutdown stop");
-            false
-        },
-    }
-}
-
-pub(crate) async fn desired_processes(ctx: &AppContext) -> Result<Vec<ProcessKey>> {
-    let mut wanted: Vec<ProcessKey> = match crate::services::proxy::mcp_registry(ctx) {
-        Ok(registry) => registry
-            .managed_servers()
-            .await?
-            .into_iter()
-            .map(|server| ProcessKey::new(ServiceModule::Mcp, ServiceName::new(server.name)))
-            .collect(),
-        Err(_) => Vec::new(),
-    };
-    wanted.extend(
-        super::agents::enabled_agents(ctx)?
-            .into_iter()
-            .map(|agent| ProcessKey::new(ServiceModule::Agent, ServiceName::new(agent.name))),
-    );
-    Ok(wanted)
 }

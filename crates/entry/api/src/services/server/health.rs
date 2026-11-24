@@ -222,6 +222,7 @@ pub fn audit_log_stats(row: &JsonRow) -> AuditLogStats {
 
 pub(super) const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub async fn handle_health(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
     axum::Extension(scheduler_health): axum::Extension<Arc<SchedulerHealth>>,

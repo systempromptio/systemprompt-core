@@ -79,8 +79,6 @@ pub(crate) fn seal_context_seeds(kernel: &mut Kernel, planes: ContextPlanes) {
     state.insert_sealed(subsystems.late_binders);
 }
 
-/// The config planes every admitted member declares, over the profile's
-/// plane authority and services path.
 pub fn config_plane_set(admitted: &Admitted, config: &Config) -> ConfigPlaneResult<ConfigPlaneSet> {
     let planes = admitted
         .built()
@@ -94,8 +92,6 @@ pub fn config_plane_set(admitted: &Admitted, config: &Config) -> ConfigPlaneResu
     )
 }
 
-/// Loads a fresh policy engine from the database over the kernel's
-/// policy catalog, for a reload to swap into the governance watch.
 pub async fn reload_governance(kernel: &Kernel) -> RuntimeResult<GovernanceEngine> {
     let state = kernel.state();
     let catalog = kernel.resolved().get::<Arc<PolicyCatalog>>()?;

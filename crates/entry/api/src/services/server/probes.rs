@@ -45,6 +45,7 @@ use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
 use super::readiness::ReadinessState;
 use crate::services::middleware::LoadShed;
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub(crate) async fn handle_livez(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> Result<Json<serde_json::Value>, ApiHttpError> {
@@ -75,6 +76,7 @@ pub(super) fn seed_error(error: MissingDependency) -> ApiHttpError {
     ApiHttpError::internal("node state", error)
 }
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub(crate) async fn handle_readyz(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
     shed: Option<axum::Extension<Arc<LoadShed>>>,

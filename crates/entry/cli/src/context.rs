@@ -33,6 +33,8 @@ use crate::kernel::CommandRegistry;
 use crate::runner::interrupt::InterruptShield;
 use systemprompt_loader::subprocess::ForegroundChildren;
 
+mod debug;
+
 pub struct CommandContext {
     pub cli: CliConfig,
     pub env: EnvOverrides,
@@ -288,15 +290,5 @@ impl CommandContext {
         Ok(DatabaseContext::from_pool(Arc::clone(
             self.app_context().await?.kernel().state().get::<DbPool>()?,
         )))
-    }
-}
-
-impl std::fmt::Debug for CommandContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CommandContext")
-            .field("cli", &self.cli)
-            .field("env", &self.env)
-            .field("database_scoped", &self.db.is_some())
-            .finish_non_exhaustive()
     }
 }

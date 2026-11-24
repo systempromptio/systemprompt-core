@@ -20,13 +20,15 @@ use std::sync::Arc;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
 use serde::Serialize;
-use systemprompt_database::{PLANE_NOT_APPLIED_HINT, find_config_plane_applied};
+use systemprompt_database::find_config_plane_applied;
 use systemprompt_extension::prelude::{ApplyMode, ChangeActor, ChangeRequest, EntityScope};
-use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::ConfigReconcileService;
 
 use systemprompt_extension::cli::CommandOutput;
+
+mod title;
+use title::planes_title;
 
 #[derive(Debug, Subcommand)]
 pub enum PlanesCommands {
@@ -197,23 +199,6 @@ async fn list(ctx: &AppContext, service: &ConfigReconcileService) -> Result<Comm
         &rows,
     )
     .with_title(planes_title(&unapplied, unapplied_mode)))
-}
-
-fn planes_title(unapplied: &[&str], mode: UnappliedPlaneMode) -> String {
-    if unapplied.is_empty() {
-        return "Config planes".to_owned();
-    }
-    let effect = if mode.denies() {
-        "their requests are denied"
-    } else {
-        "their requests pass ungoverned"
-    };
-    format!(
-        "Config planes — NOT APPLIED: {} (unapplied_planes: {}, {effect}); {}",
-        unapplied.join(", "),
-        mode.as_str(),
-        PLANE_NOT_APPLIED_HINT
-    )
 }
 
 async fn diff(service: &ConfigReconcileService, plane: &str) -> Result<CommandOutput> {

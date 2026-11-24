@@ -29,6 +29,7 @@ use super::probes::{handle_livez, handle_readyz, seed_error};
 use systemprompt_documents::discovery::DocumentsDiscovery;
 use systemprompt_manifest::profile::UiSessionDiscovery;
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {
@@ -104,6 +105,7 @@ pub async fn handle_root_discovery(
     Ok(Json(SingleResponse::new(data)))
 }
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub async fn handle_core_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {
@@ -141,6 +143,7 @@ pub async fn handle_core_discovery(
     Ok(Json(SingleResponse::new(data)))
 }
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub async fn handle_agents_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {
@@ -169,6 +172,7 @@ pub async fn handle_agents_discovery(
     Ok(Json(SingleResponse::new(data)))
 }
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub async fn handle_mcp_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {

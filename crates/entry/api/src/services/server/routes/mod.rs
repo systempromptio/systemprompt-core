@@ -34,16 +34,14 @@ mod static_setup;
 
 use axum::Router;
 use std::sync::Arc;
-use systemprompt_extension::reserved::WEB_ROOT_BASE_PATH;
-use systemprompt_extension::{AuthzPolicy, ContextKind, LoaderError, RouteGroup};
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_extension::RouteGroup;
 use systemprompt_manifest::profile::NodeRole;
 
 use crate::routes::admin::services::RefreshLock;
 pub(super) use error::RouteMountError;
 pub(crate) use oauth_mount::identity_bridge_auth;
+use protocol::MountCtx;
 pub use protocol::{Composed, WEBHOOK_RATE};
-use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{DynIpBanStore, StartupEventSender};
@@ -53,6 +51,9 @@ use crate::services::middleware::{
     ProtectionGuards, PublicContextMiddleware, RateLimitState, RootFallbackOwner,
     UserOnlyContextMiddleware, ip_ban_middleware,
 };
+
+mod discovery_mount;
+use discovery_mount::{mount_discovery, require_provider};
 
 pub(super) fn configure_routes(
     ctx: &AppContext,
@@ -230,79 +231,6 @@ fn finish_router(
     }
 
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
-}
-
-fn mount_discovery(
-    mut router: Router,
-    mount: &MountCtx<'_>,
-    identity_wellknown: Option<Router>,
-) -> Result<Router, RouteMountError> {
-    let ctx = mount.ctx;
-    let serves = mount.serves;
-    if serves(RouteGroup::Discovery) {
-        router = mount.mount(
-            router,
-            declare(
-                super::builder::discovery_router(ctx)?,
-                WEB_ROOT_BASE_PATH,
-                AuthzPolicy::public(),
-                ContextKind::Public,
-                RouteGroup::Discovery,
-            ),
-        )?;
-    }
-    if serves(RouteGroup::Probes) {
-        router = mount.mount(
-            router,
-            declare(
-                super::builder::probes_router(ctx)?,
-                WEB_ROOT_BASE_PATH,
-                AuthzPolicy::public(),
-                ContextKind::Public,
-                RouteGroup::Probes,
-            ),
-        )?;
-    }
-    if serves(RouteGroup::AuthenticatedDiscovery) {
-        router = mount.mount(
-            router,
-            declare(
-                super::builder::authenticated_discovery_router(ctx)?,
-                WEB_ROOT_BASE_PATH,
-                AuthzPolicy::authenticated(),
-                ContextKind::User,
-                RouteGroup::AuthenticatedDiscovery,
-            ),
-        )?;
-    }
-    if serves(RouteGroup::WellKnown) {
-        router = mount.mount(
-            router,
-            declare(
-                wellknown_router(ctx, identity_wellknown)?,
-                WEB_ROOT_BASE_PATH,
-                AuthzPolicy::public(),
-                ContextKind::Public,
-                RouteGroup::WellKnown,
-            ),
-        )?;
-    }
-    Ok(router)
-}
-
-fn require_provider<T: std::any::Any>(
-    extension: &str,
-    provider: Option<T>,
-) -> Result<T, LoaderError> {
-    provider.ok_or_else(|| LoaderError::missing_provider::<T>(ExtensionId::new(extension)))
-}
-
-fn wellknown_router(ctx: &AppContext, identity: Option<Router>) -> Result<Router, LoaderError> {
-    let kernel = crate::routes::wellknown_router(ctx)?;
-    Ok(match identity {
-        Some(identity) => identity.merge(kernel),
-        None => kernel,
-    })
 }
 
 fn mount_content(

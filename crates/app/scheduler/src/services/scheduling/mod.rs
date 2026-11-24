@@ -57,6 +57,12 @@ pub(crate) use job_context::{
 };
 pub use unlisted::unlisted_job_names;
 
+mod unknown;
+use unknown::collect_unknown_job_names;
+pub use unknown::unknown_job_names;
+
+mod debug;
+
 pub(crate) type RunningJobs = Arc<Mutex<HashSet<JobName>>>;
 
 pub(crate) type JobMap = HashMap<&'static str, Arc<dyn JobTrait>>;
@@ -125,30 +131,6 @@ struct RegistrationCtx<'a> {
 }
 
 #[must_use]
-pub fn unknown_job_names(config: &SchedulerConfig, schedule: &AdmittedSchedule) -> Vec<JobName> {
-    collect_unknown_job_names(config, |name| schedule.contains_job(name.as_str()))
-        .into_iter()
-        .cloned()
-        .collect()
-}
-
-fn collect_unknown_job_names(
-    config: &SchedulerConfig,
-    is_registered: impl Fn(&JobName) -> bool,
-) -> Vec<&JobName> {
-    let mut unknown: Vec<&JobName> = Vec::new();
-    for name in config
-        .jobs
-        .iter()
-        .map(|job| &job.name)
-        .chain(config.bootstrap_jobs.iter())
-    {
-        if !is_registered(name) && !unknown.contains(&name) {
-            unknown.push(name);
-        }
-    }
-    unknown
-}
 
 pub struct SchedulerService {
     config: SchedulerConfig,
@@ -164,15 +146,6 @@ pub struct SchedulerService {
     background_tasks: BackgroundTasks,
     schedule: Arc<AdmittedSchedule>,
     clock: DynSchedulerClock,
-}
-
-impl std::fmt::Debug for SchedulerService {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SchedulerService")
-            .field("config", &self.config)
-            .field("users", &self.users.is_some())
-            .finish_non_exhaustive()
-    }
 }
 
 impl SchedulerService {

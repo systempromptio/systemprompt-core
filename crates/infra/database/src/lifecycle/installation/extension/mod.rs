@@ -70,7 +70,6 @@ use super::migration_owners::MigrationMembers;
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 
-/// The prepared schemas of an install and the schema they install into.
 #[derive(Clone, Copy)]
 pub(super) struct PreparedAt<'a> {
     pub(super) prepared: &'a [PreparedSchema],

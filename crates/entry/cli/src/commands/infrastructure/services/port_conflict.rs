@@ -15,7 +15,6 @@ use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 
 const PORT_RELEASE: Duration = Duration::from_secs(5);
 
-/// The API port to free and how a holder of it may be stopped.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct PortRequest {
     pub(super) port: u16,

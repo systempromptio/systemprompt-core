@@ -107,6 +107,7 @@ async fn diagnostic_checks(
     }
 }
 
+// JSON: an outgoing probe/discovery body is an open JSON document.
 pub async fn handle_health_detail(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
     readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
