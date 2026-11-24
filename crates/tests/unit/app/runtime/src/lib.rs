@@ -167,6 +167,7 @@ mod mcp_host_serve;
 mod mcp_tool_provider;
 #[cfg(test)]
 mod plugin_tokens_conferral;
+#[cfg(test)]
 mod reassignments_conferral;
 #[cfg(test)]
 mod schema_behind_error;
