@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Rate limiting"
+text = "The per-replica rate-limit windows are sharded (64 independently locked shards, each a least-recently-charged order of at most 4096 callers): a charge touches only its own shard's counter and no charge walks the whole map. A full shard evicts only a counter from an earlier window; when every counter in the shard is current the charge fails and the request answers `503`, so memory pressure never restores a spent budget. Evictions and refusals are counted on `rate_limit_memory_evictions_total` and `rate_limit_memory_refusals_total`. Published per-subject limits are unchanged."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`MemoryRateLimitBuckets::{with_shard_capacity, evictions, refusals, tracked, SHARDS}`."
