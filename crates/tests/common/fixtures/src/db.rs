@@ -38,19 +38,28 @@ pub async fn test_pg_pool() -> sqlx::PgPool {
     test_db_pool().await.write_pool().as_ref().clone()
 }
 
-// Connection ceiling for a single test's pool.
+// The per-run connection budget.
 //
-// The budget is `RUST_TEST_THREADS` (8, set in this workspace's cargo config)
-// times this value against Postgres `max_connections` of 100. Connections open
-// on demand (`min_connections` is 0) and close with the pool, so the ceiling
-// only has to cover one test's concurrent queries.
-const FIXTURE_POOL_MAX_CONNECTIONS: u32 = 8;
+// Every pool a fixture opens (`connect`, the disposable databases, and the
+// fixture AppContext through the `database.pool` block of the bootstrap
+// profile) is capped at `FIXTURE_POOL_MAX_CONNECTIONS`. A test process holds
+// at most `FIXTURE_TEST_CONNECTIONS`: its own pool, the AppContext pool, a
+// disposable database's admin pool, and the AppContext's claim and listener
+// sessions. nextest runs each test in its own process, so a run opens at most
+// (concurrent DB tests × `FIXTURE_TEST_CONNECTIONS`) sessions; the
+// `db-connection-budget` test group in `.config/nextest.toml` bounds the
+// concurrent DB tests so that product stays within
+// `SERVER_CONNECTION_BUDGET`, the share of the server's `max_connections`
+// (100) left after superuser-reserved, migration and operator sessions.
+pub const FIXTURE_POOL_MAX_CONNECTIONS: u32 = 4;
+pub const FIXTURE_TEST_CONNECTIONS: u32 = 3 * FIXTURE_POOL_MAX_CONNECTIONS + 2;
+pub const SERVER_CONNECTION_BUDGET: u32 = 85;
 
 // Idle connections are returned to the server promptly rather than parked for
 // the default five minutes: a test's pool outlives the test by however long the
 // binary runs, and parked connections from finished tests are what exhausts the
 // server mid-run.
-const FIXTURE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
+pub const FIXTURE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
 // A pool handle that never opens a socket: the connection is lazy and no
 // query ever runs through it. Fake `DatabaseProvider`s that script every call

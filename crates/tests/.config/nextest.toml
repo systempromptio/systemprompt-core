@@ -147,6 +147,13 @@ collab-reaper-db = { max-threads = 1 }
 # queue, so a backfill test that queues a document stops a concurrent GC test
 # collecting its own aged blobs. Serialise the GC and backfill tests.
 document-blob-gc-db = { max-threads = 1 }
+# Why: Postgres admits `max_connections` (100) sessions, and a pool that
+# cannot open one waits out its acquire timeout and fails the test. Each
+# api-integration test process opens up to `FIXTURE_TEST_CONNECTIONS`
+# (common/fixtures/src/db.rs); this slot count times that stays within
+# `SERVER_CONNECTION_BUDGET`, whatever `--test-threads` the run asks for.
+# Tests already serialised in a shared-state slot above keep that slot.
+db-connection-budget = { max-threads = 6 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-integration-tests) and test(/^(declarative_object_refs|migration_schema_ahead|interrupted_install|schema_migration_order|migration_supersedes|fresh_install_retirement|fresh_install_stamp|migration_slot_reuse|migration_plan_status)::/)'
@@ -362,3 +369,8 @@ threads-required = 4
 filter = 'package(systemprompt-files-integration-tests) and test(/documents_blob_store::gc_|documents_media_backfill::/)'
 test-group = 'document-blob-gc-db'
 
+
+# Last, so every shared-state slot above wins for the tests it names.
+[[profile.default.overrides]]
+filter = 'package(systemprompt-api-integration-tests)'
+test-group = 'db-connection-budget'
