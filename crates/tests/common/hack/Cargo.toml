@@ -110,6 +110,7 @@ systemprompt-extension = { path = "../../../shared/extension", default-features 
 systemprompt-files = { path = "../../../domain/files", default-features = false, features = ["collab-loro", "office", "pdf"] }
 systemprompt-files-entry = { path = "../../../entry/files", features = ["cli", "collab"] }
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
+systemprompt-identity-entry = { path = "../../../entry/identity", features = ["cli", "http"] }
 systemprompt-issues = { path = "../../../app/issues", features = ["cli"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli"] }
 systemprompt-marketplace = { path = "../../../domain/marketplace", features = ["http"] }
