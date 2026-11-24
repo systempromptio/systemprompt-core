@@ -12,6 +12,7 @@
 pub use super::connector::{ConnectorConfig, ConnectorGrant, ConnectorIdentity};
 pub use super::external_auth::ExternalAuth;
 use super::external_auth::validate_external_auth;
+pub use super::settings::Settings;
 pub use super::toolset::{ResolvedAccess, ToolAccess, ToolsetRef};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
@@ -287,23 +288,4 @@ pub struct OAuthRequirement {
     pub ema: bool,
     #[serde(default)]
     pub service_only: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Settings {
-    pub auto_build: bool,
-    pub build_timeout: u64,
-    pub health_check_timeout: u64,
-    #[serde(default = "default_base_port")]
-    pub base_port: u16,
-    #[serde(default = "default_working_dir")]
-    pub working_dir: String,
-}
-
-const fn default_base_port() -> u16 {
-    5000
-}
-
-fn default_working_dir() -> String {
-    "/app".to_owned()
 }

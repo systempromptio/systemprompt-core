@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod bindings;
+mod owners;
 
 use std::collections::HashMap;
 

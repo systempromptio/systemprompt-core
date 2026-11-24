@@ -20,9 +20,9 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, TraceId, UserId};
-use systemprompt_traits::{RepositoryError, StoredFileId};
+use systemprompt_traits::RepositoryError;
 
-use super::models::{NewUpload, UploadPart, UploadSession, UploadStatus};
+use super::models::{NewUpload, UploadSession, UploadStatus};
 
 type RepoResult<T> = Result<T, RepositoryError>;
 
@@ -83,24 +83,6 @@ impl TryFrom<SessionRow> for UploadSession {
             expires_at: row.expires_at,
             finished_at: row.finished_at,
         })
-    }
-}
-
-struct PartRow {
-    part_number: i32,
-    size_bytes: i64,
-    sha256: ContentHash,
-    storage_id: StoredFileId,
-}
-
-impl From<PartRow> for UploadPart {
-    fn from(row: PartRow) -> Self {
-        Self {
-            part_number: row.part_number.unsigned_abs(),
-            size_bytes: row.size_bytes.unsigned_abs(),
-            sha256: row.sha256,
-            storage_id: row.storage_id,
-        }
     }
 }
 
@@ -272,36 +254,5 @@ impl DocumentUploadRepository {
         .await?
         .map(UploadSession::try_from)
         .transpose()
-    }
-
-    pub async fn reserve_part_bytes(&self, id: &DocumentUploadId, bytes: u64) -> RepoResult<bool> {
-        let bytes = i64::try_from(bytes)
-            .map_err(|source| RepositoryError::decode("document_uploads.received_bytes", source))?;
-        let result = sqlx::query!(
-            "UPDATE document_uploads SET received_bytes = received_bytes + $2
-             WHERE id = $1::text::uuid AND status = 'open'
-               AND received_bytes + $2 <= declared_size * 2",
-            id as _,
-            bytes,
-        )
-        .execute(&*self.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
-    pub async fn list_parts(&self, id: &DocumentUploadId) -> RepoResult<Vec<UploadPart>> {
-        Ok(sqlx::query_as!(
-            PartRow,
-            r#"SELECT part_number, size_bytes, sha256 AS "sha256: ContentHash",
-                      storage_id AS "storage_id: StoredFileId"
-               FROM document_upload_parts WHERE upload_id = $1::text::uuid
-               ORDER BY part_number"#,
-            id as _,
-        )
-        .fetch_all(&*self.write)
-        .await?
-        .into_iter()
-        .map(UploadPart::from)
-        .collect())
     }
 }

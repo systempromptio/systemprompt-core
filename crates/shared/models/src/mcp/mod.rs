@@ -18,6 +18,7 @@ mod external_auth;
 pub mod registry;
 pub mod registry_trait;
 pub mod server;
+mod settings;
 mod tool_result_metadata;
 pub mod toolset;
 

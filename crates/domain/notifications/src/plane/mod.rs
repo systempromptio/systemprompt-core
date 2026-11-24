@@ -21,11 +21,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use async_trait::async_trait;
-use serde::de::DeserializeOwned;
 use systemprompt_database::PlaneTransaction;
 use systemprompt_extension::prelude::{
-    ApplyOutcome, ChangeSource, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, DeclaredEntities,
-    DeclaredEntity, DeclaredState, PlaneContext, PlaneSnapshot, PlaneTx, ResolvedEntities,
+    ApplyOutcome, ChangeSource, ConfigPlane, ConfigPlaneResult, DeclaredEntities, DeclaredEntity,
+    DeclaredState, PlaneContext, PlaneSnapshot, PlaneTx, ResolvedEntities,
 };
 use systemprompt_identifiers::{NotificationRuleId, NotificationStreamId};
 use systemprompt_manifest::services::notifications::{
@@ -34,6 +33,10 @@ use systemprompt_manifest::services::notifications::{
 use systemprompt_models::notifications::{
     NotificationsDoc, RuleDecl, StreamDecl, SubscriptionDecl, SubscriptionTarget, validate,
 };
+
+mod errors;
+
+use errors::{backend, decode, invalid, unreadable};
 
 use crate::repository::{
     NotificationRuleRepository, NotificationStreamRepository, NotificationSubscriptionRepository,
@@ -113,36 +116,6 @@ fn subscription_key(decl: &SubscriptionDecl) -> String {
             format!("subscription/{}|resource:{}:{}", decl.subject, r.kind, r.id)
         },
     }
-}
-
-fn unreadable(
-    path: &str,
-    error: impl std::error::Error + Send + Sync + 'static,
-) -> ConfigPlaneError {
-    ConfigPlaneError::Unreadable {
-        plane: NOTIFICATIONS_PLANE.to_owned(),
-        path: path.to_owned(),
-        source: Box::new(error),
-    }
-}
-
-fn invalid(path: &str, message: &dyn std::fmt::Display) -> ConfigPlaneError {
-    ConfigPlaneError::Invalid {
-        plane: NOTIFICATIONS_PLANE.to_owned(),
-        path: path.to_owned(),
-        message: message.to_string(),
-    }
-}
-
-fn backend(error: impl std::error::Error + Send + Sync + 'static) -> ConfigPlaneError {
-    ConfigPlaneError::Backend {
-        plane: NOTIFICATIONS_PLANE.to_owned(),
-        source: Box::new(error),
-    }
-}
-
-fn decode<T: DeserializeOwned>(key: &str, value: &str) -> ConfigPlaneResult<T> {
-    serde_json::from_str(value).map_err(|e| invalid(key, &e))
 }
 
 #[async_trait]
