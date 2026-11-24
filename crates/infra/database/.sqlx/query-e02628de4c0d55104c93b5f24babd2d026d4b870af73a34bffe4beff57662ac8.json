@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT lease_key AS \"lease_key: LeaseKey\", owner_instance_id, fencing_token,\n                   acquired_at, expires_at\n            FROM instance_leases\n            WHERE lease_key = $1 AND expires_at > CURRENT_TIMESTAMP\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lease_key: LeaseKey",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instance_leases",
+            "name": "lease_key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "owner_instance_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instance_leases",
+            "name": "owner_instance_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "fencing_token",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "instance_leases",
+            "name": "fencing_token"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "acquired_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "instance_leases",
+            "name": "acquired_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "instance_leases",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e02628de4c0d55104c93b5f24babd2d026d4b870af73a34bffe4beff57662ac8"
+}

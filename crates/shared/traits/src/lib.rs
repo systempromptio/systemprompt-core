@@ -136,10 +136,10 @@ pub use systemprompt_provider_contracts::{
     BatchPlan, BatchedRun, ChangeActor, ChangeSource, DbBudget, Dependencies, DoctorCheck,
     DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
     DynGitCredentialDirectory, GitCredentialDirectory, GitCredentialReadError, GitCredentialSource,
-    Job, JobContext, JobResult, JobScope, MissingDependency, ProviderError, ProviderResult,
-    SecretPresence, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent,
-    ToolContext, ToolDefinition, ToolInventory, ToolProvider, ToolProviderError,
-    ToolProviderResult, run_batched,
+    Job, JobContext, JobResult, JobScope, MissedRunPolicy, MissingDependency, ProviderError,
+    ProviderResult, SecretPresence, ServerListingFailure, StateRequirement, ToolCallRequest,
+    ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
+    ToolProviderError, ToolProviderResult, run_batched,
 };
 
 pub use context::{
@@ -159,8 +159,8 @@ pub use retention_purge::{RetentionPurge, RetentionSweep};
 
 pub use coordination::{
     AdvisoryLockGuard, AdvisoryLocks, CoordinationError, CoordinationResult, DynAdvisoryLocks,
-    DynInstanceRegistry, DynLeaseRepository, HeldAdvisoryLock, InstanceRegistry, Lease,
-    LeaseRepository, UnavailableCoordination,
+    DynInstanceRegistry, DynLeaseRepository, FencingToken, HeldAdvisoryLock, InstanceRegistry,
+    Lease, LeaseRepository, UnavailableCoordination,
 };
 
 pub use ai_reports::{
