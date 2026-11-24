@@ -203,10 +203,13 @@ impl AppContextBuilder {
         if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
             documents_binder.bind(documents)?;
         }
-        if let Some(dispatcher) = r.optional::<Arc<dyn systemprompt_traits::MessagingDispatcher>>() {
+        if let Some(dispatcher) = r.optional::<Arc<dyn systemprompt_traits::MessagingDispatcher>>()
+        {
             binders.messaging.bind(dispatcher)?;
         } else {
-            tracing::info!("agent-http is not admitted; chat-platform messages are refused at dispatch");
+            tracing::info!(
+                "agent-http is not admitted; chat-platform messages are refused at dispatch"
+            );
         }
 
         let (authz_hook, market) = authz_stage(

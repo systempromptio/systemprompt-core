@@ -7,9 +7,9 @@
 //!   of the admitted composition
 //!   ([`AdmittedSchedule`](systemprompt_extension::AdmittedSchedule)).
 //! - The kernel's built-in jobs ([`DatabaseCleanupJob`], …), contributed by
-//!   [`SchedulerExtension`].
-//!   Capability members contribute their own jobs, and retention purges and
-//!   projection drains to the kernel jobs that iterate them.
+//!   [`SchedulerExtension`]. Capability members contribute their own jobs, and
+//!   retention purges and projection drains to the kernel jobs that iterate
+//!   them.
 //! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
 //!   and records each run.
 //! - A [`JobPruneService`] that retires `scheduled_jobs` rows no admitted job
@@ -56,6 +56,7 @@ pub mod services;
 pub use error::{SchedulerError, SchedulerResult};
 pub use extension::SchedulerExtension;
 
+pub use jobs::DatabaseCleanupJob;
 #[cfg(feature = "otel")]
 pub use jobs::OtlpExportJob;
 #[cfg(feature = "otel")]
@@ -63,7 +64,6 @@ pub use jobs::otlp_export::{
     ExportReport as OtlpExportReport, SignalReport as OtlpSignalReport,
     export_now as otlp_export_now,
 };
-pub use jobs::DatabaseCleanupJob;
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};
 pub use repository::{

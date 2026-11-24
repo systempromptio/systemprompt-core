@@ -12,6 +12,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::AdmittedOwnerReassignments;
 use systemprompt_extension::prelude::{ProvideError, Resolved};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations};
@@ -19,8 +20,9 @@ use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_security::{
     JwtRequestAuthenticator, JwtRequestAuthenticatorParts, UnavailableRevocations,
 };
-use systemprompt_extension::AdmittedOwnerReassignments;
-use systemprompt_traits::{DynGatewaySessionMint, DynSignInSessions, DynUserProvider, DynUserRetention};
+use systemprompt_traits::{
+    DynGatewaySessionMint, DynSignInSessions, DynUserProvider, DynUserRetention,
+};
 
 use crate::repository::{SessionRepository, UserRepository};
 use crate::services::UsersRetention;
@@ -28,7 +30,9 @@ use crate::{ApiKeyLifetime, UserService, UsersGatewaySessionMint};
 
 pub(crate) fn user_retention(r: &Resolved<'_>) -> Result<DynUserRetention, ProvideError> {
     let db = r.get::<DbPool>()?;
-    Ok(Arc::new(UsersRetention::new(Arc::new(UserRepository::new(&db)))))
+    Ok(Arc::new(UsersRetention::new(Arc::new(
+        UserRepository::new(&db),
+    ))))
 }
 
 pub(crate) fn user_provider(r: &Resolved<'_>) -> Result<DynUserProvider, ProvideError> {

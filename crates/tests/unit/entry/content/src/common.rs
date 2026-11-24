@@ -50,10 +50,7 @@ pub fn negotiating_state(ctx: &AppContext) -> ContentHttpState {
     let mut config = ctx.config().clone();
     config.content_negotiation.enabled = true;
     config.content_negotiation.markdown_suffix = ".md".to_owned();
-    ContentHttpState::new(
-        content_repositories(ctx),
-        ContentHttpSettings::of(&config),
-    )
+    ContentHttpState::new(content_repositories(ctx), ContentHttpSettings::of(&config))
 }
 
 pub fn pool_state(pool: &DbPool) -> ContentHttpState {
@@ -94,22 +91,13 @@ pub fn mount(
 }
 
 pub fn content_app(set: RouteSet, ctx: &AppContext) -> Router {
-    mount(
-        set,
-        ctx.db_pool(),
-        content_repositories(ctx),
-        ctx.config(),
-    )
+    mount(set, ctx.db_pool(), content_repositories(ctx), ctx.config())
 }
 
 pub fn with_app_boot(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) -> CommandContext {
     let boot = app.boot().clone();
     let admitted = Arc::clone(app.admitted());
-    let kernel = content_kernel(
-        app.db_pool(),
-        content_repositories(&app),
-        app.config(),
-    );
+    let kernel = content_kernel(app.db_pool(), content_repositories(&app), app.config());
     CommandContext::with_app_context(cli, env, app)
         .with_boot(Some(boot))
         .with_admitted(Some(admitted))

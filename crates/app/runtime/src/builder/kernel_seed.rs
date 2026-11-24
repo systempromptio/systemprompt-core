@@ -26,8 +26,8 @@ use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
 use systemprompt_traits::{
-    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, EscalationDelivery, DynInstanceRegistry, DynLeaseRepository,
-    FileStorage, SecretLookup, SecretStore,
+    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
+    EscalationDelivery, FileStorage, SecretLookup, SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.

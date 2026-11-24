@@ -125,13 +125,8 @@ pub fn documents_tools(
             server_name: server_name.clone(),
             source,
         })?;
-    DocumentsMcpTools::for_host(
-        handles,
-        host.state(),
-        links,
-        server_name.clone(),
-    )
-    .ok_or(DocumentsMcpError::Disabled { server_name })
+    DocumentsMcpTools::for_host(handles, host.state(), links, server_name.clone())
+        .ok_or(DocumentsMcpError::Disabled { server_name })
 }
 
 #[derive(Debug)]

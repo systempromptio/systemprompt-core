@@ -39,8 +39,8 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-pub use systemprompt_extension::RetentionTarget;
 use systemprompt_extension::AdmittedSchedule;
+pub use systemprompt_extension::RetentionTarget;
 use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{
     ArchivedUserPurge, DynUserRetention, Job, JobContext, JobResult, ProviderResult,

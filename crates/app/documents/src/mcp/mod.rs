@@ -55,6 +55,7 @@ use systemprompt_extension::mcp::ToolExecution;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
+use systemprompt_database::DbPool;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::documents::{DocumentService, DocumentsHandles};
 use systemprompt_files::uploads::UploadService;
@@ -65,7 +66,6 @@ use systemprompt_models::mcp::ClientProfile;
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::DynContextDirectory;
-use systemprompt_database::DbPool;
 use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;

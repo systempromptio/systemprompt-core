@@ -31,7 +31,10 @@ impl SessionMiddleware {
         path: &str,
     ) -> (RequestContext, Option<String>) {
         let Some(issuer) = &self.issuer else {
-            self.warn_degraded(path, "no session issuer is provided; the oauth member is not admitted");
+            self.warn_degraded(
+                path,
+                "no session issuer is provided; the oauth member is not admitted",
+            );
             return (Self::degraded_context(trace_id), None);
         };
         let establish = async {
@@ -169,15 +172,13 @@ impl SessionMiddleware {
         meta: &RequestMeta<'_>,
     ) -> Result<(SessionId, UserId, String, Option<String>, Option<String>), ApiHttpError> {
         let Some(token) = token_result else {
-            let (sid, uid, token, is_new, fp) =
-                lifecycle::create_new_session(issuer, meta).await?;
+            let (sid, uid, token, is_new, fp) = lifecycle::create_new_session(issuer, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
         let Some(jwt_context) = self.claims.verified_claims(&token) else {
-            let (sid, uid, token, is_new, fp) =
-                lifecycle::create_new_session(issuer, meta).await?;
+            let (sid, uid, token, is_new, fp) = lifecycle::create_new_session(issuer, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
@@ -207,8 +208,7 @@ impl SessionMiddleware {
             ),
         }
 
-        match lifecycle::refresh_session_for_user(issuer, &jwt_context.user_id, meta).await
-        {
+        match lifecycle::refresh_session_for_user(issuer, &jwt_context.user_id, meta).await {
             Ok((sid, uid, new_token, _, fp)) => {
                 Ok((sid, uid, new_token.clone(), Some(new_token), Some(fp)))
             },
@@ -217,8 +217,7 @@ impl SessionMiddleware {
                     user_id = %jwt_context.user_id,
                     "JWT references non-existent user, creating new anonymous session"
                 );
-                let (sid, uid, token, _, fp) =
-                    lifecycle::create_new_session(issuer, meta).await?;
+                let (sid, uid, token, _, fp) = lifecycle::create_new_session(issuer, meta).await?;
                 Ok((sid, uid, token.clone(), Some(token), Some(fp)))
             },
             Err(e) => Err(e),

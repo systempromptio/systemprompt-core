@@ -6,8 +6,8 @@
 //! geo operations the analytics member and the request-analytics middleware
 //! use, with no create, revoke or end), the user-role audience resolver the
 //! notifications and brain slots append as a core default (`CoreSeam<dyn
-//! NotificationAudienceResolver, RoleAudience>`), its three maintenance jobs, the
-//! role directory governance's `RoleDirectorySlot` holds, the `role`
+//! NotificationAudienceResolver, RoleAudience>`), its three maintenance jobs,
+//! the role directory governance's `RoleDirectorySlot` holds, the `role`
 //! subject-attribute provider, and the purge of its own user-keyed tables a
 //! user delete clears. It also provides the AI session provider
 //! (`DynAiSessionProvider`) **sealed**: it creates and meters a session for any

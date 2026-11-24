@@ -25,9 +25,9 @@ use systemprompt_extension::notifications::{DynNotificationSink, PublishPolicy};
 use systemprompt_extension::{LateBinder, LateRead, late_pair};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::AlreadyBound;
-use systemprompt_traits::EscalationDelivery;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::notifications::{SimulateRequest, SimulateResponse};
+use systemprompt_traits::EscalationDelivery;
 
 pub use feed::{FeedQuery, MarkReadOutcome};
 pub use publish::{PublishOutcome, PublishRequest};

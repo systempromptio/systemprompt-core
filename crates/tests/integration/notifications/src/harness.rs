@@ -30,10 +30,10 @@ use systemprompt_notifications::repository::{
     NotificationRuleRepository, NotificationStreamRepository, NotificationSubscriptionRepository,
 };
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceParts};
-use systemprompt_traits::EscalationDelivery;
 use systemprompt_notifications::sink::OutboxNotificationSink;
 use systemprompt_notifications::{NotificationRepositories, NotificationsConsumer};
 use systemprompt_test_fixtures::{DisposableDb, unique_instance};
+use systemprompt_traits::EscalationDelivery;
 use systemprompt_users::{UserRepository, UserRoleAudienceResolver};
 
 #[derive(Default)]

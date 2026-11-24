@@ -2,8 +2,9 @@
 //!
 //! A job with no explicit owner runs as the profile `system_admin`; a job whose
 //! explicit owner does not resolve to an active user (or that no admitted
-//! user directory can resolve) is dropped from the schedule (collected as a [`SkippedJob`]) and, on the live `start` pass,
-//! recorded as an `ERROR` in the `logs` table.
+//! user directory can resolve) is dropped from the schedule (collected as a
+//! [`SkippedJob`]) and, on the live `start` pass, recorded as an `ERROR` in the
+//! `logs` table.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -4,8 +4,8 @@
 //! signatures (services, repositories, lifecycle helpers). It composes
 //! [`tokio_cron_scheduler::JobSchedulerError`],
 //! [`systemprompt_traits::RepositoryError`] and
-//! [`systemprompt_traits::AuthProviderError`] via `#[from]` so `?` propagation works
-//! transparently for every internal call site. A [`sqlx::Error`] is
+//! [`systemprompt_traits::AuthProviderError`] via `#[from]` so `?` propagation
+//! works transparently for every internal call site. A [`sqlx::Error`] is
 //! classified through [`systemprompt_traits::RepositoryError`] so a
 //! not-found or constraint failure keeps its class.
 //!

@@ -182,10 +182,10 @@ pub use analytics::{
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, FederatedLink,
-    FederatedRefusal, FederatedResolution, LinkPolicy, RoleProvider, SenderIdentity, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, DynUserProvider, FederatedIdentityClaims,
+    FederatedLink, FederatedRefusal, FederatedResolution, LinkPolicy, RoleProvider, SenderIdentity,
+    UserProvider,
 };
-pub use auth::DynUserProvider;
 
 pub use storage::{
     ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, ServedRange,
@@ -223,16 +223,16 @@ pub use drive_tokens::{
     DriveSyncAttendance, DriveSyncGrant, DriveSyncPrincipal, DriveTokenError, DriveTokens,
     DynDriveTokens,
 };
+pub use escalation::EscalationDelivery;
 pub use gateway_session::{
     DynGatewaySessionMint, GatewaySessionMint, GatewaySessionMintError, MintedGatewaySession,
 };
-pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
-pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};
-pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};
-pub use escalation::EscalationDelivery;
 pub use request_analytics::{
     DynRequestAnalytics, RequestAnalytics, RequestAnalyticsError, RequestAnalyticsEvent,
 };
+pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, SessionBehaviourScorer};
 pub use session_issuer::{
     BrowserSession, DynSessionIssuer, IssuedSession, SessionIssueError, SessionIssuer,
 };
+pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};
+pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};

@@ -191,7 +191,8 @@ pub trait SessionContextIssuer: Send + Sync {
     fn for_caller(&self, caller: &UserId) -> Box<dyn CallerSessionContexts + '_>;
 }
 
-/// The caller's session contexts, bound by [`SessionContextIssuer::for_caller`].
+/// The caller's session contexts, bound by
+/// [`SessionContextIssuer::for_caller`].
 ///
 /// Returned as `dyn CallerSessionContexts`, hence `#[async_trait]`.
 #[async_trait]

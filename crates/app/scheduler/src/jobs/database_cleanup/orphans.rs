@@ -1,8 +1,8 @@
 //! The passes that run before the retention windows: log rows whose owning
 //! user is gone (the users member's `DynUserRetention` names them; with no
-//! provider the pass deletes nothing), then every admitted `RetentionSweep` (an owner's own
-//! orphan settlement, such as the AI crate failing requests left `pending`
-//! by a lost settlement).
+//! provider the pass deletes nothing), then every admitted `RetentionSweep` (an
+//! owner's own orphan settlement, such as the AI crate failing requests left
+//! `pending` by a lost settlement).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
