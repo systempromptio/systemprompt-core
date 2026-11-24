@@ -1,123 +1,111 @@
-//! OAuth and SSO route mounting.
+//! Mounts the routes the `identity-http` member's
+//! [`IdentitySurface`](systemprompt_oauth_issuance::surface::IdentitySurface)
+//! builds. The member owns the handlers; this mount owns their layering.
 //!
-//! Builds the `OAuthState` (with `WebAuthn` when configured) and nests the
-//! public and authenticated OAuth routers and the SSO router under their
-//! `ApiPaths` bases. The authenticated router carries the
+//! The public and authenticated OAuth routers and the SSO router are nested
+//! under their `ApiPaths` bases. The authenticated router carries the
 //! `RefuseFileManagedClientWrites` protection layer: while the `identity`
 //! config plane is file-managed, client-management writes (`POST`/`PUT`/
 //! `DELETE` under `/clients`) are refused with 409, because the declaration
 //! under `services/identity/` is the source of truth. `/revoke` is its own
 //! router, protected with the `UserUi` context so a `person_ui` client can
 //! sign its own grant out; it is the one OAuth route that admits a person's UI
-//! session, and every other authenticated OAuth route refuses one.
+//! session, and every other authenticated OAuth route refuses one. The
+//! passkey-link page is public under the `oauth_public` scope; the caller's
+//! session revocation (`/api/v1/core/users`) is a user route under the
+//! `oauth_auth` scope, and API-key management (`/api/v1/admin/api-keys`) an
+//! admin route under the `admin` scope. The OAuth discovery documents are
+//! merged into the well-known router.
 //!
-//! The MCP server registry that maps an authorization `resource` to its MCP
-//! scopes is read from the extension state, where the `mcp` extension
-//! provides it as `Arc<dyn McpRegistryProvider>`. When no extension provides
-//! it, the state carries no registry and an authorization request that names
-//! a `resource` is refused with `invalid_target`; it never falls back to the
-//! client's registered scopes. A request without a `resource` is unaffected.
-//!
-//! The SSO router runs the kernel-built `SsoProviders`; with no identity
-//! member admitted the set is empty and every provider id is unknown.
+//! Every route the surface builds is absent (404) when `identity-http` is not
+//! admitted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::Router;
 use std::sync::Arc;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, LoaderError, ProtectionLayer, RateBudget, RateLimit, RouteProtection,
-};
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_oauth::services::WebAuthnService;
-use systemprompt_oauth::{OAuthSigning, OAuthState};
-use systemprompt_oauth_issuance::JwksCache;
-use systemprompt_oauth_issuance::contract::SsoProviders;
-use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as AppContextTrait, McpRegistryProvider};
 
-use super::protocol::MountCtx;
-use super::{RouteMountError, require_provider};
+use axum::Router;
+use systemprompt_extension::reserved::{CoreId, WEB_ROOT_BASE_PATH};
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
+};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_oauth_issuance::contract::SsoProviders;
+use systemprompt_oauth_issuance::surface::{
+    DynIdentitySurface, IdentityHostHandles, IdentityRouteState, IdentityRoutes,
+};
+use systemprompt_traits::AppContext as _;
+
+use super::RouteMountError;
+use super::protocol::{MountCtx, declare};
 use crate::services::middleware::place;
 
-fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
-    let analytics = ctx.analytics_provider();
-    let users = require_provider("oauth", ctx.user_provider())?;
-    let sessions = require_provider("oauth", ctx.session_provider())?;
-    let mcp_registry = ctx
-        .kernel()
-        .state()
-        .get::<Arc<dyn McpRegistryProvider>>()
-        .cloned();
-    let oauth_repository = ctx.oauth_repositories().oauth.clone();
-    let webauthn = WebAuthnService::new(ctx.config(), oauth_repository.clone(), Arc::clone(&users));
-    let state = OAuthState::new(
-        oauth_repository,
-        analytics,
-        sessions,
-        users,
-        OAuthSigning {
-            keys: ctx.signing_keys().clone(),
-            authority: ctx.token_authority(),
-        },
-    );
-    let state = match mcp_registry {
-        Ok(registry) => state.with_mcp_registry(registry),
-        Err(absent) => {
-            tracing::info!(
-                missing = %absent,
-                "No MCP registry; authorization requests naming a resource are refused"
-            );
-            state
-        },
+const OAUTH_PUBLIC: RateLimit = RateLimit::new("oauth_public", RateBudget::OauthPublic);
+const OAUTH_AUTH: RateLimit = RateLimit::new("oauth_auth", RateBudget::OauthAuth);
+
+pub(super) fn identity_routes(
+    mount: &MountCtx<'_>,
+) -> Result<Option<IdentityRoutes>, RouteMountError> {
+    let owner = ExtensionId::new(CoreId::IdentityHttp.id());
+    let kernel = mount.composed.kernel;
+    let (Some(standing), Some(surface)) = (
+        mount.composed.admitted.built().standing_of(&owner),
+        kernel.state().find::<DynIdentitySurface>(),
+    ) else {
+        return Ok(None);
     };
-    match webauthn {
-        Ok(service) => Ok(state.with_webauthn(Arc::new(service))),
-        Err(e) => {
-            tracing::warn!(error = %e, "WebAuthn is not configured; passkey routes will refuse");
-            Ok(state)
-        },
-    }
+    let ctx = mount.ctx;
+    let sso: Arc<SsoProviders> = kernel.resolved().optional().unwrap_or_default();
+    surface
+        .build(IdentityRouteState {
+            resolved: kernel.route_scoped(&owner, standing, &[]),
+            host: IdentityHostHandles {
+                config: Arc::clone(ctx.config_arc()),
+                analytics: ctx.analytics_provider(),
+                users: ctx.user_provider(),
+                sso,
+            },
+        })
+        .map(Some)
+        .map_err(|source| RouteMountError::initialization("identity", source))
+}
+
+pub(super) struct IdentityOauthRoutes {
+    pub(super) public: Router,
+    pub(super) authenticated: Router,
+    pub(super) revocation: Router,
+    pub(super) sso: Router,
 }
 
 pub(super) fn mount_oauth(
     mut router: Router,
     mount: &MountCtx<'_>,
+    identity: IdentityOauthRoutes,
 ) -> Result<Router, RouteMountError> {
-    let ctx = mount.ctx;
-    let oauth_state = create_oauth_state(ctx)?;
-    let sso_providers: Arc<SsoProviders> = mount
-        .composed
-        .kernel
-        .resolved()
-        .optional()
-        .unwrap_or_default();
-    let sso_state = crate::routes::sso::SsoRouteState::build(ctx, &oauth_state, &sso_providers);
     let sso = mount.protect(
-        crate::routes::sso::router(sso_state),
+        identity.sso,
         &RouteProtection::new(AuthzPolicy::public(), ContextKind::Public)
             .with_rate_limit(RateLimit::new("sso", RateBudget::OauthPublic)),
-        crate::routes::sso::SSO_BASE,
+        ApiPaths::SSO_BASE,
     )?;
     let public = mount.protect(
-        crate::routes::oauth::public_router(Arc::new(JwksCache::new()))
-            .with_state(oauth_state.clone()),
+        identity.public,
         &RouteProtection::new(AuthzPolicy::public(), ContextKind::Public)
-            .with_rate_limit(RateLimit::new("oauth_public", RateBudget::OauthPublic)),
+            .with_rate_limit(OAUTH_PUBLIC),
         ApiPaths::OAUTH_BASE,
     )?;
     let authenticated = mount.protect(
-        crate::routes::oauth::authenticated_router().with_state(oauth_state.clone()),
+        identity.authenticated,
         &RouteProtection::new(AuthzPolicy::user(), ContextKind::User)
             .with_layer(ProtectionLayer::RefuseFileManagedClientWrites)
-            .with_rate_limit(RateLimit::new("oauth_auth", RateBudget::OauthAuth)),
+            .with_rate_limit(OAUTH_AUTH),
         ApiPaths::OAUTH_BASE,
     )?;
     let revocation = mount.protect(
-        crate::routes::oauth::revocation_router().with_state(oauth_state),
-        &RouteProtection::new(AuthzPolicy::user(), ContextKind::UserUi)
-            .with_rate_limit(RateLimit::new("oauth_auth", RateBudget::OauthAuth)),
+        identity.revocation,
+        &RouteProtection::new(AuthzPolicy::user(), ContextKind::UserUi).with_rate_limit(OAUTH_AUTH),
         ApiPaths::OAUTH_BASE,
     )?;
     router = place(
@@ -125,6 +113,54 @@ pub(super) fn mount_oauth(
         ApiPaths::OAUTH_BASE,
         public.merge(authenticated).merge(revocation),
     );
-    router = place(router, crate::routes::sso::SSO_BASE, sso);
-    Ok(router)
+    Ok(place(router, ApiPaths::SSO_BASE, sso))
+}
+
+pub(super) fn mount_passkey_link_page(
+    router: Router,
+    mount: &MountCtx<'_>,
+    page: Router,
+) -> Result<Router, RouteMountError> {
+    Ok(mount.mount(
+        router,
+        declare(
+            page,
+            WEB_ROOT_BASE_PATH,
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            RouteGroup::Oauth,
+        )
+        .with_rate_limit(OAUTH_PUBLIC),
+    )?)
+}
+
+pub(super) fn mount_accounts(
+    mut router: Router,
+    mount: &MountCtx<'_>,
+    sessions: Router,
+    api_keys: Router,
+) -> Result<Router, RouteMountError> {
+    let group = RouteGroup::ContentAndMisc;
+    router = mount.mount(
+        router,
+        declare(
+            sessions,
+            ApiPaths::CORE_USERS,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(OAUTH_AUTH),
+    )?;
+    Ok(mount.mount(
+        router,
+        declare(
+            api_keys,
+            ApiPaths::ADMIN_API_KEYS,
+            AuthzPolicy::admin(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("admin", RateBudget::PerSecond(10))),
+    )?)
 }

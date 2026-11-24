@@ -35,9 +35,7 @@ mod static_setup;
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::reserved::WEB_ROOT_BASE_PATH;
-use systemprompt_extension::{
-    AuthzPolicy, ContextKind, LoaderError, RateBudget, RateLimit, RouteGroup,
-};
+use systemprompt_extension::{AuthzPolicy, ContextKind, LoaderError, RouteGroup};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::NodeRole;
 
@@ -103,9 +101,28 @@ fn build_routes(
         serves: &serves,
         composed,
     };
-    if serves(RouteGroup::Oauth) {
-        router = oauth_mount::mount_oauth(router, &mount)?;
-    }
+    let identity = oauth_mount::identity_routes(&mount)?;
+    let (identity_wellknown, identity_passkey, identity_accounts) = if let Some(routes) = identity {
+        if serves(RouteGroup::Oauth) {
+            router = oauth_mount::mount_oauth(
+                router,
+                &mount,
+                oauth_mount::IdentityOauthRoutes {
+                    public: routes.oauth_public,
+                    authenticated: routes.oauth_authenticated,
+                    revocation: routes.oauth_revocation,
+                    sso: routes.sso,
+                },
+            )?;
+        }
+        (
+            Some(routes.wellknown),
+            Some(routes.passkey_link_page),
+            Some((routes.sessions, routes.api_keys)),
+        )
+    } else {
+        (None, None, None)
+    };
     if serves(RouteGroup::Agent) {
         router = protocol::mount_agent(router, &mount)?;
     }
@@ -114,6 +131,9 @@ fn build_routes(
     }
     if serves(RouteGroup::ContentAndMisc) {
         router = mount_content(router, &mount)?;
+        if let Some((sessions, api_keys)) = identity_accounts {
+            router = oauth_mount::mount_accounts(router, &mount, sessions, api_keys)?;
+        }
     }
     if serves(RouteGroup::InternalLinks) {
         router = documents::mount_internal_links(router, &mount)?;
@@ -125,9 +145,11 @@ fn build_routes(
     crate::services::messaging::bind_dispatcher(ctx)
         .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;
-    router = mount_discovery(router, &mount)?;
-    if serves(RouteGroup::Oauth) {
-        router = mount.mount(router, link_passkey_router())?;
+    router = mount_discovery(router, &mount, identity_wellknown)?;
+    if serves(RouteGroup::Oauth)
+        && let Some(page) = identity_passkey
+    {
+        router = oauth_mount::mount_passkey_link_page(router, &mount, page)?;
     }
 
     router = router.layer(axum::Extension(refresh_lock));
@@ -185,7 +207,11 @@ fn finish_router(
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
 }
 
-fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, RouteMountError> {
+fn mount_discovery(
+    mut router: Router,
+    mount: &MountCtx<'_>,
+    identity_wellknown: Option<Router>,
+) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
     let serves = mount.serves;
     if serves(RouteGroup::Discovery) {
@@ -228,7 +254,7 @@ fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, R
         router = mount.mount(
             router,
             declare(
-                wellknown_router(ctx)?,
+                wellknown_router(ctx, identity_wellknown)?,
                 WEB_ROOT_BASE_PATH,
                 AuthzPolicy::public(),
                 ContextKind::Public,
@@ -239,20 +265,6 @@ fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, R
     Ok(router)
 }
 
-fn link_passkey_router() -> crate::services::middleware::KernelRoutes {
-    declare(
-        Router::new().route(
-            "/auth/link-passkey",
-            axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
-        ),
-        WEB_ROOT_BASE_PATH,
-        AuthzPolicy::public(),
-        ContextKind::Public,
-        RouteGroup::Oauth,
-    )
-    .with_rate_limit(RateLimit::new("oauth_public", RateBudget::OauthPublic))
-}
-
 fn require_provider<T: std::any::Any>(
     extension: &str,
     provider: Option<T>,
@@ -260,8 +272,12 @@ fn require_provider<T: std::any::Any>(
     provider.ok_or_else(|| LoaderError::missing_provider::<T>(ExtensionId::new(extension)))
 }
 
-fn wellknown_router(ctx: &AppContext) -> Result<Router, LoaderError> {
-    Ok(crate::routes::oauth::wellknown_routes(ctx).merge(crate::routes::wellknown_router(ctx)?))
+fn wellknown_router(ctx: &AppContext, identity: Option<Router>) -> Result<Router, LoaderError> {
+    let kernel = crate::routes::wellknown_router(ctx)?;
+    Ok(match identity {
+        Some(identity) => identity.merge(kernel),
+        None => kernel,
+    })
 }
 
 fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, RouteMountError> {

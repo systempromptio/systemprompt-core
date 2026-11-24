@@ -1,0 +1,174 @@
+//! Admin API-key issuance and listing endpoints, mounted by the API at
+//! `/api/v1/admin/api-keys` behind the admin gate.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::extract::{Extension, Path, State};
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::{delete, post};
+use axum::{Json, Router};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use systemprompt_extension::router::ApiHttpError;
+use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_identifiers::{ApiKeyId, UserId};
+use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
+use systemprompt_models::attribution::ScopeBinding;
+use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
+
+#[derive(Clone)]
+pub struct ApiKeysState {
+    pub keys: Arc<ApiKeyService>,
+    pub subjects: Arc<SubjectProviderSet>,
+}
+
+impl std::fmt::Debug for ApiKeysState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ApiKeysState").finish_non_exhaustive()
+    }
+}
+
+pub fn router(state: ApiKeysState) -> Router {
+    Router::new()
+        .route("/", post(issue_key).get(list_keys))
+        .route("/{key_id}", delete(revoke_key))
+        .with_state(state)
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct IssueApiKeyRequest {
+    pub name: String,
+    #[serde(default)]
+    pub target_user_id: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<DateTime<Utc>>,
+    #[serde(default, flatten)]
+    pub limits: ApiKeyLimits,
+    #[serde(default)]
+    pub scopes: Vec<ScopeBinding>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct IssueApiKeyResponse {
+    pub id: ApiKeyId,
+    pub name: String,
+    pub key_prefix: String,
+    pub secret: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
+    #[serde(flatten)]
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct ApiKeyView {
+    pub id: ApiKeyId,
+    pub name: String,
+    pub key_prefix: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub last_used_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub revoked_at: Option<DateTime<Utc>>,
+    #[serde(flatten)]
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
+}
+
+impl From<UserApiKey> for ApiKeyView {
+    fn from(k: UserApiKey) -> Self {
+        Self {
+            id: k.id,
+            name: k.name,
+            key_prefix: k.key_prefix,
+            created_at: k.created_at,
+            last_used_at: k.last_used_at,
+            expires_at: k.expires_at,
+            revoked_at: k.revoked_at,
+            limits: k.limits,
+            scopes: k.scopes,
+        }
+    }
+}
+
+async fn issue_key(
+    State(state): State<ApiKeysState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(body): Json<IssueApiKeyRequest>,
+) -> Result<impl IntoResponse, ApiHttpError> {
+    let target_user = match body.target_user_id.as_deref() {
+        Some(value) if !value.is_empty() => UserId::try_new(value).map_err(ApiError::from)?,
+        _ => req_ctx.user_id().clone(),
+    };
+    if !body.scopes.is_empty() {
+        state
+            .subjects
+            .verify_scope_bindings(&target_user, &body.scopes)
+            .await
+            .map_err(ApiError::from)?;
+    }
+
+    let issued = state
+        .keys
+        .issue(IssueApiKeyParams {
+            user_id: &target_user,
+            name: &body.name,
+            expires_at: body.expires_at,
+            limits: &body.limits,
+            scopes: &body.scopes,
+            purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
+        })
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(IssueApiKeyResponse {
+            id: issued.record.id,
+            name: issued.record.name,
+            key_prefix: issued.record.key_prefix,
+            secret: issued.secret,
+            created_at: issued.record.created_at,
+            expires_at: issued.record.expires_at,
+            limits: issued.record.limits,
+            scopes: issued.record.scopes,
+        }),
+    ))
+}
+
+async fn list_keys(
+    State(state): State<ApiKeysState>,
+    Extension(req_ctx): Extension<RequestContext>,
+) -> Result<Json<Vec<ApiKeyView>>, ApiHttpError> {
+    let keys = state
+        .keys
+        .list_for_user(req_ctx.user_id())
+        .await
+        .map_err(ApiError::from)?;
+
+    Ok(Json(keys.into_iter().map(ApiKeyView::from).collect()))
+}
+
+async fn revoke_key(
+    State(state): State<ApiKeysState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path(key_id): Path<String>,
+) -> Result<StatusCode, ApiHttpError> {
+    let id = ApiKeyId::try_new(key_id).map_err(ApiError::from)?;
+    let revoked = state
+        .keys
+        .revoke(&id, req_ctx.user_id())
+        .await
+        .map_err(ApiError::from)?;
+
+    if revoked {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiHttpError::not_found("API key not found"))
+    }
+}

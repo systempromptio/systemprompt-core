@@ -75,6 +75,29 @@ impl From<sqlx::Error> for UserError {
     }
 }
 
+impl From<UserError> for systemprompt_models::api::ApiError {
+    fn from(err: UserError) -> Self {
+        match err {
+            UserError::Repository(inner) => Self::from(inner),
+            e @ UserError::NotFound(_) => Self::not_found(e.to_string()),
+            e @ UserError::FederatedRefused(_) => Self::forbidden(e.to_string()),
+            e @ (UserError::EmailAlreadyExists(_)
+            | UserError::AccountKindMismatch(_)
+            | UserError::LegalHold(_)
+            | UserError::NotArchived(_)
+            | UserError::RestoreRefused { .. }) => Self::conflict(e.to_string()),
+            e @ (UserError::Validation(_)
+            | UserError::InvalidStatus(_)
+            | UserError::InvalidRole(_)
+            | UserError::InvalidRoles(_)
+            | UserError::ApiKeyLifetimeExceeded { .. }) => Self::bad_request(e.to_string()),
+            e @ (UserError::MergeUnavailable
+            | UserError::PurgeIdentifier { .. }
+            | UserError::OwnerReassignment { .. }) => Self::internal("User operation failed", e),
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, UserError>;
 
 pub type UserResult<T> = Result<T>;
