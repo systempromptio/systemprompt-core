@@ -11,6 +11,14 @@
 //! [`MarketplaceHttpSettings`](crate::http::MarketplaceHttpSettings) its own
 //! provide fn builds from the configuration and the system admin.
 //!
+//! It also provides the open
+//! [`DynManagedSurface`](systemprompt_marketplace::surface::DynManagedSurface)
+//! the API builds the device-credential consumer routes under `/api/v1`
+//! from; the API keeps their protection (handler-verified by the managed
+//! device credential, the `consumer_evidence` limit) between the member's
+//! origin guard and contract normaliser. With `marketplace-http` disabled the
+//! consumer routes are not mounted (404).
+//!
 //! With `cli` it contributes the `core marketplace`, `core plugins` and
 //! `core skills` groups under the kernel's `core` group, each requesting
 //! `KernelGrant::ServicesTree`, the grant their reserved CLI rows list. The
@@ -19,7 +27,7 @@
 //!
 //! | profile disables | `/api/v1/marketplace` | CLI |
 //! |---|---|---|
-//! | `marketplace-http` | 404 | `core marketplace`, `core plugins`, `core skills` refused at dispatch |
+//! | `marketplace-http` | 404 (consumer routes too) | `core marketplace`, `core plugins`, `core skills` refused at dispatch |
 //! | `managed_resources` | boot refused (required member) | boot refused (required member) |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -68,11 +76,18 @@ mod routes {
     use systemprompt_marketplace::MarketplaceCache;
     use systemprompt_marketplace::managed::ManagedRepository;
 
-    use crate::http::{MarketplaceHttpSettings, public_routes};
+    use systemprompt_marketplace::surface::DynManagedSurface;
+
+    use crate::http::{ManagedHttpSurface, MarketplaceHttpSettings, public_routes};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<ManagedRepository>>()
             .requires::<Arc<MarketplaceCache>>()
+            .provide(
+                |_r: &Resolved<'_>| -> Result<DynManagedSurface, ProvideError> {
+                    Ok(Arc::new(ManagedHttpSurface))
+                },
+            )
             .provide(
                 |r: &Resolved<'_>| -> Result<MarketplaceHttpSettings, ProvideError> {
                     let config = r.get::<Arc<Config>>()?;

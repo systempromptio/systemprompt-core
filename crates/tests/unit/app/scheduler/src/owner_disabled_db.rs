@@ -20,7 +20,8 @@ const MCP_JOB: &str = "mcp_session_cleanup";
 
 #[tokio::test]
 async fn a_job_whose_member_is_not_admitted_is_refused_as_unregistered() {
-    let without = fixture_admitted_without(&[ExtensionId::new("mcp")]);
+    let without =
+        fixture_admitted_without(&[ExtensionId::new("mcp"), ExtensionId::new("mcp-http")]);
     let (ctx, schedule) = app_over(&test_database_url(), without).await;
     assert!(!schedule.contains_job(MCP_JOB));
 
@@ -73,7 +74,8 @@ fn naming_the_mcp_job() -> SchedulerConfig {
 #[tokio::test]
 async fn a_configuration_naming_a_left_out_members_job_refuses_the_start() {
     let pool = test_db_pool().await;
-    let without = fixture_admitted_without(&[ExtensionId::new("mcp")]);
+    let without =
+        fixture_admitted_without(&[ExtensionId::new("mcp"), ExtensionId::new("mcp-http")]);
     let (ctx, schedule) = app_over(&test_database_url(), without).await;
 
     let err = SchedulerService::new(naming_the_mcp_job(), &pool, ctx, schedule)

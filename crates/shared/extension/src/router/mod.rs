@@ -17,6 +17,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "router")]
+mod agent_surface;
 mod base_ref;
 #[cfg(feature = "router")]
 mod body;
@@ -33,7 +35,13 @@ mod set;
 mod shape;
 #[cfg(feature = "router")]
 mod sse;
+#[cfg(feature = "router")]
+mod surface;
 
+#[cfg(feature = "router")]
+pub use agent_surface::{
+    AgentRouteState, AgentSurface, AgentSurfaceError, AgentSurfaceRoutes, DynAgentSurface,
+};
 pub use base_ref::{BaseRef, GatewayPath};
 #[cfg(feature = "router")]
 pub use body::{BodyReadError, read_body_bounded, read_request_bounded};
@@ -61,6 +69,8 @@ pub use sse::{
     HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive,
     subscription_refused,
 };
+#[cfg(feature = "router")]
+pub use surface::{DynMcpSurface, DynSyncSurface, McpRoutes, McpSurface, SyncSurface};
 
 #[cfg(feature = "router")]
 #[doc(hidden)]

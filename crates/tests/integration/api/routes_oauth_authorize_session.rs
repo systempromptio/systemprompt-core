@@ -19,7 +19,7 @@ use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
 use systemprompt_manifest::Config;
-use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_manifest::profile::{RateLimitsConfig, ReferrerPolicy};
 use systemprompt_models::auth::{JwtAudience, Permission, TokenInteraction, UserJwtRequest};
 use systemprompt_oauth::repository::{
     ClientRepository, ConsentBinding, DeclaredClientWrite, ReauthBinding,
@@ -77,6 +77,26 @@ impl Reply {
         self.status == StatusCode::OK
             && self.location().is_empty()
             && self.body.contains("name=\"consent_token\"")
+    }
+
+    fn form_origin(&self) -> &'static str {
+        let declared = self
+            .body
+            .split_once("<meta name=\"referrer\" content=\"")
+            .and_then(|(_, rest)| rest.split_once('"'))
+            .map(|(policy, _)| policy);
+        let policy = declared
+            .or_else(|| {
+                self.headers
+                    .get(header::REFERRER_POLICY)
+                    .and_then(|v| v.to_str().ok())
+            })
+            .unwrap_or_default();
+        if policy == "no-referrer" {
+            "null"
+        } else {
+            ORIGIN
+        }
     }
 
     fn consent_token(&self) -> String {
@@ -250,6 +270,35 @@ async fn decide(
     }
     if let Some(origin) = origin {
         req = req.header(header::ORIGIN, origin);
+    }
+    let body = encode(&request_pairs(w, extra));
+    send(&w.app, req.body(Body::from(body))?).await
+}
+
+async fn submit(
+    w: &World,
+    page: &Reply,
+    extra: &[(&str, &str)],
+    cookie: Option<&str>,
+) -> anyhow::Result<Reply> {
+    submit_from(w, page.form_origin(), extra, cookie).await
+}
+
+async fn submit_from(
+    w: &World,
+    origin: &str,
+    extra: &[(&str, &str)],
+    cookie: Option<&str>,
+) -> anyhow::Result<Reply> {
+    let mut req = Request::builder()
+        .method(Method::POST)
+        .uri(AUTHORIZE)
+        .header(header::HOST, "127.0.0.1")
+        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .header(header::ORIGIN, origin)
+        .header("sec-fetch-site", "same-origin");
+    if let Some(cookie) = cookie {
+        req = req.header(header::COOKIE, cookie);
     }
     let body = encode(&request_pairs(w, extra));
     send(&w.app, req.body(Body::from(body))?).await
@@ -771,6 +820,11 @@ async fn an_allow_that_is_not_the_pages_own_is_refused_and_leaves_nothing() -> a
             StatusCode::FORBIDDEN,
         ),
         (
+            "null origin marked same-origin",
+            submit_from(&w, "null", &allow(&token), Some(&cookie)).await?,
+            StatusCode::FORBIDDEN,
+        ),
+        (
             "no origin",
             decide(&w, &allow(&token), Some(&cookie), None).await?,
             StatusCode::FORBIDDEN,
@@ -802,6 +856,54 @@ async fn an_allow_that_is_not_the_pages_own_is_refused_and_leaves_nothing() -> a
     let good = repo.consent_token(&binding(&w, &w.user, &session), now + 300)?;
     let reply = decide(&w, &allow(&good), Some(&cookie), Some(ORIGIN)).await?;
     assert_code_redirect(&w, &reply);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_browser_submits_the_consent_page_for_a_native_client() -> anyhow::Result<()> {
+    for policy in [ReferrerPolicy::default(), ReferrerPolicy::NoReferrer] {
+        let w = world_with(|c| c.security_headers.referrer_policy = policy).await?;
+        let w = declared(w, "http://127.0.0.1/callback").await?;
+        let cookie = browser_session_cookie(&w.pool, &w.user, 60).await?;
+        let page = authorize(&w, &[], Some(&cookie)).await?;
+        assert!(
+            page.is_consent_page(),
+            "{} {}",
+            page.status,
+            page.location()
+        );
+        let token = page.consent_token();
+
+        let denied = submit(
+            &w,
+            &page,
+            &[("user_consent", "deny"), ("consent_token", &token)],
+            Some(&cookie),
+        )
+        .await?;
+        assert_error_redirect(&w, &denied, "access_denied");
+
+        let allowed = submit(&w, &page, &allow(&token), Some(&cookie)).await?;
+        assert_code_redirect(&w, &allowed);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_browser_submits_the_passkey_pages_deny_whatever_the_profile_policy() -> anyhow::Result<()>
+{
+    let w = world_with(|c| c.security_headers.referrer_policy = ReferrerPolicy::NoReferrer).await?;
+    let w = declared(w, WEB_REDIRECT).await?;
+    let page = authorize(&w, &[], None).await?;
+    assert!(
+        page.is_passkey_form(),
+        "{} {}",
+        page.status,
+        page.location()
+    );
+
+    let denied = submit(&w, &page, &[("user_consent", "deny")], None).await?;
+    assert_error_redirect(&w, &denied, "access_denied");
     Ok(())
 }
 

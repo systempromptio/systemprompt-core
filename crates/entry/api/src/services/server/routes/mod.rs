@@ -41,7 +41,7 @@ use systemprompt_manifest::profile::NodeRole;
 
 use crate::routes::admin::services::RefreshLock;
 pub(super) use error::RouteMountError;
-pub use protocol::Composed;
+pub use protocol::{Composed, WEBHOOK_RATE};
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
@@ -123,13 +123,15 @@ fn build_routes(
     } else {
         (None, None, None)
     };
+    let agent = protocol::agent_routes(&mount)?;
     if serves(RouteGroup::Agent) {
-        router = protocol::mount_agent(router, &mount)?;
+        router = protocol::mount_agent(router, &mount, agent.webhook)?;
     }
     if serves(RouteGroup::McpAndStream) {
         router = protocol::mount_mcp(router, &mount)?;
-        router = protocol::mount_stream(router, &mount)?;
+        router = protocol::mount_stream(router, &mount, agent.stream)?;
     }
+    router = protocol::mount_agent_cards(router, &mount, agent.cards)?;
     if serves(RouteGroup::ContentAndMisc) {
         let (sessions, api_keys) = identity_accounts.unzip();
         router = mount_content(router, &mount, api_keys)?;
@@ -144,7 +146,7 @@ fn build_routes(
         router = gateway::mount_gateway(router, &mount)?;
     }
     router = feature_mount::mount_feature_routes(router, &mount)?;
-    crate::services::messaging::bind_dispatcher(ctx)
+    crate::services::agent_dispatch::bind_dispatchers(ctx)
         .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;
     router = mount_discovery(router, &mount, identity_wellknown)?;

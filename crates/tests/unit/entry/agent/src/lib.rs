@@ -46,6 +46,10 @@ mod core_contexts_db;
 #[cfg(test)]
 mod core_contexts_public_lifecycle;
 #[cfg(test)]
+mod http_error_mapping;
+#[cfg(test)]
+mod messaging_helpers;
+#[cfg(test)]
 mod routes;
 #[cfg(test)]
 mod routes_agent_responses;

@@ -8,7 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_agent::AgentError;
 use systemprompt_config::{ProfileBootstrapError, SecretsBootstrapError};
 use systemprompt_governance::authz::{AuthzError, ScopeBindingError, SubjectAttributeError};
 use systemprompt_identifiers::error::IdValidationError;
@@ -85,17 +84,6 @@ impl From<SecretsBootstrapError> for ApiHttpError {
 impl From<GlobalConfigError> for ApiHttpError {
     fn from(err: GlobalConfigError) -> Self {
         Self(Box::new(ApiError::internal("Configuration not ready", err)))
-    }
-}
-
-impl From<AgentError> for ApiHttpError {
-    fn from(err: AgentError) -> Self {
-        let api = match err {
-            AgentError::NotFound(msg) => ApiError::not_found(msg),
-            AgentError::Repository(inner) => ApiError::from(inner),
-            other => ApiError::internal("Agent operation failed", other),
-        };
-        Self(Box::new(api))
     }
 }
 

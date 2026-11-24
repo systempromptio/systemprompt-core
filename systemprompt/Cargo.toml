@@ -60,6 +60,7 @@ api = [
     "systemprompt-marketplace-entry?/http",
     "systemprompt-files-entry?/http",
     "systemprompt-mcp-entry?/http",
+    "systemprompt-cloud-entry?/http",
     "systemprompt-agent-entry?/http",
     "systemprompt-brain-entry?/http",
     "systemprompt-gateway-entry/http",

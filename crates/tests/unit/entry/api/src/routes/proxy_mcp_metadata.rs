@@ -1,12 +1,12 @@
 //! Serialization of the MCP reverse-proxy tool-execution response payload
-//! (`routes::proxy::mcp::ToolExecutionResponse`).
+//! (`systemprompt_mcp_entry::http::ToolExecutionResponse`).
 //!
 //! Pure `Serialize` DTO; the handlers that build it need an `AppContext`, so
 //! only the wire shape is exercised here.
 
 use serde_json::Value;
-use systemprompt_api::routes::proxy::mcp::ToolExecutionResponse;
 use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
+use systemprompt_mcp_entry::http::ToolExecutionResponse;
 
 #[test]
 fn tool_execution_response_serializes_with_output() {

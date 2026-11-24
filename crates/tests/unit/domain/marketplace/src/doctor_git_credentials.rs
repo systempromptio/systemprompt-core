@@ -6,9 +6,25 @@
 
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use systemprompt_identifiers::ManagedSourceId;
-use systemprompt_marketplace::managed::{GitCredentialSource, classify_git_credentials};
-use systemprompt_traits::DoctorStatus;
+use systemprompt_marketplace::managed::{
+    GitCredentialCheck, GitCredentialSource, classify_git_credentials,
+};
+use systemprompt_traits::{
+    DoctorCheck, DoctorContext, DoctorProbeError, DoctorProbes, DoctorStatus,
+};
+
+struct FailingProbes;
+
+#[async_trait]
+impl DoctorProbes for FailingProbes {
+    async fn git_credential_sources(&self) -> Result<Vec<GitCredentialSource>, DoctorProbeError> {
+        Err(DoctorProbeError::Read(
+            "connection to postgres://operator:hunter2@db.internal/tenant refused".into(),
+        ))
+    }
+}
 
 fn source(label: &str) -> GitCredentialSource {
     GitCredentialSource {
@@ -54,4 +70,19 @@ fn a_host_bound_secret_passes() {
 fn a_label_with_no_secret_warns() {
     let result = classify_git_credentials(&secrets(&[]), &[source("ci")]);
     assert_eq!(result.status, DoctorStatus::Warn);
+}
+
+#[tokio::test]
+async fn a_probe_read_failure_reports_a_fixed_detail_without_the_database_error() {
+    let secrets = secrets(&[]);
+    let outcome = GitCredentialCheck
+        .check(DoctorContext {
+            secrets: &secrets,
+            probes: &FailingProbes,
+        })
+        .await;
+    assert_eq!(outcome.status, DoctorStatus::Warn);
+    assert_eq!(outcome.detail, "Git sources could not be listed");
+    assert!(!outcome.detail.contains("postgres"));
+    assert!(!outcome.detail.contains("hunter2"));
 }

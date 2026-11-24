@@ -13,15 +13,13 @@
 //!   plugin bundles;
 //! - the per-process `Arc<Mutex<PublishGuard>>` that serializes inventory
 //!   publication passes;
-//! - after governance, the inventory refresher, built from the sealed bundle
-//!   sources, services root and system admin. It is provided as the
-//!   crate-private `MemberRefresher` the `managed_inventory_refresh` job
-//!   (contributed here) resolves, and as the sealed `DynInventoryPublisher` the
-//!   kernel's admin services refresh route runs with the authenticated
-//!   request's user as the actor: publish the latest configured skills, and
-//!   nothing else. It publishes as the system admin, so it is provided sealed:
-//!   no member job, runner service, config plane, command or route state can
-//!   resolve it;
+//! - after governance, two inventory refreshers, each built from the sealed
+//!   bundle sources, services root and system admin. The sealed
+//!   `DynInventoryPublisher` is the one the kernel's admin services refresh
+//!   route runs with the authenticated request's user as the actor, which no
+//!   member job, command or route state can resolve. The open, crate-private
+//!   `Arc<MemberRefresher>` is the `managed_inventory_refresh` job's narrow
+//!   view: it publishes only as the configured owner;
 //! - after governance, two separate values bound to the system admin's managed
 //!   inventory. `Arc<OwnerSkillView>` is open: the `core skills` commands list
 //!   and resolve the owner's own skills through it, with no consumer parameter
@@ -97,6 +95,17 @@ impl Extension for ManagedResourcesExtension {
     }
 }
 
+fn refresher_parts(r: &Resolved<'_>) -> Result<InventoryRefresherParts, ProvideError> {
+    Ok(InventoryRefresherParts {
+        repository: r.get::<Arc<ManagedRepository>>()?,
+        guard: r.get::<Arc<Mutex<PublishGuard>>>()?,
+        bundles: r.get::<BundleSources>()?,
+        active_root: r.get::<ActiveServicesRoot>()?,
+        services: r.get::<ServicesView>()?,
+        owner: r.get::<SystemAdmin>()?.id().clone(),
+    })
+}
+
 fn provide_state(c: &mut Contributions<'_>) {
     c.provide(|_: &Resolved<'_>| Ok(Arc::new(MarketplaceCache::default())))
         .provide(|_: &Resolved<'_>| Ok(Arc::new(Mutex::new(PublishGuard::default()))))
@@ -118,21 +127,11 @@ fn provide_state(c: &mut Contributions<'_>) {
             ))
         })
         .provide_after_governance(|r: &Resolved<'_>| {
-            Ok(MemberRefresher(Arc::new(InventoryRefresher::new(
-                InventoryRefresherParts {
-                    repository: r.get::<Arc<ManagedRepository>>()?,
-                    guard: r.get::<Arc<Mutex<PublishGuard>>>()?,
-                    bundles: r.get::<BundleSources>()?,
-                    active_root: r.get::<ActiveServicesRoot>()?,
-                    services: r.get::<ServicesView>()?,
-                    owner: r.get::<SystemAdmin>()?.id().clone(),
-                },
-            ))))
+            Ok(Arc::new(MemberRefresher::new(refresher_parts(r)?)))
         })
         .provide_sealed_after_governance(
             |r: &Resolved<'_>| -> Result<DynInventoryPublisher, ProvideError> {
-                let MemberRefresher(refresher) = r.get::<MemberRefresher>()?;
-                Ok(refresher)
+                Ok(Arc::new(InventoryRefresher::new(refresher_parts(r)?)))
             },
         )
         .provide_after_governance(|r: &Resolved<'_>| {

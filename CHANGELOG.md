@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **OAuth:** Allow and Deny on the `/oauth/authorize` consent page are accepted from a browser. The page declared the `no-referrer` policy, under which a browser posts its form with `Origin: null`, and the endpoint answered `403` (since 0.85.0). The consent page and the passkey page now declare `same-origin`, whatever the profile's `referrer_policy`. The endpoint's `Origin` check is unchanged.
+
 ## [0.86.1] - 2026-11-23
 
 ### Fixed

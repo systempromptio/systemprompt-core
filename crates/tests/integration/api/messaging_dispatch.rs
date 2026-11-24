@@ -8,11 +8,15 @@
 //! authz hook, token mint, blocking `SendMessage`, reply extraction — runs
 //! against live infrastructure.
 
-use systemprompt_api::services::messaging::{
-    A2aMessagingDispatcher, DispatcherBindError, MessagingError,
+use std::sync::Arc;
+
+use systemprompt_agent_entry::messaging::{
+    A2aMessagingDispatcher, DispatcherInputs, MessagingError,
 };
-use systemprompt_governance::authz::DenyAllHook;
+use systemprompt_api::services::agent_dispatch::{DispatcherBindError, bind_dispatchers};
+use systemprompt_governance::authz::{AuthzHookCell, DenyAllHook};
 use systemprompt_identifiers::{AgentName, SlackChannelId, SlackUserId, SlackWorkspaceId};
+use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
@@ -47,11 +51,28 @@ pub(crate) async fn dispatch_messaging(
     ctx: &AppContext,
     inbound: MessagingInbound,
 ) -> Result<DispatchOutcome, MessagingError> {
-    match systemprompt_api::services::messaging::bind_dispatcher(ctx) {
+    match bind_dispatchers(ctx) {
         Ok(()) | Err(DispatcherBindError::BindersTaken) => {},
         Err(error) => panic!("the dispatcher cells bind: {error}"),
     }
-    A2aMessagingDispatcher::new(ctx.clone()).run(inbound).await
+    dispatcher(ctx).run(inbound).await
+}
+
+pub(crate) fn dispatcher(ctx: &AppContext) -> A2aMessagingDispatcher {
+    let state = ctx.kernel().state();
+    A2aMessagingDispatcher::new(DispatcherInputs {
+        users: Arc::clone(ctx.user_repository()),
+        authz: state
+            .find::<AuthzHookCell>()
+            .cloned()
+            .expect("the host seeds the authz hook cell"),
+        issuer: ctx.config().jwt_issuer.clone(),
+        keys: ctx.signing_keys().clone(),
+        dispatch: state
+            .find::<AgentDispatchCell>()
+            .cloned()
+            .expect("the API host seeds the agent dispatch cell"),
+    })
 }
 
 pub(crate) async fn mount_reply(mock: &MockServer, text: &str) {
@@ -92,7 +113,7 @@ async fn an_unbound_agent_dispatch_refuses_typed_and_sends_nothing() -> anyhow::
     seed_agent_backend(&ctx, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
-    let error = A2aMessagingDispatcher::new(ctx.as_ref().clone())
+    let error = dispatcher(&ctx)
         .run(inbound(&user, "hi"))
         .await
         .expect_err("no agent dispatch is bound");
@@ -199,9 +220,8 @@ async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> a
 async fn the_dispatcher_cells_bind_once_and_a_second_bind_is_refused() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     let ctx = test_app_context(&b.database_url).await;
-    systemprompt_api::services::messaging::bind_dispatcher(&ctx)?;
-    let second = systemprompt_api::services::messaging::bind_dispatcher(&ctx)
-        .expect_err("the binders are taken by the first bind");
+    bind_dispatchers(&ctx)?;
+    let second = bind_dispatchers(&ctx).expect_err("the binders are taken by the first bind");
     assert!(
         matches!(second, DispatcherBindError::BindersTaken),
         "a second bind fails typed, got {second:?}"

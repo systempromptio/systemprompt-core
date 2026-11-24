@@ -44,16 +44,12 @@ mod gateway_upstream_status_mapping;
 mod proxy_mcp_metadata;
 mod role_table;
 mod sync_types;
-mod webhook;
 mod wellknown_bridge_discovery;
 
 mod gateway_sessions_mint;
 
 mod gateway_otel_authed;
 mod gateway_otel_handle;
-
-mod wellknown_agent_cards;
-mod wellknown_agent_cards_configured;
 
 mod feedback_contracts;
 

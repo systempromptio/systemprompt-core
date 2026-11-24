@@ -28,14 +28,26 @@ pub(super) fn build_data_plane(
 }
 
 pub(super) async fn ensure_legacy_context(
-    database: &DbPool,
+    contexts: Option<systemprompt_traits::DynContextMaterializer>,
     system_admin: &systemprompt_manifest::services::SystemAdmin,
 ) -> RuntimeResult<()> {
-    systemprompt_agent::repository::ContextRepository::new(database)
-        .ensure_legacy_context(system_admin.id())
-        .await?;
-    Ok(())
+    let Some(contexts) = contexts else {
+        tracing::info!("no context materializer is provided; the legacy context is not ensured");
+        return Ok(());
+    };
+    contexts
+        .ensure_context(systemprompt_traits::EnsureContextParams {
+            context_id: &systemprompt_identifiers::ContextId::legacy_context_row(),
+            user_id: system_admin.id(),
+            session_id: None,
+            name: LEGACY_CONTEXT_NAME,
+            kind: systemprompt_models::api::ContextKind::Legacy.as_str(),
+        })
+        .await
+        .map_err(crate::error::RuntimeError::LegacyContext)
 }
+
+const LEGACY_CONTEXT_NAME: &str = "Legacy (pre-context)";
 
 pub(super) struct RepositoryBundles {
     content: Arc<systemprompt_content::repository::ContentRepositories>,
@@ -119,9 +131,10 @@ pub(super) async fn build_domain_layer(
     database: &DbPool,
     seeded: &SeededRepositories,
     system_admin: &systemprompt_manifest::SystemAdmin,
+    contexts: Option<systemprompt_traits::DynContextMaterializer>,
 ) -> RuntimeResult<RepositoryBundles> {
     let repositories = build_repositories(database, seeded);
-    ensure_legacy_context(database, system_admin).await?;
+    ensure_legacy_context(contexts, system_admin).await?;
     Ok(repositories)
 }
 

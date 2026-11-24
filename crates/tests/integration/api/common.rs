@@ -180,11 +180,46 @@ pub fn mounted_set(
         .fold(axum::Router::new(), axum::Router::merge)
 }
 
-pub fn webhook_app(ctx: &AppContext) -> axum::Router {
-    systemprompt_api::routes::webhook::router(
-        systemprompt_api::routes::webhook::WebhookState::from_context(ctx)
-            .expect("the admitted kernel holds the webhook state"),
+fn conversation_state(ctx: &AppContext) -> systemprompt_agent_entry::http::AgentHttpState {
+    let sessions = ctx
+        .kernel()
+        .resolved()
+        .get::<systemprompt_traits::DynSessionUsageCounters>()
+        .expect("the users member provides the session-usage counters");
+    systemprompt_agent_entry::http::AgentHttpState::new(
+        Arc::new(
+            systemprompt_agent_entry::http::ConversationRepositories::new(ctx.db_pool(), sessions),
+        ),
+        Arc::new(systemprompt_agent_entry::http::ContextEventPublisher::new(
+            Arc::new(ctx.event_router().clone()),
+        )),
+        None,
     )
+}
+
+pub fn webhook_app(ctx: &AppContext) -> axum::Router {
+    systemprompt_agent_entry::http::webhook::router(conversation_state(ctx))
+}
+
+pub fn stream_app(ctx: &AppContext) -> axum::Router {
+    use systemprompt_agent_entry::http::stream::{StreamFeeds, StreamState, router};
+    router(StreamState {
+        contexts: Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            systemprompt_agent::repository::ContextRepository::new(ctx.db_pool()),
+        )),
+        feeds: Arc::new(StreamFeeds::new(ctx.event_router())),
+    })
+}
+
+pub fn agent_cards_app(ctx: &AppContext) -> axum::Router {
+    use systemprompt_agent_entry::http::agent_cards::{AgentCardsState, router};
+    let resolved = ctx.kernel().resolved();
+    router(AgentCardsState {
+        services: resolved.get().expect("the services view is seeded"),
+        site: resolved
+            .get()
+            .expect("the agent member provides the card site"),
+    })
 }
 
 pub fn agent_http_state(ctx: &AppContext) -> systemprompt_agent_entry::http::AgentHttpState {

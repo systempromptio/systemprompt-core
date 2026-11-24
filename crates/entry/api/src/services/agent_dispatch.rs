@@ -1,10 +1,13 @@
 //! The API's [`AgentDispatch`]: one A2A request through the agent proxy.
 //!
-//! [`bind_agent_dispatch`] binds it, through the binder the context kept
+//! [`bind_dispatchers`] binds it, through the binder the context kept
 //! outside the extension state, into the kernel-seeded, sealed
-//! `AgentDispatchCell` when the routes are built, beside the messaging
-//! dispatcher. The proxy it builds reads the secret store and configuration;
-//! the cell is withheld from every member command, job and route state.
+//! `AgentDispatchCell` when the routes are built, and binds the messaging
+//! cell to the dispatcher the `agent-http` member provides sealed. The proxy
+//! it builds reads the secret store and configuration; the cell is withheld
+//! from every member command, job and route state. With `agent-http` not
+//! admitted the messaging cell stays unbound, so every chat-platform dispatch
+//! is refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,13 +18,14 @@ use async_trait::async_trait;
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
-use systemprompt_agent::models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::dispatch::{AgentDispatch, AgentDispatchBinder, AgentDispatchError};
+use systemprompt_models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 use systemprompt_models::late_bound::AlreadyBound;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::MessagingDispatcher;
 
 use crate::kernel::{ProxyKind, ProxyService, ProxyTarget};
 
@@ -93,9 +97,31 @@ impl AgentDispatch for ApiAgentDispatch {
     }
 }
 
-pub fn bind_agent_dispatch(
-    ctx: &AppContext,
-    binder: AgentDispatchBinder,
-) -> Result<(), AlreadyBound> {
+/// Binding the agent dispatch and the messaging dispatcher failed; the
+/// server refuses to boot.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+pub enum DispatcherBindError {
+    #[error("the late binders were already taken from this context")]
+    BindersTaken,
+    #[error("a dispatch cell was already bound")]
+    AlreadyBound(#[from] AlreadyBound),
+}
+
+pub fn bind_dispatchers(ctx: &AppContext) -> Result<(), DispatcherBindError> {
+    let binders = ctx
+        .take_late_binders()
+        .ok_or(DispatcherBindError::BindersTaken)?;
+    bind_agent_dispatch(ctx, binders.agent_dispatch)?;
+    if let Some(dispatcher) = ctx.kernel().state().find::<Arc<dyn MessagingDispatcher>>() {
+        binders.messaging.bind(Arc::clone(dispatcher))?;
+    } else {
+        tracing::info!(
+            "agent-http is not admitted; chat-platform messages are refused at dispatch"
+        );
+    }
+    Ok(())
+}
+
+fn bind_agent_dispatch(ctx: &AppContext, binder: AgentDispatchBinder) -> Result<(), AlreadyBound> {
     binder.bind(Arc::new(ApiAgentDispatch::new(ctx.clone())))
 }

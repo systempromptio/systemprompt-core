@@ -13,19 +13,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_database::ServiceModule;
-use systemprompt_identifiers::AgentName;
-use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::LeaseRepository;
+use systemprompt_traits::{
+    DynServiceProcessSet, LeaseRepository, RestartMode, ServiceProcessError, ServiceProcessKind,
+    StopMode,
+};
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
-use super::agents::{build_orchestrator, enforce_clean_agent_state};
+use super::agents::process_set;
 use super::process_ownership::ProcessKey;
 
 #[derive(Debug)]
@@ -34,9 +32,37 @@ pub(super) enum ProcessCommand {
     Stop { key: ProcessKey, release: bool },
 }
 
-struct Orchestrators {
-    mcp: Option<Arc<McpOrchestrator>>,
-    agents: Option<AgentOrchestrator>,
+struct ProcessSets {
+    mcp: Option<DynServiceProcessSet>,
+    agents: Option<DynServiceProcessSet>,
+}
+
+impl ProcessSets {
+    fn of(ctx: &AppContext) -> Self {
+        let sets = Self {
+            mcp: process_set(ctx, ServiceProcessKind::McpServer),
+            agents: process_set(ctx, ServiceProcessKind::Agent),
+        };
+        if sets.mcp.is_none() {
+            tracing::warn!("no MCP process set is admitted; leased MCP servers are not actuated");
+        }
+        if sets.agents.is_none() {
+            tracing::warn!("no agent process set is admitted; leased agents are not actuated");
+        }
+        sets
+    }
+
+    fn of_module(
+        &self,
+        module: ServiceModule,
+    ) -> Result<&DynServiceProcessSet, ServiceProcessError> {
+        let (set, kind) = match module {
+            ServiceModule::Mcp => (&self.mcp, ServiceProcessKind::McpServer),
+            ServiceModule::Agent => (&self.agents, ServiceProcessKind::Agent),
+        };
+        set.as_ref()
+            .ok_or(ServiceProcessError::Unavailable { kind })
+    }
 }
 
 pub(super) fn spawn_process_actuator(
@@ -48,19 +74,7 @@ pub(super) fn spawn_process_actuator(
     ctx.background_tasks().clone().spawn_cancellable(
         "process_actuator",
         move |cancel| async move {
-            let orchestrators = Orchestrators {
-                mcp: crate::services::server::runner::create_mcp_orchestrator(&ctx)
-                    .inspect_err(|error| {
-                        tracing::error!(error = %error, "MCP orchestrator unavailable");
-                    })
-                    .ok(),
-                agents: build_orchestrator(&ctx, None)
-                    .await
-                    .inspect_err(|error| {
-                        tracing::error!(error = %error, "agent orchestrator unavailable");
-                    })
-                    .ok(),
-            };
+            let sets = ProcessSets::of(&ctx);
             let leases = Arc::clone(&ctx.coordination_repositories().leases);
             loop {
                 let command = tokio::select! {
@@ -70,7 +84,7 @@ pub(super) fn spawn_process_actuator(
                         None => break,
                     },
                 };
-                apply(&ctx, &orchestrators, leases.as_ref(), &failed, command).await;
+                apply(&ctx, &sets, leases.as_ref(), &failed, command).await;
             }
         },
     );
@@ -79,7 +93,7 @@ pub(super) fn spawn_process_actuator(
 
 async fn apply(
     ctx: &AppContext,
-    orchestrators: &Orchestrators,
+    sets: &ProcessSets,
     leases: &dyn LeaseRepository,
     failed: &UnboundedSender<ProcessKey>,
     command: ProcessCommand,
@@ -87,7 +101,7 @@ async fn apply(
     {
         match command {
             ProcessCommand::Start(key) => {
-                if let Err(error) = start(ctx, orchestrators, &key).await {
+                if let Err(error) = start(sets, &key).await {
                     tracing::error!(
                         service = %key.name(),
                         module = %key.module(),
@@ -101,7 +115,7 @@ async fn apply(
                 }
             },
             ProcessCommand::Stop { key, release } => {
-                if let Err(error) = stop(orchestrators, &key).await {
+                if let Err(error) = stop(sets, &key).await {
                     tracing::error!(
                         service = %key.name(),
                         module = %key.module(),
@@ -142,48 +156,26 @@ pub(super) async fn release_and_announce(
     }
 }
 
-async fn start(
-    ctx: &AppContext,
-    orchestrators: &Orchestrators,
-    key: &ProcessKey,
-) -> anyhow::Result<()> {
-    match key.module() {
-        ServiceModule::Mcp => {
-            let mcp = orchestrators
-                .mcp
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("MCP orchestrator unavailable"))?;
-            mcp.reconcile_owned(&BTreeSet::from([key.name().clone()]), None)
-                .await?;
-        },
-        ServiceModule::Agent => {
-            let agents = orchestrators
-                .agents
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("agent orchestrator unavailable"))?;
-            let config =
-                AgentRegistry::new(&ctx.services_state().view()).get_agent(key.name().as_str())?;
-            enforce_clean_agent_state(agents, key.name().as_str(), config.port, None).await?;
-        },
+async fn start(sets: &ProcessSets, key: &ProcessKey) -> Result<(), ServiceProcessError> {
+    let set = sets.of_module(key.module())?;
+    let runs = match key.module() {
+        ServiceModule::Mcp => set.start(Some(key.name())).await?,
+        ServiceModule::Agent => set.restart(Some(key.name()), RestartMode::Restart).await?,
+    };
+    for run in runs {
+        run.outcome?;
     }
     tracing::info!(service = %key.name(), module = %key.module(), "owned process started");
     Ok(())
 }
 
-async fn stop(orchestrators: &Orchestrators, key: &ProcessKey) -> anyhow::Result<()> {
-    match key.module() {
-        ServiceModule::Mcp => {
-            if let Some(mcp) = &orchestrators.mcp {
-                mcp.stop_services(Some(key.name().clone())).await?;
-            }
-        },
-        ServiceModule::Agent => {
-            if let Some(agents) = &orchestrators.agents {
-                agents
-                    .delete_agent(&AgentName::new(key.name().as_str()))
-                    .await?;
-            }
-        },
-    }
-    Ok(())
+async fn stop(sets: &ProcessSets, key: &ProcessKey) -> Result<(), ServiceProcessError> {
+    let Ok(set) = sets.of_module(key.module()) else {
+        return Ok(());
+    };
+    let mode = match key.module() {
+        ServiceModule::Mcp => StopMode::Disable,
+        ServiceModule::Agent => StopMode::Remove,
+    };
+    set.stop(Some(key.name()), mode).await
 }

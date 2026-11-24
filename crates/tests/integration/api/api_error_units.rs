@@ -8,7 +8,6 @@
 
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_agent::AgentError;
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
 use systemprompt_api::services::proxy::{ProxyError, ResponseBuildError};
@@ -360,46 +359,6 @@ fn repository_error_variants_classify() {
     assert_eq!(
         status_of(RepositoryError::from(sqlx::Error::PoolClosed).into()),
         StatusCode::INTERNAL_SERVER_ERROR
-    );
-}
-
-#[test]
-fn agent_error_not_found_and_validation_are_distinguished_from_the_catch_all() {
-    assert_eq!(
-        status_of(AgentError::NotFound("a".to_owned()).into()),
-        StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        status_of(AgentError::EmptyCorsAllowlist.into()),
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "an unclassified agent failure must not be reported as a client error"
-    );
-}
-
-#[test]
-fn agent_repository_errors_keep_their_classification() {
-    assert_eq!(
-        status_of(AgentError::Repository(RepositoryError::not_found("task", "t1")).into()),
-        StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        status_of(
-            AgentError::Repository(RepositoryError::conflict("task", "t1", "stale version")).into()
-        ),
-        StatusCode::CONFLICT
-    );
-}
-
-#[test]
-fn a_stored_task_without_an_agent_name_is_a_server_error() {
-    let err = AgentError::Repository(RepositoryError::invalid_data(
-        "agent_name",
-        "missing for task t1",
-    ));
-    assert_eq!(
-        status_of(err.into()),
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "corrupt stored data is the server's fault, not the caller's"
     );
 }
 

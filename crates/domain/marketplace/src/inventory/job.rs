@@ -82,15 +82,12 @@ impl Job for InventoryRefreshJob {
         JobScope::Node
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let MemberRefresher(refresher) = ctx.get::<MemberRefresher>()?;
+        let refresher = ctx.get::<Arc<MemberRefresher>>()?;
         let fingerprint = refresher.fingerprint();
         let published = match fingerprint {
             Ok(fingerprint) if self.memo.unchanged(&fingerprint) => 0,
             fingerprint => {
-                let outcomes = refresher
-                    .publish_latest(&ctx.actor().user_id)
-                    .await
-                    .map_err(internal)?;
+                let outcomes = refresher.publish_as_owner().await.map_err(internal)?;
                 match fingerprint {
                     Ok(fingerprint) => self.memo.remember(fingerprint),
                     Err(error) => {

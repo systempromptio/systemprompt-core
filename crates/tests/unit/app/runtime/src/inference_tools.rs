@@ -102,8 +102,11 @@ async fn with_mcp_admitted_the_inference_service_calls_tools_through_the_mcp_pro
 #[tokio::test]
 async fn with_mcp_disabled_the_inference_service_answers_no_tools() {
     let boot = inference_bootstrap();
-    let ctx =
-        test_app_context_on_with(&boot, fixture_admitted_without(&[ExtensionId::new("mcp")])).await;
+    let ctx = test_app_context_on_with(
+        &boot,
+        fixture_admitted_without(&[ExtensionId::new("mcp"), ExtensionId::new("mcp-http")]),
+    )
+    .await;
     let error = tool_call_error(&ctx).await;
     assert!(
         error.contains(NO_TOOLS),

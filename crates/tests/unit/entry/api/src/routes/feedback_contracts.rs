@@ -27,7 +27,7 @@ fn router() -> Router {
         .route("/typed", post(typed))
         .route("/query", get(query))
         .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::managed::contract::normalize,
+            systemprompt_marketplace_entry::http::managed::contract::normalize,
         ))
 }
 async fn check(request: Request<Body>, status: StatusCode) {

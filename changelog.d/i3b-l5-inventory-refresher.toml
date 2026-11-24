@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The `managed_inventory_refresh` job resolves a narrow refresher that fingerprints the configured inventory and publishes it as the configured owner only; the sealed `DynInventoryPublisher` the admin refresh route runs is a separate instance no job, command or route state resolves."

@@ -117,16 +117,15 @@ async fn disabling_agent_http_unmounts_every_set() -> Result<()> {
     assert_eq!(
         status,
         StatusCode::UNAUTHORIZED,
-        "the registry path falls through to the kernel agent proxy: {body}"
+        "the reserved registry path keeps the authenticated gate: {body}"
     );
     assert!(body.contains("Missing Authorization header"), "{body}");
     let (authed, body) = get(&app, REGISTRY, Some(&user.jwt)).await?;
     assert_eq!(
         authed,
-        StatusCode::BAD_REQUEST,
-        "the proxy's A2A context middleware reads the empty GET body before any agent lookup: {body}"
+        StatusCode::NOT_FOUND,
+        "the reserved registry path answers 404 ahead of the agent proxy: {body}"
     );
-    assert!(body.contains("body is not valid JSON"), "{body}");
     Ok(())
 }
 

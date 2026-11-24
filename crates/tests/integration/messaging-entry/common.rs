@@ -22,6 +22,9 @@ pub fn messaging_admitted() -> std::sync::Arc<systemprompt_extension::Admitted> 
 
 pub fn messaging_members() -> std::sync::Arc<systemprompt_extension::Admitted> {
     let mut members = systemprompt_test_fixtures::fixture_core_members();
+    members.push(Box::new(
+        systemprompt_agent_entry::extension::AgentHttpExtension,
+    ));
     members.push(Box::new(systemprompt_slack_entry::SlackExtension));
     members.push(Box::new(systemprompt_teams_entry::TeamsExtension));
     systemprompt_test_fixtures::fixture_admitted_of(members)
@@ -45,9 +48,9 @@ pub async fn messaging_context_on(
 }
 
 pub fn bind_dispatcher_once(ctx: &systemprompt_runtime::AppContext) {
-    match systemprompt_api::services::messaging::bind_dispatcher(ctx) {
-        Ok(()) | Err(systemprompt_api::services::messaging::DispatcherBindError::BindersTaken) => {
-        },
+    match systemprompt_api::services::agent_dispatch::bind_dispatchers(ctx) {
+        Ok(())
+        | Err(systemprompt_api::services::agent_dispatch::DispatcherBindError::BindersTaken) => {},
         Err(error) => panic!("the dispatcher cells bind: {error}"),
     }
 }

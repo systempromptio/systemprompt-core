@@ -10,7 +10,14 @@
 //! at its base. It provides the [`ContextEventPublisher`] its handlers
 //! publish through, built here from the kernel's event router so route state
 //! never holds the router, and requires the open `Arc<AgentCardSite>` the
-//! `agent` member provides.
+//! `agent` member provides. It provides the open
+//! [`AgentSurface`](systemprompt_extension::router::AgentSurface) the API
+//! mounts the webhook broadcasts, the SSE streams and the well-known agent
+//! cards through; the [`StreamFeeds`](crate::http::stream::StreamFeeds) those
+//! streams subscribe through **sealed** (only its own route state reads it);
+//! and the chat-platform messaging dispatcher **sealed**, built here from the
+//! host's authz hook cell, signing keys, issuer and agent dispatch cell, which
+//! the kernel binds into the messaging cell while it builds its routes.
 //!
 //! With `cli` it contributes `admin agents` (grants `services-tree` and
 //! `caller-session`), `core contexts` (`caller-session`, `session-context`)
@@ -18,13 +25,13 @@
 //! signals an agent: `admin agents status` reads the open status view and
 //! `admin agents delete` refuses a running agent.
 //!
-//! The `/api/v1/agents/{service}` proxy, the well-known agent cards, the
-//! webhook broadcasts, the messaging dispatcher, agent supervision and the
-//! `admin agent-host run` child host are the kernel's.
+//! The `/api/v1/agents/{service}` proxy, the agent dispatch it sends
+//! through, agent supervision and the `admin agent-host run` child host are
+//! the kernel's.
 //!
 //! | profile disables | routes | commands |
 //! |---|---|---|
-//! | `agent-http` | 404 | refused at dispatch |
+//! | `agent-http` | 404 (webhook, streams, agent cards, registry) | refused at dispatch |
 //! | `agent` | boot refused (unmet `Arc<AgentCardSite>`) | boot refused |
 //!
 //! [`ContextEventPublisher`]: crate::http::ContextEventPublisher
@@ -72,12 +79,23 @@ impl Extension for AgentHttpExtension {
 mod routes {
     use std::sync::Arc;
 
+    use systemprompt_database::DbPool;
     use systemprompt_events::EventRouter;
     use systemprompt_extension::prelude::*;
+    use systemprompt_extension::router::DynAgentSurface;
+    use systemprompt_governance::authz::AuthzHookCell;
+    use systemprompt_manifest::Config;
+    use systemprompt_models::a2a::dispatch::AgentDispatchCell;
+    use systemprompt_security::keys::SigningKeys;
+    use systemprompt_traits::MessagingDispatcher;
+    use systemprompt_users::UserRepository;
 
+    use crate::http::stream::StreamFeeds;
     use crate::http::{
-        ContextEventPublisher, artifacts_routes, contexts_routes, registry_routes, tasks_routes,
+        AgentHttpSurface, ContextEventPublisher, artifacts_routes, contexts_routes,
+        registry_routes, tasks_routes,
     };
+    use crate::messaging::{A2aMessagingDispatcher, DispatcherInputs, NoMessagingDispatch};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.provide(
@@ -87,10 +105,43 @@ mod routes {
                 )))
             },
         )
+        .provide(
+            |_r: &Resolved<'_>| -> Result<DynAgentSurface, ProvideError> {
+                Ok(Arc::new(AgentHttpSurface))
+            },
+        )
+        .provide_sealed(
+            |r: &Resolved<'_>| -> Result<Arc<StreamFeeds>, ProvideError> {
+                Ok(Arc::new(StreamFeeds::new(
+                    r.get::<Arc<EventRouter>>()?.as_ref(),
+                )))
+            },
+        )
+        .provide_sealed(messaging_dispatcher)
         .routes(contexts_routes())
         .routes(tasks_routes())
         .routes(artifacts_routes())
         .routes(registry_routes());
+    }
+
+    fn messaging_dispatcher(
+        r: &Resolved<'_>,
+    ) -> Result<Arc<dyn MessagingDispatcher>, ProvideError> {
+        let (Some(keys), Some(dispatch)) = (
+            r.optional::<SigningKeys>(),
+            r.optional::<AgentDispatchCell>(),
+        ) else {
+            return Ok(Arc::new(NoMessagingDispatch));
+        };
+        let db = r.get::<DbPool>()?;
+        let config = r.get::<Arc<Config>>()?;
+        Ok(Arc::new(A2aMessagingDispatcher::new(DispatcherInputs {
+            users: Arc::new(UserRepository::new(&db)),
+            authz: r.get::<AuthzHookCell>()?,
+            issuer: config.jwt_issuer.clone(),
+            keys,
+            dispatch,
+        })))
     }
 }
 

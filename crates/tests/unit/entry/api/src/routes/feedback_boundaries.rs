@@ -1,9 +1,27 @@
 //! The consumer router enforces device identity and cookie origin.
+use std::convert::Infallible;
+use std::sync::Arc;
+
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use systemprompt_identifiers::UserId;
+use systemprompt_marketplace::MarketplaceCandidate;
+use systemprompt_marketplace::surface::ConsumerCatalog;
+use systemprompt_marketplace_entry::http::managed::{ManagedConsumerState, routes};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
+use systemprompt_traits::BoxedSource;
 use tower::ServiceExt;
+
+struct NoCatalog;
+
+#[async_trait::async_trait]
+impl ConsumerCatalog for NoCatalog {
+    async fn candidate(&self, _consumer: &UserId) -> Result<MarketplaceCandidate, BoxedSource> {
+        Err("no catalog in this suite".into())
+    }
+}
+
 async fn routers() -> (Router, String) {
     let bootstrap = ensure_test_bootstrap();
     let ctx = test_app_context(&bootstrap.database_url).await;
@@ -11,15 +29,15 @@ async fn routers() -> (Router, String) {
         .unwrap()
         .origin()
         .ascii_serialization();
-    let consumer = systemprompt_api::routes::managed::consumer::router()
-        .layer(axum::middleware::from_fn_with_state(
-            ctx.as_ref().clone(),
-            systemprompt_api::routes::managed::origin::protect,
-        ))
-        .with_state(ctx.as_ref().clone())
-        .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::managed::contract::normalize,
-        ));
+    let state = ManagedConsumerState::new(
+        Arc::clone(systemprompt_test_fixtures::fixture_managed_repository(&ctx)),
+        ctx.services_state().view(),
+        Arc::from(ctx.config().api_external_url.as_str()),
+        Arc::new(NoCatalog),
+    );
+    let consumer = routes(state)
+        .protect(Ok::<_, Infallible>)
+        .unwrap_or_else(|never| match never {});
     (consumer, origin)
 }
 #[tokio::test]

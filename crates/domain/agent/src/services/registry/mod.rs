@@ -28,7 +28,8 @@ pub struct CardSite<'a> {
     pub skills_dir: &'a Path,
 }
 
-/// The public URL and skills directory agent cards are published with.
+/// The public URL and skills directory agent cards are published with, and
+/// whether the deployment is a cloud one (which picks the default agent).
 ///
 /// The agent member provides it open, narrowed from the configuration, so
 /// agent-card readers never hold the configuration itself.
@@ -36,6 +37,7 @@ pub struct CardSite<'a> {
 pub struct AgentCardSite {
     pub api_external_url: String,
     pub skills_dir: std::path::PathBuf,
+    pub cloud: bool,
 }
 
 impl AgentCardSite {

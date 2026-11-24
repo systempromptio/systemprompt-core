@@ -30,7 +30,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_database::{InstanceLeaseRepository, ProcessOwnershipWake, ServiceModule};
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
@@ -281,8 +280,7 @@ pub(crate) fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessK
         .map(|server| ProcessKey::new(ServiceModule::Mcp, server.service_name()))
         .collect();
     wanted.extend(
-        AgentRegistry::new(&ctx.services_state().view())
-            .list_enabled_agents(ctx.config().is_cloud)
+        super::agents::enabled_agents(ctx)
             .into_iter()
             .map(|agent| ProcessKey::new(ServiceModule::Agent, ServiceName::new(agent.name))),
     );

@@ -198,6 +198,7 @@ fn provide_seams(c: &mut Contributions<'_>) {
             Ok(Arc::new(AgentCardSite {
                 api_external_url: config.api_external_url.clone(),
                 skills_dir: std::path::PathBuf::from(&config.skills_path),
+                cloud: config.is_cloud,
             }))
         },
     )

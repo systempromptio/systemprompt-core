@@ -368,8 +368,7 @@ async fn consumer_bundle_status(
     if let Some(value) = authorization {
         request = request.header("authorization", value);
     }
-    systemprompt_api::routes::managed::consumer::router()
-        .with_state(harness.ctx.clone())
+    consumer_router(&harness.ctx)
         .oneshot(request.body(Body::empty()).unwrap())
         .await
         .unwrap()
@@ -562,8 +561,7 @@ async fn consumer_bundle_enforces_host_scope_without_changing_the_catalog_grant(
         "a rejected host request must not alter the existing catalog grant"
     );
 
-    let response = systemprompt_api::routes::managed::consumer::router()
-        .with_state(harness.ctx.clone())
+    let response = consumer_router(&harness.ctx)
         .oneshot(
             Request::builder()
                 .uri(format!(
@@ -617,8 +615,7 @@ async fn consumer_http_flow_binds_receipts_and_refuses_another_device() {
         .expect("credential");
     let publication: String = sqlx::query_scalar("SELECT id FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 ORDER BY created_at DESC LIMIT 1")
         .bind(owner.as_str()).bind(resource.as_str()).fetch_one(writer.as_ref()).await.expect("publication");
-    let router =
-        systemprompt_api::routes::managed::consumer::router().with_state(harness.ctx.clone());
+    let router = consumer_router(&harness.ctx);
     let bundle = router
         .clone()
         .oneshot(
@@ -889,8 +886,19 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
     }
 }
 
-fn consumer_router(f: &PrivateConsumer) -> axum::Router {
-    systemprompt_api::routes::managed::consumer::router().with_state(f.harness.ctx.clone())
+fn private_consumer_router(f: &PrivateConsumer) -> axum::Router {
+    consumer_router(&f.harness.ctx)
+}
+
+fn consumer_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
+    systemprompt_marketplace_entry::http::managed::consumer::router().with_state(
+        systemprompt_marketplace_entry::http::managed::ManagedConsumerState::new(
+            std::sync::Arc::clone(systemprompt_test_fixtures::fixture_managed_repository(ctx)),
+            ctx.services_state().view(),
+            std::sync::Arc::from(ctx.config().api_external_url.as_str()),
+            systemprompt_api::routes::managed_state::consumer_catalog(ctx),
+        ),
+    )
 }
 async fn post_json(
     app: axum::Router,
@@ -918,7 +926,7 @@ async fn receipt_storage_failure_leaves_no_partial_evidence_and_retry_commits_on
     sqlx::query("CREATE FUNCTION reject_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'owned write failure'; END $$").execute(db.as_ref()).await.unwrap();
     sqlx::query("CREATE TRIGGER reject_receipt BEFORE INSERT ON managed_installation_receipts FOR EACH ROW EXECUTE FUNCTION reject_receipt()").execute(db.as_ref()).await.unwrap();
     let failed = post_json(
-        consumer_router(&f),
+        private_consumer_router(&f),
         "/consumer/receipts",
         &f.token,
         &f.request,
@@ -942,7 +950,7 @@ async fn receipt_storage_failure_leaves_no_partial_evidence_and_retry_commits_on
         .await
         .unwrap();
     let recovered = post_json(
-        consumer_router(&f),
+        private_consumer_router(&f),
         "/consumer/receipts",
         &f.token,
         &f.request,
@@ -968,7 +976,7 @@ async fn invalid_runtime_readback_is_rejected_without_receipt_and_corrected_retr
     invalid.runtime_files[0].digest = ContentDigest::of(b"wrong bytes");
     assert_eq!(
         post_json(
-            consumer_router(&f),
+            private_consumer_router(&f),
             "/consumer/receipts",
             &f.token,
             &invalid
@@ -987,7 +995,7 @@ async fn invalid_runtime_readback_is_rejected_without_receipt_and_corrected_retr
     assert_eq!(count, 0);
     assert_eq!(
         post_json(
-            consumer_router(&f),
+            private_consumer_router(&f),
             "/consumer/receipts",
             &f.token,
             &f.request
@@ -1012,7 +1020,7 @@ async fn session_binding_storage_failure_leaves_no_binding_and_retry_is_durable(
     let f = private_consumer("binding_write_recovery").await;
     let db = f.harness.pool.pool();
     let receipt = post_json(
-        consumer_router(&f),
+        private_consumer_router(&f),
         "/consumer/receipts",
         &f.token,
         &f.request,
@@ -1029,7 +1037,7 @@ async fn session_binding_storage_failure_leaves_no_binding_and_retry_is_durable(
     sqlx::query("CREATE TRIGGER reject_binding BEFORE INSERT ON managed_consumer_session_bindings FOR EACH ROW EXECUTE FUNCTION reject_binding()").execute(db.as_ref()).await.unwrap();
     assert_eq!(
         post_json(
-            consumer_router(&f),
+            private_consumer_router(&f),
             "/consumer/session-bindings",
             &f.token,
             &binding
@@ -1055,7 +1063,7 @@ async fn session_binding_storage_failure_leaves_no_binding_and_retry_is_durable(
         .await
         .unwrap();
     let recovered = post_json(
-        consumer_router(&f),
+        private_consumer_router(&f),
         "/consumer/session-bindings",
         &f.token,
         &binding,

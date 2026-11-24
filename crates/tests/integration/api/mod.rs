@@ -1,6 +1,10 @@
 //! Integration tests for `systemprompt-api` HTTP route handlers.
 
 #[cfg(test)]
+#[path = "agent_http_member.rs"]
+mod agent_http_member;
+
+#[cfg(test)]
 #[path = "routes_marketplace_mounted.rs"]
 mod routes_marketplace_mounted;
 
@@ -241,6 +245,8 @@ mod files_http_surface;
 mod internal_links;
 #[cfg(test)]
 mod internal_links_worker;
+#[cfg(test)]
+mod member_surfaces;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;

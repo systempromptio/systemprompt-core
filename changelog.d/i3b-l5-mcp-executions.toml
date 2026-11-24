@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Routes"
+text = "The MCP tool-execution lookup `GET /api/v1/mcp/executions/{id}` is built by the `mcp-http` member's `McpSurface` over a ledger the member builds; the API keeps its declaration (authenticated, a user context, the `mcp` rate scope). With `mcp-http` disabled, or no MCP artifact ingest admitted, neither the lookup nor the MCP proxy is mounted (404)."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::proxy::mcp::{executions_router, ExecutionsState, ToolExecutionResponse}` are removed (now `systemprompt_mcp_entry::http`)."
+
+[[crate]]
+name = "systemprompt-mcp-entry"
+section = "Added"
+text = "Feature `http`: `http::{executions_router, ExecutionsState, ToolExecutionResponse, McpHttpSurface, McpHttpRepositories}`; the member provides `DynMcpSurface` open and `McpHttpRepositories` sealed."

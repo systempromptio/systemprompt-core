@@ -101,8 +101,10 @@ stable_deref_trait = { version = "1" }
 subtle = { version = "2", features = ["const-generics"] }
 sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
 systemprompt = { path = "../../../../systemprompt", features = ["full", "slack", "teams"] }
+systemprompt-agent-entry = { path = "../../../entry/agent", features = ["cli", "http"] }
 systemprompt-analytics = { path = "../../../domain/analytics", features = ["geolocation"] }
 systemprompt-analytics-entry = { path = "../../../entry/analytics", features = ["cli", "content-commands", "http"] }
+systemprompt-cloud-entry = { path = "../../../entry/cloud", features = ["cli", "http"] }
 systemprompt-documents = { path = "../../../app/documents", features = ["engine-loro", "http", "notifications"] }
 systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["cli", "mcp", "router", "slack", "sqlx", "teams"] }
 systemprompt-files = { path = "../../../domain/files", default-features = false, features = ["collab-loro", "office", "pdf"] }
@@ -110,6 +112,9 @@ systemprompt-files-entry = { path = "../../../entry/files", features = ["cli", "
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
 systemprompt-issues = { path = "../../../app/issues", features = ["cli"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli"] }
+systemprompt-marketplace = { path = "../../../domain/marketplace", features = ["http"] }
+systemprompt-marketplace-entry = { path = "../../../entry/marketplace", features = ["cli", "http"] }
+systemprompt-mcp-entry = { path = "../../../entry/mcp", features = ["cli", "http"] }
 systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
 systemprompt-provider-contracts = { path = "../../../shared/provider-contracts", default-features = false, features = ["sqlx"] }
 systemprompt-runtime = { path = "../../../app/runtime", features = ["geolocation", "notifications"] }

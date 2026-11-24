@@ -25,10 +25,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 http = [
     "systemprompt-extension/router",
+    "dep:systemprompt-database",
+    "dep:systemprompt-identifiers",
+    "dep:systemprompt-mcp",
     "dep:systemprompt-models",
     "dep:systemprompt-traits",
     "dep:axum",
     "dep:serde",
+    "dep:serde_json",
+    "dep:tracing",
 ]
 cli = [
     "systemprompt-extension/cli",

@@ -1,10 +1,15 @@
-//! The marketplace state the kernel-mounted managed and gateway routes read:
-//! the managed repository, the catalogue cache and the per-user filter of the
+//! The marketplace state the kernel-mounted gateway routes read.
+//!
+//! The managed repository, the catalogue cache and the per-user filter of the
 //! built marketplace seams, each provided by the `managed_resources` member
 //! into the kernel state.
 //!
 //! The member is required, so an absent value is a composition fault; it is
 //! reported as a managed-resource internal failure, the 5xx of every caller.
+//!
+//! [`consumer_catalog`] is the `ConsumerCatalog` the `marketplace-http`
+//! member's consumer routes read: the marketplace candidate a consumer's
+//! bridge manifest resolves to, assembled by the bridge manifest path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,10 +17,13 @@
 use std::sync::Arc;
 
 use systemprompt_extension::MissingDependency;
+use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::contract::MarketplaceSeams;
 use systemprompt_marketplace::managed::{ManagedError, ManagedRepository};
-use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
+use systemprompt_marketplace::surface::{ConsumerCatalog, DynConsumerCatalog};
+use systemprompt_marketplace::{MarketplaceCache, MarketplaceCandidate, MarketplaceFilter};
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::BoxedSource;
 
 fn unprovided(error: MissingDependency) -> ManagedError {
     ManagedError::Internal {
@@ -48,4 +56,30 @@ pub(crate) fn marketplace_filter(
         .get::<Arc<MarketplaceSeams>>()
         .map(|seams| seams.filter())
         .map_err(unprovided)
+}
+
+struct BridgeConsumerCatalog {
+    ctx: AppContext,
+}
+
+#[async_trait::async_trait]
+impl ConsumerCatalog for BridgeConsumerCatalog {
+    async fn candidate(&self, consumer: &UserId) -> Result<MarketplaceCandidate, BoxedSource> {
+        let services = self.ctx.services_config();
+        let (candidate, _) = crate::routes::gateway::bridge_manifest::assemble_candidate(
+            &self.ctx,
+            self.ctx.profile(),
+            consumer,
+            (*services).clone(),
+            crate::routes::gateway::bridge_resolved::Freshness::Memo,
+        )
+        .await
+        .map_err(|error| -> BoxedSource { Box::new(error) })?;
+        Ok(candidate)
+    }
+}
+
+#[must_use]
+pub fn consumer_catalog(ctx: &AppContext) -> DynConsumerCatalog {
+    Arc::new(BridgeConsumerCatalog { ctx: ctx.clone() })
 }

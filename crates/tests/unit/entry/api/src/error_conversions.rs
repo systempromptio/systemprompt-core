@@ -373,23 +373,6 @@ fn api_http_error_responds_with_mapped_status() {
 }
 
 #[test]
-fn agent_error_maps_not_found_repository_and_internal() {
-    use systemprompt_agent::AgentError;
-    assert_eq!(
-        code_of(AgentError::NotFound("a".into())).code,
-        ErrorCode::NotFound
-    );
-    assert_eq!(
-        code_of(AgentError::Repository(repo_not_found())).code,
-        ErrorCode::NotFound
-    );
-    assert_eq!(
-        code_of(AgentError::EmptyCorsAllowlist).code,
-        ErrorCode::InternalError
-    );
-}
-
-#[test]
 fn scope_binding_error_maps_dimension_membership_and_lookup() {
     use systemprompt_governance::authz::{AuthzError, ScopeBindingError};
     use systemprompt_identifiers::ScopeDimension;
