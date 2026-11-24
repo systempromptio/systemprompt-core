@@ -1,8 +1,8 @@
 //! JWT JTI (token identifier) revocation. Logout writes a row; the request
 //! authenticator consults this table through
-//! `systemprompt_database::JtiRevocationChecker` (the `TokenRevocations` the
-//! kernel seeds) on every authenticated request. The `exp` column carries the
-//! JWT's original expiry so cleanup can drop rows that are no longer
+//! [`crate::repository::JtiRevocationChecker`] (the `TokenRevocations` this
+//! member provides) on every authenticated request. The `exp` column carries
+//! the JWT's original expiry so cleanup can drop rows that are no longer
 //! load-bearing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -34,7 +34,7 @@ impl OAuthRepository {
     }
 
     pub async fn is_jti_revoked(&self, jti: &AccessTokenId) -> OauthResult<bool> {
-        Ok(systemprompt_database::jti_revoked(self.write_pool_ref(), jti).await?)
+        Ok(crate::repository::revocations::jti_revoked(self.write_pool_ref(), jti).await?)
     }
 
     pub async fn revoke_jtis_for_user(

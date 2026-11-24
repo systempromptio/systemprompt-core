@@ -3,7 +3,9 @@
 //! issuer (`DynSessionIssuer`), which requires the users member's sealed user
 //! directory (`DynUserProvider`), its repositories
 //! (`Arc<OAuthRepositories>`) and the plugin-token minter
-//! (`DynPluginTokenMinter`), both conferred on `identity-http`, and the sealed
+//! (`DynPluginTokenMinter`), both conferred on `identity-http`, the sealed
+//! token revocation check (`DynTokenRevocations`, a core-only provide the
+//! kernel binds into the users member's revocation cell) and the sealed
 //! `DynBridgeHostFilterMigration` `admin config migrate --data` runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -15,10 +17,11 @@ use systemprompt_extension::prelude::*;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::reserved::ConferralRow;
-use systemprompt_traits::DynBridgeHostFilterMigration;
+use systemprompt_models::auth::DynTokenRevocations;
+use systemprompt_traits::{CacheEpochView, DynBridgeHostFilterMigration};
 
 use crate::jobs::OauthCleanupJob;
-use crate::repository::BridgeHostPrefsRepository;
+use crate::repository::{BridgeHostPrefsRepository, JtiRevocationChecker};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
@@ -53,6 +56,13 @@ impl Extension for OauthExtension {
                 crate::provides::plugin_token_minter,
             )
             .job(OauthCleanupJob)
+            .provide_sealed(
+                |r: &Resolved<'_>| -> Result<DynTokenRevocations, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    let epochs = r.get::<CacheEpochView>()?;
+                    Ok(Arc::new(JtiRevocationChecker::new(&db, epochs)))
+                },
+            )
             .provide_sealed(
                 |r: &Resolved<'_>| -> Result<DynBridgeHostFilterMigration, ProvideError> {
                     let db = r.get::<DbPool>()?;

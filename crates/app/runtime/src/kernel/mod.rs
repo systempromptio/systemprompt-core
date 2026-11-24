@@ -80,7 +80,7 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
-use self::reserved::{refuse_kernel_types, refuse_unlisted_conferrals};
+use self::reserved::{refuse_core_only_provides, refuse_kernel_types, refuse_unlisted_conferrals};
 
 mod error;
 mod factories;
@@ -141,6 +141,7 @@ impl Kernel {
         self.state.insert(AdmittedConfigs::of(admitted.built()));
         self.state.insert(AdmittedAssets::of(admitted.built()));
         refuse_kernel_types(admitted.built())?;
+        refuse_core_only_provides(admitted.built())?;
         refuse_unlisted_conferrals(admitted.built())?;
         let pending = self.seed_late_cells(admitted)?;
         let declarations =

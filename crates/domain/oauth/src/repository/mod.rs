@@ -10,6 +10,7 @@ pub mod cleanup;
 pub mod client;
 pub mod exchange_code;
 pub mod oauth;
+pub mod revocations;
 pub mod setup_token;
 pub mod webauthn;
 pub mod webauthn_challenge;
@@ -30,6 +31,7 @@ pub use oauth::{
     REAUTH_MARKER_TTL_SECS, ReauthBinding, RefreshTokenLineage, RefreshTokenParams, SsoStateParams,
     SsoStateRow,
 };
+pub use revocations::{JtiRevocationCache, JtiRevocationChecker};
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,
 };

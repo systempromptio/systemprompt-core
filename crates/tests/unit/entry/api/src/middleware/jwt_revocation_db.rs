@@ -9,11 +9,16 @@
 //! invisible from the query alone.
 
 use chrono::{Duration, Utc};
-use systemprompt_database::{DbPool, JtiRevocationChecker};
+use std::sync::Arc;
+
+use systemprompt_database::DbPool;
+use systemprompt_extension::LateCell;
 use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::auth::TokenRevocations;
 use systemprompt_models::execution::context::ContextExtractionError;
+use systemprompt_oauth::repository::JtiRevocationChecker;
 use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
+use systemprompt_users::TokenRevocationsCell;
 use uuid::Uuid;
 
 fn checker(pool: &DbPool) -> JtiRevocationChecker {
@@ -198,5 +203,36 @@ async fn a_revocation_store_failure_rejects_the_token_without_disclosing_its_jti
     assert!(
         !message.contains(private_jti.as_str()),
         "the token identifier leaked: {message}"
+    );
+}
+
+#[tokio::test]
+async fn the_users_cell_bound_to_the_oauth_store_refuses_a_revoked_token() {
+    let pool = test_db_pool().await;
+    let jti = jti();
+    revoke(&pool, &jti, 60).await;
+    let (cell, binder) = TokenRevocationsCell::unbound();
+    TokenRevocationsCell::bind(binder, Arc::new(checker(&pool))).expect("bind the store");
+
+    let result = cell.ensure_not_revoked(&jti).await;
+
+    assert!(
+        is_revoked_error(&result),
+        "a revoked jti must be refused through the cell, got {result:?}"
+    );
+    cell.ensure_not_revoked(&self::jti())
+        .await
+        .expect("an unrevoked jti passes through the bound cell");
+}
+
+#[tokio::test]
+async fn the_users_cell_with_no_store_bound_refuses_every_token() {
+    let (cell, _binder) = TokenRevocationsCell::unbound();
+
+    let result = cell.ensure_not_revoked(&jti()).await;
+
+    assert!(
+        matches!(result, Err(ContextExtractionError::DatabaseError { .. })),
+        "with no revocation store a token is refused, never admitted, got {result:?}"
     );
 }

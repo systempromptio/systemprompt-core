@@ -1,10 +1,11 @@
 //! The token revocation check the request authenticator runs on every host.
 //!
 //! [`JtiRevocationChecker`] reads `oauth_jti_revocations` through its
-//! [`JtiRevocationCache`] and fails closed. The kernel seeds it as the
-//! `DynTokenRevocations` before any member provides, so the authenticator
-//! a member composes refuses a revoked token whether or not the member owning
-//! the table is admitted. The table's writes stay with that member.
+//! [`JtiRevocationCache`] and fails closed. The oauth member provides it,
+//! sealed, as the `DynTokenRevocations` the kernel binds into the users
+//! member's revocation cell once the composition has resolved; only a
+//! core-standing `oauth` member may provide that type. It needs no pepper,
+//! so a child host that admits the member checks revocations as the API does.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,13 +21,13 @@ use systemprompt_models::auth::TokenRevocations;
 use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_traits::{CacheDomain, CacheEpochView};
 
-use crate::DbPool;
+use systemprompt_database::DbPool;
 
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
 const DEFAULT_CACHE_CAPACITY: usize = 5_000;
 
-pub async fn jti_revoked(pool: &PgPool, jti: &AccessTokenId) -> Result<bool, sqlx::Error> {
+pub(crate) async fn jti_revoked(pool: &PgPool, jti: &AccessTokenId) -> Result<bool, sqlx::Error> {
     sqlx::query_scalar!(
         r#"SELECT EXISTS(
                  SELECT 1 FROM oauth_jti_revocations
@@ -44,7 +45,7 @@ enum CacheEntry {
     Revoked,
 }
 
-/// In-memory LRU layered in front of `is_jti_revoked`.
+/// In-memory LRU layered in front of the revocation lookup.
 ///
 /// Negative results
 /// expire after 60s, or as soon as a revocation on any replica advances the

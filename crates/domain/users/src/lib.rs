@@ -38,10 +38,12 @@ pub mod jobs;
 pub(crate) mod models;
 mod provides;
 pub(crate) mod repository;
+pub mod revocations;
 pub(crate) mod services;
 
 pub use extension::UsersExtension;
 pub use provides::admin_bootstrap;
+pub use revocations::TokenRevocationsCell;
 
 pub use error::{Result, UserError, UserResult};
 pub use models::{

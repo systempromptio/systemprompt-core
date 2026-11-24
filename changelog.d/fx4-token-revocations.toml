@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "oauth"
+text = "The token revocation check is provided by the oauth member as a sealed, core-only `DynTokenRevocations`; the users member's request authenticator reads it through a kernel-bound cell and refuses every token id when no store is bound. `systemprompt_database::{JtiRevocationChecker, JtiRevocationCache, jti_revoked}` and `systemprompt_security::UnavailableRevocations` are removed; the checker and cache are `systemprompt_oauth::repository::{JtiRevocationChecker, JtiRevocationCache}`."

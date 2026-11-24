@@ -18,9 +18,10 @@
 //! mark one converted) is sealed and conferred on `identity-http`. The request
 //! authenticator (`DynRequestAuthenticator`) is
 //! open: it verifies a request against the kernel's verification keyring, the
-//! issuer, the user and session rows and the kernel's token revocation check,
-//! and exposes no create, revoke or mint; a kernel that seeds no revocation
-//! check gets `UnavailableRevocations`, which refuses every token id. The
+//! issuer, the user and session rows and the token revocation cell this member
+//! declares (`TokenRevocationsCell`, bound by the kernel to the oauth
+//! member's store), and exposes no create, revoke or mint; with no store bound
+//! every token id is refused. The
 //! per-user rate-limit windows (`DynRateLimitBuckets`) are open: they charge
 //! one hit and read back the window's count, with no reset or prune.
 //!
@@ -74,6 +75,7 @@ impl Extension for UsersExtension {
         }
         c.migrations(extension_migrations!())
             .admin_bootstrap(crate::provides::admin_bootstrap)
+            .late_cell::<crate::TokenRevocationsCell>()
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
                 let bans: DynIpBanStore = Arc::new(BannedIpRepository::new(&db));

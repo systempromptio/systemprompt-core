@@ -1,8 +1,7 @@
 //! Repositories owned by the database crate itself.
 //!
 //! Only repositories that are part of the platform-level schema (services
-//! registry, instance leases, release stamps) and the token revocation read
-//! the kernel seeds on every host live here. Domain repositories
+//! registry, instance leases, release stamps) live here. Domain repositories
 //! live in their respective domain crates.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,7 +11,6 @@ pub mod advisory_lock;
 pub mod base;
 pub mod change_context;
 pub mod coordination;
-pub mod jti_revocation;
 pub mod lease;
 pub mod plane_applied;
 pub mod release_stamp;
@@ -24,7 +22,6 @@ pub use advisory_lock::{
 pub use base::PgDbPool;
 pub use change_context::{PgConfigVersion, PlaneTransaction, with_change_context};
 pub use coordination::CoordinationRepositories;
-pub use jti_revocation::{JtiRevocationCache, JtiRevocationChecker, jti_revoked};
 pub use lease::InstanceLeaseRepository;
 pub use plane_applied::{
     PLANE_NOT_APPLIED_HINT, find_config_plane_applied, record_config_plane_applied,

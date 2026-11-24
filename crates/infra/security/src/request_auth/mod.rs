@@ -9,9 +9,6 @@
 //! header, or takes the one the request body named. A UI session sent as the
 //! cookie is refused: it is a bearer.
 //!
-//! A kernel without a revocation store seeds [`UnavailableRevocations`]: every
-//! token that carries a token id is then refused, never admitted unchecked.
-//!
 //! [`attest_session`] is the one predicate that a claimed session id is a
 //! live session of the claimed user; the authenticator and the API's session
 //! middleware both use it.
@@ -22,9 +19,7 @@
 mod attestation;
 mod authenticator;
 pub mod context;
-mod revocations;
 pub mod users;
 
 pub use attestation::{SessionAttestationError, attest_session};
 pub use authenticator::{JwtRequestAuthenticator, JwtRequestAuthenticatorParts};
-pub use revocations::UnavailableRevocations;

@@ -1,6 +1,8 @@
 //! The kernel's own resolution steps over the admitted members: the
 //! reservation of the types only the kernel inserts, the refusal of a
-//! conferred provide its reserved row does not name, and the gateway guard
+//! core-only type (the token revocation store, `oauth` alone) provided by any
+//! other member, the refusal of a conferred provide its reserved row does not
+//! name, and the gateway guard
 //! set it builds.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -16,6 +18,8 @@ use systemprompt_extension::{
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
+
+use systemprompt_models::auth::DynTokenRevocations;
 
 use super::KernelError;
 
@@ -51,6 +55,31 @@ pub(super) fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError>
                 owner: member.owner.clone(),
                 ty,
             });
+        }
+    }
+    Ok(())
+}
+
+const fn core_only_provides() -> [(TypeId, &'static str); 1] {
+    [(TypeId::of::<DynTokenRevocations>(), "oauth")]
+}
+
+pub(super) fn refuse_core_only_provides(built: &BuiltState) -> Result<(), KernelError> {
+    for member in built.members() {
+        for entry in member.sink.provides() {
+            let Some((_, provider)) = core_only_provides()
+                .into_iter()
+                .find(|(id, _)| *id == entry.type_id())
+            else {
+                continue;
+            };
+            if member.owner.as_str() != provider || member.standing != StandingTag::Core {
+                return Err(KernelError::CoreOnlyProvide {
+                    owner: member.owner.clone(),
+                    ty: entry.type_name(),
+                    provider,
+                });
+            }
         }
     }
     Ok(())

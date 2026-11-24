@@ -232,7 +232,9 @@ async fn every_route_set_command_and_job_reads_the_open_request_authenticator() 
     assert!(install_reads::<DynRequestAuthenticator>(&ctx));
     assert!(member_command_reads::<DynRequestAuthenticator>(&ctx));
     assert!(job_reads::<DynRequestAuthenticator>(&ctx));
-    assert!(route_reads::<DynTokenRevocations>(&ctx, "identity-http"));
+    assert!(!route_reads::<DynTokenRevocations>(&ctx, "identity-http"));
+    assert!(!install_reads::<DynTokenRevocations>(&ctx));
+    assert!(ctx.kernel().state().is_sealed::<DynTokenRevocations>());
     assert!(!ctx.kernel().state().is_sealed::<DynRequestAuthenticator>());
 }
 

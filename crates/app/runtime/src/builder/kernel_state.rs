@@ -60,11 +60,6 @@
 //! verification keys it was handed), open; the request authenticator verifies
 //! against it.
 //!
-//! Every host seeds the token revocation check (`DynTokenRevocations`, the
-//! jti table behind its cache) open; the users member builds the request
-//! authenticator over it, so a child host's agent server refuses a revoked
-//! token as the API does.
-//!
 //! The cache epochs are seeded twice: the advancing `CacheEpochs` handle
 //! sealed (the event relay and kernel code advance it), and its read half
 //! `CacheEpochView` open, which every cache that only reads an epoch takes.
@@ -111,10 +106,8 @@ use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::{ContentConfigRaw, late_pair};
 
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
-use systemprompt_database::JtiRevocationChecker;
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_models::auth::DynTokenRevocations;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_traits::MessagingDispatcher;
 
@@ -123,13 +116,8 @@ pub use super::kernel_seed::{ApiKernelSeed, KernelCoordination, KernelSeed};
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) {
     let (scanner, secret_scanner) = late_pair::<SecretScanner>();
     let (authz_cell, authz_hook) = late_pair::<dyn AuthzDecisionHook>();
-    let revocations: DynTokenRevocations = Arc::new(JtiRevocationChecker::new(
-        seed.database,
-        seed.cache_epochs.view(),
-    ));
     let state = Dependencies::new()
         .with(scanner)
-        .with(revocations)
         .with(Arc::clone(seed.database))
         .with(Arc::clone(seed.app_paths))
         .with(Arc::new(seed.profile.notifications))

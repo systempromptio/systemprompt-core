@@ -44,6 +44,12 @@ pub enum KernelError {
     },
     #[error("a late cell was bound twice")]
     LateCellBound(#[from] systemprompt_models::AlreadyBound),
+    #[error("{owner} provides {ty}, which only the core member {provider} provides")]
+    CoreOnlyProvide {
+        owner: ExtensionId,
+        ty: &'static str,
+        provider: &'static str,
+    },
     #[error("{owner} provides {ty}, which only the kernel inserts")]
     ReservedType {
         owner: ExtensionId,

@@ -27,7 +27,7 @@ use systemprompt_provider_contracts::Dependencies;
 /// A cell whose read half the kernel seeds and whose bind half the kernel
 /// alone holds; see the module docs.
 pub trait LateCell: Clone + Send + Sync + 'static {
-    type Value: Send + Sync + 'static;
+    type Value: ?Sized + Send + Sync + 'static;
     type Binder: Send + 'static;
 
     fn unbound() -> (Self, Self::Binder);

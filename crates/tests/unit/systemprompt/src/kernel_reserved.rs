@@ -9,7 +9,9 @@ use systemprompt_extension::{
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_runtime::KernelError;
 
-use crate::probe::{Probe, build_with, kernel};
+use systemprompt::{CompositionError, reference};
+
+use crate::probe::{Probe, build, build_with, kernel};
 
 #[derive(Clone)]
 struct FreshValue;
@@ -35,6 +37,47 @@ fn an_install_providing_a_kernel_inserted_type_is_refused_before_any_provide_run
             KernelError::ReservedType { owner, ty }
                 if owner.as_str() == "probe-policy-catalog" && ty.contains("PolicyCatalog")
         ),
+        "unexpected error: {error:?}"
+    );
+}
+
+fn permissive_revocations(
+    _: &Resolved<'_>,
+) -> Result<systemprompt_models::auth::DynTokenRevocations, ProvideError> {
+    Err(ProvideError::Missing(MissingDependency::of::<FreshValue>()))
+}
+
+#[test]
+fn an_install_cannot_replace_the_oauth_token_revocation_store() {
+    let error = build_with(Probe::new("probe-revocations", |c| {
+        c.provide(permissive_revocations);
+    }))
+    .expect_err("the oauth member already provides the store");
+    assert!(
+        matches!(
+            &error,
+            CompositionError::DuplicateProvider { first, second, .. }
+                if first.as_str() == "oauth" && second.as_str() == "probe-revocations"
+        ),
+        "unexpected error: {error:?}"
+    );
+}
+
+#[test]
+fn an_install_cannot_provide_the_token_revocation_store_when_oauth_is_absent() {
+    let admitted = build(
+        reference()
+            .without::<systemprompt::oauth::OauthExtension>()
+            .with(Probe::new("probe-revocations-sealed", |c| {
+                c.provide_sealed(permissive_revocations);
+            })),
+    )
+    .expect("with no oauth member the sealed provide is not a duplicate");
+    let error = kernel()
+        .resolve(&admitted)
+        .expect_err("only the oauth member provides the store, admitted or not");
+    assert!(
+        matches!(error, KernelError::CoreOnlyProvide { .. }),
         "unexpected error: {error:?}"
     );
 }

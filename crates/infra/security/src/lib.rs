@@ -76,8 +76,7 @@ pub use jwt::{
     extract_user_context_for,
 };
 pub use request_auth::{
-    JwtRequestAuthenticator, JwtRequestAuthenticatorParts, SessionAttestationError,
-    UnavailableRevocations, attest_session,
+    JwtRequestAuthenticator, JwtRequestAuthenticatorParts, SessionAttestationError, attest_session,
 };
 pub use services::ScannerDetector;
 pub use session::{SessionGenerator, SessionParams, ValidatedSessionClaims};

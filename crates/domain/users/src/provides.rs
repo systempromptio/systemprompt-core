@@ -24,9 +24,7 @@ use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations};
 use systemprompt_security::keys::VerificationKeyring;
-use systemprompt_security::{
-    JwtRequestAuthenticator, JwtRequestAuthenticatorParts, UnavailableRevocations,
-};
+use systemprompt_security::{JwtRequestAuthenticator, JwtRequestAuthenticatorParts};
 use systemprompt_traits::{
     AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion,
     CreateSessionInput, DatabaseHandle, DynAdminBootstrap, DynGatewaySessionMint,
@@ -86,9 +84,7 @@ pub(crate) fn request_authenticator(
 ) -> Result<DynRequestAuthenticator, ProvideError> {
     let db = r.get::<DbPool>()?;
     let config = r.get::<Arc<Config>>()?;
-    let revocations = r
-        .optional::<DynTokenRevocations>()
-        .unwrap_or_else(|| Arc::new(UnavailableRevocations));
+    let revocations: DynTokenRevocations = Arc::new(r.get::<crate::TokenRevocationsCell>()?);
     Ok(Arc::new(JwtRequestAuthenticator::new(
         JwtRequestAuthenticatorParts {
             sessions: Arc::new(SessionRepository::new(&db)),
