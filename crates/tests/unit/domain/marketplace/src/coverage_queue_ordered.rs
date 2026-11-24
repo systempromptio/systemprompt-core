@@ -78,12 +78,22 @@ async fn opposite_order_grants_over_shared_owners_never_deadlock() {
         .execute(raw.as_ref())
         .await
         .expect("clear the queued owners");
-        let left = UserId::new(format!("coverage-left-{iteration}-{}", uuid::Uuid::new_v4()));
-        let right = UserId::new(format!("coverage-right-{iteration}-{}", uuid::Uuid::new_v4()));
+        let left = UserId::new(format!(
+            "coverage-left-{iteration}-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let right = UserId::new(format!(
+            "coverage-right-{iteration}-{}",
+            uuid::Uuid::new_v4()
+        ));
         for consumer in [&left, &right] {
-            seed_user_row(&pool, consumer, &format!("{consumer}@coverage-queue.invalid"))
-                .await
-                .expect("consumer");
+            seed_user_row(
+                &pool,
+                consumer,
+                &format!("{consumer}@coverage-queue.invalid"),
+            )
+            .await
+            .expect("consumer");
         }
 
         let mut one = raw.begin().await.expect("begin one");

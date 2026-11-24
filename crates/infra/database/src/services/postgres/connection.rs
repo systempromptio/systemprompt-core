@@ -192,7 +192,9 @@ pub enum BudgetError {
          pools, session pool and children need"
     )]
     TooSmall { budget: u32, required: u32 },
-    #[error("database.pool sizes need {parts} connections, more than database.connection_budget {budget}")]
+    #[error(
+        "database.pool sizes need {parts} connections, more than database.connection_budget {budget}"
+    )]
     PartsExceed { budget: u32, parts: u32 },
 }
 
@@ -238,8 +240,8 @@ impl ConnectionBudget {
         pinned: PinnedPools,
         main_pools: u32,
     ) -> Result<PoolSizes, BudgetError> {
-        let children = self.total / CHILD_RESERVE_DIVISOR / CHILD_POOL_CONNECTIONS
-            * CHILD_POOL_CONNECTIONS;
+        let children =
+            self.total / CHILD_RESERVE_DIVISOR / CHILD_POOL_CONNECTIONS * CHILD_POOL_CONNECTIONS;
         let session = if shape.separate_session {
             pinned
                 .session
@@ -248,7 +250,11 @@ impl ConnectionBudget {
             0
         };
         let required = children
-            + if shape.separate_session { MIN_SESSION_CONNECTIONS } else { 0 }
+            + if shape.separate_session {
+                MIN_SESSION_CONNECTIONS
+            } else {
+                0
+            }
             + MIN_MAIN_POOL_CONNECTIONS * main_pools;
         if self.total < required {
             return Err(BudgetError::TooSmall {
@@ -256,9 +262,9 @@ impl ConnectionBudget {
                 required,
             });
         }
-        let main = pinned.main.unwrap_or_else(|| {
-            self.total.saturating_sub(children + session) / main_pools
-        });
+        let main = pinned
+            .main
+            .unwrap_or_else(|| self.total.saturating_sub(children + session) / main_pools);
         if main < MIN_MAIN_POOL_CONNECTIONS {
             return Err(BudgetError::TooSmall {
                 budget: self.total,

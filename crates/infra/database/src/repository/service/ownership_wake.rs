@@ -18,8 +18,8 @@ use std::time::Duration;
 
 use tokio_util::sync::CancellationToken;
 
-use crate::services::{PollWake, WakeReason};
 use crate::DbPool;
+use crate::services::{PollWake, WakeReason};
 
 pub const PROCESS_OWNERSHIP_CHANNEL: &str = "systemprompt_process_ownership";
 

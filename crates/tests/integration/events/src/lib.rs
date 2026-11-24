@@ -64,7 +64,11 @@ impl OutboxSchema {
             .execute(&admin)
             .await
             .expect("create the scratch outbox schema");
-        let pool = Self::connect(&name, systemprompt_test_fixtures::db::FIXTURE_POOL_MAX_CONNECTIONS).await;
+        let pool = Self::connect(
+            &name,
+            systemprompt_test_fixtures::db::FIXTURE_POOL_MAX_CONNECTIONS,
+        )
+        .await;
         for ddl in [
             include_str!("../../../../infra/events/schema/event_outbox.sql"),
             include_str!("../../../../infra/events/schema/event_outbox_backlog.sql"),

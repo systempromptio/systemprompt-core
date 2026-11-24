@@ -42,7 +42,9 @@ async fn a_saturated_node_holds_no_more_sessions_than_its_budget() {
 
     let tasks = BackgroundTasks::default();
     database.bind_notifications(&tasks);
-    let mut subscription = database.notifications().subscribe(&["connection_budget_probe"]);
+    let mut subscription = database
+        .notifications()
+        .subscribe(&["connection_budget_probe"]);
     tokio::time::timeout(Duration::from_secs(10), async {
         while !subscription.is_listening() {
             subscription.recv().await;
@@ -50,7 +52,10 @@ async fn a_saturated_node_holds_no_more_sessions_than_its_budget() {
     })
     .await
     .expect("the hub listens");
-    assert!(matches!(database.notifications().link(), ListenLink::Up { .. }));
+    assert!(matches!(
+        database.notifications().link(),
+        ListenLink::Up { .. }
+    ));
 
     let mut held = Vec::new();
     for pool in [database.pool(), database.write_pool()] {

@@ -83,11 +83,9 @@ pub use services::{
 };
 
 pub use services::{
-    BudgetError, CHILD_POOL_CONNECTIONS, ConnectionBudget, MIN_SESSION_CONNECTIONS, PinnedPools,
-    PoolSeat, PoolShape, PoolSizes,
-};
-pub use services::{
-    HubEvent, HubNotification, HubSubscription, ListenLink, NotificationHub, PollWake, WakeReason,
+    BudgetError, CHILD_POOL_CONNECTIONS, ConnectionBudget, HubEvent, HubNotification,
+    HubSubscription, ListenLink, MIN_SESSION_CONNECTIONS, NotificationHub, PinnedPools, PollWake,
+    PoolSeat, PoolShape, PoolSizes, WakeReason,
 };
 
 pub use error::DatabaseResult;
@@ -110,14 +108,14 @@ pub use lifecycle::{
 pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
     INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
-    InstanceLeaseRepository, PLANE_NOT_APPLIED_HINT, PROCESS_OWNERSHIP_CHANNEL, PgConfigVersion,
-    PgDbPool, PlaneTransaction, ProcessOwner, ProcessOwnershipWake, Reaped, ReapedService,
-    ReleaseGate, ReleaseRun, ReleaseStampError, ReleaseStampRepository, RoleCount, ServiceConfig,
-    ServiceModule, ServiceRepository, ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks,
-    StampOutcome, UpsertServiceProcessInput, find_config_plane_applied,
-    record_config_plane_applied, release_key, with_change_context,
+    InstanceLeaseRepository, OUTBOX_BACKLOG_LOCK_CLASS, PLANE_NOT_APPLIED_HINT,
+    PROCESS_OWNERSHIP_CHANNEL, PgConfigVersion, PgDbPool, PlaneTransaction, ProcessOwner,
+    ProcessOwnershipWake, Reaped, ReapedService, ReleaseGate, ReleaseRun, ReleaseStampError,
+    ReleaseStampRepository, RoleCount, ServiceConfig, ServiceModule, ServiceRepository,
+    ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks, StampOutcome,
+    UpsertServiceProcessInput, find_config_plane_applied, record_config_plane_applied, release_key,
+    with_change_context,
 };
-pub use repository::OUTBOX_BACKLOG_LOCK_CLASS;
 
 pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,

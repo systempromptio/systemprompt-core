@@ -444,7 +444,10 @@ pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBrid
 
 pub fn bound_notification_hub(pool: &sqlx::PgPool) -> systemprompt_database::NotificationHub {
     let hub = systemprompt_database::NotificationHub::new();
-    hub.bind(&systemprompt_traits::BackgroundTasks::default(), pool.clone());
+    hub.bind(
+        &systemprompt_traits::BackgroundTasks::default(),
+        pool.clone(),
+    );
     hub
 }
 

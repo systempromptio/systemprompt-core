@@ -252,7 +252,10 @@ async fn a_recount_racing_an_open_compaction_leaves_one_exact_row() {
     .await
     .expect("pending");
     assert_eq!(
-        (counter(&pool, &consumer).await, rows(&pool, &consumer).await),
+        (
+            counter(&pool, &consumer).await,
+            rows(&pool, &consumer).await
+        ),
         (Some(pending), 1),
         "the recount must replace the compacted row, not sit beside it"
     );

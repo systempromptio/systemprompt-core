@@ -289,7 +289,11 @@ async fn run(state: Arc<HubState>, pool: PgPool, cancel: CancellationToken) {
             session,
             channels: Arc::new(channels.clone()),
         });
-        tracing::info!(session, channels = channels.len(), "notification hub listening");
+        tracing::info!(
+            session,
+            channels = channels.len(),
+            "notification hub listening"
+        );
         loop {
             tokio::select! {
                 () = cancel.cancelled() => {
