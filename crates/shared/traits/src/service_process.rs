@@ -16,8 +16,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_identifiers::ServiceName;
 
-use crate::BoxedSource;
-use crate::StartupEventSender;
+use crate::{BoxedSource, StartupEventSender};
 
 /// The kind of process a set supervises.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

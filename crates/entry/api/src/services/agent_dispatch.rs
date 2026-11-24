@@ -81,9 +81,9 @@ impl AgentDispatch for ApiAgentDispatch {
                 ProxyService::new().with_mcp_backends(backends)
             });
         let response = engine
-        .proxy_request(target, request, self.ctx.clone())
-        .await
-        .map_err(|e| AgentDispatchError::Proxy(Box::new(e)))?;
+            .proxy_request(target, request, self.ctx.clone())
+            .await
+            .map_err(|e| AgentDispatchError::Proxy(Box::new(e)))?;
         to_bytes(response.into_body(), MAX_A2A_RESPONSE_BYTES)
             .await
             .map(|bytes| bytes.to_vec())

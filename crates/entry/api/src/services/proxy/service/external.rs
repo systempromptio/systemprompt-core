@@ -116,7 +116,10 @@ impl ProxyService {
 
         if method_str == "DELETE" {
             if response.status().is_success() || response.status() == StatusCode::NOT_FOUND {
-                upstream.forget(&incoming_headers).await.map_err(backend_error)?;
+                upstream
+                    .forget(&incoming_headers)
+                    .await
+                    .map_err(backend_error)?;
             }
         } else if response.status().is_success() {
             upstream

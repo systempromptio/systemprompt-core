@@ -8,15 +8,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::to_bytes;
+use futures::{StreamExt, TryStreamExt};
 use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_api::repository::tool_usage;
-use futures::{StreamExt, TryStreamExt};
-use systemprompt_extension::router::CallAudit;
-use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::parse_tool_call;
-use systemprompt_mcp_entry::http::proxy::audit::{AuditSinks, McpAudit};
 use systemprompt_database::DbPool;
+use systemprompt_extension::router::CallAudit;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::IntentClaimService;
+use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::parse_tool_call;
+use systemprompt_mcp_entry::http::proxy::audit::{AuditSinks, McpAudit};
 use systemprompt_traits::{BackgroundTasks, DrainOutcome, DynToolCallIntentClaims};
 use uuid::Uuid;
 use wiremock::matchers::method;
@@ -57,7 +57,10 @@ async fn record_tool_call(
         .is_some_and(|value| value.contains("text/event-stream"));
     let body = audit
         .tap(
-            response.bytes_stream().map_err(std::io::Error::other).boxed(),
+            response
+                .bytes_stream()
+                .map_err(std::io::Error::other)
+                .boxed(),
             event_stream,
         )
         .await?;

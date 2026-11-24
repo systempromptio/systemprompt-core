@@ -1,8 +1,9 @@
 //! MCP reverse-proxy routes.
 //!
 //! Requests are forwarded to managed and external MCP servers through the
-//! MCP backends the `mcp-http` member provides. Per-service discovery metadata lives in the `discovery` submodule; the
-//! tool-execution lookup is the `mcp-http` member's.
+//! MCP backends the `mcp-http` member provides. Per-service discovery metadata
+//! lives in the `discovery` submodule; the tool-execution lookup is the
+//! `mcp-http` member's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -11,9 +11,9 @@
 //! credential. What is MCP-specific about a backend — external servers, the
 //! spawn port, the session store, the external upstream and its audit — is
 //! read through the [`DynProxyBackendResolver`] the `mcp-http` member
-//! provides; an MCP request with no resolver is refused. A node that supervises no processes, or a
-//! worker that does not hold the process's lease, forwards to the owning
-//! replica instead (see [`owner`]).
+//! provides; an MCP request with no resolver is refused. A node that supervises
+//! no processes, or a worker that does not hold the process's lease, forwards
+//! to the owning replica instead (see [`owner`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -119,7 +119,9 @@ impl ProxyService {
             tracing::warn!("RequestContext missing from request extensions");
         }
 
-        if let Some(server_config) = external_server(proxy_kind, service_name, self.backends.as_ref())? {
+        if let Some(server_config) =
+            external_server(proxy_kind, service_name, self.backends.as_ref())?
+        {
             return self
                 .proxy_external_mcp(service_name, request, ctx, server_config)
                 .await;

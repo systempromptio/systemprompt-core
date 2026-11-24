@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_extension::mcp::VerifiedCaller;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
@@ -47,7 +48,7 @@ async fn documents(
         .call(DocumentsToolCall {
             executor,
             request: &request,
-            context: ctx,
+            caller: &VerifiedCaller::__from_hop(ctx.clone()),
             client: &ClientProfile::unknown(),
             hop: None,
         })
@@ -66,7 +67,7 @@ async fn issues(
         .call(IssuesToolCall {
             executor,
             request: &request,
-            context: ctx,
+            caller: &VerifiedCaller::__from_hop(ctx.clone()),
             client: &ClientProfile::unknown(),
             hop: None,
         })

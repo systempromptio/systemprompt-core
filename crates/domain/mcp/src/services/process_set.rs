@@ -24,9 +24,8 @@ use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_models::mcp::McpServerType;
 use systemprompt_security::keys::{SigningKeys, TokenVerificationKeys};
 use systemprompt_traits::{
-    StartupEventSender,
     RestartMode, ServiceDetail, ServiceHealth, ServiceProcessError, ServiceProcessKind,
-    ServiceProcessSet, ServiceProcessStatus, ServiceRun, StatusDepth, StopMode,
+    ServiceProcessSet, ServiceProcessStatus, ServiceRun, StartupEventSender, StatusDepth, StopMode,
 };
 
 use super::McpOrchestrator;

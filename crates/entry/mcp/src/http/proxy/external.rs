@@ -92,14 +92,16 @@ impl ExternalUpstream for McpExternalUpstream {
                 return Err(ProxyBackendError::Forbidden);
             },
         }
-        Ok(parse_tool_call(body).map(|invocation| -> Box<dyn CallAudit> {
-            Box::new(McpAudit::new(
-                self.audit.clone(),
-                self.caller.clone(),
-                McpServerId::new(self.service.as_str()),
-                invocation,
-            ))
-        }))
+        Ok(
+            parse_tool_call(body).map(|invocation| -> Box<dyn CallAudit> {
+                Box::new(McpAudit::new(
+                    self.audit.clone(),
+                    self.caller.clone(),
+                    McpServerId::new(self.service.as_str()),
+                    invocation,
+                ))
+            }),
+        )
     }
 }
 

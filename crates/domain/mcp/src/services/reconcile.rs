@@ -48,7 +48,10 @@ pub enum ReconcileError {
          issue.\nFailed services: {failed}",
         failed = failures.join(", ")
     )]
-    Unregistered { attempts: u32, failures: Vec<String> },
+    Unregistered {
+        attempts: u32,
+        failures: Vec<String>,
+    },
 }
 
 pub async fn reconcile(

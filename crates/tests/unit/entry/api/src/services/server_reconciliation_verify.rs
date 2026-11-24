@@ -8,11 +8,11 @@
 //! that failed and why, because that message is the whole diagnosis an
 //! operator gets from a refused boot.
 
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::{InstanceId, UserId};
 use systemprompt_mcp::services::reconcile::{
     VERIFY_ATTEMPTS, VERIFY_BACKOFF, handle_missing_servers, verify_database_registration,
 };
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::{InstanceId, UserId};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{McpServerConfig, McpServerType};
@@ -120,7 +120,8 @@ async fn a_required_server_with_a_running_row_passes_verification() {
     let name = unique_name("verified");
     seed(&pool, &ctx.config().instance_id, &name, "running").await;
 
-    let outcome = verify_database_registration(&[required(&name)], ctx.service_repository(), None).await;
+    let outcome =
+        verify_database_registration(&[required(&name)], ctx.service_repository(), None).await;
 
     assert!(
         outcome.is_ok(),
@@ -179,10 +180,14 @@ async fn every_failing_server_is_reported_not_just_the_first() {
     let stopped = unique_name("stopped");
     seed(&pool, &ctx.config().instance_id, &stopped, "stopped").await;
 
-    let error = verify_database_registration(&[required(&missing), required(&stopped)], ctx.service_repository(), None)
-        .await
-        .map(|_| ())
-        .expect_err("two failing servers is still a failure");
+    let error = verify_database_registration(
+        &[required(&missing), required(&stopped)],
+        ctx.service_repository(),
+        None,
+    )
+    .await
+    .map(|_| ())
+    .expect_err("two failing servers is still a failure");
 
     let message = error.to_string();
     assert!(
@@ -284,7 +289,8 @@ async fn a_row_that_turns_running_during_the_retry_window_passes_verification() 
         })
     };
 
-    let outcome = verify_database_registration(&[required(&name)], ctx.service_repository(), None).await;
+    let outcome =
+        verify_database_registration(&[required(&name)], ctx.service_repository(), None).await;
     flipper.await.expect("flip task");
 
     assert!(

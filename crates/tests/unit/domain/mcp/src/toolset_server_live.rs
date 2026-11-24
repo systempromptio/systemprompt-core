@@ -70,7 +70,7 @@ impl McpToolset for FakeToolset {
         Ok(CallToolResult::structured(serde_json::json!({
             "toolset": self.id,
             "tool": call.request.name.as_ref(),
-            "user": call.context.user.as_ref().map(|u| u.email.clone()),
+            "user": call.caller.context().user.as_ref().map(|u| u.email.clone()),
         })))
     }
 

@@ -8,8 +8,8 @@
 
 use axum::http::{HeaderName, HeaderValue};
 use axum::response::IntoResponse;
-use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_api::services::proxy::ProxyError;
+use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_api::services::proxy::service::external::outbound_headers;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
@@ -61,7 +61,8 @@ async fn resolve_missing_service_is_not_found() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let err = ServiceResolver::resolve(
         &ServiceName::new(format!("absent-{}", Uuid::new_v4().simple())),
-        &ctx, None,
+        &ctx,
+        None,
     )
     .await
     .expect_err("missing service must error");

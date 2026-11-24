@@ -6,10 +6,10 @@
 
 use axum::body::Body;
 use axum::extract::Request;
-use systemprompt_identifiers::ServiceName;
 use systemprompt_extension::router::DynProxyBackendResolver;
-use systemprompt_models::mcp::McpServerConfig;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::RequestContext;
+use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_runtime::AppContext;
 
 use super::ProxyKind;

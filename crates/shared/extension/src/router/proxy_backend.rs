@@ -132,10 +132,11 @@ pub trait ProxiedCallGovernor: Send + Sync {
 
 /// The audit of one proxied tool call.
 ///
-/// For an event stream it observes the body as it is forwarded and records the execution once the stream ends or
-/// is dropped; for a single response it reads the whole body, records the
-/// execution, and only then hands the (stamped) body back, so the row is
-/// written whether or not the client reads the response.
+/// For an event stream it observes the body as it is forwarded and records the
+/// execution once the stream ends or is dropped; for a single response it reads
+/// the whole body, records the execution, and only then hands the (stamped)
+/// body back, so the row is written whether or not the client reads the
+/// response.
 pub trait CallAudit: Send {
     fn tap(
         self: Box<Self>,

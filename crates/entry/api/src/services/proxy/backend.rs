@@ -209,7 +209,10 @@ impl ResponseHandler {
         let is_sse = Self::is_event_stream(&response_headers);
         let tapped = audit
             .tap(
-                response.bytes_stream().map_err(std::io::Error::other).boxed(),
+                response
+                    .bytes_stream()
+                    .map_err(std::io::Error::other)
+                    .boxed(),
                 is_sse,
             )
             .await

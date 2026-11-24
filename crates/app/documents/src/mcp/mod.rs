@@ -247,6 +247,10 @@ impl DocumentsMcpTools {
     }
 
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
-        act_as(mentions::document_actor(call.caller.context()), self.dispatch(call)).await
+        act_as(
+            mentions::document_actor(call.caller.context()),
+            self.dispatch(call),
+        )
+        .await
     }
 }

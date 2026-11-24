@@ -148,12 +148,10 @@ fn request(
 }
 
 async fn send(edge: &Edge, request: Request<Body>) -> anyhow::Result<(http::StatusCode, String)> {
-    let response = super::common::with_config(
-        super::common::mcp_proxy_router(&edge.ctx),
-        &edge.ctx,
-    )
-    .oneshot(request)
-    .await?;
+    let response =
+        super::common::with_config(super::common::mcp_proxy_router(&edge.ctx), &edge.ctx)
+            .oneshot(request)
+            .await?;
     body_to_string(response).await
 }
 

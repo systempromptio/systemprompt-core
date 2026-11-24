@@ -1,8 +1,8 @@
 use serde_json::json;
+use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::{
     extract_sse_data, parse_response_frame, parse_tool_call,
 };
-use systemprompt_identifiers::McpExecutionId;
 
 #[test]
 fn parse_tool_call_extracts_name_and_arguments() {

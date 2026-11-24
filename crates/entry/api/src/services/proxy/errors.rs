@@ -8,8 +8,6 @@ use crate::error::ApiHttpError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_extension::router::ProxyBackendError;
-use systemprompt_identifiers::ServiceName;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::{BoxedSource, RegistryError};
 use thiserror::Error;
@@ -250,27 +248,6 @@ impl ProxyError {
             Self::ContextNotOwned { .. } => "context_not_owned",
             Self::McpBackendsUnavailable { .. } => "mcp_backends_unavailable",
             Self::ContextLookupFailed { .. } => "context_lookup_failed",
-        }
-    }
-}
-
-impl ProxyError {
-    pub fn from_backend(service: &ServiceName, error: ProxyBackendError) -> Self {
-        let service = service.to_string();
-        match error {
-            ProxyBackendError::AuthenticationRequired => Self::AuthenticationRequired { service },
-            ProxyBackendError::ProviderNotConnected => Self::ProviderNotConnected { service },
-            ProxyBackendError::Unavailable { status } => Self::ServiceNotRunning { service, status },
-            ProxyBackendError::ResolveFailed(source) => {
-                Self::ExternalResolveFailed { service, source }
-            },
-            ProxyBackendError::Forbidden => Self::Forbidden { service },
-            ProxyBackendError::RegistryUnavailable(source) => {
-                Self::RegistryUnavailable { service, source }
-            },
-            ProxyBackendError::SessionLookupFailed(source) => {
-                Self::SessionLookupFailed { service, source }
-            },
         }
     }
 }

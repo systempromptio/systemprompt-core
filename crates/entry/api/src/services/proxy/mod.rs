@@ -9,6 +9,7 @@
 
 pub mod auth;
 mod backend;
+mod backend_error;
 mod client;
 mod errors;
 pub mod resolver;
