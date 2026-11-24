@@ -1,8 +1,8 @@
 //! RFC 8707 resource resolution for bound and unbound grants.
 
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::IssuanceError;
 use systemprompt_oauth_issuance::resource::{ResourceBinding, resolve_grant_resource};
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_test_fixtures::fixture_config;
 
 const BOUND: &str = "https://mcp-a.test";

@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, UserId};
 use crate::surface::IdentityConfigView;
+use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_models::errors::ParseEnumError;
 use systemprompt_oauth::OAuthState;

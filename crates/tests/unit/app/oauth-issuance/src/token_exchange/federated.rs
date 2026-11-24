@@ -1,8 +1,8 @@
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde_json::{Value, json};
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_manifest::profile::TrustedIssuer;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::ID_TOKEN_TYPE;
 use systemprompt_oauth_issuance::token_exchange::issue::issue_id_jag;
 use systemprompt_oauth_issuance::token_exchange::oidc::validate_oidc_subject;

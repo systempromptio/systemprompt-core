@@ -7,8 +7,8 @@
 use super::validation::ValidatedAuthorizeRequest;
 use super::{AuthorizeQuery, AuthorizeRequest};
 use std::collections::HashMap;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::services::templating::TemplateService;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use url::Url;
 
 fn stated(field: Option<&String>) -> Option<String> {

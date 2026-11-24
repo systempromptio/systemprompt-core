@@ -43,7 +43,9 @@ async fn authenticated_app() -> anyhow::Result<Router> {
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(authenticated_router(&crate::common::identity_view(&ctx))
-        .merge(systemprompt_identity_entry::http::oauth::revocation_router(&crate::common::identity_view(&ctx)))
+        .merge(systemprompt_identity_entry::http::oauth::revocation_router(
+            &crate::common::identity_view(&ctx),
+        ))
         .with_state(state)
         .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
@@ -374,15 +376,13 @@ async fn dcr_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(
-        systemprompt_identity_entry::http::oauth::public_router(
+    Ok(systemprompt_identity_entry::http::oauth::public_router(
         std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
         &crate::common::identity_view(&ctx),
     )
-        .with_state(state)
-        .layer(axum::Extension(crate::common::edge_view(&ctx)))
-        .layer(Extension(req_ctx)),
-    )
+    .with_state(state)
+    .layer(axum::Extension(crate::common::edge_view(&ctx)))
+    .layer(Extension(req_ctx)))
 }
 
 async fn register_with(scope: Option<&str>) -> anyhow::Result<(u16, serde_json::Value)> {

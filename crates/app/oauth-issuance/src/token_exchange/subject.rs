@@ -11,8 +11,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use crate::surface::IdentityConfigView;
+use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission, TokenInteraction};
 use systemprompt_oauth::services::EnterprisePrincipal;

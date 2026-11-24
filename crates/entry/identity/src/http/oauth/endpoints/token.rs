@@ -14,8 +14,8 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Form, Json};
 use base64::Engine;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::{
     IssuanceError, IssuanceResult, JwksCache, RequestOrigin, TokenIssuanceOrchestrator,
     TokenRequest,

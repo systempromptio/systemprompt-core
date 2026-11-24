@@ -31,10 +31,10 @@ use axum::extract::{Extension, Form, OriginalUri, Query, State};
 use axum::http::{HeaderMap, Uri};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use std::sync::Arc;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::CsrfToken;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_security::http::RequestBaseUrl;
 use tracing::instrument;
 

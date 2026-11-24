@@ -26,13 +26,13 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId, RefreshTokenId, UserId};
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{JwtAudience, UserType};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use tracing::instrument;
 
 use crate::http::oauth::extractors::OAuthRepo;

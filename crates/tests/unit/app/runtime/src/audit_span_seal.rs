@@ -1,5 +1,6 @@
 //! The audit-span sink is a sealed kernel seed: the core provides that build
-//! the MCP execution ledger and the governance decision writer read it, and no install provide, install route set or member route set resolves it,
+//! the MCP execution ledger and the governance decision writer read it, and no
+//! install provide, install route set or member route set resolves it,
 //! so nothing outside core can emit an `ai_request`, `tool_call` or
 //! `governance_decision` span into the export.
 
@@ -44,7 +45,10 @@ async fn an_install_provide_resolves_no_audit_span_sink() {
             ..ComposedParts::default()
         }))
         .expect("the install probe resolves");
-    let seen = kernel.state().get::<SinkSeen>().expect("the probe provided");
+    let seen = kernel
+        .state()
+        .get::<SinkSeen>()
+        .expect("the probe provided");
     assert!(!seen.0, "an install provide read the audit-span sink");
 }
 

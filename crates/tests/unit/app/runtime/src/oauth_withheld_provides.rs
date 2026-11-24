@@ -4,7 +4,9 @@
 //! absent instead of holding a value that refuses every call.
 
 use systemprompt_extension::prelude::Dependencies;
-use systemprompt_test_fixtures::{fixture_admitted_of, fixture_core_members, offline_resolved_kernel};
+use systemprompt_test_fixtures::{
+    fixture_admitted_of, fixture_core_members, offline_resolved_kernel,
+};
 use systemprompt_traits::{DynPluginTokenMinter, DynSessionIssuer};
 
 #[test]

@@ -19,8 +19,8 @@ use bcrypt::hash;
 use chrono::Utc;
 use rand::Rng;
 use std::sync::Arc;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_models::RequestContext;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use uuid::Uuid;
 
 use systemprompt_oauth::OauthResult;

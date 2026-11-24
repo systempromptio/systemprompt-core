@@ -10,8 +10,8 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::id_jag_subject::{
     IdJagContext, validate_id_jag_subject,
 };

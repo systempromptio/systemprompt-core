@@ -10,10 +10,10 @@ use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::validate_client_credentials;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 
 use crate::http::oauth::OAuthHttpError;
 use crate::http::oauth::extractors::OAuthRepo;

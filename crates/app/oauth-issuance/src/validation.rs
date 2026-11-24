@@ -4,9 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::surface::IdentityConfigView;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
-use crate::surface::IdentityConfigView;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::repository::{
     AuthCodeRedemption, AuthCodeValidationResult, OAuthRepository,

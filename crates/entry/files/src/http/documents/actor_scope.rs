@@ -62,12 +62,12 @@ pub async fn scope(request: Request, next: Next) -> Response {
 
 fn site_origins(edge: &EdgeConfigView) -> Vec<String> {
     [Some(&edge.api_external_url), edge.advertise_url.as_ref()]
-    .into_iter()
-    .flatten()
-    .filter_map(|raw| url::Url::parse(raw).ok())
-    .map(|url| url.origin().ascii_serialization())
-    .filter(|origin| origin != "null")
-    .collect()
+        .into_iter()
+        .flatten()
+        .filter_map(|raw| url::Url::parse(raw).ok())
+        .map(|url| url.origin().ascii_serialization())
+        .filter(|origin| origin != "null")
+        .collect()
 }
 
 #[must_use]

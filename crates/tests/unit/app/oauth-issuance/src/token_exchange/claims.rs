@@ -6,10 +6,10 @@
 //! that bounds JWKS fetches is derived from the same config, so it is pinned
 //! here too.
 
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_oauth_issuance::resource::validate_resource;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::JwksCache;
 use systemprompt_oauth_issuance::token_exchange::claims::resolve_audience;
 use systemprompt_oauth_issuance::token_exchange::subject::jwks_host_allowlist;

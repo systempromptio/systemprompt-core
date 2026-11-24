@@ -22,11 +22,11 @@
 
 use std::sync::Arc;
 
+use crate::surface::IdentityConfigView;
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_identifiers::{
     AccessTokenId, ClientId, RefreshTokenId, SessionId, SessionSource, UserId,
 };
-use crate::surface::IdentityConfigView;
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, parse_permissions, permissions_to_string,
 };

@@ -22,9 +22,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::surface::IdentityConfigView;
 use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId};
-use crate::surface::IdentityConfigView;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::{

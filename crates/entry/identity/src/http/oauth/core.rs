@@ -26,10 +26,7 @@ pub fn router(jwks: Arc<JwksCache>, config: &Arc<IdentityConfigView>) -> Router<
         .merge(revocation_router(config))
 }
 
-pub fn public_router(
-    jwks: Arc<JwksCache>,
-    config: &Arc<IdentityConfigView>,
-) -> Router<OAuthState> {
+pub fn public_router(jwks: Arc<JwksCache>, config: &Arc<IdentityConfigView>) -> Router<OAuthState> {
     Router::new()
         .route("/health", get(health::handle_health_api))
         .route(

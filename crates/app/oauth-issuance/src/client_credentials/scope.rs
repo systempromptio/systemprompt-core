@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::str::FromStr;
 use crate::surface::IdentityConfigView;
+use std::str::FromStr;
 use systemprompt_models::auth::{JwtAudience, Permission, permissions_to_string};
 
 use super::ClientCredentialsError;

@@ -61,7 +61,12 @@ fn an_unset_or_blank_token_reads_as_absent() {
 
 #[test]
 fn a_spec_naming_a_built_in_secret_reads_nothing() {
-    for name in ["signing_key_pem", "database_url", "oauth_at_rest_pepper", "anthropic"] {
+    for name in [
+        "signing_key_pem",
+        "database_url",
+        "oauth_at_rest_pepper",
+        "anthropic",
+    ] {
         assert_eq!(source().token(&spec(Some(name))), None, "{name}");
     }
 }

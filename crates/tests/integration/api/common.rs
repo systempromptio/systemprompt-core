@@ -89,11 +89,15 @@ pub fn identity_view(ctx: &AppContext) -> Arc<IdentityConfigView> {
 }
 
 pub fn fixture_edge_view() -> Arc<EdgeConfigView> {
-    Arc::new(EdgeConfigView::of(&systemprompt_test_fixtures::test_config()))
+    Arc::new(EdgeConfigView::of(
+        &systemprompt_test_fixtures::test_config(),
+    ))
 }
 
 pub fn fixture_identity_view() -> Arc<IdentityConfigView> {
-    Arc::new(IdentityConfigView::of(&systemprompt_test_fixtures::test_config()))
+    Arc::new(IdentityConfigView::of(
+        &systemprompt_test_fixtures::test_config(),
+    ))
 }
 
 pub fn with_config<S: Clone + Send + Sync + 'static>(

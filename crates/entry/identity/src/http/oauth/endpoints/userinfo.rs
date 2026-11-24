@@ -9,9 +9,9 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use std::sync::Arc;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 
 use crate::http::oauth::OAuthHttpError;
 

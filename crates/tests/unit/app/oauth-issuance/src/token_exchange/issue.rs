@@ -11,8 +11,8 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_manifest::profile::TrustedIssuer;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::issue::issue_id_jag;
 use systemprompt_oauth_issuance::token_exchange::oidc::validate_oidc_subject;
 use systemprompt_oauth_issuance::token_exchange::{

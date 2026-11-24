@@ -107,7 +107,8 @@ async fn the_runtime_configuration_alone_does_not_wire_the_extractor() {
         .uri("/")
         .body(Body::empty())
         .expect("request must build");
-    req.extensions_mut().insert(ConnectInfo(peer([203, 0, 113, 7])));
+    req.extensions_mut()
+        .insert(ConnectInfo(peer([203, 0, 113, 7])));
     let resp = app.oneshot(req).await.expect("request must complete");
     assert_eq!(
         resp.status(),

@@ -96,7 +96,10 @@ async fn issue_anonymous_session(
     Ok(token_response(cookie, body, jwt_token.as_str(), expires_in))
 }
 
-fn build_session_service(state: &OAuthState, config: Arc<IdentityConfigView>) -> SessionCreationService {
+fn build_session_service(
+    state: &OAuthState,
+    config: Arc<IdentityConfigView>,
+) -> SessionCreationService {
     let mut session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),

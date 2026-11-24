@@ -7,10 +7,10 @@ use chrono::Utc;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::id_jag_subject::{
     IdJagContext, validate_id_jag_subject,
 };
@@ -44,7 +44,12 @@ fn config(issuers: Vec<TrustedIssuer>) -> IdentityConfigView {
     config
 }
 
-fn self_issued(config: &IdentityConfigView, sub: &str, email: &str, upstream: Option<&str>) -> String {
+fn self_issued(
+    config: &IdentityConfigView,
+    sub: &str,
+    email: &str,
+    upstream: Option<&str>,
+) -> String {
     let now = Utc::now().timestamp();
     let mut claims = serde_json::json!({
         "iss": config.jwt_issuer,
@@ -69,7 +74,10 @@ fn self_issued(config: &IdentityConfigView, sub: &str, email: &str, upstream: Op
     encode(&header, &claims, &EncodingKey::from_rsa_der(der.as_bytes())).expect("sign")
 }
 
-async fn principal(token: &str, config: &IdentityConfigView) -> Result<EnterprisePrincipal, IssuanceError> {
+async fn principal(
+    token: &str,
+    config: &IdentityConfigView,
+) -> Result<EnterprisePrincipal, IssuanceError> {
     let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let keys = test_signing_keys();

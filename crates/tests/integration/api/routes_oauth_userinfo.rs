@@ -79,7 +79,7 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
         &crate::common::fixture_identity_view(),
     )
     .with_state(state)
-        .layer(axum::Extension(crate::common::fixture_edge_view()));
+    .layer(axum::Extension(crate::common::fixture_edge_view()));
     let resp = app.oneshot(get_userinfo(None)).await?;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
     let v = read_json(resp).await?;
@@ -94,7 +94,7 @@ async fn userinfo_malformed_token_returns_invalid_token() -> anyhow::Result<()> 
         &crate::common::fixture_identity_view(),
     )
     .with_state(state)
-        .layer(axum::Extension(crate::common::fixture_edge_view()));
+    .layer(axum::Extension(crate::common::fixture_edge_view()));
     let resp = app
         .oneshot(get_userinfo(Some("Bearer not-a-real-token")))
         .await?;
@@ -111,7 +111,7 @@ async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
         &crate::common::fixture_identity_view(),
     )
     .with_state(state)
-        .layer(axum::Extension(crate::common::fixture_edge_view()));
+    .layer(axum::Extension(crate::common::fixture_edge_view()));
     let user = UserId::new(Uuid::new_v4().to_string());
     let token = mint_admin_jwt(
         &user,

@@ -65,6 +65,9 @@ async fn the_consumer_routes_are_served_when_gateway_http_is_admitted() {
 
 #[tokio::test]
 async fn the_consumer_routes_are_not_mounted_without_gateway_http() {
-    let app = server(fixture_admitted_without(&[ExtensionId::new("gateway-http")])).await;
+    let app = server(fixture_admitted_without(&[ExtensionId::new(
+        "gateway-http",
+    )]))
+    .await;
     assert_eq!(enrol(&app).await, 404);
 }

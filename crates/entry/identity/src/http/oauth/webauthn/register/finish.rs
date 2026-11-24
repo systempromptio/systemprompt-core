@@ -16,9 +16,9 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::FinishRegistrationParams;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 

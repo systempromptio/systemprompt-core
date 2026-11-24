@@ -9,11 +9,11 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use systemprompt_identifiers::{AccessTokenId, SessionId, UserId};
-use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{
     AuthenticatedUser, Permission, TokenAuthority, TokenInteraction, UserJwtRequest,
 };
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::token_exchange::subject::{
     jwks_host_allowlist, validate_subject_token,
 };

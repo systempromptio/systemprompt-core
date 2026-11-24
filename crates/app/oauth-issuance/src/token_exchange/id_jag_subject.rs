@@ -14,10 +14,10 @@
 
 use std::str::FromStr;
 
+use crate::surface::IdentityConfigView;
 use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_identifiers::{AccessTokenId, ClientId};
-use crate::surface::IdentityConfigView;
 use systemprompt_models::auth::Permission;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::EnterprisePrincipal;
@@ -113,7 +113,10 @@ struct Vouching {
     link: LinkPolicy,
 }
 
-fn upstream_vouching(claims: &IdJagClaims, global: &IdentityConfigView) -> IssuanceResult<Vouching> {
+fn upstream_vouching(
+    claims: &IdJagClaims,
+    global: &IdentityConfigView,
+) -> IssuanceResult<Vouching> {
     let upstream = claims
         .upstream_iss
         .as_deref()

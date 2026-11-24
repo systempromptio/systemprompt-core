@@ -5,8 +5,8 @@
 
 use std::str::FromStr;
 
-use systemprompt_identifiers::ClientId;
 use crate::surface::IdentityConfigView;
+use systemprompt_identifiers::ClientId;
 use systemprompt_models::auth::{ActClaim, JwtAudience, Permission};
 
 use crate::{IssuanceError, IssuanceResult};

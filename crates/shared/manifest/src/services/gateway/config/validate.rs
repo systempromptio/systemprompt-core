@@ -11,9 +11,9 @@ use std::collections::HashSet;
 use systemprompt_identifiers::SecretName;
 use systemprompt_models::providers::has_context_variant;
 
+use crate::secrets::Secrets;
 use crate::services::gateway::config::{BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig};
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
-use crate::secrets::Secrets;
 use crate::services::gateway::route::GatewayRoute;
 
 impl GatewayConfig {
