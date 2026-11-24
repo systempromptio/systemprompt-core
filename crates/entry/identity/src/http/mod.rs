@@ -1,7 +1,8 @@
-//! The identity HTTP surface: the OAuth 2.0 / OIDC endpoints ([`oauth`]),
-//! browser-redirect SSO ([`sso`]), the caller's own session revocation
-//! ([`users`]), admin API-key management (`admin_keys`) and the bridge
-//! credential exchange ([`bridge`]).
+//! The identity HTTP surface.
+//!
+//! The OAuth 2.0 / OIDC endpoints ([`oauth`]), browser-redirect SSO
+//! ([`sso`]), the caller's own session revocation ([`users`]), admin API-key
+//! management (`admin_keys`) and the bridge credential exchange ([`bridge`]).
 //!
 //! [`IdentityHttpSurface`] builds them from the `identity-http` route state.
 //! It reads, scoped to `identity-http`: the token authority and the signing

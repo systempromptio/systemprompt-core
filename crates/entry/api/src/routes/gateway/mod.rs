@@ -1,15 +1,15 @@
 //! LLM gateway mount: the layering around the routes the `gateway-http` and
 //! `identity-http` members build.
 //!
-//! [`gateway_mount_parts`] calls the `gateway-http` member's
+//! `gateway_mount_parts` calls the `gateway-http` member's
 //! [`GatewaySurface`](systemprompt_gateway::GatewaySurface) with that
 //! member's route-scoped state and hands the server its parts: the inference
 //! and bridge traffic, the principal-bound routes (placed behind
-//! [`registered::verified`], the kernel's gateway verifier), the public
+//! `registered::verified`, the kernel's gateway verifier), the public
 //! session mint, the bridge credential exchange `identity-http` builds, and
 //! every admitted capability gateway route ([`registered`]). The server
 //! protects each part handler-verified by the gateway credential with its own
-//! rate limit and bearer window and wraps everything in [`with_access_log`];
+//! rate limit and bearer window and wraps everything in `with_access_log`;
 //! [`gateway_router`] returns the same routes unlimited for tests. A member
 //! that is not admitted contributes nothing, so its routes answer 404.
 //!

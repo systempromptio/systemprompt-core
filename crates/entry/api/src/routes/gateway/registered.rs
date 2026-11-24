@@ -9,7 +9,7 @@
 //! verification: every admitted route is placed behind the gateway
 //! credential check, which authenticates the bridge bearer and attaches the
 //! caller's
-//! [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal) to
+//! [`GatewayPrincipal`] to
 //! the request before the handler runs; a
 //! request whose credential is missing or rejected never reaches it. The
 //! server protects each route with its admitted spec (handler-verified by the
@@ -17,9 +17,9 @@
 //! window) and merges it inside the gateway access log.
 //!
 //! Only routes admitted here, and the gateway surface's principal-bound
-//! routes the gateway mount places behind [`verified`], carry a
-//! [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal),
-//! stamped by [`verified`] from a bearer the kernel's request authenticator
+//! routes the gateway mount places behind `verified`, carry a
+//! [`GatewayPrincipal`],
+//! stamped by `verified` from a bearer the kernel's request authenticator
 //! accepted; nothing else in the server constructs one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

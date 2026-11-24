@@ -42,7 +42,6 @@ pub async fn manifest(
     let stamp = build_version()?;
 
     let services = state.host.services.view().config();
-    let instance_hosts = services.instance_hosts();
     let desktop_policy = desktop_policy(&services);
     let (branding, bridge_versions) = instance_presentation(&services);
 
@@ -72,7 +71,7 @@ pub async fn manifest(
         revocations,
         enabled_hosts,
         host_model_protocols,
-    } = load_per_user_context(&state, &claims.user_id, instance_hosts).await?;
+    } = load_per_user_context(&state, &claims.user_id, services.instance_hosts()).await?;
     let per_user_at = Instant::now();
 
     let manifest = SignedManifest {

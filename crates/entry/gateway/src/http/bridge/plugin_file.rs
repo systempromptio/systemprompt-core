@@ -5,7 +5,7 @@
 //! byte-identical to its manifest hash. Serving a pre-generated static plugin
 //! tree here would drift from that hash and fail bridge-side verification.
 //! `archive/<sha256>` under a plugin is the whole plugin as one tar.gz
-//! ([`plugin_archive`](super::plugin_archive)).
+//! ([`super::plugin_archive`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

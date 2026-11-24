@@ -18,9 +18,11 @@ use std::sync::Arc;
 use systemprompt_gateway::surface::views::GatewaySettingsView;
 use systemprompt_loader::ServicesState;
 
-/// What `/models` reads: the reloadable catalog and the settings view that
-/// answers whether a platform credential is configured (absent on a host that
-/// seeds no bridge views, where no platform credential counts as configured).
+/// What `/models` reads.
+///
+/// The reloadable catalog and the settings view that answers whether a
+/// platform credential is configured; on a host that seeds no bridge views it
+/// is absent and no platform credential counts as configured.
 #[derive(Clone)]
 pub struct ModelsState {
     pub services: ServicesState,
@@ -105,9 +107,9 @@ pub struct OpenAiModelsResponse {
     pub data: Vec<OpenAiModelEntry>,
 }
 
-pub async fn list(
-    state: ModelsState,
-    headers: HeaderMap,
+pub fn list(
+    state: &ModelsState,
+    headers: &HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, ApiHttpError> {
     let services_state = state.services.view();
@@ -125,7 +127,7 @@ pub async fn list(
     // the catalog by the header would hide models the caller can actually use.
     // The header is still parsed and validated so an unknown client family is
     // rejected rather than silently accepted.
-    let _families = families_from_header(&headers)?;
+    let _families = families_from_header(headers)?;
     let mut entries = model_entries(catalog, |name| {
         state
             .settings

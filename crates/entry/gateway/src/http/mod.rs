@@ -71,39 +71,7 @@ impl GatewaySurface for GatewayHttpSurface {
         let db = resolved.get::<DbPool>()?;
         let repos = gateway_repositories(&resolved, &host, Arc::clone(&own.contexts), &db)?;
         let credentials = resolved.optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>();
-        let bridge = match (
-            resolved.get::<Option<Arc<GatewayManifestSigner>>>()?,
-            resolved.get::<Option<Arc<BridgeReleaseSource>>>()?,
-            resolved.get::<Option<Arc<GatewaySettingsView>>>()?,
-            resolved.get::<Option<Arc<BridgeEventStream>>>()?,
-        ) {
-            (Some(signer), Some(releases), Some(settings), Some(events)) => {
-                Some(BridgeRouteState {
-                    authenticator: resolved.get()?,
-                    repos: own.bridge.clone(),
-                    marketplace: BridgeMarketplace {
-                        managed: resolved.get()?,
-                        cache: resolved.get()?,
-                        seams: resolved.get()?,
-                    },
-                    signer,
-                    releases,
-                    settings,
-                    events,
-                    subjects: resolved.get()?,
-                    personal_credentials: credentials.clone().map(
-                    |credentials| -> systemprompt_extension::router::DynPersonalCredentialNames {
-                        credentials
-                    },
-                ),
-                    host: host.clone(),
-                })
-            },
-            _ => {
-                tracing::info!("this host seeds no bridge views; no bridge route is built");
-                None
-            },
-        };
+        let bridge = bridge_state(&resolved, &own, &host)?;
         let session_mint = resolved.get::<DynGatewaySessionMint>()?;
         let state = GatewayHttpState {
             authenticator: resolved.get()?,
@@ -130,7 +98,7 @@ impl GatewaySurface for GatewayHttpSurface {
                 "/models",
                 get(move |headers, query| {
                     let state = models_state.clone();
-                    async move { models::list(state, headers, query).await }
+                    async move { models::list(&state, &headers, query) }
                 }),
             )
             .route("/", get(models::root));
@@ -156,6 +124,45 @@ impl GatewaySurface for GatewayHttpSurface {
             }),
         })
     }
+}
+
+fn bridge_state(
+    resolved: &systemprompt_extension::prelude::Resolved<'_>,
+    own: &GatewayHttpRepositories,
+    host: &systemprompt_gateway::GatewayHostHandles,
+) -> Result<Option<BridgeRouteState>, GatewaySurfaceError> {
+    let (Some(signer), Some(releases), Some(settings), Some(events)) = (
+        resolved.get::<Option<Arc<GatewayManifestSigner>>>()?,
+        resolved.get::<Option<Arc<BridgeReleaseSource>>>()?,
+        resolved.get::<Option<Arc<GatewaySettingsView>>>()?,
+        resolved.get::<Option<Arc<BridgeEventStream>>>()?,
+    ) else {
+        tracing::info!("this host seeds no bridge views; no bridge route is built");
+        return Ok(None);
+    };
+    let personal_credentials = resolved
+        .optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>()
+        .map(
+            |credentials| -> systemprompt_extension::router::DynPersonalCredentialNames {
+                credentials
+            },
+        );
+    Ok(Some(BridgeRouteState {
+        authenticator: resolved.get()?,
+        repos: own.bridge.clone(),
+        marketplace: BridgeMarketplace {
+            managed: resolved.get()?,
+            cache: resolved.get()?,
+            seams: resolved.get()?,
+        },
+        signer,
+        releases,
+        settings,
+        events,
+        subjects: resolved.get()?,
+        personal_credentials,
+        host: host.clone(),
+    }))
 }
 
 fn routes(state: &GatewayHttpState) -> Router {

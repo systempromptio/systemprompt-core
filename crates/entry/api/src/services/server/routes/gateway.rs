@@ -27,7 +27,7 @@ use super::protocol::{MountCtx, declare};
 use crate::routes::gateway::{GatewayMountParts, gateway_mount_parts, with_access_log};
 use crate::services::middleware::{gateway_protection, place};
 
-pub(super) fn mount_gateway(
+fn mount_gateway(
     mut router: Router,
     mount: &MountCtx<'_>,
     identity_bridge_auth: Option<Router>,
@@ -74,4 +74,18 @@ pub(super) fn mount_gateway(
         .with_rate_limit(RateLimit::new("oauth_public", RateBudget::OauthPublic)),
     )?;
     Ok((router, consumer_catalog))
+}
+
+pub(super) fn mount_with_features(
+    router: Router,
+    mount: &MountCtx<'_>,
+    gateway_on: bool,
+    identity_bridge_auth: Option<Router>,
+) -> Result<Router, RouteMountError> {
+    let (router, catalog) = if gateway_on {
+        mount_gateway(router, mount, identity_bridge_auth)?
+    } else {
+        (router, None)
+    };
+    super::feature_mount::mount_feature_routes(router, mount, catalog.as_ref())
 }

@@ -145,11 +145,8 @@ fn build_routes(
     if serves(RouteGroup::InternalLinks) {
         router = documents::mount_internal_links(router, &mount)?;
     }
-    let mut consumer_catalog = None;
-    if serves(RouteGroup::Gateway) && engines.is_some() {
-        (router, consumer_catalog) = gateway::mount_gateway(router, &mount, identity_bridge_auth)?;
-    }
-    router = feature_mount::mount_feature_routes(router, &mount, consumer_catalog)?;
+    let gateway_on = serves(RouteGroup::Gateway) && engines.is_some();
+    router = gateway::mount_with_features(router, &mount, gateway_on, identity_bridge_auth)?;
     crate::services::agent_dispatch::bind_dispatchers(ctx)
         .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;

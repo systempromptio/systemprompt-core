@@ -28,10 +28,11 @@ use systemprompt_traits::AnalyticsProvider;
 
 use crate::http::bridge::client_ip;
 
-/// What the public session route reads: the session mint conferred on
-/// `gateway-http`, the analytics extractor, and the settings view whose
-/// trusted proxies resolve the caller's address (absent on a host that seeds
-/// no bridge views, where the address is not resolved).
+/// What the public session route reads.
+///
+/// The session mint conferred on `gateway-http`, the analytics extractor, and
+/// the settings view whose trusted proxies resolve the caller's address; on a
+/// host that seeds no bridge views it is absent and no address is resolved.
 #[derive(Clone)]
 pub struct SessionsState {
     pub mint: DynGatewaySessionMint,
