@@ -1,32 +1,24 @@
-//! Session-row creation and touch on request.
+//! Session-row creation and touch on request, through the oauth member's
+//! sealed session issuer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_models::api::ApiError;
+use systemprompt_traits::{DynSessionIssuer, SessionIssueError};
 
 use super::RequestMeta;
-use systemprompt_models::api::ApiError;
-
 use crate::error::ApiHttpError;
-use systemprompt_manifest::Config;
-use systemprompt_oauth::services::{
-    CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
-};
 
 pub(super) async fn create_new_session(
-    session_creation_service: &Arc<SessionCreationService>,
+    issuer: &DynSessionIssuer,
     meta: &RequestMeta<'_>,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiHttpError> {
     let client_id = ClientId::new("sp_web".to_owned());
 
-    session_creation_service
-        .create_anonymous_session(CreateAnonymousSessionInput {
-            analytics: meta.analytics,
-            client_id: &client_id,
-            session_source: SessionSource::Web,
-        })
+    issuer
+        .issue_anonymous(meta.analytics, &client_id, SessionSource::Web)
         .await
         .map(|session_info| {
             (
@@ -44,43 +36,35 @@ pub(super) async fn create_new_session(
 }
 
 pub(super) async fn refresh_session_for_user(
-    session_creation_service: &Arc<SessionCreationService>,
-    config: &Config,
+    issuer: &DynSessionIssuer,
     user_id: &UserId,
     meta: &RequestMeta<'_>,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiHttpError> {
-    let session_id = session_creation_service
-        .create_authenticated_session(user_id, meta.analytics, SessionSource::Web)
+    let session_id = issuer
+        .issue_for_user(user_id, meta.analytics, SessionSource::Web)
         .await
         .map_err(|e| match e {
-            SessionCreationError::UserNotFound { ref user_id } => {
-                ApiHttpError::from(
-                    ApiError::not_found(format!("User not found: {}", user_id))
-                        .with_error_key("user_not_found"),
-                )
-            },
-            SessionCreationError::Internal(source) => {
-                tracing::error!(error = %source, user_id = %user_id, "Failed to create session for user");
-                ApiHttpError::internal("Failed to refresh session", source)
+            SessionIssueError::UserNotFound { ref user_id } => ApiHttpError::from(
+                ApiError::not_found(format!("User not found: {}", user_id))
+                    .with_error_key("user_not_found"),
+            ),
+            other => {
+                tracing::error!(error = %other, user_id = %user_id, "Failed to create session for user");
+                ApiHttpError::internal("Failed to refresh session", other)
             },
         })?;
 
-    let token = systemprompt_oauth::services::generation::generate_anonymous_jwt_with_expiry(
-        session_creation_service.token_authority().as_ref(),
-        user_id,
-        &session_id,
-        &ClientId::new("sp_web".to_owned()),
-        config.jwt_access_token_expiration,
-    )
-    .map_err(|e| {
-        tracing::error!(error = %e, "Failed to generate JWT during session refresh");
-        ApiHttpError::internal("Failed to refresh session", e)
-    })?;
+    let token = issuer
+        .mint_anonymous_jwt(user_id, &session_id, &ClientId::new("sp_web".to_owned()))
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to generate JWT during session refresh");
+            ApiHttpError::internal("Failed to refresh session", e)
+        })?;
 
     Ok((
         session_id,
         user_id.clone(),
-        token,
+        token.as_str().to_owned(),
         true,
         meta.analytics.compute_fingerprint(),
     ))

@@ -213,6 +213,7 @@ pub use startup_events::{
 };
 
 pub mod session_behaviour;
+pub mod session_issuer;
 pub mod session_store;
 pub mod sso;
 pub use analytics::{DynSignInSessions, SessionProvider};
@@ -230,4 +231,7 @@ pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};
 pub use escalation::EscalationDelivery;
 pub use request_analytics::{
     DynRequestAnalytics, RequestAnalytics, RequestAnalyticsError, RequestAnalyticsEvent,
+};
+pub use session_issuer::{
+    BrowserSession, DynSessionIssuer, IssuedSession, SessionIssueError, SessionIssuer,
 };

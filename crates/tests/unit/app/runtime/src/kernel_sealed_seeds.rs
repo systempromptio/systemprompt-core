@@ -346,6 +346,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             type_name::<systemprompt_traits::DynUserProvider>(),
             carrier::<systemprompt_users::UserService>(),
         ),
+        (
+            type_name::<systemprompt_traits::DynSessionIssuer>(),
+            carrier::<systemprompt_oauth::services::SessionCreationService>(),
+        ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();
     let member_sealed: BTreeSet<&str> = state

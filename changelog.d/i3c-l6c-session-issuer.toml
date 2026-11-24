@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "Browser sessions are issued, attested and their tokens minted through one sealed `DynSessionIssuer` the `oauth` member provides over the `users` member's sealed session store and user directory. The session middleware and static-content serving read only it; with `oauth` not admitted every request is served with an untracked, actor-less context and static content refuses to mint a session."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`SessionIssuer`, `DynSessionIssuer`, `IssuedSession`, `BrowserSession` and `SessionIssueError`: browser-session issuance (anonymous user, anonymous session, session for a user, anonymous token mint, browser-token verification, attestation)."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Added"
+text = "`OauthExtension` provides `DynSessionIssuer` sealed and requires `DynUserProvider`; on a host that seeds no token authority the provided issuer refuses every call."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "`SessionMiddleware` and `static_content::ensure_session` read only the kernel's `DynSessionIssuer`; the middleware no longer refuses boot when a session provider is absent."
