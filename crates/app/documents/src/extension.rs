@@ -5,10 +5,12 @@
 //! its bound handles sealed (`Arc<DocumentsHandles>`); the host binds them
 //! into the `DocumentsHandlesSlot` it seeded, which the files member's seams,
 //! the document jobs, the routes, the issues commands and the MCP toolsets
-//! read. From the sealed token authority it builds two narrow views and
-//! confers each on its one holder:
-//! [`DocumentLinkTokens`](crate::tokens::DocumentLinkTokens) on `files-http`
-//! and the `DynDriveTokens` view on `gateway-http` (see [`crate::tokens`]).
+//! read. From the sealed token authority it builds two narrow views (see
+//! [`crate::tokens`]):
+//! [`DocumentLinkTokens`](crate::tokens::DocumentLinkTokens), conferred on
+//! `files-http`, and the `DynDriveTokens` view, provided sealed for the
+//! kernel's bridge Drive routes, which the API mounts whenever this member is
+//! admitted, whatever `gateway-http`'s standing.
 //!
 //! With `files.documents.enabled` off the store is still built and the
 //! bound handles carry no document service.
@@ -48,10 +50,9 @@ impl Extension for DocumentsExtension {
                     Ok(link_tokens(r))
                 },
             )
-            .provide_conferred(
-                ConferralRow::DriveTokens,
-                |r: &Resolved<'_>| -> Result<DynDriveTokens, ProvideError> { Ok(drive_tokens(r)) },
-            );
+            .provide_sealed(|r: &Resolved<'_>| -> Result<DynDriveTokens, ProvideError> {
+                Ok(drive_tokens(r))
+            });
         Ok(())
     }
 }

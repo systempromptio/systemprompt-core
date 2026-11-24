@@ -48,7 +48,10 @@ class HiddenConstructors(unittest.TestCase):
         self.assertEqual(result.returncode, 1 if expected else 0, result.stdout + result.stderr)
 
     def test_owners_and_definitions_pass(self):
-        self.write("crates/entry/api/src/gateway.rs", "fn verify(u: UserId) { GatewayPrincipal::__from_kernel(u); }\n")
+        self.write(
+            "crates/entry/api/src/routes/gateway/bridge_error.rs",
+            "fn verify(u: UserId) { GatewayPrincipal::__from_kernel(u); }\n",
+        )
         self.check([])
 
     def test_facade_call_outside_facade_fails(self):
@@ -58,6 +61,10 @@ class HiddenConstructors(unittest.TestCase):
     def test_kernel_call_outside_api_fails(self):
         self.write("crates/entry/notifications/src/h.rs", "fn f(u: UserId) { GatewayPrincipal::__from_kernel(u) }\n")
         self.check(["crates/entry/notifications/src/h.rs:1"])
+
+    def test_kernel_call_elsewhere_in_api_fails(self):
+        self.write("crates/entry/api/src/routes/gateway/bridge.rs", "fn f(u: UserId) { GatewayPrincipal::__from_kernel(u) }\n")
+        self.check(["crates/entry/api/src/routes/gateway/bridge.rs:1"])
 
     def test_comment_and_string_are_not_calls(self):
         self.write("crates/app/runtime/src/x.rs", "// Admitted::__from_facade(p)\nconst S: &str = \"__from_facade(\";\n")

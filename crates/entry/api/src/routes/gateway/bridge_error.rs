@@ -1,6 +1,11 @@
 //! Typed failures of the bridge routes, their single mapping onto the unified
 //! `ApiError` envelope, and the bridge credential check the routes share.
 //!
+//! `authenticate_principal` is the one place the server stamps a
+//! `GatewayPrincipal`: only from a bearer the gateway verifier has accepted,
+//! for the user that bearer names (`lint-hidden-constructors` refuses the
+//! constructor anywhere else).
+//!
 //! A rejected credential answers 401 with a fixed message; the decoder's cause
 //! travels as the error source, so it reaches the log and never the client.
 //! Server-side failures carry a static context and their cause, and leave
@@ -21,6 +26,7 @@ use systemprompt_traits::{AuthUser, BoxedSource};
 use systemprompt_users::UserError;
 
 use crate::kernel::{ApiHttpError, JwtContextExtractor, JwtUserContext, unreadable_body};
+use systemprompt_extension::router::GatewayPrincipal;
 use systemprompt_gateway::surface::credential::extract_credential;
 
 #[derive(Debug, thiserror::Error)]
@@ -180,4 +186,13 @@ pub async fn authenticate_bridge(
         .decode_for_gateway(&JwtToken::new(credential))
         .await
         .map_err(BridgeError::CredentialRejected)
+}
+
+pub(crate) async fn authenticate_principal(
+    jwt_extractor: &JwtContextExtractor,
+    headers: &HeaderMap,
+) -> Result<(JwtUserContext, AuthUser, GatewayPrincipal), BridgeError> {
+    let (claims, user) = authenticate_bridge(jwt_extractor, headers).await?;
+    let principal = GatewayPrincipal::__from_kernel(user.id.clone());
+    Ok((claims, user, principal))
 }

@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The OAuth repositories (`Arc<OAuthRepositories>`: clients, authorization codes, refresh tokens, passkeys) are a sealed kernel seed conferred on `identity-http` under the `identity-oauth-repositories` row. An install member's provide fns, factories and route state no longer resolve them; the `identity-http` route state and core members' provide fns and factories do. A child host seeds none."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`ConferralRow::IdentityOAuthRepositories` (kernel → identity-http)."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Fixed"
+text = "The API kernel state seeds `Arc<OAuthRepositories>` sealed and conferred on `identity-http`; an install member's resolution no longer reads it."

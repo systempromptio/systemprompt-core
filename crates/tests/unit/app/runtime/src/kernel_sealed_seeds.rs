@@ -462,4 +462,5 @@ async fn a_forged_install_provide_cannot_launder_a_sealed_capability_into_an_ope
     install_cannot_launder::<Arc<dyn SecretStore>>(&ctx);
     install_cannot_launder::<Arc<EventRouter>>(&ctx);
     install_cannot_launder::<DynManagedSkillResolver>(&ctx);
+    install_cannot_launder::<Arc<systemprompt_oauth::repository::OAuthRepositories>>(&ctx);
 }

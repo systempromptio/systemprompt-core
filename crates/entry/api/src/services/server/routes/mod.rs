@@ -131,9 +131,10 @@ fn build_routes(
         router = protocol::mount_stream(router, &mount)?;
     }
     if serves(RouteGroup::ContentAndMisc) {
-        router = mount_content(router, &mount)?;
-        if let Some((sessions, api_keys)) = identity_accounts {
-            router = oauth_mount::mount_accounts(router, &mount, sessions, api_keys)?;
+        let (sessions, api_keys) = identity_accounts.unzip();
+        router = mount_content(router, &mount, api_keys)?;
+        if let Some(sessions) = sessions {
+            router = oauth_mount::mount_sessions(router, &mount, sessions)?;
         }
     }
     if serves(RouteGroup::InternalLinks) {
@@ -281,8 +282,12 @@ fn wellknown_router(ctx: &AppContext, identity: Option<Router>) -> Result<Router
     })
 }
 
-fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, RouteMountError> {
-    router = protocol::mount_content_and_misc(router, mount)?;
+fn mount_content(
+    mut router: Router,
+    mount: &MountCtx<'_>,
+    api_keys: Option<Router>,
+) -> Result<Router, RouteMountError> {
+    router = protocol::mount_content_and_misc(router, mount, api_keys)?;
     router = documents::mount_files(router, mount)?;
     Ok(router)
 }

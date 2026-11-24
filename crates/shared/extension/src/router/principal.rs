@@ -5,7 +5,11 @@
 //! accepted the bearer. A handler extracts it with
 //! `Extension<GatewayPrincipal>` and hands it to the caller-bound views
 //! conferred on `gateway-http`, which read and write only that principal's
-//! rows. Nothing outside the kernel's verifier builds one.
+//! rows. Nothing outside the kernel's verifier builds one: the one
+//! constructor is hidden, and `lint-hidden-constructors` refuses a call to it
+//! anywhere in core but the API's bridge credential check. Every API that
+//! takes a principal is a sealed or conferred view no install resolves, so an
+//! install that forges one reaches nothing with it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

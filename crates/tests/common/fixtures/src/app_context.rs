@@ -192,6 +192,7 @@ pub fn fixture_core_members() -> Vec<Box<dyn Extension>> {
     members.push(Box::new(
         systemprompt_files_entry::extension::FilesHttpExtension,
     ));
+    members.push(Box::new(systemprompt_oauth_issuance::IdentityExtension));
     members.push(Box::new(
         systemprompt_identity_entry::extension::IdentityHttpExtension,
     ));

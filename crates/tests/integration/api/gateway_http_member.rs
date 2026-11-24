@@ -2,7 +2,8 @@
 //! the member admitted its inference, token-count, telemetry and
 //! personal-credential routes answer an unauthenticated caller 401; with it
 //! disabled they are not mounted (404) while the bridge routes the API still
-//! serves keep answering.
+//! serves keep answering, the Drive routes included: they depend on the
+//! `documents` member alone.
 
 use axum::Router;
 use axum::body::Body;
@@ -99,6 +100,21 @@ async fn a_disabled_gateway_http_member_mounts_none_of_its_routes() {
         200,
         "the bridge routes the API serves stay mounted"
     );
+    assert_eq!(
+        status(&app, "GET", DRIVE_MANIFEST, None).await,
+        401,
+        "the Drive routes stay mounted and refuse a caller without a Drive token"
+    );
+}
+
+const DRIVE_MANIFEST: &str = "/bridge/drive/manifest";
+
+#[tokio::test]
+async fn the_drive_routes_depend_on_the_documents_member() {
+    let app = router(fixture_admitted()).await;
+    assert_eq!(status(&app, "GET", DRIVE_MANIFEST, None).await, 401);
+    let app = router(fixture_admitted_without(&[ExtensionId::new("documents")])).await;
+    assert_eq!(status(&app, "GET", DRIVE_MANIFEST, None).await, 404);
 }
 
 #[tokio::test]

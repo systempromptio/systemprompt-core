@@ -24,7 +24,7 @@ pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHe
 
 use super::bridge_admission::{AdmissionPrincipal, ModelAdmission};
 use super::bridge_data;
-use super::bridge_error::{BridgeError, authenticate_bridge};
+use super::bridge_error::{BridgeError, authenticate_bridge, authenticate_principal};
 use crate::kernel::{ApiHttpError, JwtContextExtractor};
 
 use systemprompt_models::bridge::host::HostKind;
@@ -137,7 +137,7 @@ pub async fn profile(
     ctx: systemprompt_runtime::AppContext,
     headers: HeaderMap,
 ) -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
-    let (claims, user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let (claims, user, caller) = authenticate_principal(&jwt_extractor, &headers).await?;
     let profile = ctx.profile();
     let services = ctx.services_config();
     let catalog = ctx.services_state().catalog();
@@ -157,7 +157,7 @@ pub async fn profile(
         .map(TenantId::organization_uuid);
 
     let secrets = ctx.secrets().get();
-    let personal_keys = personal_keys(&ctx, &claims.user_id).await?;
+    let personal_keys = personal_keys(&ctx, &caller).await?;
     let secret_present = |name: &str| secrets.get(name).is_some_and(|k| !k.is_empty());
     let mut response = bridge_profile::build(
         bridge_profile::BridgeProfileParams {
@@ -194,16 +194,15 @@ pub async fn profile(
 
 async fn personal_keys(
     ctx: &systemprompt_runtime::AppContext,
-    user_id: &systemprompt_identifiers::UserId,
+    caller: &systemprompt_extension::router::GatewayPrincipal,
 ) -> Result<BTreeSet<String>, ApiHttpError> {
-    let caller = systemprompt_extension::router::GatewayPrincipal::__from_kernel(user_id.clone());
     let names = ctx
         .kernel()
         .state()
         .get::<systemprompt_extension::router::DynPersonalCredentialNames>()
         .map_err(|e| BridgeError::internal("the personal credential names are unavailable", e))?;
     Ok(names
-        .credential_names(&caller)
+        .credential_names(caller)
         .await
         .map_err(|e| BridgeError::internal("personal key lookup failed", e))?)
 }

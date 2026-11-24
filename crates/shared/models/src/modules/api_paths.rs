@@ -190,6 +190,11 @@ impl ApiPaths {
     }
 
     #[must_use]
+    pub fn admin_relative(path: &'static str) -> &'static str {
+        path.strip_prefix(Self::ADMIN_BASE).unwrap_or(path)
+    }
+
+    #[must_use]
     pub fn api_v1_relative(path: &'static str) -> &'static str {
         path.strip_prefix(Self::API_V1).unwrap_or(path)
     }

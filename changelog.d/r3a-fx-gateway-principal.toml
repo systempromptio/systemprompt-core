@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "A `GatewayPrincipal` is stamped in one place, the API's bridge credential check, and only from a bearer the gateway verifier accepted; `lint-hidden-constructors` refuses `GatewayPrincipal::__from_kernel` anywhere else in core."

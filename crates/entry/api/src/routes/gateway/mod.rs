@@ -25,6 +25,15 @@
 //! inbox) carries its own budget, so its polling and inference never starve
 //! each other.
 //!
+//! The bridge Drive routes are mounted whenever the `documents` member is
+//! admitted and the document store is enabled; they hold the sealed
+//! `DynDriveTokens` view the kernel reads, never the token authority, and do
+//! not depend on `gateway-http`'s standing.
+//!
+//! The gateway repositories are built from the unscoped kernel resolution
+//! only for the boot paths inside this crate (settlement recovery, the brain
+//! recall sink); no other crate reaches that builder.
+//!
 //! [`gateway_engines`] builds the engines from the resolved kernel: the
 //! adapter, scanner, override and route-selector sets are the gateway's built
 //! slots and the guards are the kernel-built set of every admitted member's
@@ -114,7 +123,7 @@ pub fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
     }
 }
 
-pub fn gateway_repositories(
+pub(crate) fn gateway_repositories(
     ctx: &AppContext,
 ) -> Result<systemprompt_gateway::GatewayRepositories, GatewaySurfaceError> {
     systemprompt_gateway::surface::repositories::gateway_repositories(
@@ -125,16 +134,10 @@ pub fn gateway_repositories(
     )
 }
 
-fn drive_routes(ctx: &AppContext, admitted: &Admitted, kernel: &Kernel) -> Router {
-    let owner = ExtensionId::new(CoreId::GatewayHttp.id());
-    let Some(standing) = admitted.built().standing_of(&owner) else {
-        return Router::new();
-    };
+fn drive_routes(ctx: &AppContext, kernel: &Kernel) -> Router {
     let (Some(service), Ok(tokens)) = (
         crate::routes::documents::document_service(ctx),
-        kernel
-            .route_scoped(&owner, standing, &[])
-            .get::<DynDriveTokens>(),
+        kernel.resolved().get::<DynDriveTokens>(),
     ) else {
         return Router::new();
     };
@@ -156,7 +159,7 @@ pub(crate) fn gateway_mount_parts(
         .merge(bridge_session_routes(ctx, &jwt_extractor));
     let registered = registered::admitted_gateway_routes(admitted, kernel, &jwt_extractor)?;
     let traffic = traffic
-        .merge(drive_routes(ctx, admitted, kernel))
+        .merge(drive_routes(ctx, kernel))
         .merge(bridge_release::routes(ctx, &jwt_extractor)?)
         .route("/models", get(models::list).with_state(ctx.clone()))
         .route("/", get(models::root));

@@ -9,9 +9,9 @@
 //! and verifies no user, session or UI token.
 //!
 //! [`DocumentDriveTokens`](crate::tokens::DocumentDriveTokens) is the
-//! [`DriveTokens`](systemprompt_traits::DriveTokens) view conferred on
-//! `gateway-http`: it trades a bridge device token for a Drive sync token
-//! and verifies Drive sync tokens, and nothing else.
+//! [`DriveTokens`](systemprompt_traits::DriveTokens) view, provided sealed
+//! for the kernel's bridge Drive routes: it trades a bridge device token for a
+//! Drive sync token and verifies Drive sync tokens, and nothing else.
 //!
 //! A host that seeds no token authority (a child host holds verification keys
 //! only), or composes no request authenticator, gets views that refuse every

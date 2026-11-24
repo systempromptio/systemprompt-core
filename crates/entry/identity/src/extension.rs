@@ -5,9 +5,11 @@
 //! the API mount builds the OAuth, SSO, self-service session and admin
 //! API-key routes from (see [`crate::http`]), and provides sealed the
 //! [`IdentityHttpRepositories`](crate::http::IdentityHttpRepositories) those
-//! routes read. The surface reads the kernel-seeded `Arc<OAuthRepositories>`
-//! when the API builds it (R-264); a child host seeds none and never builds the
-//! surface, so the member declares no boot-time requirement on it. The API
+//! routes read. The surface reads the sealed kernel-seeded
+//! `Arc<OAuthRepositories>`, conferred on `identity-http` under the
+//! `identity-oauth-repositories` row, when the API builds it; a child host
+//! seeds none and never builds the surface, so the member declares no
+//! boot-time requirement on it. The API
 //! keeps their layering: the policies, context kinds, rate scopes and budgets,
 //! the file-managed client-write refusal and the route groups.
 //!
@@ -21,6 +23,7 @@
 //! | profile disables | identity routes |
 //! |---|---|
 //! | `identity-http` | 404 (not mounted) |
+//! | `identity` (with `identity-http` admitted) | boot refused: no SSO slot is built |
 //! | `users` | boot refused (`users` is a required member) |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

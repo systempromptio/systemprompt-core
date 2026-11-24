@@ -10,10 +10,12 @@
 //! this member, so the engines, at-rest material and session mint reach it only
 //! through their conferral rows.
 //!
-//! | profile disables | inference, token count, `/otel` |
-//! |---|---|
-//! | `gateway-http` | 404 (confined) |
-//! | `gateway` | 404: no engines are built and nothing is mounted |
+//! | profile disables | inference, token count, `/otel` | `/me/provider-credentials` | bridge Drive (`/bridge/drive/*`) |
+//! |---|---|---|---|
+//! | `gateway-http` | 404 (confined) | 404 (confined) | mounted (the API's own routes) |
+//! | `ai` | mounted | 404: `ai` confers the credential view | mounted |
+//! | `documents` | mounted | mounted | 404: no Drive token view or document store |
+//! | `gateway` | 404: no engines are built and nothing is mounted | 404 | 404 |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
