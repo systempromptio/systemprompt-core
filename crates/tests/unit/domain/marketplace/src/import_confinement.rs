@@ -9,8 +9,8 @@ use systemprompt_marketplace::{ImportOptions, import_anthropic_tree};
 use tempfile::TempDir;
 
 const MARKETPLACE: &str =
-    r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[{"name":"p","source":"./plugins/p"}]}"#;
-const PLUGIN: &str = r#"{"name":"p","description":"A plugin."}"#;
+    r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[{"name":"pkg","source":"./plugins/pkg"}]}"#;
+const PLUGIN: &str = r#"{"name":"pkg","description":"A plugin."}"#;
 const SKILL: &str = "---\nname: a-skill\ndescription: What it does.\n---\n\nBody.\n";
 const SIDECAR: &str = "schema: 1\n";
 
@@ -28,8 +28,8 @@ impl Fixture {
             outside: TempDir::new().expect("outside"),
         };
         fixture.write(".claude-plugin/marketplace.json", MARKETPLACE);
-        fixture.write("plugins/p/.claude-plugin/plugin.json", PLUGIN);
-        fixture.write("plugins/p/skills/a-skill/SKILL.md", SKILL);
+        fixture.write("plugins/pkg/.claude-plugin/plugin.json", PLUGIN);
+        fixture.write("plugins/pkg/skills/a-skill/SKILL.md", SKILL);
         for (rel, body) in [
             ("marketplace.json", MARKETPLACE),
             ("plugin.json", PLUGIN),
@@ -101,22 +101,22 @@ fn every_reader_refuses_a_path_that_escapes_the_tree() {
             f.link(".claude-plugin/systemprompt.yaml", "systemprompt.yaml");
         }),
         ("plugin manifest", |f| {
-            f.link("plugins/p/.claude-plugin/plugin.json", "plugin.json");
+            f.link("plugins/pkg/.claude-plugin/plugin.json", "plugin.json");
         }),
         ("plugin sidecar", |f| {
             f.link(
-                "plugins/p/.claude-plugin/systemprompt.yaml",
+                "plugins/pkg/.claude-plugin/systemprompt.yaml",
                 "systemprompt.yaml",
             );
         }),
         ("skills directory entry", |f| {
-            f.link("plugins/p/skills/escaped", "skill");
+            f.link("plugins/pkg/skills/escaped", "skill");
         }),
         ("plugin rules entry", |f| {
-            f.link("plugins/p/rules/escaped.md", "rule.md")
+            f.link("plugins/pkg/rules/escaped.md", "rule.md")
         }),
         ("plugin agents entry", |f| {
-            f.link("plugins/p/agents/escaped.md", "agent.md")
+            f.link("plugins/pkg/agents/escaped.md", "agent.md")
         }),
         ("root rules entry", |f| {
             f.link("rules/escaped.md", "rule.md")
@@ -142,8 +142,8 @@ fn every_reader_refuses_a_path_that_escapes_the_tree() {
 fn a_dot_dot_skill_path_that_leaves_the_tree_is_refused() {
     let fixture = Fixture::new();
     fixture.write(
-        "plugins/p/.claude-plugin/plugin.json",
-        r#"{"name":"p","description":"A plugin.","skills":"../../../escape"}"#,
+        "plugins/pkg/.claude-plugin/plugin.json",
+        r#"{"name":"pkg","description":"A plugin.","skills":"../../../escape"}"#,
     );
     let error = import(&fixture).expect_err("a .. skill path outside the tree must refuse");
     assert!(
