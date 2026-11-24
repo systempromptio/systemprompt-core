@@ -1,12 +1,12 @@
 //! [`SessionIssuer`]: browser-session issuance.
 //!
 //! The API's session middleware and static-content serving read it, and
-//! nothing else. The oauth member provides it **sealed** (it creates sessions and mints
-//! session tokens for any user it is handed), over the users member's sealed
-//! session store and user directory and the kernel's token authority, so only
-//! kernel code reads it. On a host with no token authority (a child host) the
-//! provided issuer refuses every call. With no oauth member admitted there is
-//! no issuer: the session middleware serves each request with an untracked,
+//! nothing else. The oauth member provides it **sealed** (it creates sessions
+//! and mints session tokens for any user it is handed), over the users member's
+//! sealed session store and user directory and the kernel's token authority, so
+//! only kernel code reads it. On a host with no token authority (a child host)
+//! the provided issuer refuses every call. With no oauth member admitted there
+//! is no issuer: the session middleware serves each request with an untracked,
 //! actor-less context, which every gate above `public` refuses.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

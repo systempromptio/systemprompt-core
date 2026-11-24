@@ -55,7 +55,6 @@ use systemprompt_extension::mcp::ToolExecution;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
-use systemprompt_database::DbPool;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::documents::{DocumentService, DocumentsHandles};
 use systemprompt_files::uploads::UploadService;
@@ -104,6 +103,11 @@ pub use write::EditHandler;
 use crate::links::LinkIssuer;
 
 pub const TOOLSET_ID: &str = "documents";
+
+/// The user lookup a hosted server's document tools resolve mentions and
+/// share subjects through, provided sealed by the documents member.
+#[derive(Debug, Clone)]
+pub struct DocumentsMcpUsers(pub(crate) Arc<UserRepository>);
 
 /// What [`DocumentsMcpTools`] is built from.
 #[derive(Clone)]
@@ -186,7 +190,7 @@ impl DocumentsMcpTools {
                 .find::<Arc<NotificationsServiceSlot>>()
                 .and_then(|slot| slot.get().cloned()),
             uploads: Some(Arc::clone(&handles.uploads)),
-            users: Arc::new(UserRepository::new(extension_state.find::<DbPool>()?)),
+            users: Arc::clone(&extension_state.find::<Arc<DocumentsMcpUsers>>()?.0),
             links,
             contexts: Arc::clone(&handles.contexts),
             server_name,

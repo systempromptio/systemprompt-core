@@ -347,6 +347,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_users::UserService>(),
         ),
         (
+            type_name::<Arc<systemprompt_documents::mcp::DocumentsMcpUsers>>(),
+            carrier::<systemprompt_users::UserRepository>(),
+        ),
+        (
             type_name::<systemprompt_traits::DynSessionIssuer>(),
             carrier::<systemprompt_oauth::services::SessionCreationService>(),
         ),
