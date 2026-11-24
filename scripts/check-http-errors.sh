@@ -2,7 +2,7 @@
 # Reject inline `map_err(|e| ApiError::ctor(...))` at HTTP call sites.
 #
 # HTTP status mapping belongs in an entry-local error type's `From` impls
-# (see crates/entry/api/src/error/ and crates/entry/api/src/routes/oauth/error/);
+# (see crates/entry/api/src/error/ and crates/entry/identity/src/http/oauth/error/);
 # call sites propagate with bare `?` so the variant decides the status. An inline
 # closure flattens distinct failure modes into one status (a dropped DB
 # connection becomes a 404) and discards the typed cause.
@@ -16,7 +16,7 @@ set -uo pipefail
 gate_scope_parse "$@"
 set -- "${GATE_ARGS[@]}"
 cd "$GATE_ROOT"
-mapfile -t SEARCH_DIRS < <(gate_roots crates/entry/api/src)
+mapfile -t SEARCH_DIRS < <(gate_roots crates/entry/api/src crates/entry/identity/src)
 gate_pass_if_empty check-http-errors "${#SEARCH_DIRS[@]}"
 PATTERN='map_err\(\s*\|[^|]*\|\s*ApiError::'
 

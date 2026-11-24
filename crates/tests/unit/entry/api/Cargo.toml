@@ -20,7 +20,6 @@ systemprompt-ai = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["router"] }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-oauth = { workspace = true }
-systemprompt-oauth-issuance = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-models = { workspace = true }

@@ -55,7 +55,6 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 ipnet = { workspace = true }
 base64 = { workspace = true }
-rand = { workspace = true }
 
 # Error handling
 thiserror = { workspace = true }
@@ -98,9 +97,6 @@ systemprompt-governance = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 
 # Authentication
-bcrypt = { workspace = true }
-validator = { workspace = true }
-webauthn-rs = { workspace = true }
 
 # System
 nix = { workspace = true }

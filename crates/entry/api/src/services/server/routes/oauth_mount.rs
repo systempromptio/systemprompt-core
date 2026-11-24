@@ -72,7 +72,6 @@ pub(super) fn identity_routes(
         .map_err(|source| RouteMountError::initialization("identity", source))
 }
 
-/// The OAuth-group routers of the identity surface.
 pub(super) struct IdentityOauthRoutes {
     pub(super) public: Router,
     pub(super) authenticated: Router,
