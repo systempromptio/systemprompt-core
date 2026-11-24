@@ -118,6 +118,9 @@ pub enum ProxyError {
         source: BoxedSource,
     },
 
+    #[error("No MCP execution audit is available for '{service}'; the tool call is refused")]
+    AuditUnavailable { service: String },
+
     #[error("The context named for '{service}' is not one the caller owns")]
     ContextNotOwned { service: String },
 
@@ -184,7 +187,8 @@ impl ProxyError {
             Self::PayloadTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::ServiceNotRunning { .. }
             | Self::RestartFailed { .. }
-            | Self::NoLiveOwner { .. } => StatusCode::SERVICE_UNAVAILABLE,
+            | Self::NoLiveOwner { .. }
+            | Self::AuditUnavailable { .. } => StatusCode::SERVICE_UNAVAILABLE,
             Self::ConnectionFailed { .. }
             | Self::InvalidResponse { .. }
             | Self::ExternalResolveFailed { .. } => StatusCode::BAD_GATEWAY,
@@ -241,6 +245,7 @@ impl ProxyError {
             Self::ProviderNotConnected { .. } => "provider_not_connected",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",
             Self::ContextNotOwned { .. } => "context_not_owned",
+            Self::AuditUnavailable { .. } => "audit_unavailable",
             Self::ContextLookupFailed { .. } => "context_lookup_failed",
         }
     }

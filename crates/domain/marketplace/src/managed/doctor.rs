@@ -7,7 +7,9 @@
 //! with no secret under either name is a warning, and so is a run where the
 //! doctor's read-only probe cannot list the sources. The check reads only
 //! whether a secret is present, never its value, and the source list the
-//! doctor's probe answers; it holds no database handle.
+//! doctor's probe answers; it holds no database handle. A probe read failure
+//! is logged with its cause and reported with a fixed detail, so no database
+//! error text reaches the report.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,7 +38,10 @@ impl DoctorCheck for GitCredentialCheck {
             Err(DoctorProbeError::Unreachable) => {
                 DoctorOutcome::warn("no reachable database, so Git sources were not checked")
             },
-            Err(error) => DoctorOutcome::warn(format!("Git sources could not be listed ({error})")),
+            Err(error) => {
+                tracing::warn!(error = ?error, "doctor: Git source probe read failed");
+                DoctorOutcome::warn("Git sources could not be listed")
+            },
         }
     }
 }

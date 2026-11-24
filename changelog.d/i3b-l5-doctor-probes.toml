@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "`cloud doctor`: a Git source probe read failure reports a fixed detail and logs its cause, so no database error text reaches the report; an install member's doctor check reads probes that withhold the tenant's Git source list (repository URLs included)."

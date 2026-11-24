@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::ApiHttpError;
 use serde::{Deserialize, Serialize};
+use systemprompt_extension::router::ApiHttpError;
 use systemprompt_loader::BundleError;
 use systemprompt_models::api::ApiError;
 
@@ -21,7 +21,7 @@ pub(super) enum SyncError {
     #[error("blocking file-sync task failed")]
     Join(#[source] tokio::task::JoinError),
     #[error("failed to build the download response")]
-    Response(#[source] http::Error),
+    Response(#[source] axum::http::Error),
 }
 
 impl From<SyncError> for ApiHttpError {

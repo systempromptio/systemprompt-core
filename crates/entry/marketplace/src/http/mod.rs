@@ -15,6 +15,9 @@
 //!   content-gated plugin bundles, without the organization's managed
 //!   resources.
 //!
+//! It also builds the managed consumer surface ([`managed`]) the API mount
+//! protects under `/api/v1` with the device credential.
+//!
 //! Every handler reads [`MarketplaceHttpState`]: the services view and the
 //! services root, the catalogue cache and the managed repository the
 //! `managed_resources` member provides, and the [`MarketplaceHttpSettings`]
@@ -27,12 +30,14 @@
 
 mod error;
 pub mod handlers;
+pub mod managed;
 
 pub use error::{MarketplaceHttpError, MarketplaceRouteError};
 pub use handlers::{
     get_marketplace, get_marketplace_yaml, list_marketplaces, serve_default_marketplace_json,
     serve_plugin_file,
 };
+pub use managed::ManagedHttpSurface;
 
 use std::path::PathBuf;
 use std::sync::Arc;

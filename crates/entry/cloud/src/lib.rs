@@ -7,8 +7,8 @@
 //! so a composition with this member built with `cli` gains
 //! `systemprompt cloud …`; one without it has no `cloud` command. The cloud API
 //! client, credentials and tenant store are `systemprompt-cloud`. The `http`
-//! feature carries no routes: the cloud capability has no HTTP surface of its
-//! own.
+//! feature carries the services-tree sync routes ([`http`]), contributed as
+//! the open `DynSyncSurface` the API mounts under `/api/v1/sync`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,5 +17,7 @@
 #[cfg(feature = "cli")]
 pub mod cli;
 pub mod extension;
+#[cfg(feature = "http")]
+pub mod http;
 
 pub use extension::CloudCliExtension;

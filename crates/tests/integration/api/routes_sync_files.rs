@@ -1,19 +1,19 @@
-//! File download end to end through `sync_router`.
+//! File download end to end through the `cloud` member's sync router.
 //!
 //! Seeds allow-listed directories into the test bootstrap's services tree,
 //! which the `AppContext` reads as `paths.services`, then drives the manifest
 //! and download handlers so the internal `collect_files` and `create_tarball`
 //! helpers run.
 //!
-//! `get_services_path` reads the context's `app_paths` only, so the test drives
-//! the path purely through the context (no env mutation, which the workspace
+//! The sync state is the context's services root, so the test drives the
+//! path purely through the context (no env mutation, which the workspace
 //! forbids under `unsafe_code = "deny"`).
 
 use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, header};
-use systemprompt_api::routes::sync_router;
+use systemprompt_cloud_entry::http::SyncState;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use tower::ServiceExt;
@@ -25,7 +25,9 @@ async fn ctx_with_services() -> anyhow::Result<Arc<AppContext>> {
 }
 
 fn app(ctx: &AppContext) -> axum::Router {
-    sync_router().with_state(ctx.clone())
+    systemprompt_cloud_entry::http::router(SyncState::new(
+        ctx.app_paths().system().services().to_path_buf(),
+    ))
 }
 
 fn seed_services_tree(root: &std::path::Path) {

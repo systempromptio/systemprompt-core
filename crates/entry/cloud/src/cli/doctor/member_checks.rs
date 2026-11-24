@@ -2,12 +2,15 @@
 //! [`DoctorCheck`](systemprompt_traits::DoctorCheck), core and install
 //! alike, run in composition order and reported under the check's own name.
 //!
-//! Every check gets the same [`DoctorContext`]: the presence of each secret,
-//! never its value, and [`TenantProbes`], the read-only facts the doctor
-//! answers itself. The probes read through one short-lived pool opened from
-//! the checked profile's secrets with `default_transaction_read_only` on;
-//! no check receives the pool. With no admitted composition the member checks
-//! are not evaluated.
+//! Every check gets a [`DoctorContext`]: the presence of each secret, never
+//! its value, and probes, the read-only facts the doctor answers itself. A
+//! core member's check reads [`TenantProbes`], which read through one
+//! short-lived pool opened from the checked profile's secrets with
+//! `default_transaction_read_only` on; no check receives the pool. An install
+//! member's check reads [`WithheldProbes`]: the tenant's Git source list
+//! (repository URLs included) is not a fact an install check is told, so
+//! every probe answers `Unreachable`. With no admitted composition the member
+//! checks are not evaluated.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +24,7 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use systemprompt_database::Database;
+use systemprompt_extension::reserved::CoreId;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_traits::{
     DoctorContext, DoctorProbeError, DoctorProbes, DoctorStatus, GitCredentialSource,
@@ -65,6 +69,15 @@ impl DoctorProbes for TenantProbes {
     }
 }
 
+struct WithheldProbes;
+
+#[async_trait]
+impl DoctorProbes for WithheldProbes {
+    async fn git_credential_sources(&self) -> Result<Vec<GitCredentialSource>, DoctorProbeError> {
+        Err(DoctorProbeError::Unreachable)
+    }
+}
+
 const fn status(status: DoctorStatus) -> CheckStatus {
     match status {
         DoctorStatus::Pass => CheckStatus::Pass,
@@ -92,21 +105,28 @@ pub(super) async fn run_member_checks(
             ManagedRepository::new(&Arc::new(Database::from_pools(Arc::clone(pool), None)))
         }),
     };
-    let ctx = DoctorContext {
+    let core = DoctorContext {
         secrets,
         probes: &probes,
     };
-    let results = views
-        .doctor
-        .run(ctx)
-        .await
-        .into_iter()
-        .map(|(owned, outcome)| CheckResult {
+    let install = DoctorContext {
+        secrets,
+        probes: &WithheldProbes,
+    };
+    let mut results = Vec::with_capacity(views.doctor.entries().len());
+    for owned in views.doctor.entries() {
+        let ctx = if CoreId::for_id(owned.owner.as_str()).is_some() {
+            core
+        } else {
+            install
+        };
+        let outcome = owned.check.check(ctx).await;
+        results.push(CheckResult {
             name: owned.check.name(),
             status: status(outcome.status),
             detail: outcome.detail,
-        })
-        .collect();
+        });
+    }
     drop(probes);
     if let Some(pool) = pool {
         pool.close().await;

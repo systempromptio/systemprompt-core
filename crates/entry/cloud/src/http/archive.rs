@@ -12,18 +12,17 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_loader::bundle::pack::{collect_files, create_tarball_bytes, manifest_checksum};
-use systemprompt_runtime::AppContext;
 
+use super::SyncState;
 use super::types::{FileManifest, SyncError};
 
 const ALLOWED_DIRS: &[&str] = &[
     "agents", "skills", "rules", "content", "mcp", "ai", "config", "profiles",
 ];
 
-pub(super) fn get_services_path(ctx: &AppContext) -> Result<PathBuf, SyncError> {
-    let services = ctx.app_paths().system().services();
-    if services.exists() {
-        return Ok(services.to_path_buf());
+pub(super) fn get_services_path(state: &SyncState) -> Result<PathBuf, SyncError> {
+    if state.services_root.exists() {
+        return Ok(state.services_root.clone());
     }
 
     Err(SyncError::ServicesPathMissing)

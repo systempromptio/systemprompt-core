@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The device-credential consumer routes under `/api/v1` are built by the `marketplace-http` member's `ManagedSurface`; the API keeps their protection (handler-verified by the managed device credential, the `consumer_evidence` 10/s limit) between the member's origin guard and contract normaliser. With `marketplace-http` disabled the routes are not mounted (404). `systemprompt_api::routes::managed` is removed."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::managed` is removed; the consumer routes mount from the `marketplace-http` member's `DynManagedSurface`, and the bridge manifest's candidate assembly is handed to it as a `ConsumerCatalog`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Added"
+text = "Feature `http`: `surface::{ManagedSurface, DynManagedSurface, ManagedRouteState, ManagedRoutes, ConsumerCatalog, DynConsumerCatalog}`, the managed consumer surface contract."
+
+[[crate]]
+name = "systemprompt-marketplace-entry"
+section = "Added"
+text = "`http::managed`: the device-credential consumer routes, their origin guard and contract normaliser, built by `ManagedHttpSurface` and provided as `DynManagedSurface`."

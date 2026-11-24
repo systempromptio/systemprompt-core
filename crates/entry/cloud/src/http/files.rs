@@ -13,11 +13,11 @@ use axum::body::Body;
 use axum::extract::{Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use systemprompt_runtime::AppContext;
+use systemprompt_extension::router::ApiHttpError;
 
+use super::SyncState;
 use super::archive::{collect_manifest, create_tarball, get_services_path};
 use super::types::{ApiResult, FileManifest, FilesQuery, SyncError};
-use crate::kernel::ApiHttpError;
 
 async fn run_blocking<T, F>(job: F) -> Result<T, ApiHttpError>
 where
@@ -30,10 +30,10 @@ where
 }
 
 pub(super) async fn manifest(
-    State(ctx): State<AppContext>,
+    State(state): State<SyncState>,
     Query(query): Query<FilesQuery>,
 ) -> ApiResult<Json<FileManifest>> {
-    let services_path = get_services_path(&ctx)?;
+    let services_path = get_services_path(&state)?;
     let directories = owned_directories(&query);
 
     let manifest = run_blocking(move || {
@@ -46,10 +46,10 @@ pub(super) async fn manifest(
 }
 
 pub(super) async fn download(
-    State(ctx): State<AppContext>,
+    State(state): State<SyncState>,
     Query(query): Query<FilesQuery>,
 ) -> Result<Response, ApiHttpError> {
-    let services_path = get_services_path(&ctx)?;
+    let services_path = get_services_path(&state)?;
     let directories = owned_directories(&query);
     let dry_run = query.dry_run;
 

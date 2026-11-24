@@ -35,6 +35,8 @@ mod set;
 mod shape;
 #[cfg(feature = "router")]
 mod sse;
+#[cfg(feature = "router")]
+mod surface;
 
 #[cfg(feature = "router")]
 pub use agent_surface::{
@@ -67,6 +69,8 @@ pub use sse::{
     HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive,
     subscription_refused,
 };
+#[cfg(feature = "router")]
+pub use surface::{DynMcpSurface, DynSyncSurface, McpRoutes, McpSurface, SyncSurface};
 
 #[cfg(feature = "router")]
 #[doc(hidden)]

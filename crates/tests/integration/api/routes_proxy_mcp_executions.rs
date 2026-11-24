@@ -5,7 +5,6 @@
 use axum::Extension;
 use axum::body::to_bytes;
 use http::StatusCode;
-use systemprompt_api::routes::proxy::mcp;
 use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
@@ -47,10 +46,12 @@ async fn get_as(
     id: &str,
     req_ctx: RequestContext,
 ) -> anyhow::Result<(StatusCode, String)> {
-    let resp = mcp::executions_router(ctx)
-        .layer(Extension(req_ctx))
-        .oneshot(empty_get(&format!("/executions/{id}")))
-        .await?;
+    let resp = systemprompt_mcp_entry::http::executions_router(
+        systemprompt_api::repository::tool_usage(ctx.db_pool()),
+    )
+    .layer(Extension(req_ctx))
+    .oneshot(empty_get(&format!("/executions/{id}")))
+    .await?;
     let status = resp.status();
     let body = to_bytes(resp.into_body(), 1024 * 1024).await?;
     Ok((status, String::from_utf8_lossy(&body).into_owned()))
