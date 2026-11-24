@@ -58,7 +58,7 @@ async fn reconcile_registers_every_reachable_live_folder_of_a_large_tree() {
 
     let preset = ids[FOLDERS / 2].to_string();
     h.access_entities
-        .upsert_entity(EntityKind::Folder, &preset, false, "operator")
+        .upsert_entity(EntityKind::Folder, &preset, false, "console:operator")
         .await
         .expect("operator-set entity");
 
@@ -106,5 +106,5 @@ async fn reconcile_registers_every_reachable_live_folder_of_a_large_tree() {
         !kept.default_included,
         "an operator-set row is left untouched"
     );
-    assert_eq!(kept.source, "operator");
+    assert_eq!(kept.source, "console:operator");
 }
