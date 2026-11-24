@@ -18,13 +18,12 @@ use systemprompt_traits::ConfigWatch;
 
 use super::ShutdownRequest;
 
-/// The four planes [`AppContext::from_parts`](super::AppContext::from_parts)
+/// The three planes [`AppContext::from_parts`](super::AppContext::from_parts)
 /// seals into the kernel state.
 #[derive(Debug, Clone)]
 pub struct ContextPlanes {
     pub data: DataPlane,
     pub cfg: ConfigPlane,
-    pub plugins: Plugins,
     pub subsystems: Subsystems,
 }
 
@@ -40,11 +39,6 @@ pub struct ConfigPlane {
     pub boot: BootContext,
     pub route_classifier: Arc<RouteClassifier>,
     pub build: systemprompt_models::BuildIdentity,
-}
-
-#[derive(Clone)]
-pub struct Plugins {
-    pub subject_providers: systemprompt_governance::authz::SubjectProviderSet,
 }
 
 #[derive(Clone)]

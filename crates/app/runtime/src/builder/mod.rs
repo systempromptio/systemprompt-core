@@ -33,8 +33,8 @@ pub(crate) mod kernel_seed;
 pub(crate) mod kernel_state;
 mod options;
 use composition::{
-    bind_secret_scanner, build_data_plane, build_domain_layer, load_identity, new_plugins,
-    new_spawner, seeded_repositories,
+    bind_secret_scanner, build_data_plane, build_domain_layer, load_identity, new_spawner,
+    seeded_repositories,
 };
 use std::sync::Arc;
 
@@ -194,7 +194,7 @@ impl AppContextBuilder {
             );
         }
 
-        let (authz_hook, market) = authz_stage(
+        let (authz_hook, _) = authz_stage(
             profile,
             &database,
             &services,
@@ -217,7 +217,6 @@ impl AppContextBuilder {
             r.optional::<systemprompt_traits::DynContextMaterializer>(),
         )
         .await?;
-        let plugins = new_plugins(&market);
         let subsystems = Subsystems {
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             authz_hook,
@@ -237,7 +236,6 @@ impl AppContextBuilder {
                     route_classifier: content.route_classifier,
                     build: self.build,
                 },
-                plugins,
                 subsystems,
             },
             kernel,

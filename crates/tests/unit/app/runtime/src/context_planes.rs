@@ -1,4 +1,4 @@
-//! Debug-format contracts of the four `AppContext` planes. Planes are
+//! Debug-format contracts of the three `AppContext` planes. Planes are
 //! assembled directly (the `from_parts` embedder path) against the test
 //! database; tests skip when no database is configured.
 
@@ -6,9 +6,7 @@ use std::sync::Arc;
 
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_models::RouteClassifier;
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, ContextPlanes, DataPlane, Subsystems};
 use systemprompt_test_fixtures::unique_instance;
 
 #[tokio::test]
@@ -39,13 +37,6 @@ async fn plane_debug_impls_flag_optional_members() {
     let dbg = format!("{cfg:?}");
     assert!(dbg.contains("ConfigPlane"), "got: {dbg}");
 
-    let plugins = Plugins {
-        subject_providers: Default::default(),
-    };
-    let dbg = format!("{plugins:?}");
-    assert!(dbg.contains("Plugins"), "got: {dbg}");
-    assert!(dbg.contains("subject_providers"), "got: {dbg}");
-
     let authz_hook: systemprompt_governance::authz::SharedAuthzHook =
         Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
     let file_storage =
@@ -70,7 +61,6 @@ async fn plane_debug_impls_flag_optional_members() {
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");
     assert!(dbg.contains("event_bridge: NotStarted"), "got: {dbg}");
-    assert!(dbg.contains("outbox: None"), "got: {dbg}");
 
     let (documents, _binder) = systemprompt_files::documents::DocumentsHandlesSlot::unbound();
     let seed = systemprompt_test_fixtures::app_context::fixture_kernel_seed(
@@ -89,7 +79,6 @@ async fn plane_debug_impls_flag_optional_members() {
         ContextPlanes {
             data,
             cfg,
-            plugins,
             subsystems,
         },
         kernel,

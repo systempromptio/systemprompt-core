@@ -33,7 +33,7 @@ mod shutdown;
 pub use context_loaders::load_content_config;
 pub(crate) use host::reserve_context_seeds;
 pub use host::{config_plane_set, reload_governance};
-pub use planes::{ConfigPlane, ContextPlanes, DataPlane, Plugins, Subsystems};
+pub use planes::{ConfigPlane, ContextPlanes, DataPlane, Subsystems};
 pub use shutdown::ShutdownRequest;
 
 use crate::builder::AppContextBuilder;

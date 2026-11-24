@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "runtime"
+text = "The application context no longer seals a second copy of the subject-provider set: the kernel's `Arc<SubjectProviderSet>` is the one value, and the `Plugins` context plane is removed from `ContextPlanes`."

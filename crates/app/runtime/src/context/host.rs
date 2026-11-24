@@ -13,7 +13,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::Admitted;
-use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
+use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::{GovernanceEngine, PolicyCatalog};
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_logging::LoggingRuntime;
@@ -47,7 +47,6 @@ pub(crate) fn reserve_context_seeds(state: &mut Dependencies) {
     state.reserve::<BootContext>();
     state.reserve::<Arc<RouteClassifier>>();
     state.reserve::<BuildIdentity>();
-    state.reserve::<SubjectProviderSet>();
     state.reserve::<LoggingRuntime>();
     state.reserve::<SharedAuthzHook>();
     state.reserve::<ConfigWatch<GovernanceEngine>>();
@@ -62,7 +61,6 @@ pub(crate) fn seal_context_seeds(kernel: &mut Kernel, planes: ContextPlanes) {
     let ContextPlanes {
         data,
         cfg,
-        plugins,
         subsystems,
     } = planes;
     let state = kernel.state_mut();
@@ -71,7 +69,6 @@ pub(crate) fn seal_context_seeds(kernel: &mut Kernel, planes: ContextPlanes) {
     state.insert_sealed(cfg.boot);
     state.insert_sealed(cfg.route_classifier);
     state.insert_sealed(cfg.build);
-    state.insert_sealed(plugins.subject_providers);
     state.insert_sealed(subsystems.logging);
     state.insert_sealed(subsystems.authz_hook);
     state.insert_sealed(subsystems.governance);

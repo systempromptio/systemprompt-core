@@ -3,7 +3,7 @@ use std::sync::Arc;
 use systemprompt_database::{CoordinationRepositories, ServiceRepository};
 use systemprompt_events::EventBridgeHandle;
 use systemprompt_extension::StandingTag;
-use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
+use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::{BootContext, ServicesState};
@@ -11,8 +11,8 @@ use systemprompt_logging::LoggingRuntime;
 use systemprompt_models::{BuildIdentity, RouteClassifier};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::{
-    AppContext, ConfigPlane, ContextPlanes, DataPlane, Kernel, PendingBinders, Plugins,
-    RuntimeError, SchemaState, ShutdownRequest, Subsystems,
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, Kernel, PendingBinders, RuntimeError,
+    SchemaState, ShutdownRequest, Subsystems,
 };
 use systemprompt_test_fixtures::{AppContextSeeds, test_app_context, test_database_url};
 use systemprompt_traits::{BackgroundTasks, ConfigWatch};
@@ -27,9 +27,6 @@ fn planes_of(ctx: &AppContext) -> ContextPlanes {
             boot: ctx.boot().clone(),
             route_classifier: Arc::clone(ctx.route_classifier()),
             build: ctx.build_identity().clone(),
-        },
-        plugins: Plugins {
-            subject_providers: ctx.subject_providers().clone(),
         },
         subsystems: Subsystems {
             logging: ctx.logging().clone(),
@@ -64,7 +61,6 @@ async fn every_context_built_seed_is_sealed_and_withheld_from_member_contexts() 
     assert!(state.is_sealed::<BootContext>());
     assert!(state.is_sealed::<Arc<RouteClassifier>>());
     assert!(state.is_sealed::<BuildIdentity>());
-    assert!(state.is_sealed::<SubjectProviderSet>());
     assert!(state.is_sealed::<LoggingRuntime>());
     assert!(state.is_sealed::<SharedAuthzHook>());
     assert!(state.is_sealed::<ConfigWatch<GovernanceEngine>>());

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CoordinationRepositories, DbPool, ServiceRepository};
 use systemprompt_events::{EventBridgeHandle, EventBroadcasters, EventRouter};
-use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
+use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_loader::{BootContext, ServicesState};
@@ -48,9 +48,6 @@ pub trait AppContextSeeds {
     }
     fn event_broadcasters(&self) -> &Arc<EventBroadcasters> {
         self.seed::<Arc<EventRouter>>().broadcasters()
-    }
-    fn subject_providers(&self) -> &SubjectProviderSet {
-        self.seed()
     }
     fn authz_hook(&self) -> &SharedAuthzHook {
         self.seed()

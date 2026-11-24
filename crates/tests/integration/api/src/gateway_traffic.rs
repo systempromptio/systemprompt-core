@@ -3,7 +3,6 @@
 //! stamped on `ai_requests.traffic`, and the hourly rollup keys on it.
 
 use std::sync::Arc;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use systemprompt_gateway_entry::http::messages::error::RejectionError;
@@ -138,7 +137,12 @@ fn traffic_class_parses_only_its_two_values() {
 #[tokio::test]
 async fn the_registered_traffic_provider_is_discovered() {
     let (_pool, ctx) = setup_ctx().await.expect("ctx");
-    assert!(ctx.subject_providers().find("traffic").is_some());
+    let providers = ctx
+        .kernel()
+        .resolved()
+        .get::<Arc<systemprompt_governance::authz::SubjectProviderSet>>()
+        .expect("the kernel builds the subject providers");
+    assert!(providers.find("traffic").is_some());
 }
 
 #[tokio::test]

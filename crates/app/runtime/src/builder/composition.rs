@@ -3,9 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::authz::PluginInputs;
 use super::{Arc, DataPlane, RuntimeResult, assembly};
-use crate::context::Plugins;
 use systemprompt_database::DbPool;
 use systemprompt_loader::BootContext;
 
@@ -68,12 +66,6 @@ pub(super) fn build_repositories(seeded: &SeededRepositories) -> RepositoryBundl
     RepositoryBundles {
         services: Arc::clone(&seeded.services),
         coordination: Arc::clone(&seeded.coordination),
-    }
-}
-
-pub(super) fn new_plugins(inputs: &PluginInputs) -> Plugins {
-    Plugins {
-        subject_providers: inputs.subject_providers.clone(),
     }
 }
 

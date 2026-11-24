@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
+use super::{AppContext, ConfigPlane, DataPlane, Subsystems};
 
 impl std::fmt::Debug for AppContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -29,14 +29,6 @@ impl std::fmt::Debug for ConfigPlane {
             .field("boot", &self.boot)
             .field("route_classifier", &"RouteClassifier")
             .field("build", &self.build)
-            .finish()
-    }
-}
-
-impl std::fmt::Debug for Plugins {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Plugins")
-            .field("subject_providers", &self.subject_providers)
             .finish()
     }
 }

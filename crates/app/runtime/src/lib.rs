@@ -39,7 +39,7 @@ pub use builder::kernel_state::{
 };
 pub use builder::{AppContextBuilder, discover_vertex_models};
 pub use context::{
-    AppContext, ConfigPlane, ContextPlanes, DataPlane, Plugins, ShutdownRequest, Subsystems,
+    AppContext, ConfigPlane, ContextPlanes, DataPlane, ShutdownRequest, Subsystems,
     config_plane_set, load_content_config, reload_governance,
 };
 pub use database_context::DatabaseContext;

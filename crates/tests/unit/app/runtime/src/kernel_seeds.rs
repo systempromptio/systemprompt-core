@@ -199,6 +199,22 @@ fn host_seed_names(state: &Dependencies) -> (BTreeSet<&'static str>, BTreeSet<&'
     (open, sealed)
 }
 
+const CONTEXT_BUILT: [&str; 13] = [
+    "alloc::sync::Arc<dyn systemprompt_governance::authz::hook::AuthzDecisionHook>",
+    "alloc::sync::Arc<systemprompt_database::repository::coordination::CoordinationRepositories>",
+    "alloc::sync::Arc<systemprompt_database::repository::service::repo::ServiceRepository>",
+    "alloc::sync::Arc<systemprompt_events::services::bridge_handle::EventBridgeHandle>",
+    "alloc::sync::Arc<systemprompt_models::routing::RouteClassifier>",
+    "alloc::sync::Arc<systemprompt_runtime::schema_currency::SchemaState>",
+    "systemprompt_loader::boot::BootContext",
+    "systemprompt_loader::services_state::ServicesState",
+    "systemprompt_logging::runtime::LoggingRuntime",
+    "systemprompt_models::build::BuildIdentity",
+    "systemprompt_runtime::builder::kernel_binders::PendingBinders",
+    "systemprompt_runtime::context::shutdown::ShutdownRequest",
+    "systemprompt_traits::config_watch::ConfigWatch<systemprompt_governance::policy::engine::GovernanceEngine>",
+];
+
 #[tokio::test]
 async fn the_fixture_seed_set_names_the_hosts_open_and_sealed_types() {
     let host = kernel_state().await;
@@ -235,7 +251,7 @@ async fn the_fixture_seed_set_names_the_hosts_open_and_sealed_types() {
         .collect();
     let host_sealed: BTreeSet<_> = host_sealed
         .into_iter()
-        .filter(|name| !API_ONLY_SEEDS.contains(name))
+        .filter(|name| !API_ONLY_SEEDS.contains(name) && !CONTEXT_BUILT.contains(name))
         .collect();
     for (kind, fixture, host) in [
         ("open", &fixture_open, &host_open),
