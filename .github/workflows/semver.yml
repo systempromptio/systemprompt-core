@@ -48,7 +48,15 @@ jobs:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - run: rustup show
-      - uses: ./.github/actions/sccache
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: cargo-semver-checks@0.51.0

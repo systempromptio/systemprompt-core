@@ -168,7 +168,15 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: ./.github/actions/sccache
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - run: cargo build --workspace --locked
       # The `systemprompt` and bridge binaries the subprocess fixtures spawn.
       # Built here, beside the workspace build that has just compiled their
@@ -180,8 +188,7 @@ jobs:
           bridge_target=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
           mkdir -p test-bins
           cp target/debug/systemprompt "$bridge_target/debug/systemprompt-bridge" test-bins/
-      - if: env.RUSTC_WRAPPER == 'sccache'
-        run: sccache --show-stats
+      - run: sccache --show-stats || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-bins
@@ -204,7 +211,15 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
-      - uses: ./.github/actions/sccache
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - run: cargo build -p systemprompt --no-default-features --features files-office,files-collab,api --locked
       - name: No engine crate in the graph
         run: |
@@ -226,15 +241,22 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
-      - uses: ./.github/actions/sccache
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - name: Build migrator
         run: |
           cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
           tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
           mkdir -p test-migrator
           cp "$tests_target/debug/systemprompt-test-migrate" test-migrator/
-      - if: env.RUSTC_WRAPPER == 'sccache'
-        run: sccache --show-stats
+      - run: sccache --show-stats || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-migrator
@@ -285,7 +307,15 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: ./.github/actions/sccache
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Start sccache, or compile without it
+        shell: bash
+        # Why: the sccache server waits a fixed 10 s for the Actions cache at startup
+        # and the job then fails before compiling; without a server, rustc runs bare.
+        run: |
+          for attempt in 1 2 3; do sccache --start-server && exit 0; sleep 10; done
+          echo "::warning::sccache did not start; compiling without it"
+          echo "RUSTC_WRAPPER=" >> "$GITHUB_ENV"
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: cargo-nextest@0.9.146
@@ -311,8 +341,7 @@ jobs:
       - name: Report test lockfile drift
         if: always()
         run: git diff --exit-code -- crates/tests/Cargo.lock
-      - if: env.RUSTC_WRAPPER == 'sccache'
-        run: sccache --show-stats
+      - run: sccache --show-stats || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-tools-${{ matrix.set }}

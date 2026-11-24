@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.86.1] - 2026-11-23
+
+### Fixed
+
+- **Runtime:** the `brain` toolset id is compiled only with the `brain` feature, so a build of `systemprompt-runtime` without it no longer fails `-D warnings` on dead code.
+
 ## [0.86.0] - 2026-11-23
 
 ### Breaking
