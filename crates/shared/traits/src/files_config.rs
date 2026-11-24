@@ -1,5 +1,6 @@
-//! The facts of the files configuration a host reads without naming the
-//! files member: the public `/files` URL prefix, the writable files root,
+//! The files configuration facts a host reads without naming the files member.
+//!
+//! They are the public `/files` URL prefix, the writable files root,
 //! the configured `Cache-Control` of stored files and whether the document
 //! store is enabled. The files member provides it open
 //! (`Arc<FilesConfigView>`), built from its loaded configuration; with the

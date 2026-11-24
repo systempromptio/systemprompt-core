@@ -149,7 +149,7 @@ impl A2aRunnerService {
                     signing_keys,
                     config.jwt_issuer.clone(),
                 )),
-                Arc::clone(config),
+                config,
             ),
             runner,
         )

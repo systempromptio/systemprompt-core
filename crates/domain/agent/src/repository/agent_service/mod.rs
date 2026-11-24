@@ -27,6 +27,13 @@ pub struct AgentServerIdRow {
     pub name: AgentName,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct SpawnedProcess<'a> {
+    pid: u32,
+    spawn_nonce: &'a SpawnNonce,
+    port: u16,
+}
+
 #[derive(Debug, Clone)]
 pub struct AgentServiceRepository {
     services: ServiceRepository,
@@ -45,7 +52,12 @@ impl AgentServiceRepository {
         spawn_nonce: &SpawnNonce,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.register_process(name, pid, spawn_nonce, port, ServiceStatus::Running)
+        let process = SpawnedProcess {
+            pid,
+            spawn_nonce,
+            port,
+        };
+        self.register_process(name, process, ServiceStatus::Running)
             .await
     }
 
@@ -56,18 +68,26 @@ impl AgentServiceRepository {
         spawn_nonce: &SpawnNonce,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.register_process(name, pid, spawn_nonce, port, ServiceStatus::Starting)
+        let process = SpawnedProcess {
+            pid,
+            spawn_nonce,
+            port,
+        };
+        self.register_process(name, process, ServiceStatus::Starting)
             .await
     }
 
     async fn register_process(
         &self,
         name: &AgentName,
-        pid: u32,
-        spawn_nonce: &SpawnNonce,
-        port: u16,
+        process: SpawnedProcess<'_>,
         status: ServiceStatus,
     ) -> Result<(), RepositoryError> {
+        let SpawnedProcess {
+            pid,
+            spawn_nonce,
+            port,
+        } = process;
         self.remove_agent_service(name).await?;
         self.services
             .upsert_service_process(UpsertServiceProcessInput {

@@ -104,12 +104,18 @@ impl Default for AnalyticsQueueConfig {
     }
 }
 
+const DEFAULT_ANALYTICS_QUEUE_CAPACITY: std::num::NonZeroU32 =
+    std::num::NonZeroU32::new(8192).expect("the default analytics queue capacity is non-zero");
+
+const DEFAULT_ANALYTICS_WRITERS: std::num::NonZeroU32 =
+    std::num::NonZeroU32::new(8).expect("the default analytics writer count is non-zero");
+
 const fn default_analytics_queue_capacity() -> std::num::NonZeroU32 {
-    std::num::NonZeroU32::new(8192).expect("non-zero")
+    DEFAULT_ANALYTICS_QUEUE_CAPACITY
 }
 
 const fn default_analytics_writers() -> std::num::NonZeroU32 {
-    std::num::NonZeroU32::new(8).expect("non-zero")
+    DEFAULT_ANALYTICS_WRITERS
 }
 
 impl ServerConfig {

@@ -59,7 +59,7 @@ async fn a_ttl_beyond_chrono_range_is_refused_before_anything_is_issued() {
         ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_token_authority(ISSUER),
-        systemprompt_test_fixtures::test_config(),
+        &systemprompt_test_fixtures::test_config(),
     );
 
     let err = service
@@ -87,7 +87,7 @@ async fn issue_without_purpose_mints_no_mcp_token() {
         ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_token_authority(ISSUER),
-        systemprompt_test_fixtures::test_config(),
+        &systemprompt_test_fixtures::test_config(),
     );
 
     let creds = service
@@ -117,7 +117,7 @@ async fn revoke_revokes_the_mcp_token_jti() {
         ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_token_authority(ISSUER),
-        systemprompt_test_fixtures::test_config(),
+        &systemprompt_test_fixtures::test_config(),
     );
 
     let creds = service

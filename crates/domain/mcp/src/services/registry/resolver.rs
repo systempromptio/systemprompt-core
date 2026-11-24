@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ExtensionBinaryIndex;
 use systemprompt_manifest::Config;
-use systemprompt_models::mcp::McpServerType;
+use systemprompt_models::mcp::{Deployment, McpServerType};
 
 use crate::error::{McpDomainError, McpDomainResult};
 use crate::services::deployment::DeploymentService;
@@ -80,21 +80,12 @@ impl RegistryService {
                 continue;
             }
 
-            let crate_path = match (deployment.server_type, deployment.binary.as_deref()) {
-                (McpServerType::Internal, Some(binary)) => registry.get_path(binary)?,
-                (McpServerType::Internal, None)
-                    if deployment.enabled_toolsets().next().is_some() =>
-                {
-                    PathBuf::new()
-                },
-                (McpServerType::Internal, None) => {
-                    return Err(McpDomainError::Configuration(
-                        crate::error::ConfigurationIssue::NoBinaryOrToolsets {
-                            server: server_name.to_string(),
-                        },
-                    ));
-                },
-                (McpServerType::External, _) => PathBuf::new(),
+            let Some(crate_path) = crate_path(&registry, deployment)? else {
+                return Err(McpDomainError::Configuration(
+                    crate::error::ConfigurationIssue::NoBinaryOrToolsets {
+                        server: server_name.clone(),
+                    },
+                ));
             };
 
             let display_name = deployment
@@ -182,6 +173,17 @@ impl RegistryService {
             .ok_or_else(|| McpDomainError::ServerNotFound {
                 server: name.to_owned(),
             })
+    }
+}
+
+fn crate_path(
+    registry: &ExtensionBinaryIndex,
+    deployment: &Deployment,
+) -> McpDomainResult<Option<PathBuf>> {
+    match (deployment.server_type, deployment.binary.as_deref()) {
+        (McpServerType::Internal, Some(binary)) => Ok(Some(registry.get_path(binary)?)),
+        (McpServerType::Internal, None) if deployment.enabled_toolsets().next().is_none() => Ok(None),
+        (McpServerType::Internal | McpServerType::External, _) => Ok(Some(PathBuf::new())),
     }
 }
 

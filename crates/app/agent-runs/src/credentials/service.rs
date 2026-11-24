@@ -55,7 +55,7 @@ impl RunCredentialService {
         repos: RunCredentialRepositories,
         lifetime: ApiKeyLifetime,
         authority: Arc<dyn TokenAuthority>,
-        config: Arc<Config>,
+        config: &Config,
     ) -> Self {
         let RunCredentialRepositories {
             users,

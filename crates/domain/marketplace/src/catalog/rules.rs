@@ -132,7 +132,7 @@ pub(crate) fn rule_entry(
 ) -> Result<RuleEntry, MarketplaceError> {
     if config.id.as_str() != dir_name {
         return Err(MarketplaceError::RuleIdMismatch {
-            declared: config.id.clone(),
+            declared: config.id,
             dir_name: dir_name.to_owned(),
         });
     }

@@ -65,7 +65,7 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
             ),
             systemprompt_users::ApiKeyLifetime::unbounded(),
             systemprompt_test_fixtures::test_token_authority("https://issuer.test"),
-            systemprompt_test_fixtures::test_config(),
+            &systemprompt_test_fixtures::test_config(),
         ),
         config,
     )

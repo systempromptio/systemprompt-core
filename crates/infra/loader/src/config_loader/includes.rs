@@ -35,10 +35,10 @@ pub(super) fn resolve_includes_recursively(
 
     let canonical = match fs::canonicalize(&full_path) {
         Ok(canonical) => canonical,
-        Err(_) if staged_source.is_some() => full_path.clone(),
+        Err(_) if staged_source.is_some() => full_path,
         Err(e) => {
             return Err(ConfigLoadError::Io {
-                path: full_path.clone(),
+                path: full_path,
                 source: e,
             });
         },

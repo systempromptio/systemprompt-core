@@ -63,7 +63,7 @@ pub(crate) async fn handler(r: &Rig, script: &str, source: Option<Source>) -> A2
             ),
             systemprompt_users::ApiKeyLifetime::unbounded(),
             systemprompt_test_fixtures::test_token_authority("https://issuer.test"),
-            systemprompt_test_fixtures::test_config(),
+            &systemprompt_test_fixtures::test_config(),
         ),
         config,
     )

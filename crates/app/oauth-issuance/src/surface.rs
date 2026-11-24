@@ -45,8 +45,9 @@ pub struct IdentityRouteState<'a> {
     pub host: IdentityHostHandles,
 }
 
-/// The runtime-configuration facts the identity surface reads: the external
-/// URL and site name (`WebAuthn` relying party, SSO redirects, the session
+/// The runtime-configuration facts the identity surface reads.
+///
+/// They are the external URL and site name (`WebAuthn` relying party, SSO redirects, the session
 /// cookie and the bridge token endpoint), the server URL (RFC 7592 client
 /// configuration URIs), the JWT issuer, audiences and token lifetimes, the
 /// resource audiences, trusted issuers and ID-JAG lifetime token exchange
@@ -92,7 +93,7 @@ impl IdentityConfigView {
             allow_dynamic_client_registration: config.allow_dynamic_client_registration,
             login_page_url: config.login_page_url.clone(),
             authorize: config.authorize,
-            ui_session: config.ui_session.clone(),
+            ui_session: config.ui_session,
             api_key_max_lifetime_days: config.api_key_max_lifetime_days,
         }
     }

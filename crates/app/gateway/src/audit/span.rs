@@ -48,7 +48,7 @@ impl GatewayAudit {
             status: outcome.status,
             error_message: outcome.error.map(str::to_owned),
             user_id: self.ctx.user_id.clone(),
-            actor: record.actor.clone(),
+            actor: record.actor,
             session_id: self.ctx.session_id.clone(),
             context_id: self.ctx.context_id.clone(),
             trace_id: self.ctx.trace_id.clone(),

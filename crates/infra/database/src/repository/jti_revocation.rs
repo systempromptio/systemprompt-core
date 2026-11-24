@@ -1,4 +1,5 @@
-//! The token revocation check the request authenticator runs on every host:
+//! The token revocation check the request authenticator runs on every host.
+//!
 //! [`JtiRevocationChecker`] reads `oauth_jti_revocations` through its
 //! [`JtiRevocationCache`] and fails closed. The kernel seeds it as the
 //! `DynTokenRevocations` before any member provides, so the authenticator

@@ -71,7 +71,7 @@ async fn issue_then_revoke_round_trips_every_credential() {
         ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_token_authority(ISSUER),
-        systemprompt_test_fixtures::test_config(),
+        &systemprompt_test_fixtures::test_config(),
     );
 
     let creds = service
@@ -174,7 +174,7 @@ async fn issue_without_plugin_mints_no_hook_token() {
         ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_token_authority(ISSUER),
-        systemprompt_test_fixtures::test_config(),
+        &systemprompt_test_fixtures::test_config(),
     );
     let creds = service.issue(request(&user, None)).await.expect("issue");
     assert!(creds.hook_token.is_none());
@@ -196,7 +196,7 @@ async fn issue_for_unknown_user_leaves_no_live_key() {
         ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_token_authority(ISSUER),
-        systemprompt_test_fixtures::test_config(),
+        &systemprompt_test_fixtures::test_config(),
     );
     assert!(service.issue(request(&ghost, None)).await.is_err());
     let live: i64 = sqlx::query_scalar(

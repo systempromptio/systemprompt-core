@@ -68,7 +68,7 @@ impl CimdFetcher {
             return Err(OauthError::InvalidClientMetadata(
                 ClientMetadataError::ClientIdMismatch {
                     expected: client_id.clone(),
-                    got: metadata.client_id.clone(),
+                    got: metadata.client_id,
                 },
             ));
         }

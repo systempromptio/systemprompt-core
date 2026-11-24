@@ -140,7 +140,7 @@ fn terminate(child: &mut Child) -> Result<()> {
     Ok(())
 }
 
-fn failed() -> ManagedError {
+const fn failed() -> ManagedError {
     ManagedError::Conflict {
         reason: "Git operation failed or exceeded its execution/output limit; no publication selection changed",
     }

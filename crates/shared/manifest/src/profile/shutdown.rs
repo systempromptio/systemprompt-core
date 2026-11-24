@@ -33,7 +33,9 @@ pub const MAX_PRE_STOP_DELAY_SECS: u64 = 600;
 pub const MAX_DRAIN_GRACE_SECS: u64 = 86_400;
 pub const STREAM_FLUSH_GRACE_SECS: u64 = 2;
 
-/// Shutdown deadlines in seconds. The defaults: no pre-stop delay, a 10 s
+/// Shutdown deadlines in seconds.
+///
+/// The defaults: no pre-stop delay, a 10 s
 /// drain extended to the 600 s longest permitted stream while a stream is
 /// open, 5 s for children and background work, and a 10 s forced-exit
 /// backstop.
