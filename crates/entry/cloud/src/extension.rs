@@ -1,7 +1,9 @@
-//! The cloud member: behind the `cli` feature, the top-level `cloud` command
-//! group with the `CloudOperator` grant the reserved `cloud` path confers;
-//! behind the `http` feature, the open `DynSyncSurface` the API builds the
-//! services-tree sync routes from (`cloud` disabled: `/api/v1/sync` is 404).
+//! The cloud member's contributions.
+//!
+//! Behind the `cli` feature, the top-level `cloud` command group with the
+//! `CloudOperator` grant the reserved `cloud` path confers; behind the `http`
+//! feature, the open `DynSyncSurface` the API builds the services-tree sync
+//! routes from (`cloud` disabled: `/api/v1/sync` is 404).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -1,8 +1,10 @@
-//! The MCP HTTP surface: [`registry_routes`], the one route set
-//! [`crate::extension::McpHttpExtension`] contributes, and
-//! [`McpHttpSurface`], the [`McpSurface`] the API mounts the tool-execution
-//! lookup from under its own declaration (authenticated, a user context, the
-//! `mcp` rate scope and budget).
+//! The MCP HTTP surface.
+//!
+//! [`registry_routes`] is the one route set
+//! [`crate::extension::McpHttpExtension`] contributes; [`McpHttpSurface`] is
+//! the [`McpSurface`] the API mounts the tool-execution lookup from under its
+//! own declaration (authenticated, a user context, the `mcp` rate scope and
+//! budget).
 //!
 //! `GET /api/v1/mcp/registry` lists the enabled MCP servers with the endpoint
 //! a client connects to, behind the public gate with a public request

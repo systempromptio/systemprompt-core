@@ -25,7 +25,9 @@ systemprompt-storage = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx"] }
 systemprompt-identifiers = { workspace = true }
-systemprompt-marketplace = { workspace = true }
+systemprompt-marketplace = { workspace = true, features = ["http"] }
+systemprompt-marketplace-entry = { workspace = true, features = ["http"] }
+systemprompt-mcp-entry = { workspace = true, features = ["http"] }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-config = { workspace = true }

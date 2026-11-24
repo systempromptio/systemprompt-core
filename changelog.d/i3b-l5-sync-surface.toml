@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Routes"
+text = "The services-tree sync routes under `/api/v1/sync` are built by the `cloud` member's `SyncSurface`; the API keeps their declaration (service callers only, a user request context). The `cloud` member is admitted whenever the `cloud` feature is on; with it disabled the routes are not mounted (404). `systemprompt_api::routes::{sync, sync_router}` are removed."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::sync` and `routes::sync_router` are removed; `/api/v1/sync` mounts from the `cloud` member's `DynSyncSurface`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "Feature `router`: `router::{SyncSurface, DynSyncSurface, McpSurface, DynMcpSurface, McpRoutes}`, member route surfaces the API mounts under its own layering."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Added"
+text = "Feature `http`: `http::{CloudSyncSurface, SyncState, router}`, the services-tree manifest and download routes, provided as `DynSyncSurface`."

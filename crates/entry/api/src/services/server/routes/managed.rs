@@ -66,7 +66,7 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Rout
     ) else {
         return Ok(router);
     };
-    let routes = surface
+    let built = surface
         .build(ManagedRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
             catalog: Arc::new(BridgeConsumerCatalog {
@@ -74,7 +74,7 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Rout
             }),
         })
         .map_err(|source| RouteMountError::initialization("managed_consumer", source))?;
-    let protected = routes.protect(|consumer| {
+    let protected = built.protect(|consumer| {
         mount.protect(
             consumer,
             &RouteProtection::new(

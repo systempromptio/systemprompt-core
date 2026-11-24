@@ -98,15 +98,7 @@ impl ProxyService {
         super::fixed_arguments::apply(&server_config.tools, &mut body);
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
-        let sinks = self.audit.clone().map(|audit| AuditSinks {
-            intent_claims: audit.intent_claims.map(|intents| {
-                systemprompt_mcp::IntentClaimService::new(intents, Arc::clone(&audit.executions))
-            }),
-            executions: audit.executions,
-            ingest: audit.ingest,
-            background: ctx.background_tasks().clone(),
-        });
-        let audit = build_audit(sinks, &req_ctx, service_name, &body)?;
+        let audit = build_audit(self.audit_sinks(&ctx), &req_ctx, service_name, &body)?;
         let outbound = outbound_headers(&incoming_headers, target.headers);
 
         let method = RequestBuilder::parse_method(&method_str)?;
@@ -141,6 +133,19 @@ impl ProxyService {
             Some(audit) => audit::record(response, audit).await.map_err(to_invalid),
             None => ResponseHandler::build_response(response).map_err(to_invalid),
         }
+    }
+}
+
+impl ProxyService {
+    fn audit_sinks(&self, ctx: &AppContext) -> Option<AuditSinks> {
+        self.audit.clone().map(|audit| AuditSinks {
+            intent_claims: audit.intent_claims.map(|intents| {
+                systemprompt_mcp::IntentClaimService::new(intents, Arc::clone(&audit.executions))
+            }),
+            executions: audit.executions,
+            ingest: audit.ingest,
+            background: ctx.background_tasks().clone(),
+        })
     }
 }
 

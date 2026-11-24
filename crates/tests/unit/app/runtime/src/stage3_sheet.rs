@@ -7,16 +7,22 @@ use std::sync::Arc;
 
 use systemprompt_ai::PersonalProviderCredentials;
 use systemprompt_ai::repository::AiRepositories;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_documents::tokens::DocumentLinkTokens;
 use systemprompt_extension::reserved::ConferralRow;
+use systemprompt_extension::router::{DynMcpSurface, DynSyncSurface};
 use systemprompt_extension::{DynBrainSink, Resolved, StandingTag};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_gateway::{GatewayAtRest, GatewayEngines};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
+use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_marketplace::surface::DynManagedSurface;
+use systemprompt_marketplace_entry::http::MarketplaceHttpSettings;
 use systemprompt_mcp::ArtifactIngest;
+use systemprompt_mcp_entry::http::McpHttpRepositories;
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations, TokenAuthority};
 use systemprompt_runtime::{AppContext, Kernel};
@@ -24,9 +30,9 @@ use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, CacheEpochView, CacheEpochs,
-    DynAiSessionProvider, DynContextDirectory, DynGatewaySessionMint, DynSessionContextIssuer,
-    DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters, DynSignInSessions, FileStorage,
-    SecretStore,
+    DynAiSessionProvider, DynContextDirectory, DynGatewaySessionMint, DynInventoryPublisher,
+    DynSessionContextIssuer, DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters,
+    DynSignInSessions, FileStorage, SecretStore,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -384,4 +390,61 @@ async fn identity_http_alone_reads_the_conferred_sign_in_sessions() {
     let ctx = context().await;
     conferred_on_identity_http_alone::<DynSignInSessions>(&ctx);
     assert!(!route_reads::<DynSessionStore>(&ctx, "identity-http"));
+}
+
+#[tokio::test]
+async fn mcp_http_alone_reads_its_tool_execution_ledger() {
+    let ctx = context().await;
+    assert!(route_reads::<Arc<McpHttpRepositories>>(&ctx, "mcp-http"));
+    for owner in [
+        "gateway-http",
+        "files-http",
+        "agent-http",
+        "marketplace-http",
+        "cloud",
+    ] {
+        assert!(
+            !route_reads::<Arc<McpHttpRepositories>>(&ctx, owner),
+            "{owner}"
+        );
+    }
+    assert!(!install_reads::<Arc<McpHttpRepositories>>(&ctx));
+    assert!(!member_command_reads::<Arc<McpHttpRepositories>>(&ctx));
+    assert!(!job_reads::<Arc<McpHttpRepositories>>(&ctx));
+}
+
+#[tokio::test]
+async fn the_member_surfaces_are_open_and_their_route_state_resolves() {
+    let ctx = context().await;
+    let state = ctx.kernel().state();
+    assert!(state.find::<DynMcpSurface>().is_some());
+    assert!(state.find::<DynManagedSurface>().is_some());
+    assert!(state.find::<DynSyncSurface>().is_some());
+    assert!(route_reads::<Arc<AppPaths>>(&ctx, "cloud"));
+    assert!(route_reads::<Arc<ManagedRepository>>(
+        &ctx,
+        "marketplace-http"
+    ));
+    assert!(route_reads::<MarketplaceHttpSettings>(
+        &ctx,
+        "marketplace-http"
+    ));
+}
+
+#[tokio::test]
+async fn the_inventory_publisher_stays_sealed_from_the_refresh_job() {
+    let ctx = context().await;
+    assert!(
+        ctx.kernel()
+            .state()
+            .find::<DynInventoryPublisher>()
+            .is_some()
+    );
+    assert!(!job_reads::<DynInventoryPublisher>(&ctx));
+    assert!(!member_command_reads::<DynInventoryPublisher>(&ctx));
+    assert!(!install_reads::<DynInventoryPublisher>(&ctx));
+    assert!(!route_reads::<DynInventoryPublisher>(
+        &ctx,
+        "marketplace-http"
+    ));
 }

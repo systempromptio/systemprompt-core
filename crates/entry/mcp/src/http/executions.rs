@@ -1,6 +1,9 @@
-//! Tool-execution lookup: `GET /executions/{id}` returns one execution's input
+//! Tool-execution lookup.
+//!
+//! `GET /executions/{id}` returns one execution's input
 //! and output to the user it belongs to (or an admin). An execution owned by
 //! another user answers exactly like a missing one, so ids cannot be probed.
+//!
 //! The ledger is the `ToolUsageRepository` the member builds in its provide
 //! fn ([`crate::extension`]).
 //!

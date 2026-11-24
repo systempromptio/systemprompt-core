@@ -39,11 +39,11 @@ pub(in crate::services::server::routes) fn mount_mcp(
     ) else {
         return Ok(router);
     };
-    let routes = surface.build(&kernel.route_scoped(&owner, standing, &[]))?;
+    let built = surface.build(&kernel.route_scoped(&owner, standing, &[]))?;
 
     let mcp_rate = RateLimit::new("mcp", RateBudget::Mcp);
     let executions = mount.protect(
-        routes.executions,
+        built.executions,
         &RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
             .with_rate_limit(mcp_rate),
         ApiPaths::MCP_BASE,
