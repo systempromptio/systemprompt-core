@@ -78,6 +78,7 @@ impl Extension for AiExtension {
                 ConferralRow::GatewayProviderCredentials,
                 crate::provides::personal_credentials,
             )
+            .provide_sealed(crate::provides::personal_credential_names)
             .provide_sealed(
                 |r: &Resolved<'_>| -> Result<DynSafetyFindingsReader, ProvideError> {
                     let db = r.get::<DbPool>()?;

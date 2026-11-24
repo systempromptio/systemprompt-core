@@ -197,13 +197,13 @@ async fn personal_keys(
     user_id: &systemprompt_identifiers::UserId,
 ) -> Result<BTreeSet<String>, ApiHttpError> {
     let caller = systemprompt_extension::router::GatewayPrincipal::__from_kernel(user_id.clone());
-    let stored = ctx
+    let names = ctx
         .kernel()
         .state()
-        .get::<Arc<systemprompt_ai::PersonalProviderCredentials>>()
-        .map_err(|e| BridgeError::internal("the personal credential view is unavailable", e))?
-        .list(&caller)
+        .get::<systemprompt_extension::router::DynPersonalCredentialNames>()
+        .map_err(|e| BridgeError::internal("the personal credential names are unavailable", e))?;
+    Ok(names
+        .credential_names(&caller)
         .await
-        .map_err(|e| BridgeError::internal("personal key lookup failed", e))?;
-    Ok(stored.into_iter().map(|meta| meta.credential).collect())
+        .map_err(|e| BridgeError::internal("personal key lookup failed", e))?)
 }

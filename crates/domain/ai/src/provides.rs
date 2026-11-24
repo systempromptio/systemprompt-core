@@ -51,6 +51,12 @@ pub(crate) fn personal_credentials(
     )))
 }
 
+pub(crate) fn personal_credential_names(
+    r: &Resolved<'_>,
+) -> Result<systemprompt_extension::router::DynPersonalCredentialNames, ProvideError> {
+    Ok(personal_credentials(r)?)
+}
+
 pub(crate) fn inference(r: &Resolved<'_>) -> Result<DynAiProvider, ProvideError> {
     let db = r.get::<DbPool>()?;
     let services = r.get::<ServicesView>()?;
