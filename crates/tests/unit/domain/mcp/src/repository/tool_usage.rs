@@ -147,7 +147,15 @@ async fn start_and_complete_execution_roundtrip() {
         started_at,
         completed_at: Some(completed_at),
     };
-    repo.complete_execution(&exec_id, &result).await.unwrap();
+    let subject = systemprompt_mcp::repository::ToolCallSubject {
+        tool_name: &request.tool_name,
+        server_name: &request.server_name,
+        context: &request.context,
+        source: request.source,
+    };
+    repo.complete_execution(&exec_id, subject, &result)
+        .await
+        .unwrap();
 
     let final_row = repo.find_by_id(&exec_id).await.unwrap().unwrap();
     assert_eq!(final_row.status, "success");

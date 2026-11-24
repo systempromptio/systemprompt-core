@@ -179,6 +179,7 @@ impl AppContextBuilder {
                 documents: documents_slot,
                 catalog_roles: composition::catalog_roles(&self.admitted),
                 escalation: systemprompt_traits::EscalationDelivery::InProcess,
+                audit_spans: Arc::new(log_sink.clone()),
             },
             signing_keys: &signing_keys,
             token_authority: &token_authority,
@@ -221,6 +222,7 @@ impl AppContextBuilder {
                 epochs: &cache_epochs,
                 providers: &*r.get::<Arc<SubjectProviderSet>>()?,
                 hooks: &*r.get::<Arc<AuthzHooks>>()?,
+                audit_spans: r.optional::<systemprompt_models::audit_spans::DynAuditSpanSink>(),
             },
         )?;
         binders.base.authz_hook.bind(Arc::clone(&authz_hook))?;

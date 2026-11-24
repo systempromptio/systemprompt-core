@@ -7,6 +7,7 @@ use opentelemetry_proto::tonic::common::v1::any_value::Value;
 use opentelemetry_proto::tonic::common::v1::{AnyValue, InstrumentationScope, KeyValue};
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use systemprompt_identifiers::InstanceId;
+use systemprompt_models::attribution::AttributionEntry;
 
 pub(super) const SERVICE_NAME: &str = "systemprompt";
 pub(super) const SCOPE_NAME: &str = "systemprompt";
@@ -28,6 +29,37 @@ impl Attrs {
     pub(super) fn opt_str(&mut self, key: &str, value: Option<&str>) -> &mut Self {
         if let Some(value) = value.filter(|v| !v.is_empty()) {
             self.text(key, value);
+        }
+        self
+    }
+
+    pub(super) fn int(&mut self, key: &str, value: i64) -> &mut Self {
+        self.push(key, Value::IntValue(value));
+        self
+    }
+
+    pub(super) fn opt_int(&mut self, key: &str, value: Option<impl Into<i64>>) -> &mut Self {
+        if let Some(value) = value {
+            self.int(key, value.into());
+        }
+        self
+    }
+
+    pub(super) fn float(&mut self, key: &str, value: f64) -> &mut Self {
+        self.push(key, Value::DoubleValue(value));
+        self
+    }
+
+    pub(super) fn flag(&mut self, key: &str, value: bool) -> &mut Self {
+        self.push(key, Value::BoolValue(value));
+        self
+    }
+
+    pub(super) fn scopes(&mut self, entries: &[AttributionEntry]) -> &mut Self {
+        for entry in entries {
+            let key = format!("systemprompt.scope.{}", entry.dimension);
+            self.text(&key, &entry.value)
+                .text(&format!("{key}.source"), entry.source.as_str());
         }
         self
     }

@@ -92,6 +92,12 @@ impl OtlpFeed {
         }
     }
 
+    pub fn audit_span(&self, span: Span) {
+        if self.traces {
+            self.offer(OtlpSignal::Traces, Item::Span(Box::new(span)));
+        }
+    }
+
     fn offer(&self, signal: OtlpSignal, item: Item) {
         if self.sender.try_send(item).is_err() {
             count_dropped(&self.dropped, signal, 1);

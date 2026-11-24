@@ -26,6 +26,7 @@ pub(crate) struct AuthzBuilt<'a> {
     pub(crate) providers: &'a SubjectProviderSet,
     pub(crate) hooks: &'a AuthzHooks,
     pub(crate) epochs: &'a CacheEpochs,
+    pub(crate) audit_spans: Option<systemprompt_models::audit_spans::DynAuditSpanSink>,
 }
 
 pub(crate) fn authz_stage(
@@ -46,6 +47,7 @@ pub(crate) fn authz_stage(
             sources: chain_sources(&services.config()),
             epochs: built.epochs.clone(),
             providers: providers.clone(),
+            audit_spans: built.audit_spans.clone(),
         },
     )?;
     let market = PluginInputs {

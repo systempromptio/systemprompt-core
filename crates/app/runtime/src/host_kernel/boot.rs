@@ -137,6 +137,7 @@ impl HostKernel {
             documents: documents_slot,
             catalog_roles: crate::builder::composition::catalog_roles(&admitted),
             escalation: systemprompt_traits::EscalationDelivery::Consumer,
+            audit_spans: Arc::new(log_sink.clone()),
         });
         let handle: Arc<dyn DatabaseHandle> =
             Arc::<systemprompt_database::Database>::clone(&database);
@@ -160,6 +161,7 @@ impl HostKernel {
                     .get::<Arc<SubjectProviderSet>>()
                     .map_err(RuntimeError::from)?,
                 hooks: &*r.get::<Arc<AuthzHooks>>().map_err(RuntimeError::from)?,
+                audit_spans: r.optional::<systemprompt_models::audit_spans::DynAuditSpanSink>(),
             },
         )?;
         binders

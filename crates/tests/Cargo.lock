@@ -11309,6 +11309,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-manifest",
+ "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
  "systemprompt-traits",

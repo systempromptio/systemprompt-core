@@ -111,7 +111,7 @@ impl ToolExecution for McpToolExecutor {
             Err(e) => (Err(e), None),
         };
         let execution_result = Self::build_execution_result(&response, output_value, started_at);
-        self.record_completion(&tool_name, &exec_id, &execution_result)
+        self.record_completion(&tool_name, &exec_id, &context, &execution_result)
             .await;
         response
     }

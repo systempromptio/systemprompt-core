@@ -4,11 +4,13 @@
 //! return: a handle onto the database layer inside the installed `tracing`
 //! subscriber. It enqueues entries persisted outside a `tracing` call, reports
 //! the drop count, and flushes the writer on shutdown; with `otel` it also
-//! starts the live OTLP export of the pipeline. [`LoggingRuntime`]
-//! pairs a sink with the resolved platform owner, so originator-less telemetry
-//! is attributed without a process-wide cell. The runtime builds it once at
-//! bootstrap and stores it on `AppContext`; code with no context in scope is
-//! handed the value through its constructor.
+//! starts the live OTLP export of the pipeline, and as the
+//! [`systemprompt_models::audit_spans::AuditSpanSink`] it offers the audit
+//! producers' typed spans to that export (discarded while none runs).
+//! [`LoggingRuntime`] pairs a sink with the resolved platform owner, so
+//! originator-less telemetry is attributed without a process-wide cell. The
+//! runtime builds it once at bootstrap and stores it on `AppContext`; code with
+//! no context in scope is handed the value through its constructor.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -77,6 +79,35 @@ impl LogSink {
             .otlp
             .get()
             .map(crate::otlp::OtlpFeed::dropped)
+    }
+}
+
+impl systemprompt_models::audit_spans::AuditSpanSink for LogSink {
+    fn request(&self, span: systemprompt_models::audit_spans::RequestSpanRecord) {
+        #[cfg(feature = "otel")]
+        if let Some(feed) = self.proxy.shared().otlp.get() {
+            feed.audit_span(crate::otlp::request_span(&span));
+        }
+        #[cfg(not(feature = "otel"))]
+        drop(span);
+    }
+
+    fn tool_call(&self, span: systemprompt_models::audit_spans::ToolCallSpanRecord) {
+        #[cfg(feature = "otel")]
+        if let Some(feed) = self.proxy.shared().otlp.get() {
+            feed.audit_span(crate::otlp::tool_call_span(&span));
+        }
+        #[cfg(not(feature = "otel"))]
+        drop(span);
+    }
+
+    fn governance(&self, span: systemprompt_models::audit_spans::GovernanceSpanRecord) {
+        #[cfg(feature = "otel")]
+        if let Some(feed) = self.proxy.shared().otlp.get() {
+            feed.audit_span(crate::otlp::governance_span(&span));
+        }
+        #[cfg(not(feature = "otel"))]
+        drop(span);
     }
 }
 

@@ -15,6 +15,7 @@ use sqlx::{PgExecutor, PgPool};
 use systemprompt_identifiers::{
     Actor, AgentId, ClientId, ContextId, PluginId, SessionId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::audit_spans::{DynAuditSpanSink, GovernanceSpanRecord};
 use systemprompt_models::errors::RepositoryError;
 
 use crate::authz::types::DecisionTag;
@@ -48,11 +49,18 @@ pub struct GovernanceDecisionRecord<'a> {
 #[derive(Debug, Clone)]
 pub struct GovernanceDecisionRepository {
     pool: std::sync::Arc<PgPool>,
+    spans: Option<DynAuditSpanSink>,
 }
 
 impl GovernanceDecisionRepository {
     pub const fn from_pool(pool: std::sync::Arc<PgPool>) -> Self {
-        Self { pool }
+        Self { pool, spans: None }
+    }
+
+    #[must_use]
+    pub fn with_audit_spans(mut self, spans: Option<DynAuditSpanSink>) -> Self {
+        self.spans = spans;
+        self
     }
 
     pub fn pool(&self) -> &PgPool {
@@ -63,7 +71,11 @@ impl GovernanceDecisionRepository {
         &self,
         record: &GovernanceDecisionRecord<'_>,
     ) -> Result<(), RepositoryError> {
-        insert_governance_decision(self.pool.as_ref(), record).await
+        insert_governance_decision(self.pool.as_ref(), record).await?;
+        if let Some(sink) = &self.spans {
+            sink.governance(governance_span(record));
+        }
+        Ok(())
     }
 }
 
@@ -128,6 +140,24 @@ where
         .increment(1);
     }
     result.map(|_| ()).map_err(RepositoryError::from)
+}
+
+fn governance_span(record: &GovernanceDecisionRecord<'_>) -> GovernanceSpanRecord {
+    let (actor_kind, actor_id) = record.actor.audit_columns();
+    GovernanceSpanRecord {
+        id: record.id.to_owned(),
+        request_id: None,
+        trace_id: record.trace_id.cloned(),
+        decision: record.decision.as_str().to_owned(),
+        policy: record.policy.to_owned(),
+        reason: record.reason.to_owned(),
+        tool_name: record.tool_name.to_owned(),
+        tool_use_id: record.tool_use_id.map(str::to_owned),
+        plugin_id: record.plugin_id.cloned(),
+        actor_kind: actor_kind.to_owned(),
+        actor_id: actor_id.to_owned(),
+        decided_at: chrono::Utc::now(),
+    }
 }
 
 /// One row of the warn-mode rollup: a policy that fired in `mode: warn` for

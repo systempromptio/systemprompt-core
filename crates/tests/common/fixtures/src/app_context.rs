@@ -570,6 +570,7 @@ pub fn fixture_kernel_seed(
             documents: parts.documents,
             catalog_roles: systemprompt_models::authz::CatalogRoleNames::default(),
             escalation: systemprompt_traits::EscalationDelivery::InProcess,
+            audit_spans: Arc::new(systemprompt_logging::LogSink::default()),
         });
     seed
 }

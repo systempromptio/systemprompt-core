@@ -113,6 +113,22 @@ impl GatewayAudit {
         );
         receipt.completion = Some(completion);
         super::journal::record(&self.settlement, receipt).await?;
+        self.emit_request_span(&super::span::SettledOutcome {
+            status: systemprompt_traits::RequestStatus::Completed,
+            error: None,
+            usage: Some([
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.cache_read_tokens,
+                usage.cache_creation_tokens,
+                usage.reasoning_tokens,
+                tokens_used,
+            ]),
+            cost_microdollars: cost,
+            latency_ms,
+            upstream_latency_ms,
+            finish_reason: response.raw_finish_reason.as_deref(),
+        });
         self.after_settlement(response, latency_ms, upstream_latency_ms);
 
         tracing::info!(

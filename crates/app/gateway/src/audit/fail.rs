@@ -65,6 +65,10 @@ impl GatewayAudit {
                 }
             });
         let tokens_recorded = receipt.partial.is_some();
+        let spanned = receipt
+            .partial
+            .as_ref()
+            .map(|p| (p.usage, p.cost, p.upstream_latency));
         let settled = receipt
             .partial
             .as_ref()
@@ -78,6 +82,19 @@ impl GatewayAudit {
         } else {
             journal::settle_unadmitted_failure(&self.settlement, &receipt).await
         };
+        if recorded.is_ok() {
+            self.emit_request_span(&super::span::SettledOutcome {
+                status: RequestStatus::Failed,
+                error: Some(error),
+                usage: spanned.map(|(usage, _, _)| usage),
+                cost_microdollars: spanned.map_or(0, |(_, cost, _)| cost),
+                latency_ms,
+                upstream_latency_ms: spanned
+                    .and_then(|(_, _, upstream)| upstream)
+                    .or_else(|| self.upstream_elapsed_ms()),
+                finish_reason: None,
+            });
+        }
         tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,
