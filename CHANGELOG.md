@@ -2,6 +2,18 @@
 
 ## [0.87.0] - 2026-11-24
 
+### Breaking
+
+- **Breaking:** **Loader:** with `on_fetch_failure: use_last_good`, one failing source no longer turns the whole resolve into `LastGood`. The source is held back on the bundle already cached for it, the others advance, and the resolve returns `Fetched` with the hold recorded. Migrate by reading `BundleCache::read_refusals()`. A source with nothing cached, `fail_closed` and `use_bundled` behave as before.
+- **Breaking:** **API:** `ServicesRefreshResponse` gains `provenance` and `refused`, and `ServicesStatusResponse` gains `refused`. Migrate a struct literal by setting them.
+- **Breaking:** **CLI:** `BundleArgs` gains `requires_core`, and `ActiveReport` gains `held_back`. Migrate a struct literal by setting them to `None`. `services refresh` ends with an error when a source was held back or the composition fell back; it exited as unchanged.
+
+### Added
+
+- **CLI:** `services bundle --requires-core <range>` declares the core versions a bundle loads on; the default is still the packing binary's minor. `services inspect --active` and `cloud doctor` report held-back sources.
+- **API:** `/readyz` and `/health` carry held-back sources under `services_source`, and `GET /admin/services/status` reports a fallback or recovery that happened after boot.
+- **Loader:** a cached bundle is checked against `requires_core` before it is reused.
+
 ### Fixed
 
 - **OAuth:** Allow and Deny on the `/oauth/authorize` consent page are accepted from a browser. The page declared the `no-referrer` policy, under which a browser posts its form with `Origin: null`, and the endpoint answered `403` (since 0.85.0). The consent page and the passkey page now declare `same-origin`, whatever the profile's `referrer_policy`. The endpoint's `Origin` check is unchanged.

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.87.0] - 2026-11-24
+
+### Breaking
+
+- Under `on_fetch_failure: use_last_good` a source that fails is held back on its cached bundle and the resolve returns `Fetched` instead of `LastGood`. Migrate by reading `BundleCache::read_refusals()`.
+
+### Added
+
+- `SourceRefusal`, `RefusalKind`, `BundleCache::{read_refusals, write_refusals}` and `verify::require_core`. A cached bundle is checked against `requires_core` before it is reused.
+
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

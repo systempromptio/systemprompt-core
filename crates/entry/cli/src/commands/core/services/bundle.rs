@@ -1,5 +1,11 @@
 //! `services bundle` — pack a services tree into a signed archive.
 //!
+//! `requires_core` is the range an instance checks before it swaps the
+//! bundle in. It defaults to this binary's minor — the only core this binary
+//! can vouch for — and `--requires-core` states a wider or narrower one that
+//! the author has proven elsewhere, such as a kit validated against the
+//! oldest release its instances run.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -46,6 +52,14 @@ pub struct BundleArgs {
         help = "Refuse to pack any directory outside the marketplace set"
     )]
     pub marketplace_only: bool,
+
+    #[arg(
+        long,
+        value_name = "RANGE",
+        help = "Core versions the bundle loads on, as a semver range (default: >= this binary's \
+                minor)"
+    )]
+    pub requires_core: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -71,7 +85,7 @@ pub fn pack_bundle(args: &BundleArgs, key: Option<&BundleSigningKey>) -> Result<
     let manifest = pack::build_manifest(
         &args.root,
         &args.version,
-        &requires_core(env!("CARGO_PKG_VERSION"))?,
+        &declared_requires_core(args.requires_core.as_deref())?,
         BundleSourceInfo {
             repo: args.source_repo.clone(),
             commit: args.source_commit.clone(),
@@ -126,6 +140,15 @@ fn describe(
         signed_by: signed.signature.as_ref().map(|s| s.key_id.clone()),
         public_key: key.map(|k| k.public_key.clone()),
     }
+}
+
+pub fn declared_requires_core(declared: Option<&str>) -> Result<String> {
+    let Some(range) = declared else {
+        return requires_core(env!("CARGO_PKG_VERSION"));
+    };
+    semver::VersionReq::parse(range)
+        .with_context(|| format!("--requires-core {range} is not a semver range"))?;
+    Ok(range.to_owned())
 }
 
 pub fn requires_core(core_version: &str) -> Result<String> {

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.87.0] - 2026-11-24
+
+### Breaking
+
+- `BundleArgs` gains `requires_core: Option<String>` and `ActiveReport` gains `held_back: Option<String>`. Migrate a struct literal by setting them to `None`.
+- `services refresh` ends with an error when a source was held back or the composition fell back.
+
+### Added
+
+- `services bundle --requires-core <range>`; `services inspect --active` and `cloud doctor` report held-back sources.
+
 ## [0.86.0] - 2026-11-23
 
 ### Breaking

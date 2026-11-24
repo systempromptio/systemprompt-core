@@ -21,7 +21,7 @@ A bundle is a gzipped tar holding `bundle.json` and a `services/` subtree. `bund
 | `format` | Bundle format version. Currently `1`; an instance refuses anything else. |
 | `version` | The version tag you stamped at pack time. |
 | `created_at` | Pack timestamp, RFC 3339. |
-| `requires_core` | A semver requirement such as `">=0.50"`. An older core refuses the bundle at fetch with a clear error rather than failing later on a key it does not understand. |
+| `requires_core` | A semver requirement such as `">=0.50"`. An older core refuses the bundle at fetch with a clear error rather than failing later on a key it does not understand. `services bundle` sets it to `>=` the packing binary's minor; `--requires-core <range>` states another range the author has proven, such as the oldest release the bundle was validated against. |
 | `source` | Provenance: `repo`, `commit`, `workflow_run`. All optional, all free text. |
 | `files` | Every file in the tree, each with its path, `checksum` and `size`. |
 | `content_hash` | SHA-256 over the sorted `path\0checksum` lines. This is the bundle's identity: it keys the cache and the authz reconcile. |
@@ -85,7 +85,7 @@ Each source names exactly one transport. `https:` takes a `url`; `oci:` takes a 
 
 | Policy | Behaviour |
 |---|---|
-| `use_last_good` (default) | Serve the last successfully composed tree from the cache. If the cache is empty, fall back to the baked tree. |
+| `use_last_good` (default) | A source that cannot be fetched, or whose bundle is refused at verification, is held back on the bundle already cached for it while the other sources advance; the hold is recorded per source. A source with nothing cached, or a composition that does not load, serves the last successfully composed tree from the cache. If the cache is empty, fall back to the baked tree. |
 | `use_bundled` | Serve the baked tree at `paths.services`. |
 | `fail_closed` | Refuse to boot. |
 
@@ -128,7 +128,7 @@ curl -H "Authorization: Bearer $TOKEN" \
   https://api.example.com/api/v1/admin/services/status
 ```
 
-`status` answers what tree the instance is actually serving and why. `provenance.kind` is `bundled`, `fetched`, or `last_good`, and carries `composed_hash` and, on a fallback, the `error` text that caused it. It also lists each source's digest, version, content hash and fetch time, plus `last_reconciled_hash`.
+`status` answers what tree the instance is actually serving and why. `provenance.kind` is `bundled`, `fetched`, or `last_good`, and carries `composed_hash` and, on a fallback, the `error` text that caused it. It also lists each source's digest, version, content hash and fetch time, plus `last_reconciled_hash`, and under `refused` every source held back on its previous bundle: its `kind` (`fetch`, `auth`, `requires_core`, `verify`, `other`), the `reason`, the digest that was refused and the version still served. `refresh` answers with the same `provenance` and `refused`, so a release an instance did not take is distinguishable from one it already had; `services refresh` exits non-zero for both a held-back source and a whole-composition fallback, and `/readyz` reports held-back sources under `services_source`.
 
 ```bash
 curl -X POST -H "Authorization: Bearer $TOKEN" \
