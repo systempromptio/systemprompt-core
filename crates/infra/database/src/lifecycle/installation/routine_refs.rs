@@ -13,7 +13,10 @@
 //! Statements are extracted with `pg_query::parse_plpgsql` from
 //! `pg_get_functiondef`. Dynamic SQL (`EXECUTE`) is opaque and not checked;
 //! relations the function itself creates, and a statement trigger's
-//! transition tables, are not references. The trigger listing is a catalog
+//! transition tables, are not references. An unqualified relation is found
+//! on the session's search path or in the function's own schema, so a
+//! routine is judged where it lives, not where the checking session points.
+//! The trigger listing is a catalog
 //! scan: an install runs it under the bootstrap lock it holds exclusively
 //! ([`check_trigger_routines_held`]), any other caller holds that lock shared
 //! for the scan ([`check_trigger_routines`]), and a lock conflict reads it
@@ -39,6 +42,7 @@ use crate::services::DatabaseProvider;
 // transition-table name any of its triggers declares is excluded.
 const LIVE_PLPGSQL_TRIGGERS: &str = "SELECT t.tgname::text AS trigger, t.tgrelid::regclass::text \
                                      AS table_name, p.oid::regprocedure::text AS function, \
+                                     p.pronamespace::regnamespace::text AS function_schema, \
                                      pg_get_functiondef(p.oid) AS definition, (SELECT \
                                      COALESCE(string_agg(n, ','), '') FROM (SELECT s.tgnewtable::text \
                                      AS n FROM pg_trigger s WHERE s.tgfoid = p.oid UNION SELECT \
@@ -49,7 +53,8 @@ const LIVE_PLPGSQL_TRIGGERS: &str = "SELECT t.tgname::text AS trigger, t.tgrelid
                                      t.tgisinternal AND t.tgenabled <> 'D' AND l.lanname = \
                                      'plpgsql' ORDER BY 2, 1";
 
-const RELATION_EXISTS: &str = "SELECT to_regclass($1) IS NOT NULL AS present";
+const RELATION_EXISTS: &str =
+    "SELECT (to_regclass($1) IS NOT NULL OR to_regclass($2) IS NOT NULL) AS present";
 
 // JSON: libpg_query PL/pgSQL parse tree — walked for embedded SQL statements.
 fn collect_queries(value: &serde_json::Value, out: &mut Vec<String>) {
@@ -139,9 +144,15 @@ pub(crate) async fn check_trigger_routines_held(
         for name in text(row, "transition_tables").split(',') {
             relations.remove(&name.to_lowercase());
         }
+        let schema = text(row, "function_schema");
         for relation in relations {
+            let qualified = if relation.contains('.') {
+                relation.clone()
+            } else {
+                format!("{schema}.{relation}")
+            };
             let present = db
-                .fetch_optional(&RELATION_EXISTS, &[&relation])
+                .fetch_optional(&RELATION_EXISTS, &[&relation, &qualified])
                 .await
                 .map_err(|e| failed(format!("Failed to resolve {relation}"), e))?
                 .and_then(|r| r.get("present").and_then(serde_json::Value::as_bool))

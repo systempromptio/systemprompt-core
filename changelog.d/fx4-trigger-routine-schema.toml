@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "database"
+text = "The dangling trigger-routine check finds an unqualified relation in the routine's own schema as well as on the session's search path, so an install into another schema no longer reports a live routine as dangling."
