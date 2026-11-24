@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::{DbPool, ServiceRepository, UpsertServiceProcessInput};
-use systemprompt_identifiers::{AgentName, InstanceId, ServiceName};
+use systemprompt_identifiers::{AgentName, InstanceId, ServiceName, SpawnNonce};
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::RepositoryError;
 
@@ -17,6 +17,7 @@ use systemprompt_traits::RepositoryError;
 pub struct AgentServiceRow {
     pub name: AgentName,
     pub pid: Option<i32>,
+    pub spawn_nonce: Option<SpawnNonce>,
     pub port: i32,
     pub status: ServiceStatus,
 }
@@ -41,9 +42,10 @@ impl AgentServiceRepository {
         &self,
         name: &AgentName,
         pid: u32,
+        spawn_nonce: &SpawnNonce,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.register_process(name, pid, port, ServiceStatus::Running)
+        self.register_process(name, pid, spawn_nonce, port, ServiceStatus::Running)
             .await
     }
 
@@ -51,9 +53,10 @@ impl AgentServiceRepository {
         &self,
         name: &AgentName,
         pid: u32,
+        spawn_nonce: &SpawnNonce,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.register_process(name, pid, port, ServiceStatus::Starting)
+        self.register_process(name, pid, spawn_nonce, port, ServiceStatus::Starting)
             .await
     }
 
@@ -61,6 +64,7 @@ impl AgentServiceRepository {
         &self,
         name: &AgentName,
         pid: u32,
+        spawn_nonce: &SpawnNonce,
         port: u16,
         status: ServiceStatus,
     ) -> Result<(), RepositoryError> {
@@ -70,6 +74,7 @@ impl AgentServiceRepository {
                 name: &ServiceName::of_agent(name),
                 module_name: ServiceModule::Agent,
                 pid: db_pid(pid)?,
+                spawn_nonce,
                 port,
                 status,
             })
@@ -102,6 +107,7 @@ impl AgentServiceRepository {
             status: row.status,
             name: AgentName::new(row.name.as_str()),
             pid: row.pid,
+            spawn_nonce: row.spawn_nonce,
             port: row.port,
         }))
     }

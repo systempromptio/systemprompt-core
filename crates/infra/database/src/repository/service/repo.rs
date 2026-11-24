@@ -12,7 +12,7 @@
 use std::sync::Arc;
 
 use sqlx::PgPool;
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::{InstanceId, ServiceName, SpawnNonce};
 use systemprompt_manifest::services::ServiceStatus;
 
 use super::model::{CreateServiceInput, ServiceConfig, ServiceRow, UpsertServiceProcessInput};
@@ -51,7 +51,8 @@ impl ServiceRepository {
         let row = sqlx::query_as!(
             ServiceRow,
             r#"
-            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid, port, binary_mtime,
+            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid,
+                   spawn_nonce as "spawn_nonce: SpawnNonce", port, binary_mtime,
                    heartbeat_at::text as "heartbeat_at!",
                    created_at::text as "created_at!", updated_at::text as "updated_at!"
             FROM services
@@ -98,10 +99,11 @@ impl ServiceRepository {
         let port_i32 = i32::from(input.port);
         sqlx::query!(
             r#"
-            INSERT INTO services (instance_id, name, module_name, pid, port, status, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+            INSERT INTO services (instance_id, name, module_name, pid, spawn_nonce, port, status, updated_at)
+            VALUES ($1, $2, $3, $4, $7, $5, $6, CURRENT_TIMESTAMP)
             ON CONFLICT (instance_id, name) DO UPDATE SET
               pid = EXCLUDED.pid,
+              spawn_nonce = EXCLUDED.spawn_nonce,
               port = EXCLUDED.port,
               status = EXCLUDED.status,
               heartbeat_at = CURRENT_TIMESTAMP,
@@ -112,7 +114,8 @@ impl ServiceRepository {
             input.module_name.as_str(),
             input.pid,
             port_i32,
-            input.status.as_str()
+            input.status.as_str(),
+            input.spawn_nonce.as_str()
         )
         .execute(&*self.write_pool)
         .await?;
@@ -151,13 +154,15 @@ impl ServiceRepository {
         &self,
         service_name: &ServiceName,
         pid: i32,
+        spawn_nonce: &SpawnNonce,
     ) -> DatabaseResult<()> {
         sqlx::query!(
-            r#"UPDATE services SET pid = $1, updated_at = CURRENT_TIMESTAMP
+            r#"UPDATE services SET pid = $1, spawn_nonce = $4, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $2 AND name = $3"#,
             pid,
             self.instance_id.as_str(),
-            service_name.as_str()
+            service_name.as_str(),
+            spawn_nonce.as_str()
         )
         .execute(&*self.write_pool)
         .await?;
@@ -184,7 +189,7 @@ impl ServiceRepository {
 
     pub async fn clear_service_pid(&self, service_name: &ServiceName) -> DatabaseResult<()> {
         sqlx::query!(
-            r#"UPDATE services SET pid = NULL, updated_at = CURRENT_TIMESTAMP
+            r#"UPDATE services SET pid = NULL, spawn_nonce = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
             self.instance_id.as_str(),
             service_name.as_str()
@@ -196,7 +201,7 @@ impl ServiceRepository {
 
     pub async fn mark_service_crashed(&self, service_name: &ServiceName) -> DatabaseResult<()> {
         sqlx::query!(
-            r#"UPDATE services SET status = $3, pid = NULL, updated_at = CURRENT_TIMESTAMP
+            r#"UPDATE services SET status = $3, pid = NULL, spawn_nonce = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
             self.instance_id.as_str(),
             service_name.as_str(),
@@ -209,7 +214,7 @@ impl ServiceRepository {
 
     pub async fn update_service_stopped(&self, service_name: &ServiceName) -> DatabaseResult<()> {
         sqlx::query!(
-            r#"UPDATE services SET status = $3, pid = NULL, updated_at = CURRENT_TIMESTAMP
+            r#"UPDATE services SET status = $3, pid = NULL, spawn_nonce = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
             self.instance_id.as_str(),
             service_name.as_str(),

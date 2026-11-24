@@ -13,7 +13,7 @@
 
 use std::time::Duration;
 
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, SpawnNonce};
 use systemprompt_loader::subprocess;
 use systemprompt_models::net::AGENT_READINESS_TCP_TIMEOUT;
 use tokio::net::TcpStream;
@@ -25,11 +25,16 @@ use crate::services::agent_orchestration::{
 };
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-async fn marker_check(pid: u32, agent_name: &AgentName) -> MarkerCheck {
+async fn marker_check(pid: u32, agent_name: &AgentName, nonce: &SpawnNonce) -> MarkerCheck {
     use systemprompt_identifiers::ServiceName;
-    use systemprompt_loader::subprocess::ChildKind;
+    use systemprompt_loader::subprocess::{ChildClaim, ChildKind, SpawnStamp};
 
-    if subprocess::owns(pid, ChildKind::Agent, &ServiceName::of_agent(agent_name)).await {
+    let claim = ChildClaim::spawned(
+        ChildKind::Agent,
+        &ServiceName::of_agent(agent_name),
+        SpawnStamp::Boot(nonce.clone()),
+    );
+    if subprocess::owns(pid, &claim).await {
         MarkerCheck::Verified
     } else {
         MarkerCheck::Absent
@@ -41,7 +46,7 @@ async fn marker_check(pid: u32, agent_name: &AgentName) -> MarkerCheck {
     clippy::unused_async,
     reason = "the Linux and macOS probe awaits the identity check; one call site serves both"
 )]
-async fn marker_check(_pid: u32, _agent_name: &AgentName) -> MarkerCheck {
+async fn marker_check(_pid: u32, _agent_name: &AgentName, _nonce: &SpawnNonce) -> MarkerCheck {
     MarkerCheck::Unavailable
 }
 
@@ -59,8 +64,9 @@ impl AgentLifecycle {
         use super::super::port_service::PortService;
 
         if process::is_port_in_use(port) {
-            PortService::new()
-                .cleanup_port_if_needed(port, agent_name)
+            let stamp = self.db_service.recorded_stamp(agent_name).await?;
+            PortService::new(self.child_grace())
+                .cleanup_port_if_needed(port, agent_name, &stamp)
                 .await?;
             tracing::info!(port = %port, "Cleaned up port");
         }
@@ -145,7 +151,7 @@ impl AgentLifecycle {
             connected,
             listeners,
             child_alive: subprocess::is_running(pid).await,
-            marker: marker_check(pid, agent_name).await,
+            marker: marker_check(pid, agent_name, self.spawner.nonce()).await,
         };
         match startup_verdict(pid, &observed) {
             StartupVerdict::Ready => Ok(Readiness::Ready),

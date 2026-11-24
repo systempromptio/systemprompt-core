@@ -32,7 +32,7 @@ use std::time::{Duration, Instant};
 
 use systemprompt_database::{InstanceLeaseRepository, ProcessOwnershipWake, ServiceModule};
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp, StopOutcome};
 use systemprompt_manifest::profile::NodeRole;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::LeaseRepository;
@@ -253,10 +253,11 @@ async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool 
             return false;
         },
     };
-    let Some(pid) = service
-        .and_then(|row| row.pid)
-        .and_then(|pid| u32::try_from(pid).ok())
-    else {
+    let Some(row) = service else {
+        tracing::warn!(service = %key.name(), "no pid recorded on shutdown; leaving its lease to expire");
+        return false;
+    };
+    let Some(pid) = row.pid.and_then(|pid| u32::try_from(pid).ok()) else {
         tracing::warn!(service = %key.name(), "no pid recorded on shutdown; leaving its lease to expire");
         return false;
     };
@@ -264,7 +265,12 @@ async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool 
         ServiceModule::Mcp => ChildKind::Mcp,
         ServiceModule::Agent => ChildKind::Agent,
     };
-    match subprocess::stop_owned(pid, kind, key.name(), grace).await {
+    let claim = ChildClaim::spawned(
+        kind,
+        key.name(),
+        SpawnStamp::recorded(row.pid, row.spawn_nonce.as_ref()),
+    );
+    match subprocess::stop_owned(pid, &claim, grace).await {
         Ok(StopOutcome::NotRunning | StopOutcome::Stopped(_) | StopOutcome::NotOurs) => true,
         Err(error) => {
             tracing::warn!(service = %key.name(), pid, error = %error, "process survived shutdown stop");

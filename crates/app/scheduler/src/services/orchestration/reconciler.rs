@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind};
+use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp};
 use systemprompt_manifest::profile::ShutdownConfig;
 
 use super::service_records::ServiceConfig;
@@ -204,10 +204,18 @@ impl ServiceReconciler {
             return Ok(());
         };
         let grace = self.shutdown.child_grace();
+        let stamp = self
+            .services
+            .find_service_by_name(&state.name)
+            .await?
+            .map_or(SpawnStamp::Unrecorded, |row| {
+                SpawnStamp::recorded(row.pid, row.spawn_nonce.as_ref())
+            });
+        let claim = ChildClaim::spawned(kind, &state.name, stamp);
         if let Some(pid) = state.pid {
-            subprocess::stop_owned(pid, kind, &state.name, grace).await?;
+            subprocess::stop_owned(pid, &claim, grace).await?;
         }
-        stop_owned_port_holders(state.port, kind, &state.name, grace).await?;
+        stop_owned_port_holders(state.port, &claim, grace).await?;
         Ok(())
     }
 

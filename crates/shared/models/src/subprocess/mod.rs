@@ -2,12 +2,16 @@
 //! owns: the environment markers stamped at spawn time and the pure parsers
 //! that read them back off a live process image.
 //!
-//! The supervisor stamps [`SUBPROCESS_MARKER_ENV`] and a `name_key=service`
-//! pair into every child; shutdown, reconciliation, and port reclamation
-//! confirm a registry PID still names *this* installation's child before
-//! signalling it. PIDs are recycled, and group-signalling a stale PID
-//! (`kill(-pid)`) could reach an unrelated session leader — so a row is only
-//! ever signalled once both the marker and the exact pairing are found.
+//! The supervisor stamps [`SUBPROCESS_MARKER_ENV`], a `name_key=service`
+//! pair and [`SPAWN_NONCE_ENV`] (the spawning process's per-boot nonce, also
+//! recorded with the pid in the `services` row) into every child; shutdown,
+//! reconciliation, and port reclamation confirm a registry PID still names
+//! *this* installation's child of *that* boot before signalling it. A child
+//! recorded before nonces existed (its row has a pid and no nonce) matches
+//! only a process that carries the service marker and no nonce at all. PIDs are
+//! recycled, and group-signalling a stale PID (`kill(-pid)`) could reach an
+//! unrelated session leader — so a row is only ever signalled once both the
+//! marker and the exact pairing are found.
 //!
 //! The API server is not a spawned child: `infra services serve` re-executes
 //! itself once with [`API_SERVER_ENV`] so a later `stop api` can prove a port
@@ -34,7 +38,7 @@
 mod grants;
 
 pub use grants::{ProviderSecret, SecretGrant, SecretGrantError, is_api_held_env_name};
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 
 pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
@@ -43,6 +47,7 @@ pub const VERIFICATION_KEYS_ENV: &str = "VERIFICATION_KEYS";
 pub const API_SERVER_ENV: &str = "SYSTEMPROMPT_API_SERVER";
 pub const API_SERVER_SERVICE: &str = "api";
 pub const CLI_CHILD_ENV: &str = "SYSTEMPROMPT_CLI_CHILD";
+pub const SPAWN_NONCE_ENV: &str = "SYSTEMPROMPT_SPAWN_NONCE";
 
 pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
 
@@ -105,21 +110,35 @@ pub fn environ_identifies_child(
     environ: &[u8],
     name_key: &str,
     service_name: &ServiceName,
+    nonce: Option<&SpawnNonce>,
 ) -> bool {
     let marker = format!("{SUBPROCESS_MARKER_ENV}=1");
     let expected_name = format!("{name_key}={service_name}");
+    let nonce_prefix = format!("{SPAWN_NONCE_ENV}=");
+    let expected_nonce = nonce.map(|nonce| format!("{nonce_prefix}{nonce}"));
 
     let mut has_marker = false;
     let mut has_name = false;
+    let mut nonce_seen = false;
+    let mut nonce_matches = false;
     for entry in environ.split(|&b| b == 0) {
         if entry == marker.as_bytes() {
             has_marker = true;
         } else if entry == expected_name.as_bytes() {
             has_name = true;
+        } else if entry.starts_with(nonce_prefix.as_bytes()) {
+            nonce_seen = true;
+            nonce_matches = expected_nonce
+                .as_ref()
+                .is_some_and(|expected| entry == expected.as_bytes());
         }
     }
 
-    has_marker && has_name
+    let stamp_matches = match nonce {
+        Some(_) => nonce_matches,
+        None => !nonce_seen,
+    };
+    has_marker && has_name && stamp_matches
 }
 
 #[must_use]

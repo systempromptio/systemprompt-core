@@ -9,7 +9,8 @@ use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::SpawnStamp;
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 
 use super::ServiceInfo;
@@ -37,6 +38,7 @@ pub async fn register_service(
     paths: &AppPaths,
     config: &McpServerConfig,
     pid: u32,
+    spawn_nonce: &SpawnNonce,
 ) -> McpDomainResult<ServiceName> {
     let service_name = config.service_name();
     let binary_mtime = get_binary_mtime_for_service(paths, &service_name);
@@ -59,7 +61,8 @@ pub async fn register_service(
     })
     .await?;
 
-    repo.update_service_pid(&service_name, pid as i32).await?;
+    repo.update_service_pid(&service_name, pid as i32, spawn_nonce)
+        .await?;
 
     tracing::debug!(service = %config.name, pid = pid, "Service registered in database");
     Ok(service_name)
@@ -82,6 +85,7 @@ pub async fn get_service_by_name(
         name: r.name,
         status: r.status,
         pid: r.pid,
+        stamp: SpawnStamp::recorded(r.pid, r.spawn_nonce.as_ref()),
         port: r.port as u16,
         binary_mtime: r.binary_mtime,
     }))
@@ -105,27 +109,4 @@ pub async fn get_running_servers(
     }
 
     Ok(running_configs)
-}
-
-pub async fn register_existing_process(
-    repo: &ServiceRepository,
-    paths: &AppPaths,
-    config: &McpServerConfig,
-    pid: u32,
-) -> McpDomainResult<ServiceName> {
-    let service_name = config.service_name();
-    let binary_mtime = get_binary_mtime_for_service(paths, &service_name);
-
-    repo.create_service(CreateServiceInput {
-        name: &service_name,
-        module_name: ServiceModule::Mcp,
-        status: ServiceStatus::Running,
-        port: config.spawn_port()?,
-        binary_mtime,
-    })
-    .await?;
-
-    repo.update_service_pid(&service_name, pid as i32).await?;
-
-    Ok(service_name)
 }

@@ -1,9 +1,12 @@
 //! `admin agents delete` command: removes agent definitions from the services
 //! tree.
 //!
-//! An agent the service table records as running is refused with
-//! [`AgentDeleteError::Running`], which names the kernel command that stops
-//! it; this command never stops or signals a process.
+//! An agent whose recorded pid is provably its running child (the agent's
+//! spawn marker and the boot nonce its service row recorded, read back from
+//! the live process) is refused with [`AgentDeleteError::Running`], which
+//! names the kernel command that stops it; a row whose pid is dead or now
+//! belongs to another process does not block the delete. This command never
+//! stops or signals a process.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

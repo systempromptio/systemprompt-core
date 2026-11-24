@@ -33,7 +33,7 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_loader::subprocess::{ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{ChildClaim, ChildKind, SpawnStamp, StopOutcome};
 use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::SchedulerHandle;
@@ -220,7 +220,7 @@ async fn terminate_agent_children(
 
     futures_util::future::join_all(names.into_iter().map(|name| async move {
         if let Ok(Some(service)) = repo.find_service_by_name(&name).await {
-            terminate_service_child(repo, &name, service.pid, ChildKind::Agent, grace).await;
+            terminate_service_child(repo, &service, ChildKind::Agent, grace).await;
         }
     }))
     .await;
@@ -236,22 +236,27 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository,
     };
 
     futures_util::future::join_all(services.into_iter().map(|service| async move {
-        terminate_service_child(repo, &service.name, service.pid, ChildKind::Mcp, grace).await;
+        terminate_service_child(repo, &service, ChildKind::Mcp, grace).await;
     }))
     .await;
 }
 
 async fn terminate_service_child(
     repo: &systemprompt_database::ServiceRepository,
-    name: &systemprompt_identifiers::ServiceName,
-    pid: Option<i32>,
+    service: &systemprompt_database::ServiceConfig,
     kind: ChildKind,
     grace: Duration,
 ) {
-    let Some(pid) = pid.and_then(|p| u32::try_from(p).ok()) else {
+    let name = &service.name;
+    let Some(pid) = service.pid.and_then(|p| u32::try_from(p).ok()) else {
         return;
     };
-    match systemprompt_loader::subprocess::stop_owned(pid, kind, name, grace).await {
+    let claim = ChildClaim::spawned(
+        kind,
+        name,
+        SpawnStamp::recorded(service.pid, service.spawn_nonce.as_ref()),
+    );
+    match systemprompt_loader::subprocess::stop_owned(pid, &claim, grace).await {
         Ok(StopOutcome::NotRunning) => {},
         Ok(StopOutcome::NotOurs) => {
             tracing::warn!(

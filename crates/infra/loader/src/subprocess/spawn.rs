@@ -1,6 +1,11 @@
 //! The one sanctioned way to start an agent or MCP child, and the in-place
 //! re-exec that stamps the API server with its identity marker.
 //!
+//! A [`Spawner`] generates one [`SpawnNonce`] when it is created: every agent
+//! and MCP child it marks carries it, and the caller records it with the pid,
+//! so a process started by another boot (or by anyone else setting the
+//! service marker) never proves to be ours.
+//!
 //! Every spawn runs on one dedicated thread and, where the platform offers
 //! it, the kernel is asked to `SIGTERM` the child if this process dies. The
 //! parent-death signal follows the thread that forked the child, which is why
@@ -16,7 +21,7 @@ use std::process::{Child, Command};
 use std::sync::mpsc::{Sender, channel};
 use std::thread::JoinHandle;
 
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 
 use super::ChildKind;
 
@@ -25,6 +30,7 @@ type SpawnRequest = (Command, SpawnReply);
 
 #[derive(Debug)]
 pub struct Spawner {
+    nonce: SpawnNonce,
     requests: Option<Sender<SpawnRequest>>,
     thread: Option<JoinHandle<()>>,
 }
@@ -36,13 +42,7 @@ pub enum ApiServerStamp {
     Unverifiable,
 }
 
-pub fn mark_child(cmd: &mut Command, kind: ChildKind, service: &ServiceName) {
-    match kind {
-        ChildKind::Agent | ChildKind::Mcp => {
-            cmd.env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1");
-        },
-        ChildKind::Api | ChildKind::Command => {},
-    }
+pub(super) fn stamp_marker(cmd: &mut Command, kind: ChildKind, service: &ServiceName) {
     cmd.env(kind.marker_env(), service.as_str());
 }
 
@@ -62,12 +62,12 @@ pub fn stamp_api_server() -> std::io::Result<ApiServerStamp> {
     else {
         return Ok(ApiServerStamp::Unverifiable);
     };
-    if ChildKind::Api.identifies(&environ, &service) {
+    if super::ChildClaim::ApiServer.identifies(&environ) {
         return Ok(ApiServerStamp::Stamped);
     }
     let mut cmd = Command::new(std::env::current_exe()?);
     cmd.args(std::env::args_os().skip(1));
-    mark_child(&mut cmd, ChildKind::Api, &service);
+    stamp_marker(&mut cmd, ChildKind::Api, &service);
     Err(cmd.exec())
 }
 
@@ -97,9 +97,26 @@ impl Spawner {
                 }
             })?;
         Ok(Self {
+            nonce: SpawnNonce::generate(),
             requests: Some(tx),
             thread: Some(thread),
         })
+    }
+
+    #[must_use]
+    pub const fn nonce(&self) -> &SpawnNonce {
+        &self.nonce
+    }
+
+    pub fn mark_child(&self, cmd: &mut Command, kind: ChildKind, service: &ServiceName) {
+        if matches!(kind, ChildKind::Agent | ChildKind::Mcp) {
+            cmd.env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1");
+            cmd.env(
+                systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+                self.nonce.as_str(),
+            );
+        }
+        stamp_marker(cmd, kind, service);
     }
 
     pub fn spawn_supervised(&self, cmd: Command) -> std::io::Result<u32> {

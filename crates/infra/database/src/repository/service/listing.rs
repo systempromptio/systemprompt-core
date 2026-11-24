@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::{InstanceId, ServiceName, SpawnNonce};
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 
 use super::model::{ServiceConfig, ServiceRow, into_configs};
@@ -29,7 +29,8 @@ impl ServiceRepository {
         let rows = sqlx::query_as!(
             ServiceRow,
             r#"
-            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid, port, binary_mtime,
+            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid,
+                   spawn_nonce as "spawn_nonce: SpawnNonce", port, binary_mtime,
                    heartbeat_at::text as "heartbeat_at!",
                    created_at::text as "created_at!", updated_at::text as "updated_at!"
             FROM services
@@ -51,7 +52,8 @@ impl ServiceRepository {
         let rows = sqlx::query_as!(
             ServiceRow,
             r#"
-            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid, port, binary_mtime,
+            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid,
+                   spawn_nonce as "spawn_nonce: SpawnNonce", port, binary_mtime,
                    heartbeat_at::text as "heartbeat_at!",
                    created_at::text as "created_at!", updated_at::text as "updated_at!"
             FROM services
@@ -94,7 +96,8 @@ impl ServiceRepository {
         let rows = sqlx::query_as!(
             ServiceRow,
             r#"
-            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid, port, binary_mtime,
+            SELECT instance_id as "instance_id: InstanceId", name, module_name, status, pid,
+                   spawn_nonce as "spawn_nonce: SpawnNonce", port, binary_mtime,
                    heartbeat_at::text as "heartbeat_at!",
                    created_at::text as "created_at!", updated_at::text as "updated_at!"
             FROM services

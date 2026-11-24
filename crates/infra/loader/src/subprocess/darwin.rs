@@ -23,18 +23,10 @@
 
 use std::io;
 
-use systemprompt_identifiers::ServiceName;
 
 #[derive(Debug, thiserror::Error)]
 #[error("KERN_ARGMAX is unusable")]
 struct UnusableArgMax(#[source] std::num::TryFromIntError);
-
-#[must_use]
-pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &ServiceName) -> bool {
-    live_environ(pid).is_some_and(|environ| {
-        systemprompt_models::subprocess::environ_identifies_child(&environ, name_key, service_name)
-    })
-}
 
 pub(super) fn live_environ(pid: u32) -> Option<Vec<u8>> {
     let pid = i32::try_from(pid).ok()?;

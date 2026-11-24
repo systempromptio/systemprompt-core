@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::{InstanceId, ServiceName, SpawnNonce};
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 
 use crate::error::RepositoryError;
@@ -21,6 +21,7 @@ pub struct ServiceConfig {
     pub module_name: ServiceModule,
     pub status: ServiceStatus,
     pub pid: Option<i32>,
+    pub spawn_nonce: Option<SpawnNonce>,
     pub port: i32,
     pub binary_mtime: Option<i64>,
     pub heartbeat_at: String,
@@ -35,6 +36,7 @@ pub(super) struct ServiceRow {
     pub module_name: String,
     pub status: String,
     pub pid: Option<i32>,
+    pub spawn_nonce: Option<SpawnNonce>,
     pub port: i32,
     pub binary_mtime: Option<i64>,
     pub heartbeat_at: String,
@@ -64,6 +66,7 @@ impl ServiceRow {
             module_name,
             status,
             pid: self.pid,
+            spawn_nonce: self.spawn_nonce,
             port: self.port,
             binary_mtime: self.binary_mtime,
             heartbeat_at: self.heartbeat_at,
@@ -91,6 +94,7 @@ pub struct UpsertServiceProcessInput<'a> {
     pub name: &'a ServiceName,
     pub module_name: ServiceModule,
     pub pid: i32,
+    pub spawn_nonce: &'a SpawnNonce,
     pub port: u16,
     pub status: ServiceStatus,
 }
