@@ -67,7 +67,7 @@ pub struct SessionMiddleware {
     analytics: Arc<dyn AnalyticsProvider>,
     issuer: Option<DynSessionIssuer>,
     trusted_proxies: Arc<Vec<IpNet>>,
-    config: Arc<Config>,
+    cookie: SessionCookie,
     claims: SessionClaims,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
@@ -104,7 +104,7 @@ impl SessionMiddleware {
             analytics: ctx.analytics_provider(),
             issuer: session_issuer(ctx),
             trusted_proxies: Arc::new(config.trusted_proxies.clone()),
-            config,
+            cookie: SessionCookie::for_external_url(&config.api_external_url),
             claims: SessionClaims::from_kernel(ctx.kernel().state())?,
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
@@ -175,11 +175,9 @@ impl SessionMiddleware {
         let mut response = next.run(request).await;
 
         if let Some(token) = jwt_cookie
-            && let Ok(cookie_value) = SessionCookie::from_config(&self.config).issue(
-                &token,
-                SESSION_COOKIE_MAX_AGE_SECS,
-                SameSite::Strict,
-            )
+            && let Ok(cookie_value) =
+                self.cookie
+                    .issue(&token, SESSION_COOKIE_MAX_AGE_SECS, SameSite::Strict)
         {
             response
                 .headers_mut()

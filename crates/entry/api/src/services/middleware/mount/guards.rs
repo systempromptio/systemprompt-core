@@ -68,12 +68,16 @@ impl SiteAuthGuard {
         Ok(Some(Self {
             config,
             authenticator,
-            cookie: SessionCookie::from_config(ctx.kernel().state().get::<Arc<Config>>().map_err(
-                |missing| SlotError::Refused {
-                    slot: "site_auth",
-                    source: Box::new(missing),
-                },
-            )?),
+            cookie: SessionCookie::for_external_url(
+                &ctx.kernel()
+                    .state()
+                    .get::<Arc<Config>>()
+                    .map_err(|missing| SlotError::Refused {
+                        slot: "site_auth",
+                        source: Box::new(missing),
+                    })?
+                    .api_external_url,
+            ),
         }))
     }
 

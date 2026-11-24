@@ -196,7 +196,7 @@ fn an_unparseable_external_url_issues_a_secure_cookie() {
 fn the_cookie_follows_the_configured_external_url_not_the_request() {
     let mut config = systemprompt_test_fixtures::fixture_config("postgres://localhost/cookie");
     config.api_external_url = "https://gateway.example.com".to_owned();
-    assert!(SessionCookie::from_config(&config).is_secure());
+    assert!(SessionCookie::for_external_url(&config.api_external_url).is_secure());
     config.api_external_url = "http://gateway.internal:8080".to_owned();
-    assert!(!SessionCookie::from_config(&config).is_secure());
+    assert!(!SessionCookie::for_external_url(&config.api_external_url).is_secure());
 }
