@@ -3,7 +3,8 @@
 //!
 //! [`execute`] runs one typed [`McpToolHandler`] against a
 //! [`ToolExecution`]: [`ToolExecution::begin`] records the start of the
-//! execution under the request context it is handed and returns the context
+//! execution for the hop-verified [`VerifiedCaller`] it is handed and returns
+//! the context
 //! the handler runs with (an AI tool-call intent claimed when one matches);
 //! the handler runs; [`ToolExecution::finish`] persists the output as an
 //! artifact, shapes the result for the negotiated client and records the
@@ -26,6 +27,7 @@ use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
 
+use super::caller::VerifiedCaller;
 use super::handler::McpToolHandler;
 use super::schema::McpOutputSchema;
 
@@ -54,8 +56,8 @@ pub struct ToolOutput {
 
 /// Records and shapes one tool execution for one MCP server.
 ///
-/// The executor records usage and audit as the request context it is handed:
-/// that context is the authenticated caller the host resolved, so the seam is
+/// The executor records usage and audit for the [`VerifiedCaller`] it is
+/// handed, which only the toolset host's hop admission builds, so the seam is
 /// open (rule 111): it reads no secret and acts for no subject of its own.
 /// Injected as `dyn ToolExecution`, hence `#[async_trait]`.
 #[async_trait]
@@ -64,7 +66,7 @@ pub trait ToolExecution: Send + Sync + Debug {
         &self,
         tool_name: McpToolName,
         request: &CallToolRequestParams,
-        context: &RequestContext,
+        caller: &VerifiedCaller,
     ) -> Result<ToolRun, McpError>;
 
     async fn finish(
@@ -88,11 +90,11 @@ pub async fn execute<H: McpToolHandler>(
     execution: &dyn ToolExecution,
     handler: &H,
     request: &CallToolRequestParams,
-    context: &RequestContext,
+    caller: &VerifiedCaller,
     client: &ClientProfile,
 ) -> Result<CallToolResult, McpError> {
     let run = execution
-        .begin(McpToolName::new(handler.tool_name()), request, context)
+        .begin(McpToolName::new(handler.tool_name()), request, caller)
         .await?;
     let result = async {
         let input: H::Input = parse_input(request)?;

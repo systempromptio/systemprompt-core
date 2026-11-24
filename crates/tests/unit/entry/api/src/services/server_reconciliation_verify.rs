@@ -8,7 +8,7 @@
 //! that failed and why, because that message is the whole diagnosis an
 //! operator gets from a refused boot.
 
-use systemprompt_api::services::server::lifecycle::reconciliation::{
+use systemprompt_mcp::services::reconcile::{
     VERIFY_ATTEMPTS, VERIFY_BACKOFF, handle_missing_servers, verify_database_registration,
 };
 use systemprompt_database::DbPool;
@@ -120,7 +120,7 @@ async fn a_required_server_with_a_running_row_passes_verification() {
     let name = unique_name("verified");
     seed(&pool, &ctx.config().instance_id, &name, "running").await;
 
-    let outcome = verify_database_registration(&[required(&name)], &ctx, None).await;
+    let outcome = verify_database_registration(&[required(&name)], ctx.service_repository(), None).await;
 
     assert!(
         outcome.is_ok(),
@@ -136,7 +136,7 @@ async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
     let ctx = test_app_context(&boot.database_url).await;
     let name = unique_name("unregistered");
 
-    let error = verify_database_registration(&[required(&name)], &ctx, None)
+    let error = verify_database_registration(&[required(&name)], ctx.service_repository(), None)
         .await
         .map(|_| ())
         .expect_err("an unregistered required server must not be allowed through");
@@ -156,7 +156,7 @@ async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_
     let name = unique_name("halfup");
     seed(&pool, &ctx.config().instance_id, &name, "starting").await;
 
-    let error = verify_database_registration(&[required(&name)], &ctx, None)
+    let error = verify_database_registration(&[required(&name)], ctx.service_repository(), None)
         .await
         .map(|_| ())
         .expect_err("a row that is not `running` is not a started server");
@@ -179,7 +179,7 @@ async fn every_failing_server_is_reported_not_just_the_first() {
     let stopped = unique_name("stopped");
     seed(&pool, &ctx.config().instance_id, &stopped, "stopped").await;
 
-    let error = verify_database_registration(&[required(&missing), required(&stopped)], &ctx, None)
+    let error = verify_database_registration(&[required(&missing), required(&stopped)], ctx.service_repository(), None)
         .await
         .map(|_| ())
         .expect_err("two failing servers is still a failure");
@@ -201,7 +201,7 @@ async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
     ctx.db_pool().write_pool().close().await;
     let name = unique_name("unreachable");
 
-    let error = verify_database_registration(&[required(&name)], &ctx, None)
+    let error = verify_database_registration(&[required(&name)], ctx.service_repository(), None)
         .await
         .map(|_| ())
         .expect_err("a database that cannot be read cannot confirm anything");
@@ -284,7 +284,7 @@ async fn a_row_that_turns_running_during_the_retry_window_passes_verification() 
         })
     };
 
-    let outcome = verify_database_registration(&[required(&name)], &ctx, None).await;
+    let outcome = verify_database_registration(&[required(&name)], ctx.service_repository(), None).await;
     flipper.await.expect("flip task");
 
     assert!(
@@ -304,7 +304,7 @@ async fn a_row_that_never_turns_running_fails_after_every_attempt() {
     seed(&pool, &ctx.config().instance_id, &name, "stopped").await;
 
     let started = std::time::Instant::now();
-    let error = verify_database_registration(&[required(&name)], &ctx, None)
+    let error = verify_database_registration(&[required(&name)], ctx.service_repository(), None)
         .await
         .map(|_| ())
         .expect_err("a row that stays stopped must fail");

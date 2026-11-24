@@ -124,12 +124,12 @@ impl ProxyService {
                 .await
                 .map_err(backend_error)?;
         }
-        ResponseHandler::build_audited_response(response, audit).map_err(|source| {
-            ProxyError::InvalidResponse {
+        ResponseHandler::build_audited_response(response, audit)
+            .await
+            .map_err(|source| ProxyError::InvalidResponse {
                 service: service_name.to_string(),
                 source,
-            }
-        })
+            })
     }
 }
 

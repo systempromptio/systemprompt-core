@@ -17,7 +17,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use bytes::Bytes;
-use futures_util::{Stream, StreamExt, TryStreamExt};
+use futures_util::future::BoxFuture;
+use futures_util::{FutureExt, Stream, StreamExt, TryStreamExt};
 use serde_json::Value;
 use systemprompt_extension::router::{CallAudit, ProxyBodyStream};
 use systemprompt_identifiers::McpExecutionId;
@@ -29,20 +30,25 @@ use super::jsonrpc::{
 };
 
 impl CallAudit for McpAudit {
-    fn tap(self: Box<Self>, body: ProxyBodyStream, event_stream: bool) -> ProxyBodyStream {
+    fn tap(
+        self: Box<Self>,
+        body: ProxyBodyStream,
+        event_stream: bool,
+    ) -> BoxFuture<'static, Result<ProxyBodyStream, io::Error>> {
         let audit = *self;
         if event_stream {
             let accumulator =
                 SseAccumulator::new(audit.request_id().clone(), audit.mcp_execution_id().clone());
-            return McpAuditTapStream {
+            let tapped = McpAuditTapStream {
                 inner: body,
                 accumulator,
                 ready: VecDeque::new(),
                 audit: Some(audit),
             }
             .boxed();
+            return futures_util::future::ready(Ok(tapped)).boxed();
         }
-        futures_util::stream::once(async move {
+        async move {
             let chunks: Vec<Bytes> = body.try_collect().await?;
             let bytes = Bytes::from(chunks.concat());
             let (outcome, body) = match std::str::from_utf8(&bytes) {
@@ -60,8 +66,8 @@ impl CallAudit for McpAudit {
                 },
             };
             audit.finalize(outcome);
-            Ok(body)
-        })
+            Ok(futures_util::stream::once(futures_util::future::ready(Ok(body))).boxed())
+        }
         .boxed()
     }
 }

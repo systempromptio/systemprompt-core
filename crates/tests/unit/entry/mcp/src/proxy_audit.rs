@@ -1,5 +1,5 @@
 use serde_json::json;
-use systemprompt_api::services::proxy::audit::jsonrpc::{
+use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::{
     extract_sse_data, parse_response_frame, parse_tool_call,
 };
 use systemprompt_identifiers::McpExecutionId;
@@ -127,7 +127,7 @@ fn parse_response_frame_keeps_the_whole_result_for_ingest() {
 
 #[test]
 fn stamp_execution_adds_the_server_key_under_the_systemprompt_meta() {
-    use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
+    use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::stamp_execution;
     let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[]}}"#;
     let stamped = stamp_execution(data, &McpExecutionId::new("exec-1")).expect("stamped");
     let frame: serde_json::Value = serde_json::from_str(&stamped).unwrap();
@@ -139,7 +139,7 @@ fn stamp_execution_adds_the_server_key_under_the_systemprompt_meta() {
 
 #[test]
 fn stamp_execution_never_overwrites_an_in_process_key() {
-    use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
+    use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::stamp_execution;
     let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[],"_meta":{"io.systemprompt/execution":{"mcp_execution_id":"orig"}}}}"#;
     let stamped = stamp_execution(data, &McpExecutionId::new("exec-1")).expect("stamped");
     let frame: serde_json::Value = serde_json::from_str(&stamped).unwrap();
@@ -151,14 +151,14 @@ fn stamp_execution_never_overwrites_an_in_process_key() {
 
 #[test]
 fn stamp_execution_leaves_error_frames_alone() {
-    use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
+    use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::stamp_execution;
     let data = r#"{"jsonrpc":"2.0","id":7,"error":{"code":-1,"message":"no"}}"#;
     assert!(stamp_execution(data, &McpExecutionId::new("exec-1")).is_none());
 }
 
 #[test]
 fn replace_sse_data_swaps_only_the_data_lines() {
-    use systemprompt_api::services::proxy::audit::jsonrpc::replace_sse_data;
+    use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::replace_sse_data;
     let frame = "event: message\nid: 3\ndata: {\"a\":1}\ndata: more\n\n";
     let out = replace_sse_data(frame, "{\"b\":2}");
     assert_eq!(out, "event: message\nid: 3\ndata: {\"b\":2}\n\n");

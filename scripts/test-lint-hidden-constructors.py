@@ -59,6 +59,14 @@ class HiddenConstructors(unittest.TestCase):
         self.write("crates/entry/notifications/src/h.rs", "fn f(u: UserId) { GatewayPrincipal::__from_kernel(u) }\n")
         self.check(["crates/entry/notifications/src/h.rs:1"])
 
+    def test_hop_caller_in_the_toolset_host_passes(self):
+        self.write("crates/app/mcp-host/src/hop.rs", "fn admit(c: RequestContext) { VerifiedCaller::__from_hop(c); }\n")
+        self.check([])
+
+    def test_hop_caller_built_by_a_member_fails(self):
+        self.write("crates/domain/brain/src/mcp/forge.rs", "fn f(c: RequestContext) { VerifiedCaller::__from_hop(c) }\n")
+        self.check(["crates/domain/brain/src/mcp/forge.rs:1"])
+
     def test_comment_and_string_are_not_calls(self):
         self.write("crates/app/runtime/src/x.rs", "// Admitted::__from_facade(p)\nconst S: &str = \"__from_facade(\";\n")
         self.check([])

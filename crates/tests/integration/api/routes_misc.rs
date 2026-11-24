@@ -56,8 +56,7 @@ async fn proxy_mcp_unknown_execution_returns_4xx() -> anyhow::Result<()> {
 async fn proxy_mcp_protected_resource_well_known() -> anyhow::Result<()> {
     let ctx = ctx().await?;
     let app = super::common::with_config(
-        routes::proxy::mcp::router(&ctx)
-            .expect("the proxy reads the kernel's connector token cache"),
+        super::common::mcp_proxy_router(&ctx),
         &ctx,
     )
     .layer(Extension(request_context("u")));
@@ -74,8 +73,7 @@ async fn proxy_mcp_protected_resource_well_known() -> anyhow::Result<()> {
 async fn proxy_mcp_authz_server_well_known() -> anyhow::Result<()> {
     let ctx = ctx().await?;
     let app = super::common::with_config(
-        routes::proxy::mcp::router(&ctx)
-            .expect("the proxy reads the kernel's connector token cache"),
+        super::common::mcp_proxy_router(&ctx),
         &ctx,
     )
     .layer(Extension(request_context("u")));

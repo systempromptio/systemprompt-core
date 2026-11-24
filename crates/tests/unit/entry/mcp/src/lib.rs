@@ -28,6 +28,10 @@ mod plugins_mcp_configured_db;
 #[cfg(test)]
 mod probe_flows;
 #[cfg(test)]
+mod proxy_audit;
+#[cfg(test)]
+mod proxy_fixed_arguments;
+#[cfg(test)]
 mod registry_handler;
 #[cfg(test)]
 mod registry_listing;

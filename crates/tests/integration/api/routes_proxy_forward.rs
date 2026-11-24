@@ -23,7 +23,7 @@ use axum::body::Body;
 use axum::http::{Request, header};
 use axum::middleware::{self, Next};
 use axum::response::Response;
-use systemprompt_api::routes::proxy::{agents, mcp};
+use systemprompt_api::routes::proxy::agents;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
@@ -118,7 +118,7 @@ async fn proxy_reports_a_dead_registered_backend_and_recovers_when_that_backend_
     let name = &declared.name;
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&declared.ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&declared.ctx),
         &declared.ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -227,7 +227,7 @@ async fn agent_proxy_forwards_get_to_backend() -> anyhow::Result<()> {
 
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&declared.ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&declared.ctx),
         &declared.ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -251,7 +251,7 @@ async fn agent_proxy_forwards_subpath_with_query() -> anyhow::Result<()> {
 
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&declared.ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&declared.ctx),
         &declared.ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -278,7 +278,7 @@ async fn agent_proxy_forwards_post_body() -> anyhow::Result<()> {
 
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&declared.ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&declared.ctx),
         &declared.ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -306,7 +306,7 @@ async fn agent_proxy_propagates_backend_error_status() -> anyhow::Result<()> {
 
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&declared.ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&declared.ctx),
         &declared.ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -333,7 +333,7 @@ async fn an_undeclared_module_is_forbidden_even_with_a_valid_credential() -> any
 
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&ctx),
         &ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -363,7 +363,7 @@ async fn agent_proxy_running_service_without_context_is_error() -> anyhow::Resul
     let token = ctx_token();
     // No inject_ctx middleware — the proxy must refuse without a RequestContext.
     let app = super::common::with_config(
-        agents::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&ctx),
         &ctx,
     );
     let resp = app.oneshot(authed_get(&format!("/{name}"), &token)).await?;
@@ -376,7 +376,7 @@ async fn mcp_proxy_unknown_service_emits_challenge() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let token = ctx_token();
     let app = super::common::with_config(
-        mcp::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
+        super::common::mcp_proxy_router(&ctx),
         &ctx,
     )
     .layer(middleware::from_fn_with_state(token, inject_ctx));
@@ -413,7 +413,7 @@ async fn a_services_row_naming_an_unknown_agent_is_not_proxied() -> anyhow::Resu
 
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&ctx),
         &ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -446,7 +446,7 @@ async fn a_services_row_naming_an_unknown_mcp_server_is_not_proxied() -> anyhow:
 
     let token = ctx_token();
     let app = super::common::with_config(
-        mcp::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
+        super::common::mcp_proxy_router(&ctx),
         &ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -483,7 +483,7 @@ async fn an_unknown_module_name_still_demands_a_credential() -> anyhow::Result<(
     // vocabulary is a corrupt registry row and must fail closed.
     let token = ctx_token();
     let app = super::common::with_config(
-        agents::router(&ctx).expect("the proxy reads the kernel's connector token cache"),
+        agents::router(&ctx),
         &ctx,
     )
     .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));

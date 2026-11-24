@@ -6,7 +6,6 @@
 use axum::body::Body;
 use axum::http::Request;
 use systemprompt_agent::repository::ContextRepository;
-use systemprompt_api::routes::proxy::mcp;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, TraceId, UserId,
 };
@@ -150,7 +149,7 @@ fn request(
 
 async fn send(edge: &Edge, request: Request<Body>) -> anyhow::Result<(http::StatusCode, String)> {
     let response = super::common::with_config(
-        mcp::router(&edge.ctx).expect("the proxy reads the kernel's connector token cache"),
+        super::common::mcp_proxy_router(&edge.ctx),
         &edge.ctx,
     )
     .oneshot(request)

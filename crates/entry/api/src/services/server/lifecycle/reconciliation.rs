@@ -47,7 +47,10 @@ pub(in crate::services::server) async fn reconcile_system_services(
     let set = sets
         .of_kind(kind)
         .ok_or(ServiceProcessError::Unavailable { kind })?;
-    set.reconcile(events).await?;
+    set.reconcile(events).await.map_err(|error| match error {
+        ServiceProcessError::Failed { source, .. } => anyhow::Error::from_boxed(source),
+        other => other.into(),
+    })?;
 
     events.phase_completed(Phase::McpServers);
     Ok(())

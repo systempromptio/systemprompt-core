@@ -9,13 +9,21 @@
 use axum::http::{HeaderName, HeaderValue};
 use axum::response::IntoResponse;
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
-use systemprompt_api::services::proxy::service::external::{map_resolve_error, outbound_headers};
+use systemprompt_api::services::proxy::ProxyError;
+use systemprompt_api::services::proxy::service::external::outbound_headers;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::McpDomainError;
 use uuid::Uuid;
 
 use super::common::setup_ctx;
+
+fn map_resolve_error(service: &ServiceName, error: McpDomainError) -> ProxyError {
+    ProxyError::from_backend(
+        service,
+        systemprompt_mcp_entry::http::proxy::map_resolve_error(error),
+    )
+}
 
 async fn seed(
     ctx: &systemprompt_runtime::AppContext,
@@ -40,7 +48,7 @@ async fn resolve_returns_running_service() -> anyhow::Result<()> {
     let name = format!("run-{}", Uuid::new_v4().simple());
     seed(&ctx, &name, ServiceStatus::Running).await?;
 
-    let config = ServiceResolver::resolve(&ServiceName::new(&name), &ctx)
+    let config = ServiceResolver::resolve(&ServiceName::new(&name), &ctx, None)
         .await
         .map_err(|e| anyhow::anyhow!("resolve failed: {e}"))?;
     assert_eq!(config.name.as_str(), name);
@@ -53,7 +61,7 @@ async fn resolve_missing_service_is_not_found() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let err = ServiceResolver::resolve(
         &ServiceName::new(format!("absent-{}", Uuid::new_v4().simple())),
-        &ctx,
+        &ctx, None,
     )
     .await
     .expect_err("missing service must error");
@@ -70,7 +78,7 @@ async fn resolve_stopped_service_is_not_running() -> anyhow::Result<()> {
     let name = format!("stop-{}", Uuid::new_v4().simple());
     seed(&ctx, &name, ServiceStatus::Stopped).await?;
 
-    let err = ServiceResolver::resolve(&ServiceName::new(&name), &ctx)
+    let err = ServiceResolver::resolve(&ServiceName::new(&name), &ctx, None)
         .await
         .expect_err("stopped must error");
     assert!(matches!(
@@ -87,12 +95,12 @@ fn outbound_headers_forwards_passthrough_and_provider() {
     incoming.insert("mcp-session-id", HeaderValue::from_static("sess-1"));
     incoming.insert("x-secret", HeaderValue::from_static("nope"));
 
-    let provider = std::collections::HashMap::from([(
+    let provider = axum::http::HeaderMap::from_iter([(
         HeaderName::from_static("authorization"),
         HeaderValue::from_static("Bearer provider-token"),
     )]);
 
-    let out = outbound_headers(&incoming, provider);
+    let out = outbound_headers(&incoming, &provider);
     assert_eq!(out.get("content-type").unwrap(), "application/json");
     assert_eq!(out.get("mcp-session-id").unwrap(), "sess-1");
     assert_eq!(out.get("authorization").unwrap(), "Bearer provider-token");

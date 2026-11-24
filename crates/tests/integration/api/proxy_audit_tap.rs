@@ -1,4 +1,4 @@
-//! External-MCP audit tap — drives `audit::record` end-to-end with wiremock
+//! External-MCP audit tap — drives the `CallAudit` tap end-to-end with wiremock
 //! upstream responses. Verifies the body is
 //! forwarded verbatim for both JSON and SSE upstreams and that an
 //! `mcp_tool_executions` row is finalized with the matched outcome once the
@@ -10,8 +10,10 @@ use std::time::Duration;
 use axum::body::to_bytes;
 use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_api::repository::tool_usage;
-use systemprompt_api::services::proxy::audit::jsonrpc::parse_tool_call;
-use systemprompt_api::services::proxy::audit::{AuditSinks, McpAudit, tap};
+use futures::{StreamExt, TryStreamExt};
+use systemprompt_extension::router::CallAudit;
+use systemprompt_mcp_entry::http::proxy::audit::jsonrpc::parse_tool_call;
+use systemprompt_mcp_entry::http::proxy::audit::{AuditSinks, McpAudit};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::IntentClaimService;
@@ -41,8 +43,27 @@ async fn record_tool_call(
         ingest: systemprompt_test_fixtures::fixture_artifact_ingest(pool)?,
         background: tasks.clone(),
     };
-    let audit = McpAudit::new(sinks, context, McpServerId::new(server_name), invocation);
-    Ok(tap::record(response, audit).await?)
+    let audit: Box<dyn CallAudit> = Box::new(McpAudit::new(
+        sinks,
+        context,
+        McpServerId::new(server_name),
+        invocation,
+    ));
+    let status = response.status().as_u16();
+    let event_stream = response
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.contains("text/event-stream"));
+    let body = audit
+        .tap(
+            response.bytes_stream().map_err(std::io::Error::other).boxed(),
+            event_stream,
+        )
+        .await?;
+    Ok(axum::response::Response::builder()
+        .status(status)
+        .body(axum::body::Body::from_stream(body))?)
 }
 
 fn tool_call_body(tool: &str) -> Vec<u8> {

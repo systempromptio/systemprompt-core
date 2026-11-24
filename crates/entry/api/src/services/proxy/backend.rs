@@ -197,7 +197,7 @@ impl ResponseHandler {
         Self::assemble(axum_status, &response_headers, is_sse, body)
     }
 
-    pub(super) fn build_audited_response(
+    pub(super) async fn build_audited_response(
         response: reqwest::Response,
         audit: Option<Box<dyn CallAudit>>,
     ) -> Result<Response<Body>, ResponseBuildError> {
@@ -207,10 +207,13 @@ impl ResponseHandler {
         let axum_status = upstream_status(&response)?;
         let response_headers = response.headers().clone();
         let is_sse = Self::is_event_stream(&response_headers);
-        let tapped = audit.tap(
-            response.bytes_stream().map_err(std::io::Error::other).boxed(),
-            is_sse,
-        );
+        let tapped = audit
+            .tap(
+                response.bytes_stream().map_err(std::io::Error::other).boxed(),
+                is_sse,
+            )
+            .await
+            .map_err(ResponseBuildError::Tap)?;
         let body = if is_sse {
             Body::from_stream(SseKeepaliveStream::new(tapped, SSE_KEEPALIVE_INTERVAL))
         } else {

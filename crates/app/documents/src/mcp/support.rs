@@ -95,7 +95,7 @@ pub(super) async fn run<H: McpToolHandler>(
         call.executor,
         handler,
         call.request,
-        call.context,
+        call.caller,
         call.client,
     )
     .await

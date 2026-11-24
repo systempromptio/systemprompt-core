@@ -157,7 +157,7 @@ impl McpToolset for IssuesToolset {
             .call(IssuesToolCall {
                 executor: call.executor,
                 request: call.request,
-                context: call.context,
+                caller: call.caller,
                 client: call.client,
                 hop: call.hop,
             })
@@ -186,7 +186,7 @@ impl McpToolset for DocumentsToolset {
         Box::pin(self.0.call(DocumentsToolCall {
             executor: call.executor,
             request: call.request,
-            context: call.context,
+            caller: call.caller,
             client: call.client,
             hop: call.hop,
         }))

@@ -22,6 +22,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use axum::body::Bytes;
 use axum::http::{HeaderMap, HeaderValue};
+use futures::future::BoxFuture;
 use futures::stream::BoxStream;
 use systemprompt_identifiers::{ServiceName, SessionId, UserId};
 use systemprompt_models::RequestContext;
@@ -129,8 +130,16 @@ pub trait ProxiedCallGovernor: Send + Sync {
     ) -> Result<(), ProxyBackendError>;
 }
 
-/// The audit of one proxied tool call: it observes the response body as it
-/// is forwarded and records the execution once the body ends or is dropped.
+/// The audit of one proxied tool call.
+///
+/// For an event stream it observes the body as it is forwarded and records the execution once the stream ends or
+/// is dropped; for a single response it reads the whole body, records the
+/// execution, and only then hands the (stamped) body back, so the row is
+/// written whether or not the client reads the response.
 pub trait CallAudit: Send {
-    fn tap(self: Box<Self>, body: ProxyBodyStream, event_stream: bool) -> ProxyBodyStream;
+    fn tap(
+        self: Box<Self>,
+        body: ProxyBodyStream,
+        event_stream: bool,
+    ) -> BoxFuture<'static, Result<ProxyBodyStream, std::io::Error>>;
 }

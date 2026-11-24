@@ -24,6 +24,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId, headers};
+use systemprompt_extension::mcp::VerifiedCaller;
 use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_models::auth::{McpHopClaims, TokenError, TokenInteraction};
 use systemprompt_models::execution::context::UserInteractionMode;
@@ -182,6 +183,7 @@ pub fn admit_request(
 ) -> Result<RestorePrincipal, HopAdmissionError> {
     extensions.remove::<VerifiedHop>();
     extensions.remove::<SysRequestContext>();
+    extensions.remove::<VerifiedCaller>();
     let hop = verifier.verify(headers)?;
     let principal = RestorePrincipal {
         server_id: verifier.server_id.clone(),
@@ -190,6 +192,7 @@ pub fn admit_request(
     let context = hop
         .request_context(headers)
         .map_err(HopAdmissionError::Context)?;
+    extensions.insert(VerifiedCaller::__from_hop(context.clone()));
     extensions.insert(context);
     extensions.insert(hop);
     Ok(principal)

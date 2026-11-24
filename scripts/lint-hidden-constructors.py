@@ -5,6 +5,8 @@
 handoff the kernel mounts and dispatches from; only the facade
 (`systemprompt/`) calls them. `GatewayPrincipal::__from_kernel` stamps a
 verified gateway caller; only the API kernel (`crates/entry/api/`) calls it.
+`VerifiedCaller::__from_hop` stamps the caller a tool execution is recorded
+for; only the toolset host's hop admission (`crates/app/mcp-host/`) calls it.
 A call anywhere else in the root workspace's production source fails.
 
 The facade also must not re-export a `systemprompt_api` or
@@ -30,7 +32,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from rust_tokens import located, rust_files  # noqa: E402
 
 FACADE = "systemprompt"
-ALLOWED = {"__from_facade": (FACADE,), "__from_kernel": ("crates/entry/api",)}
+ALLOWED = {
+    "__from_facade": (FACADE,),
+    "__from_kernel": ("crates/entry/api",),
+    "__from_hop": ("crates/app/mcp-host",),
+}
 SCANNED = ("crates", FACADE)
 EXCLUDED = ("crates/tests",)
 KERNEL_CRATES = {"systemprompt_api": "crates/entry/api/src", "systemprompt_cli": "crates/entry/cli/src"}
