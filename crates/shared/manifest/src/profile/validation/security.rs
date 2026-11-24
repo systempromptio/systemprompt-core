@@ -125,6 +125,13 @@ impl Profile {
     }
 
     pub(crate) fn validate_database_pool(&self, errors: &mut Vec<String>) {
+        if let Some(budget) = self.database.connection_budget
+            && !(1..=10_000).contains(&budget)
+        {
+            errors.push(format!(
+                "database.connection_budget must be between 1 and 10000 (got {budget})"
+            ));
+        }
         let Some(pool) = self.database.pool.as_ref() else {
             return;
         };

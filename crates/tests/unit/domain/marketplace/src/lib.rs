@@ -230,6 +230,8 @@ mod text_normalization;
 #[cfg(test)]
 mod authoring_capture;
 #[cfg(test)]
+mod coverage_queue_ordered;
+#[cfg(test)]
 mod source_sync_failure_recovery;
 #[cfg(test)]
 mod source_sync_fixture;

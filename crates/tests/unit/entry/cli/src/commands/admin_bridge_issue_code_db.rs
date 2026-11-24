@@ -23,7 +23,7 @@ use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_identity_entry::cli::bridge::BridgeCommands;
+use systemprompt_identity_entry::cli::bridge::{self, BridgeCommands};
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
@@ -87,9 +87,9 @@ async fn codes_for(pool: &DbPool, user: &str) -> Vec<Issued> {
 }
 
 async fn issue(reference: &str) -> anyhow::Result<()> {
-    crate::commands::identity_host::bridge(
+    bridge::execute(
         parse(&["issue-code", "--user-id", reference]),
-        &ctx().await,
+        &crate::boot_ctx::identity(&ctx().await),
     )
     .await
     .map(drop)
@@ -211,6 +211,7 @@ mod enroll_cert {
     use super::{codes_for, ctx, parse, seeded_user, test_db_pool};
     use chrono::{DateTime, Utc};
     use systemprompt_database::DbPool;
+    use systemprompt_identity_entry::cli::bridge;
     use uuid::Uuid;
 
     fn fingerprint() -> String {
@@ -243,7 +244,7 @@ mod enroll_cert {
     }
 
     async fn enroll(reference: &str, fingerprint: &str, label: &str) -> anyhow::Result<()> {
-        crate::commands::identity_host::bridge(
+        bridge::execute(
             parse(&[
                 "enroll-cert",
                 "--user-id",
@@ -253,7 +254,7 @@ mod enroll_cert {
                 "--label",
                 label,
             ]),
-            &ctx().await,
+            &crate::boot_ctx::identity(&ctx().await),
         )
         .await
         .map(drop)

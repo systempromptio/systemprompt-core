@@ -32,6 +32,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
+croner = { workspace = true }
 
 # Database
 sqlx = { workspace = true }
@@ -56,13 +57,8 @@ systemprompt-runtime = { workspace = true }
 systemprompt-traits = { workspace = true }
 
 
-# OTLP export (otlp_export job)
-opentelemetry-proto = { workspace = true, optional = true }
-prost = { workspace = true, optional = true }
 reqwest = { workspace = true }
 metrics = { workspace = true }
-sha2 = { workspace = true }
-hex = { workspace = true }
 url = { workspace = true }
 
 # Panic isolation for spawned jobs
@@ -79,5 +75,3 @@ serde_json = { workspace = true }
 
 [features]
 default = []
-# The otlp_export job, which ships the audit trail to an OTLP collector.
-otel = ["dep:opentelemetry-proto", "dep:prost"]

@@ -15,12 +15,13 @@
 //! - the per-process `Arc<Mutex<PublishGuard>>` that serializes inventory
 //!   publication passes;
 //! - after governance, two inventory refreshers, each built from the sealed
-//!   bundle sources, services root and system admin. The sealed
+//!   bundle sources, services root and system admin, both provided sealed. The
 //!   `DynInventoryPublisher` is the one the kernel's admin services refresh
-//!   route runs with the authenticated request's user as the actor, which no
-//!   member job, command or route state can resolve. The open, crate-private
-//!   `Arc<MemberRefresher>` is the `managed_inventory_refresh` job's narrow
-//!   view: it publishes only as the configured owner;
+//!   route runs with the authenticated request's user as the actor. The
+//!   `Arc<InventoryRefresher>` is read only by this member's own
+//!   `managed_inventory_refresh` job, whose context keeps its member's sealed
+//!   values, and publishes only as the configured owner; no other member's job,
+//!   command or route state resolves either;
 //! - after governance, two separate values bound to the system admin's managed
 //!   inventory. `Arc<OwnerSkillView>` is open: the `core skills` commands list
 //!   and resolve the owner's own skills through it, with no consumer parameter
@@ -47,7 +48,7 @@ use tokio::sync::Mutex;
 use crate::catalog::MarketplaceCache;
 use crate::contract::{MarketplaceSeams, MarketplaceSlot};
 use crate::inventory::{
-    InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, MemberRefresher, PublishGuard,
+    InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, PublishGuard,
 };
 use crate::managed::git_sources::GitCredentialReferences;
 use crate::managed::{
@@ -127,9 +128,11 @@ fn provide_state(c: &mut Contributions<'_>) {
                 ManagedRepository::new(&db).with_publication_policy(policy),
             ))
         })
-        .provide_after_governance(|r: &Resolved<'_>| {
-            Ok(Arc::new(MemberRefresher::new(refresher_parts(r)?)))
-        })
+        .provide_sealed_after_governance(
+            |r: &Resolved<'_>| -> Result<Arc<InventoryRefresher>, ProvideError> {
+                Ok(Arc::new(InventoryRefresher::new(refresher_parts(r)?)))
+            },
+        )
         .provide_sealed_after_governance(
             |r: &Resolved<'_>| -> Result<DynInventoryPublisher, ProvideError> {
                 Ok(Arc::new(InventoryRefresher::new(refresher_parts(r)?)))

@@ -43,9 +43,7 @@ async fn resolve(host: &dyn CommandHost, reference: &str) -> Result<(UserService
 }
 
 pub(super) async fn execute(args: RestoreArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let window_days = crate::cli::state::identity_state(host)
-        .await?
-        .archived_users_days;
+    let window_days = host.identity_settings()?.archived_users_days;
     let (user_service, user) = resolve(host, &args.user).await?;
     user_service.restore(&user.id, window_days).await?;
     let output = UserDeletedOutput {

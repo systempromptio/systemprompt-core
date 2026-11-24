@@ -32,6 +32,9 @@ pub enum CoordinationError {
     #[error("lease ttl must be between one second and one day, got {ttl:?}")]
     InvalidTtl { ttl: Duration },
 
+    #[error("lease {key} is no longer held under fencing token {token}")]
+    Fenced { key: LeaseKey, token: FencingToken },
+
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }
@@ -48,10 +51,38 @@ pub trait InstanceRegistry: Send + Sync {
     async fn is_alive(&self, instance: &InstanceId) -> CoordinationResult<bool>;
 }
 
+/// The monotonic token a lease claim is stamped with.
+///
+/// Every claim that changes a lease's owner draws a strictly larger token
+/// than any token the key carried before, so a holder that lost its lease
+/// holds a token smaller than its replacement's; a write fenced on the token
+/// ([`LeaseRepository::renew`]) is refused once a newer one exists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FencingToken(i64);
+
+impl FencingToken {
+    #[must_use]
+    pub const fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    #[must_use]
+    pub const fn get(self) -> i64 {
+        self.0
+    }
+}
+
+impl std::fmt::Display for FencingToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lease {
     pub key: LeaseKey,
     pub owner: InstanceId,
+    pub fencing_token: FencingToken,
     pub acquired_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
 }
@@ -60,14 +91,21 @@ pub struct Lease {
 ///
 /// `claim` takes the lease when it is free, expired, held by a replica that
 /// is no longer alive, or already ours — in which case it extends the
-/// expiry, so a holder heartbeats by claiming again before `ttl` elapses.
-/// `None` means another live replica holds it.
+/// expiry and keeps the token, so a holder heartbeats by claiming again
+/// before `ttl` elapses. A claim that changes the owner stamps a new, larger
+/// [`FencingToken`]. `None` means another live replica holds it.
+///
+/// `renew` is the fenced write: it extends the lease only while the row
+/// still carries this holder's token, and otherwise changes nothing and
+/// returns [`CoordinationError::Fenced`].
 ///
 /// Held as `Arc<dyn LeaseRepository>` (`DynLeaseRepository`), hence
 /// `#[async_trait]`.
 #[async_trait]
 pub trait LeaseRepository: Send + Sync {
     async fn claim(&self, key: &LeaseKey, ttl: Duration) -> CoordinationResult<Option<Lease>>;
+
+    async fn renew(&self, lease: &Lease, ttl: Duration) -> CoordinationResult<Lease>;
 
     async fn release(&self, key: &LeaseKey) -> CoordinationResult<bool>;
 
@@ -126,6 +164,10 @@ impl InstanceRegistry for UnavailableCoordination {
 #[async_trait]
 impl LeaseRepository for UnavailableCoordination {
     async fn claim(&self, _key: &LeaseKey, _ttl: Duration) -> CoordinationResult<Option<Lease>> {
+        Err(CoordinationError::Unavailable { seam: "leases" })
+    }
+
+    async fn renew(&self, _lease: &Lease, _ttl: Duration) -> CoordinationResult<Lease> {
         Err(CoordinationError::Unavailable { seam: "leases" })
     }
 

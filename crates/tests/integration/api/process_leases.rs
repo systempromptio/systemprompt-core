@@ -322,10 +322,11 @@ async fn a_withdrawn_presence_and_a_released_lease_are_announced_to_listeners() 
 async fn a_lease_loop_waiting_on_the_wake_returns_when_a_peer_withdraws() {
     let db = test_db_pool().await;
     let leaving = Worker::boot(&db, "http://10.0.3.1:8080").await;
+    db.bind_notifications(&systemprompt_traits::BackgroundTasks::default());
     let mut wake = ProcessOwnershipWake::new(&db);
     assert!(
-        wake.wait(std::time::Duration::ZERO).await,
-        "a listener that has just connected reports a wake"
+        wake.wait(std::time::Duration::from_secs(10)).await,
+        "a hub session that has just connected reports a wake"
     );
     assert!(wake.is_listening());
 

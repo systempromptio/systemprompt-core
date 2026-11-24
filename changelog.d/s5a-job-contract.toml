@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Job contract"
+text = "`Job` gains `requires()` (types the job cannot run without; an unmet one refuses the scheduler start with `SchedulerError::UnmetRequirement`) and `missed_runs()` returning `MissedRunPolicy` (`Skip` by default, `RunOnce`, `CatchUp { max }`). `RunnerService` gains `requires()`. `StateRequirement` moves to `systemprompt-provider-contracts` (still exported by `systemprompt-extension`). A job context keeps the sealed values its own member provided (`JobContext::for_member`) and withholds every other sealed value."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Breaking"
+text = "Adds `Job::requires`, `Job::missed_runs`, `MissedRunPolicy`, `StateRequirement`, `JobContext::for_member` and `Dependencies::withholding_sealed_except`."

@@ -23,6 +23,7 @@ systemprompt-extension = { workspace = true }
 [dependencies]
 # Core dependencies
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }

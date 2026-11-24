@@ -61,8 +61,6 @@ mod oauth_cleanup_job;
 #[cfg(test)]
 mod orchestration;
 #[cfg(test)]
-mod otlp_export;
-#[cfg(test)]
 mod owner_disabled_db;
 #[cfg(test)]
 mod plans;
@@ -82,6 +80,8 @@ mod retention_holds;
 mod retention_holds_db;
 #[cfg(test)]
 mod retention_targets_db;
+#[cfg(test)]
+mod s5a_runs_db;
 #[cfg(test)]
 mod sealed_contexts_db;
 #[cfg(test)]

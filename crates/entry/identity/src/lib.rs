@@ -6,9 +6,8 @@
 //! them as an
 //! [`IdentitySurface`](systemprompt_oauth_issuance::surface::IdentitySurface)
 //! the API mount builds and layers, so the API server does not name this
-//! crate. The `cli` feature carries the `admin users`, `admin bridge` and
-//! `admin keys` command groups ([`cli`]) the member contributes under the
-//! kernel's `admin` group, so the CLI kernel does not name this crate either.
+//! crate. The `cli` feature carries the `admin users`, `admin keys` and
+//! `admin bridge` command groups ([`cli`]), contributed by the same member.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

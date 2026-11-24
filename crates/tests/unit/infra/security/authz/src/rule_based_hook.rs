@@ -42,6 +42,7 @@ async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
             sources: ChainSources::default(),
             epochs: systemprompt_traits::CacheEpochs::new(),
             providers: Default::default(),
+            audit_spans: None,
         },
     );
 
@@ -83,6 +84,7 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
             sources: ChainSources::default(),
             epochs: systemprompt_traits::CacheEpochs::new(),
             providers: Default::default(),
+            audit_spans: None,
         },
     );
 

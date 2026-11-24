@@ -1,24 +1,24 @@
 //! `admin keys` command tree: RSA signing-key management for the JWT plane.
 //!
-//! [`KeysCommands`] generates fresh RS256 keypairs, rotates the deployment's
-//! token key in two phases (stage, then promote) with a verification overlap,
-//! and mints long-lived `aud=plugin` tokens used for hook and governance
-//! authentication. Rotation and minting go through the kernel-held
-//! signing-keys handle; no key material reaches the command.
+//! [`KeysCommands`] generates fresh RS256 keypairs and rotates the
+//! deployment's token key in two phases (stage, then promote) with a
+//! verification overlap, through the kernel-held signing handle the
+//! `signing-keys` grant serves, and mints admin hook credentials
+//! (`issue-plugin-token`) through the plugin-token minter conferred on
+//! `identity-http`. `identity-http` contributes the group.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod generate;
-mod issue_plugin_token;
+mod plugin_token;
 mod rotation;
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_extension::cli::CommandHost;
-
 use systemprompt_extension::cli::{
-    CliCommandGroup, CommandDescriptor, CommandError, CommandOutput, DataImpact, DescribeCommand,
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
 };
 
 #[derive(Debug, Subcommand)]
@@ -44,30 +44,18 @@ pub enum KeysCommands {
         name = "issue-plugin-token",
         about = "Mint a long-lived RS256 JWT with `aud=plugin` for hook/governance authentication"
     )]
-    IssuePluginToken(issue_plugin_token::IssuePluginTokenArgs),
+    IssuePluginToken(plugin_token::IssuePluginTokenArgs),
 }
 
 pub async fn execute(cmd: KeysCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
+        KeysCommands::IssuePluginToken(args) => plugin_token::execute(args, host).await,
         KeysCommands::Generate(args) => {
             generate::execute(&args).map(|()| CommandOutput::rendered())
         },
-        KeysCommands::Stage(_) => {
-            let result = rotation::execute_stage(host)?;
-            Ok(result)
-        },
-        KeysCommands::Promote(args) => {
-            let result = rotation::execute_promote(args, host)?;
-            Ok(result)
-        },
-        KeysCommands::Rotate(args) => {
-            let result = rotation::execute_rotate(args, host)?;
-            Ok(result)
-        },
-        KeysCommands::IssuePluginToken(args) => {
-            let result = issue_plugin_token::execute(args, host).await?;
-            Ok(result)
-        },
+        KeysCommands::Stage(_) => rotation::execute_stage(host),
+        KeysCommands::Promote(args) => rotation::execute_promote(args, host),
+        KeysCommands::Rotate(args) => rotation::execute_rotate(args, host),
     }
 }
 
@@ -90,7 +78,10 @@ impl CliCommandGroup for KeysCommands {
     const NAME: &'static str = "keys";
     const ABOUT: &'static str = "RSA signing-key generation for the federated JWT plane";
 
-    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
-        execute(self, host).await.map_err(super::command_error)
+    fn run(
+        self,
+        host: &dyn CommandHost,
+    ) -> impl Future<Output = Result<CommandOutput, CommandError>> + Send {
+        async move { execute(self, host).await.map_err(crate::cli::command_error) }
     }
 }

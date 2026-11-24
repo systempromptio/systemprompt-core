@@ -115,9 +115,9 @@ pub(super) async fn execute(
     args: FederatedRekeyArgs,
     host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let state = crate::cli::state::identity_state(host).await?;
-    let own_issuer = state.issuer;
-    let candidates = id_jag_candidates(&own_issuer, &state.trusted_issuers);
+    let settings = host.identity_settings()?;
+    let own_issuer = settings.issuer;
+    let candidates = id_jag_candidates(&own_issuer, &settings.trusted_issuers);
     let choice = resolve_choice(
         &candidates,
         args.to_issuer.as_deref(),

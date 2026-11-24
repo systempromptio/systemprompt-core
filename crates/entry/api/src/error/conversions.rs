@@ -85,30 +85,7 @@ impl From<GlobalConfigError> for ApiHttpError {
 
 impl From<ContextExtractionError> for ApiHttpError {
     fn from(err: ContextExtractionError) -> Self {
-        let api = match err {
-            ContextExtractionError::InvalidToken(source) => {
-                ApiError::unauthorized("Invalid or expired token").with_source(source)
-            },
-            e @ (ContextExtractionError::MissingHeader(_)
-            | ContextExtractionError::MissingAuthHeader
-            | ContextExtractionError::Revoked
-            | ContextExtractionError::MissingSessionId
-            | ContextExtractionError::MissingUserId) => ApiError::unauthorized(e.to_string()),
-            e @ (ContextExtractionError::MissingContextId
-            | ContextExtractionError::InvalidHeaderValue { .. }
-            | ContextExtractionError::InvalidUserId(_)) => ApiError::bad_request(e.to_string()),
-            e @ ContextExtractionError::ForbiddenHeader { .. } => {
-                ApiError::forbidden(e.to_string())
-            },
-            e @ ContextExtractionError::UserNotFound(_) => ApiError::not_found(e.to_string()),
-            e @ ContextExtractionError::PayloadTooLarge { .. } => {
-                ApiError::payload_too_large(e.to_string())
-            },
-            e @ ContextExtractionError::DatabaseError { .. } => {
-                ApiError::internal("Request context lookup failed", e)
-            },
-        };
-        Self(Box::new(api))
+        Self(Box::new(ApiError::from(err)))
     }
 }
 

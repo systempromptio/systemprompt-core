@@ -168,6 +168,7 @@ impl GatewayAudit {
                 self.ctx.user_id.clone(),
                 self.ctx.session_id.clone(),
             ),
+            self.admission_limit,
         )
         .await?;
         self.journal_lease

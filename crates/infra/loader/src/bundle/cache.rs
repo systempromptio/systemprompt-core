@@ -137,19 +137,25 @@ impl BundleCache {
         Ok(())
     }
 
-    pub fn gc(&self, keep_composed: &str) -> BundleResult<()> {
+    pub fn gc(&self, state: &ServicesBundleState) -> BundleResult<()> {
         let bundles = self.root.join("bundles");
         if bundles.is_dir() {
             for entry in fs::read_dir(&bundles)? {
-                let dir = entry?.path();
+                let entry = entry?;
+                let dir = entry.path();
                 if dir.is_dir() {
-                    retain_newest(&dir, KEEP_PER_BUNDLE, "")?;
+                    let pinned = entry
+                        .file_name()
+                        .to_str()
+                        .and_then(|name| state.sources.get(name))
+                        .map_or("", |source| source.content_hash.as_str());
+                    retain_newest(&dir, KEEP_PER_BUNDLE, pinned)?;
                 }
             }
         }
         let composed = self.root.join("composed");
         if composed.is_dir() {
-            retain_newest(&composed, KEEP_COMPOSED, keep_composed)?;
+            retain_newest(&composed, KEEP_COMPOSED, &state.composed_hash)?;
         }
         Ok(())
     }

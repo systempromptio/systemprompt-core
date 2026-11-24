@@ -56,6 +56,7 @@ pub mod ai_providers;
 pub mod analytics;
 pub mod background_tasks;
 pub mod backoff;
+pub mod bridge_host_filters;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod cache_epoch;
 pub use cache_epoch::{CacheDomain, CacheEpochView, CacheEpochs};
@@ -82,7 +83,6 @@ pub mod escalation;
 pub mod events;
 pub mod extension_error;
 pub mod gateway_session;
-pub mod host_filter_migration;
 pub mod ip_bans;
 pub mod job_scope;
 pub mod log_service;
@@ -102,6 +102,11 @@ pub use admin_bootstrap::{
     DynAdminBootstrap,
 };
 pub mod files_config;
+pub mod plugin_token;
+pub use plugin_token::{
+    DynPluginTokenMinter, MintedPluginToken, PLUGIN_TOKEN_MAX_DAYS, PluginTokenHolder,
+    PluginTokenMintError, PluginTokenMinter, PluginTokenRequest,
+};
 pub mod registry;
 pub mod repository;
 pub mod request_analytics;
@@ -138,10 +143,10 @@ pub use systemprompt_provider_contracts::{
     BatchPlan, BatchedRun, ChangeActor, ChangeSource, DbBudget, Dependencies, DoctorCheck,
     DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
     DynGitCredentialDirectory, GitCredentialDirectory, GitCredentialReadError, GitCredentialSource,
-    Job, JobContext, JobResult, JobScope, MissingDependency, ProviderError, ProviderResult,
-    SecretPresence, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent,
-    ToolContext, ToolDefinition, ToolInventory, ToolProvider, ToolProviderError,
-    ToolProviderResult, run_batched,
+    Job, JobContext, JobResult, JobScope, MissedRunPolicy, MissingDependency, ProviderError,
+    ProviderResult, SecretPresence, ServerListingFailure, StateRequirement, ToolCallRequest,
+    ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
+    ToolProviderError, ToolProviderResult, run_batched,
 };
 
 pub use context::{
@@ -161,15 +166,15 @@ pub use retention_purge::{RetentionPurge, RetentionSweep};
 
 pub use coordination::{
     AdvisoryLockGuard, AdvisoryLocks, CoordinationError, CoordinationResult, DynAdvisoryLocks,
-    DynInstanceRegistry, DynLeaseRepository, HeldAdvisoryLock, InstanceRegistry, Lease,
-    LeaseRepository, UnavailableCoordination,
+    DynInstanceRegistry, DynLeaseRepository, FencingToken, HeldAdvisoryLock, InstanceRegistry,
+    Lease, LeaseRepository, UnavailableCoordination,
 };
 
 pub use ai_reports::{
     CatalogMigrationPort, DynCatalogMigrationPort, DynSafetyFindingsReader, LegacyCatalogEntry,
     SafetyFindingRollup, SafetyFindingsReader,
 };
-pub use host_filter_migration::{DynHostFilterMigrationPort, HostFilterMigrationPort};
+pub use bridge_host_filters::{BridgeHostFilterMigration, DynBridgeHostFilterMigration};
 pub use ownership::is_plain_identifier;
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,

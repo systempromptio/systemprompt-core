@@ -26,6 +26,10 @@ mod log_actor;
 #[cfg(test)]
 mod models;
 #[cfg(test)]
+mod otlp;
+#[cfg(test)]
+mod otlp_audit_spans;
+#[cfg(test)]
 mod repository;
 #[cfg(test)]
 mod sanitize_argv;

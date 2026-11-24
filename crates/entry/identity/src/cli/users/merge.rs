@@ -10,6 +10,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_extension::AdmittedOwnerReassignments;
 use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
@@ -39,9 +40,9 @@ pub(super) async fn execute(args: MergeArgs, host: &dyn CommandHost) -> Result<C
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)))
         .with_owner_reassignments(
-            crate::cli::state::identity_state(host)
+            host.resolved()
                 .await?
-                .owner_reassignments,
+                .get::<Arc<AdmittedOwnerReassignments>>()?,
         );
     let admin_service = UserAdminService::new(user_service.clone());
 

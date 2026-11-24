@@ -53,6 +53,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
 use sqlx::PgPool;
+use systemprompt_database::NotificationHub;
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_manifest::profile::ConsumerProfile;
 use systemprompt_traits::{JobContext, RunnerService};
@@ -109,7 +110,7 @@ impl StateCell {
 pub struct NotificationsConsumer {
     pipeline: Arc<NotificationPipeline>,
     outbox: OutboxConsumer,
-    listener_pool: PgPool,
+    notifications: NotificationHub,
     settings: ConsumerProfile,
     state: StateCell,
     hold: RetryHold,
@@ -129,13 +130,13 @@ impl NotificationsConsumer {
     pub fn new(
         pipeline: Arc<NotificationPipeline>,
         pool: PgPool,
-        listener_pool: PgPool,
+        notifications: NotificationHub,
         settings: ConsumerProfile,
     ) -> Self {
         Self {
             pipeline,
             outbox: OutboxConsumer::new(pool),
-            listener_pool,
+            notifications,
             settings,
             state: StateCell::default(),
             hold: RetryHold::default(),
@@ -185,7 +186,7 @@ impl RunnerService for NotificationsConsumer {
     async fn run(&self, _ctx: JobContext, shutdown: CancellationToken) {
         let poll = Duration::from_secs(u64::from(self.settings.poll_secs.max(1)));
         let sweep_every = Duration::from_secs(u64::from(self.settings.sweep_secs.max(1)));
-        let mut wake = Wake::new(self.listener_pool.clone(), self.state.clone());
+        let mut wake = Wake::new(&self.notifications, self.state.clone());
         let mut next_sweep = Instant::now();
         while !shutdown.is_cancelled() {
             self.state.set(ConsumerState::Draining);

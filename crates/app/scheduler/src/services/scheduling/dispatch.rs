@@ -12,10 +12,10 @@
 //! something: a successful run that reports itself idle
 //! ([`JobResult::is_idle`]) leaves the row untouched and logs at TRACE. So
 //! `last_run` is the last time the job did work or failed, not the last time
-//! it was polled, and `run_count` counts those recorded runs. The tick
-//! de-duplication in [`super::claim`] reads the same `last_run`; a second
-//! replica may therefore repeat an idle tick, which by definition had
-//! nothing to do.
+//! it was polled, and `run_count` counts those recorded runs. Which replica
+//! runs a tick is decided before it starts by [`super::claim`], keyed by the
+//! tick's scheduled instant; a claimed run's row in `scheduled_job_runs` is
+//! closed with the outcome (idle runs included), fenced on the claim's token.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,7 +29,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobResult};
 use tracing::{debug, error, trace, warn};
 
-use super::claim::{Claim, acquire_cluster_claim, acquire_node_claim};
+pub(super) use super::claim::Trigger;
+use super::claim::{Claim, acquire};
 use super::{JobRun, RunningJobs, make_job_context};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobRunRecord, JobStatus};
@@ -38,6 +39,7 @@ use crate::services::job_metrics;
 
 pub(super) use super::claim::{ClaimPolicy, claim_policy};
 
+#[derive(Clone)]
 pub(super) struct JobDispatch {
     pub(super) job: Arc<dyn JobTrait>,
     pub(super) job_name: JobName,
@@ -51,7 +53,7 @@ pub(super) struct JobDispatch {
     pub(super) schedule: Arc<AdmittedSchedule>,
 }
 
-pub(super) async fn execute_job(dispatch: JobDispatch) {
+pub(super) async fn execute_job(dispatch: JobDispatch, trigger: Trigger) {
     let JobDispatch {
         job,
         job_name,
@@ -80,21 +82,14 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         return;
     }
 
-    let claim = match claim_policy {
-        ClaimPolicy::None => Claim::Free,
-        ClaimPolicy::Cluster => acquire_cluster_claim(&job_name, &repository).await,
-        ClaimPolicy::Node { instance_id } => {
-            acquire_node_claim(&job_name, &instance_id, &repository).await
-        },
-    };
-    let claim = match claim {
-        Claim::Skip => {
-            running_jobs.lock().await.remove(&job_name);
-            return;
-        },
-        Claim::Held(guard) => Some(guard),
-        Claim::Free => None,
-    };
+    let (lock, run) =
+        match acquire(&claim_policy, trigger, &job_name, &instance_id, &repository).await {
+            Claim::Skip => {
+                running_jobs.lock().await.remove(&job_name);
+                return;
+            },
+            Claim::Run { lock, run } => (lock, run),
+        };
 
     trace!(job_name = %job_name, "Starting job");
 
@@ -117,15 +112,34 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         job_metrics::run_status(&result),
         started.elapsed(),
     );
+    let status = run_status(&result);
     handle_job_result(&job_name, result, &repository, &instance_id).await;
 
-    if let Some(claim) = claim {
-        claim.release().await;
+    if let Some(run) = run {
+        match repository.finish_run(&run, status).await {
+            Ok(true) => {},
+            Ok(false) => {
+                warn!(job_name = %job_name, scheduled_at = %run.scheduled_at(), token = %run.token(), "run row no longer carries this claim's token; outcome not recorded on it");
+            },
+            Err(e) => {
+                error!(job_name = %job_name, error = %e, "Failed to close the job's run row");
+            },
+        }
+    }
+    if let Some(lock) = lock {
+        lock.release().await;
     }
 
     {
         let mut guard = running_jobs.lock().await;
         guard.remove(&job_name);
+    }
+}
+
+const fn run_status(result: &SchedulerResult<JobResult>) -> JobStatus {
+    match result {
+        Ok(job_result) if job_result.success => JobStatus::Success,
+        _ => JobStatus::Failed,
     }
 }
 

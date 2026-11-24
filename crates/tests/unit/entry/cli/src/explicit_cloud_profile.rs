@@ -9,12 +9,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::args::{Cli, Commands};
+use systemprompt_cli::args::Cli;
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
 use systemprompt_cli::session::resolution::record_new_session;
 use systemprompt_cloud::profile::{ProfileSource, resolve_profile_path};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
-use systemprompt_extension::cli::{CommandDescriptor, DescribeCommand};
+use systemprompt_extension::cli::CommandDescriptor;
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
@@ -59,11 +59,7 @@ fn cloud_profile(name: &str) -> Profile {
 }
 
 fn descriptor(args: &[&str]) -> CommandDescriptor {
-    let cli = Cli::try_parse_from(std::iter::once("systemprompt").chain(args.iter().copied()))
-        .unwrap_or_else(|e| panic!("parse {args:?}: {e}"));
-    cli.command
-        .as_ref()
-        .map_or(CommandDescriptor::FULL, Commands::descriptor)
+    crate::identity_registry::descriptor(args)
 }
 
 fn store_with_active_local(dir: &TempDir) -> SessionStore {

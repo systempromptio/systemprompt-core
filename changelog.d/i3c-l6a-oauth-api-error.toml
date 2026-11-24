@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "HTTP errors"
+text = "One `OauthError` → `ApiError` mapping and one `ContextExtractionError` → `ApiError` mapping serve every HTTP edge; the API, gateway and identity members no longer each carry a copy."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Added"
+text = "`impl From<OauthError> for ApiError`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`impl From<ContextExtractionError> for ApiError`."

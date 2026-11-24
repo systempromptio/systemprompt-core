@@ -251,13 +251,14 @@ async fn apply_data(
                 "the catalog data migration writes through the port the `ai` member provides; \
          enable the `ai` extension in the profile",
             )?;
-    let host_filters =
-        crate::commands::admin::state::get::<systemprompt_traits::DynHostFilterMigrationPort>(host)
-            .await
-            .context(
-                "the host-filter data migration writes through the port the `oauth` member \
-                 provides; enable the `oauth` extension in the profile",
-            )?;
+    let host_filters = crate::commands::admin::state::get::<
+        systemprompt_traits::DynBridgeHostFilterMigration,
+    >(host)
+    .await
+    .context(
+        "the bridge host-filter rewrite writes through the port the `oauth` member provides; \
+         enable the `oauth` extension in the profile",
+    )?;
     let report = data::apply_with(
         &systemprompt_database::pool_from_handle(host.db().await?)?,
         port.as_ref(),

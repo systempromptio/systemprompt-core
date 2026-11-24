@@ -26,7 +26,7 @@ pub use external_session::ExternalSessionBinding;
 pub use ingest_mark::{IngestMark, IngestMarkKey, ToolResultIngestMarkRepository};
 pub use proxy_session::McpProxySessionRepository;
 pub use session::{McpSessionRecord, McpSessionRepository};
-pub use tool_usage::{IntentStamp, ProximityProbe, ToolUsageRepository};
+pub use tool_usage::{IntentStamp, ProximityProbe, ToolCallSubject, ToolUsageRepository};
 
 pub mod prelude {
     pub use super::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};

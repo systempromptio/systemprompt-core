@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The OAuth, SSO and key-management routes of systemprompt.io, and the user, bridge and signing-key administration commands."
+description = "The OAuth, SSO and key-management routes of systemprompt.io."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -56,13 +56,14 @@ http = [
     "dep:uuid",
     "dep:webauthn-rs",
 ]
+
 cli = [
     "systemprompt-extension/cli",
-    "dep:systemprompt-cloud",
     "dep:systemprompt-database",
     "dep:systemprompt-governance",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-logging",
+    "systemprompt-logging/cli",
     "dep:systemprompt-manifest",
     "dep:systemprompt-models",
     "dep:systemprompt-oauth",
@@ -81,7 +82,6 @@ cli = [
 
 [dependencies]
 systemprompt-extension = { workspace = true }
-systemprompt-cloud = { workspace = true, optional = true }
 systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
 systemprompt-governance = { workspace = true, optional = true }

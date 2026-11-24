@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Observability"
+text = "OTLP export is live: with `observability.otlp` set and the `otel` feature built in, the server ships its own `tracing` pipeline — every persisted log entry as a log record and every span under a platform trace as a span — through a bounded queue to the collector, counting what it drops in `otlp_export_dropped_total{signal}`. The `otlp_export` replay job and its `otlp_export_state` table (dropped by migration) are removed; the audit tables stay the durable record. `batch_seconds` is now the longest an item waits before its batch ships."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Added"
+text = "Feature `otel`: the `otlp` module (`OtlpFeed`, the OTLP id and record mappings, OTLP/HTTP transport) and `LogSink::start_otlp_export` / `LogSink::otlp_dropped`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "The `otel` feature, `OtlpExportJob`, `otlp_export_now`, `OtlpExportReport`, `OtlpSignalReport`, `OtlpExportState`, `OtlpExportStateRepository`, `repository::otlp` and `SchedulerError::{UnknownOtlpSignal, OtlpExport}` are removed; migration 008 drops `otlp_export_state`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "Feature `otel`: the server starts the live OTLP export at boot when the profile names a collector."

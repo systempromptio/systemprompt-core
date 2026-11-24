@@ -70,6 +70,7 @@ pub mod analytics;
 pub mod api;
 pub mod artifacts;
 pub mod attribution;
+pub mod audit_spans;
 pub mod auth;
 pub mod authz;
 pub mod brain;

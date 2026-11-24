@@ -128,6 +128,10 @@ pub(super) async fn dispatch_command(selected: Selected, ctx: &CommandContext) -
         },
         Selected::Registered(registered) => {
             let member = MemberHost::new(ctx, registered.parsed.descriptor());
+            let member = match registered.member_scope() {
+                Some((owner, standing)) => member.owned_by(owner.clone(), standing),
+                None => member,
+            };
             registered
                 .parsed
                 .run(&member)

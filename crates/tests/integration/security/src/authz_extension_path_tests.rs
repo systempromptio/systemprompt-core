@@ -115,6 +115,7 @@ async fn extension_hook_evaluated_and_audited() {
             sources: ChainSources::default(),
             epochs: systemprompt_traits::CacheEpochs::new(),
             providers: Default::default(),
+            audit_spans: None,
         },
     )
     .expect("bootstrap ok");

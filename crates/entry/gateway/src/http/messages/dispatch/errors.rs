@@ -31,6 +31,7 @@ const PROMPT_REPAIR_ACTION: &str = "Remove secret-bearing content, correct syste
                                     or shorten the conversation before retrying";
 const UNSERVABLE_MODEL_MESSAGE: &str = "The requested model is not served by this gateway";
 const IMAGE_FETCH_FAILED_MESSAGE: &str = "An image URL in the request could not be fetched";
+const SATURATED_RETRY_AFTER_SECONDS: i32 = 1;
 
 pub fn build_policy_denial(message: &str) -> Response<Body> {
     build_error_response(
@@ -68,6 +69,10 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
         GatewayError::GuardUnavailable(unavailable) => Some(with_retry_after(
             build_error_response(error.status(), error.error_type(), &unavailable.message),
             unavailable.retry_after_seconds,
+        )),
+        GatewayError::Saturated { .. } => Some(with_retry_after(
+            build_error_response(error.status(), error.error_type(), &error.to_string()),
+            SATURATED_RETRY_AFTER_SECONDS,
         )),
         GatewayError::GuardForbidden(forbidden) => Some(build_error_response(
             error.status(),
@@ -146,9 +151,8 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
         },
         GatewayError::PersonalKeyRequired { .. }
         | GatewayError::CallerCredentialRequired { .. }
-        | GatewayError::CallerFormatMismatch { .. } => {
-            RejectionError::client(status, error.to_string())
-        },
+        | GatewayError::CallerFormatMismatch { .. }
+        | GatewayError::Saturated { .. } => RejectionError::client(status, error.to_string()),
         GatewayError::GuardUnavailable(_) => {
             RejectionError::server(status, "request guard unavailable")
         },

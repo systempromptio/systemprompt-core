@@ -8,7 +8,9 @@ use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
 use std::sync::Arc;
 use systemprompt_extension::cli::CommandHost;
-use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
+use systemprompt_oauth::repository::{
+    CreateSetupTokenParams, OAuthRepositories, SetupTokenPurpose,
+};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
 use systemprompt_users::{UserRepository, UserService};
 
@@ -25,7 +27,8 @@ pub struct Args {
 }
 
 pub(super) async fn execute(args: Args, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let state = crate::cli::state::identity_state(host).await?;
+    let oauth = host.resolved().await?.get::<Arc<OAuthRepositories>>()?;
+    let oauth_repo = &oauth.oauth;
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let users = UserService::new(Arc::new(UserRepository::new(&pool)));
     let user = users
@@ -43,9 +46,9 @@ pub(super) async fn execute(args: Args, host: &dyn CommandHost) -> Result<Comman
         expires_at,
     };
 
-    state.oauth.store_setup_token(params).await?;
+    oauth_repo.store_setup_token(params).await?;
 
-    let external_url = state.api_external_url;
+    let external_url = host.identity_settings()?.api_external_url;
 
     let link_url = format!("{}/auth/link-passkey?token={}", external_url, raw_token);
 

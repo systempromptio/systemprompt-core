@@ -10,7 +10,6 @@ use anyhow::Result;
 use clap::Args;
 use serde::Serialize;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_manifest::services::{BridgeReleasesSpec, ServicesView};
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, WindowStatus};
 use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
 
@@ -61,15 +60,7 @@ pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<Co
         None => repo.list_active(within).await?,
     };
 
-    let window = host
-        .resolved()
-        .await?
-        .get::<ServicesView>()?
-        .config()
-        .gateway_config()
-        .and_then(|g| g.bridge_releases.as_ref())
-        .map(BridgeReleasesSpec::version_window)
-        .unwrap_or_default();
+    let window = host.identity_settings()?.bridge_release_window;
     let summaries = rows
         .into_iter()
         .map(|row| summary(row, &window))

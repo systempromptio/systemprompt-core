@@ -3,10 +3,14 @@
 //! `GET /status` answers "what tree is this instance actually serving, and
 //! why" — including the failure text when the instance fell back to a cached
 //! or baked tree, so an instance running yesterday's bundle does not look
-//! healthy. `POST /refresh` re-runs the boot-time resolution against the
+//! healthy — and names every source held back on its previous bundle, since
+//! a composition with a refused kit in it otherwise looks like any other.
+//! `POST /refresh` re-runs the boot-time resolution against the
 //! configured sources, recomposes, and when the composition changed projects
 //! it into the authz tables and the inventory in-process; `restart=true` is
-//! an opt-in for the static config a running process cannot re-read.
+//! an opt-in for the static config a running process cannot re-read. Its
+//! reply carries the provenance of what it resolved and the sources it held
+//! back, so "nothing new" and "refused" are different answers.
 //!
 //! Two refreshes must not fetch at once, so a process-wide single-flight
 //! lock guards the pipeline and the second caller is refused rather than
@@ -26,12 +30,13 @@ use axum::routing::{get, post};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ContentHash;
+use systemprompt_loader::bundle::SourceRefusal;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_runtime::AppContext;
 
 pub use refresh::{RefreshQuery, ServicesRefresh, refresh};
-pub use status::build_status;
+pub use status::{build_status, held_back_block, served_provenance};
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
@@ -79,6 +84,9 @@ pub struct ServicesStatusResponse {
     pub provenance: ProvenanceView,
     pub sources: Vec<SourceView>,
 
+    #[serde(default)]
+    pub refused: Vec<SourceRefusal>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_reconciled_hash: Option<String>,
 }
@@ -90,7 +98,12 @@ pub struct ServicesRefreshResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub composed_hash: Option<String>,
 
+    pub provenance: ProvenanceView,
     pub sources: Vec<SourceView>,
+
+    #[serde(default)]
+    pub refused: Vec<SourceRefusal>,
+
     pub reconciled: bool,
     pub restart_recommended: bool,
     pub restarting: bool,

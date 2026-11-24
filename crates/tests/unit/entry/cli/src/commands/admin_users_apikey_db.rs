@@ -53,7 +53,7 @@ async fn seeded_user(pool: &DbPool) -> String {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    crate::commands::identity_host::users(parse(args), &ctx().await)
+    users::execute(parse(args), &crate::boot_ctx::identity(&ctx().await))
         .await
         .map(drop)
 }

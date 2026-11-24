@@ -125,10 +125,9 @@ impl AppContextBuilder {
         let content = assembly::assemble_content(&config, &app_paths);
         let seeded = seeded_repositories(&database, &config.instance_id);
         let system_admin = load_identity(&self.boot, &self.admitted, &database).await?;
-        let (router, bridge, listener_pool) =
-            event_plane(self.event_router, &database, &config, &cache_epochs);
-        drop(listener_pool);
+        let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let background_tasks = self.background_tasks.unwrap_or_default();
+        database.bind_notifications(&background_tasks);
         let secrets: Arc<dyn SecretStore> =
             Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets());
         let spawner = new_spawner()?;
@@ -162,6 +161,7 @@ impl AppContextBuilder {
                 event_router: &router,
                 catalog_roles: composition::catalog_roles(&self.admitted),
                 escalation: systemprompt_traits::EscalationDelivery::InProcess,
+                audit_spans: Arc::new(log_sink.clone()),
             },
             signing_keys: &signing_keys,
             token_authority: &token_authority,
@@ -202,6 +202,7 @@ impl AppContextBuilder {
                 epochs: &cache_epochs,
                 providers: &*r.get::<Arc<SubjectProviderSet>>()?,
                 hooks: &*r.get::<Arc<AuthzHooks>>()?,
+                audit_spans: r.optional::<systemprompt_models::audit_spans::DynAuditSpanSink>(),
             },
         )?;
         binders.base.authz_hook.bind(Arc::clone(&authz_hook))?;

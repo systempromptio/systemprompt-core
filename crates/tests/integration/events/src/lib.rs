@@ -19,6 +19,9 @@ mod durable;
 mod durable_batch;
 
 #[cfg(test)]
+mod claim_throughput;
+
+#[cfg(test)]
 mod config_watch_notify;
 
 #[cfg(test)]
@@ -61,9 +64,32 @@ impl OutboxSchema {
             .execute(&admin)
             .await
             .expect("create the scratch outbox schema");
-        let search_path = name.clone();
-        let pool = PgPoolOptions::new()
-            .max_connections(systemprompt_test_fixtures::db::FIXTURE_POOL_MAX_CONNECTIONS)
+        let pool = Self::connect(
+            &name,
+            systemprompt_test_fixtures::db::FIXTURE_POOL_MAX_CONNECTIONS,
+        )
+        .await;
+        for ddl in [
+            include_str!("../../../../infra/events/schema/event_outbox.sql"),
+            include_str!("../../../../infra/events/schema/event_outbox_backlog.sql"),
+            include_str!("../../../../infra/events/schema/migrations/004_durable_consumption.sql"),
+        ] {
+            sqlx::raw_sql(sqlx::AssertSqlSafe(ddl))
+                .execute(&pool)
+                .await
+                .expect("install the outbox schema");
+        }
+        Self { admin, pool, name }
+    }
+
+    pub async fn pool_of(&self, max_connections: u32) -> PgPool {
+        Self::connect(&self.name, max_connections).await
+    }
+
+    async fn connect(name: &str, max_connections: u32) -> PgPool {
+        let search_path = name.to_owned();
+        PgPoolOptions::new()
+            .max_connections(max_connections)
             .idle_timeout(systemprompt_test_fixtures::db::FIXTURE_POOL_IDLE_TIMEOUT)
             .after_connect(move |connection, _| {
                 let search_path = search_path.clone();
@@ -81,18 +107,7 @@ impl OutboxSchema {
             })
             .connect(&systemprompt_test_fixtures::test_database_url())
             .await
-            .expect("connect to the scratch outbox schema");
-        for ddl in [
-            include_str!("../../../../infra/events/schema/event_outbox.sql"),
-            include_str!("../../../../infra/events/schema/event_outbox_backlog.sql"),
-            include_str!("../../../../infra/events/schema/migrations/004_durable_consumption.sql"),
-        ] {
-            sqlx::raw_sql(sqlx::AssertSqlSafe(ddl))
-                .execute(&pool)
-                .await
-                .expect("install the outbox schema");
-        }
-        Self { admin, pool, name }
+            .expect("connect to the scratch outbox schema")
     }
 
     #[must_use]

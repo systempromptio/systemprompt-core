@@ -16,7 +16,11 @@ mod context_id_derivation;
 #[cfg(test)]
 mod in_process_client;
 #[cfg(test)]
+mod journal_group_commit;
+#[cfg(test)]
 mod journal_recovery;
+#[cfg(test)]
+mod journal_throughput;
 #[cfg(test)]
 mod payload_truncation;
 #[cfg(test)]

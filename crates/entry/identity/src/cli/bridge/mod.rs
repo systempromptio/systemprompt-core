@@ -3,8 +3,6 @@
 //! Exposes [`BridgeCommands`] for enrolling device-certificate fingerprints,
 //! issuing one-shot session exchange codes, listing active bridge sessions,
 //! rotating the ed25519 manifest signing seed, and printing its fingerprint.
-//! The seed is read and rotated only through the kernel-held signing-keys
-//! handle.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -104,14 +102,14 @@ impl BridgeCommands {
 
 impl DescribeCommand for BridgeCommands {
     fn descriptor(&self) -> CommandDescriptor {
-        let base = match self {
+        let descriptor = match self {
             Self::SigningKeyFingerprint(_) => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::EnrollCert(_)
             | Self::IssueCode(_)
             | Self::List(_)
             | Self::RotateSigningKey(_) => CommandDescriptor::FULL,
         };
-        base.with_data_impact(self.data_impact())
+        descriptor.with_data_impact(self.data_impact())
     }
 }
 
@@ -120,6 +118,6 @@ impl CliCommandGroup for BridgeCommands {
     const ABOUT: &'static str = "Bridge helper enrollment (device certs, exchange codes)";
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
-        execute(self, host).await.map_err(super::command_error)
+        execute(self, host).await.map_err(crate::cli::command_error)
     }
 }

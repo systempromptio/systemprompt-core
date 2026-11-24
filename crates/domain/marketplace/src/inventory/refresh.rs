@@ -4,14 +4,15 @@
 //! The `managed_resources` member builds one refresher in its provide fn
 //! from the provided repository and publish guard, the sealed system admin,
 //! active services root and [`BundleSources`] kernel seeds, and the open
-//! services view. The member's `managed_inventory_refresh` job resolves the
-//! open [`MemberRefresher`], a type no other crate can name, which can only
-//! fingerprint the configured inventory and publish it as the configured
-//! owner: it holds its own refresher (sharing the publish guard) and exposes
-//! neither it nor a publish under a caller-chosen actor. A kernel route reaches
-//! a refresher only as the sealed `DynInventoryPublisher` (`publish_latest`
-//! with the authenticated request's user as the actor), a separate instance no
-//! member runtime context resolves. Neither reads the
+//! services view, and provides it sealed. The member's
+//! `managed_inventory_refresh` job resolves it because a job context keeps
+//! the sealed values its own member provided, and calls only
+//! [`InventoryRefresher::fingerprint`] and
+//! [`InventoryRefresher::publish_as_owner`]; another member's job, command,
+//! route or runner context resolves neither it nor a publish under a
+//! caller-chosen actor. A kernel route reaches a refresher only as the sealed
+//! `DynInventoryPublisher` (`publish_latest` with the authenticated request's
+//! user as the actor), a separate instance. Neither reads the
 //! profile, the configuration or a secret: everything a refresh reads from
 //! the profile is the [`BundleSources`] value inside it.
 //!
@@ -97,6 +98,11 @@ impl InventoryRefresher {
             .await
     }
 
+    pub async fn publish_as_owner(&self) -> Result<Vec<LatestPublication>> {
+        let owner = self.owner.clone();
+        self.publish_latest(&owner).await
+    }
+
     pub async fn publish_latest(&self, actor: &UserId) -> Result<Vec<LatestPublication>> {
         let services = self.services.config();
         let root = self.root();
@@ -132,27 +138,5 @@ impl InventoryPublisher for InventoryRefresher {
             .iter()
             .filter(|outcome| outcome.status == LatestPublicationStatus::Published)
             .count())
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct MemberRefresher {
-    refresher: InventoryRefresher,
-}
-
-impl MemberRefresher {
-    pub(crate) fn new(parts: InventoryRefresherParts) -> Self {
-        Self {
-            refresher: InventoryRefresher::new(parts),
-        }
-    }
-
-    pub(crate) fn fingerprint(&self) -> Result<[u8; 32]> {
-        self.refresher.fingerprint()
-    }
-
-    pub(crate) async fn publish_as_owner(&self) -> Result<Vec<LatestPublication>> {
-        let owner = self.refresher.owner().clone();
-        self.refresher.publish_latest(&owner).await
     }
 }

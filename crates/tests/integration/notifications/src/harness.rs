@@ -277,7 +277,17 @@ impl Harness {
 
     pub(crate) fn consumer(&self, settings: ConsumerProfile) -> NotificationsConsumer {
         let pool = self.pool.write_pool().as_ref().clone();
-        NotificationsConsumer::new(Arc::clone(&self.pipeline), pool.clone(), pool, settings)
+        let hub = systemprompt_test_fixtures::bound_notification_hub(&pool);
+        self.consumer_with_hub(settings, hub)
+    }
+
+    pub(crate) fn consumer_with_hub(
+        &self,
+        settings: ConsumerProfile,
+        hub: systemprompt_database::NotificationHub,
+    ) -> NotificationsConsumer {
+        let pool = self.pool.write_pool().as_ref().clone();
+        NotificationsConsumer::new(Arc::clone(&self.pipeline), pool, hub, settings)
     }
 
     pub(crate) async fn declare_stream(

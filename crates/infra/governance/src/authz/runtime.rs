@@ -61,7 +61,8 @@ pub fn build_authz_hook(
     wiring: AuthzWiring,
 ) -> AuthzResult<SharedAuthzHook> {
     let sink: Arc<dyn AuthzAuditSink> = Arc::new(DbAuditSink::new(
-        GovernanceDecisionRepository::from_pool(Arc::clone(&pool)),
+        GovernanceDecisionRepository::from_pool(Arc::clone(&pool))
+            .with_audit_spans(wiring.audit_spans.clone()),
     ));
 
     let Some(authz) = governance.and_then(|g| g.authz.as_ref()) else {

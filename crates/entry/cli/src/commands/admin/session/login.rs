@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use systemprompt_cloud::SessionKey;
 use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::Database;
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_loader::BootContext;
@@ -29,7 +29,7 @@ use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
 use crate::session::SessionContexts;
-use crate::session::api::{create_local_session_row, load_signing_keys};
+use crate::session::api::load_signing_keys;
 use crate::session::resolution::extract_profile_name;
 
 #[derive(Debug, Args)]
@@ -88,10 +88,9 @@ async fn connect_profile_database(
     let db = Database::new_postgres(database_url)
         .await
         .context("Failed to connect to database")?;
-    let db_pool = DbPool::from(Arc::new(db));
     Ok(systemprompt_runtime::admin_bootstrap(
         host.admitted()?,
-        Arc::<Database>::clone(&db_pool),
+        Arc::new(db),
     )?)
 }
 
@@ -136,12 +135,10 @@ pub async fn login_for_profile(
 
     progress(args, "Creating session...");
     let keys = load_signing_keys(boot)?;
-    let session_id = create_local_session_row(
-        admins.as_ref(),
-        &admin_user.id,
-        chrono::Duration::hours(args.duration_hours),
-    )
-    .await?;
+    let session_id = admins
+        .open_cli_session(&admin_user.id, chrono::Duration::hours(args.duration_hours))
+        .await
+        .context("Failed to create the CLI session row")?;
 
     progress(args, "Creating context...");
     let context_id = issue_login_context(host, profile_path, &admin_user.id, &session_id).await?;

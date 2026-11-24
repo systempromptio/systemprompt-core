@@ -8,7 +8,7 @@ use clap::Parser;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::profile_authoring::LocalProfileBuilder;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_identity_entry::cli::bridge::BridgeCommands;
+use systemprompt_identity_entry::cli::bridge::{self, BridgeCommands};
 
 const HELPER: &str = "commands::admin_bridge_signing_rotation::signing_rotation_helper";
 const ORIGINAL_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
@@ -70,14 +70,14 @@ async fn signing_rotation_helper() {
     println!("BEGIN_FIRST_ROTATION");
     crate::boot_ctx::rendered(
         &context,
-        crate::commands::identity_host::bridge(rotate(), &context).await,
+        bridge::execute(rotate(), &crate::boot_ctx::identity(&context)).await,
     )
     .expect("first signing rotation");
     println!("END_FIRST_ROTATION");
     println!("BEGIN_SECOND_ROTATION");
     crate::boot_ctx::rendered(
         &context,
-        crate::commands::identity_host::bridge(rotate(), &context).await,
+        bridge::execute(rotate(), &crate::boot_ctx::identity(&context)).await,
     )
     .expect("second signing rotation");
     println!("END_SECOND_ROTATION");

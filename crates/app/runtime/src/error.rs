@@ -197,4 +197,7 @@ pub enum RuntimeError {
 
     #[error("DATABASE_URL must be a postgres:// or postgresql:// URL")]
     UnsupportedDatabaseUrl,
+
+    #[error(transparent)]
+    ConnectionBudget(#[from] systemprompt_database::BudgetError),
 }

@@ -1,5 +1,8 @@
+use systemprompt_cli::kernel::MemberHost;
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::StandingTag;
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, GrantedPlane, KernelGrant};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted};
 
 fn booted(boot: &systemprompt_loader::BootContext) -> systemprompt_loader::BootContext {
@@ -110,4 +113,14 @@ pub fn rendered(
         },
     }
     outcome
+}
+
+pub fn identity(ctx: &CommandContext) -> MemberHost<'_> {
+    MemberHost::new(
+        ctx,
+        CommandDescriptor::FULL
+            .with_grant(KernelGrant::SigningKeys)
+            .with_grant(KernelGrant::ConfigPlaneWriter(GrantedPlane::Identity)),
+    )
+    .owned_by(ExtensionId::new("identity-http"), StandingTag::Core)
 }

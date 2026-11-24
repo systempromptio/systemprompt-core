@@ -115,7 +115,10 @@ mod surface {
             services.clone(),
             Arc::clone(&config),
         );
-        let executions = Arc::new(ToolUsageRepository::new(&db));
+        let executions =
+            Arc::new(ToolUsageRepository::new(&db).with_audit_spans(
+                r.optional::<systemprompt_models::audit_spans::DynAuditSpanSink>(),
+            ));
         let intent_claims = r.optional::<DynToolCallIntentClaims>();
         if intent_claims.is_none() {
             tracing::info!(

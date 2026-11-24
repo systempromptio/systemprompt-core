@@ -12,7 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Duration;
-use systemprompt_identifiers::{AccessTokenId, ClientId, McpServerId, PluginId, SessionId, UserId};
+use systemprompt_identifiers::{AccessTokenId, ClientId, McpServerId, PluginId, SessionId};
 use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
@@ -97,44 +97,6 @@ pub struct UserJwtRequest {
     pub browser_session: bool,
     pub ui_session: bool,
     pub auth_time: Option<i64>,
-}
-
-impl UserJwtRequest {
-    #[must_use]
-    pub fn plugin_hook(
-        user_id: UserId,
-        username: String,
-        email: String,
-        plugin_id: PluginId,
-        duration_days: u32,
-        session_id: SessionId,
-    ) -> Self {
-        let permissions = vec![Permission::HookGovern, Permission::HookTrack];
-        Self {
-            user: AuthenticatedUser::new_with_roles(
-                user_id,
-                username,
-                email,
-                permissions.clone(),
-                Vec::new(),
-            ),
-            session_id,
-            jti: AccessTokenId::generate(),
-            permissions,
-            audience: vec![
-                JwtAudience::Hook,
-                JwtAudience::Resource("plugin".to_owned()),
-            ],
-            ttl: Duration::days(i64::from(duration_days)),
-            client_id: None,
-            purpose: None,
-            plugin_id: Some(plugin_id),
-            interaction: None,
-            browser_session: false,
-            ui_session: false,
-            auth_time: None,
-        }
-    }
 }
 
 pub trait TokenAuthority: Send + Sync + std::fmt::Debug {

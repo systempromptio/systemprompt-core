@@ -4,10 +4,10 @@
 
 use clap::Parser;
 use std::sync::Arc;
-use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
+use systemprompt_cli::session::api::DEFAULT_CLI_SESSION_HOURS;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_identity_entry::cli::users::UsersCommands;
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
@@ -49,10 +49,8 @@ async fn end_specific_session_succeeds() {
     let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesend");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    let session_id = create_local_session_row(
-        systemprompt_users::admin_bootstrap(pool.clone())
-            .unwrap()
-            .as_ref(),
+    let session_id = super::open_cli_session(
+        &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
     )
@@ -60,9 +58,9 @@ async fn end_specific_session_succeeds() {
     .unwrap();
 
     let ctx = ctx().await;
-    crate::commands::identity_host::users(
+    users::execute(
         parse(&["session", "end", session_id.as_str(), "--yes"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap();
@@ -76,9 +74,12 @@ async fn end_specific_session_succeeds() {
 async fn end_unknown_session_reports_not_found() {
     let ctx = ctx().await;
     let missing = format!("no-sess-{}", Uuid::new_v4().simple());
-    crate::commands::identity_host::users(parse(&["session", "end", &missing, "--yes"]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["session", "end", &missing, "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -87,19 +88,15 @@ async fn end_all_sessions_for_user() {
     let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesall");
     let user = service.create(&n, &e, None, None).await.unwrap();
-    create_local_session_row(
-        systemprompt_users::admin_bootstrap(pool.clone())
-            .unwrap()
-            .as_ref(),
+    super::open_cli_session(
+        &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
     )
     .await
     .unwrap();
-    create_local_session_row(
-        systemprompt_users::admin_bootstrap(pool.clone())
-            .unwrap()
-            .as_ref(),
+    super::open_cli_session(
+        &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
     )
@@ -107,7 +104,7 @@ async fn end_all_sessions_for_user() {
     .unwrap();
 
     let ctx = ctx().await;
-    crate::commands::identity_host::users(
+    users::execute(
         parse(&[
             "session",
             "end",
@@ -116,7 +113,7 @@ async fn end_all_sessions_for_user() {
             "--all",
             "--yes",
         ]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap();
@@ -129,19 +126,24 @@ async fn end_all_sessions_for_user() {
 #[tokio::test]
 async fn end_without_confirmation_errors() {
     let ctx = ctx().await;
-    let err = crate::commands::identity_host::users(parse(&["session", "end", "whatever"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "end", "whatever"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("--yes to confirm"), "{err}");
 }
 
 #[tokio::test]
 async fn end_all_without_user_errors() {
     let ctx = ctx().await;
-    let err =
-        crate::commands::identity_host::users(parse(&["session", "end", "--all", "--yes"]), &ctx)
-            .await
-            .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "end", "--all", "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("--user is required"), "{err}");
 }
 
@@ -149,9 +151,9 @@ async fn end_all_without_user_errors() {
 async fn end_all_missing_user_errors() {
     let ctx = ctx().await;
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
-    let err = crate::commands::identity_host::users(
+    let err = users::execute(
         parse(&["session", "end", "--user", &missing, "--all", "--yes"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap_err();
@@ -161,8 +163,11 @@ async fn end_all_missing_user_errors() {
 #[tokio::test]
 async fn end_without_session_id_errors() {
     let ctx = ctx().await;
-    let err = crate::commands::identity_host::users(parse(&["session", "end", "--yes"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "end", "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("Session ID is required"), "{err}");
 }

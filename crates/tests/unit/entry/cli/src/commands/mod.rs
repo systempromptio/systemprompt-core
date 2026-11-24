@@ -25,7 +25,6 @@ mod admin_issues_db;
 mod admin_issues_triage_db;
 mod admin_keys_generate_fs;
 mod admin_licence_status_db;
-mod admin_plugin_token_lifecycle;
 mod admin_services_io;
 mod admin_session_login_admin_user_db;
 mod admin_session_show;
@@ -57,7 +56,6 @@ mod db_helpers;
 mod db_migrate_exec;
 mod dispatchers_invalid_input_fs;
 mod dispatchers_table_output_fs;
-mod identity_host;
 mod infra_services_restart_agents;
 mod infrastructure;
 mod logs_search_mapping;
@@ -96,3 +94,27 @@ mod web_validate_paths_fs;
 #[cfg(test)]
 #[cfg(test)]
 mod cli_pure_helpers;
+
+pub(crate) async fn open_cli_session(
+    pool: &systemprompt_database::DbPool,
+    user: &systemprompt_identifiers::UserId,
+    ttl: chrono::Duration,
+) -> Result<systemprompt_identifiers::SessionId, systemprompt_traits::AnalyticsProviderError> {
+    let session_id =
+        systemprompt_identifiers::SessionId::new(format!("sess_{}", uuid::Uuid::new_v4()));
+    let analytics = systemprompt_traits::SessionAnalytics::default();
+    systemprompt_traits::SessionProvider::create_session(
+        &systemprompt_users::SessionRepository::new(pool),
+        systemprompt_traits::CreateSessionInput {
+            session_id: &session_id,
+            user_id: Some(user),
+            analytics: &analytics,
+            session_source: systemprompt_identifiers::SessionSource::Cli,
+            is_bot: false,
+            is_ai_crawler: false,
+            expires_at: chrono::Utc::now() + ttl,
+        },
+    )
+    .await?;
+    Ok(session_id)
+}

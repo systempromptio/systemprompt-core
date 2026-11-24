@@ -7,9 +7,12 @@ use std::sync::Arc;
 
 use systemprompt_cli::kernel::MemberHost;
 use systemprompt_cli::{CommandContext, EnvOverrides};
+use systemprompt_extension::StandingTag;
 use systemprompt_extension::cli::{
     CliConfig, CommandDescriptor, CommandHost, GrantedPlane, KernelGrant, OutputFormat,
 };
+
+use systemprompt_identifiers::ExtensionId;
 
 use crate::probe::profile;
 
@@ -93,4 +96,36 @@ fn a_member_command_holding_the_signing_keys_grant_gets_the_handle() {
         panic!("a context with no booted profile has no signing state to hand out");
     };
     assert!(!refused_grant(&error, KernelGrant::SigningKeys), "{error}");
+}
+
+const SETTINGS_REFUSED: &str = "only a command identity-http owns reads the identity settings";
+
+#[test]
+fn only_a_command_identity_http_owns_with_core_standing_reads_the_identity_settings() {
+    let ctx = member_ctx();
+    let refused = [
+        MemberHost::new(&ctx, CommandDescriptor::FULL),
+        MemberHost::new(&ctx, CommandDescriptor::FULL)
+            .owned_by(ExtensionId::new("identity-http"), StandingTag::Install),
+        MemberHost::new(&ctx, CommandDescriptor::FULL)
+            .owned_by(ExtensionId::new("an-install"), StandingTag::Install),
+        MemberHost::new(&ctx, CommandDescriptor::FULL)
+            .owned_by(ExtensionId::new("gateway-http"), StandingTag::Core),
+    ];
+    for member in refused {
+        let Err(error) = member.identity_settings() else {
+            panic!("{member:?} must not read the identity settings");
+        };
+        assert_eq!(error.to_string(), SETTINGS_REFUSED, "{member:?}");
+    }
+    let Err(error) = CommandHost::identity_settings(&ctx) else {
+        panic!("the kernel context serves no identity settings to a member");
+    };
+    assert_eq!(error.to_string(), SETTINGS_REFUSED);
+    let owned = MemberHost::new(&ctx, CommandDescriptor::FULL)
+        .owned_by(ExtensionId::new("identity-http"), StandingTag::Core);
+    let Err(error) = owned.identity_settings() else {
+        panic!("a context with no loaded profile has no configuration to read");
+    };
+    assert_ne!(error.to_string(), SETTINGS_REFUSED);
 }

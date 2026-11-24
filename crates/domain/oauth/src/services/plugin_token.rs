@@ -11,7 +11,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AccessTokenId, PluginId, SessionId, UserId};
-use systemprompt_models::auth::{TokenAuthority, UserJwtRequest};
+use systemprompt_models::auth::{
+    AuthenticatedUser, JwtAudience, Permission, TokenAuthority, UserJwtRequest,
+};
 
 use crate::error::OauthResult;
 
@@ -39,18 +41,37 @@ impl PluginTokenService {
         duration_days: u32,
         session_id: &SessionId,
     ) -> OauthResult<IssuedPluginToken> {
-        let request = UserJwtRequest::plugin_hook(
+        let permissions = vec![Permission::HookGovern, Permission::HookTrack];
+        let authenticated = AuthenticatedUser::new_with_roles(
             subject.id,
             subject.username,
             subject.email,
-            plugin_id,
-            duration_days,
-            session_id.clone(),
+            permissions.clone(),
+            Vec::new(),
         );
+
+        let jti = AccessTokenId::generate();
+
+        let request = UserJwtRequest {
+            user: authenticated,
+            session_id: session_id.clone(),
+            jti: jti.clone(),
+            permissions,
+            audience: vec![
+                JwtAudience::Hook,
+                JwtAudience::Resource("plugin".to_owned()),
+            ],
+            ttl: chrono::Duration::days(i64::from(duration_days)),
+            client_id: None,
+            purpose: None,
+            plugin_id: Some(plugin_id),
+            interaction: None,
+            browser_session: false,
+            ui_session: false,
+            auth_time: None,
+        };
         let token = authority.mint_user_jwt(&request)?;
-        Ok(IssuedPluginToken {
-            token,
-            jti: request.jti,
-        })
+
+        Ok(IssuedPluginToken { token, jti })
     }
 }

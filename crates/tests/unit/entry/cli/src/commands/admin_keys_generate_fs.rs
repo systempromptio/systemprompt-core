@@ -5,11 +5,10 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use crate::commands::identity_host::keys as execute;
 use clap::Parser;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_identity_entry::cli::keys::KeysCommands;
+use systemprompt_identity_entry::cli::keys::{KeysCommands, execute};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -39,7 +38,7 @@ async fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
 
     execute(
         parse(&["generate", "--output", out.to_str().unwrap()]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
     .await
     .unwrap();
@@ -57,7 +56,7 @@ async fn generate_refuses_to_overwrite_without_force() {
 
     let err = execute(
         parse(&["generate", "--output", out.to_str().unwrap()]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
     .await
     .unwrap_err();
@@ -73,7 +72,7 @@ async fn force_replaces_an_existing_key_with_a_fresh_one() {
 
     execute(
         parse(&["generate", "--output", out.to_str().unwrap()]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
     .await
     .unwrap();
@@ -81,7 +80,7 @@ async fn force_replaces_an_existing_key_with_a_fresh_one() {
 
     execute(
         parse(&["generate", "--output", out.to_str().unwrap(), "--force"]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
     .await
     .unwrap();
@@ -91,8 +90,8 @@ async fn force_replaces_an_existing_key_with_a_fresh_one() {
     assert!(second.contains("BEGIN PRIVATE KEY"));
 }
 
-#[test]
-fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
+#[tokio::test]
+async fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
     let admin = |args: &[&str]| parse(args).data_impact();
     for args in [
         vec!["stage"],
@@ -114,7 +113,9 @@ fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
 
 #[tokio::test]
 async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
-    let err = execute(parse(&["rotate"]), &ctx()).await.unwrap_err();
+    let err = execute(parse(&["rotate"]), &crate::boot_ctx::identity(&ctx()))
+        .await
+        .unwrap_err();
     let text = format!("{err:#}");
     assert!(
         text.contains("Failed to write the signing keys to the secrets file"),
@@ -124,7 +125,9 @@ async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
 
 #[tokio::test]
 async fn promote_with_nothing_staged_is_refused_and_writes_nothing() {
-    let err = execute(parse(&["promote"]), &ctx()).await.unwrap_err();
+    let err = execute(parse(&["promote"]), &crate::boot_ctx::identity(&ctx()))
+        .await
+        .unwrap_err();
     let text = format!("{err:#}");
     assert!(text.contains("no signing key is staged"), "{text}");
 }

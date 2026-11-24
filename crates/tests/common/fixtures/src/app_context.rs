@@ -458,9 +458,19 @@ pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBrid
             crate::unique_instance(),
             systemprompt_traits::CacheEpochs::new(),
             Arc::new(systemprompt_events::EventBroadcasters::new()),
+            bound_notification_hub(pool.session_pool().as_ref()),
         )
         .into_idle_handle(),
     )
+}
+
+pub fn bound_notification_hub(pool: &sqlx::PgPool) -> systemprompt_database::NotificationHub {
+    let hub = systemprompt_database::NotificationHub::new();
+    hub.bind(
+        &systemprompt_traits::BackgroundTasks::default(),
+        pool.clone(),
+    );
+    hub
 }
 
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
@@ -590,6 +600,7 @@ pub fn fixture_kernel_seed(
             event_router: &parts.event_router,
             catalog_roles: systemprompt_models::authz::CatalogRoleNames::default(),
             escalation: systemprompt_traits::EscalationDelivery::InProcess,
+            audit_spans: Arc::new(systemprompt_logging::LogSink::default()),
         });
     seed.insert(parts.documents);
     seed

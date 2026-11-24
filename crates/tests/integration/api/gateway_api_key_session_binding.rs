@@ -5,7 +5,6 @@
 //! lands on its `session_id` claim, and any other header it sends — the
 //! client's own id or another gateway session — is recorded the same way.
 
-
 use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
 use systemprompt_gateway_entry::http::messages::auth::{AuthInputs, AuthedPrincipal, authenticate};

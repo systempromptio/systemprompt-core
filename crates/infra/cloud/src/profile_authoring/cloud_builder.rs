@@ -118,6 +118,7 @@ impl CloudProfileBuilder {
                 db_type: consts::DEFAULT_DB_TYPE.to_owned(),
                 external_db_access: self.external_db_access,
                 migrate_on_boot: true,
+                connection_budget: None,
                 pool: None,
             },
             security: security_config(self.trusted_issuers, false),

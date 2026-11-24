@@ -8,13 +8,14 @@ use ed25519_dalek::SigningKey;
 use sha2::{Digest, Sha256};
 use systemprompt_identity_entry::cli::bridge::signing_key_fingerprint::key_fingerprint;
 
+fn manifest_pubkey_b64(seed: &[u8; 32]) -> String {
+    base64::engine::general_purpose::STANDARD
+        .encode(SigningKey::from_bytes(seed).verifying_key().to_bytes())
+}
+
 #[test]
 fn fingerprint_is_lowercase_sha256_hex_of_the_trimmed_pubkey() {
-    let pubkey = base64::engine::general_purpose::STANDARD.encode(
-        SigningKey::from_bytes(&[7u8; 32])
-            .verifying_key()
-            .to_bytes(),
-    );
+    let pubkey = manifest_pubkey_b64(&[7u8; 32]);
     let expected: String = Sha256::digest(pubkey.as_bytes())
         .iter()
         .map(|b| format!("{b:02x}"))

@@ -18,7 +18,7 @@ use super::payload::{excerpt_payload, slice_payload, tools_array};
 use crate::protocol::canonical::{CanonicalRequest, Role};
 
 impl GatewayAudit {
-    fn build_record(&self) -> AiRequestRecord {
+    pub(super) fn build_record(&self) -> AiRequestRecord {
         let mut record = AiRequestRecord::builder(
             self.ctx.ai_request_id.clone(),
             self.ctx.user_id.clone(),

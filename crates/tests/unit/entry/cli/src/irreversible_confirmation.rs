@@ -38,7 +38,8 @@ const IRREVERSIBLE: &[&[&str]] = &[
 
 fn parsed(args: &[&str]) -> (CommandDescriptor, ConfirmationRequest) {
     let argv: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-    let (desc, matches) = crate::identity_registry::parse(args);
+    let matches = crate::identity_registry::matches(args);
+    let desc = crate::identity_registry::descriptor_of(&matches);
     let request = ConfirmationRequest::from_matches(&matches, &argv, Some("prod".to_owned()));
     (desc, request)
 }

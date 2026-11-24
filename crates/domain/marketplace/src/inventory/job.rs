@@ -27,9 +27,11 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use systemprompt_database::{DbPool, projection};
-use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
+use systemprompt_traits::{
+    Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult, StateRequirement,
+};
 
-use super::{LatestPublicationStatus, MemberRefresher};
+use super::{InventoryRefresher, LatestPublicationStatus};
 
 const FORCE_AFTER: Duration = Duration::from_hours(1);
 const COVERAGE_PROJECTION: &str = "managed_installation_coverage";
@@ -81,8 +83,14 @@ impl Job for InventoryRefreshJob {
     fn scope(&self) -> JobScope {
         JobScope::Node
     }
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![
+            StateRequirement::of::<Arc<InventoryRefresher>>(),
+            StateRequirement::of::<DbPool>(),
+        ]
+    }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let refresher = ctx.get::<Arc<MemberRefresher>>()?;
+        let refresher = ctx.get::<Arc<InventoryRefresher>>()?;
         let fingerprint = refresher.fingerprint();
         let published = match fingerprint {
             Ok(fingerprint) if self.memo.unchanged(&fingerprint) => 0,

@@ -17,6 +17,7 @@
 
 pub mod baked;
 mod fetch;
+mod sources;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -32,7 +33,8 @@ use super::error::{BundleError, BundleResult};
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use baked::{is_base, stage_baked_base};
-use fetch::{ResolvedSource, SourceContext, resolve_source};
+use fetch::SourceContext;
+use sources::resolve_sources;
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
 const CONFIG_RELPATH: &str = "config/config.yaml";
@@ -110,11 +112,8 @@ impl ServicesSourceBootstrap {
             core_version,
             client: &client,
         };
-        let mut resolved: Vec<ResolvedSource> = Vec::new();
-        for source in &profile.services.sources {
-            let auth = source.auth_secret().and_then(resolve_secret);
-            resolved.push(resolve_source(source, &ctx, auth).await?);
-        }
+        let resolution = resolve_sources(profile, &ctx, resolve_secret).await?;
+        let mut resolved = resolution.resolved;
         // Why: a profile that pins only kits names no base; the tree baked
         // into the image is the base, and it must be member zero so ownership
         // and the authz reconcile treat every pinned source as a kit.
@@ -149,7 +148,8 @@ impl ServicesSourceBootstrap {
                 .collect(),
         };
         cache.write_state(&state)?;
-        cache.gc(&composed_hash)?;
+        cache.write_refusals(&resolution.refusals)?;
+        cache.gc(&state)?;
 
         let versions: BTreeMap<String, String> = resolved
             .iter()

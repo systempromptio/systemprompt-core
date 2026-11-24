@@ -146,11 +146,18 @@ impl McpToolExecutor {
         &self,
         tool_name: &McpToolName,
         exec_id: &McpExecutionId,
+        context: &RequestContext,
         result: &ToolExecutionResult,
     ) {
+        let subject = crate::repository::ToolCallSubject {
+            tool_name,
+            server_name: &self.server_name,
+            context,
+            source: systemprompt_models::mcp::ExecutionSource::InProcess,
+        };
         match self
             .tool_usage_repo
-            .complete_execution(exec_id, result)
+            .complete_execution(exec_id, subject, result)
             .await
         {
             Ok(()) => {

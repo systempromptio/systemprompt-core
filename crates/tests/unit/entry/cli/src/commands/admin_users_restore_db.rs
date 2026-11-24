@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_identity_entry::cli::users::UsersCommands;
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{ArchiveParams, User, UserRepository, UserService};
 use uuid::Uuid;
@@ -64,18 +64,24 @@ async fn restore_brings_an_archived_account_back_by_id_and_by_email() {
     let pool = test_db_pool().await;
     let (service, user) = archived_user(&pool, "restore").await;
 
-    crate::commands::identity_host::users(parse(&["restore", user.id.as_str()]), &ctx().await)
-        .await
-        .expect("an archived account restores by id");
+    users::execute(
+        parse(&["restore", user.id.as_str()]),
+        &crate::boot_ctx::identity(&ctx().await),
+    )
+    .await
+    .expect("an archived account restores by id");
     assert!(service.find_by_id(&user.id).await.unwrap().is_some());
 
     service
         .archive(&user.id, ArchiveParams::default())
         .await
         .unwrap();
-    crate::commands::identity_host::users(parse(&["restore", user.email.as_str()]), &ctx().await)
-        .await
-        .expect("an archived account restores by email");
+    users::execute(
+        parse(&["restore", user.email.as_str()]),
+        &crate::boot_ctx::identity(&ctx().await),
+    )
+    .await
+    .expect("an archived account restores by email");
     assert!(service.find_by_id(&user.id).await.unwrap().is_some());
 }
 
@@ -84,9 +90,12 @@ async fn legal_hold_is_placed_and_released_on_an_archived_account() {
     let pool = test_db_pool().await;
     let (service, user) = archived_user(&pool, "hold").await;
 
-    crate::commands::identity_host::users(parse(&["legal-hold", user.name.as_str()]), &ctx().await)
-        .await
-        .expect("a hold is placed by name");
+    users::execute(
+        parse(&["legal-hold", user.name.as_str()]),
+        &crate::boot_ctx::identity(&ctx().await),
+    )
+    .await
+    .expect("a hold is placed by name");
     let held = service.find_archive_state(&user.id).await.unwrap().unwrap();
     assert!(held.legal_hold);
     assert!(
@@ -97,9 +106,9 @@ async fn legal_hold_is_placed_and_released_on_an_archived_account() {
         "a held archive cannot be purged"
     );
 
-    crate::commands::identity_host::users(
+    users::execute(
         parse(&["legal-hold", user.id.as_str(), "--release"]),
-        &ctx().await,
+        &crate::boot_ctx::identity(&ctx().await),
     )
     .await
     .expect("the hold is released");
@@ -110,9 +119,9 @@ async fn legal_hold_is_placed_and_released_on_an_archived_account() {
 #[tokio::test]
 async fn restore_of_an_unknown_reference_reports_it_not_found() {
     let reference = format!("nobody-{}@restore.invalid", Uuid::new_v4().simple());
-    let err = crate::commands::identity_host::users(
+    let err = users::execute(
         parse(&["restore", reference.as_str()]),
-        &ctx().await,
+        &crate::boot_ctx::identity(&ctx().await),
     )
     .await
     .expect_err("no such user");

@@ -16,7 +16,7 @@ mod ban;
 mod bulk;
 mod count;
 mod create;
-mod delete;
+pub(crate) mod delete;
 pub use delete::purge_output;
 mod export;
 pub mod federated_rekey;
@@ -146,7 +146,7 @@ pub async fn execute(cmd: UsersCommands, host: &dyn CommandHost) -> Result<Comma
         bail!("Write operations require full profile context");
     }
     if !host.is_database_scoped() && writes_identity(&cmd) {
-        refuse_file_managed_identity(host).await?;
+        host.require_writable_plane(GrantedPlane::Identity).await?;
     }
 
     match cmd {
@@ -185,11 +185,6 @@ const fn writes_identity(cmd: &UsersCommands) -> bool {
             | UsersCommands::Role(_)
             | UsersCommands::ServiceAccount(_)
     )
-}
-
-async fn refuse_file_managed_identity(host: &dyn CommandHost) -> Result<()> {
-    host.require_writable_plane(GrantedPlane::Identity).await?;
-    Ok(())
 }
 
 impl UsersCommands {
@@ -244,6 +239,6 @@ impl CliCommandGroup for UsersCommands {
     const ABOUT: &'static str = "User management and IP banning";
 
     async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
-        execute(self, host).await.map_err(super::command_error)
+        execute(self, host).await.map_err(crate::cli::command_error)
     }
 }

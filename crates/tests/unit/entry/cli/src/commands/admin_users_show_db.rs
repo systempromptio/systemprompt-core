@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SessionId;
-use systemprompt_identity_entry::cli::users::UsersCommands;
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{
     seed_user_session, test_app_context, test_database_url, test_db_pool,
 };
@@ -57,23 +57,26 @@ async fn show_finds_user_by_email_with_sessions_and_activity() {
         .await
         .unwrap();
 
-    crate::commands::identity_host::users(
+    users::execute(
         parse(&["show", &email, "--sessions", "--activity"]),
-        &ctx(true).await,
+        &crate::boot_ctx::identity(&ctx(true).await),
     )
     .await
     .unwrap();
 
-    crate::commands::identity_host::users(parse(&["show", &email]), &ctx(false).await)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["show", &email]),
+        &crate::boot_ctx::identity(&ctx(false).await),
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn show_rejects_unknown_identifier() {
-    let err = crate::commands::identity_host::users(
+    let err = users::execute(
         parse(&["show", "no-such-user@show.invalid"]),
-        &ctx(false).await,
+        &crate::boot_ctx::identity(&ctx(false).await),
     )
     .await
     .expect_err("unknown user");

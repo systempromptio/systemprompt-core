@@ -13,20 +13,16 @@
 //! Fact-only rows notify [`crate::NOTIFICATION_FACTS_CHANNEL`] instead, which
 //! the bridge does not listen on, so the relay never wakes for a fact.
 //!
-//! The listener never reconnects on its own: `sqlx` would otherwise
-//! re-establish a dropped session inside `recv` and hide the gap, so a closed
-//! session ends the serving loop and every reconnect goes through the
-//! replay. A reconnecting listener replays the rows it missed, or tells every
-//! resumable topic the relay lost events; see [`super::bridge_replay`].
+//! The bridge subscribes to the node's one `LISTEN` session, the
+//! [`NotificationHub`] on the session pool (a direct, session-capable
+//! connection beside a transaction-mode pooler). A lost hub session ends the
+//! serving loop, and every reconnect goes through the replay: the relay
+//! replays the rows it missed, or tells every resumable topic the relay lost
+//! events; see [`super::bridge_replay`]. `NOTIFY` and the outbox writes are
+//! ordinary statements on the main pool.
 //!
-//! The same listener also carries [`CACHE_INVALIDATION_CHANNEL`], whose
+//! The same subscription also carries [`CACHE_INVALIDATION_CHANNEL`], whose
 //! payload is a cache domain; see [`super::cache_invalidation`].
-//!
-//! `LISTEN` holds a Postgres session for the bridge's lifetime, so the
-//! listener connects through its own pool
-//! ([`PostgresEventBridge::with_listener_pool`]): a direct, session-capable
-//! connection behind a transaction-mode pooler. `NOTIFY` and the outbox writes
-//! are ordinary statements on the main pool.
 //!
 //! The payload is only the row id, well under the ~8 KB `NOTIFY` limit.
 //!
@@ -37,7 +33,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::PgPool;
-use sqlx::postgres::PgListener;
+use systemprompt_database::{HubEvent, HubSubscription, NotificationHub};
 use systemprompt_traits::CacheEpochs;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
@@ -55,22 +51,16 @@ use systemprompt_identifiers::{EventOutboxId, InstanceId};
 
 const OUTBOX_RETENTION: Duration = Duration::from_secs(3600);
 const PRUNE_INTERVAL: Duration = Duration::from_secs(300);
-const RETRY_MIN: Duration = Duration::from_secs(1);
-const RETRY_MAX: Duration = Duration::from_secs(60);
 
-// Why: Postgres rejects LISTEN on a standby with SQLSTATE 25006.
-const READ_ONLY_SQL_TRANSACTION: &str = "25006";
-
-fn is_read_only_standby(err: &sqlx::Error) -> bool {
-    match err {
-        sqlx::Error::Database(db) => db.code().as_deref() == Some(READ_ONLY_SQL_TRANSACTION),
-        _ => false,
-    }
+enum Served {
+    Stopped,
+    Lost,
+    Relistened,
 }
 
 #[derive(Debug, Clone)]
 pub struct PostgresEventBridge {
-    listener_pool: PgPool,
+    hub: NotificationHub,
     outbox: EventOutboxRepository,
     epochs: CacheEpochs,
     broadcasters: Arc<EventBroadcasters>,
@@ -83,24 +73,14 @@ impl PostgresEventBridge {
         instance_id: InstanceId,
         epochs: CacheEpochs,
         broadcasters: Arc<EventBroadcasters>,
+        hub: NotificationHub,
     ) -> Self {
         Self {
-            outbox: EventOutboxRepository::new(pool.clone(), instance_id),
-            listener_pool: pool,
+            outbox: EventOutboxRepository::new(pool, instance_id),
+            hub,
             epochs,
             broadcasters,
         }
-    }
-
-    #[must_use]
-    pub fn with_listener_pool(mut self, listener_pool: PgPool) -> Self {
-        self.listener_pool = listener_pool;
-        self
-    }
-
-    #[must_use]
-    pub const fn listener_pool(&self) -> &PgPool {
-        &self.listener_pool
     }
 
     pub fn router(&self) -> EventRouter {
@@ -126,58 +106,23 @@ impl PostgresEventBridge {
         &self.broadcasters
     }
 
-    async fn open_listener(&self) -> Result<PgListener, sqlx::Error> {
-        let mut listener = PgListener::connect_with(&self.listener_pool).await?;
-        listener.eager_reconnect(false);
-        listener
-            .listen_all([OUTBOX_CHANNEL, CACHE_INVALIDATION_CHANNEL])
-            .await?;
-        Ok(listener)
-    }
-
-    fn report_listener_failure(err: &sqlx::Error, retry_in: Duration) {
-        let retry_in_secs = retry_in.as_secs();
-        if is_read_only_standby(err) {
-            error!(
-                error = %err,
-                channel = OUTBOX_CHANNEL,
-                retry_in_secs,
-                "event bridge: pool is a read-only standby; LISTEN/NOTIFY requires the primary. \
-                 Point the write pool (`database_write_url` secret, or `DATABASE_WRITE_URL` with \
-                 the env secrets source) at the primary and restart"
-            );
-        } else {
-            error!(
-                error = %err,
-                channel = OUTBOX_CHANNEL,
-                retry_in_secs,
-                "event bridge: failed to open Postgres listener; retrying"
-            );
-        }
-    }
-
     pub(super) async fn run(self, status: &StatusCell, cancel: CancellationToken) {
+        let mut subscription = self
+            .hub
+            .subscribe(&[OUTBOX_CHANNEL, CACHE_INVALIDATION_CHANNEL]);
         let mut prune_tick = tokio::time::interval(PRUNE_INTERVAL);
         prune_tick.tick().await;
-        let mut backoff = RETRY_MIN;
         let mut cursor = ReplayCursor::default();
+        let mut listening = false;
 
         loop {
-            self.epochs.set_relay_live(false);
-            status.set(RelayStatus::Reconnecting);
-            let mut listener = match self.open_listener().await {
-                Ok(listener) => listener,
-                Err(e) => {
-                    Self::report_listener_failure(&e, backoff);
-                    tokio::select! {
-                        () = cancel.cancelled() => break,
-                        () = tokio::time::sleep(systemprompt_traits::backoff::jittered(backoff)) => {},
-                    }
-                    backoff = (backoff * 2).min(RETRY_MAX);
-                    continue;
-                },
-            };
-            backoff = RETRY_MIN;
+            if !listening {
+                self.epochs.set_relay_live(false);
+                status.set(RelayStatus::Reconnecting);
+                if !Self::await_listening(&mut subscription, &cancel).await {
+                    break;
+                }
+            }
             invalidate_all_cache_domains(&self.epochs);
             self.recover(&mut cursor, OUTBOX_RETENTION).await;
             self.epochs.set_relay_live(true);
@@ -187,11 +132,13 @@ impl PostgresEventBridge {
                 "event bridge: listening for cross-replica events"
             );
 
-            let keep_going = self
-                .serve(&mut listener, &mut prune_tick, &mut cursor, &cancel)
-                .await;
-            if !keep_going {
-                break;
+            match self
+                .serve(&mut subscription, &mut prune_tick, &mut cursor, &cancel)
+                .await
+            {
+                Served::Stopped => break,
+                Served::Lost => listening = false,
+                Served::Relistened => listening = true,
             }
         }
         self.epochs.set_relay_live(false);
@@ -199,30 +146,48 @@ impl PostgresEventBridge {
         info!("event bridge: stopped");
     }
 
-    async fn serve(
-        &self,
-        listener: &mut PgListener,
-        prune_tick: &mut tokio::time::Interval,
-        cursor: &mut ReplayCursor,
+    async fn await_listening(
+        subscription: &mut HubSubscription,
         cancel: &CancellationToken,
     ) -> bool {
         loop {
             tokio::select! {
                 () = cancel.cancelled() => return false,
-                notification = listener.try_recv() => match notification {
-                    Ok(Some(notification)) if notification.channel() == CACHE_INVALIDATION_CHANNEL => {
-                        receive_cache_invalidation(&self.epochs, notification.payload());
-                    },
-                    Ok(Some(notification)) => {
-                        self.deliver(&EventOutboxId::new(notification.payload()), cursor).await;
-                    },
-                    Ok(None) => {
-                        warn!("event bridge: listener connection closed; reconnecting");
+                event = subscription.recv() => {
+                    if matches!(event, HubEvent::Listening { .. }) {
                         return true;
+                    }
+                },
+            }
+        }
+    }
+
+    async fn serve(
+        &self,
+        subscription: &mut HubSubscription,
+        prune_tick: &mut tokio::time::Interval,
+        cursor: &mut ReplayCursor,
+        cancel: &CancellationToken,
+    ) -> Served {
+        loop {
+            tokio::select! {
+                () = cancel.cancelled() => return Served::Stopped,
+                event = subscription.recv() => match event {
+                    HubEvent::Notification(notification)
+                        if notification.channel.as_ref() == CACHE_INVALIDATION_CHANNEL =>
+                    {
+                        receive_cache_invalidation(&self.epochs, &notification.payload);
                     },
-                    Err(e) => {
-                        warn!(error = %e, "event bridge: listener connection lost; reconnecting");
-                        return true;
+                    HubEvent::Notification(notification) => {
+                        self.deliver(&EventOutboxId::new(notification.payload.as_ref()), cursor).await;
+                    },
+                    HubEvent::Lost => {
+                        warn!("event bridge: listener session lost; replaying on reconnect");
+                        return Served::Lost;
+                    },
+                    HubEvent::Listening { .. } => {
+                        warn!("event bridge: listener session replaced; replaying");
+                        return Served::Relistened;
                     },
                 },
                 _ = prune_tick.tick() => {

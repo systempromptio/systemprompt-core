@@ -8,7 +8,7 @@ use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_identity_entry::cli::users::UsersCommands;
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
@@ -38,7 +38,7 @@ async fn ctx() -> CommandContext {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    crate::commands::identity_host::users(parse(args), &ctx().await)
+    users::execute(parse(args), &crate::boot_ctx::identity(&ctx().await))
         .await
         .map(drop)
 }

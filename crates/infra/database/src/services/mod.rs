@@ -19,7 +19,13 @@ pub use database::{Database, DatabaseExt, DbPool};
 pub use display::DatabaseCliDisplay;
 pub use executor::SqlExecutor;
 pub use postgres::PostgresProvider;
-pub use postgres::connection::{PoolConfig, SchemaEpoch};
+pub use postgres::connection::{
+    BudgetError, CHILD_POOL_CONNECTIONS, ConnectionBudget, MIN_SESSION_CONNECTIONS, PinnedPools,
+    PoolConfig, PoolSeat, PoolShape, PoolSizes, SchemaEpoch,
+};
+pub use postgres::listener::{
+    HubEvent, HubNotification, HubSubscription, ListenLink, NotificationHub, PollWake, WakeReason,
+};
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::DatabaseProvider;
 pub use schema_linter::{

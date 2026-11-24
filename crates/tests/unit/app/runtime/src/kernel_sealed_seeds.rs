@@ -255,6 +255,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_ai::repository::CatalogMigrationRepository>(),
         ),
         (
+            type_name::<systemprompt_traits::DynBridgeHostFilterMigration>(),
+            carrier::<systemprompt_oauth::repository::BridgeHostPrefsRepository>(),
+        ),
+        (
             type_name::<systemprompt_models::ai::DynAiProvider>(),
             carrier::<systemprompt_ai::AiService>(),
         ),
@@ -356,6 +360,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         ),
         (
             type_name::<systemprompt_traits::DynSessionIssuer>(),
+            carrier::<systemprompt_oauth::services::SessionCreationService>(),
+        ),
+        (
+            type_name::<systemprompt_traits::DynPluginTokenMinter>(),
             carrier::<systemprompt_oauth::services::SessionCreationService>(),
         ),
         (

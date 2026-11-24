@@ -56,6 +56,7 @@ pub struct ActiveReport {
     pub last_reconciled_hash: Option<String>,
     pub sources: String,
     pub detail: Option<String>,
+    pub held_back: Option<String>,
 }
 
 pub fn execute(args: &InspectArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
@@ -70,7 +71,7 @@ pub fn execute(args: &InspectArgs, host: &dyn KernelHost) -> Result<CommandOutpu
     }
     Ok(CommandOutput::card_value(
         "Active Services Root",
-        &describe_active(host.profile()?, &host.services_root()?),
+        &describe_active(host.profile()?, &host.services_root()?)?,
     ))
 }
 
@@ -140,8 +141,16 @@ fn signature_status(signed: &SignedBundleManifest, profile: Option<&Profile>) ->
     }
 }
 
-fn describe_active(profile: &Profile, root: &ActiveServicesRoot) -> ActiveReport {
-    let state = BundleCache::new(cache_root(profile)).read_state();
+fn describe_active(profile: &Profile, root: &ActiveServicesRoot) -> Result<ActiveReport> {
+    let cache = BundleCache::new(cache_root(profile));
+    let state = cache.read_state();
+    let held_back = cache
+        .read_refusals()
+        .context("The record of held-back sources cannot be read")?
+        .iter()
+        .map(|r| format!("{} on {}: {}", r.source, r.serving_version, r.reason))
+        .collect::<Vec<_>>()
+        .join("; ");
     let sources = state
         .sources
         .iter()
@@ -170,12 +179,13 @@ fn describe_active(profile: &Profile, root: &ActiveServicesRoot) -> ActiveReport
         },
     };
 
-    ActiveReport {
+    Ok(ActiveReport {
         path: root.path.display().to_string(),
         provenance: provenance.to_owned(),
         composed_hash,
         last_reconciled_hash: state.last_reconciled_hash,
         sources,
         detail,
-    }
+        held_back: (!held_back.is_empty()).then_some(held_back),
+    })
 }

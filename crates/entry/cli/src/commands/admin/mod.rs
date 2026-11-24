@@ -1,11 +1,11 @@
 //! `admin` command tree: privileged platform administration.
 //!
 //! [`AdminCommands`] groups configuration, session, access-control, replica
-//! identity and licence check-in management plus the setup and bootstrap
-//! flows and the agent and MCP child hosts. The `users`, `bridge` and `keys`
-//! groups are contributed under `admin` by the identity member. On a
-//! `--database-url` invocation only the session subgroup and `config
-//! migrate` are served; the rest require a full profile context.
+//! identity and licence check-in management plus the setup and bootstrap flows
+//! and the agent and MCP child hosts. The `users`, `keys` and `bridge`
+//! groups are `identity-http`'s. On a `--database-url` invocation only the
+//! session and `config migrate` commands are served here; the rest require a
+//! full profile context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

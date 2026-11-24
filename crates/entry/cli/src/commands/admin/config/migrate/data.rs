@@ -4,11 +4,10 @@
 //! it in `ai_catalog_legacy_map`, moves personal keys stored under a legacy
 //! entry name onto its credential id, backfills `ai_requests.credential` and
 //! `endpoint` in batches of `BATCH` rows until none is left, rewrites
-//! the 0.72 `anthropic` host-filter tag to the `claude` client family through
-//! the `oauth` member's host-filter port, and moves access rules addressed to
-//! a generated legacy route id (and to the 0.72.1 catalog route id) onto the
-//! `model/<glob>` entity the map names. Every step is idempotent;
-//! `ai_requests.provider` keeps its historical values.
+//! the 0.72 `anthropic` host-filter tag to the `claude` client family, and
+//! moves access rules addressed to a generated legacy route id (and to the
+//! 0.72.1 catalog route id) onto the `model/<glob>` entity the map names. Every
+//! step is idempotent; `ai_requests.provider` keeps its historical values.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +17,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::AccessControlRepository;
-use systemprompt_traits::{CatalogMigrationPort, HostFilterMigrationPort, LegacyCatalogEntry};
+use systemprompt_traits::{BridgeHostFilterMigration, CatalogMigrationPort, LegacyCatalogEntry};
 
 use super::legacy_map::{LEGACY_MAP_FILE, LegacyMap};
 
@@ -47,7 +46,7 @@ pub fn read_map(services: &Path) -> Result<LegacyMap> {
 pub async fn apply_with(
     db: &DbPool,
     repo: &dyn CatalogMigrationPort,
-    host_filters: &dyn HostFilterMigrationPort,
+    host_filters: &dyn BridgeHostFilterMigration,
     map: &LegacyMap,
 ) -> Result<DataReport> {
     let mut report = DataReport {
@@ -82,7 +81,7 @@ pub async fn apply_with(
         }
     }
     report.host_filters_rewritten = host_filters
-        .rewrite_model_protocol_tag("anthropic", "claude")
+        .rename_model_protocol_tag("anthropic", "claude")
         .await?;
     let moves: Vec<(&str, &str)> = map
         .route_models

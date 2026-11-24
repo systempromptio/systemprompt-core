@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Gateway"
+text = "The gateway accounting journal is an append-only, encrypted, group-committed segment log: concurrent requests share one fsync instead of several each. Receipts written by older releases in the per-file format are not replayed — drain a node (let it settle its pending receipts) before upgrading it."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`journal::pending` is synchronous; `GatewayAtRest::new` is no longer `const` and opens the journal once; `GatewayError::Saturated` and `GatewayAuditError::{JournalFlush, AdmissionLimit}` are new variants. A request over the admission limit is answered 429 with `Retry-After: 1`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Added"
+text = "`governance.quota.admission_limit` (default 4096): the number of gateway requests a node admits into its journal at once."

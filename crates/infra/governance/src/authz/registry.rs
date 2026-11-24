@@ -15,6 +15,7 @@ pub struct AuthzWiring {
     pub sources: ChainSources,
     pub epochs: CacheEpochs,
     pub providers: SubjectProviderSet,
+    pub audit_spans: Option<systemprompt_models::audit_spans::DynAuditSpanSink>,
 }
 
 impl std::fmt::Debug for AuthzWiring {

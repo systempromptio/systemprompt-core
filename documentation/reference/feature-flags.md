@@ -5,7 +5,7 @@ Disable defaults with `default-features = false` when selecting an independent f
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.86", features = ["api"] }
+systemprompt = { version = "0.87", features = ["api"] }
 ```
 
 ## Feature matrix
@@ -51,7 +51,7 @@ Cargo enables the transitive dependencies of each selected feature.
 
 `files-office` adds the Word, Excel, PowerPoint and OpenDocument codecs to the document store; the HTML, Markdown and text codecs and Markdown export are always present. `files-pdf` adds PDF export and its embedded fonts; without it a PDF export is refused with `unsupported_op`. `files-collab` mounts the live co-editing routes and builds the `CollabService`; without an engine every session route answers `503 collab_engine_unavailable`. `files-collab-loro` adds the Loro engine (`systemprompt-files/collab-loro`), the only engine core ships. The document-scoped live channel and awareness route are mounted with the store itself and need no collab feature.
 
-`slack` and `teams` link the Slack and Teams entry crates, whose members contribute the `/api/v1/slack` and `/api/v1/teams` inbound routes; each route verifies its platform's signature or bot token in the handler, and a profile that disables the `slack` or `teams` member leaves its routes unmounted. `agent-runs` mounts `/api/v1/agent-runs` and wires the run launcher into hosted agents. `otel` mounts the gateway's OTLP/HTTP ingest routes and contributes the `otlp_export` job. `bridge` mounts the device-credential consumer routes the bridge reports installation evidence through. Without a feature its member is not in `reference()`: its routes are not mounted and its job does not exist.
+`slack` and `teams` link the Slack and Teams entry crates, whose members contribute the `/api/v1/slack` and `/api/v1/teams` inbound routes; each route verifies its platform's signature or bot token in the handler, and a profile that disables the `slack` or `teams` member leaves its routes unmounted. `agent-runs` mounts `/api/v1/agent-runs` and wires the run launcher into hosted agents. `otel` mounts the gateway's OTLP/HTTP ingest routes and enables the live OTLP export of the server's own logs and spans. `bridge` mounts the device-credential consumer routes the bridge reports installation evidence through. Without a feature its member is not in `reference()`: its routes are not mounted and its job does not exist.
 
 `notifications` adds notification streams, rules, the per-user feed and their outbox consumer. `brain` adds the brain: its capture consumer, gateway recall, routes and jobs (see [the brain](../brain.md)); it implies `notifications`, and a profile with `brain.enabled: false` composes none of it.
 

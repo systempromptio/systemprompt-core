@@ -120,3 +120,97 @@ fn every_conferral_row_names_the_kernel_or_a_core_provider_of_the_reference_comp
         );
     }
 }
+
+#[derive(Clone)]
+struct OtherSealed;
+
+const REASSIGNMENTS: &str = ConferralRow::IdentityOwnerReassignments.name();
+
+fn kernel_conferred(holder: &str, row: &'static str) -> Dependencies {
+    Dependencies::default()
+        .with_sealed_conferred(
+            Sealed,
+            Conferred {
+                holder: ExtensionId::new(holder),
+                row,
+            },
+        )
+        .with_sealed(OtherSealed)
+}
+
+fn command_reads<T: Clone + Send + Sync + 'static>(
+    state: Dependencies,
+    owner: &str,
+    standing: StandingTag,
+) -> bool {
+    let kernel = kernel_with(state);
+    let owner = ExtensionId::new(owner);
+    Resolved::__member_command_owned(&kernel, kernel.state(), &owner, standing)
+        .optional::<T>()
+        .is_some()
+}
+
+#[test]
+fn an_identity_http_command_reads_its_conferral_row_and_no_other_sealed_value() {
+    let state = || kernel_conferred("identity-http", REASSIGNMENTS);
+    assert!(command_reads::<Sealed>(
+        state(),
+        "identity-http",
+        StandingTag::Core
+    ));
+    assert!(!command_reads::<OtherSealed>(
+        state(),
+        "identity-http",
+        StandingTag::Core
+    ));
+}
+
+#[test]
+fn an_install_command_reads_no_conferred_value() {
+    let state = || kernel_conferred("identity-http", REASSIGNMENTS);
+    assert!(!command_reads::<Sealed>(
+        state(),
+        "identity-http",
+        StandingTag::Install
+    ));
+    assert!(!command_reads::<Sealed>(
+        state(),
+        "an-install",
+        StandingTag::Install
+    ));
+    assert!(!command_reads::<OtherSealed>(
+        state(),
+        "an-install",
+        StandingTag::Install
+    ));
+}
+
+#[test]
+fn a_command_whose_owner_is_not_the_row_holder_reads_no_conferred_value() {
+    for owner in ["gateway-http", "files-http", "users", "agent-http"] {
+        let state = kernel_conferred("identity-http", REASSIGNMENTS);
+        assert!(
+            !command_reads::<Sealed>(state, owner, StandingTag::Core),
+            "{owner}"
+        );
+    }
+}
+
+#[test]
+fn an_identity_http_command_reads_only_the_rows_naming_identity_http() {
+    assert!(!command_reads::<Sealed>(
+        conferred("gateway", "gateway-http", ENGINES),
+        "identity-http",
+        StandingTag::Core
+    ));
+    assert!(!command_reads::<Sealed>(
+        kernel_conferred("identity-http", ENGINES),
+        "identity-http",
+        StandingTag::Core
+    ));
+    assert!(!command_reads::<Sealed>(
+        kernel_conferred("gateway-http", REASSIGNMENTS),
+        "gateway-http",
+        StandingTag::Core
+    ));
+}

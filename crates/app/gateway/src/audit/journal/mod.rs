@@ -5,33 +5,49 @@
 //! into every audit. It lives under `paths.storage`, never beside the profile:
 //! the profile is configuration and is mounted read-only in the self-host
 //! bundle, and receipts belong to the node that admitted them, so the data
-//! directory must be a per-node writable volume. Admission only reserves a
-//! receipt; settlement of receipts left behind by a crash runs from
-//! [`spawn_recovery`], a cancellable task on the server's `BackgroundTasks`,
-//! never on the request path. On cancellation — the server's shutdown drain —
-//! the task runs one final settlement pass before it returns, so a node that
-//! terminates in order leaves its journal empty; the drain's background grace
-//! bounds that pass.
+//! directory must be a per-node writable volume.
 //!
-//! Every pass publishes `gateway_journal_receipts` (receipts still on disk)
-//! and counts `gateway_journal_settle_failures_total` (receipts retained
-//! because settlement failed) and `gateway_journal_recovery_failures_total`
-//! (passes that failed outright).
+//! The journal is an append-only log of encrypted frames in segments the
+//! process owns, indexed in memory. Writes are group-committed: concurrent
+//! writers share one append and one sync, and none is acknowledged before the
+//! sync that covers it returns. Admission only reserves a receipt, counted
+//! against the profile's `governance.quota.admission_limit`; past the limit an
+//! admission is refused as [`GatewayAuditError::AdmissionLimit`], which the
+//! gateway answers with 429. Settlement of receipts left behind by a crash
+//! runs from [`spawn_recovery`], a cancellable task on the server's
+//! `BackgroundTasks`, never on the request path. On cancellation — the
+//! server's shutdown drain — the task runs one final settlement pass before
+//! it returns, so a node that terminates in order leaves its journal empty;
+//! the drain's background grace bounds that pass.
+//!
+//! Every pass publishes `gateway_journal_receipts` (receipts still held) and
+//! counts `gateway_journal_settle_failures_total` (receipts retained because
+//! settlement failed), `gateway_journal_recovery_failures_total` (passes that
+//! failed outright) and `gateway_journal_torn_frames_total` (segments of a
+//! dead process that ended in a torn frame). Every flush counts
+//! `gateway_journal_fsyncs_total` and `gateway_journal_records_total`; a
+//! refused admission counts `gateway_journal_admissions_shed_total`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod files;
+mod log;
+mod ops;
+mod recovery;
+mod segment;
 mod settle;
 mod types;
 
+pub use log::{Fsync, JOURNAL_FSYNCS_TOTAL, JOURNAL_RECORDS_TOTAL, JournalSync};
+pub(crate) use ops::JournalLease;
 pub(super) use types::{CapturedToolCall, Completion, PartialUsage, Receipt};
 
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
+use crate::error::{GatewayAuditError, GatewayAuditResult as Result};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::aead::KeyInit;
 use systemprompt_ai::repository::AiRequestRepository;
@@ -41,41 +57,50 @@ pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
 pub const JOURNAL_RECEIPTS: &str = "gateway_journal_receipts";
 pub const JOURNAL_SETTLE_FAILURES_TOTAL: &str = "gateway_journal_settle_failures_total";
 pub const JOURNAL_RECOVERY_FAILURES_TOTAL: &str = "gateway_journal_recovery_failures_total";
+pub const JOURNAL_TORN_FRAMES_TOTAL: &str = "gateway_journal_torn_frames_total";
+pub const JOURNAL_ADMISSIONS_SHED_TOTAL: &str = "gateway_journal_admissions_shed_total";
 pub use systemprompt_ai::repository::ai_requests::ORPHAN_AGE;
 
 #[derive(Clone)]
 pub struct GatewayJournal {
-    root: PathBuf,
-    cipher: ChaCha20Poly1305,
+    log: Arc<log::Log>,
+    recovering: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl std::fmt::Debug for GatewayJournal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GatewayJournal")
-            .field("root", &self.root)
+            .field("root", &self.log.root)
             .finish_non_exhaustive()
     }
 }
 
 impl GatewayJournal {
     pub fn open(state_dir: &Path, key: [u8; 32]) -> Result<Self> {
+        Self::open_with(state_dir, key, Arc::new(Fsync))
+    }
+
+    pub fn open_with(state_dir: &Path, key: [u8; 32], sync: Arc<dyn JournalSync>) -> Result<Self> {
         let cipher = ChaCha20Poly1305::new(&key.into());
-        let root = state_dir.join("gateway-journal");
+        let root: PathBuf = state_dir.join("gateway-journal");
         systemprompt_config::create_state_dir(&root).map_err(GatewayAuditError::JournalDir)?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700))?;
         }
-        Ok(Self { root, cipher })
-    }
-
-    fn root(&self) -> &Path {
-        &self.root
-    }
-
-    const fn cipher(&self) -> &ChaCha20Poly1305 {
-        &self.cipher
+        let legacy = recovery::legacy_receipts(&root)?;
+        if legacy > 0 {
+            tracing::warn!(
+                root = %root.display(),
+                legacy,
+                "Gateway journal holds per-file receipts from an earlier release; they are not replayed"
+            );
+        }
+        Ok(Self {
+            log: Arc::new(log::Log::create(root, cipher, sync)?),
+            recovering: Arc::new(tokio::sync::Mutex::new(())),
+        })
     }
 }
 
@@ -98,63 +123,68 @@ impl std::fmt::Debug for Settlement {
     }
 }
 
+async fn blocking<T: Send + 'static>(
+    journal: &GatewayJournal,
+    work: impl FnOnce(&Arc<log::Log>) -> Result<T> + Send + 'static,
+) -> Result<T> {
+    let log = Arc::clone(&journal.log);
+    tokio::task::spawn_blocking(move || work(&log)).await?
+}
+
 pub(super) async fn reserve(
-    journal: &Arc<GatewayJournal>,
+    journal: &GatewayJournal,
     receipt: Receipt,
-) -> Result<std::fs::File> {
-    let journal = Arc::clone(journal);
-    tokio::task::spawn_blocking(move || files::reserve(&journal, &receipt)).await?
+    limit: NonZeroU32,
+) -> Result<JournalLease> {
+    blocking(journal, move |log| ops::reserve(log, &receipt, limit)).await
 }
 
 pub(super) async fn record(settlement: &Settlement, receipt: Receipt) -> Result<()> {
-    let bytes = serde_json::to_vec(&receipt)?;
-    let id = receipt.request_id.clone();
-    let journal = Arc::clone(&settlement.journal);
-    tokio::task::spawn_blocking(move || files::replace(&journal, &id, &bytes)).await??;
+    let receipt = Arc::new(receipt);
+    let held = Arc::clone(&receipt);
+    blocking(&settlement.journal, move |log| {
+        ops::put_terminal(log, &held)
+    })
+    .await?;
     settle::settle(settlement, &receipt).await?;
-    let id = receipt.request_id;
-    let journal = Arc::clone(&settlement.journal);
-    tokio::task::spawn_blocking(move || files::remove(&journal, &id)).await??;
-    Ok(())
+    let id = receipt.request_id.clone();
+    blocking(&settlement.journal, move |log| ops::remove(log, &id)).await
 }
 
 pub(super) async fn record_accounting_failure(
     settlement: &Settlement,
     receipt: Receipt,
 ) -> Result<()> {
-    let journal = Arc::clone(&settlement.journal);
-    let bytes = serde_json::to_vec(&receipt)?;
-    tokio::task::spawn_blocking(move || {
-        let receipt: Receipt = serde_json::from_slice(&bytes)?;
-        files::append_accounting_failure(&journal, &receipt)
+    let receipt = Arc::new(receipt);
+    let held = Arc::clone(&receipt);
+    blocking(&settlement.journal, move |log| {
+        ops::put_accounting_failure(log, &held)
     })
-    .await??;
+    .await?;
     settle::settle(settlement, &receipt).await?;
     let id = receipt.storage_id();
-    let journal = Arc::clone(&settlement.journal);
-    tokio::task::spawn_blocking(move || files::remove(&journal, &id)).await??;
-    Ok(())
+    blocking(&settlement.journal, move |log| ops::remove(log, &id)).await
 }
 
 pub(super) async fn settle_unadmitted_failure(
     settlement: &Settlement,
     receipt: &Receipt,
 ) -> Result<()> {
-    ensure(
+    crate::error::ensure(
         receipt.completion.is_none() && receipt.failure.is_some(),
         "Only an unadmitted failure may bypass the terminal journal",
     )?;
     settle::settle(settlement, receipt).await
 }
 
-pub async fn pending(journal: &Arc<GatewayJournal>) -> Result<usize> {
-    let journal = Arc::clone(journal);
-    tokio::task::spawn_blocking(move || files::count(&journal)).await?
+pub fn pending(journal: &GatewayJournal) -> Result<usize> {
+    ops::count(&journal.log)
 }
 
 pub async fn recover(settlement: &Settlement) -> Result<usize> {
+    let _pass = settlement.journal.recovering.lock().await;
     let outcome = settle_listed(settlement).await;
-    match pending(&settlement.journal).await {
+    match pending(&settlement.journal) {
         #[expect(
             clippy::cast_precision_loss,
             reason = "bounded by the journal's 4096-entry capacity"
@@ -169,41 +199,32 @@ pub async fn recover(settlement: &Settlement) -> Result<usize> {
 }
 
 async fn settle_listed(settlement: &Settlement) -> Result<usize> {
-    let journal = Arc::clone(&settlement.journal);
-    let listed = tokio::task::spawn_blocking(move || files::list(&journal)).await??;
+    let (adoption, listed) = blocking(&settlement.journal, |log| {
+        let adoption = recovery::adopt(log)?;
+        Ok((adoption, recovery::settleable(log)?))
+    })
+    .await?;
+    if adoption.torn > 0 {
+        metrics::counter!(JOURNAL_TORN_FRAMES_TOTAL).increment(adoption.torn);
+    }
+    if adoption.adopted > 0 {
+        tracing::info!(
+            adopted = adoption.adopted,
+            "Gateway journal adopted receipts of an exited process"
+        );
+    }
     let mut settled = 0;
-    for entry in listed {
-        let receipt = match entry {
-            files::Listed::Receipt(receipt) => *receipt,
-            files::Listed::Quarantined { path, cause } => {
-                tracing::error!(path = %path.display(), error = format!("{cause:#}"), "Gateway journal receipt unreadable; quarantined");
-                let journal = Arc::clone(&settlement.journal);
-                let target = path.clone();
-                if let Err(error) =
-                    tokio::task::spawn_blocking(move || files::quarantine(&journal, &target))
-                        .await?
-                {
-                    tracing::error!(path = %path.display(), %error, "Gateway journal quarantine failed");
-                }
-                continue;
-            },
-        };
-        if receipt.completion.is_none()
-            && receipt.failure.is_none()
-            && receipt.accounting_failure.is_none()
-        {
-            continue;
-        }
+    for receipt in listed {
         let id = receipt.storage_id();
         if let Err(error) = settle::settle(settlement, &receipt).await {
             metrics::counter!(JOURNAL_SETTLE_FAILURES_TOTAL).increment(1);
             tracing::warn!(ai_request_id = %id, %error, "Gateway accounting recovery pending; receipt retained");
             continue;
         }
-        let journal = Arc::clone(&settlement.journal);
-        tokio::task::spawn_blocking(move || files::remove(&journal, &id)).await??;
+        blocking(&settlement.journal, move |log| ops::remove(log, &id)).await?;
         settled += 1;
     }
+    blocking(&settlement.journal, |log| recovery::compact(log)).await?;
     for orphan in settlement
         .requests
         .fail_orphaned_pending(ORPHAN_AGE)
@@ -239,7 +260,7 @@ pub fn spawn_recovery(settlement: Settlement, tasks: &BackgroundTasks) {
 
 pub async fn flush_on_shutdown(settlement: &Settlement) {
     match recover(settlement).await {
-        Ok(settled) => match pending(&settlement.journal).await {
+        Ok(settled) => match pending(&settlement.journal) {
             Ok(0) => tracing::info!(settled, "Gateway journal flushed on shutdown"),
             Ok(remaining) => tracing::warn!(
                 settled,

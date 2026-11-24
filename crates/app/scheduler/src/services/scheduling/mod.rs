@@ -10,12 +10,21 @@
 //! Jobs the build registers but the configuration never names are handled by
 //! `scheduler.unlisted_jobs`.
 //!
+//! Before the cron loop starts, every job that would be scheduled has its
+//! [`systemprompt_traits::Job::requires`] checked against the context it will
+//! run with; an unmet requirement refuses the start with
+//! [`SchedulerError::UnmetRequirement`]. A job whose `configured()` is false
+//! is not scheduled and not checked. Once the loop runs, each job's
+//! [`systemprompt_traits::MissedRunPolicy`] is applied from the last instant
+//! recorded for it in `scheduled_job_runs`, on a background task.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod bootstrap;
 mod claim;
 mod dispatch;
+mod instants;
 mod job_context;
 mod owners;
 mod registration;
@@ -31,14 +40,16 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{JobName, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::Job as JobTrait;
+use systemprompt_traits::{Job as JobTrait, MissedRunPolicy};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
 
 pub(crate) use claim::{ClaimPolicy, claim_policy};
+pub use instants::{CronInstants, DynSchedulerClock, SchedulerClock, SystemClock};
 pub(crate) use job_context::{
-    JobDeployment, JobRun, deployment_dependencies, kernel_handles, make_job_context,
+    JobDeployment, JobRun, deployment_dependencies, job_dependencies, kernel_handles,
+    make_job_context,
 };
 pub use unlisted::unlisted_job_names;
 
@@ -142,6 +153,7 @@ pub struct SchedulerService {
     logging_repository: systemprompt_logging::LoggingRepository,
     app_context: Arc<AppContext>,
     schedule: Arc<AdmittedSchedule>,
+    clock: DynSchedulerClock,
 }
 
 impl std::fmt::Debug for SchedulerService {
@@ -174,7 +186,14 @@ impl SchedulerService {
             logging_repository,
             app_context,
             schedule,
+            clock: Arc::new(SystemClock),
         }
+    }
+
+    #[must_use]
+    pub fn with_clock(mut self, clock: DynSchedulerClock) -> Self {
+        self.clock = clock;
+        self
     }
 
     pub async fn start(mut self) -> SchedulerResult<SchedulerStartup> {
@@ -189,6 +208,7 @@ impl SchedulerService {
         self.verify_lock_keys(&registered_jobs).await?;
 
         let resolved = self.resolve_owners(true).await?;
+        self.check_requirements(&registered_jobs)?;
 
         debug!(
             admitted = registered_jobs.len(),
@@ -207,6 +227,7 @@ impl SchedulerService {
         };
         let outcome = self.register_jobs(&ctx).await;
         scheduler.start().await?;
+        self.apply_missed_runs(&outcome.registered).await;
 
         let mut degraded = resolved.into_degraded();
         if !outcome.skipped.is_empty() {
@@ -221,8 +242,86 @@ impl SchedulerService {
         Ok(SchedulerStartup {
             handle: Some(SchedulerHandle { scheduler }),
             degraded,
-            scheduled: outcome.registered,
+            scheduled: outcome.registered.len(),
         })
+    }
+
+    fn check_requirements(&self, registered_jobs: &JobMap) -> SchedulerResult<()> {
+        let deployment = deployment_dependencies(self.app_context.boot());
+        for job_config in self.config.jobs.iter().filter(|j| j.enabled) {
+            let Some(job) = registered_jobs.get(job_config.name.as_str()) else {
+                continue;
+            };
+            if !job.configured(&deployment) {
+                continue;
+            }
+            let requirements = job.requires();
+            if requirements.is_empty() {
+                continue;
+            }
+            let state = job_dependencies(
+                &job_config.name,
+                job.db_budget(),
+                &self.app_context,
+                &self.schedule,
+            );
+            if let Some(unmet) = requirements.iter().find(|r| !r.is_met_by(&state)) {
+                return Err(SchedulerError::UnmetRequirement {
+                    job: job_config.name.clone(),
+                    ty: unmet.type_name(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    async fn apply_missed_runs(&self, tickers: &[registration::Ticker]) {
+        let now = self.clock.now();
+        let mut due = Vec::new();
+        for ticker in tickers {
+            let limit = match ticker.dispatch.job.missed_runs() {
+                MissedRunPolicy::Skip => continue,
+                MissedRunPolicy::RunOnce => 1,
+                MissedRunPolicy::CatchUp { max } => usize::try_from(max).unwrap_or(usize::MAX),
+            };
+            let Some(key) = ticker.dispatch.claim_policy.run_key() else {
+                continue;
+            };
+            let job_name = &ticker.dispatch.job_name;
+            let last = match self
+                .repository
+                .runs()
+                .last_scheduled_at(job_name, &key)
+                .await
+            {
+                Ok(Some(last)) => last,
+                Ok(None) => continue,
+                Err(e) => {
+                    warn!(job_name = %job_name, error = %e, "cannot read the job's last recorded instant; no missed run is applied");
+                    continue;
+                },
+            };
+            let missed = ticker.instants.missed(last, now, limit);
+            if !missed.is_empty() {
+                info!(job_name = %job_name, count = missed.len(), "running missed instants");
+                due.push((ticker.clone(), missed));
+            }
+        }
+        if due.is_empty() {
+            return;
+        }
+        self.app_context
+            .background_tasks()
+            .spawn("scheduler_missed_runs", async move {
+                for (ticker, missed) in due {
+                    for instant in missed {
+                        ticker
+                            .clone()
+                            .run(dispatch::Trigger::Scheduled(instant))
+                            .await;
+                    }
+                }
+            });
     }
 
     async fn verify_lock_keys(&self, registered_jobs: &JobMap) -> SchedulerResult<()> {

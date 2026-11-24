@@ -5,6 +5,8 @@
 #[cfg(test)]
 mod bundle_bootstrap;
 #[cfg(test)]
+mod bundle_bootstrap_refusals;
+#[cfg(test)]
 mod bundle_cache;
 #[cfg(test)]
 mod bundle_cache_edges;

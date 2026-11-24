@@ -13,21 +13,19 @@ pub(crate) fn event_plane(
     database: &systemprompt_database::DbPool,
     config: &Config,
     cache_epochs: &systemprompt_traits::CacheEpochs,
-) -> (EventRouter, EventBridgeHandle, sqlx::PgPool) {
+) -> (EventRouter, EventBridgeHandle) {
     let event_router = event_router_or_outbox(configured, database, config);
     // Why: LISTEN/NOTIFY, the outbox insert and the retention prune need the
-    // primary, so the relay takes the write pool; the LISTEN session itself
-    // takes the session pool, a direct connection beside a transaction-mode
-    // pooler.
+    // primary, so the relay takes the write pool; it listens through the
+    // node's notification hub on the session pool.
     let bridge = PostgresEventBridge::new(
         database.write_pool().as_ref().clone(),
         systemprompt_events::process_origin(&config.instance_id),
         cache_epochs.clone(),
         Arc::clone(event_router.broadcasters()),
-    )
-    .with_listener_pool(database.session_pool().as_ref().clone());
-    let listener_pool = bridge.listener_pool().clone();
-    (event_router, bridge.into_idle_handle(), listener_pool)
+        database.notifications().clone(),
+    );
+    (event_router, bridge.into_idle_handle())
 }
 
 fn event_router_or_outbox(

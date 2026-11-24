@@ -1,23 +1,24 @@
 //! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
-//! migrations, the expired-grant cleanup job, and the sealed browser-session
+//! migrations, the expired-grant cleanup job, the sealed browser-session
 //! issuer (`DynSessionIssuer`), which requires the users member's sealed user
 //! directory (`DynUserProvider`), its repositories
-//! (`Arc<OAuthRepositories>`), conferred on `identity-http`, and the sealed
-//! host-filter migration port (`DynHostFilterMigrationPort`) the kernel's
-//! `admin config migrate --data` writes through.
+//! (`Arc<OAuthRepositories>`) and the plugin-token minter
+//! (`DynPluginTokenMinter`), both conferred on `identity-http`, and the sealed
+//! `DynBridgeHostFilterMigration` `admin config migrate --data` runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::DynHostFilterMigrationPort;
 
-use crate::repository::BridgeHostPrefsRepository;
+use systemprompt_database::DbPool;
+use systemprompt_extension::reserved::ConferralRow;
+use systemprompt_traits::DynBridgeHostFilterMigration;
 
 use crate::jobs::OauthCleanupJob;
+use crate::repository::BridgeHostPrefsRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
@@ -46,14 +47,18 @@ impl Extension for OauthExtension {
                 ConferralRow::IdentityOAuthRepositories,
                 crate::provides::oauth_repositories,
             )
+            .provide_sealed_after_governance(crate::provides::session_issuer)
+            .provide_conferred_after_governance(
+                ConferralRow::IdentityPluginTokens,
+                crate::provides::plugin_token_minter,
+            )
+            .job(OauthCleanupJob)
             .provide_sealed(
-                |r: &Resolved<'_>| -> Result<DynHostFilterMigrationPort, ProvideError> {
+                |r: &Resolved<'_>| -> Result<DynBridgeHostFilterMigration, ProvideError> {
                     let db = r.get::<DbPool>()?;
                     Ok(Arc::new(BridgeHostPrefsRepository::new(&db)))
                 },
-            )
-            .provide_sealed_after_governance(crate::provides::session_issuer)
-            .job(OauthCleanupJob);
+            );
         c.user_purge(UserPurgeTable {
             table: "oauth_jti_revocations",
             column: "user_id",

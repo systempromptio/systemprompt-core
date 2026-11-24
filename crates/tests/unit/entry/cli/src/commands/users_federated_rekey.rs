@@ -4,10 +4,11 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::args::Cli;
+use clap::Parser;
+use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
 use systemprompt_cloud::profile::ProfileSource;
-use systemprompt_extension::cli::{CommandDescriptor, DataImpact};
+use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_identifiers::TenantId;
 use systemprompt_identity_entry::cli::users::federated_rekey::{
     RekeyChoice, id_jag_candidates, resolve_choice, run,
@@ -27,8 +28,43 @@ fn trusted(issuer: &str, can_issue_id_jag: bool) -> TrustedIssuer {
     .expect("trusted issuer")
 }
 
+#[derive(Debug, Parser)]
+struct UsersHarness {
+    #[command(subcommand)]
+    cmd: systemprompt_identity_entry::cli::users::UsersCommands,
+}
+
+#[derive(Debug, Parser)]
+struct BridgeHarness {
+    #[command(subcommand)]
+    cmd: systemprompt_identity_entry::cli::bridge::BridgeCommands,
+}
+
 fn descriptor(args: &[&str]) -> CommandDescriptor {
-    crate::identity_registry::parse(args).0
+    match args {
+        ["admin", "users", rest @ ..] => {
+            return UsersHarness::try_parse_from(
+                std::iter::once("users").chain(rest.iter().copied()),
+            )
+            .unwrap_or_else(|e| panic!("parse {args:?}: {e}"))
+            .cmd
+            .descriptor();
+        },
+        ["admin", "bridge", rest @ ..] => {
+            return BridgeHarness::try_parse_from(
+                std::iter::once("bridge").chain(rest.iter().copied()),
+            )
+            .unwrap_or_else(|e| panic!("parse {args:?}: {e}"))
+            .cmd
+            .descriptor();
+        },
+        _ => {},
+    }
+    let cli = Cli::try_parse_from(std::iter::once("systemprompt").chain(args.iter().copied()))
+        .unwrap_or_else(|e| panic!("parse {args:?}: {e}"));
+    cli.command
+        .as_ref()
+        .map_or(CommandDescriptor::FULL, Commands::descriptor)
 }
 
 fn cloud_profile() -> Profile {
@@ -86,18 +122,7 @@ fn the_named_target_must_be_a_trusted_id_jag_issuer() {
         Some(RekeyChoice::Delete)
     );
     assert!(
-        crate::identity_registry::registry()
-            .assemble(<Cli as clap::CommandFactory>::command())
-            .expect("the command tree assembles")
-            .try_get_matches_from([
-                "systemprompt",
-                "admin",
-                "users",
-                "federated-rekey",
-                "--to-issuer",
-                "x",
-                "--delete",
-            ])
+        UsersHarness::try_parse_from(["users", "federated-rekey", "--to-issuer", "x", "--delete",])
             .is_err()
     );
 }

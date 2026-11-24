@@ -231,22 +231,17 @@ impl AdminBootstrap for UsersAdminBootstrap {
         self.users.session_exists(session).await.map_err(refused)
     }
 
-    async fn open_session(
+    async fn open_cli_session(
         &self,
         user: &UserId,
         ttl: chrono::Duration,
-        source: SessionSource,
     ) -> Result<SessionId, AdminBootstrapError> {
-        if self
-            .users
+        self.users
             .find_by_id(user)
             .await
             .map_err(refused)?
-            .is_none()
-        {
-            return Err(refused(crate::UserError::NotFound(user.clone())));
-        }
-        let session_id = SessionId::generate();
+            .ok_or_else(|| refused(crate::UserError::NotFound(user.clone())))?;
+        let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4()));
         let analytics = SessionAnalytics::default();
         SessionProvider::create_session(
             &self.sessions,
@@ -254,14 +249,14 @@ impl AdminBootstrap for UsersAdminBootstrap {
                 session_id: &session_id,
                 user_id: Some(user),
                 analytics: &analytics,
-                session_source: source,
-                is_bot: analytics.is_bot,
-                is_ai_crawler: analytics.is_ai_crawler,
+                session_source: SessionSource::Cli,
+                is_bot: false,
+                is_ai_crawler: false,
                 expires_at: chrono::Utc::now() + ttl,
             },
         )
         .await
-        .map_err(|error| AdminBootstrapError(Box::new(error)))?;
+        .map_err(|error| AdminBootstrapError(error.into()))?;
         Ok(session_id)
     }
 }

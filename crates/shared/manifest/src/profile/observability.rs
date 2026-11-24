@@ -1,16 +1,15 @@
 //! Where this instance ships its own telemetry.
 //!
 //! The gateway already *ingests* OTLP; this block is the other direction: the
-//! `otlp_export` job tails the audit tables and posts every completed AI
-//! request as a span (tool calls and governance decisions as its children) and
-//! every `logs` row as a log record to the configured collector. Metrics are
-//! not exported here — they stay on the Prometheus `/metrics` listener.
+//! server exports its own `tracing` pipeline live — every persisted log entry
+//! as a log record and every span under a platform trace as a span — to the
+//! configured collector. Metrics are not exported here — they stay on the
+//! Prometheus `/metrics` listener.
 //!
 //! `endpoint` is the collector base URL (OTLP/HTTP appends `/v1/traces` and
 //! `/v1/logs`); `headers` go verbatim on every export request; `signals`
-//! selects what is shipped; `batch_seconds` is the minimum spacing between
-//! two exports of one signal — the job's cron tick is the upper bound on how
-//! often it runs, this the lower bound on how often it ships.
+//! selects what is shipped; `batch_seconds` is the longest an item waits in
+//! the export queue before its batch is posted.
 //!
 //! `log_format` selects how the process writes its own `tracing` events to
 //! stderr: `text` (the default) or `json`, one object per line. Both pass

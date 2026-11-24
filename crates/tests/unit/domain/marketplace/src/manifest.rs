@@ -1,15 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::sync::Once;
 
-use base64::Engine;
-use ed25519_dalek::{Signature, VerifyingKey};
 use systemprompt_identifiers::{LibraryArtifactId, MarketplaceId, UserId};
 use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, EntryKeepSets, ManifestService, MarketplaceCache,
     MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
-use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
-use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_test_fixtures::fixture_user_id;
 
 use crate::helpers::{
@@ -601,95 +597,6 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
             .collect::<Vec<_>>(),
         vec!["kept-art"],
         "an artifact owned by an enabled plugin is kept while an orphaned one is gated out",
-    );
-}
-
-fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
-    SignedManifest {
-        min_schema_version: MANIFEST_SCHEMA_VERSION,
-        min_bridge_version: None,
-        manifest_version: version.clone(),
-        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-29T00:00:00Z")
-            .expect("rfc3339")
-            .with_timezone(&chrono::Utc),
-        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-29T00:00:00Z")
-            .expect("rfc3339")
-            .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
-        tenant_id: None,
-        user: None,
-        plugins: vec![],
-        skills: vec![],
-        rules: vec![],
-        agents: vec![],
-        hooks: vec![],
-        managed_mcp_servers: vec![],
-        revocations: vec![],
-        enabled_hosts: vec![],
-        host_model_protocols: BTreeMap::new(),
-        artifacts: vec![],
-        allow_claude_ai_connectors: false,
-        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
-        auto_update: Default::default(),
-        allow_user_disable: false,
-        branding: None,
-        bridge_versions: None,
-        diagnostics: Vec::new(),
-        marketplaces: Vec::new(),
-    }
-}
-
-#[test]
-fn seal_round_trips_against_published_pubkey() {
-    ensure_bootstrap();
-    let keys = systemprompt_test_fixtures::test_signing_keys();
-    let pubkey_b64 = keys.manifest_pubkey_b64();
-
-    let version =
-        ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
-    let manifest = sample_manifest(&version);
-
-    let envelope = ManifestService::seal(&keys, &manifest).expect("seal manifest");
-
-    let pubkey_bytes: [u8; 32] = base64::engine::general_purpose::STANDARD
-        .decode(&pubkey_b64)
-        .expect("decode pubkey")
-        .try_into()
-        .expect("32-byte ed25519 pubkey");
-    let verifying_key = VerifyingKey::from_bytes(&pubkey_bytes).expect("valid verifying key");
-    let sig_bytes: [u8; 64] = base64::engine::general_purpose::STANDARD
-        .decode(envelope.signature.as_str())
-        .expect("decode signature")
-        .try_into()
-        .expect("64-byte ed25519 signature");
-    let sig = Signature::from_bytes(&sig_bytes);
-
-    verifying_key
-        .verify_strict(envelope.payload.as_bytes(), &sig)
-        .expect("signature verifies against published pubkey");
-
-    let decoded: SignedManifest =
-        serde_json::from_str(&envelope.payload).expect("payload decodes back to a manifest");
-    assert_eq!(decoded.user_id, manifest.user_id);
-    assert_eq!(decoded.manifest_version.as_str(), version.as_str());
-    assert_eq!(decoded.min_schema_version, MANIFEST_SCHEMA_VERSION);
-}
-
-#[test]
-fn seal_is_deterministic_for_identical_manifests() {
-    ensure_bootstrap();
-
-    let version =
-        ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
-    let keys = systemprompt_test_fixtures::test_signing_keys();
-    let first = ManifestService::seal(&keys, &sample_manifest(&version)).expect("first seal");
-    let second = ManifestService::seal(&keys, &sample_manifest(&version)).expect("second seal");
-
-    assert_eq!(first.payload, second.payload);
-    assert_eq!(
-        first.signature.as_str(),
-        second.signature.as_str(),
-        "identical manifests must produce identical signatures",
     );
 }
 

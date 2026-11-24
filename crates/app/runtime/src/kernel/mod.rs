@@ -14,7 +14,9 @@
 //! the [`Admitted`] handoff: every admitted member's early provide fns in
 //! composition order, each reading what was provided before it; the admitted
 //! owner reassignments ([`AdmittedOwnerReassignments`], sealed: kernel code
-//! and provide fns read them, no member runtime context does), each built by
+//! and provide fns read them, and of member code only `identity-http`'s
+//! commands, under the `identity-owner-reassignments` conferral row), each
+//! built by
 //! its owner's factory and refused unless it names only the owner's own
 //! tables;
 //! every slot,
@@ -68,6 +70,7 @@ use std::sync::Arc;
 
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::{PendingBind, SlotBuildInput, build_slot};
+use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedOwnerReassignments,
     AdmittedProjections, AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId,
@@ -76,7 +79,7 @@ use systemprompt_extension::{
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::Dependencies;
+use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
 use self::reserved::{gateway_guards, refuse_kernel_types, refuse_unlisted_conferrals};
@@ -148,7 +151,15 @@ impl Kernel {
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));
         let reassignments = AdmittedOwnerReassignments::of(admitted.built())?;
-        self.state.insert_sealed(Arc::new(reassignments));
+        self.state.insert_sealed_conferred(
+            Arc::new(reassignments),
+            Conferred {
+                holder: ExtensionId::new(
+                    ConferralRow::IdentityOwnerReassignments.entry().holder.id(),
+                ),
+                row: ConferralRow::IdentityOwnerReassignments.name(),
+            },
+        );
         self.build_slots(admitted, false)?;
         self.build_governance(admitted.built())?;
         self.provide_all(admitted, ProvidePhase::AfterGovernance)?;

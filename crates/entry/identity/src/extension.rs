@@ -13,18 +13,18 @@
 //! keeps their layering: the policies, context kinds, rate scopes and budgets,
 //! the file-managed client-write refusal and the route groups.
 //!
-//! With `cli` it contributes the `admin users`, `admin bridge` and `admin
-//! keys` groups under the kernel's `admin` group (see [`crate::cli`]) and
-//! provides, open but under a type private to this crate, the command state
-//! they read (the OAuth repository over the sealed at-rest pepper, the owner
-//! reassignments and the configuration values they need).
-//!
 //! The member is its own capability unit (facade feature `identity`), not part
 //! of the kernel: a profile that disables `identity-http` serves no OAuth, SSO,
 //! `/api/v1/core/users` or `/api/v1/admin/api-keys` route (404) and no OAuth
 //! discovery document, while the kernel keeps authenticating requests through
 //! the users member's request authenticator and minting the anonymous session
 //! cookie.
+//!
+//! With `cli` it contributes the `admin users` (grant
+//! `config-plane-writer` for the identity plane), `admin keys` and
+//! `admin bridge` (grant `signing-keys`) command groups; their commands read
+//! the values conferred on `identity-http` through the owner-scoped command
+//! resolver. A profile that disables `identity-http` serves none of them.
 //!
 //! | profile disables | identity routes |
 //! |---|---|
@@ -56,7 +56,7 @@ impl Extension for IdentityHttpExtension {
         not(any(feature = "http", feature = "cli")),
         expect(
             unused_variables,
-            reason = "the member contributes its surface only with the http feature and its commands only with the cli feature"
+            reason = "the member contributes only with the http or cli feature"
         )
     )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
@@ -65,37 +65,6 @@ impl Extension for IdentityHttpExtension {
         #[cfg(feature = "cli")]
         commands::contribute(c);
         Ok(())
-    }
-}
-
-#[cfg(feature = "cli")]
-mod commands {
-    use systemprompt_extension::cli::{
-        CommandClaim, CommandDecl, GrantedPlane, KernelGrant, parents,
-    };
-    use systemprompt_extension::prelude::*;
-
-    use crate::cli::bridge::BridgeCommands;
-    use crate::cli::keys::KeysCommands;
-    use crate::cli::users::UsersCommands;
-
-    pub(super) fn contribute(c: &mut Contributions<'_>) {
-        c.provide_after_governance(crate::cli::state::provide)
-            .command(
-                CommandDecl::group_under::<parents::Admin, UsersCommands>()
-                    .requesting(&[KernelGrant::ConfigPlaneWriter(GrantedPlane::Identity)])
-                    .claiming(&[CommandClaim::PreservesData, CommandClaim::DirectDatabase]),
-            )
-            .command(
-                CommandDecl::group_under::<parents::Admin, BridgeCommands>()
-                    .requesting(&[KernelGrant::SigningKeys])
-                    .claiming(&[CommandClaim::PreservesData]),
-            )
-            .command(
-                CommandDecl::group_under::<parents::Admin, KeysCommands>()
-                    .requesting(&[KernelGrant::SigningKeys])
-                    .claiming(&[CommandClaim::PreservesData]),
-            );
     }
 }
 
@@ -126,5 +95,39 @@ mod surface {
         Ok(Arc::new(IdentityHttpRepositories {
             users: Arc::new(UserRepository::new(&db)),
         }))
+    }
+}
+
+#[cfg(feature = "cli")]
+mod commands {
+    use systemprompt_extension::cli::{
+        CommandClaim, CommandDecl, GrantedPlane, KernelGrant, parents,
+    };
+    use systemprompt_extension::prelude::*;
+
+    use crate::cli::bridge::BridgeCommands;
+    use crate::cli::keys::KeysCommands;
+    use crate::cli::users::UsersCommands;
+
+    const DIRECT_PRESERVING: &[CommandClaim] =
+        &[CommandClaim::DirectDatabase, CommandClaim::PreservesData];
+    const PRESERVING: &[CommandClaim] = &[CommandClaim::PreservesData];
+
+    pub(super) fn contribute(c: &mut Contributions<'_>) {
+        c.command(
+            CommandDecl::group_under::<parents::Admin, UsersCommands>()
+                .requesting(&[KernelGrant::ConfigPlaneWriter(GrantedPlane::Identity)])
+                .claiming(DIRECT_PRESERVING),
+        )
+        .command(
+            CommandDecl::group_under::<parents::Admin, KeysCommands>()
+                .requesting(&[KernelGrant::SigningKeys])
+                .claiming(PRESERVING),
+        )
+        .command(
+            CommandDecl::group_under::<parents::Admin, BridgeCommands>()
+                .requesting(&[KernelGrant::SigningKeys])
+                .claiming(PRESERVING),
+        );
     }
 }

@@ -53,6 +53,12 @@ pub enum GatewayAuditError {
     #[error(transparent)]
     Pricing(#[from] MissingPricing),
 
+    #[error("Gateway journal flush failed; the batch was not acknowledged")]
+    JournalFlush(#[source] std::sync::Arc<std::io::Error>),
+
+    #[error("Gateway admission limit of {limit} in-flight requests reached")]
+    AdmissionLimit { limit: u32 },
+
     #[error("Gateway journal task failed")]
     Join(#[from] tokio::task::JoinError),
 }

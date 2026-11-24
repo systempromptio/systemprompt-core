@@ -6,9 +6,8 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
-use systemprompt_cli::session::api::create_local_session_row;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_identity_entry::cli::users::UsersCommands;
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
 };
@@ -58,15 +57,9 @@ async fn delete_preview_helper() {
         )
         .await
         .expect("sibling user");
-    let session = create_local_session_row(
-        systemprompt_users::admin_bootstrap(pool.clone())
-            .unwrap()
-            .as_ref(),
-        &target.id,
-        chrono::Duration::hours(1),
-    )
-    .await
-    .expect("target session");
+    let session = super::open_cli_session(&pool, &target.id, chrono::Duration::hours(1))
+        .await
+        .expect("target session");
     let raw = pool.pool();
     let users_before: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(
         "SELECT id, name, status, roles FROM users WHERE id IN ($1, $2) ORDER BY id",
@@ -92,9 +85,9 @@ async fn delete_preview_helper() {
     println!("BEGIN_PREVIEW");
     crate::boot_ctx::rendered(
         &context,
-        crate::commands::identity_host::users(
+        users::execute(
             parse(&["delete", target.id.as_str(), "--dry-run"]),
-            &context,
+            &crate::boot_ctx::identity(&context),
         )
         .await,
     )

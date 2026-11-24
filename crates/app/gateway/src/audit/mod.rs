@@ -31,6 +31,7 @@ pub mod payload;
 pub mod phases;
 mod quota_settlement;
 pub mod session;
+mod span;
 mod tool_results;
 pub mod tool_validity;
 
@@ -98,7 +99,8 @@ pub struct GatewayRequestContext {
 )]
 pub struct GatewayAudit {
     settlement: journal::Settlement,
-    journal_lease: std::sync::OnceLock<std::fs::File>,
+    journal_lease: std::sync::OnceLock<journal::JournalLease>,
+    admission_limit: std::num::NonZeroU32,
     admitted_messages: std::sync::OnceLock<i32>,
     pricing_snapshot: Mutex<Option<systemprompt_manifest::services::ModelPricing>>,
     requests: Arc<AiRequestRepository>,
@@ -109,6 +111,7 @@ pub struct GatewayAudit {
     payload_cap_bytes: usize,
     served_model: Mutex<Option<String>>,
     served_provider: Mutex<Option<String>>,
+    route_match: Mutex<Option<String>>,
     started_at: Instant,
     upstream: Mutex<UpstreamClock>,
     background: systemprompt_traits::BackgroundTasks,
@@ -130,6 +133,7 @@ impl GatewayAudit {
         Self {
             settlement: repos.settlement(),
             journal_lease: std::sync::OnceLock::new(),
+            admission_limit: repos.quota_sharding.admission_limit,
             admitted_messages: std::sync::OnceLock::new(),
             pricing_snapshot: Mutex::new(None),
             requests: Arc::clone(&repos.requests),
@@ -140,6 +144,7 @@ impl GatewayAudit {
             payload_cap_bytes: repos.payload_cap_bytes,
             served_model: Mutex::new(None),
             served_provider: Mutex::new(None),
+            route_match: Mutex::new(None),
             started_at: Instant::now(),
             upstream: Mutex::new(UpstreamClock::default()),
             background: repos.background.clone(),
@@ -243,6 +248,9 @@ impl GatewayAudit {
     }
 
     pub async fn set_route_match(&self, descriptor: &str) {
+        if let Ok(mut slot) = self.route_match.lock() {
+            *slot = Some(descriptor.to_owned());
+        }
         if self.stash_route_match(descriptor) {
             return;
         }

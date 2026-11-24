@@ -41,6 +41,7 @@
 //!     payload_cap_bytes: 4194304
 //!   quota:
 //!     shared_subject_shards: 8
+//!     admission_limit: 4096
 //!   unapplied_planes: warn   # or deny
 //! ```
 //!
@@ -105,6 +106,10 @@ impl UnappliedPlaneMode {
 /// over-admission bound by up to one concurrent reservation. `1` keeps the
 /// exact single-row behaviour. Both are range-checked by
 /// [`crate::profile::Profile::validate`].
+///
+/// `admission_limit` is the most gateway requests one node holds admitted at
+/// once (each holds a journal receipt until it settles). An admission past it
+/// is refused with 429 and recorded as failed, never dropped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct QuotaConfig {
@@ -112,12 +117,16 @@ pub struct QuotaConfig {
     pub shared_subject_shards: u16,
     #[serde(default = "default_principal_subject_shards")]
     pub principal_subject_shards: u16,
+    #[serde(default = "default_admission_limit")]
+    pub admission_limit: std::num::NonZeroU32,
 }
 
 impl QuotaConfig {
     pub const DEFAULT_SHARED_SUBJECT_SHARDS: u16 = 8;
     pub const DEFAULT_PRINCIPAL_SUBJECT_SHARDS: u16 = 1;
     pub const MAX_SHARDS: u16 = 64;
+    pub const DEFAULT_ADMISSION_LIMIT: std::num::NonZeroU32 =
+        std::num::NonZeroU32::new(4096).expect("the default admission limit is non-zero");
 }
 
 impl Default for QuotaConfig {
@@ -125,12 +134,17 @@ impl Default for QuotaConfig {
         Self {
             shared_subject_shards: Self::DEFAULT_SHARED_SUBJECT_SHARDS,
             principal_subject_shards: Self::DEFAULT_PRINCIPAL_SUBJECT_SHARDS,
+            admission_limit: Self::DEFAULT_ADMISSION_LIMIT,
         }
     }
 }
 
 const fn default_shared_subject_shards() -> u16 {
     QuotaConfig::DEFAULT_SHARED_SUBJECT_SHARDS
+}
+
+const fn default_admission_limit() -> std::num::NonZeroU32 {
+    QuotaConfig::DEFAULT_ADMISSION_LIMIT
 }
 
 const fn default_principal_subject_shards() -> u16 {

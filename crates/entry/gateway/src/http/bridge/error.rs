@@ -20,7 +20,7 @@ use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_oauth::{OauthError, OauthErrorKind};
+use systemprompt_oauth::OauthError;
 use systemprompt_traits::{AuthUser, BoxedSource};
 use systemprompt_users::UserError;
 
@@ -170,37 +170,9 @@ impl From<BridgeError> for ApiHttpError {
             },
             BridgeError::Internal { context, source } => ApiError::internal(context, source),
             BridgeError::Users(inner) => ApiError::from(inner),
-            BridgeError::Oauth(inner) => oauth_api_error(inner),
+            BridgeError::Oauth(inner) => ApiError::from(inner),
         };
         Self::from(api)
-    }
-}
-
-pub(crate) fn oauth_api_error(err: OauthError) -> ApiError {
-    if matches!(
-        err,
-        OauthError::CodeNotFound(_)
-            | OauthError::TokenNotFound(_)
-            | OauthError::ClientNotFound(_)
-            | OauthError::UserNotFound(_)
-    ) {
-        return ApiError::not_found(err.to_string());
-    }
-    match err.kind() {
-        OauthErrorKind::InvalidRequest
-        | OauthErrorKind::InvalidClientMetadata
-        | OauthErrorKind::ExpiredChallenge
-        | OauthErrorKind::InvalidCredential => ApiError::bad_request(err.to_string()),
-        OauthErrorKind::UsernameUnavailable | OauthErrorKind::EmailExists => {
-            ApiError::conflict(err.to_string())
-        },
-        OauthErrorKind::InvalidClient => ApiError::unauthorized("Client authentication failed"),
-        OauthErrorKind::AuthenticationFailed => ApiError::unauthorized("Authentication failed"),
-        OauthErrorKind::InvalidGrant
-        | OauthErrorKind::InvalidToken
-        | OauthErrorKind::AccessDenied => ApiError::unauthorized(err.to_string()),
-        OauthErrorKind::NotFound => ApiError::not_found(err.to_string()),
-        OauthErrorKind::ServerError => ApiError::internal("Authorization operation failed", err),
     }
 }
 

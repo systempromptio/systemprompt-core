@@ -47,7 +47,8 @@
 //!
 //! `projection_backlog(projection, key, queued_at, attempts)` is one table
 //! for every projection. Writers queue keys ([`queue`] or the SQL
-//! `queue_projection_backlog`); a drainer job calls [`drain`] with the
+//! `queue_projection_backlog`; the keys reach the queue, sorted, when the
+//! queueing transaction commits); a drainer job calls [`drain`] with the
 //! projection's refresh, which takes a batch with `FOR UPDATE SKIP LOCKED`,
 //! refreshes it and deletes the rows in one transaction. A failed batch is
 //! rolled back and re-queued one attempt dearer; a key past its retry budget

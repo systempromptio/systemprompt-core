@@ -1,0 +1,29 @@
+[root]
+section = "Changed"
+area = "Database sessions"
+text = "A node holds one Postgres `LISTEN` session, the `NotificationHub` on the session pool, instead of one per subscriber: the cross-replica relay, the process-ownership wake, the brain and notifications consumers' wakes and the agent-run event fan-out subscribe to it. A subscriber whose session is lost polls (the relay replays) until the hub listens again. CLI one-shots and hosted children open no `LISTEN` session."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`NotificationHub`, `HubSubscription`, `HubEvent`, `ListenLink`, `PollWake` and `WakeReason`; `Database::notifications` and `Database::bind_notifications`."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Breaking"
+text = "`PostgresEventBridge::new` takes the node's `NotificationHub`; `with_listener_pool` and `listener_pool` are removed. Migrate by passing `db.notifications().clone()`."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Breaking"
+text = "`RunEventNotifier::spawn` takes `&NotificationHub` instead of a `PgPool`."
+
+[[crate]]
+name = "systemprompt-brain"
+section = "Breaking"
+text = "`BrainConsumer::builder` and `BrainHandleParts` take a `NotificationHub` (`notifications_hub`) instead of a listener `PgPool`."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Breaking"
+text = "`NotificationsConsumer::new` takes a `NotificationHub` instead of a listener `PgPool`."

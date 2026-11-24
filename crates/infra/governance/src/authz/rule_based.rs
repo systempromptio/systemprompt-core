@@ -70,6 +70,7 @@ impl RuleBasedHook {
             sources,
             epochs,
             providers,
+            audit_spans: _,
         } = wiring;
         Self {
             repo: AccessControlRepository::from_pool(pool),

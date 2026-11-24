@@ -1689,7 +1689,7 @@ pub(super) async fn admitted_receipt_fixture(
         GatewayService::dispatch(&config, &registry, &pool, &spawned_repositories, dispatch).await
     })));
     let root = state_dir.path().join("gateway-journal");
-    let receipt = tokio::time::timeout(Duration::from_secs(5), async {
+    let segment = tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             if let Some(path) = std::fs::read_dir(&root)
                 .expect("journal directory")
@@ -1698,8 +1698,8 @@ pub(super) async fn admitted_receipt_fixture(
                 .into_iter()
                 .map(|entry| entry.path())
                 .find(|path| {
-                    path.extension()
-                        .is_some_and(|extension| extension == "receipt")
+                    path.extension().is_some_and(|extension| extension == "seg")
+                        && std::fs::metadata(path).is_ok_and(|meta| meta.len() > 0)
                 })
             {
                 break path;
@@ -1709,28 +1709,29 @@ pub(super) async fn admitted_receipt_fixture(
     })
     .await
     .expect("admission receipt created");
-    let admitted = std::fs::read(&receipt)?;
+    let admitted = std::fs::read(&segment)?;
     let handle = task.0.take().expect("dispatch task");
     handle.abort();
     let error = handle.await.expect_err("dispatch task aborted");
     assert!(error.is_cancelled(), "dispatch must be cancelled: {error}");
     // Why: the cancelled dispatch's abandon guard settles the request in the
-    // background and, when that settlement succeeds, deletes the receipt. The
+    // background and, when that settlement succeeds, retires the receipt. The
     // fixture stands for a process that died before settling, so it waits for
-    // that work (whose audit holds the receipt's lease) and then puts the
-    // admission receipt back exactly as it was written.
+    // that work and then leaves the admitted segment behind as the segment set
+    // of an exited process, whose owner lock nobody holds.
     let drained = repositories.background.drain(Duration::from_secs(30)).await;
     assert!(
         drained.is_drained(),
         "cancelled dispatch must finish its background work"
     );
+    std::fs::write(root.join("exited.owner"), b"")?;
+    let receipt = root.join("exited-0000000001.seg");
     std::fs::write(&receipt, admitted)?;
     Ok((database, repositories, state_dir, receipt))
 }
 
 #[tokio::test]
-async fn recovery_quarantines_a_tampered_receipt_without_touching_foreign_files()
--> anyhow::Result<()> {
+async fn recovery_skips_a_tampered_frame_without_touching_foreign_files() -> anyhow::Result<()> {
     let (database, repositories, state_dir, receipt) =
         admitted_receipt_fixture("gateway_journal_tampered").await?;
     let foreign = state_dir.path().join("gateway-journal/operator-note");
@@ -1743,26 +1744,30 @@ async fn recovery_quarantines_a_tampered_receipt_without_touching_foreign_files(
     let settled = systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?;
     assert_eq!(settled, 0);
     assert!(!receipt.exists());
-    assert!(receipt.with_extension("receipt.bad").exists());
     assert_eq!(std::fs::read(&foreign)?, b"retain");
+    assert_eq!(
+        systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
+        0
+    );
     database.drop_now().await;
     Ok(())
 }
 
 #[tokio::test]
-async fn recovery_quarantines_a_truncated_receipt_and_removes_interrupted_temp_files()
--> anyhow::Result<()> {
+async fn recovery_skips_a_truncated_segment_and_deletes_it() -> anyhow::Result<()> {
     let (database, repositories, state_dir, receipt) =
         admitted_receipt_fixture("gateway_journal_truncated").await?;
     std::fs::write(&receipt, b"short")?;
-    let temp = state_dir.path().join("gateway-journal/interrupted.tmp");
-    std::fs::write(&temp, b"partial")?;
 
     let settled = systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?;
     assert_eq!(settled, 0);
     assert!(!receipt.exists());
-    assert!(receipt.with_extension("receipt.bad").exists());
-    assert!(!temp.exists());
+    assert!(
+        !state_dir
+            .path()
+            .join("gateway-journal/exited.owner")
+            .exists()
+    );
     database.drop_now().await;
     Ok(())
 }
@@ -1836,17 +1841,8 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         1
     );
 
-    let journal_root = state_dir.path().join("gateway-journal");
-    let receipts = std::fs::read_dir(&journal_root)?
-        .collect::<std::io::Result<Vec<_>>>()?
-        .into_iter()
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.extension()
-                .is_some_and(|extension| extension == "receipt")
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(receipts.len(), 1, "one terminal receipt is retained");
+    let retained = || systemprompt_gateway::audit::journal::pending(&repositories.journal);
+    assert_eq!(retained()?, 1, "one terminal receipt is retained");
     let before: (Option<i32>, Option<String>) =
         sqlx::query_as("SELECT tokens_used, status FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -1880,7 +1876,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         0,
         "recovery retains a terminal receipt while settlement is still faulted"
     );
-    assert!(receipts[0].exists());
+    assert_eq!(retained()?, 1);
     let response_while_faulted: Option<serde_json::Value> = sqlx::query_scalar(
         "SELECT response_body FROM ai_request_payloads WHERE ai_request_id = $1",
     )
@@ -1902,7 +1898,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
         1
     );
-    assert!(!receipts[0].exists());
+    assert_eq!(retained()?, 0);
     let after: (Option<i32>, Option<i32>, Option<i32>, Option<String>) = sqlx::query_as(
         "SELECT tokens_used, input_tokens, output_tokens, status FROM ai_requests WHERE id = $1",
     )

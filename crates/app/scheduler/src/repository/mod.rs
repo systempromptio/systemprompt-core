@@ -1,13 +1,14 @@
 //! Persistence layer for the scheduler crate.
 //!
 //! [`SchedulerRepository`] is the composite façade combining the
-//! [`JobRepository`] and the cross-replica job advisory lock; it is the type
+//! [`JobRepository`], the per-instant run claims ([`JobRunRepository`]) and
+//! the cross-replica job advisory lock; it is the type
 //! consumed by [`crate::services::SchedulerService`] and by the API lifecycle
 //! bootstrap path.
 //!
-//! [`otlp`] backs the OTLP exporter and [`LicenceCheckinRepository`] the
-//! licence check-in. Retention deletes are not here: `database_cleanup`
-//! dispatches to the purges the owning crates register.
+//! [`LicenceCheckinRepository`] backs the licence check-in. Retention deletes
+//! are not here: `database_cleanup` dispatches to the purges the owning crates
+//! register.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,9 +17,9 @@ mod config_apply;
 mod config_reconcile;
 mod job_lock;
 mod job_lock_keys;
+mod job_runs;
 mod jobs;
 mod licence;
-pub mod otlp;
 
 pub use config_apply::{BaseRecord, ConflictRecord, ConflictRow, LastApply};
 pub(crate) use config_reconcile::RECONCILE_LOCK;
@@ -29,6 +30,7 @@ pub use config_reconcile::{
 pub(crate) use job_lock::JobLockGuard;
 use job_lock::JobLockRepository;
 pub use job_lock_keys::{LockKeyCollision, find_lock_key_collision};
+pub use job_runs::{JobRunRepository, RunClaim, RunKey};
 pub use jobs::JobRepository;
 pub use licence::{LicenceCheckinRepository, LicenceCheckinState};
 
@@ -36,11 +38,12 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
 
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::models::{JobRunRecord, ScheduledJob};
+use crate::models::{JobRunRecord, JobStatus, ScheduledJob};
 
 #[derive(Debug, Clone)]
 pub struct SchedulerRepository {
     jobs: JobRepository,
+    runs: JobRunRepository,
     locks: JobLockRepository,
 }
 
@@ -48,6 +51,7 @@ impl SchedulerRepository {
     pub fn new(db: &DbPool) -> Self {
         Self {
             jobs: JobRepository::new(db),
+            runs: JobRunRepository::new(db),
             locks: JobLockRepository::new(db),
         }
     }
@@ -57,6 +61,18 @@ impl SchedulerRepository {
         job_name: &JobName,
     ) -> SchedulerResult<Option<JobLockGuard>> {
         self.locks.try_acquire(job_name).await
+    }
+
+    pub const fn runs(&self) -> &JobRunRepository {
+        &self.runs
+    }
+
+    pub(crate) async fn finish_run(
+        &self,
+        claim: &RunClaim,
+        status: JobStatus,
+    ) -> SchedulerResult<bool> {
+        self.runs.finish(claim, status).await
     }
 
     pub async fn verify_lock_keys(&self, names: &[JobName]) -> SchedulerResult<()> {

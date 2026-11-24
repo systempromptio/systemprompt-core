@@ -550,11 +550,11 @@ governance:
 
 ## `observability`
 
-`crates/shared/manifest/src/profile/observability.rs`. The gateway *ingests* OTLP at `POST /otel`; this block is the other direction. When `otlp` is set, the `otlp_export` scheduler job tails the audit tables and posts every completed AI request as a span — with a child span for each tool call in `tool_call_ledger` and each `governance_decisions` row under its trace — and every `logs` row as a log record, to the collector named here. Each request span carries the request's [scope attribution](./http-api.md#scope-attribution) as `systemprompt.scope.<dimension>` (the value) and `systemprompt.scope.<dimension>.source` (`header`, `api_key` or `default`), and the authenticating key as `systemprompt.api_key.id`, so spend can be grouped by any tenant dimension in the collector. Metrics are not exported; they stay on the Prometheus `/metrics` listener. Operating notes, including the `otlp_export_state` progress table: [operate.md §5](../guides/operate.md#5-ingest-and-export-opentelemetry-otlp).
+`crates/shared/manifest/src/profile/observability.rs`. The gateway *ingests* OTLP at `POST /otel`; this block is the other direction. When `otlp` is set (and the server is built with the `otel` feature), the server exports its own `tracing` pipeline live to the collector named here: every log entry it persists as a log record, and every span under a platform trace as a span. Metrics are not exported; they stay on the Prometheus `/metrics` listener. Operating notes: [operate.md §5](../guides/operate.md#5-ingest-and-export-opentelemetry-otlp).
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `otlp` | object | no | absent | The collector. Absent means nothing is exported and the job is a no-op. |
+| `otlp` | object | no | absent | The collector. Absent means nothing is exported. |
 | `log_format` | enum `text` \| `json` | no | `text` | How the process writes its own log events to **stderr**. `json` writes one object per line (`timestamp`, `level`, `target`, `fields`, `spans`, `instance`) for Fluent Bit, Vector or Loki. Both formats redact the same secret-bearing fields. `runtime.output_format` governs CLI command output only, not this stream. |
 
 ### `observability.otlp`
@@ -565,7 +565,7 @@ governance:
 | `protocol` | enum `http` \| `grpc` | no | `http` | `http` is OTLP/HTTP with protobuf bodies. `grpc` is reserved and **fails validation** as not yet supported — point the exporter at the collector's HTTP receiver (default port 4318). |
 | `headers` | map string → string | no | `{}` | Sent verbatim on every export request (`Authorization`, `DD-API-KEY`, `X-Scope-OrgID`, …). Names must be valid HTTP header names; values may not contain line breaks. |
 | `signals` | list of `traces` \| `logs` | no | `[traces, logs]` | Which signals to export. Must be non-empty with no repeats. |
-| `batch_seconds` | u64 | no | `15` | Minimum seconds between two exports of the same signal (`1`–`3600`). The job's cron tick (default every 15 s, overridable in the scheduler config) is the upper bound on how often it runs; this is the lower bound on how often it ships. |
+| `batch_seconds` | u64 | no | `15` | Longest an item waits in the export queue before its batch is posted (`1`–`3600`); a batch also ships as soon as it holds 512 items. |
 
 ```yaml
 observability:
@@ -576,8 +576,6 @@ observability:
     signals: [traces, logs]
     batch_seconds: 30
 ```
-
-The job must also be enabled in the scheduler config (`services/scheduler/config.yaml`) under the name `otlp_export`; the profile block alone configures *where*, the scheduler entry configures *whether* and *how often*.
 
 ## `${VAR}` interpolation
 

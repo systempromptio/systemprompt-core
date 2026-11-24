@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "`admin keys issue-plugin-token` is contributed by the `identity-http` member under its `admin keys` group and mints through the conferred plugin-token minter. With `--email` omitted, the token is minted for the caller's CLI session user instead of the cloud-credentials email."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`PluginTokenMinter` / `DynPluginTokenMinter`, sealed and conferred to `identity-http` as `identity-plugin-tokens`; `AdminBootstrap::open_cli_session`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::plugin_token` is removed (now in `systemprompt-identity-entry`'s `cli` feature); the crate no longer depends on `systemprompt-oauth` or `systemprompt-users`."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Added"
+text = "The member provides the sealed plugin-token minter."

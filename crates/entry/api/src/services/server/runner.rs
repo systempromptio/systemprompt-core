@@ -70,6 +70,8 @@ pub async fn run_server(
     )
     .await?;
     super::boot_steps::reconcile_document_folders(&ctx).await?;
+    #[cfg(feature = "otel")]
+    super::boot_steps::start_otlp_export(&ctx);
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
