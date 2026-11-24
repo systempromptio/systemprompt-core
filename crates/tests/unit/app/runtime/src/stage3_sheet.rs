@@ -20,11 +20,12 @@ use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_models::auth::{DynRequestAuthenticator, DynTokenRevocations, TokenAuthority};
 use systemprompt_runtime::{AppContext, Kernel};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 use systemprompt_traits::{
     AppContext as AppContextTrait, BackgroundTasks, CacheEpochView, CacheEpochs,
     DynAiSessionProvider, DynContextDirectory, DynGatewaySessionMint, DynSessionContextIssuer,
-    DynSessionStore, DynSessionTelemetry, DynSessionUsageCounters, FileStorage, SecretStore,
+    DynSessionStore, DynSessionTelemetry, DynSignInSessions, DynSessionUsageCounters, FileStorage, SecretStore,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -336,4 +337,40 @@ async fn core_and_install_route_sets_are_refused_every_host_sealed_seed() {
     }
     assert!(!install_reads::<Arc<Config>>(&ctx));
     assert!(!install_reads::<Arc<dyn SecretStore>>(&ctx));
+}
+
+fn conferred_on_identity_http_alone<T: Clone + Send + Sync + 'static>(ctx: &AppContext) {
+    assert!(route_reads::<T>(ctx, "identity-http"));
+    for owner in ["gateway", "gateway-http", "files-http", "agent-http", "mcp-http"] {
+        assert!(!route_reads::<T>(ctx, owner), "{owner}");
+    }
+    assert!(
+        ctx.kernel()
+            .route_scoped(&ExtensionId::new("identity-http"), StandingTag::Install, &[])
+            .get::<T>()
+            .is_err(),
+        "an install holding the identity-http id reads nothing conferred"
+    );
+    assert!(!install_reads::<T>(ctx));
+    assert!(!member_command_reads::<T>(ctx));
+    assert!(!job_reads::<T>(ctx));
+}
+
+#[tokio::test]
+async fn identity_http_alone_reads_the_conferred_signing_keys() {
+    let ctx = context().await;
+    let conferred = ctx
+        .kernel()
+        .state()
+        .conferral_of::<SigningKeys>()
+        .expect("recorded under its row");
+    assert_eq!(conferred.row, ConferralRow::IdentitySigningKeys.name());
+    conferred_on_identity_http_alone::<SigningKeys>(&ctx);
+}
+
+#[tokio::test]
+async fn identity_http_alone_reads_the_conferred_sign_in_sessions() {
+    let ctx = context().await;
+    conferred_on_identity_http_alone::<DynSignInSessions>(&ctx);
+    assert!(!route_reads::<DynSessionStore>(&ctx, "identity-http"));
 }
