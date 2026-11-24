@@ -10,6 +10,13 @@ pub struct Sandbox {
     previous: PathBuf,
     path: Option<OsString>,
 }
+
+impl Default for Sandbox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Sandbox {
     pub fn new() -> Self {
         let root = crate::canonical_tempdir();
