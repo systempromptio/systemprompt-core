@@ -8,17 +8,24 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ContextId, UserId};
-use systemprompt_traits::{ContextDirectory, ContextProviderError, OwnedContextSummary};
+use systemprompt_traits::{
+    CallerContexts, ContextDirectory, ContextProviderError, OwnedContextSummary,
+};
 
 /// A [`ContextDirectory`] in which no context is owned.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContextsUnavailable;
 
-#[async_trait::async_trait]
 impl ContextDirectory for ContextsUnavailable {
+    fn for_caller(&self, _caller: &UserId) -> Box<dyn CallerContexts + '_> {
+        Box::new(Self)
+    }
+}
+
+#[async_trait::async_trait]
+impl CallerContexts for ContextsUnavailable {
     async fn owned_context(
         &self,
-        _user_id: &UserId,
         _context_id: &ContextId,
     ) -> Result<Option<OwnedContextSummary>, ContextProviderError> {
         Ok(None)
@@ -26,7 +33,6 @@ impl ContextDirectory for ContextsUnavailable {
 
     async fn owned_names(
         &self,
-        _user_id: &UserId,
         _context_ids: &[ContextId],
     ) -> Result<HashMap<ContextId, String>, ContextProviderError> {
         Ok(HashMap::new())

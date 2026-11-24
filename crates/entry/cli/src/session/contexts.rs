@@ -84,11 +84,8 @@ impl SessionContexts {
         profile_name: &ProfileName,
     ) -> Result<ContextId, SessionContextError> {
         self.issuer
-            .session_context(
-                user_id,
-                session_id,
-                &format!("CLI Session - {profile_name}"),
-            )
+            .for_caller(user_id)
+            .session_context(session_id, &format!("CLI Session - {profile_name}"))
             .await
             .map_err(SessionContextError::Context)
     }
@@ -99,7 +96,8 @@ impl SessionContexts {
         context_id: &ContextId,
     ) -> Result<bool, SessionContextError> {
         self.directory
-            .owned_context(user_id, context_id)
+            .for_caller(user_id)
+            .owned_context(context_id)
             .await
             .map(|owned| owned.is_some())
             .map_err(SessionContextError::Context)

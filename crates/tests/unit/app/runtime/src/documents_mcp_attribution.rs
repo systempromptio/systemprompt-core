@@ -259,7 +259,8 @@ async fn an_ai_turn_in_a_fresh_chat_context_writes_through_the_documents_tools()
         .rig
         .runtime
         .contexts()
-        .owned_context(&chat.user.id, &fresh)
+        .for_caller(&chat.user.id)
+        .owned_context(&fresh)
         .await
         .expect("directory");
     assert!(
@@ -426,7 +427,8 @@ async fn revisions_and_comments_record_the_agent_client_and_named_context() {
         .rig
         .runtime
         .contexts()
-        .owned_names(&stranger.id, std::slice::from_ref(&own))
+        .for_caller(&stranger.id)
+        .owned_names(std::slice::from_ref(&own))
         .await
         .expect("names");
     assert!(names.is_empty(), "a context's name is its owner's alone");

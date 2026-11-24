@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Security"
+text = "The context directory and the CLI session-context issuer are read one caller at a time: a view is bound to the caller once and its lookups name only the context, so no lookup is asked on another user's behalf."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`ContextDirectory` and `SessionContextIssuer` take no user id per call: `ContextDirectory::for_caller(&UserId)` returns a `CallerContexts` (`owned_context(&ContextId)`, `owned_names(&[ContextId])`) and `SessionContextIssuer::for_caller(&UserId)` returns a `CallerSessionContexts` (`session_context(&SessionId, name)`). Migrate by calling `for_caller` with the caller and dropping the user argument."

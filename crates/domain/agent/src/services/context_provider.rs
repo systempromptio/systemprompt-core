@@ -10,8 +10,9 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::{
-    ContextDirectory, ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
-    EnsureContextParams, OwnedContextSummary, SessionContextIssuer,
+    CallerContexts, CallerSessionContexts, ContextDirectory, ContextMaterializer, ContextProvider,
+    ContextProviderError, ContextWithStats, EnsureContextParams, OwnedContextSummary,
+    SessionContextIssuer,
 };
 
 use crate::models::context::ContextKind;
@@ -155,31 +156,52 @@ impl ContextMaterializer for ContextProviderService {
     }
 }
 
-#[async_trait]
 impl SessionContextIssuer for ContextProviderService {
+    fn for_caller(&self, caller: &UserId) -> Box<dyn CallerSessionContexts + '_> {
+        Box::new(CallerBound {
+            repo: &self.repo,
+            caller: caller.clone(),
+        })
+    }
+}
+
+impl ContextDirectory for ContextProviderService {
+    fn for_caller(&self, caller: &UserId) -> Box<dyn CallerContexts + '_> {
+        Box::new(CallerBound {
+            repo: &self.repo,
+            caller: caller.clone(),
+        })
+    }
+}
+
+struct CallerBound<'a> {
+    repo: &'a ContextRepository,
+    caller: UserId,
+}
+
+#[async_trait]
+impl CallerSessionContexts for CallerBound<'_> {
     async fn session_context(
         &self,
-        user_id: &UserId,
         session_id: &SessionId,
         name: &str,
     ) -> Result<ContextId, ContextProviderError> {
         self.repo
-            .get_or_create_cli_context(user_id, session_id, name)
+            .get_or_create_cli_context(&self.caller, session_id, name)
             .await
             .map_err(|e| ContextProviderError::Database(e.into()))
     }
 }
 
 #[async_trait]
-impl ContextDirectory for ContextProviderService {
+impl CallerContexts for CallerBound<'_> {
     async fn owned_context(
         &self,
-        user_id: &UserId,
         context_id: &ContextId,
     ) -> Result<Option<OwnedContextSummary>, ContextProviderError> {
         let name = self
             .repo
-            .find_owned_name(context_id, user_id)
+            .find_owned_name(context_id, &self.caller)
             .await
             .map_err(|e| ContextProviderError::Database(e.into()))?;
         Ok(name.map(|name| OwnedContextSummary {
@@ -190,7 +212,6 @@ impl ContextDirectory for ContextProviderService {
 
     async fn owned_names(
         &self,
-        user_id: &UserId,
         context_ids: &[ContextId],
     ) -> Result<HashMap<ContextId, String>, ContextProviderError> {
         if context_ids.is_empty() {
@@ -198,7 +219,7 @@ impl ContextDirectory for ContextProviderService {
         }
         let names = self
             .repo
-            .owned_names(user_id, context_ids)
+            .owned_names(&self.caller, context_ids)
             .await
             .map_err(|e| ContextProviderError::Database(e.into()))?;
         Ok(names.into_iter().collect())

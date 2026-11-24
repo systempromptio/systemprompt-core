@@ -167,9 +167,10 @@ pub use managed_resources::{
 };
 
 pub use context_provider::{
-    ContextDirectory, ContextMaterializer, ContextProvider, ContextProviderError, ContextStats,
-    ContextWithStats, DynContextDirectory, DynContextMaterializer, DynSessionContextIssuer,
-    EnsureContextParams, OwnedContextSummary, SessionContextIssuer,
+    CallerContexts, CallerSessionContexts, ContextDirectory, ContextMaterializer, ContextProvider,
+    ContextProviderError, ContextStats, ContextWithStats, DynContextDirectory,
+    DynContextMaterializer, DynSessionContextIssuer, EnsureContextParams, OwnedContextSummary,
+    SessionContextIssuer,
 };
 
 pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};

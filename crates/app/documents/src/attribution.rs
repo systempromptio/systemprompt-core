@@ -44,7 +44,8 @@ pub async fn attributed_context(
         return Ok(Some(claimed.clone()));
     }
     let owned = contexts
-        .owned_context(ctx.user_id(), claimed)
+        .for_caller(ctx.user_id())
+        .owned_context(claimed)
         .await
         .map_err(DocumentsError::Contexts)?;
     owned
@@ -120,7 +121,8 @@ pub async fn owned_context_names<'a>(
         return Ok(HashMap::new());
     }
     contexts
-        .owned_names(viewer, &unique)
+        .for_caller(viewer)
+        .owned_names(&unique)
         .await
         .map_err(DocumentsError::Contexts)
 }
