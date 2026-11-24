@@ -12,7 +12,7 @@ use std::fmt;
 use systemprompt_identifiers::ExtensionId;
 use thiserror::Error;
 
-/// Who put an entry into a [`Dependencies`] map.
+/// Who put an entry into a [`Dependencies`](crate::Dependencies) map.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DependencyProvider {
     Host,
