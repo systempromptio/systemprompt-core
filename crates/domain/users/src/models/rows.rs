@@ -103,7 +103,7 @@ pub(crate) struct UserWithSessionsRow {
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
-    pub status: Option<UserStatus>,
+    pub status: Option<String>,
     pub roles: Vec<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub active_sessions: i64,
@@ -119,7 +119,11 @@ impl TryFrom<UserWithSessionsRow> for UserWithSessions {
             name: row.name,
             email: row.email,
             full_name: row.full_name,
-            status: required(row.status, "status")?,
+            status: required(row.status, "status")?
+                .parse::<UserStatus>()
+                .map_err(|source| {
+                    UserError::Repository(RepositoryError::decode("users.status", source))
+                })?,
             roles: row.roles,
             created_at: required(row.created_at, "created_at")?,
             active_sessions: row.active_sessions,

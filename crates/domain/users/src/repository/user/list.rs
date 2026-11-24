@@ -19,8 +19,7 @@ impl UserRepository {
             UserWithSessionsRow,
             r#"
             SELECT
-                u.id, u.name, u.email, u.full_name,
-                u.status AS "status: crate::models::UserStatus", u.roles, u.created_at,
+                u.id, u.name, u.email, u.full_name, u.status, u.roles, u.created_at,
                 COUNT(s.session_id) FILTER (WHERE s.ended_at IS NULL) as "active_sessions!",
                 MAX(s.last_activity_at) as last_session_at
             FROM users u
@@ -270,8 +269,7 @@ impl UserRepository {
             UserWithSessionsRow,
             r#"
             SELECT
-                u.id, u.name, u.email, u.full_name,
-                u.status AS "status: crate::models::UserStatus", u.roles, u.created_at,
+                u.id, u.name, u.email, u.full_name, u.status, u.roles, u.created_at,
                 COUNT(s.session_id) FILTER (WHERE s.ended_at IS NULL) as "active_sessions!",
                 MAX(s.last_activity_at) as last_session_at
             FROM users u
