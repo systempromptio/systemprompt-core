@@ -76,9 +76,9 @@ impl GrantedSecrets {
             }
         }
         let credentials = ConfigCredentials {
-            database_url: present("DATABASE_URL").ok_or(GrantedSecretsError::DatabaseUrlMissing)?,
-            database_write_url: present("DATABASE_WRITE_URL"),
-            database_session_url: present("DATABASE_SESSION_URL"),
+            url: present("DATABASE_URL").ok_or(GrantedSecretsError::DatabaseUrlMissing)?,
+            write_url: present("DATABASE_WRITE_URL"),
+            session_url: present("DATABASE_SESSION_URL"),
         };
         Ok(Self {
             credentials,

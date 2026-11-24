@@ -145,7 +145,7 @@ async fn granted_secrets_hold_only_the_grants_and_refuse_the_seed_and_an_ungrant
     assert!(store.secret("gcs_sa_key").is_none());
     assert!(store.manifest_signing_secret_seed().is_err());
     assert!(store.encryption_master_key().is_err());
-    assert_eq!(store.credentials().database_url, fixture::DB_URL);
+    assert_eq!(store.credentials().url, fixture::DB_URL);
 }
 
 #[test]

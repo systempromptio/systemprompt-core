@@ -35,9 +35,9 @@ struct BuildConfigPaths {
 /// was spawned with.
 #[derive(Clone)]
 pub struct ConfigCredentials {
-    pub database_url: String,
-    pub database_write_url: Option<String>,
-    pub database_session_url: Option<String>,
+    pub url: String,
+    pub write_url: Option<String>,
+    pub session_url: Option<String>,
 }
 
 impl std::fmt::Debug for ConfigCredentials {
@@ -50,9 +50,9 @@ impl ConfigCredentials {
     #[must_use]
     pub fn from_secrets(secrets: &Secrets) -> Self {
         Self {
-            database_url: secrets.database_url.clone(),
-            database_write_url: secrets.database_write_url.clone(),
-            database_session_url: secrets.database_session_url.clone(),
+            url: secrets.database_url.clone(),
+            write_url: secrets.database_write_url.clone(),
+            session_url: secrets.database_session_url.clone(),
         }
     }
 }
@@ -162,9 +162,9 @@ fn build_config(
         shutdown: profile.server.shutdown,
         sitename: profile.site.name.clone(),
         database_type: profile.database.db_type.clone(),
-        database_url: secrets.database_url.clone(),
-        database_write_url: secrets.database_write_url.clone(),
-        database_session_url: secrets.database_session_url.clone(),
+        database_url: secrets.url.clone(),
+        database_write_url: secrets.write_url.clone(),
+        database_session_url: secrets.session_url.clone(),
         github_link: profile
             .site
             .github_link
