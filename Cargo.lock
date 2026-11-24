@@ -6619,7 +6619,6 @@ dependencies = [
  "systemprompt-storage",
  "systemprompt-traits",
  "systemprompt-users",
- "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",
  "tokio-stream",
@@ -7139,11 +7138,11 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-manifest",
- "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-traits",
  "systemprompt-users",
  "systemprompt-wire",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
