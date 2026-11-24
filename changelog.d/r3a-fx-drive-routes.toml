@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Gateway"
+text = "The bridge Drive routes (`/v1/bridge/drive/*`) are mounted whenever the `documents` member is admitted and the document store is enabled; disabling `gateway-http` no longer unmounts them."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Removed"
+text = "`ConferralRow::DriveTokens`: the `documents` member provides `DynDriveTokens` sealed and the kernel's Drive routes read it."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::gateway::gateway_repositories` is crate-private. Build the repositories with `systemprompt_gateway::surface::repositories::gateway_repositories` from a resolution that holds the gateway's conferred values."

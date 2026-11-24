@@ -26,7 +26,6 @@ pub enum ConferralRow {
     GatewayProviderCredentials,
     IdentityTokenAuthority,
     DocumentLinkTokens,
-    DriveTokens,
     IdentitySigningKeys,
     IdentitySignInSessions,
     IdentityOAuthRepositories,
@@ -47,7 +46,6 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::GatewayProviderCredentials.entry(),
     ConferralRow::IdentityTokenAuthority.entry(),
     ConferralRow::DocumentLinkTokens.entry(),
-    ConferralRow::DriveTokens.entry(),
     ConferralRow::IdentitySigningKeys.entry(),
     ConferralRow::IdentitySignInSessions.entry(),
     ConferralRow::IdentityOAuthRepositories.entry(),
@@ -63,7 +61,6 @@ impl ConferralRow {
             Self::GatewayProviderCredentials => "gateway-provider-credentials",
             Self::IdentityTokenAuthority => "identity-token-authority",
             Self::DocumentLinkTokens => "document-link-tokens",
-            Self::DriveTokens => "drive-tokens",
             Self::IdentitySigningKeys => "identity-signing-keys",
             Self::IdentitySignInSessions => "identity-sign-in-sessions",
             Self::IdentityOAuthRepositories => "identity-oauth-repositories",
@@ -83,7 +80,6 @@ impl ConferralRow {
             },
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
             Self::DocumentLinkTokens => ("documents", CoreId::FilesHttp),
-            Self::DriveTokens => ("documents", CoreId::GatewayHttp),
         };
         SealedConferral {
             row: self,
