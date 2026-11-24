@@ -182,7 +182,9 @@ fn crate_path(
 ) -> McpDomainResult<Option<PathBuf>> {
     match (deployment.server_type, deployment.binary.as_deref()) {
         (McpServerType::Internal, Some(binary)) => Ok(Some(registry.get_path(binary)?)),
-        (McpServerType::Internal, None) if deployment.enabled_toolsets().next().is_none() => Ok(None),
+        (McpServerType::Internal, None) if deployment.enabled_toolsets().next().is_none() => {
+            Ok(None)
+        },
         (McpServerType::Internal | McpServerType::External, _) => Ok(Some(PathBuf::new())),
     }
 }

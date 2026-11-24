@@ -16,9 +16,9 @@ use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
+use super::extension_readiness::readiness_layer;
 use super::health::handle_health;
 use super::health_detail::{diagnostics_layer, handle_health_detail};
-use super::extension_readiness::readiness_layer;
 use super::probes::{handle_livez, handle_readyz};
 use systemprompt_documents::discovery::DocumentsDiscovery;
 use systemprompt_manifest::profile::UiSessionDiscovery;

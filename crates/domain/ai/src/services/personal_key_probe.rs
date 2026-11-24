@@ -8,7 +8,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential, ResolvedEndpoint};
+use systemprompt_manifest::services::catalog::{
+    ResolvedCatalog, ResolvedCredential, ResolvedEndpoint,
+};
 use systemprompt_security::credential::TokenCache;
 
 use super::personal_keys::{PersonalKeyError, credential_label};

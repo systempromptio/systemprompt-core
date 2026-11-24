@@ -18,7 +18,11 @@ use super::reserved::gateway_guards;
 use super::{Kernel, KernelError};
 
 impl Kernel {
-    pub(super) fn provide_all(&mut self, admitted: &Admitted, phase: ProvidePhase) -> Result<(), KernelError> {
+    pub(super) fn provide_all(
+        &mut self,
+        admitted: &Admitted,
+        phase: ProvidePhase,
+    ) -> Result<(), KernelError> {
         for member in admitted.built().members() {
             for entry in member
                 .sink
@@ -60,7 +64,11 @@ impl Kernel {
         Ok(())
     }
 
-    pub(super) fn build_slots(&mut self, admitted: &Admitted, late: bool) -> Result<(), KernelError> {
+    pub(super) fn build_slots(
+        &mut self,
+        admitted: &Admitted,
+        late: bool,
+    ) -> Result<(), KernelError> {
         let mut order: Vec<TypeId> = Vec::new();
         let mut grouped: HashMap<TypeId, Vec<SlotBuildInput>> = HashMap::new();
         for member in admitted.built().members() {

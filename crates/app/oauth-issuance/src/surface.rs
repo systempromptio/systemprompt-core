@@ -47,12 +47,12 @@ pub struct IdentityRouteState<'a> {
 
 /// The runtime-configuration facts the identity surface reads.
 ///
-/// They are the external URL and site name (`WebAuthn` relying party, SSO redirects, the session
-/// cookie and the bridge token endpoint), the server URL (RFC 7592 client
-/// configuration URIs), the JWT issuer, audiences and token lifetimes, the
-/// resource audiences, trusted issuers and ID-JAG lifetime token exchange
-/// checks, the trusted proxies, the registration and discovery switches, the
-/// login page and authorize policy, and the API-key lifetime cap.
+/// They are the external URL and site name (`WebAuthn` relying party, SSO
+/// redirects, the session cookie and the bridge token endpoint), the server URL
+/// (RFC 7592 client configuration URIs), the JWT issuer, audiences and token
+/// lifetimes, the resource audiences, trusted issuers and ID-JAG lifetime token
+/// exchange checks, the trusted proxies, the registration and discovery
+/// switches, the login page and authorize policy, and the API-key lifetime cap.
 #[derive(Debug, Clone)]
 pub struct IdentityConfigView {
     pub sitename: String,
