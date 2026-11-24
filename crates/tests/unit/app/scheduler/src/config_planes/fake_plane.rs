@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use async_trait::async_trait;
 use systemprompt_provider_contracts::{
     ApplyMode, ApplyOutcome, ApplyRequest, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,
-    DeclaredState, PlaneContext, PlaneSnapshot, PlaneTx,
+    DeclaredState, PlaneContext, PlaneSnapshot, PlaneTx, StateRequirement,
 };
 
 pub struct FakePlane {
@@ -14,6 +14,7 @@ pub struct FakePlane {
     pub store: Mutex<PlaneSnapshot>,
     pub converges: bool,
     pub applied_reasons: Mutex<Vec<String>>,
+    pub requires: Vec<StateRequirement>,
 }
 
 pub fn unique_plane_name(prefix: &str) -> &'static str {
@@ -39,7 +40,13 @@ impl FakePlane {
             ),
             converges: true,
             applied_reasons: Mutex::new(Vec::new()),
+            requires: Vec::new(),
         }
+    }
+
+    pub fn requiring(mut self, requirement: StateRequirement) -> Self {
+        self.requires.push(requirement);
+        self
     }
 
     pub fn stuck(mut self) -> Self {
@@ -67,6 +74,10 @@ impl ConfigPlane for FakePlane {
 
     fn declared_path(&self) -> &'static str {
         self.path
+    }
+
+    fn requires(&self) -> Vec<StateRequirement> {
+        self.requires.clone()
     }
 
     fn load_declared(&self, services_root: &Path) -> ConfigPlaneResult<Option<DeclaredState>> {

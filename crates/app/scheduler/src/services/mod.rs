@@ -28,7 +28,7 @@ pub use config_apply::{
     PlaneMerge, PlanePatch, Verdict, file_wins_verdict, merge_plane, verdict,
 };
 pub use config_reconcile::{
-    AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport,
+    AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneFailure, PlaneOutcome, PlaneReport,
     RECONCILE_LOCK_WAIT, ReconcileReport, ReconcileTrigger,
 };
 pub use job_execution::{

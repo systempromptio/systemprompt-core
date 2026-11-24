@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Config planes"
+text = "`ConfigPlane::requires` is a required method: a plane names the state types it cannot read or write without, as jobs do. The reconciler reports a plane whose requirement is unmet as `unavailable` (scheduler migration 010 admits the value in `config_plane_state.outcome`) without reading it, and a diff, export or apply of it fails with `ConfigPlaneError::UnmetRequirement`. `PlaneSnapshot` is a type of its own instead of an alias for `BTreeMap<String, String>`. `PlaneReport.error: Option<String>` is replaced by the typed `failure: Option<PlaneFailure>`, rendered only at the CLI, the probe and `config_plane_state.last_error`. Migrate an install plane by adding `fn requires(&self) -> Vec<StateRequirement>`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Breaking"
+text = "`ConfigPlane::requires` is required; `PlaneSnapshot` is a newtype with the map operations planes use; `ConfigPlaneError::UnmetRequirement` is added."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`PlaneOutcome::Unavailable` and `PlaneFailure` are added; `PlaneReport.error` is replaced by `PlaneReport.failure`."

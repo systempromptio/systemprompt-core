@@ -19,7 +19,10 @@
 //! the metrics label and the audit row's plane column, so it is a stable
 //! lowercase `snake_case` token. [`ConfigPlane::depends_on`] names the planes
 //! whose rows this one references; [`ConfigPlaneSet`] orders the set so they
-//! are reconciled first.
+//! are reconciled first. [`ConfigPlane::requires`] names the state types the
+//! plane cannot read or write without, as jobs and runners do; the host
+//! checks them against the plane's context before it reads, and reports a
+//! plane whose requirement is unmet as unavailable instead of reading it.
 //!
 //! The per-entity contract the explicit apply drives is
 //! [`ConfigPlane::sources`] (each declared entity with its hash and origin),
@@ -49,10 +52,10 @@ mod entities;
 mod error;
 mod request;
 mod set;
+mod snapshot;
 mod source;
 mod tx;
 
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use async_trait::async_trait;
@@ -60,6 +63,7 @@ use sha2::{Digest, Sha256};
 
 use crate::dependencies::Dependencies;
 use crate::dependency_error::MissingDependency;
+use crate::state_requirement::StateRequirement;
 
 pub use diff::{DriftKind, DriftRow, diff_snapshots};
 pub use entities::{
@@ -70,10 +74,9 @@ pub use request::{
     ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, EntityScope, PlaneEffect,
 };
 pub use set::{ConfigPlaneSet, EffectiveAuthority, PlaneAuthority, PlaneWriter};
+pub use snapshot::PlaneSnapshot;
 pub use source::{ChangeSource, ChangeSourceError};
 pub use tx::PlaneTx;
-
-pub type PlaneSnapshot = BTreeMap<String, String>;
 
 /// A plane's declaration as read from the services tree.
 ///
@@ -174,6 +177,8 @@ pub trait ConfigPlane: Send + Sync {
     fn depends_on(&self) -> &'static [&'static str] {
         &[]
     }
+
+    fn requires(&self) -> Vec<StateRequirement>;
 
     fn effect(&self) -> PlaneEffect {
         PlaneEffect::Live

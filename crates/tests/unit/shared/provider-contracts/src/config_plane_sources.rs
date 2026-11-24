@@ -91,6 +91,10 @@ impl ConfigPlane for FilePlane {
         "services/file_plane.yaml"
     }
 
+    fn requires(&self) -> Vec<systemprompt_provider_contracts::StateRequirement> {
+        Vec::new()
+    }
+
     fn load_declared(&self, _root: &Path) -> ConfigPlaneResult<Option<DeclaredState>> {
         Ok(Some(DeclaredState::from_entries(BTreeMap::from([
             ("a".to_owned(), "one".to_owned()),

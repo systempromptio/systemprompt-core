@@ -47,6 +47,7 @@ impl ConfigApplyService {
     }
 
     async fn export_one(&self, plane: &dyn ConfigPlane) -> SchedulerResult<Option<PlanePatch>> {
+        self.reconcile.require(plane)?;
         let set = self.reconcile.planes();
         let declared = plane.sources(set.services_root())?.unwrap_or_default();
         let repo = self.reconcile.repository();

@@ -69,4 +69,10 @@ pub enum ConfigPlaneError {
 
     #[error("the extensions the profile leaves enabled could not be resolved")]
     EnabledExtensions(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
+
+    #[error("config plane '{plane}' requires {requirement}, which this host does not provide")]
+    UnmetRequirement {
+        plane: String,
+        requirement: &'static str,
+    },
 }

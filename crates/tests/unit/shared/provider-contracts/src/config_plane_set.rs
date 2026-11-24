@@ -24,6 +24,10 @@ impl ConfigPlane for StubPlane {
         self.path
     }
 
+    fn requires(&self) -> Vec<systemprompt_provider_contracts::StateRequirement> {
+        Vec::new()
+    }
+
     fn depends_on(&self) -> &'static [&'static str] {
         self.deps
     }
