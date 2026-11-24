@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "API"
+text = "The API error tests no longer pin the user, oauth and session-creation conversions the API dropped."

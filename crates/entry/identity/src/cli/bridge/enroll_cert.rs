@@ -4,10 +4,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams, UserRepository};
 
 use super::types::DeviceCertEnrolledOutput;
@@ -33,7 +33,7 @@ pub struct EnrollCertArgs {
     pub label: String,
 }
 
-pub(super) async fn execute(args: EnrollCertArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: EnrollCertArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let service = DeviceCertService::new(Arc::new(UserRepository::new(&pool)));
 

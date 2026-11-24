@@ -3,18 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
 use std::sync::Arc;
-use systemprompt_oauth::repository::{
-    CreateSetupTokenParams, OAuthRepositories, SetupTokenPurpose,
-};
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
-use systemprompt_traits::AppContext as _;
+use systemprompt_users::{UserRepository, UserService};
 
-use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
+use crate::cli::users::types::WebauthnSetupTokenOutput;
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, ClapArgs)]
@@ -26,14 +24,10 @@ pub struct Args {
     pub expires_minutes: u32,
 }
 
-pub(super) async fn execute(args: Args, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = crate::commands::admin::state::app(host).await?;
-    let repositories = crate::commands::admin::state::get::<Arc<OAuthRepositories>>(host).await?;
-    let oauth_repo = &repositories.oauth;
-
-    let users = app
-        .user_provider()
-        .ok_or_else(|| anyhow::anyhow!("User provider unavailable"))?;
+pub(super) async fn execute(args: Args, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let state = crate::cli::state::identity_state(host).await?;
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let users = UserService::new(Arc::new(UserRepository::new(&pool)));
     let user = users
         .find_by_email(&args.email)
         .await?
@@ -49,9 +43,9 @@ pub(super) async fn execute(args: Args, host: &dyn KernelHost) -> Result<Command
         expires_at,
     };
 
-    oauth_repo.store_setup_token(params).await?;
+    state.oauth.store_setup_token(params).await?;
 
-    let external_url = app.config().api_external_url.clone();
+    let external_url = state.api_external_url;
 
     let link_url = format!("{}/auth/link-passkey?token={}", external_url, raw_token);
 

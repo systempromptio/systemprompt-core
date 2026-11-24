@@ -3,6 +3,8 @@
 //! Exposes [`BridgeCommands`] for enrolling device-certificate fingerprints,
 //! issuing one-shot session exchange codes, listing active bridge sessions,
 //! rotating the ed25519 manifest signing seed, and printing its fingerprint.
+//! The seed is read and rotated only through the kernel-held signing-keys
+//! handle.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,12 +16,14 @@ mod rotate_signing_key;
 pub mod signing_key_fingerprint;
 mod types;
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Subcommand;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand,
+};
 use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
@@ -61,7 +65,7 @@ pub enum BridgeCommands {
     SigningKeyFingerprint(signing_key_fingerprint::SigningKeyFingerprintArgs),
 }
 
-pub async fn execute(cmd: BridgeCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: BridgeCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     match cmd {
         BridgeCommands::EnrollCert(args) => {
             let result = enroll_cert::execute(args, host).await?;
@@ -83,5 +87,39 @@ pub async fn execute(cmd: BridgeCommands, host: &dyn KernelHost) -> Result<Comma
             let result = signing_key_fingerprint::execute(args, host)?;
             Ok(result)
         },
+    }
+}
+
+impl BridgeCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::RotateSigningKey(_) => DataImpact::Irreversible,
+            Self::EnrollCert(_)
+            | Self::IssueCode(_)
+            | Self::List(_)
+            | Self::SigningKeyFingerprint(_) => DataImpact::Preserving,
+        }
+    }
+}
+
+impl DescribeCommand for BridgeCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        let base = match self {
+            Self::SigningKeyFingerprint(_) => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::EnrollCert(_)
+            | Self::IssueCode(_)
+            | Self::List(_)
+            | Self::RotateSigningKey(_) => CommandDescriptor::FULL,
+        };
+        base.with_data_impact(self.data_impact())
+    }
+}
+
+impl CliCommandGroup for BridgeCommands {
+    const NAME: &'static str = "bridge";
+    const ABOUT: &'static str = "Bridge helper enrollment (device certs, exchange codes)";
+
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(super::command_error)
     }
 }

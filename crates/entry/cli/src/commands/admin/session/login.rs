@@ -81,7 +81,7 @@ fn ensure_interactive_admin(admin_user: &AdminAccount) -> Result<()> {
 async fn connect_profile_database(
     boot: &BootContext,
     host: &dyn KernelHost,
-) -> Result<(DbPool, DynAdminBootstrap)> {
+) -> Result<DynAdminBootstrap> {
     let profile = boot.profile();
     let secrets = boot.secrets().get();
     let database_url = secrets.effective_database_url(profile.database.external_db_access);
@@ -89,9 +89,10 @@ async fn connect_profile_database(
         .await
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
-    let admins =
-        systemprompt_runtime::admin_bootstrap(host.admitted()?, Arc::<Database>::clone(&db_pool))?;
-    Ok((db_pool, admins))
+    Ok(systemprompt_runtime::admin_bootstrap(
+        host.admitted()?,
+        Arc::<Database>::clone(&db_pool),
+    )?)
 }
 
 pub async fn login_for_profile(
@@ -107,7 +108,7 @@ pub async fn login_for_profile(
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let session_key = session_key_for_profile(profile);
 
-    let (db_pool, admins) = connect_profile_database(boot, host).await?;
+    let admins = connect_profile_database(boot, host).await?;
 
     if !args.force_new
         && let Some(output) = try_use_existing_session(
@@ -136,11 +137,9 @@ pub async fn login_for_profile(
     progress(args, "Creating session...");
     let keys = load_signing_keys(boot)?;
     let session_id = create_local_session_row(
-        &db_pool,
+        admins.as_ref(),
         &admin_user.id,
         chrono::Duration::hours(args.duration_hours),
-        keys.clone(),
-        boot,
     )
     .await?;
 

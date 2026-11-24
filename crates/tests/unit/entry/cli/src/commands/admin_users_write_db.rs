@@ -5,9 +5,9 @@
 
 use clap::Parser;
 use std::sync::Arc;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::users::UsersCommands;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
@@ -55,7 +55,7 @@ async fn update_applies_every_field() {
 
     let (_new_name, new_email) = unique("upd2");
     let ctx = ctx().await;
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&[
             "update",
             user.id.as_str(),
@@ -97,7 +97,7 @@ async fn update_without_fields_errors() {
     let user = service.create(&name, &email, None, None).await.unwrap();
 
     let ctx = ctx().await;
-    let err = users::execute(parse(&["update", user.id.as_str()]), &ctx)
+    let err = crate::commands::identity_host::users(parse(&["update", user.id.as_str()]), &ctx)
         .await
         .unwrap_err();
     assert!(err.to_string().contains("No fields to update"), "{err}");
@@ -111,9 +111,12 @@ async fn update_without_fields_errors() {
 async fn update_missing_user_errors() {
     let ctx = ctx().await;
     let missing = format!("no-such-{}", Uuid::new_v4().simple());
-    let err = users::execute(parse(&["update", &missing, "--full-name", "x"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = crate::commands::identity_host::users(
+        parse(&["update", &missing, "--full-name", "x"]),
+        &ctx,
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("User not found"), "{err}");
 }
 
@@ -127,7 +130,7 @@ async fn merge_transfers_and_deletes_source() {
     let target = service.create(&tn, &te, None, None).await.unwrap();
 
     let ctx = ctx().await;
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&[
             "merge",
             "--source",
@@ -155,9 +158,12 @@ async fn merge_transfers_and_deletes_source() {
 #[tokio::test]
 async fn merge_requires_confirmation() {
     let ctx = ctx().await;
-    let err = users::execute(parse(&["merge", "--source", "a", "--target", "b"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = crate::commands::identity_host::users(
+        parse(&["merge", "--source", "a", "--target", "b"]),
+        &ctx,
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("--yes to confirm"), "{err}");
 }
 
@@ -169,7 +175,7 @@ async fn merge_same_user_errors() {
     let user = service.create(&n, &e, None, None).await.unwrap();
 
     let ctx = ctx().await;
-    let err = users::execute(
+    let err = crate::commands::identity_host::users(
         parse(&[
             "merge",
             "--source",
@@ -198,7 +204,7 @@ async fn merge_missing_users_errors() {
 
     let ctx = ctx().await;
     let missing = format!("no-src-{}", Uuid::new_v4().simple());
-    let err = users::execute(
+    let err = crate::commands::identity_host::users(
         parse(&[
             "merge",
             "--source",

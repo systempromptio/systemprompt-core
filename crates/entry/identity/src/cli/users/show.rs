@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_logging::CliService;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
@@ -25,7 +25,7 @@ pub struct ShowArgs {
     pub activity: bool,
 }
 
-pub(super) async fn execute(args: ShowArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ShowArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     execute_with_pool(
         args,
         &systemprompt_database::pool_from_handle(host.db().await?)?,

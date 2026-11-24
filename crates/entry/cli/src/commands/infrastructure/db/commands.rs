@@ -6,7 +6,7 @@
 use clap::Subcommand;
 use systemprompt_identifiers::ExtensionId;
 
-use crate::shared::ConfirmArgs;
+use systemprompt_extension::cli::ConfirmArgs;
 
 #[derive(Debug, Subcommand)]
 pub enum DbCommands {

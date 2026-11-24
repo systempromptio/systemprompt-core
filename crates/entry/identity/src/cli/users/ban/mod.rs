@@ -13,10 +13,9 @@ mod cleanup;
 mod list;
 mod remove;
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
 
 #[derive(Debug, Subcommand)]
 pub enum BanCommands {
@@ -36,7 +35,7 @@ pub enum BanCommands {
     Cleanup(cleanup::CleanupArgs),
 }
 
-pub(super) async fn execute(cmd: BanCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(cmd: BanCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && matches!(
             cmd,

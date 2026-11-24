@@ -3,21 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use std::sync::Arc;
-
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
 use systemprompt_cloud::CredentialsBootstrap;
-use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{AccessTokenId, PluginId};
-use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
-use systemprompt_security::DeploymentTokenAuthority;
-use systemprompt_users::{UserRepository, UserService};
-
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandHost, CommandOutput, PluginTokenGrant};
+use systemprompt_identifiers::{AccessTokenId, PluginId, SessionSource};
+use systemprompt_users::admin_bootstrap;
 
 #[derive(Debug, Args)]
 pub struct IssuePluginTokenArgs {
@@ -57,32 +50,23 @@ pub(super) struct IssuePluginTokenOutput {
 
 pub(super) async fn execute(
     args: IssuePluginTokenArgs,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let profile = host.profile()?;
-    let boot = crate::commands::admin::state::boot(host)?;
-    let secrets = boot.secrets().get();
-
     if args.duration_days == 0 || args.duration_days > 365 {
         anyhow::bail!(
             "--duration-days must be between 1 and 365 (got {})",
             args.duration_days
         );
     }
+    let signing_keys = host.signing_keys()?;
 
     let email = match args.email.clone() {
         Some(e) => e,
         None => resolve_email().await?,
     };
 
-    let database_url = secrets.effective_database_url(profile.database.external_db_access);
-    let db = Database::new_postgres(database_url)
-        .await
-        .context("Failed to connect to database")?;
-    let db_pool = DbPool::from(Arc::new(db));
-
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
-    let user = user_service
+    let admins = admin_bootstrap(host.db().await?).context("Failed to open the user store")?;
+    let user = admins
         .find_by_email(&email)
         .await
         .context("Failed to look up admin user")?
@@ -91,31 +75,25 @@ pub(super) async fn execute(
         anyhow::bail!("User '{}' is not an admin — refusing to mint", email);
     }
 
-    let subject = PluginTokenSubject {
-        id: user.id.clone(),
-        username: user.name,
-        email: user.email,
-    };
+    let session_id = admins
+        .open_session(
+            &user.id,
+            chrono::Duration::days(i64::from(args.duration_days)),
+            SessionSource::Cli,
+        )
+        .await
+        .context("Failed to create the session row backing the plugin token")?;
 
-    let keys = crate::session::api::load_signing_keys(&boot)?;
-    let session_id = crate::session::api::create_local_session_row(
-        &db_pool,
-        &user.id,
-        chrono::Duration::days(i64::from(args.duration_days)),
-        keys.clone(),
-        &boot,
-    )
-    .await
-    .context("Failed to create the session row backing the plugin token")?;
-
-    let issued = PluginTokenService::issue(
-        subject,
-        &DeploymentTokenAuthority::new(keys, profile.security.issuer.clone()),
-        args.plugin_id.clone(),
-        args.duration_days,
-        &session_id,
-    )
-    .context("Failed to mint plugin-scope JWT")?;
+    let issued = signing_keys
+        .mint_plugin_token(PluginTokenGrant {
+            user_id: user.id,
+            username: user.name,
+            email: user.email,
+            plugin_id: args.plugin_id.clone(),
+            duration_days: args.duration_days,
+            session_id,
+        })
+        .context("Failed to mint plugin-scope JWT")?;
 
     let output = IssuePluginTokenOutput {
         plugin_id: args.plugin_id,

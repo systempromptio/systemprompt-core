@@ -7,11 +7,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_extension::AdmittedOwnerReassignments;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
 use super::types::UserMergeOutput;
@@ -29,7 +28,7 @@ pub struct MergeArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: MergeArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: MergeArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will merge the source user into the target user and DELETE the source. Use \
@@ -39,9 +38,11 @@ pub(super) async fn execute(args: MergeArgs, host: &dyn KernelHost) -> Result<Co
 
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)))
-        .with_owner_reassignments(Arc::new(AdmittedOwnerReassignments::of(
-            host.admitted()?.built(),
-        )?));
+        .with_owner_reassignments(
+            crate::cli::state::identity_state(host)
+                .await?
+                .owner_reassignments,
+        );
     let admin_service = UserAdminService::new(user_service.clone());
 
     let source_user = admin_service

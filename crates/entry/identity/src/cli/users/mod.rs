@@ -16,7 +16,7 @@ mod ban;
 mod bulk;
 mod count;
 mod create;
-pub(crate) mod delete;
+mod delete;
 pub use delete::purge_output;
 mod export;
 pub mod federated_rekey;
@@ -33,10 +33,12 @@ mod types;
 mod update;
 mod webauthn;
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use systemprompt_extension::cli::{CommandOutput, DataImpact};
+use systemprompt_extension::cli::{
+    CliCommandGroup, CommandDescriptor, CommandError, CommandHost, CommandOutput, DataImpact,
+    DescribeCommand, GrantedPlane,
+};
 
 pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
 pub use types::{
@@ -124,7 +126,7 @@ pub enum UsersCommands {
     ServiceAccount(service_account::ServiceAccountCommands),
 }
 
-pub async fn execute(cmd: UsersCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub async fn execute(cmd: UsersCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     if host.is_database_scoped()
         && matches!(
             cmd,
@@ -185,18 +187,8 @@ const fn writes_identity(cmd: &UsersCommands) -> bool {
     )
 }
 
-async fn refuse_file_managed_identity(host: &dyn KernelHost) -> Result<()> {
-    let authority = host
-        .profile()?
-        .config_planes
-        .authority_for(systemprompt_oauth_issuance::IDENTITY_PLANE);
-    if authority != systemprompt_manifest::profile::PlaneAuthority::File {
-        return Ok(());
-    }
-    let planes = crate::commands::admin::state::app(host)
-        .await?
-        .config_planes()?;
-    planes.writer(systemprompt_oauth_issuance::IDENTITY_PLANE)?;
+async fn refuse_file_managed_identity(host: &dyn CommandHost) -> Result<()> {
+    host.require_writable_plane(GrantedPlane::Identity).await?;
     Ok(())
 }
 
@@ -238,5 +230,20 @@ impl UsersCommands {
             )
             | Self::ServiceAccount(_) => DataImpact::Preserving,
         }
+    }
+}
+
+impl DescribeCommand for UsersCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::FULL.with_data_impact(self.data_impact())
+    }
+}
+
+impl CliCommandGroup for UsersCommands {
+    const NAME: &'static str = "users";
+    const ABOUT: &'static str = "User management and IP banning";
+
+    async fn run(self, host: &dyn CommandHost) -> Result<CommandOutput, CommandError> {
+        execute(self, host).await.map_err(super::command_error)
     }
 }

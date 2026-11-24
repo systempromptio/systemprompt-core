@@ -8,12 +8,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
 use serde::Serialize;
 use std::sync::Arc;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
@@ -98,15 +99,20 @@ struct KeyRow {
     scopes: Vec<ScopeBinding>,
 }
 
-pub(super) async fn execute(cmd: ApiKeyCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(cmd: ApiKeyCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
-    let app = crate::commands::admin::state::app(host).await?;
-    let lifetime = ApiKeyLifetime::from_max_days(app.config().api_key_max_lifetime_days);
+    let lifetime = ApiKeyLifetime::from_max_days(
+        crate::cli::state::identity_state(host)
+            .await?
+            .api_key_max_lifetime_days,
+    );
     let service = ApiKeyService::new(Arc::new(UserRepository::new(&pool)), lifetime);
     match cmd {
         ApiKeyCommands::Issue(args) => {
             if !args.scopes.is_empty() {
-                app.subject_providers()
+                host.resolved()
+                    .await?
+                    .get::<Arc<SubjectProviderSet>>()?
                     .verify_scope_bindings(&args.user, &args.scopes)
                     .await?;
             }

@@ -13,19 +13,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
-use anyhow::{Context, Result};
-use chrono::{Duration, Utc};
+use anyhow::Result;
+use chrono::Utc;
 use clap::Args;
 use serde::{Deserialize, Serialize};
-use systemprompt_config::{SecretsService, SigningKeyState};
+use systemprompt_extension::cli::{
+    CommandHost, CommandOutput, ConfirmArgs, TokenKeyPromotion, TokenKeySet,
+};
 use systemprompt_logging::CliService;
-use systemprompt_manifest::profile::SecurityConfig;
-use systemprompt_security::jwt::{cut_off_by, rotation_overlap, signed_token_lifetimes};
-use systemprompt_security::keys::{RotationMode, promote, stage};
-
-use crate::shared::ConfirmArgs;
-use systemprompt_extension::cli::CommandOutput;
 
 pub(super) const PROCEDURE: &str = "\
 Multi-replica procedure (no replica ever meets a token signed by a key it does not know):
@@ -90,6 +85,7 @@ pub(super) struct KeySetOutput {
     pub staged_kid: Option<String>,
     pub revoked: bool,
     pub retired: Vec<RetiredKeyOutput>,
+    pub cut_off: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,42 +94,43 @@ pub(super) struct RetiredKeyOutput {
     pub expires_at: chrono::DateTime<Utc>,
 }
 
-pub(super) fn execute_stage(host: &dyn KernelHost) -> Result<CommandOutput> {
-    let state = current_state(host)?;
-    let (staged, next) = stage(&state).context("Failed to stage a signing key")?;
-    persist(host, &next)?;
+pub(super) fn execute_stage(host: &dyn CommandHost) -> Result<CommandOutput> {
+    let set = host.signing_keys()?.stage_token_key()?;
     CliService::success(&format!(
         "Signing key {} staged. Restart every replica, then run `admin keys promote`.",
-        staged.kid()
+        set.staged_kid.as_deref().unwrap_or_default()
     ));
-    output("Signing Key Staged", &next, false)
+    Ok(output("Signing Key Staged", set, false))
 }
 
-pub(super) fn execute_promote(args: PromoteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let state = current_state(host)?;
-    promote_state(args, host, &state)
+pub(super) fn execute_promote(args: PromoteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let set = host.signing_keys()?.promote_token_key(promotion(args))?;
+    Ok(promoted(set, args.revoke))
 }
 
-pub(super) fn execute_rotate(args: PromoteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let state = current_state(host)?;
-    let (_, staged) = stage(&state).context("Failed to stage a signing key")?;
-    promote_state(args, host, &staged)
+pub(super) fn execute_rotate(args: PromoteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let set = host.signing_keys()?.rotate_token_key(promotion(args))?;
+    Ok(promoted(set, args.revoke))
 }
 
-fn promote_state(
-    args: PromoteArgs,
-    host: &dyn KernelHost,
-    state: &SigningKeyState,
-) -> Result<CommandOutput> {
-    let mode = if args.revoke {
-        RotationMode::Revoke
-    } else {
-        RotationMode::Overlap(overlap_for(args, &host.profile()?.security)?)
-    };
-    let (promoted, next) =
-        promote(state, mode, Utc::now()).context("Failed to promote the staged signing key")?;
-    persist(host, &next)?;
+const fn promotion(args: PromoteArgs) -> TokenKeyPromotion {
     if args.revoke {
+        TokenKeyPromotion::Revoke
+    } else {
+        TokenKeyPromotion::Overlap {
+            secs: args.overlap_secs,
+            force: args.force,
+        }
+    }
+}
+
+fn promoted(set: TokenKeySet, revoked: bool) -> CommandOutput {
+    for kind in &set.cut_off {
+        CliService::warning(&format!(
+            "--force: {kind} signed with the outgoing key stop verifying at the overlap end"
+        ));
+    }
+    if revoked {
         CliService::warning(
             "Promoted with no overlap: every token signed by an earlier key, and every previous \
              key, stops verifying once replicas restart.",
@@ -141,74 +138,26 @@ fn promote_state(
     }
     CliService::success(&format!(
         "Signing key {} promoted; {} retired key(s) still verifying. Restart every replica.",
-        promoted.kid(),
-        next.previous.len()
+        set.active_kid,
+        set.retired.len()
     ));
-    output("Signing Key Promoted", &next, args.revoke)
+    output("Signing Key Promoted", set, revoked)
 }
 
-fn current_state(host: &dyn KernelHost) -> Result<SigningKeyState> {
-    let boot = crate::commands::admin::state::boot(host)?;
-    let keys = crate::session::api::load_signing_keys(&boot)?;
-    let secrets = boot.secrets();
-    Ok(SigningKeyState {
-        active_private_pem: keys
-            .signing_key()
-            .to_pkcs8_pem()
-            .context("Failed to encode the active signing key")?,
-        staged_private_pem: secrets
-            .signing_key_staged_pem()
-            .context("Failed to read the staged signing key")?,
-        previous: secrets
-            .signing_keys_previous()
-            .context("Failed to read the previous signing keys")?,
-    })
-}
-
-fn persist(host: &dyn KernelHost, state: &SigningKeyState) -> Result<()> {
-    let boot = crate::commands::admin::state::boot(host)?;
-    SecretsService::persist_signing_key_state(boot.loaded_profile(), state)
-        .context("Failed to write the signing keys to the secrets file")
-}
-
-fn overlap_for(args: PromoteArgs, security: &SecurityConfig) -> Result<Duration> {
-    let requested = args
-        .overlap_secs
-        .map(|secs| {
-            Duration::try_seconds(secs)
-                .with_context(|| format!("--overlap-secs {secs} is out of range"))
-        })
-        .transpose()?;
-    let overlap = rotation_overlap(security, requested, args.force)?;
-    for cut in cut_off_by(&signed_token_lifetimes(security), overlap) {
-        CliService::warning(&format!(
-            "--force: {} signed with the outgoing key stop verifying at the overlap end",
-            cut.kind.description()
-        ));
-    }
-    Ok(overlap)
-}
-
-fn output(title: &str, state: &SigningKeyState, revoked: bool) -> Result<CommandOutput> {
-    let kid = |pem: &str| -> Result<String> {
-        Ok(
-            systemprompt_security::keys::RsaSigningKey::from_pkcs8_pem(pem)?
-                .kid()
-                .to_owned(),
-        )
-    };
+fn output(title: &str, set: TokenKeySet, revoked: bool) -> CommandOutput {
     let output = KeySetOutput {
-        active_kid: kid(&state.active_private_pem)?,
-        staged_kid: state.staged_private_pem.as_deref().map(kid).transpose()?,
+        active_kid: set.active_kid,
+        staged_kid: set.staged_kid,
         revoked,
-        retired: state
-            .previous
-            .iter()
+        retired: set
+            .retired
+            .into_iter()
             .map(|entry| RetiredKeyOutput {
-                kid: entry.kid.clone(),
+                kid: entry.kid,
                 expires_at: entry.expires_at,
             })
             .collect(),
+        cut_off: set.cut_off,
     };
-    Ok(CommandOutput::card_value(title, &output))
+    CommandOutput::card_value(title, &output)
 }

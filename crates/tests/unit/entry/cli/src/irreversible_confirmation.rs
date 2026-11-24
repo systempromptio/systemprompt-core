@@ -6,15 +6,11 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use clap::{CommandFactory, FromArgMatches};
-use systemprompt_cli::args::{Cli, Commands, reconstruct_args_from};
+use systemprompt_cli::args::reconstruct_args_from;
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::kernel::{CommandRegistry, describe_command_line, kernel_commands};
+use systemprompt_cli::kernel::describe_command_line;
 use systemprompt_cli::runner::confirmation::{ConfirmationRequest, confirm_irreversible};
-use systemprompt_extension::DeclaredCommands;
-use systemprompt_extension::cli::{
-    CliConfig, CommandDescriptor, DataImpact, DescribeCommand, VerbosityLevel,
-};
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DataImpact, VerbosityLevel};
 
 const IRREVERSIBLE: &[&[&str]] = &[
     &["infra", "db", "migrate-down", "users", "1"],
@@ -42,14 +38,7 @@ const IRREVERSIBLE: &[&[&str]] = &[
 
 fn parsed(args: &[&str]) -> (CommandDescriptor, ConfirmationRequest) {
     let argv: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-    let matches = Cli::command()
-        .try_get_matches_from(std::iter::once("systemprompt").chain(args.iter().copied()))
-        .unwrap_or_else(|e| panic!("parse {args:?}: {e}"));
-    let cli = Cli::from_arg_matches(&matches).expect("typed parse");
-    let desc = cli
-        .command
-        .as_ref()
-        .map_or(CommandDescriptor::FULL, Commands::descriptor);
+    let (desc, matches) = crate::identity_registry::parse(args);
     let request = ConfirmationRequest::from_matches(&matches, &argv, Some("prod".to_owned()));
     (desc, request)
 }
@@ -176,8 +165,7 @@ fn every_irreversible_command_line_is_classified_as_destroying_data() {
     assert!(DataImpact::Irreversible.destroys_data());
     for args in IRREVERSIBLE {
         let argv: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-        let registry = CommandRegistry::build(&DeclaredCommands::default(), &kernel_commands())
-            .expect("the kernel registry builds");
+        let registry = crate::identity_registry::registry();
         let desc =
             describe_command_line(&registry, &argv).unwrap_or_else(|e| panic!("{args:?}: {e:#}"));
         assert!(

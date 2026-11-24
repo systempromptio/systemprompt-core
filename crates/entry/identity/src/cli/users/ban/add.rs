@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
-use crate::commands::admin::users::types::BanAddOutput;
+use crate::cli::users::types::BanAddOutput;
 use systemprompt_extension::cli::CommandOutput;
 
 const CLI_BAN_SOURCE: &str = "cli";
@@ -27,7 +27,7 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub(super) async fn execute(args: AddArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: AddArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let ban_repository = BannedIpRepository::new(&pool);
 

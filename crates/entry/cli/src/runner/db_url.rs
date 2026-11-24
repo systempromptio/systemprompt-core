@@ -22,8 +22,6 @@ impl admin::AdminCommands {
             | Self::Session(_)
             | Self::Config(admin::config::ConfigCommands::Apply(_)) => DbUrlRouting::ProfileDriven,
 
-            Self::Users(_) => DbUrlRouting::Direct,
-
             Self::Config(admin::config::ConfigCommands::Migrate(args))
                 if args.services.is_some() =>
             {

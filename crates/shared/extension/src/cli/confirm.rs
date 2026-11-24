@@ -9,7 +9,7 @@ use clap::Args;
 ///
 /// The runner reads it before dispatch; the command body never prompts.
 ///
-/// [`DataImpact::Irreversible`]: systemprompt_extension::cli::DataImpact::Irreversible
+/// [`DataImpact::Irreversible`]: super::DataImpact::Irreversible
 #[derive(Debug, Clone, Copy, Default, Args)]
 pub struct ConfirmArgs {
     #[arg(

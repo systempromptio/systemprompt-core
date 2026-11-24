@@ -4,11 +4,11 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
+use systemprompt_identity_entry::cli::users::UsersCommands;
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
@@ -38,7 +38,9 @@ async fn ctx() -> CommandContext {
 }
 
 async fn run(args: &[&str]) -> anyhow::Result<()> {
-    users::execute(parse(args), &ctx().await).await.map(drop)
+    crate::commands::identity_host::users(parse(args), &ctx().await)
+        .await
+        .map(drop)
 }
 
 async fn seeded_user(pool: &DbPool) -> String {

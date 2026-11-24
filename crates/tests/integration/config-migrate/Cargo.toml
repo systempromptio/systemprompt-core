@@ -18,6 +18,7 @@ systemprompt-governance = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-oauth = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

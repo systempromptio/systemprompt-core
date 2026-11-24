@@ -1,8 +1,9 @@
 //! DB-backed tests for the `admin users` dispatcher.
 //!
-//! `admin::execute` admits only the users group under a database scope; the
+//! Under a database scope the users group serves only its read-only commands
+//! and `admin::execute` refuses the kernel's other admin groups; the
 //! per-command bodies have their own tests, while the dispatcher arms and the
-//! scope guard are reached only this way.
+//! scope guards are reached only this way.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -51,21 +52,36 @@ async fn read_only_user_arms_render_against_a_seeded_user() {
     let (user_id, email) = seed(&pool).await;
     let ctx = ctx(&pool);
 
-    admin::execute(parse(&["users", "list", "--limit", "5"]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(parse(&["users", "show", user_id.as_str()]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(parse(&["users", "search", &email]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(parse(&["users", "count"]), &ctx)
-        .await
-        .unwrap();
-    admin::execute(parse(&["users", "stats"]), &ctx)
-        .await
-        .unwrap();
+    crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["list", "--limit", "5"]),
+        &ctx,
+    )
+    .await
+    .unwrap();
+    crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["show", user_id.as_str()]),
+        &ctx,
+    )
+    .await
+    .unwrap();
+    crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["search", &email]),
+        &ctx,
+    )
+    .await
+    .unwrap();
+    crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["count"]),
+        &ctx,
+    )
+    .await
+    .unwrap();
+    crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["stats"]),
+        &ctx,
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -76,8 +92,12 @@ async fn export_arm_writes_the_requested_file() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("users.json");
 
-    admin::execute(
-        parse(&["users", "export", "--output", path.to_str().unwrap()]),
+    crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&[
+            "export",
+            "--output",
+            path.to_str().unwrap(),
+        ]),
         &ctx,
     )
     .await
@@ -96,9 +116,12 @@ async fn show_arm_reports_an_unknown_user() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    let err = admin::execute(parse(&["users", "show", "cov_absent_user"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["show", "cov_absent_user"]),
+        &ctx,
+    )
+    .await
+    .unwrap_err();
     assert!(!format!("{err:#}").is_empty());
 }
 
@@ -108,13 +131,15 @@ async fn session_listing_is_allowed_but_role_and_session_writes_are_not() {
     let (user_id, _email) = seed(&pool).await;
     let ctx = ctx(&pool);
 
-    admin::execute(parse(&["users", "session", "list", user_id.as_str()]), &ctx)
-        .await
-        .unwrap();
+    crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["session", "list", user_id.as_str()]),
+        &ctx,
+    )
+    .await
+    .unwrap();
 
-    let role_err = admin::execute(
-        parse(&[
-            "users",
+    let role_err = crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&[
             "role",
             "assign",
             user_id.as_str(),
@@ -127,9 +152,12 @@ async fn session_listing_is_allowed_but_role_and_session_writes_are_not() {
     .unwrap_err();
     assert!(format!("{role_err:#}").contains("Role management operations require full profile"));
 
-    let session_err = admin::execute(parse(&["users", "session", "cleanup", "--yes"]), &ctx)
-        .await
-        .unwrap_err();
+    let session_err = crate::commands::identity_host::users(
+        crate::commands::identity_host::parse_users(&["session", "cleanup", "--yes"]),
+        &ctx,
+    )
+    .await
+    .unwrap_err();
     assert!(format!("{session_err:#}").contains("Write operations require full profile"));
 }
 
@@ -138,7 +166,7 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
     let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
-    for args in [vec!["config", "show"], vec!["keys", "generate"]] {
+    for args in [vec!["config", "show"]] {
         let err = admin::execute(parse(&args), &ctx).await.unwrap_err();
         assert!(
             format!("{err:#}").contains("requires full profile context"),
@@ -146,8 +174,8 @@ async fn every_other_admin_group_is_refused_under_a_database_scope() {
         );
     }
 
-    // Why: `admin session` is exempt from the database-scoped guard (like
-    // `admin users`): `session login` against a cloud profile with
+    // Why: `admin session` is exempt from the database-scoped guard:
+    // `session login` against a cloud profile with
     // external_db_access is the command that mints the token remote routing
     // needs, so refusing it made cloud login circular.
     admin::execute(parse(&["session", "list"]), &ctx)
@@ -167,7 +195,12 @@ async fn user_listing_honours_its_role_and_status_filters() {
         vec!["users", "list", "--status", "active"],
         vec!["users", "list", "--limit", "3", "--offset", "1"],
     ] {
-        admin::execute(parse(&args), &ctx).await.unwrap();
+        crate::commands::identity_host::users(
+            crate::commands::identity_host::parse_users(&args[1..]),
+            &ctx,
+        )
+        .await
+        .unwrap();
     }
 }
 
@@ -196,7 +229,12 @@ async fn user_write_arms_are_refused_under_a_database_scope() {
             user_id.as_str(),
         ],
     ] {
-        let err = admin::execute(parse(&args), &ctx).await.unwrap_err();
+        let err = crate::commands::identity_host::users(
+            crate::commands::identity_host::parse_users(&args[1..]),
+            &ctx,
+        )
+        .await
+        .unwrap_err();
         assert!(
             format!("{err:#}").contains("Write operations require full profile"),
             "{args:?}: {err:#}"

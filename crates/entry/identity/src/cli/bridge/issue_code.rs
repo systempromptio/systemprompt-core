@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_oauth::repository::OAuthRepositories;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_oauth::services::issue_bridge_exchange_code;
 use systemprompt_users::{UserRepository, UserService};
 
@@ -24,14 +23,14 @@ pub struct IssueCodeArgs {
     pub user_ref: String,
 }
 
-pub(super) async fn execute(args: IssueCodeArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: IssueCodeArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
-    let oauth = crate::commands::admin::state::get::<Arc<OAuthRepositories>>(host).await?;
+    let state = crate::cli::state::identity_state(host).await?;
 
     let user_id = super::resolve_user_id(&pool, &args.user_ref).await?;
 
     let users = UserService::new(Arc::new(UserRepository::new(&pool)));
-    let issued = issue_bridge_exchange_code(&oauth.oauth, &users, &user_id).await?;
+    let issued = issue_bridge_exchange_code(&state.oauth, &users, &user_id).await?;
 
     let output = ExchangeCodeIssuedOutput {
         user_id: user_id.clone(),

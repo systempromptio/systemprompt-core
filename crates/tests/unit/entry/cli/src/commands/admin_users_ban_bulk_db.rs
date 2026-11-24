@@ -5,9 +5,9 @@
 
 use clap::Parser;
 use std::sync::Arc;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::users::UsersCommands;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService, UserStatus};
 use uuid::Uuid;
@@ -58,7 +58,7 @@ async fn ban_add_list_and_remove_round_trip() {
     let ctx = ctx().await;
     let ip = unique_ip();
 
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&[
             "ban",
             "add",
@@ -73,11 +73,11 @@ async fn ban_add_list_and_remove_round_trip() {
     .await
     .unwrap();
 
-    users::execute(parse(&["ban", "list", "--source", "cli"]), &ctx)
+    crate::commands::identity_host::users(parse(&["ban", "list", "--source", "cli"]), &ctx)
         .await
         .unwrap();
 
-    users::execute(parse(&["ban", "remove", &ip, "--yes"]), &ctx)
+    crate::commands::identity_host::users(parse(&["ban", "remove", &ip, "--yes"]), &ctx)
         .await
         .unwrap();
 }
@@ -87,21 +87,24 @@ async fn ban_add_permanent_and_default_duration() {
     let ctx = ctx().await;
 
     let ip = unique_ip();
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&["ban", "add", &ip, "--reason", "perm", "--permanent"]),
         &ctx,
     )
     .await
     .unwrap();
-    users::execute(parse(&["ban", "remove", &ip, "--yes"]), &ctx)
+    crate::commands::identity_host::users(parse(&["ban", "remove", &ip, "--yes"]), &ctx)
         .await
         .unwrap();
 
     let ip2 = unique_ip();
-    users::execute(parse(&["ban", "add", &ip2, "--reason", "default"]), &ctx)
-        .await
-        .unwrap();
-    users::execute(parse(&["ban", "remove", &ip2, "--yes"]), &ctx)
+    crate::commands::identity_host::users(
+        parse(&["ban", "add", &ip2, "--reason", "default"]),
+        &ctx,
+    )
+    .await
+    .unwrap();
+    crate::commands::identity_host::users(parse(&["ban", "remove", &ip2, "--yes"]), &ctx)
         .await
         .unwrap();
 }
@@ -109,7 +112,7 @@ async fn ban_add_permanent_and_default_duration() {
 #[tokio::test]
 async fn ban_add_rejects_bad_duration() {
     let ctx = ctx().await;
-    let err = users::execute(
+    let err = crate::commands::identity_host::users(
         parse(&[
             "ban",
             "add",
@@ -130,12 +133,12 @@ async fn ban_add_rejects_bad_duration() {
 async fn ban_remove_and_cleanup_require_confirmation() {
     let ctx = ctx().await;
 
-    let err = users::execute(parse(&["ban", "remove", "10.0.0.1"]), &ctx)
+    let err = crate::commands::identity_host::users(parse(&["ban", "remove", "10.0.0.1"]), &ctx)
         .await
         .unwrap_err();
     assert!(err.to_string().contains("--yes to confirm"), "{err}");
 
-    let err = users::execute(parse(&["ban", "cleanup"]), &ctx)
+    let err = crate::commands::identity_host::users(parse(&["ban", "cleanup"]), &ctx)
         .await
         .unwrap_err();
     assert!(err.to_string().contains("--yes to confirm"), "{err}");
@@ -144,7 +147,7 @@ async fn ban_remove_and_cleanup_require_confirmation() {
 #[tokio::test]
 async fn ban_cleanup_runs_with_confirmation() {
     let ctx = ctx().await;
-    users::execute(parse(&["ban", "cleanup", "--yes"]), &ctx)
+    crate::commands::identity_host::users(parse(&["ban", "cleanup", "--yes"]), &ctx)
         .await
         .unwrap();
 }
@@ -153,12 +156,13 @@ async fn ban_cleanup_runs_with_confirmation() {
 async fn bulk_delete_requires_confirmation_and_filter() {
     let ctx = ctx().await;
 
-    let err = users::execute(parse(&["bulk", "delete", "--role", "x"]), &ctx)
-        .await
-        .unwrap_err();
+    let err =
+        crate::commands::identity_host::users(parse(&["bulk", "delete", "--role", "x"]), &ctx)
+            .await
+            .unwrap_err();
     assert!(err.to_string().contains("--yes to confirm"), "{err}");
 
-    let err = users::execute(parse(&["bulk", "delete", "--yes"]), &ctx)
+    let err = crate::commands::identity_host::users(parse(&["bulk", "delete", "--yes"]), &ctx)
         .await
         .unwrap_err();
     assert!(err.to_string().contains("At least one filter"), "{err}");
@@ -177,7 +181,7 @@ async fn bulk_delete_dry_run_then_execute_scoped_by_role() {
         .unwrap();
 
     let ctx = ctx().await;
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&["bulk", "delete", "--role", &role, "--dry-run"]),
         &ctx,
     )
@@ -185,9 +189,12 @@ async fn bulk_delete_dry_run_then_execute_scoped_by_role() {
     .unwrap();
     assert!(service.find_by_id(&user.id).await.unwrap().is_some());
 
-    users::execute(parse(&["bulk", "delete", "--role", &role, "--yes"]), &ctx)
-        .await
-        .unwrap();
+    crate::commands::identity_host::users(
+        parse(&["bulk", "delete", "--role", &role, "--yes"]),
+        &ctx,
+    )
+    .await
+    .unwrap();
     assert!(service.find_by_id(&user.id).await.unwrap().is_none());
 }
 
@@ -195,9 +202,12 @@ async fn bulk_delete_dry_run_then_execute_scoped_by_role() {
 async fn bulk_delete_reports_empty_match() {
     let ctx = ctx().await;
     let role = format!("norole_{}", Uuid::new_v4().simple());
-    users::execute(parse(&["bulk", "delete", "--role", &role, "--yes"]), &ctx)
-        .await
-        .unwrap();
+    crate::commands::identity_host::users(
+        parse(&["bulk", "delete", "--role", &role, "--yes"]),
+        &ctx,
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -227,7 +237,7 @@ async fn bulk_update_validates_status_and_applies_by_role() {
         .is_err(),
         "an unknown status is a usage error"
     );
-    let err = users::execute(
+    let err = crate::commands::identity_host::users(
         parse(&[
             "bulk",
             "update",
@@ -243,7 +253,7 @@ async fn bulk_update_validates_status_and_applies_by_role() {
     .unwrap_err();
     assert!(err.to_string().contains("Invalid status"), "{err}");
 
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&[
             "bulk",
             "update",
@@ -258,7 +268,7 @@ async fn bulk_update_validates_status_and_applies_by_role() {
     .await
     .unwrap();
 
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&[
             "bulk",
             "update",
@@ -296,7 +306,7 @@ async fn export_writes_file_and_prints_without_path() {
     let ctx = ctx().await;
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("users.json");
-    users::execute(
+    crate::commands::identity_host::users(
         parse(&[
             "export",
             "--role",
@@ -312,7 +322,7 @@ async fn export_writes_file_and_prints_without_path() {
     let json = std::fs::read_to_string(&path).unwrap();
     assert!(json.contains(user.id.as_str()), "{json}");
 
-    users::execute(parse(&["export", "--role", &role]), &ctx)
+    crate::commands::identity_host::users(parse(&["export", "--role", &role]), &ctx)
         .await
         .unwrap();
 

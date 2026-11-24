@@ -57,6 +57,7 @@ mod db_helpers;
 mod db_migrate_exec;
 mod dispatchers_invalid_input_fs;
 mod dispatchers_table_output_fs;
+mod identity_host;
 mod infra_services_restart_agents;
 mod infrastructure;
 mod logs_search_mapping;

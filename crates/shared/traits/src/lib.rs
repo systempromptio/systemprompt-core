@@ -82,6 +82,7 @@ pub mod escalation;
 pub mod events;
 pub mod extension_error;
 pub mod gateway_session;
+pub mod host_filter_migration;
 pub mod ip_bans;
 pub mod job_scope;
 pub mod log_service;
@@ -168,6 +169,7 @@ pub use ai_reports::{
     CatalogMigrationPort, DynCatalogMigrationPort, DynSafetyFindingsReader, LegacyCatalogEntry,
     SafetyFindingRollup, SafetyFindingsReader,
 };
+pub use host_filter_migration::{DynHostFilterMigrationPort, HostFilterMigrationPort};
 pub use ownership::is_plain_identifier;
 pub use tool_executions::{
     DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,

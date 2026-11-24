@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{UserRepository, UserService};
 
 use super::types::{UserCountBreakdownOutput, UserCountOutput};
@@ -28,7 +28,7 @@ pub(super) enum CountResult {
     Breakdown(UserCountBreakdownOutput),
 }
 
-pub(super) async fn execute(args: CountArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: CountArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     execute_with_pool(
         args,
         &systemprompt_database::pool_from_handle(host.db().await?)?,

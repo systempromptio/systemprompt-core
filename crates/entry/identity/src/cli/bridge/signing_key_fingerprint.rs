@@ -8,14 +8,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::Result;
-use base64::Engine;
 use clap::Args;
-use ed25519_dalek::SigningKey;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use systemprompt_extension::cli::CommandHost;
 
 use systemprompt_extension::cli::CommandOutput;
 
@@ -29,23 +27,15 @@ pub struct SigningKeyFingerprintOutput {
 }
 
 #[must_use]
-pub fn manifest_pubkey_b64(seed: &[u8; 32]) -> String {
-    base64::engine::general_purpose::STANDARD
-        .encode(SigningKey::from_bytes(seed).verifying_key().to_bytes())
-}
-
-#[must_use]
 pub fn key_fingerprint(pubkey_b64: &str) -> String {
     hex::encode(Sha256::digest(pubkey_b64.trim().as_bytes()))
 }
 
 pub(super) fn execute(
     _args: SigningKeyFingerprintArgs,
-    host: &dyn KernelHost,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let boot = crate::commands::admin::state::boot(host)?;
-    let seed = boot.secrets().manifest_signing_secret_seed()?;
-    let pubkey_b64 = manifest_pubkey_b64(&seed);
+    let pubkey_b64 = host.signing_keys()?.manifest_public_key()?;
     let output = SigningKeyFingerprintOutput {
         fingerprint: key_fingerprint(&pubkey_b64),
         pubkey_b64,

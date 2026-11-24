@@ -5,10 +5,10 @@ use systemprompt_identifiers::PluginId;
 
 use base64::Engine;
 use clap::Parser;
-use systemprompt_cli::admin::keys::{self, KeysCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
+use systemprompt_identity_entry::cli::keys::KeysCommands;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,
@@ -62,7 +62,7 @@ async fn plugin_token_helper() {
     println!("BEGIN_PLUGIN_TOKEN");
     crate::boot_ctx::rendered(
         &context,
-        keys::execute(
+        crate::commands::identity_host::keys(
             parse(&[
                 "issue-plugin-token",
                 "--email",
@@ -83,7 +83,7 @@ async fn plugin_token_helper() {
         .fetch_one(pool.pool().as_ref())
         .await
         .expect("count sessions before refusal");
-    let refusal = keys::execute(
+    let refusal = crate::commands::identity_host::keys(
         parse(&[
             "issue-plugin-token",
             "--email",

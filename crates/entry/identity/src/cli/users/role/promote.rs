@@ -3,15 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{PromoteResult, UserAdminService, UserRepository, UserService};
 
-use crate::commands::admin::users::types::RoleAssignOutput;
-use crate::shared::ConfirmArgs;
-use systemprompt_extension::cli::CommandOutput;
+use crate::cli::users::types::RoleAssignOutput;
+use systemprompt_extension::cli::{CommandOutput, ConfirmArgs};
 
 #[derive(Debug, Args)]
 pub struct PromoteArgs {
@@ -21,7 +20,7 @@ pub struct PromoteArgs {
     pub confirm: ConfirmArgs,
 }
 
-pub(super) async fn execute(args: PromoteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: PromoteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service);

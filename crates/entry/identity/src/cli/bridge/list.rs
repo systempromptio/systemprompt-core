@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use std::time::Duration;
+use systemprompt_extension::cli::CommandHost;
 
 use anyhow::Result;
 use clap::Args;
 use serde::Serialize;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_manifest::services::{BridgeReleasesSpec, ServicesView};
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, WindowStatus};
 use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
 
@@ -51,9 +51,9 @@ pub(super) struct BridgeSessionSummary {
     pub forwarded_total: i64,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
-    let app = crate::commands::admin::state::app(host).await?;
-    let repo = BridgeSessionRepository::new(app.db_pool());
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let repo = BridgeSessionRepository::new(&pool);
     let within = Duration::from_secs(args.within_secs);
 
     let rows = match args.user_id.as_ref().filter(|u| !u.as_str().is_empty()) {
@@ -61,8 +61,11 @@ pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<Com
         None => repo.list_active(within).await?,
     };
 
-    let window = app
-        .services_config()
+    let window = host
+        .resolved()
+        .await?
+        .get::<ServicesView>()?
+        .config()
         .gateway_config()
         .and_then(|g| g.bridge_releases.as_ref())
         .map(BridgeReleasesSpec::version_window)

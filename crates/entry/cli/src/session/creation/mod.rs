@@ -77,11 +77,9 @@ pub(super) async fn create_local_session(
 
     let keys = load_signing_keys(boot)?;
     let session_id = create_local_session_row(
-        &db_pool,
+        admins.as_ref(),
         &admin_user.id,
         chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
-        keys.clone(),
-        boot,
     )
     .await
     .context("Failed to create local CLI session row in the database")?;
@@ -168,11 +166,9 @@ pub(super) async fn create_session_for_tenant(
 
     let keys = load_signing_keys(boot)?;
     let session_id = create_local_session_row(
-        &db_pool,
+        admins.as_ref(),
         &admin_user.id,
         chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
-        keys.clone(),
-        boot,
     )
     .await
     .context("Failed to create local tenant CLI session row in the database")?;

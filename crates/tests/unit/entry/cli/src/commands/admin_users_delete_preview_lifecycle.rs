@@ -6,9 +6,9 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::users::UsersCommands;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
 };
@@ -59,11 +59,11 @@ async fn delete_preview_helper() {
         .await
         .expect("sibling user");
     let session = create_local_session_row(
-        &pool,
+        systemprompt_users::admin_bootstrap(pool.clone())
+            .unwrap()
+            .as_ref(),
         &target.id,
         chrono::Duration::hours(1),
-        systemprompt_test_fixtures::test_signing_keys(),
-        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .expect("target session");
@@ -92,7 +92,7 @@ async fn delete_preview_helper() {
     println!("BEGIN_PREVIEW");
     crate::boot_ctx::rendered(
         &context,
-        users::execute(
+        crate::commands::identity_host::users(
             parse(&["delete", target.id.as_str(), "--dry-run"]),
             &context,
         )

@@ -5,10 +5,10 @@ use systemprompt_test_fixtures::bounded_output;
 
 use base64::Engine;
 use clap::Parser;
-use systemprompt_cli::admin::bridge::{self, BridgeCommands};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::profile_authoring::LocalProfileBuilder;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::bridge::BridgeCommands;
 
 const HELPER: &str = "commands::admin_bridge_signing_rotation::signing_rotation_helper";
 const ORIGINAL_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
@@ -68,12 +68,18 @@ async fn signing_rotation_helper() {
     let context = context(&profile_path).await;
 
     println!("BEGIN_FIRST_ROTATION");
-    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context).await)
-        .expect("first signing rotation");
+    crate::boot_ctx::rendered(
+        &context,
+        crate::commands::identity_host::bridge(rotate(), &context).await,
+    )
+    .expect("first signing rotation");
     println!("END_FIRST_ROTATION");
     println!("BEGIN_SECOND_ROTATION");
-    crate::boot_ctx::rendered(&context, bridge::execute(rotate(), &context).await)
-        .expect("second signing rotation");
+    crate::boot_ctx::rendered(
+        &context,
+        crate::commands::identity_host::bridge(rotate(), &context).await,
+    )
+    .expect("second signing rotation");
     println!("END_SECOND_ROTATION");
 
     let persisted: serde_json::Value =

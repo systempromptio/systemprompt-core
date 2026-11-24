@@ -8,7 +8,6 @@
 //! authz hook, token mint, blocking `SendMessage`, reply extraction — runs
 //! against live infrastructure.
 
-use std::sync::Arc;
 
 use systemprompt_agent_entry::messaging::{
     A2aMessagingDispatcher, DispatcherInputs, MessagingError,

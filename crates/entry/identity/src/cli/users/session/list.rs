@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{UserAdminService, UserRepository, UserService};
 
-use crate::commands::admin::users::types::{SessionListOutput, SessionSummary};
+use crate::cli::users::types::{SessionListOutput, SessionSummary};
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
 #[derive(Debug, Args)]
@@ -25,7 +25,7 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(args: ListArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     execute_with_pool(
         args,
         &systemprompt_database::pool_from_handle(host.db().await?)?,

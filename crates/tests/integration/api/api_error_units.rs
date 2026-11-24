@@ -12,13 +12,10 @@ use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
 use systemprompt_api::services::proxy::{ProxyError, ResponseBuildError};
 use systemprompt_api::services::static_content::fallback::{get_api_suggestions, is_api_path};
-use systemprompt_identifiers::{MarketplaceId, UserId};
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_oauth::OauthError;
-use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_traits::RepositoryError;
-use systemprompt_users::UserError;
 
 fn status_of(err: ApiHttpError) -> StatusCode {
     err.into_response().status()
@@ -81,26 +78,6 @@ fn marketplace_error_variants_classify() {
             systemprompt_security::ManifestSigningError::KeyMissing
         )),
         StatusCode::INTERNAL_SERVER_ERROR
-    );
-}
-
-#[test]
-fn user_error_variants_classify() {
-    assert_eq!(
-        status_of(UserError::NotFound(systemprompt_identifiers::UserId::new("u")).into()),
-        StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        status_of(UserError::EmailAlreadyExists("e".to_owned()).into()),
-        StatusCode::CONFLICT
-    );
-    assert_eq!(
-        status_of(UserError::Validation("v".to_owned()).into()),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
-        status_of(UserError::InvalidRole("r".to_owned()).into()),
-        StatusCode::BAD_REQUEST
     );
 }
 
@@ -360,140 +337,6 @@ fn repository_error_variants_classify() {
     );
     assert_eq!(
         status_of(RepositoryError::from(sqlx::Error::PoolClosed).into()),
-        StatusCode::INTERNAL_SERVER_ERROR
-    );
-}
-
-#[test]
-fn oauth_error_variants_classify() {
-    let cases: Vec<(OauthError, StatusCode)> = vec![
-        (
-            OauthError::CodeNotFound("c".to_owned()),
-            StatusCode::NOT_FOUND,
-        ),
-        (
-            OauthError::TokenNotFound("t".to_owned()),
-            StatusCode::NOT_FOUND,
-        ),
-        (
-            OauthError::ClientNotFound("cl".to_owned()),
-            StatusCode::NOT_FOUND,
-        ),
-        (
-            OauthError::UserNotFound("u".to_owned()),
-            StatusCode::NOT_FOUND,
-        ),
-        (
-            OauthError::Validation("v".to_owned()),
-            StatusCode::BAD_REQUEST,
-        ),
-        (
-            OauthError::UsernameTaken("n".to_owned()),
-            StatusCode::CONFLICT,
-        ),
-        (
-            OauthError::EmailRegistered("e".to_owned()),
-            StatusCode::CONFLICT,
-        ),
-        (
-            OauthError::InvalidGrant("g".to_owned()),
-            StatusCode::UNAUTHORIZED,
-        ),
-        (
-            OauthError::InvalidClient("c".to_owned()),
-            StatusCode::UNAUTHORIZED,
-        ),
-        (
-            OauthError::TokenInvalid("t".to_owned()),
-            StatusCode::UNAUTHORIZED,
-        ),
-        (OauthError::TokenMissingKid, StatusCode::UNAUTHORIZED),
-        (
-            OauthError::TokenUnknownKid {
-                kid: "k".to_owned(),
-            },
-            StatusCode::UNAUTHORIZED,
-        ),
-        (
-            OauthError::TokenAlgMismatch {
-                got: "HS256".to_owned(),
-                expected: "RS256".to_owned(),
-            },
-            StatusCode::UNAUTHORIZED,
-        ),
-        (
-            OauthError::PkceMismatch("p".to_owned()),
-            StatusCode::UNAUTHORIZED,
-        ),
-        (
-            OauthError::Expired("x".to_owned()),
-            StatusCode::UNAUTHORIZED,
-        ),
-        (
-            OauthError::RegistrationStateExpired,
-            StatusCode::BAD_REQUEST,
-        ),
-        (
-            OauthError::AuthenticationUnavailable,
-            StatusCode::UNAUTHORIZED,
-        ),
-        (
-            OauthError::Repository(RepositoryError::database(std::io::Error::other(
-                "pool closed",
-            ))),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (
-            OauthError::WebAuthnConfig("not configured"),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (OauthError::Internal("i"), StatusCode::INTERNAL_SERVER_ERROR),
-    ];
-
-    for (err, expected) in cases {
-        let rendered = err.to_string();
-        let http: ApiHttpError = err.into();
-        assert_eq!(status_of(http), expected, "{rendered}");
-    }
-}
-
-#[test]
-fn every_token_rejection_is_a_401_rather_than_a_500() {
-    // A malformed or unverifiable token is a credential problem the caller can
-    // fix by re-authenticating; classifying it as a server error would both
-    // mislead the client and mask a real outage.
-    for err in [
-        OauthError::TokenMissingKid,
-        OauthError::TokenUnknownKid {
-            kid: "rotated-out".to_owned(),
-        },
-        OauthError::TokenAlgMismatch {
-            got: "none".to_owned(),
-            expected: "RS256".to_owned(),
-        },
-    ] {
-        let rendered = err.to_string();
-        assert_eq!(
-            status_of(err.into()),
-            StatusCode::UNAUTHORIZED,
-            "{rendered}"
-        );
-    }
-}
-
-#[test]
-fn session_creation_errors_split_missing_user_from_internal_failure() {
-    assert_eq!(
-        status_of(
-            SessionCreationError::UserNotFound {
-                user_id: UserId::new("ghost"),
-            }
-            .into()
-        ),
-        StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        status_of(SessionCreationError::Internal("pool exhausted".into()).into()),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }

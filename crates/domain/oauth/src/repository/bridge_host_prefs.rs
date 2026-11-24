@@ -28,6 +28,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
+use systemprompt_traits::{HostFilterMigrationPort, RepositoryError};
 
 use crate::error::OauthResult;
 
@@ -194,22 +195,6 @@ impl BridgeHostPrefsRepository {
         Ok(HostPrefWrite::Written)
     }
 
-    pub async fn update_model_protocol_tag(&self, from: &str, to: &str) -> OauthResult<u64> {
-        let done = sqlx::query!(
-            r#"
-            UPDATE bridge_user_host_model_prefs
-            SET model_protocols = array_replace(model_protocols, $1, $2),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE $1 = ANY(model_protocols)
-            "#,
-            from,
-            to,
-        )
-        .execute(self.write_pool.as_ref())
-        .await?;
-        Ok(done.rows_affected())
-    }
-
     pub async fn load_model_protocols(
         &self,
         user_id: &UserId,
@@ -271,5 +256,28 @@ impl BridgeHostPrefsRepository {
             },
         }
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl HostFilterMigrationPort for BridgeHostPrefsRepository {
+    async fn rewrite_model_protocol_tag(
+        &self,
+        from: &str,
+        to: &str,
+    ) -> Result<u64, RepositoryError> {
+        let done = sqlx::query!(
+            r#"
+            UPDATE bridge_user_host_model_prefs
+            SET model_protocols = array_replace(model_protocols, $1, $2),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE $1 = ANY(model_protocols)
+            "#,
+            from,
+            to,
+        )
+        .execute(self.write_pool.as_ref())
+        .await?;
+        Ok(done.rows_affected())
     }
 }

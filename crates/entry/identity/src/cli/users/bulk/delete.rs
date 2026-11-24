@@ -3,15 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::kernel::KernelHost;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_extension::cli::CommandHost;
 use systemprompt_users::{UserRepository, UserService, UserStatus};
 
-use crate::commands::admin::users::types::BulkDeleteOutput;
+use crate::cli::users::types::BulkDeleteOutput;
 use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -56,7 +56,7 @@ pub(super) enum DeleteResult {
     Executed(BulkDeleteOutput),
 }
 
-pub(super) async fn execute(args: DeleteArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
+pub(super) async fn execute(args: DeleteArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will permanently delete users. Use --yes to confirm or --dry-run to preview."

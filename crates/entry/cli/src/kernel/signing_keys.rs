@@ -3,8 +3,9 @@
 //!
 //! [`KernelSigningKeys`] reads the token keys and the manifest signing seed
 //! from the active profile's boot context, writes a rotation back to that
-//! profile's secrets file, and returns only key ids, expiry instants and the
-//! manifest public key.
+//! profile's secrets file, mints a plugin-scoped hook token under the
+//! profile's issuer, and returns only key ids, expiry instants, the manifest
+//! public key and the minted token.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,10 +18,13 @@ use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use systemprompt_config::{SecretsService, SigningKeyState};
 use systemprompt_extension::cli::{
-    CommandError, DeploymentSigningKeys, RetiredTokenKey, TokenKeyPromotion, TokenKeySet,
+    CommandError, DeploymentSigningKeys, MintedPluginToken, PluginTokenGrant, RetiredTokenKey,
+    TokenKeyPromotion, TokenKeySet,
 };
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::SecurityConfig;
+use systemprompt_models::auth::{TokenAuthority, UserJwtRequest};
+use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_security::jwt::{cut_off_by, rotation_overlap, signed_token_lifetimes};
 use systemprompt_security::keys::{RotationMode, RsaSigningKey, promote, stage};
 
@@ -162,5 +166,28 @@ impl DeploymentSigningKeys for KernelSigningKeys {
         SecretsService::rotate_manifest_signing_seed(self.boot.loaded_profile())
             .map(|seed| manifest_public_key(&seed))
             .map_err(CommandError::new)
+    }
+
+    fn mint_plugin_token(
+        &self,
+        grant: PluginTokenGrant,
+    ) -> Result<MintedPluginToken, CommandError> {
+        let keys = crate::session::api::load_signing_keys(&self.boot).map_err(CommandError::new)?;
+        let authority = DeploymentTokenAuthority::new(keys, self.security.issuer.clone());
+        let request = UserJwtRequest::plugin_hook(
+            grant.user_id,
+            grant.username,
+            grant.email,
+            grant.plugin_id,
+            grant.duration_days,
+            grant.session_id,
+        );
+        let token = authority
+            .mint_user_jwt(&request)
+            .map_err(CommandError::new)?;
+        Ok(MintedPluginToken {
+            token,
+            jti: request.jti,
+        })
     }
 }

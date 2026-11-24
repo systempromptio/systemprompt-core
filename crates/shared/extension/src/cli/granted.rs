@@ -15,7 +15,8 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, JwtToken, SessionId, SessionToken, TraceId, UserId,
+    AccessTokenId, Actor, AgentName, ContextId, JwtToken, PluginId, SessionId, SessionToken,
+    TraceId, UserId,
 };
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -152,10 +153,13 @@ impl CallerSession {
 ///
 /// A `KernelGrant::SigningKeys` holder reads the token signing key ids and
 /// the bridge manifest public key, stages, promotes and rotates the token
-/// key, and rotates the manifest signing seed. The kernel reads and writes the
-/// active profile's secrets file and applies the profile's token lifetimes to
-/// a promotion's overlap; the handle never returns a private key, a seed, the
-/// profile or the secrets source, and mints no token.
+/// key, rotates the manifest signing seed, and mints the one token an operator
+/// issues by hand: a plugin-scoped hook token for a subject the command has
+/// already resolved and authorized. The kernel reads and writes the active
+/// profile's secrets file, applies the profile's token lifetimes to a
+/// promotion's overlap and signs with the profile's issuer; the handle never
+/// returns a private key, a seed, the profile or the secrets source, and
+/// mints no other token.
 pub trait DeploymentSigningKeys: Send + Sync {
     fn token_keys(&self) -> Result<TokenKeySet, CommandError>;
     fn stage_token_key(&self) -> Result<TokenKeySet, CommandError>;
@@ -163,6 +167,27 @@ pub trait DeploymentSigningKeys: Send + Sync {
     fn rotate_token_key(&self, promotion: TokenKeyPromotion) -> Result<TokenKeySet, CommandError>;
     fn manifest_public_key(&self) -> Result<String, CommandError>;
     fn rotate_manifest_key(&self) -> Result<String, CommandError>;
+    fn mint_plugin_token(&self, grant: PluginTokenGrant)
+    -> Result<MintedPluginToken, CommandError>;
+}
+
+/// The subject, plugin, lifetime and backing session of a plugin-scoped hook
+/// token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginTokenGrant {
+    pub user_id: UserId,
+    pub username: String,
+    pub email: String,
+    pub plugin_id: PluginId,
+    pub duration_days: u32,
+    pub session_id: SessionId,
+}
+
+/// A minted plugin-scoped hook token and its `jti`.
+#[derive(Debug, Clone)]
+pub struct MintedPluginToken {
+    pub token: String,
+    pub jti: AccessTokenId,
 }
 
 /// How a staged token key is promoted: with the outgoing key verifying for an

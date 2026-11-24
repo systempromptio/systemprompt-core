@@ -5,10 +5,11 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use crate::commands::identity_host::keys as execute;
 use clap::Parser;
-use systemprompt_cli::admin::keys::{KeysCommands, execute};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::keys::KeysCommands;
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -90,25 +91,14 @@ async fn force_replaces_an_existing_key_with_a_fresh_one() {
     assert!(second.contains("BEGIN PRIVATE KEY"));
 }
 
-#[derive(Debug, Parser)]
-struct AdminHarness {
-    #[command(subcommand)]
-    cmd: systemprompt_cli::admin::AdminCommands,
-}
-
 #[test]
 fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
-    let admin = |args: &[&str]| {
-        AdminHarness::try_parse_from(std::iter::once("admin").chain(args.iter().copied()))
-            .unwrap()
-            .cmd
-            .data_impact()
-    };
+    let admin = |args: &[&str]| parse(args).data_impact();
     for args in [
-        vec!["keys", "stage"],
-        vec!["keys", "promote"],
-        vec!["keys", "promote", "--revoke"],
-        vec!["keys", "rotate", "--overlap-secs", "60"],
+        vec!["stage"],
+        vec!["promote"],
+        vec!["promote", "--revoke"],
+        vec!["rotate", "--overlap-secs", "60"],
     ] {
         assert_eq!(
             admin(&args),
@@ -117,7 +107,7 @@ fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
         );
     }
     assert_eq!(
-        admin(&["keys", "generate"]),
+        admin(&["generate"]),
         systemprompt_extension::cli::DataImpact::Preserving
     );
 }

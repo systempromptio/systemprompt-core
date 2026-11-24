@@ -5,9 +5,10 @@
 //! a [`DynAdminBootstrap`]; the CLI host reads it from the admitted set, from
 //! a core-standing `users` member only, for `admin bootstrap`, `admin session
 //! login`, CLI session creation and `infra db assign-admin`. The view finds a
-//! user by name or email, creates a user, grants the admin role and confirms a
-//! session row exists. It cannot demote, delete, ban, merge, list or update a
-//! user, and it reads no credential.
+//! user by name or email, creates a user, grants the admin role, opens a
+//! session row for an existing user and confirms a session row exists. It
+//! cannot demote, delete, ban, merge, list or update a user, mints no token
+//! and reads no credential.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +17,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 
 /// A user as the admin-bootstrap flows read it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,6 +93,13 @@ pub trait AdminBootstrap: Send + Sync + Debug {
     async fn promote(&self, reference: &str) -> Result<AdminPromotion, AdminBootstrapError>;
 
     async fn session_exists(&self, session: &SessionId) -> Result<bool, AdminBootstrapError>;
+
+    async fn open_session(
+        &self,
+        user: &UserId,
+        ttl: chrono::Duration,
+        source: SessionSource,
+    ) -> Result<SessionId, AdminBootstrapError>;
 }
 
 pub type DynAdminBootstrap = Arc<dyn AdminBootstrap>;
