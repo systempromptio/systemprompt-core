@@ -1,6 +1,7 @@
-//! The users member's answers to the kernel's `database_cleanup` job: which
-//! log owners no longer exist, and the purge of archived accounts past the
-//! profile window.
+//! The users member's half of the retention job.
+//!
+//! It answers the kernel's `database_cleanup` job: which log owners no longer
+//! exist, and the purge of archived accounts past the profile window.
 //!
 //! [`DynUserRetention`] is provided **sealed** by the users member (it purges
 //! users), so only kernel code reads it. With no provider the job skips the

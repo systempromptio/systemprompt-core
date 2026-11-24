@@ -118,16 +118,13 @@ impl Job for DatabaseCleanupJob {
             passes.push(pass);
         }
 
-        let archived = match users {
-            Some(users) => {
-                users
-                    .purge_archived(ctx, retention.archived_users_days, ctx.enforce())
-                    .await?
-            },
-            None => {
-                debug!("no user retention is provided; archived users are not purged");
-                ArchivedUserPurge::default()
-            },
+        let archived = if let Some(users) = users {
+            users
+                .purge_archived(ctx, retention.archived_users_days, ctx.enforce())
+                .await?
+        } else {
+            debug!("no user retention is provided; archived users are not purged");
+            ArchivedUserPurge::default()
         };
         total += archived.purged;
 

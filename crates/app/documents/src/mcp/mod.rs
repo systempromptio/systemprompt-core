@@ -172,14 +172,6 @@ impl DocumentsMcpTools {
         }
     }
 
-    #[cfg_attr(
-        not(feature = "notifications"),
-        expect(
-            unused_variables,
-            reason = "the notification service is read from the extension state only with the \
-                      notifications feature"
-        )
-    )]
     #[must_use]
     pub fn for_host(
         handles: &DocumentsHandles,

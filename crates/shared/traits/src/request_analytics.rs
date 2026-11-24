@@ -1,5 +1,7 @@
-//! [`RequestAnalytics`]: the write the API's request-analytics middleware
-//! records one served request through. The analytics member provides it open
+//! [`RequestAnalytics`]: the request-analytics write.
+//!
+//! The API's request-analytics middleware records one served request through
+//! it. The analytics member provides it open
 //! (it appends an event row and reads nothing back); with no provider the
 //! request is served and no event is recorded — recording never decides
 //! whether a request is served.

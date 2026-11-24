@@ -1,5 +1,6 @@
-//! [`EscalationDelivery`]: where an escalated notification is delivered on
-//! this host. Every host seeds one value — `InProcess` on the API,
+//! [`EscalationDelivery`]: where this host delivers an escalation.
+//!
+//! Every host seeds one value — `InProcess` on the API,
 //! `Consumer` on a child host — and the notifications member assembles its
 //! service with it.
 //!
