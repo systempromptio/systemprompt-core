@@ -101,6 +101,7 @@ stable_deref_trait = { version = "1" }
 subtle = { version = "2", features = ["const-generics"] }
 sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
 systemprompt = { path = "../../../../systemprompt", features = ["full", "slack", "teams"] }
+systemprompt-agent-entry = { path = "../../../entry/agent", features = ["cli", "http"] }
 systemprompt-analytics = { path = "../../../domain/analytics", features = ["geolocation"] }
 systemprompt-analytics-entry = { path = "../../../entry/analytics", features = ["cli", "content-commands", "http"] }
 systemprompt-documents = { path = "../../../app/documents", features = ["engine-loro", "http", "notifications"] }

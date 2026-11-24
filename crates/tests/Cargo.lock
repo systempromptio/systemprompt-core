@@ -12848,6 +12848,7 @@ dependencies = [
  "syn 3.0.10",
  "sync_wrapper",
  "systemprompt",
+ "systemprompt-agent-entry",
  "systemprompt-analytics",
  "systemprompt-analytics-entry",
  "systemprompt-documents",
