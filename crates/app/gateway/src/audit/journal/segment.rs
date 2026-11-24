@@ -113,8 +113,6 @@ pub(super) fn read_at(
     open_body(cipher, &body)
 }
 
-/// A segment read front to back: its entries in write order, and where a
-/// torn or unauthenticated frame ended it, if one did.
 #[derive(Debug)]
 pub(super) struct Scanned {
     pub entries: Vec<Entry>,

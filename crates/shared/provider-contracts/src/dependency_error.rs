@@ -1,16 +1,32 @@
 //! Why a [`Dependencies`](crate::Dependencies) read or provide failed: an
 //! absent (or withheld) type ([`MissingDependency`]), or a second provider of
-//! one type ([`DuplicateDependency`]).
+//! one type ([`DuplicateDependency`]), which names both
+//! [`DependencyProvider`]s.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::any::{Any, type_name};
+use std::fmt;
 
 use systemprompt_identifiers::ExtensionId;
 use thiserror::Error;
 
-use crate::dependencies::DependencyProvider;
+/// Who put an entry into a [`Dependencies`](crate::Dependencies) map.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DependencyProvider {
+    Host,
+    Extension(ExtensionId),
+}
+
+impl fmt::Display for DependencyProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Host => f.write_str("the host"),
+            Self::Extension(id) => write!(f, "extension '{id}'"),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 #[error("provider context has no {type_name} dependency")]

@@ -175,27 +175,7 @@ impl Extension for McpExtension {
         );
         contribute_stores(c);
         contribute_tool_provider(c);
-        c.provide_after_governance(
-            |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
-                let db = r.get::<DbPool>()?;
-                let intents = r.optional::<DynToolCallIntentClaims>();
-                if intents.is_none() {
-                    tracing::info!(
-                        "no tool-call intent claims are provided (the ai member is not admitted); \
-                         tool executions record no intent attribution"
-                    );
-                }
-                Ok(Arc::new(McpToolExecutions::new(
-                    Arc::new(
-                        ToolUsageRepository::new(&db)
-                            .with_audit_spans(r.optional::<DynAuditSpanSink>()),
-                    ),
-                    intents,
-                    r.get::<Arc<ArtifactIngest>>()?,
-                    r.get::<Arc<UiRendererRegistry>>()?,
-                )))
-            },
-        );
+        contribute_tool_executions(c);
         c.slot::<ServiceProcessSlot>().process_set(
             |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
                 let services = ServiceRepository::new(&r.get::<DbPool>()?, r.get::<InstanceId>()?);
@@ -205,9 +185,33 @@ impl Extension for McpExtension {
         crate::jobs::contribute(c);
         c.slot::<UiSlot>();
         c.slot::<AccessRecorderSlot>();
-        contribute_user_data(c);
+        crate::user_data::contribute(c);
         Ok(())
     }
+}
+
+fn contribute_tool_executions(c: &mut Contributions<'_>) {
+    c.provide_after_governance(
+        |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
+            let db = r.get::<DbPool>()?;
+            let intents = r.optional::<DynToolCallIntentClaims>();
+            if intents.is_none() {
+                tracing::info!(
+                    "no tool-call intent claims are provided (the ai member is not admitted); \
+                     tool executions record no intent attribution"
+                );
+            }
+            Ok(Arc::new(McpToolExecutions::new(
+                Arc::new(
+                    ToolUsageRepository::new(&db)
+                        .with_audit_spans(r.optional::<DynAuditSpanSink>()),
+                ),
+                intents,
+                r.get::<Arc<ArtifactIngest>>()?,
+                r.get::<Arc<UiRendererRegistry>>()?,
+            )))
+        },
+    );
 }
 
 fn contribute_tool_provider(c: &mut Contributions<'_>) {
@@ -246,54 +250,4 @@ fn contribute_stores(c: &mut Contributions<'_>) {
             )))
         },
     );
-}
-
-fn contribute_user_data(c: &mut Contributions<'_>) {
-    c.user_purge(UserPurgeTable {
-        table: "mcp_artifacts",
-        column: "user_id",
-        predicate: None,
-    });
-    c.user_purge(UserPurgeTable {
-        table: "mcp_tool_executions",
-        column: "user_id",
-        predicate: None,
-    });
-    c.user_purge(UserPurgeTable {
-        table: "mcp_sessions",
-        column: "user_id",
-        predicate: None,
-    });
-    c.user_purge(UserPurgeTable {
-        table: "mcp_external_sessions",
-        column: "user_id",
-        predicate: None,
-    });
-    c.orphan_sweep(OrphanSweep {
-        table: "artifact_payloads",
-        key: "sha256",
-        referenced_by: "mcp_artifacts",
-        via: "payload_sha256",
-        user_column: "user_id",
-    });
-    c.owner_reassignment(OwnerReassignment {
-        table: "mcp_tool_executions",
-        column: "user_id",
-        action: ReassignAction::UPDATE,
-    });
-    c.owner_reassignment(OwnerReassignment {
-        table: "mcp_artifacts",
-        column: "user_id",
-        action: ReassignAction::UPDATE,
-    });
-    c.owner_reassignment(OwnerReassignment {
-        table: "mcp_sessions",
-        column: "user_id",
-        action: ReassignAction::UPDATE,
-    });
-    c.owner_reassignment(OwnerReassignment {
-        table: "mcp_external_sessions",
-        column: "user_id",
-        action: ReassignAction::DELETE,
-    });
 }

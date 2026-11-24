@@ -11460,9 +11460,7 @@ name = "systemprompt-marketplace-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
- "base64 0.23.1",
  "chrono",
- "ed25519-dalek 3.0.0",
  "proptest",
  "reqwest",
  "serde_json",
@@ -12314,8 +12312,6 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "chrono",
- "hex",
- "reqwest",
  "serde_json",
  "serde_yaml_ng",
  "sqlx",

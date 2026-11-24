@@ -27,7 +27,7 @@ use tokio_cron_scheduler::Job;
 use tracing::{Instrument, debug, info, warn};
 
 enum Registered {
-    Yes(Ticker),
+    Yes(Box<Ticker>),
     No,
 }
 
@@ -42,7 +42,7 @@ impl SchedulerService {
         let mut skipped = Vec::new();
         for job_config in &self.config.jobs {
             match self.register_single_job(ctx, job_config).await {
-                Ok(Registered::Yes(ticker)) => registered.push(ticker),
+                Ok(Registered::Yes(ticker)) => registered.push(*ticker),
                 Ok(Registered::No) => {},
                 Err(error) => {
                     warn!(
@@ -144,7 +144,7 @@ impl SchedulerService {
 
         let (job, ticker) = self.create_job_from_trait(ctx, job_config, &schedule, actor)?;
         ctx.scheduler.add(job).await?;
-        Ok(Registered::Yes(ticker))
+        Ok(Registered::Yes(Box::new(ticker)))
     }
 
     fn create_job_from_trait(
@@ -193,7 +193,6 @@ impl SchedulerService {
     }
 }
 
-/// One registered job's dispatch, keyed by its cron instants.
 #[derive(Clone)]
 pub(super) struct Ticker {
     pub(super) dispatch: dispatch::JobDispatch,

@@ -15,7 +15,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::AiRequestId;
 
 use super::Receipt;
-use super::log::{Log, Op, guard};
+use super::index::Op;
+use super::log::{Log, guard};
 use super::segment::{self, Entry, Record};
 use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 
@@ -25,9 +26,6 @@ use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 // ceiling.
 pub(super) const MAX_ENTRIES: usize = 4096;
 
-/// Held by an admitted request for its whole life; recovery leaves a
-/// receipt alone while its lease is held, and settles it as failed once the
-/// lease is dropped without a terminal receipt.
 #[derive(Debug)]
 pub(crate) struct JournalLease {
     log: Arc<Log>,
@@ -90,7 +88,7 @@ pub(super) fn reserve(
     })
 }
 
-const fn unreserve(state: &mut super::log::State) {
+const fn unreserve(state: &mut super::index::State) {
     state.reserved = state.reserved.saturating_sub(1);
     state.in_flight = state.in_flight.saturating_sub(1);
 }

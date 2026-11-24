@@ -39,12 +39,12 @@ where
     let Some(span) = ctx.span(id) else {
         return;
     };
-    let (span_id, start) = {
-        let extensions = span.extensions();
-        let Some(stamp) = extensions.get::<SpanStart>() else {
-            return;
-        };
-        (stamp.span_id.clone(), stamp.start)
+    let Some((span_id, start)) = span
+        .extensions()
+        .get::<SpanStart>()
+        .map(|stamp| (stamp.span_id.clone(), stamp.start))
+    else {
+        return;
     };
     let parent_span_id = span
         .parent()

@@ -40,8 +40,7 @@ fn parent_of(request: Option<&AiRequestId>) -> Vec<u8> {
     request.map_or_else(Vec::new, |id| span_id_bytes(REQUEST_SPAN, id.as_str()))
 }
 
-#[must_use]
-pub fn request_span(record: &RequestSpanRecord) -> Span {
+fn request_attrs(record: &RequestSpanRecord) -> Attrs {
     let mut attrs = Attrs::new();
     attrs
         .text("systemprompt.request.id", record.request_id.as_str())
@@ -99,6 +98,11 @@ pub fn request_span(record: &RequestSpanRecord) -> Span {
             record.api_key_id.as_ref().map(ApiKeyId::as_str),
         )
         .scopes(&record.attributions);
+    attrs
+}
+
+#[must_use]
+pub fn request_span(record: &RequestSpanRecord) -> Span {
     let (code, message) = match record.status {
         RequestStatus::Completed => (StatusCode::Ok, String::new()),
         RequestStatus::Pending => (StatusCode::Unset, String::new()),
@@ -121,7 +125,7 @@ pub fn request_span(record: &RequestSpanRecord) -> Span {
         kind: SpanKind::Server as i32,
         start_time_unix_nano: unix_nanos(record.started_at),
         end_time_unix_nano: unix_nanos(record.completed_at.max(record.started_at)),
-        attributes: attrs.finish(),
+        attributes: request_attrs(record).finish(),
         status: Some(Status {
             code: code as i32,
             message,

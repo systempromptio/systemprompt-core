@@ -72,7 +72,7 @@ async fn a_valid_bridge_jwt_provisions_a_client_with_the_token_endpoint() {
     let axum::Json(client) = provision_oauth_client(ctx, request(&user, None))
         .await
         .expect("provisioned");
-    assert!(!client.client_id.as_str().is_empty());
+    assert!(!client.client_id.is_empty());
     assert!(!client.client_secret.is_empty());
     assert!(
         client.token_endpoint.ends_with("/api/v1/core/oauth/token"),

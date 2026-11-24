@@ -10,6 +10,7 @@ use systemprompt_models::audit_spans::{AuditSpanSink, RequestSpanRecord};
 use systemprompt_traits::RequestStatus;
 
 use super::GatewayAudit;
+use crate::protocol::canonical::CanonicalUsage;
 
 pub(super) struct SettledOutcome<'a> {
     pub status: RequestStatus,
@@ -21,8 +22,19 @@ pub(super) struct SettledOutcome<'a> {
     pub finish_reason: Option<&'a str>,
 }
 
-fn tokens(usage: Option<[u32; 6]>, index: usize) -> Option<i32> {
-    usage.map(|u| i32::try_from(u[index]).unwrap_or(i32::MAX))
+fn tokens(usage: [u32; 6], index: usize) -> i32 {
+    i32::try_from(usage[index]).unwrap_or(i32::MAX)
+}
+
+pub(super) const fn usage_columns(usage: &CanonicalUsage, billable: u32) -> [u32; 6] {
+    [
+        usage.input_tokens,
+        usage.output_tokens,
+        usage.cache_read_tokens,
+        usage.cache_creation_tokens,
+        usage.reasoning_tokens,
+        billable,
+    ]
 }
 
 impl GatewayAudit {
@@ -47,10 +59,10 @@ impl GatewayAudit {
             requested_model: self.ctx.requested_model.clone(),
             model: Some(self.effective_model()),
             route_match,
-            input_tokens: tokens(outcome.usage, 0),
-            output_tokens: tokens(outcome.usage, 1),
-            cache_read_tokens: tokens(outcome.usage, 2),
-            cache_creation_tokens: tokens(outcome.usage, 3),
+            input_tokens: outcome.usage.map(|u| tokens(u, 0)),
+            output_tokens: outcome.usage.map(|u| tokens(u, 1)),
+            cache_read_tokens: outcome.usage.map(|u| tokens(u, 2)),
+            cache_creation_tokens: outcome.usage.map(|u| tokens(u, 3)),
             cost_microdollars: outcome.cost_microdollars,
             latency_ms: Some(outcome.latency_ms),
             upstream_latency_ms: outcome.upstream_latency_ms,

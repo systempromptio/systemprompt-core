@@ -78,7 +78,7 @@ BOUNDARY=(
     "crates/app/gateway/src/captures.rs|tool_name|provider wire tool_use name captured verbatim for audit"
     "crates/app/agent-runs/src/event.rs|tool_name|host stream tool name relayed verbatim; built-in host tools (Bash, Edit) are not MCP tools"
     "crates/infra/governance/src/authz/audit/repository.rs|tool_name|governance_decisions.tool_name mixes tool names, entity ids and a merge label"
-    "crates/app/scheduler/src/repository/otlp/records.rs|tool_name|governance_decisions.tool_name read back for export (same mixed column)"
+    "crates/shared/models/src/audit_spans.rs|tool_name|governance_decisions.tool_name carried on the exported audit span (same mixed column)"
     "crates/shared/identifiers/src/actor.rs|tool_name|Actor::from_tool_name parses an external tool-name string"
     "crates/shared/models/src/modules/api_paths.rs|server_name agent_name|URL builders over path segments"
     "crates/shared/client/src/client/mod.rs|agent_name|HTTP client path argument for a remote agent card"

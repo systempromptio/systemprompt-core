@@ -62,6 +62,7 @@ pub mod contract;
 pub mod dev_files;
 mod error;
 mod extension;
+mod extension_state;
 mod filter;
 pub mod import;
 pub mod inventory;

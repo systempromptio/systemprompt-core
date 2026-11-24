@@ -361,7 +361,7 @@ mod missed_runs_db {
                 &JobName::new(job),
                 at,
                 &RunKey::Cluster,
-                &InstanceId::new("s5a-seed"),
+                &InstanceId::new(unique_name("s5a-seed")),
             )
             .await
             .expect("seed last run")

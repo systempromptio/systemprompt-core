@@ -56,9 +56,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{Actor, ExtensionId};
 
-use crate::dependencies::{Dependencies, StateRequirement};
+use crate::dependencies::Dependencies;
 use crate::dependency_error::MissingDependency;
 use crate::error::ProviderResult;
+use crate::state_requirement::StateRequirement;
 
 #[derive(Debug, Clone)]
 pub struct JobResult {

@@ -68,7 +68,7 @@ pub struct PostgresEventBridge {
 
 impl PostgresEventBridge {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         pool: PgPool,
         instance_id: InstanceId,
         epochs: CacheEpochs,

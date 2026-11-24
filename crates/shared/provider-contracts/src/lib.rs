@@ -65,6 +65,7 @@ mod page;
 mod page_prerenderer;
 mod rss;
 mod sitemap;
+mod state_requirement;
 mod template;
 mod tool;
 pub mod web_config;
@@ -81,8 +82,8 @@ pub use config_plane::{
     ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash, resolve_apply,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
-pub use dependencies::{Dependencies, DependencyProvider, StateRequirement};
-pub use dependency_error::{DuplicateDependency, MissingDependency};
+pub use dependencies::Dependencies;
+pub use dependency_error::{DependencyProvider, DuplicateDependency, MissingDependency};
 #[cfg(feature = "sqlx")]
 pub use doctor::DoctorProbeSource;
 pub use doctor::{
@@ -108,6 +109,7 @@ pub use sitemap::{
     PlaceholderMapping, SitemapAlternate, SitemapContext, SitemapProvider, SitemapSourceSpec,
     SitemapUrlEntry,
 };
+pub use state_requirement::StateRequirement;
 pub use template::{TemplateDefinition, TemplateProvider, TemplateSource};
 pub use tool::{
     ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent, ToolContext,
