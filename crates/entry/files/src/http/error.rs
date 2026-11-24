@@ -81,6 +81,7 @@ impl From<UserError> for ApiHttpError {
             | UserError::InvalidRoles(_)
             | UserError::ApiKeyLifetimeExceeded { .. }) => ApiError::bad_request(e.to_string()),
             e @ (UserError::MergeUnavailable
+            | UserError::SecurityTableReassignment { .. }
             | UserError::PurgeIdentifier { .. }
             | UserError::OwnerReassignment { .. }) => {
                 ApiError::internal("User operation failed", e)
