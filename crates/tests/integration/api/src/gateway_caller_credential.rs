@@ -18,11 +18,10 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{SESSION_ID, SYSTEMPROMPT_AUTHORIZATION};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    AuthedFixture, DisposableDb, TestBootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
-    fixture_config, init_services_bootstrap, seed_admin_credential, settle_background,
-    test_app_context_on, test_db_pool,
+    AppContextSeeds as _, AuthedFixture, DisposableDb, TestBootstrap, fixture_admitted,
+    fixture_app_context_on_bootstrap, fixture_config, init_services_bootstrap,
+    seed_admin_credential, settle_background, test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;

@@ -7,8 +7,7 @@ use axum::http::{Method, StatusCode, header};
 use systemprompt_documents::download::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
 use systemprompt_files_entry::http::documents::{router, with_download_tokens};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
-use systemprompt_test_fixtures::AppContextSeeds as _;
-use systemprompt_test_fixtures::{parse_pdf, seed_bridge_credential};
+use systemprompt_test_fixtures::{AppContextSeeds as _, parse_pdf, seed_bridge_credential};
 
 use super::documents::{
     app, create_markdown, fixture, head_of, id_of, mint_download, put_content, request, send,

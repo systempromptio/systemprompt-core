@@ -1,9 +1,8 @@
-use crate::AppContextSeeds as _;
-use crate::{ensure_test_bootstrap, fixture_admitted};
+use crate::{ensure_test_bootstrap, fixture_admitted, AppContextSeeds as _};
 use systemprompt_cli::kernel::MemberHost;
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_extension::StandingTag;
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, GrantedPlane, KernelGrant};
+use systemprompt_extension::StandingTag;
 use systemprompt_identifiers::ExtensionId;
 
 fn booted(boot: &systemprompt_loader::BootContext) -> systemprompt_loader::BootContext {

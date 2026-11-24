@@ -15,9 +15,9 @@ use systemprompt_files::{
     DocumentsConfig, ExternalSharingConfig, RemoteOrigin, RenderedHtmlConfig, RenderedHtmlTier,
 };
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    fixture_admitted, fixture_app_context_on_bootstrap, fixture_config, init_documents_bootstrap,
+    AppContextSeeds as _, fixture_admitted, fixture_app_context_on_bootstrap, fixture_config,
+    init_documents_bootstrap,
 };
 use tower::ServiceExt;
 

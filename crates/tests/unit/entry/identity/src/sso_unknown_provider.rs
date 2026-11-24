@@ -6,8 +6,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_identity_entry::http::sso::{SsoRouteState, binder_from_headers, router};
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::AppContextSeeds;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_database_url};
+use systemprompt_test_fixtures::{
+    AppContextSeeds, ensure_test_bootstrap, test_app_context, test_database_url,
+};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 

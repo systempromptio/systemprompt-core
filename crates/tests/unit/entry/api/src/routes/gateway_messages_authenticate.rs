@@ -13,8 +13,7 @@ use systemprompt_gateway_entry::http::messages::auth::{AuthInputs, authenticate}
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::AppContextSeeds as _;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
+use systemprompt_test_fixtures::{AppContextSeeds as _, ensure_test_bootstrap, test_app_context};
 
 struct Harness {
     state: systemprompt_gateway_entry::http::state::GatewayHttpState,

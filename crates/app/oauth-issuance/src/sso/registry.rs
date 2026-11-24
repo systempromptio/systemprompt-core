@@ -18,9 +18,9 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::{MissingDependency, Resolved};
 use systemprompt_identifiers::SsoProviderId;
 use systemprompt_manifest::Config;
-use systemprompt_security::http::EdgeConfigView;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_security::http::EdgeConfigView;
 use systemprompt_traits::SecretStore;
 
 /// What a factory may read while building its provider or sink.

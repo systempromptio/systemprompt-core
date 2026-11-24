@@ -1,8 +1,7 @@
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
 use systemprompt_identifiers::AgentName;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    fixture_app_context_on_bootstrap, fixture_config, init_services_bootstrap,
+    AppContextSeeds as _, fixture_app_context_on_bootstrap, fixture_config, init_services_bootstrap,
 };
 
 fn agent_port_candidates() -> impl Iterator<Item = u16> {

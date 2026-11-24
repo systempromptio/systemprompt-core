@@ -9,10 +9,10 @@ use axum::{Extension, Router};
 use serde_json::{Value, json};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files_entry::http::documents::{DocumentsState, router};
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    AuthedFixture, TestBootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
-    fixture_config, init_documents_bootstrap, seed_bridge_credential,
+    AppContextSeeds as _, AuthedFixture, TestBootstrap, fixture_admitted,
+    fixture_app_context_on_bootstrap, fixture_config, init_documents_bootstrap,
+    seed_bridge_credential,
 };
 use tower::ServiceExt;
 use uuid::Uuid;

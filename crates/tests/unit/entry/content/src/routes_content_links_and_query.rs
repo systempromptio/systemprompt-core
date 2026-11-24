@@ -16,8 +16,7 @@ use axum::{Extension, Router};
 use systemprompt_content_entry::http as content;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::AppContextSeeds as _;
-use systemprompt_test_fixtures::{DisposableDb, test_app_context};
+use systemprompt_test_fixtures::{AppContextSeeds as _, DisposableDb, test_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 

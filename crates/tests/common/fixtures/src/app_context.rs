@@ -26,14 +26,14 @@ use systemprompt_extension::{Admitted, Extension, StandingTag};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
-use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
+use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_runtime::{AppContext, AppContextBuilder};
 
-use crate::bootstrap::{TestBootstrap, ensure_test_bootstrap};
+use crate::bootstrap::{ensure_test_bootstrap, TestBootstrap};
 
 pub const FIXTURE_JWT_ISSUER: &str = "https://issuer.test";
 
@@ -502,8 +502,8 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
     )
 }
 
-pub fn default_governance_watch()
--> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
+pub fn default_governance_watch(
+) -> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
     systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),

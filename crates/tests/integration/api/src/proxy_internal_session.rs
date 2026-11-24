@@ -12,10 +12,9 @@ use systemprompt_identifiers::{
 use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::contexts::ContextKind;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_services_bootstrap, mint_admin_jwt, seed_running_service, seed_user_row,
-    test_app_context_on, test_config, test_db_pool,
+    AppContextSeeds as _, TestBootstrap, init_services_bootstrap, mint_admin_jwt,
+    seed_running_service, seed_user_row, test_app_context_on, test_config, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;

@@ -6,8 +6,7 @@
 
 use anyhow::Result;
 use systemprompt_extension::HasRouteClassifier;
-use systemprompt_test_fixtures::AppContextSeeds;
-use systemprompt_test_fixtures::{fixture_admitted, test_database_url};
+use systemprompt_test_fixtures::{AppContextSeeds, fixture_admitted, test_database_url};
 use systemprompt_traits::AppContext as AppContextTrait;
 
 async fn build_ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {

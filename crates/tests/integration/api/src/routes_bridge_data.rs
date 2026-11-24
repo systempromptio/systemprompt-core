@@ -5,8 +5,7 @@
 use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_oauth::repository::BridgeHostPrefsRepository;
-use systemprompt_test_fixtures::AppContextSeeds as _;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_test_fixtures::{AppContextSeeds as _, ensure_test_bootstrap};
 use systemprompt_users::UserRepository;
 
 use super::common::setup_ctx;

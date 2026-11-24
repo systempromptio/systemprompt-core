@@ -10,9 +10,8 @@
 
 use systemprompt_extension::{ContributionError, Contributions, Extension, ExtensionMetadata};
 use systemprompt_runtime::{AppContext, KernelError, RuntimeError};
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    core_members, fixture_admitted, fixture_admitted_of, fixture_core_members,
+    AppContextSeeds as _, core_members, fixture_admitted, fixture_admitted_of, fixture_core_members,
 };
 
 use crate::boot::{BootOptions, boot};

@@ -8,8 +8,7 @@
 use systemprompt_identifiers::Actor;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::ConfigReconcileService;
-use systemprompt_test_fixtures::AppContextSeeds as _;
-use systemprompt_test_fixtures::{test_database_url, unique_user_id};
+use systemprompt_test_fixtures::{AppContextSeeds as _, test_database_url, unique_user_id};
 use systemprompt_traits::{Dependencies, JobContext};
 
 fn reachable(state: &Dependencies, context: &Dependencies) -> Vec<&'static str> {

@@ -169,8 +169,8 @@ fn replica_shared_buckets(state: &Dependencies, limits: &RateLimitsConfig) -> Dy
         .filter(|_| from_users)
         .cloned()
         .unwrap_or_else(|| {
-            let callers =
-                std::num::NonZeroU64::new(limits.memory_capacity).unwrap_or(std::num::NonZeroU64::MIN);
+            let callers = std::num::NonZeroU64::new(limits.memory_capacity)
+                .unwrap_or(std::num::NonZeroU64::MIN);
             Arc::new(MemoryRateLimitBuckets::with_capacity(callers))
         })
 }

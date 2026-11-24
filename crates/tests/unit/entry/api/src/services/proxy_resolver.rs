@@ -10,9 +10,8 @@ use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
+    AppContextSeeds as _, ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
 };
 
 async fn live_pool() -> DbPool {

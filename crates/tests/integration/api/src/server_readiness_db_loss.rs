@@ -5,8 +5,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::Request;
 use systemprompt_api::services::server::builder::discovery_router;
 use systemprompt_api::services::server::readiness::ReadinessState;
-use systemprompt_test_fixtures::AppContextSeeds as _;
-use systemprompt_test_fixtures::{DisposableDb, test_app_context};
+use systemprompt_test_fixtures::{AppContextSeeds as _, DisposableDb, test_app_context};
 use tower::ServiceExt;
 
 #[tokio::test]

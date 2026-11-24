@@ -67,8 +67,7 @@ use systemprompt_logging::LoggingRuntime;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_provider_contracts::{DependencyProvider, MissingDependency};
 use systemprompt_runtime::{AppContext, Kernel};
-use systemprompt_traits::AppContext as _;
-use systemprompt_traits::ConfigWatch;
+use systemprompt_traits::{AppContext as _, ConfigWatch};
 
 use self::access_log::log_gateway_request;
 use self::builtin::confined;

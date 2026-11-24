@@ -1,7 +1,8 @@
 //! The context's host seeds: the kernel seeds a context requires, the
-//! context-built values [`AppContext::from_parts`](super::AppContext::from_parts)
-//! seals into the state, and the two host operations computed over the state
-//! rather than held in it.
+//! context-built values
+//! [`AppContext::from_parts`](super::AppContext::from_parts) seals into the
+//! state, and the two host operations computed over the state rather than held
+//! in it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

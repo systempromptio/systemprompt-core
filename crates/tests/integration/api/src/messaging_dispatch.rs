@@ -16,11 +16,10 @@ use systemprompt_governance::authz::{AuthzHookCell, DenyAllHook};
 use systemprompt_identifiers::{AgentName, SlackChannelId, SlackUserId, SlackWorkspaceId};
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
-    ensure_messaging_bootstrap, fixture_app_context_with_hook, seed_agent_backend,
-    test_app_context, test_db_pool, test_messaging_agent,
+    AppContextSeeds as _, TEST_SLACK_WORKSPACE_ID, agent_error_response_json,
+    agent_reply_response_json, ensure_messaging_bootstrap, fixture_app_context_with_hook,
+    seed_agent_backend, test_app_context, test_db_pool, test_messaging_agent,
 };
 use systemprompt_traits::{
     DispatchOutcome, LinkPolicy, MessagingConversation, MessagingInbound, SenderIdentity,

@@ -19,7 +19,7 @@
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use sqlx::{Connection, PgConnection, PgPool};
-use systemprompt_database::{SchemaMember, schema_members};
+use systemprompt_database::{schema_members, SchemaMember};
 
 use crate::db::connect;
 

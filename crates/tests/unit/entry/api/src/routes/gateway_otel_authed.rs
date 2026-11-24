@@ -19,10 +19,9 @@ use systemprompt_api::services::server::metrics::install_recorder;
 use systemprompt_gateway_entry::http::otel::{handle, ingest_envelope};
 use systemprompt_identifiers::{InstanceId, SessionId};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context,
-    test_database_url, test_db_pool,
+    AppContextSeeds as _, AuthedFixture, ensure_test_bootstrap, seed_bridge_credential,
+    test_app_context, test_database_url, test_db_pool,
 };
 
 const EXPORTS: &str = "gateway_desktop_telemetry_exports_total";

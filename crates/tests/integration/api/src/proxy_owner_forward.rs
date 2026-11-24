@@ -21,9 +21,8 @@ use systemprompt_manifest::profile::NodeRole;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::jwt::verify_owner_hop;
-use systemprompt_test_fixtures::AppContextSeeds as _;
 use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_app_context_with_config,
+    AppContextSeeds as _, TestBootstrap, ensure_test_bootstrap, fixture_app_context_with_config,
     fixture_app_context_with_services, fixture_config, init_services_bootstrap, test_db_pool,
 };
 use tower::ServiceExt;

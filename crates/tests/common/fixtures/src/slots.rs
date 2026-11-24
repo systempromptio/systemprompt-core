@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::contribute::{ContributionSink, build_slot};
+use systemprompt_extension::contribute::{build_slot, ContributionSink};
 use systemprompt_extension::{Contributions, Resolved, Slot, SlotError, StandingTag};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::Dependencies;

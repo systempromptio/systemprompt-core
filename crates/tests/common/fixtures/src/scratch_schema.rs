@@ -17,13 +17,13 @@
 
 use std::sync::Arc;
 
-use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 use systemprompt_database::{Database, DbPool, SchemaName};
 
 use crate::db::{
-    FIXTURE_POOL_ACQUIRE_TIMEOUT, FIXTURE_POOL_IDLE_TIMEOUT, FIXTURE_POOL_MAX_CONNECTIONS,
-    budget_exhausted, test_database_url, test_pg_pool,
+    budget_exhausted, test_database_url, test_pg_pool, FIXTURE_POOL_ACQUIRE_TIMEOUT,
+    FIXTURE_POOL_IDLE_TIMEOUT, FIXTURE_POOL_MAX_CONNECTIONS,
 };
 
 pub struct ScratchSchema {

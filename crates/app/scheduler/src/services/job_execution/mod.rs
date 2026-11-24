@@ -35,9 +35,8 @@ use std::time::{Duration, Instant};
 use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_identifiers::{Actor, InstanceId, JobName, UserId};
-use systemprompt_manifest::Config;
-use systemprompt_manifest::SchedulerConfig;
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_manifest::{Config, SchedulerConfig};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
 
