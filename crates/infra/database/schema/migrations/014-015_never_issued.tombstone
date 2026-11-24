@@ -1,0 +1,13 @@
+Slots 014 and 015 are spent, not free.
+
+No migration was ever written here. 016_instance_lease_fencing.sql was
+numbered from 016 while the highest slot in use was 013, so 014 and 015 were
+skipped rather than deleted -- there is no 014 or 015 in this directory's
+history and no database has a tracking row for either.
+
+The slots are tombstoned rather than filled, because 016 and 017 are already
+pushed and a migration that has shipped cannot be renumbered: the runner
+keys a tracking row on the version and refuses the checksum change, so a
+deployment that applied 016 would reject its replacement at the next boot.
+
+Numbering continues at the highest slot ever used, never at the first gap.
