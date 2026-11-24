@@ -62,6 +62,7 @@ impl OutboxSchema {
         for ddl in [
             include_str!("../../../../infra/events/schema/event_outbox.sql"),
             include_str!("../../../../infra/events/schema/event_outbox_backlog.sql"),
+            include_str!("../../../../infra/events/schema/event_outbox_aggregate_seq.sql"),
             include_str!("../../../../infra/events/schema/migrations/004_durable_consumption.sql"),
         ] {
             sqlx::raw_sql(sqlx::AssertSqlSafe(ddl))
