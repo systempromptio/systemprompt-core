@@ -273,7 +273,7 @@ async fn a_refusing_gate_refuses_and_records_nothing() {
         )
         .await;
     assert!(
-        matches!(&refused, Err(ManagedError::Conflict(message)) if message.contains("regressed")),
+        matches!(&refused, Err(ManagedError::GateRefused { reason, .. }) if reason.contains("regressed")),
         "{refused:?}"
     );
     let head = f
@@ -409,7 +409,7 @@ async fn a_cohort_outside_the_configured_rings_is_refused() {
         )
         .await;
     assert!(
-        matches!(refused, Err(ManagedError::Invalid(_))),
+        matches!(refused, Err(ref e) if e.is_invalid()),
         "{refused:?}"
     );
 }
@@ -424,7 +424,7 @@ async fn a_ring_on_an_unregistered_dimension_fails_resolution() {
         .list_resolutions_for(&f.owner, &reader, ResourceKind::Skill)
         .await;
     assert!(
-        matches!(resolution, Err(ManagedError::Invalid(_))),
+        matches!(resolution, Err(ref e) if e.is_invalid()),
         "{resolution:?}"
     );
 }
@@ -470,9 +470,9 @@ impl PublicationGate for BrokenGate {
     }
 
     async fn admit(&self, _ctx: &GateContext<'_>) -> Result<GateVerdict, PublicationGateError> {
-        Err(PublicationGateError::Evidence(
-            "unreadable report".to_owned(),
-        ))
+        Err(PublicationGateError::Evidence {
+            message: "unreadable report".to_owned(),
+        })
     }
 }
 
@@ -624,7 +624,7 @@ async fn an_admitting_install_gate_cannot_outvote_a_refusing_core_gate_in_either
     ] {
         let refused = publish_through(gates).await;
         assert!(
-            matches!(&refused, Err(ManagedError::Conflict(reason)) if reason.contains("core")),
+            matches!(&refused, Err(ManagedError::GateRefused { gate, .. }) if *gate == "core"),
             "{refused:?}"
         );
     }

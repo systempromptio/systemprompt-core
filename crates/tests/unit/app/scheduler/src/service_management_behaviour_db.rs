@@ -459,8 +459,8 @@ mod live_child_stop_paths {
             "the row is still marked stopped"
         );
 
-        child.kill().ok();
-        let _ = child.wait();
+        child.kill().expect("kill the test's own child");
+        child.wait().expect("reap the test's own child");
         repo.delete_service(&name).await.expect("cleanup row");
     }
 

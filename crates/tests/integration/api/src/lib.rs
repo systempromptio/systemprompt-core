@@ -1,176 +1,132 @@
 //! Integration tests for `systemprompt-api` HTTP route handlers.
 
 #[cfg(test)]
-#[path = "agent_http_member.rs"]
 mod agent_http_member;
 
 #[cfg(test)]
-#[path = "routes_marketplace_mounted.rs"]
 mod routes_marketplace_mounted;
 
 #[cfg(test)]
-#[path = "routes_gateway_auth.rs"]
 mod routes_gateway_auth;
 
 #[cfg(test)]
-#[path = "server_mount_gateway_and_mcp_scope.rs"]
 mod server_mount_gateway_and_mcp_scope;
 
 #[cfg(test)]
-#[path = "server_mount_analytics.rs"]
 mod server_mount_analytics;
 
 #[cfg(test)]
-#[path = "server_static_site_auth.rs"]
 mod server_static_site_auth;
 
 #[cfg(test)]
-#[path = "server_mount_notifications.rs"]
 mod server_mount_notifications;
 
 #[cfg(test)]
-#[path = "routes_agent_mounted.rs"]
 mod routes_agent_mounted;
 
 #[cfg(test)]
-#[path = "routes_content_mounted.rs"]
 mod routes_content_mounted;
 
 #[cfg(test)]
-#[path = "routes_brain_mounted.rs"]
 mod routes_brain_mounted;
 
 #[cfg(test)]
-#[path = "routes_role_gateway.rs"]
 mod routes_role_gateway;
 
 #[cfg(test)]
-#[path = "gateway_admitted_routes.rs"]
 mod gateway_admitted_routes;
 
 #[cfg(test)]
-#[path = "server_declared_groups.rs"]
 mod server_declared_groups;
 
 #[cfg(test)]
-#[path = "gateway_overhead_metrics.rs"]
 mod gateway_overhead_metrics;
 
-#[path = "load_shed_outermost.rs"]
 mod load_shed_outermost;
 #[cfg(test)]
-#[path = "server_load_shed.rs"]
 mod server_load_shed;
 
 #[cfg(test)]
-#[path = "routes_mcp_registry_mounted.rs"]
 mod routes_mcp_registry_mounted;
 
 #[cfg(test)]
-#[path = "routes_wellknown.rs"]
 mod routes_wellknown;
 
 #[cfg(test)]
-#[path = "routes_wellknown_agent_cards_populated.rs"]
 mod routes_wellknown_agent_cards_populated;
 
 #[cfg(test)]
-#[path = "routes_agent_registry.rs"]
 mod routes_agent_registry;
 
 #[cfg(test)]
-#[path = "routes_agent_registry_populated.rs"]
 mod routes_agent_registry_populated;
 
 #[cfg(test)]
-#[path = "routes_agent_read_outage.rs"]
 mod routes_agent_read_outage;
 #[cfg(test)]
-#[path = "routes_agent_tasks.rs"]
 mod routes_agent_tasks;
 
 #[cfg(test)]
-#[path = "routes_admin_keys.rs"]
 mod routes_admin_keys;
 
 #[cfg(test)]
-#[path = "routes_users_sessions.rs"]
 mod routes_users_sessions;
 
 #[cfg(test)]
-#[path = "routes_misc.rs"]
 mod routes_misc;
 
 #[cfg(test)]
-#[path = "routes_gateway.rs"]
 mod routes_gateway;
 
 #[cfg(test)]
-#[path = "routes_gateway_authed.rs"]
 mod routes_gateway_authed;
 
 #[cfg(test)]
-#[path = "routes_gateway_manifest_skills.rs"]
 mod routes_gateway_manifest_skills;
 
 #[cfg(test)]
-#[path = "routes_oauth_discovery.rs"]
 mod routes_oauth_discovery;
 
 #[cfg(test)]
-#[path = "routes_stream.rs"]
 mod routes_stream;
 
 #[cfg(test)]
-#[path = "routes_sync.rs"]
 mod routes_sync;
 
 #[cfg(test)]
-#[path = "routes_proxy.rs"]
 mod routes_proxy;
 
 #[cfg(test)]
-#[path = "routes_health_and_oauth_wellknown.rs"]
 mod routes_health_and_oauth_wellknown;
 
 #[cfg(test)]
-#[path = "routes_oauth_public.rs"]
 mod routes_oauth_public;
 
 #[cfg(test)]
-#[path = "routes_admin_cli.rs"]
 mod routes_admin_cli;
 
 #[cfg(test)]
-#[path = "routes_agent_contexts.rs"]
 mod routes_agent_contexts;
 
 #[cfg(test)]
-#[path = "server_boot.rs"]
 mod server_boot;
 
 #[cfg(test)]
-#[path = "boot_missing_providers.rs"]
 mod boot_missing_providers;
 
 #[cfg(test)]
-#[path = "server_early_bind.rs"]
 mod server_early_bind;
 
 #[cfg(test)]
-#[path = "server_run_loop.rs"]
 mod server_run_loop;
 
 #[cfg(test)]
-#[path = "services_quota_policy.rs"]
 mod services_quota_policy;
 
 #[cfg(test)]
-#[path = "services_quota_sharding.rs"]
 mod services_quota_sharding;
 
 #[cfg(test)]
-#[path = "routes_bridge_data.rs"]
 mod routes_bridge_data;
 
 #[cfg(test)]
@@ -178,27 +134,21 @@ mod gateway_http_member;
 #[cfg(test)]
 mod identity_http_member;
 #[cfg(test)]
-#[path = "routes_gateway_bridge_jwt.rs"]
 mod routes_gateway_bridge_jwt;
 
 #[cfg(test)]
-#[path = "routes_oauth_pkce_flow.rs"]
 mod routes_oauth_pkce_flow;
 
 #[cfg(test)]
-#[path = "middleware_edges.rs"]
 mod middleware_edges;
 
 #[cfg(test)]
-#[path = "gateway_extract_units.rs"]
 mod gateway_extract_units;
 
 #[cfg(test)]
-#[path = "stream_tap_accumulator.rs"]
 mod stream_tap_accumulator;
 
 #[cfg(test)]
-#[path = "protocol_matrix.rs"]
 mod protocol_matrix;
 
 #[cfg(test)]
@@ -250,256 +200,192 @@ mod internal_links_worker;
 #[cfg(test)]
 mod member_surfaces;
 #[cfg(test)]
-#[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
 
 #[cfg(test)]
-#[path = "server_gateway_disabled.rs"]
 mod server_gateway_disabled;
 
 #[cfg(test)]
-#[path = "common.rs"]
 mod common;
 
 #[cfg(test)]
-#[path = "oauth_register_owner_fk_present.rs"]
 mod oauth_register_owner_fk_present;
 
 #[cfg(test)]
-#[path = "session_middleware_persists_anon.rs"]
 mod session_middleware_persists_anon;
 
 #[cfg(test)]
-#[path = "routes_mcp_unauth_challenge.rs"]
 mod routes_mcp_unauth_challenge;
 
 #[cfg(test)]
-#[path = "routes_oauth_webauthn_complete.rs"]
 mod routes_oauth_webauthn_complete;
 
 #[cfg(test)]
-#[path = "routes_oauth_token_exchange.rs"]
 mod routes_oauth_token_exchange;
 
 #[cfg(test)]
-#[path = "routes_health_discovery.rs"]
 mod routes_health_discovery;
 
 #[cfg(test)]
-#[path = "routes_agent_webhook.rs"]
 mod routes_agent_webhook;
 
 #[cfg(test)]
-#[path = "routes_agent_body_limit.rs"]
 mod routes_agent_body_limit;
 #[cfg(test)]
-#[path = "routes_proxy_forward.rs"]
 mod routes_proxy_forward;
 
 #[cfg(test)]
-#[path = "proxy_internal_session.rs"]
 mod proxy_internal_session;
 
 #[cfg(test)]
-#[path = "routes_sync_files.rs"]
 mod routes_sync_files;
 
 #[cfg(test)]
-#[path = "routes_agent_artifacts.rs"]
 mod routes_agent_artifacts;
 
 #[cfg(test)]
-#[path = "messaging_dispatch.rs"]
 mod messaging_dispatch;
 #[cfg(test)]
-#[path = "messaging_linking.rs"]
 mod messaging_linking;
 
 #[cfg(test)]
-#[path = "routes_oauth_authorize.rs"]
 mod routes_oauth_authorize;
 
 #[cfg(test)]
-#[path = "routes_oauth_authorize_session.rs"]
 mod routes_oauth_authorize_session;
 
 #[cfg(test)]
-#[path = "routes_oauth_logout.rs"]
 mod routes_oauth_logout;
 
 #[cfg(test)]
-#[path = "middleware_session_lifecycle.rs"]
 mod middleware_session_lifecycle;
 
 #[cfg(test)]
-#[path = "middleware_analytics_detection.rs"]
 mod middleware_analytics_detection;
 
 #[cfg(test)]
-#[path = "middleware_behavioral_detection.rs"]
 mod middleware_behavioral_detection;
 
 #[cfg(test)]
-#[path = "middleware_jwt_context.rs"]
 mod middleware_jwt_context;
 
 #[cfg(test)]
-#[path = "request_authenticator_paths.rs"]
 mod request_authenticator_paths;
 
 #[cfg(test)]
-#[path = "health_monitor.rs"]
 mod health_monitor;
 
 #[cfg(test)]
-#[path = "static_files_serving.rs"]
 mod static_files_serving;
 
 #[cfg(test)]
-#[path = "static_files_layers.rs"]
 mod static_files_layers;
 
 #[cfg(test)]
-#[path = "gateway_journal_drain.rs"]
 mod gateway_journal_drain;
 
 #[cfg(test)]
-#[path = "gateway_pipeline.rs"]
 mod gateway_pipeline;
 
 #[cfg(test)]
-#[path = "gateway_recall.rs"]
 mod gateway_recall;
 
 #[cfg(test)]
-#[path = "gateway_recall_cases.rs"]
 mod gateway_recall_cases;
 
 #[cfg(test)]
-#[path = "gateway_failover.rs"]
 mod gateway_failover;
 
 #[cfg(test)]
-#[path = "gateway_tool_result_artifacts.rs"]
 mod gateway_tool_result_artifacts;
 
 #[cfg(test)]
-#[path = "gateway_safety_scanner_failure.rs"]
 mod gateway_safety_scanner_failure;
 
 #[cfg(test)]
-#[path = "gateway_safety_scanner_config.rs"]
 mod gateway_safety_scanner_config;
 
 #[cfg(test)]
-#[path = "gateway_safety_redaction.rs"]
 mod gateway_safety_redaction;
 
 #[cfg(test)]
-#[path = "gateway_scan_sent_bytes.rs"]
 mod gateway_scan_sent_bytes;
 
 #[cfg(test)]
-#[path = "gateway_matrix.rs"]
 mod gateway_matrix;
 
 #[cfg(test)]
-#[path = "gateway_matrix_anthropic_in.rs"]
 mod gateway_matrix_anthropic_in;
 
 #[cfg(test)]
-#[path = "gateway_matrix_degenerate.rs"]
 mod gateway_matrix_degenerate;
 
 #[cfg(test)]
-#[path = "gateway_matrix_openai_chat_in.rs"]
 mod gateway_matrix_openai_chat_in;
 
 #[cfg(test)]
-#[path = "gateway_matrix_openai_responses_in.rs"]
 mod gateway_matrix_openai_responses_in;
 
 #[cfg(test)]
-#[path = "gateway_matrix_inbound.rs"]
 mod gateway_matrix_inbound;
 
 #[cfg(test)]
-#[path = "gateway_matrix_anthropic_terminal.rs"]
 mod gateway_matrix_anthropic_terminal;
 
 #[cfg(test)]
-#[path = "gateway_matrix_openai_responses_terminal.rs"]
 mod gateway_matrix_openai_responses_terminal;
 
 #[cfg(test)]
-#[path = "gateway_matrix_null_fields.rs"]
 mod gateway_matrix_null_fields;
 
 #[cfg(test)]
-#[path = "gateway_upstream_error_map.rs"]
 mod gateway_upstream_error_map;
 
 #[cfg(test)]
-#[path = "gateway_empty_upstream_body.rs"]
 mod gateway_empty_upstream_body;
 
 #[cfg(test)]
-#[path = "gateway_stream_abort.rs"]
 mod gateway_stream_abort;
 
 #[cfg(test)]
-#[path = "gateway_stream_usage.rs"]
 mod gateway_stream_usage;
 
 #[cfg(test)]
-#[path = "routes_bridge_plugin_archive.rs"]
 mod routes_bridge_plugin_archive;
 #[cfg(test)]
-#[path = "routes_bridge_plugin_file.rs"]
 mod routes_bridge_plugin_file;
 
 #[cfg(test)]
-#[path = "routes_bridge_manifest_catalog.rs"]
 mod routes_bridge_manifest_catalog;
 
 #[cfg(test)]
-#[path = "routes_bridge_manifest_config_reload.rs"]
 mod routes_bridge_manifest_config_reload;
 
 #[cfg(test)]
-#[path = "routes_proxy_mcp_executions.rs"]
 mod routes_proxy_mcp_executions;
 
 #[cfg(test)]
-#[path = "routes_agent_cards.rs"]
 mod routes_agent_cards;
 
 #[cfg(test)]
-#[path = "proxy_auth_access.rs"]
 mod proxy_auth_access;
 
 #[cfg(test)]
-#[path = "proxy_mcp_headers.rs"]
 mod proxy_mcp_headers;
 
 #[cfg(test)]
-#[path = "proxy_audit_tap.rs"]
 mod proxy_audit_tap;
 
 #[cfg(test)]
-#[path = "routes_oauth_token_grants_happy.rs"]
 mod routes_oauth_token_grants_happy;
 
 #[cfg(test)]
-#[path = "routes_oauth_grant_resource.rs"]
 mod routes_oauth_grant_resource;
 
 #[cfg(test)]
-#[path = "routes_oauth_clients.rs"]
 mod routes_oauth_clients;
 
 #[cfg(test)]
-#[path = "routes_oauth_introspect_revoke.rs"]
 mod routes_oauth_introspect_revoke;
 
 #[cfg(test)]
@@ -513,224 +399,168 @@ mod routes_oauth_revoke_refresh;
 mod routes_oauth_ui_revoke;
 
 #[cfg(test)]
-#[path = "routes_oauth_userinfo.rs"]
 mod routes_oauth_userinfo;
 
 #[cfg(test)]
-#[path = "routes_oauth_webauthn.rs"]
 mod routes_oauth_webauthn;
 
 #[cfg(test)]
-#[path = "routes_oauth_token_exchange_oidc.rs"]
 mod routes_oauth_token_exchange_oidc;
 
 #[cfg(test)]
-#[path = "routes_agent_notifications.rs"]
 mod routes_agent_notifications;
 
 #[cfg(test)]
-#[path = "routes_agent_context_events.rs"]
 mod routes_agent_context_events;
 
 #[cfg(test)]
-#[path = "routes_agent_webhook_broadcast.rs"]
 mod routes_agent_webhook_broadcast;
 
 #[cfg(test)]
-#[path = "routes_agent_webhook_ownership.rs"]
 mod routes_agent_webhook_ownership;
 
 #[cfg(test)]
-#[path = "routes_agent_contexts_crud.rs"]
 mod routes_agent_contexts_crud;
 
 #[cfg(test)]
-#[path = "gateway_messages_more.rs"]
 mod gateway_messages_more;
 
 #[cfg(test)]
-#[path = "gateway_otel_ingest.rs"]
 mod gateway_otel_ingest;
 
 #[cfg(test)]
-#[path = "gateway_bridge_models_more.rs"]
 mod gateway_bridge_models_more;
 
 #[cfg(test)]
-#[path = "gateway_dispatch_more.rs"]
 mod gateway_dispatch_more;
 
 #[cfg(test)]
-#[path = "server_extension_readiness.rs"]
 mod server_extension_readiness;
 #[cfg(test)]
-#[path = "server_readiness_db_loss.rs"]
 mod server_readiness_db_loss;
 #[cfg(test)]
-#[path = "server_readiness_metrics.rs"]
 mod server_readiness_metrics;
 
 #[cfg(test)]
-#[path = "server_health_more.rs"]
 mod server_health_more;
 
 #[cfg(test)]
-#[path = "static_content_more.rs"]
 mod static_content_more;
 
 #[cfg(test)]
-#[path = "middleware_more.rs"]
 mod middleware_more;
 
 #[cfg(test)]
-#[path = "gateway_scanner_without_ai.rs"]
 mod gateway_scanner_without_ai;
 #[cfg(test)]
-#[path = "proxy_cli_attribution.rs"]
 mod proxy_cli_attribution;
 #[cfg(test)]
-#[path = "proxy_external_mcp.rs"]
 mod proxy_external_mcp;
 
 #[cfg(test)]
-#[path = "proxy_more.rs"]
 mod proxy_more;
 
 #[cfg(test)]
-#[path = "api_error_units.rs"]
 mod api_error_units;
 
 #[cfg(test)]
-#[path = "routes_admin_cli_subprocess.rs"]
 mod routes_admin_cli_subprocess;
 
 #[cfg(test)]
-#[path = "routes_admin_keys_seeded.rs"]
 mod routes_admin_keys_seeded;
 
 #[cfg(test)]
-#[path = "routes_mcp_discovery_populated.rs"]
 mod routes_mcp_discovery_populated;
 
 #[cfg(test)]
-#[path = "routes_oauth_webauthn_link.rs"]
 mod routes_oauth_webauthn_link;
 
 #[cfg(test)]
-#[path = "routes_stream_delivery.rs"]
 mod routes_stream_delivery;
 
 #[cfg(test)]
-#[path = "gateway_bridge_release_routes.rs"]
 mod gateway_bridge_release_routes;
 
 #[cfg(test)]
-#[path = "gateway_enabled_routes.rs"]
 mod gateway_enabled_routes;
 
 #[cfg(test)]
-#[path = "gateway_profile_usage_seeded.rs"]
 mod gateway_profile_usage_seeded;
 
 #[cfg(test)]
-#[path = "jwt_user_state_denial.rs"]
 mod jwt_user_state_denial;
 
 #[cfg(test)]
-#[path = "gateway_limits_by_catalog_id.rs"]
 mod gateway_limits_by_catalog_id;
 
 #[cfg(test)]
-#[path = "gateway_limits_passthrough.rs"]
 mod gateway_limits_passthrough;
 
 #[cfg(test)]
-#[path = "gateway_dispatch_success.rs"]
 mod gateway_dispatch_success;
 
 #[cfg(test)]
-#[path = "gateway_caller_credential.rs"]
 mod gateway_caller_credential;
 
 #[cfg(test)]
-#[path = "gateway_malformed_tool_choice.rs"]
 mod gateway_malformed_tool_choice;
 
 #[cfg(test)]
 mod gateway_google_credentials;
 
 #[cfg(test)]
-#[path = "api_error_redaction.rs"]
 mod api_error_redaction;
 
 #[cfg(test)]
-#[path = "gateway_attribution.rs"]
 mod gateway_attribution;
 
 #[cfg(test)]
-#[path = "gateway_traffic.rs"]
 mod gateway_traffic;
 
 #[cfg(test)]
-#[path = "gateway_quota_reservation.rs"]
 mod gateway_quota_reservation;
 
 #[cfg(test)]
-#[path = "gateway_scope_routing.rs"]
 mod gateway_scope_routing;
 
 #[cfg(test)]
-#[path = "gateway_api_key_limits.rs"]
 mod gateway_api_key_limits;
 
 #[cfg(test)]
-#[path = "gateway_rate_windows.rs"]
 mod gateway_rate_windows;
 
 #[cfg(test)]
-#[path = "gateway_principal_parity.rs"]
 mod gateway_principal_parity;
 
 #[cfg(test)]
-#[path = "gateway_api_key_session_binding.rs"]
 mod gateway_api_key_session_binding;
 
 #[cfg(test)]
-#[path = "process_leases.rs"]
 mod process_leases;
 
 #[cfg(test)]
-#[path = "documents_agent_cap_live.rs"]
 mod documents_agent_cap_live;
 
 #[cfg(test)]
-#[path = "routes_uploads.rs"]
 mod routes_uploads;
 
 #[cfg(test)]
-#[path = "routes_uploads_tokens.rs"]
 mod routes_uploads_tokens;
 
 #[cfg(test)]
-#[path = "gateway_provider_credentials.rs"]
 mod gateway_provider_credentials;
 
 #[cfg(test)]
-#[path = "routes_issues.rs"]
 mod routes_issues;
 
 #[cfg(test)]
-#[path = "gateway_bridge_notifications.rs"]
 mod gateway_bridge_notifications;
 
 #[cfg(test)]
-#[path = "proxy_owner_forward.rs"]
 mod proxy_owner_forward;
 
 #[cfg(test)]
-#[path = "documents_import_export.rs"]
 mod documents_import_export;
 
 #[cfg(test)]
-#[path = "ownership_sweep/mod.rs"]
 mod ownership_sweep;

@@ -81,7 +81,7 @@ async fn a_declaration_of_the_other_account_kind_is_refused() -> Result<()> {
         .await
         .unwrap_err();
     assert!(
-        matches!(&refused, UserError::AccountKindMismatch(e) if *e == email),
+        matches!(&refused, UserError::AccountKindMismatch { email: e } if *e == email),
         "{refused:?}"
     );
     assert_eq!(

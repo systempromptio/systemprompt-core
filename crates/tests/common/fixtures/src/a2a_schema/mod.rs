@@ -1,7 +1,11 @@
+//! Validation against the vendored A2A 1.0.1 JSON schema.
+
+pub mod conformance;
+
 use serde_json::{Map, Value, json};
 use std::sync::OnceLock;
 
-const SCHEMA: &str = include_str!("fixtures/a2a-1.0.1.schema.json");
+const SCHEMA: &str = include_str!("a2a-1.0.1.schema.json");
 
 fn compact(reference: &str) -> String {
     reference

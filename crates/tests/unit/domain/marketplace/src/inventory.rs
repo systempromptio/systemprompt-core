@@ -148,17 +148,10 @@ impl Fixture {
     }
 }
 
-#[path = "publication_admission.rs"]
 mod admission;
-#[path = "inventory_baseline.rs"]
 mod baseline;
-#[path = "inventory_capture.rs"]
 mod capture;
-#[path = "inventory_configured_boundaries.rs"]
 mod configured_boundaries;
-#[path = "inventory_projection.rs"]
 mod projection;
-#[path = "inventory_publish_latest.rs"]
 mod publish_latest;
-#[path = "inventory_scanner.rs"]
 mod scanner;

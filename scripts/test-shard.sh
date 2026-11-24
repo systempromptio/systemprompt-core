@@ -163,7 +163,7 @@ cores="$(nproc 2>/dev/null || echo 4)"
 threads="${TEST_THREADS:-$(( cores < 8 ? cores : 8 ))}"
 
 # `--lib` alone skips every `tests/*.rs` integration binary (integration-cli's
-# subprocess suites, the events durable-delivery test, entry-cli's
+# subprocess suites, entry-cli's
 # plugin_validation_inventory), so every shard runs `--tests` too. Coverage
 # passes target kinds of its own, so target flags are deduplicated before
 # invoking nextest.

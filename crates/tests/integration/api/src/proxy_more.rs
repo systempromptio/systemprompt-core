@@ -115,7 +115,7 @@ fn outbound_headers_forwards_passthrough_and_provider() {
 fn map_resolve_error_classifies_domain_errors() {
     let auth = map_resolve_error(
         &ServiceName::new("svc"),
-        McpDomainError::AuthRequired("need".to_owned()),
+        McpDomainError::AuthRequired(systemprompt_mcp::AuthRequirement::UserJwt),
     )
     .to_string();
     assert!(auth.contains("Authentication required"));

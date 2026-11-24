@@ -24,29 +24,13 @@ mod user_error_display_tests {
 
     #[test]
     fn email_already_exists_displays_email() {
-        let error = UserError::EmailAlreadyExists("test@example.com".to_string());
+        let error = UserError::EmailAlreadyExists {
+            email: "test@example.com".to_string(),
+        };
 
         let display = error.to_string();
         assert!(display.contains("user already exists"));
         assert!(display.contains("test@example.com"));
-    }
-
-    #[test]
-    fn invalid_status_displays_status() {
-        let error = UserError::InvalidStatus("unknown_status".to_string());
-
-        let display = error.to_string();
-        assert!(display.contains("invalid status"));
-        assert!(display.contains("unknown_status"));
-    }
-
-    #[test]
-    fn invalid_role_displays_role() {
-        let error = UserError::InvalidRole("superuser".to_string());
-
-        let display = error.to_string();
-        assert!(display.contains("invalid role"));
-        assert!(display.contains("superuser"));
     }
 
     #[test]
@@ -56,16 +40,6 @@ mod user_error_display_tests {
         let display = error.to_string();
         assert!(display.contains("validation"));
         assert!(display.contains("Name cannot be empty"));
-    }
-
-    #[test]
-    fn invalid_roles_displays_roles() {
-        let error = UserError::InvalidRoles(vec!["superuser".to_string(), "root".to_string()]);
-
-        let display = error.to_string();
-        assert!(display.contains("invalid roles"));
-        assert!(display.contains("superuser"));
-        assert!(display.contains("root"));
     }
 }
 
@@ -93,28 +67,10 @@ mod user_error_construction_tests {
         ];
 
         for email in emails {
-            let error = UserError::EmailAlreadyExists(email.to_string());
+            let error = UserError::EmailAlreadyExists {
+                email: email.to_string(),
+            };
             assert!(error.to_string().contains(email));
-        }
-    }
-
-    #[test]
-    fn invalid_status_with_various_values() {
-        let statuses = ["", "unknown", "ACTIVE", "123"];
-
-        for status in statuses {
-            let error = UserError::InvalidStatus(status.to_string());
-            assert!(error.to_string().contains("invalid status"));
-        }
-    }
-
-    #[test]
-    fn invalid_role_with_various_values() {
-        let roles = ["", "superadmin", "ADMIN", "root"];
-
-        for role in roles {
-            let error = UserError::InvalidRole(role.to_string());
-            assert!(error.to_string().contains("invalid role"));
         }
     }
 
@@ -147,31 +103,15 @@ mod error_trait_tests {
 
     #[test]
     fn email_already_exists_source_is_none() {
-        let error = UserError::EmailAlreadyExists("test@example.com".to_string());
-        assert!(error.source().is_none());
-    }
-
-    #[test]
-    fn invalid_status_source_is_none() {
-        let error = UserError::InvalidStatus("bad".to_string());
-        assert!(error.source().is_none());
-    }
-
-    #[test]
-    fn invalid_role_source_is_none() {
-        let error = UserError::InvalidRole("bad".to_string());
+        let error = UserError::EmailAlreadyExists {
+            email: "test@example.com".to_string(),
+        };
         assert!(error.source().is_none());
     }
 
     #[test]
     fn validation_source_is_none() {
         let error = UserError::Validation("error".to_string());
-        assert!(error.source().is_none());
-    }
-
-    #[test]
-    fn invalid_roles_source_is_none() {
-        let error = UserError::InvalidRoles(vec!["bad".to_string()]);
         assert!(error.source().is_none());
     }
 }
@@ -244,7 +184,9 @@ mod edge_case_tests {
 
     #[test]
     fn special_characters_in_email() {
-        let error = UserError::EmailAlreadyExists("user+special@example.com".to_string());
+        let error = UserError::EmailAlreadyExists {
+            email: "user+special@example.com".to_string(),
+        };
         let display = error.to_string();
         assert!(display.contains("user+special@example.com"));
     }

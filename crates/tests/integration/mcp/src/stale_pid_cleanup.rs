@@ -13,7 +13,7 @@ use crate::common::{spawn_sleep, spawn_tcp_accept_loop};
 async fn pid_of_dead_process_is_recognised_as_not_running() {
     let mut child = spawn_sleep(1);
     let pid = child.id();
-    child.wait().expect("reap sleep");
+    assert!(child.wait().expect("reap sleep").success());
 
     assert!(
         !ProcessService::is_running(pid).await,

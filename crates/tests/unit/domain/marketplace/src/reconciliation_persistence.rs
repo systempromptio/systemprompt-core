@@ -99,7 +99,7 @@ async fn mode_or_media_changes_conflict_with_independent_content_edits_and_remai
             f.repo
                 .complete_reconciliation(&f.owner, &f.owner, &opened.id, &wrong_revision)
                 .await,
-            Err(ManagedError::Conflict(_))
+            Err(e) if e.is_conflict()
         ));
         f.repo
             .complete_reconciliation(&f.owner, &f.owner, &opened.id, &candidate)
@@ -159,7 +159,7 @@ async fn each_explicit_resolution_is_durable_owner_scoped_and_checks_resolved_co
             f.repo
                 .complete_reconciliation(&f.owner, &f.owner, &opened.id, &candidate)
                 .await,
-            Err(ManagedError::Conflict(_))
+            Err(e) if e.is_conflict()
         ));
         let manual_digest = AssetDigest::of(b"manual resolution");
         let decision = ConflictDecision {
@@ -353,7 +353,7 @@ async fn delete_edit_and_add_add_conflicts_are_retained_and_changed_base_retries
     changed.upstream_base_revision_id = candidate.clone();
     assert!(matches!(
         f.repo.begin_reconciliation(&f.owner, &changed).await,
-        Err(ManagedError::Conflict(_))
+        Err(e) if e.is_conflict()
     ));
     changed.incoming_revision_id = ResourceRevisionId::generate();
     assert!(matches!(

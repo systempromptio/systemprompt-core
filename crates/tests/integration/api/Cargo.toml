@@ -7,9 +7,6 @@ license.workspace = true
 description = "Integration tests for systemprompt-api HTTP route handlers"
 publish = false
 
-[lib]
-path = "mod.rs"
-
 [lints]
 workspace = true
 

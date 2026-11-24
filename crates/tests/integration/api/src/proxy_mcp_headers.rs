@@ -135,7 +135,7 @@ fn outbound_headers_provider_credential_wins() {
 fn resolve_error_mapping_covers_auth_and_availability() {
     let auth = map_resolve_error(
         &ServiceName::new("ext"),
-        McpDomainError::AuthRequired("login".to_owned()),
+        McpDomainError::AuthRequired(systemprompt_mcp::AuthRequirement::UserJwt),
     )
     .to_string();
     assert!(auth.contains("Authentication required"), "{auth}");

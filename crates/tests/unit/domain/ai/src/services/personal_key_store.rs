@@ -79,7 +79,10 @@ fn the_label_falls_back_to_the_credential_id() {
     let credential = catalog.credential("bare").expect("declared");
     assert_eq!(credential_label(credential), "bare");
     assert_eq!(
-        PersonalKeyError::NotPersonalCredential("x".to_owned()).to_string(),
+        PersonalKeyError::NotPersonalCredential {
+            credential: CredentialId::new("x"),
+        }
+        .to_string(),
         "credential 'x' does not take a personal key"
     );
 }
@@ -153,7 +156,7 @@ async fn a_blank_or_oversized_key_is_refused_without_calling_upstream() {
         .await
         .unwrap_err();
         assert!(
-            matches!(err, PersonalKeyError::Rejected(ref l) if l == "Go"),
+            matches!(err, PersonalKeyError::Rejected { credential: ref l } if l == "Go"),
             "{err:?}"
         );
     }
@@ -171,7 +174,7 @@ async fn a_blank_or_oversized_key_is_refused_without_calling_upstream() {
     .await
     .unwrap_err();
     assert!(
-        matches!(err, PersonalKeyError::NotPersonalCredential(_)),
+        matches!(err, PersonalKeyError::NotPersonalCredential { .. }),
         "{err:?}"
     );
     assert!(repo.list_metadata(&user).await.expect("list").is_empty());

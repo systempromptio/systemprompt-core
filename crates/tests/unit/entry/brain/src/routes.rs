@@ -136,7 +136,10 @@ fn brain_errors_map_to_statuses() {
         ),
         (BrainError::Tombstoned, StatusCode::CONFLICT),
         (
-            BrainError::InvalidFields("field price has no value".to_owned()),
+            BrainError::InvalidFields {
+                kind: FactKindId::try_new("decision").unwrap(),
+                reason: "field price has no value".to_owned(),
+            },
             StatusCode::UNPROCESSABLE_ENTITY,
         ),
         (

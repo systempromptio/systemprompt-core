@@ -61,12 +61,6 @@ fn test_timeout_display_contains_server_and_ms() {
 }
 
 #[test]
-fn test_manifest_error_display() {
-    let err = McpDomainError::Manifest("bad manifest".to_string());
-    assert!(err.to_string().contains("bad manifest"));
-}
-
-#[test]
 fn test_transport_error_keeps_its_source() {
     let err = McpDomainError::transport("token accessor", std::io::Error::other("eof"));
     assert!(err.to_string().contains("eof"));

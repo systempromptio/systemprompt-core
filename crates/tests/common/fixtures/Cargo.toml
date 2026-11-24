@@ -14,12 +14,14 @@ dotenvy = { workspace = true }
 systemprompt-documents = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
+systemprompt-cli = { workspace = true }
+systemprompt-cloud = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
-systemprompt-extension = { workspace = true, features = ["sqlx", "router"] }
+systemprompt-extension = { workspace = true, features = ["sqlx", "router", "cli"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-notifications = { workspace = true }
@@ -56,6 +58,7 @@ base64 = { workspace = true }
 sqlx = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
+jsonschema = { workspace = true }
 wiremock = { workspace = true }
 keyring-core = { workspace = true }
 systemprompt-test-migrate = { workspace = true }

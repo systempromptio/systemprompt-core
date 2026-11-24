@@ -30,7 +30,7 @@ async fn process_that_exits_immediately_is_recognised_as_dead() {
         .spawn()
         .expect("`true` must be on PATH");
     let pid = child.id();
-    child.wait().expect("reap true");
+    assert!(child.wait().expect("reap true").success());
 
     assert!(
         !ProcessService::is_running(pid).await,

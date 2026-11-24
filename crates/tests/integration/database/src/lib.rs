@@ -10,65 +10,49 @@
 mod composition;
 
 #[cfg(test)]
-#[path = "../schema_migration_order.rs"]
 mod schema_migration_order;
 
 #[cfg(test)]
-#[path = "../down_migration.rs"]
 mod down_migration;
 
 #[cfg(test)]
-#[path = "../migration_plan_status.rs"]
 mod migration_plan_status;
 
 #[cfg(test)]
-#[path = "../fresh_install_stamp.rs"]
 mod fresh_install_stamp;
 
 #[cfg(test)]
-#[path = "../fresh_install_retirement.rs"]
 mod fresh_install_retirement;
 
 #[cfg(test)]
-#[path = "../migration_slot_reuse.rs"]
 mod migration_slot_reuse;
 
 #[cfg(test)]
-#[path = "../interrupted_install.rs"]
 mod interrupted_install;
 
 #[cfg(test)]
-#[path = "../declarative_object_refs.rs"]
 mod declarative_object_refs;
 
 #[cfg(test)]
-#[path = "../migration_cost_static.rs"]
 mod migration_cost_static;
 
 #[cfg(test)]
-#[path = "../migration_refs_static.rs"]
 mod migration_refs_static;
 
 #[cfg(test)]
-#[path = "../migration_supersedes.rs"]
 mod migration_supersedes;
 
 #[cfg(test)]
-#[path = "../advisory_lock.rs"]
 mod advisory_lock;
 
 #[cfg(test)]
-#[path = "../cascade_delete.rs"]
 mod cascade_delete;
 
 #[cfg(test)]
-#[path = "../batch_atomicity.rs"]
 mod batch_atomicity;
 
 #[cfg(test)]
-#[path = "../projection_queue.rs"]
 mod projection_queue;
 
 #[cfg(test)]
-#[path = "../config_change_context.rs"]
 mod config_change_context;

@@ -287,7 +287,7 @@ fn a_model_default_comes_from_the_provider_catalogue() {
         .create(unknown, || Ok(()))
         .expect_err("a provider the catalogue does not list has no default model");
     assert!(
-        matches!(err, ConfigAuthoringError::NoModelForProvider(_)),
+        matches!(err, ConfigAuthoringError::NoModelForProvider { .. }),
         "{err}"
     );
 }
@@ -687,7 +687,7 @@ fn the_registry_name_is_reserved_for_the_agent_registry() {
     let err = AgentConfigAuthoringService::validate_agent_name("registry")
         .expect_err("registry is the agent registry's path segment");
     assert!(
-        matches!(&err, ConfigAuthoringError::NameReserved(name) if name == "registry"),
+        matches!(&err, ConfigAuthoringError::NameReserved { name } if name == "registry"),
         "{err:?}"
     );
 }
@@ -713,7 +713,7 @@ fn creating_an_agent_named_registry_is_refused() {
         .create(create_request("registry", 9472), || Ok(()))
         .expect_err("registry cannot be created");
     assert!(
-        matches!(err, ConfigAuthoringError::NameReserved(_)),
+        matches!(err, ConfigAuthoringError::NameReserved { .. }),
         "{err:?}"
     );
     assert!(!tmp.path().join("agents/registry.yaml").exists());

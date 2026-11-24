@@ -38,6 +38,7 @@ pub mod paths;
 pub mod pdf;
 pub mod poll;
 pub mod schema_template;
+pub mod scratch_schema;
 pub mod secrets;
 #[cfg(test)]
 mod self_check;
@@ -122,6 +123,7 @@ pub use oauth::{
 pub use paths::{canonical_tempdir, repo_path, repo_root};
 pub use pdf::{parse_pdf, ParsedPdf};
 pub use poll::{await_window_headroom, block_on, eventually, settle_background};
+pub use scratch_schema::ScratchSchema;
 pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{

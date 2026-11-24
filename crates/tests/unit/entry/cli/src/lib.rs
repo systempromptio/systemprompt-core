@@ -18,7 +18,7 @@ use systemprompt_agent_runs as _;
 
 #[cfg(test)]
 #[cfg(test)]
-mod boot_ctx;
+use systemprompt_test_fixtures::cli::boot_ctx;
 #[cfg(test)]
 mod child_host;
 #[cfg(test)]
@@ -84,7 +84,7 @@ mod services_inspect_active;
 #[cfg(test)]
 mod services_inspect_flows;
 #[cfg(test)]
-mod services_profile_fixture;
+use systemprompt_test_fixtures::cli::services_profile_fixture;
 #[cfg(test)]
 mod services_publish;
 #[cfg(test)]
@@ -104,7 +104,7 @@ mod session_creation_admin_db;
 #[cfg(test)]
 mod session_lifecycle_flows;
 #[cfg(test)]
-mod session_project_fixture;
+use systemprompt_test_fixtures::cli::session_project_fixture;
 #[cfg(test)]
 mod session_resolution_context_db;
 #[cfg(test)]
@@ -123,6 +123,6 @@ mod config_migrate_database_url;
 #[cfg(all(test, unix))]
 mod coverage_process_flows;
 #[cfg(all(test, unix))]
-mod process_sandbox;
+use systemprompt_test_fixtures::cli::process_sandbox;
 #[cfg(test)]
 mod services_reconcile_retry;

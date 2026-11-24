@@ -6,7 +6,7 @@
 use axum::body::to_bytes;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use systemprompt_content::ContentError;
+use systemprompt_content::{ContentError, ContentParseError};
 use systemprompt_content_entry::http::ContentHttpError;
 use systemprompt_extension::router::{ApiHttpError, IntoApiError};
 use systemprompt_models::api::ErrorCode;
@@ -26,18 +26,6 @@ async fn status_and_body(err: ContentHttpError) -> anyhow::Result<(StatusCode, S
 #[test]
 fn content_errors_classify_by_variant() {
     assert_eq!(
-        code_of(ContentError::ContentNotFound("a".into())),
-        ErrorCode::NotFound
-    );
-    assert_eq!(
-        code_of(ContentError::LinkNotFound("a".into())),
-        ErrorCode::NotFound
-    );
-    assert_eq!(
-        code_of(ContentError::InvalidRequest("a".into())),
-        ErrorCode::BadRequest
-    );
-    assert_eq!(
         code_of(ContentError::Validation("a".into())),
         ErrorCode::BadRequest
     );
@@ -49,7 +37,7 @@ fn content_errors_classify_by_variant() {
         ErrorCode::NotFound
     );
     assert_eq!(
-        code_of(ContentError::Parse("secret detail".into())),
+        code_of(ContentError::Parse(ContentParseError::AmbiguousTimezone)),
         ErrorCode::InternalError
     );
 }
@@ -62,11 +50,13 @@ async fn a_content_failure_is_a_500_without_its_cause() -> anyhow::Result<()> {
         !body.contains("PostgreSQL"),
         "body leaked the cause: {body}"
     );
-    let (status, body) =
-        status_and_body(ContentError::Parse("secret detail".into()).into()).await?;
+    let (status, body) = status_and_body(
+        ContentError::Parse(ContentParseError::MissingFrontmatterDelimiters).into(),
+    )
+    .await?;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert!(
-        !body.contains("secret detail"),
+        !body.contains("frontmatter"),
         "body leaked the cause: {body}"
     );
     Ok(())

@@ -18,7 +18,7 @@ fn all_string_variants_display_correctly() {
         ),
         (
             "bad path",
-            FileUploadError::PathValidation("bad path".to_owned()),
+            FileUploadError::PathValidation { reason: "bad path" },
         ),
     ];
     for (needle, err) in cases {
@@ -51,7 +51,7 @@ fn all_upload_error_variants_are_debug() {
             "db err".to_owned(),
         ))),
         Box::new(FileUploadError::Base64TooLarge { encoded_size: 99 }),
-        Box::new(FileUploadError::PathValidation("bad path".to_owned())),
+        Box::new(FileUploadError::PathValidation { reason: "bad path" }),
         Box::new(FileUploadError::Io(std::io::Error::other("io"))),
     ];
     for err in errs {

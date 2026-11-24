@@ -10,7 +10,7 @@ use systemprompt_runtime::Kernel;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use crate::ensure_test_bootstrap;
 
 pub struct Project {
     previous: PathBuf,
@@ -22,7 +22,7 @@ pub struct Project {
 impl Project {
     pub fn new(username: &str, tenant: bool) -> Self {
         let boot = ensure_test_bootstrap();
-        let root = systemprompt_test_fixtures::canonical_tempdir();
+        let root = crate::canonical_tempdir();
         let profile = root
             .path()
             .join(".systemprompt/profiles/coverage/profile.yaml");
@@ -46,7 +46,7 @@ impl Project {
     }
 
     pub async fn with_session_seams(mut self) -> Self {
-        self.seams = Some(systemprompt_test_fixtures::session_seams::session_seam_kernel().await);
+        self.seams = Some(crate::session_seams::session_seam_kernel().await);
         self
     }
 
@@ -62,7 +62,7 @@ impl Project {
                 .with_profile_override(Some(self.profile.display().to_string())),
             EnvOverrides::default(),
         )
-        .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()));
+        .with_admitted(Some(crate::fixture_admitted()));
         match &self.seams {
             Some(kernel) => ctx.with_kernel(Arc::clone(kernel)),
             None => ctx.with_detached_kernel(),

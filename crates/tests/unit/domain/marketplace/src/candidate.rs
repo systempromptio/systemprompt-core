@@ -416,7 +416,9 @@ fn marketplace_error_variants_debug() {
     let variants: Vec<MarketplaceError> = vec![
         MarketplaceError::NotFound(MarketplaceId::new("missing")),
         MarketplaceError::NoDefault,
-        MarketplaceError::Catalog("fail".into()),
+        MarketplaceError::PluginUnconfigured {
+            plugin: systemprompt_identifiers::PluginId::new("fail"),
+        },
         MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing),
         MarketplaceError::Filter(MarketplaceFilterError::Backend("b".into())),
     ];

@@ -7,9 +7,6 @@ license.workspace = true
 description = "Integration tests for the Slack and Teams entry routes on a real database"
 publish = false
 
-[lib]
-path = "mod.rs"
-
 [lints]
 workspace = true
 

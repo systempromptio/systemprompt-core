@@ -15,15 +15,6 @@ mod template_error_display_tests {
     use super::*;
 
     #[test]
-    fn not_found_displays_template_name() {
-        let error = TemplateError::NotFound("my-template".to_string());
-
-        let display = error.to_string();
-        assert!(display.contains("template not found"));
-        assert!(display.contains("my-template"));
-    }
-
-    #[test]
     fn load_error_displays_name_and_message() {
         let error = TemplateError::LoadError {
             name: "broken-template".to_string(),
@@ -46,7 +37,9 @@ mod template_error_display_tests {
 
     #[test]
     fn no_loader_displays_template_name() {
-        let error = TemplateError::NoLoader("orphan-template".to_string());
+        let error = TemplateError::NoLoader {
+            name: "orphan-template".to_string(),
+        };
 
         let display = error.to_string();
         assert!(display.contains("no loader available"));
@@ -64,22 +57,6 @@ mod template_error_display_tests {
 
 mod template_error_construction_tests {
     use super::*;
-
-    #[test]
-    fn not_found_with_various_names() {
-        let names = [
-            "simple",
-            "multi-part-name",
-            "UPPERCASE",
-            "with.dots",
-            "with/slashes",
-        ];
-
-        for name in names {
-            let error = TemplateError::NotFound(name.to_string());
-            assert!(error.to_string().contains(name));
-        }
-    }
 
     #[test]
     fn load_error_with_various_messages() {
@@ -102,15 +79,10 @@ mod template_error_construction_tests {
     }
 
     #[test]
-    fn empty_template_name_in_not_found() {
-        let error = TemplateError::NotFound(String::new());
-        let display = error.to_string();
-        assert!(display.contains("template not found"));
-    }
-
-    #[test]
     fn empty_template_name_in_no_loader() {
-        let error = TemplateError::NoLoader(String::new());
+        let error = TemplateError::NoLoader {
+            name: String::new(),
+        };
         let display = error.to_string();
         assert!(display.contains("no loader available"));
     }
@@ -119,12 +91,6 @@ mod template_error_construction_tests {
 mod error_trait_tests {
     use super::*;
     use std::error::Error;
-
-    #[test]
-    fn not_found_source_is_none() {
-        let error = TemplateError::NotFound("test".to_string());
-        assert!(error.source().is_none());
-    }
 
     #[test]
     fn load_error_source_is_the_loader_error() {
@@ -156,7 +122,9 @@ mod error_trait_tests {
 
     #[test]
     fn no_loader_source_is_none() {
-        let error = TemplateError::NoLoader("test".to_string());
+        let error = TemplateError::NoLoader {
+            name: "test".to_string(),
+        };
         assert!(error.source().is_none());
     }
 
@@ -172,14 +140,18 @@ mod edge_case_tests {
 
     #[test]
     fn unicode_in_template_name() {
-        let error = TemplateError::NotFound("template-日本語".to_string());
+        let error = TemplateError::NoLoader {
+            name: "template-日本語".to_string(),
+        };
         let display = error.to_string();
         assert!(display.contains("日本語"));
     }
 
     #[test]
     fn special_characters_in_template_name() {
-        let error = TemplateError::NotFound("template@special#chars!".to_string());
+        let error = TemplateError::NoLoader {
+            name: "template@special#chars!".to_string(),
+        };
         let display = error.to_string();
         assert!(display.contains("template@special#chars!"));
     }
@@ -187,14 +159,18 @@ mod edge_case_tests {
     #[test]
     fn long_template_name() {
         let long_name = "x".repeat(1000);
-        let error = TemplateError::NotFound(long_name.clone());
+        let error = TemplateError::NoLoader {
+            name: long_name.clone(),
+        };
         let display = error.to_string();
         assert!(display.contains(&long_name));
     }
 
     #[test]
     fn newlines_in_template_name() {
-        let error = TemplateError::NotFound("line1\nline2".to_string());
+        let error = TemplateError::NoLoader {
+            name: "line1\nline2".to_string(),
+        };
         let display = error.to_string();
         assert!(display.contains("line1\nline2"));
     }

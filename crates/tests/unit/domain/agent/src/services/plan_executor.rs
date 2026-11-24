@@ -41,9 +41,9 @@ impl ToolExecutorTrait for AlwaysFailExecutor {
         _ctx: &RequestContext,
     ) -> Result<ToolOutcome> {
         Err(
-            systemprompt_agent::services::shared::AgentServiceError::ToolExecution(
-                "boom".to_owned(),
-            ),
+            systemprompt_agent::services::shared::AgentServiceError::ToolExecution {
+                message: "boom".to_owned(),
+            },
         )
     }
 }

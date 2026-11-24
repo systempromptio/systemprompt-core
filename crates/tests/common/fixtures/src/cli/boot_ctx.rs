@@ -3,7 +3,7 @@ use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::StandingTag;
 use systemprompt_extension::cli::{CliConfig, CommandDescriptor, GrantedPlane, KernelGrant};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_admitted};
+use crate::{ensure_test_bootstrap, fixture_admitted};
 
 fn booted(boot: &systemprompt_loader::BootContext) -> systemprompt_loader::BootContext {
     boot.install_services_root(boot.require_services_root());
@@ -67,7 +67,7 @@ pub fn new_on_database(cli: CliConfig, env: EnvOverrides, database_url: &str) ->
 }
 
 pub fn new_on(
-    bootstrap: &systemprompt_test_fixtures::TestBootstrap,
+    bootstrap: &crate::TestBootstrap,
     cli: CliConfig,
     env: EnvOverrides,
 ) -> CommandContext {
@@ -77,13 +77,13 @@ pub fn new_on(
 }
 
 pub async fn app_reloaded_on_database(
-    bootstrap: &systemprompt_test_fixtures::TestBootstrap,
+    bootstrap: &crate::TestBootstrap,
     database_url: &str,
 ) -> std::sync::Arc<systemprompt_runtime::AppContext> {
-    systemprompt_test_fixtures::fixture_app_context_reloaded_on(
+    crate::fixture_app_context_reloaded_on(
         bootstrap,
         database_url,
-        systemprompt_test_fixtures::fixture_admitted(),
+        crate::fixture_admitted(),
     )
     .await
     .expect("fixture app context over the services tree as the test seeded it")
@@ -91,7 +91,7 @@ pub async fn app_reloaded_on_database(
 
 pub fn core_purge() -> systemprompt_extension::AdmittedPurge {
     systemprompt_extension::AdmittedPurge::of(
-        systemprompt_test_fixtures::fixture_admitted().built(),
+        crate::fixture_admitted().built(),
     )
     .expect("the core purge plan admits")
 }

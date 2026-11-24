@@ -8,25 +8,19 @@
 //! this crate; see the track report for the gap.
 
 #[cfg(test)]
-#[path = "../build_orchestrator_e2e.rs"]
 mod build_orchestrator_e2e;
 
 #[cfg(test)]
-#[path = "../validation_e2e.rs"]
 mod validation_e2e;
 
 #[cfg(test)]
-#[path = "../rss_e2e.rs"]
 mod rss_e2e;
 
 #[cfg(test)]
-#[path = "../assets_e2e.rs"]
 mod assets_e2e;
 
 #[cfg(test)]
-#[path = "../error_e2e.rs"]
 mod error_e2e;
 
 #[cfg(test)]
-#[path = "../jobs_e2e.rs"]
 mod jobs_e2e;

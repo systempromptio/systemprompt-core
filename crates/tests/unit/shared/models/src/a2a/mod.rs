@@ -2,5 +2,5 @@
 
 mod card_and_capabilities;
 mod extension_skill_task;
-mod schema_check;
+use systemprompt_test_fixtures::a2a_schema::conformance as schema_check;
 mod wire_1_0;

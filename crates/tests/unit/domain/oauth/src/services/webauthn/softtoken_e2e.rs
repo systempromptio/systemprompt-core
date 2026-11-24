@@ -387,7 +387,7 @@ async fn assertion_behind_the_stored_counter_is_rejected_as_a_clone() {
     assert!(
         matches!(
             err,
-            OauthError::WebAuthnCeremony(_) | OauthError::WebAuthnVerificationFailed(_)
+            OauthError::WebAuthnCeremony(_) | OauthError::WebAuthnVerificationFailed { .. }
         ),
         "got {err:?}"
     );

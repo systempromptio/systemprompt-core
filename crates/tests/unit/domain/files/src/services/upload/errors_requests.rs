@@ -90,7 +90,9 @@ fn test_file_upload_error_display_base64_too_large() {
 
 #[test]
 fn test_file_upload_error_display_path_validation() {
-    let err = FileUploadError::PathValidation("invalid characters".to_string());
+    let err = FileUploadError::PathValidation {
+        reason: "invalid characters",
+    };
     assert_eq!(
         format!("{}", err),
         "Path validation failed: invalid characters"

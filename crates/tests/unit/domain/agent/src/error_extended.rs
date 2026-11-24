@@ -46,7 +46,9 @@ fn agent_error_invalid_config_keeps_the_cause() {
 #[test]
 fn agent_error_not_found_display() {
     assert!(
-        AgentError::NotFound("agent-z".to_string())
+        AgentError::NotFound {
+            name: "agent-z".to_string(),
+        }
             .to_string()
             .contains("agent-z")
     );

@@ -3,7 +3,7 @@
 //! requirement and the four values it provides. The required standing is the
 //! reference composition's, asserted by the facade tests; the boot refusal of
 //! a profile that disables it is asserted on the full server in
-//! `integration/api/server_mount_analytics.rs`.
+//! `integration/api/src/server_mount_analytics.rs`.
 
 use std::any::TypeId;
 use std::sync::Arc;

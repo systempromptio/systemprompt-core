@@ -30,13 +30,6 @@ fn dependency_unavailable_display_contains_server() {
 }
 
 #[test]
-fn manifest_display_contains_message() {
-    let e = McpDomainError::Manifest("bad manifest".to_owned());
-    let s = e.to_string();
-    assert!(s.contains("bad manifest"));
-}
-
-#[test]
 fn transport_display_contains_message() {
     let e = McpDomainError::transport("reading frame", std::io::Error::other("broken pipe"));
     let s = e.to_string();
@@ -101,6 +94,8 @@ fn mcp_domain_result_ok_propagates() {
 #[test]
 fn mcp_domain_result_err_propagates() {
     let r: systemprompt_mcp::McpDomainResult<u32> =
-        Err(McpDomainError::ServerNotFound("x".to_owned()));
+        Err(McpDomainError::ServerNotFound {
+            server: "x".to_owned(),
+        });
     assert!(r.is_err());
 }
