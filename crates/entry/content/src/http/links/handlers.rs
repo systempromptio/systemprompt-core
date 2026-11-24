@@ -47,7 +47,7 @@ pub async fn redirect_handler(
     .with_context_id(Some(req_ctx.execution.context_id.clone()))
     .with_task_id(req_ctx.execution.task_id.clone());
 
-    if !req_ctx.request.session_id.as_str().starts_with("bot_")
+    if !req_ctx.request.session_id.is_bot()
         && let Err(e) = analytics_service.track_click(&track_params).await
     {
         error!(link_id = %link.id, error = %e, "Failed to track click");
