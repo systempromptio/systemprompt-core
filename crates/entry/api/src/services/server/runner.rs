@@ -220,37 +220,12 @@ fn spawn_runner_service(ctx: &AppContext, shared: &Dependencies, service: Arc<dy
     });
 }
 
-pub(in crate::services::server) fn create_mcp_orchestrator(
-    ctx: &AppContext,
-) -> Result<Arc<systemprompt_mcp::services::McpOrchestrator>> {
-    use systemprompt_mcp::services::McpOrchestrator;
-    let manager = McpOrchestrator::new(
-        (**ctx.service_repository()).clone(),
-        Arc::clone(ctx.app_paths_arc()),
-        mcp_registry(ctx),
-        mcp_spawn(ctx),
-    )?;
-    Ok(Arc::new(manager))
-}
-
 pub(crate) fn mcp_registry(ctx: &AppContext) -> systemprompt_mcp::RegistryService {
     systemprompt_mcp::RegistryService::new(
         ctx.system_admin().id().clone(),
         ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),
     )
-}
-
-pub(crate) fn mcp_spawn(ctx: &AppContext) -> systemprompt_mcp::McpSpawn {
-    systemprompt_mcp::McpSpawn {
-        spawner: Arc::clone(ctx.spawner()),
-        secrets: Arc::<systemprompt_config::SecretsService>::clone(ctx.secrets()),
-        verification_keys: ctx.signing_keys().verification_keys().clone(),
-        health: systemprompt_mcp::services::health_probe::HealthHop::new(
-            ctx.signing_keys().clone(),
-            &ctx.config().jwt_issuer,
-        ),
-    }
 }
 
 async fn start_metrics_listener(
