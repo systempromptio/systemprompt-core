@@ -16,6 +16,8 @@ mod claim;
 #[cfg(feature = "cli")]
 mod command;
 #[cfg(feature = "cli")]
+mod confirm;
+#[cfg(feature = "cli")]
 mod decl;
 #[cfg(feature = "cli")]
 mod descriptor;
@@ -45,14 +47,16 @@ pub use command::{
     CommandParent, DescribedCommand, REGISTERED_DISPLAY_ORDER, parents,
 };
 #[cfg(feature = "cli")]
+pub use confirm::ConfirmArgs;
+#[cfg(feature = "cli")]
 pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]
 pub use descriptor::{CommandDescriptor, DescribeCommand};
 pub use grant::{GrantedPlane, KernelGrant};
 #[cfg(feature = "cli")]
 pub use granted::{
-    CallerSession, DeploymentSigningKeys, RetiredTokenKey, ServicesTree, TokenKeyPromotion,
-    TokenKeySet,
+    CallerSession, DeploymentSigningKeys, IdentityCliSettings, RetiredTokenKey, ServicesTree,
+    TokenKeyPromotion, TokenKeySet,
 };
 #[cfg(feature = "cli")]
 pub use impact::{DataImpact, DbUrlRouting, RoutingClass};

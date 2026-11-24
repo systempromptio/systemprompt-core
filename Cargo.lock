@@ -7280,14 +7280,17 @@ dependencies = [
 name = "systemprompt-identity-entry"
 version = "0.86.2"
 dependencies = [
+ "anyhow",
  "axum",
  "base64 0.23.1",
  "bcrypt",
  "chrono",
+ "clap",
  "hex",
  "http",
  "rand 0.10.3",
  "reqwest",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -7296,6 +7299,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-governance",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-oauth",

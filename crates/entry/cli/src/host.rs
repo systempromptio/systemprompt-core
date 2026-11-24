@@ -11,8 +11,8 @@ use anyhow::Context;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandError, CommandHost,
-    CommandOutput, DeploymentSigningKeys, DescribedCommand, GrantedPlane, KernelGrant, Prompter,
-    ServicesTree,
+    CommandOutput, DeploymentSigningKeys, DescribedCommand, GrantedPlane, IdentityCliSettings,
+    KernelGrant, Prompter, ServicesTree,
 };
 use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_loader::BootContext;
@@ -24,7 +24,7 @@ use systemprompt_traits::DatabaseHandle;
 use crate::context::CommandContext;
 use crate::env_overrides::EnvOverrides;
 use crate::kernel::{CommandRegistry, classify_command_line};
-use crate::member_host::{boot_profile_config, grant_refused};
+use crate::member_host::{IdentitySettingsRefused, boot_profile_config, grant_refused};
 
 /// What the CLI kernel's own commands may ask of it beyond [`CommandHost`].
 ///
@@ -181,6 +181,10 @@ impl CommandHost for CommandContext {
         plane: GrantedPlane,
     ) -> BoxFuture<'_, Result<(), CommandError>> {
         Box::pin(async move { Err(grant_refused(KernelGrant::ConfigPlaneWriter(plane))) })
+    }
+
+    fn identity_settings(&self) -> Result<IdentityCliSettings, CommandError> {
+        Err(CommandError::new(IdentitySettingsRefused))
     }
 }
 

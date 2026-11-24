@@ -4,10 +4,10 @@
 
 use clap::Parser;
 use std::sync::Arc;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
@@ -62,7 +62,7 @@ async fn end_specific_session_succeeds() {
     let ctx = ctx().await;
     users::execute(
         parse(&["session", "end", session_id.as_str(), "--yes"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap();
@@ -76,9 +76,12 @@ async fn end_specific_session_succeeds() {
 async fn end_unknown_session_reports_not_found() {
     let ctx = ctx().await;
     let missing = format!("no-sess-{}", Uuid::new_v4().simple());
-    users::execute(parse(&["session", "end", &missing, "--yes"]), &ctx)
-        .await
-        .unwrap();
+    users::execute(
+        parse(&["session", "end", &missing, "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -116,7 +119,7 @@ async fn end_all_sessions_for_user() {
             "--all",
             "--yes",
         ]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap();
@@ -129,18 +132,24 @@ async fn end_all_sessions_for_user() {
 #[tokio::test]
 async fn end_without_confirmation_errors() {
     let ctx = ctx().await;
-    let err = users::execute(parse(&["session", "end", "whatever"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "end", "whatever"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("--yes to confirm"), "{err}");
 }
 
 #[tokio::test]
 async fn end_all_without_user_errors() {
     let ctx = ctx().await;
-    let err = users::execute(parse(&["session", "end", "--all", "--yes"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "end", "--all", "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("--user is required"), "{err}");
 }
 
@@ -150,7 +159,7 @@ async fn end_all_missing_user_errors() {
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(
         parse(&["session", "end", "--user", &missing, "--all", "--yes"]),
-        &ctx,
+        &crate::boot_ctx::identity(&ctx),
     )
     .await
     .unwrap_err();
@@ -160,8 +169,11 @@ async fn end_all_missing_user_errors() {
 #[tokio::test]
 async fn end_without_session_id_errors() {
     let ctx = ctx().await;
-    let err = users::execute(parse(&["session", "end", "--yes"]), &ctx)
-        .await
-        .unwrap_err();
+    let err = users::execute(
+        parse(&["session", "end", "--yes"]),
+        &crate::boot_ctx::identity(&ctx),
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("Session ID is required"), "{err}");
 }

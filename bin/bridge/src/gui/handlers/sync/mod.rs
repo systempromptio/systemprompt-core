@@ -6,7 +6,6 @@
 mod finished;
 mod warnings;
 
-
 use std::sync::Arc;
 
 use crate::gateway::Freshness;

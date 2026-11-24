@@ -2,9 +2,9 @@
 //! output, so a script checking the exit code is not told the purge
 //! succeeded; a complete purge succeeds (K-SEC4-8).
 
-use systemprompt_cli::admin::users::purge_output;
 use systemprompt_extension::cli::CommandError;
 use systemprompt_identifiers::{ExtensionId, UserId};
+use systemprompt_identity_entry::cli::users::purge_output;
 use systemprompt_users::{PurgeCount, PurgeOutcome, SkippedPurge};
 
 fn counted() -> Vec<PurgeCount> {

@@ -1,0 +1,66 @@
+//! `admin users webauthn generate-setup-token` command.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use anyhow::Result;
+use chrono::{Duration, Utc};
+use clap::Args as ClapArgs;
+use std::sync::Arc;
+use systemprompt_extension::cli::CommandHost;
+use systemprompt_oauth::repository::{
+    CreateSetupTokenParams, OAuthRepositories, SetupTokenPurpose,
+};
+use systemprompt_oauth::services::webauthn::generate_setup_token;
+use systemprompt_users::{UserRepository, UserService};
+
+use crate::cli::users::types::WebauthnSetupTokenOutput;
+use systemprompt_extension::cli::CommandOutput;
+
+#[derive(Debug, ClapArgs)]
+pub struct Args {
+    #[arg(long, help = "Email of the user to generate token for")]
+    pub email: String,
+
+    #[arg(long, default_value = "15", help = "Token validity in minutes")]
+    pub expires_minutes: u32,
+}
+
+pub(super) async fn execute(args: Args, host: &dyn CommandHost) -> Result<CommandOutput> {
+    let oauth = host.resolved().await?.get::<Arc<OAuthRepositories>>()?;
+    let oauth_repo = &oauth.oauth;
+    let pool = systemprompt_database::pool_from_handle(host.db().await?)?;
+    let users = UserService::new(Arc::new(UserRepository::new(&pool)));
+    let user = users
+        .find_by_email(&args.email)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("User not found: {}", args.email))?;
+
+    let (raw_token, token_hash) = generate_setup_token();
+    let expires_at = Utc::now() + Duration::minutes(i64::from(args.expires_minutes));
+
+    let params = CreateSetupTokenParams {
+        user_id: user.id,
+        token_hash,
+        purpose: SetupTokenPurpose::CredentialLink,
+        expires_at,
+    };
+
+    oauth_repo.store_setup_token(params).await?;
+
+    let external_url = host.identity_settings()?.api_external_url;
+
+    let link_url = format!("{}/auth/link-passkey?token={}", external_url, raw_token);
+
+    let output = WebauthnSetupTokenOutput {
+        user_email: args.email.clone(),
+        token: raw_token,
+        registration_url: link_url,
+        expires_minutes: args.expires_minutes,
+    };
+
+    Ok(CommandOutput::copy_paste_titled(
+        "WebAuthn Setup Token",
+        output.registration_url,
+    ))
+}

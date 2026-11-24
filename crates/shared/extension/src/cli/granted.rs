@@ -5,7 +5,8 @@
 //! value, never the profile, the configuration or a secrets source:
 //! [`ServicesTree`] for `KernelGrant::ServicesTree`, [`CallerSession`]
 //! for `KernelGrant::CallerSession` and a [`DeploymentSigningKeys`] handle
-//! for `KernelGrant::SigningKeys`.
+//! for `KernelGrant::SigningKeys`. The commands `identity-http` owns read
+//! the configuration scalars they act on as one [`IdentityCliSettings`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,7 +18,9 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, SessionId, SessionToken, TraceId, UserId,
 };
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::UserType;
+use systemprompt_models::bridge::instance::BridgeVersionWindow;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::command::CommandError;
@@ -189,4 +192,20 @@ pub struct TokenKeySet {
 pub struct RetiredTokenKey {
     pub kid: String,
     pub expires_at: DateTime<Utc>,
+}
+
+/// The configuration scalars the identity commands act on, built by the
+/// kernel from the profile's configuration, its security section and the
+/// services tree.
+///
+/// The host serves it only to a command whose owner is `identity-http` with
+/// core standing; nothing in it is a secret.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdentityCliSettings {
+    pub api_key_max_lifetime_days: Option<u32>,
+    pub archived_users_days: u32,
+    pub api_external_url: String,
+    pub bridge_release_window: BridgeVersionWindow,
+    pub issuer: String,
+    pub trusted_issuers: Vec<TrustedIssuer>,
 }

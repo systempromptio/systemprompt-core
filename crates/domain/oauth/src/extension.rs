@@ -1,14 +1,21 @@
 //! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
-//! migrations, the expired-grant cleanup job, and the sealed browser-session
+//! migrations, the expired-grant cleanup job, the sealed browser-session
 //! issuer (`DynSessionIssuer`), which requires the users member's sealed user
-//! directory (`DynUserProvider`).
+//! directory (`DynUserProvider`), and the sealed
+//! `DynBridgeHostFilterMigration` `admin config migrate --data` runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 
+use std::sync::Arc;
+
+use systemprompt_database::DbPool;
+use systemprompt_traits::DynBridgeHostFilterMigration;
+
 use crate::jobs::OauthCleanupJob;
+use crate::repository::BridgeHostPrefsRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
@@ -34,7 +41,13 @@ impl Extension for OauthExtension {
         c.migrations(extension_migrations!())
             .requires::<systemprompt_traits::DynUserProvider>()
             .provide_sealed_after_governance(crate::provides::session_issuer)
-            .job(OauthCleanupJob);
+            .job(OauthCleanupJob)
+            .provide_sealed(
+                |r: &Resolved<'_>| -> Result<DynBridgeHostFilterMigration, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    Ok(Arc::new(BridgeHostPrefsRepository::new(&db)))
+                },
+            );
         c.user_purge(UserPurgeTable {
             table: "oauth_jti_revocations",
             column: "user_id",

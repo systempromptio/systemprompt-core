@@ -1,6 +1,7 @@
 //! The closed table of sealed conferrals.
 //!
-//! A conferral lets the route state of exactly one named core member read a
+//! A conferral lets the route state, and the commands, of exactly one named
+//! core member read a
 //! value another core member provided sealed, or a sealed host seed (the
 //! provider is then [`CoreId::Kernel`]). Each row names the provider's id and
 //! the holding [`CoreId`]; nothing else carries a sealed member value across
@@ -33,6 +34,7 @@ pub enum ConferralRow {
     BridgeReleaseSource,
     GatewaySettings,
     BridgeEventStream,
+    IdentityOwnerReassignments,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -57,6 +59,7 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::BridgeReleaseSource.entry(),
     ConferralRow::GatewaySettings.entry(),
     ConferralRow::BridgeEventStream.entry(),
+    ConferralRow::IdentityOwnerReassignments.entry(),
 ];
 
 impl ConferralRow {
@@ -76,6 +79,7 @@ impl ConferralRow {
             Self::BridgeReleaseSource => "bridge-release-source",
             Self::GatewaySettings => "gateway-settings",
             Self::BridgeEventStream => "bridge-event-stream",
+            Self::IdentityOwnerReassignments => "identity-owner-reassignments",
         }
     }
 
@@ -92,7 +96,8 @@ impl ConferralRow {
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
             Self::IdentityTokenAuthority
             | Self::IdentitySigningKeys
-            | Self::IdentityOAuthRepositories => (CoreId::Kernel.id(), CoreId::IdentityHttp),
+            | Self::IdentityOAuthRepositories
+            | Self::IdentityOwnerReassignments => (CoreId::Kernel.id(), CoreId::IdentityHttp),
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
             Self::DocumentLinkTokens => ("documents", CoreId::FilesHttp),
         };

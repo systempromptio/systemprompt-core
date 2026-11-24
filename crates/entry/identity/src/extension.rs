@@ -20,6 +20,12 @@
 //! the users member's request authenticator and minting the anonymous session
 //! cookie.
 //!
+//! With `cli` it contributes the `admin users` (grant
+//! `config-plane-writer` for the identity plane), `admin keys` and
+//! `admin bridge` (grant `signing-keys`) command groups; their commands read
+//! the values conferred on `identity-http` through the owner-scoped command
+//! resolver. A profile that disables `identity-http` serves none of them.
+//!
 //! | profile disables | identity routes |
 //! |---|---|
 //! | `identity-http` | 404 (not mounted) |
@@ -47,15 +53,17 @@ impl Extension for IdentityHttpExtension {
     }
 
     #[cfg_attr(
-        not(feature = "http"),
+        not(any(feature = "http", feature = "cli")),
         expect(
             unused_variables,
-            reason = "the member contributes only its surface, which the http feature compiles"
+            reason = "the member contributes only with the http or cli feature"
         )
     )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
         #[cfg(feature = "http")]
         surface::contribute(c);
+        #[cfg(feature = "cli")]
+        commands::contribute(c);
         Ok(())
     }
 }
@@ -87,5 +95,39 @@ mod surface {
         Ok(Arc::new(IdentityHttpRepositories {
             users: Arc::new(UserRepository::new(&db)),
         }))
+    }
+}
+
+#[cfg(feature = "cli")]
+mod commands {
+    use systemprompt_extension::cli::{
+        CommandClaim, CommandDecl, GrantedPlane, KernelGrant, parents,
+    };
+    use systemprompt_extension::prelude::*;
+
+    use crate::cli::bridge::BridgeCommands;
+    use crate::cli::keys::KeysCommands;
+    use crate::cli::users::UsersCommands;
+
+    const DIRECT_PRESERVING: &[CommandClaim] =
+        &[CommandClaim::DirectDatabase, CommandClaim::PreservesData];
+    const PRESERVING: &[CommandClaim] = &[CommandClaim::PreservesData];
+
+    pub(super) fn contribute(c: &mut Contributions<'_>) {
+        c.command(
+            CommandDecl::group_under::<parents::Admin, UsersCommands>()
+                .requesting(&[KernelGrant::ConfigPlaneWriter(GrantedPlane::Identity)])
+                .claiming(DIRECT_PRESERVING),
+        )
+        .command(
+            CommandDecl::group_under::<parents::Admin, KeysCommands>()
+                .requesting(&[KernelGrant::SigningKeys])
+                .claiming(PRESERVING),
+        )
+        .command(
+            CommandDecl::group_under::<parents::Admin, BridgeCommands>()
+                .requesting(&[KernelGrant::SigningKeys])
+                .claiming(PRESERVING),
+        );
     }
 }

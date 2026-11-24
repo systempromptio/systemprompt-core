@@ -6,9 +6,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::admin::keys::{KeysCommands, execute};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_identity_entry::cli::keys::{KeysCommands, execute};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -31,16 +31,15 @@ fn ctx() -> CommandContext {
     )
 }
 
-#[tokio::test]
-async fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
+#[test]
+fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("signing_key.pem");
 
     execute(
         parse(&["generate", "--output", out.to_str().unwrap()]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
-    .await
     .unwrap();
 
     let pem = std::fs::read_to_string(&out).unwrap();
@@ -48,41 +47,38 @@ async fn generate_writes_a_pkcs8_pem_at_the_requested_path() {
     assert!(pem.contains("END PRIVATE KEY"), "{pem}");
 }
 
-#[tokio::test]
-async fn generate_refuses_to_overwrite_without_force() {
+#[test]
+fn generate_refuses_to_overwrite_without_force() {
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("existing.pem");
     std::fs::write(&out, "sentinel").unwrap();
 
     let err = execute(
         parse(&["generate", "--output", out.to_str().unwrap()]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
-    .await
     .unwrap_err();
 
     assert!(format!("{err:#}").contains("Refusing to overwrite"));
     assert_eq!(std::fs::read_to_string(&out).unwrap(), "sentinel");
 }
 
-#[tokio::test]
-async fn force_replaces_an_existing_key_with_a_fresh_one() {
+#[test]
+fn force_replaces_an_existing_key_with_a_fresh_one() {
     let tmp = tempfile::tempdir().unwrap();
     let out = tmp.path().join("rotate.pem");
 
     execute(
         parse(&["generate", "--output", out.to_str().unwrap()]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
-    .await
     .unwrap();
     let first = std::fs::read_to_string(&out).unwrap();
 
     execute(
         parse(&["generate", "--output", out.to_str().unwrap(), "--force"]),
-        &ctx(),
+        &crate::boot_ctx::identity(&ctx()),
     )
-    .await
     .unwrap();
     let second = std::fs::read_to_string(&out).unwrap();
 
@@ -90,25 +86,14 @@ async fn force_replaces_an_existing_key_with_a_fresh_one() {
     assert!(second.contains("BEGIN PRIVATE KEY"));
 }
 
-#[derive(Debug, Parser)]
-struct AdminHarness {
-    #[command(subcommand)]
-    cmd: systemprompt_cli::admin::AdminCommands,
-}
-
 #[test]
 fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
-    let admin = |args: &[&str]| {
-        AdminHarness::try_parse_from(std::iter::once("admin").chain(args.iter().copied()))
-            .unwrap()
-            .cmd
-            .data_impact()
-    };
+    let admin = |args: &[&str]| parse(args).data_impact();
     for args in [
-        vec!["keys", "stage"],
-        vec!["keys", "promote"],
-        vec!["keys", "promote", "--revoke"],
-        vec!["keys", "rotate", "--overlap-secs", "60"],
+        vec!["stage"],
+        vec!["promote"],
+        vec!["promote", "--revoke"],
+        vec!["rotate", "--overlap-secs", "60"],
     ] {
         assert_eq!(
             admin(&args),
@@ -117,14 +102,14 @@ fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
         );
     }
     assert_eq!(
-        admin(&["keys", "generate"]),
+        admin(&["generate"]),
         systemprompt_extension::cli::DataImpact::Preserving
     );
 }
 
-#[tokio::test]
-async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
-    let err = execute(parse(&["rotate"]), &ctx()).await.unwrap_err();
+#[test]
+fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
+    let err = execute(parse(&["rotate"]), &crate::boot_ctx::identity(&ctx())).unwrap_err();
     let text = format!("{err:#}");
     assert!(
         text.contains("Failed to write the signing keys to the secrets file"),
@@ -132,9 +117,9 @@ async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
     );
 }
 
-#[tokio::test]
-async fn promote_with_nothing_staged_is_refused_and_writes_nothing() {
-    let err = execute(parse(&["promote"]), &ctx()).await.unwrap_err();
+#[test]
+fn promote_with_nothing_staged_is_refused_and_writes_nothing() {
+    let err = execute(parse(&["promote"]), &crate::boot_ctx::identity(&ctx())).unwrap_err();
     let text = format!("{err:#}");
     assert!(text.contains("no signing key is staged"), "{text}");
 }

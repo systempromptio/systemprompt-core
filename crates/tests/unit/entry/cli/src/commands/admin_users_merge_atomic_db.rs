@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::EnvOverrides;
-use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::SessionId;
+use systemprompt_identity_entry::cli::users::{self, UsersCommands};
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, seed_user_session, test_app_context,
 };
@@ -89,7 +89,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
         ])
     };
 
-    let error = users::execute(command(), &context)
+    let error = users::execute(command(), &crate::boot_ctx::identity(&context))
         .await
         .expect_err("late attribution failure must reject the merge");
     assert!(
@@ -127,7 +127,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
         .execute(raw.as_ref())
         .await
         .expect("remove failure function");
-    users::execute(command(), &context)
+    users::execute(command(), &crate::boot_ctx::identity(&context))
         .await
         .expect("retry succeeds after the persistence fault is repaired");
 

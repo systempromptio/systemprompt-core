@@ -5,7 +5,7 @@ use systemprompt_identifiers::PluginId;
 
 use base64::Engine;
 use clap::Parser;
-use systemprompt_cli::admin::keys::{self, KeysCommands};
+use systemprompt_cli::admin::plugin_token::{self, IssuePluginTokenArgs};
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::UserId;
@@ -19,14 +19,14 @@ const PLUGIN: &str = "owned-coverage-plugin";
 
 #[derive(Debug, Parser)]
 struct Harness {
-    #[command(subcommand)]
-    command: KeysCommands,
+    #[command(flatten)]
+    args: IssuePluginTokenArgs,
 }
 
-fn parse(args: &[&str]) -> KeysCommands {
-    Harness::try_parse_from(std::iter::once("keys").chain(args.iter().copied()))
-        .expect("parse keys command")
-        .command
+fn parse(args: &[&str]) -> IssuePluginTokenArgs {
+    Harness::try_parse_from(args.iter().copied())
+        .expect("parse issue-plugin-token")
+        .args
 }
 
 #[tokio::test]
@@ -62,7 +62,7 @@ async fn plugin_token_helper() {
     println!("BEGIN_PLUGIN_TOKEN");
     crate::boot_ctx::rendered(
         &context,
-        keys::execute(
+        plugin_token::execute(
             parse(&[
                 "issue-plugin-token",
                 "--email",
@@ -83,7 +83,7 @@ async fn plugin_token_helper() {
         .fetch_one(pool.pool().as_ref())
         .await
         .expect("count sessions before refusal");
-    let refusal = keys::execute(
+    let refusal = plugin_token::execute(
         parse(&[
             "issue-plugin-token",
             "--email",
