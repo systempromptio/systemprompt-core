@@ -28,7 +28,7 @@ pub const VERIFY_BACKOFF: std::time::Duration = std::time::Duration::from_millis
 /// Why startup reconciliation of the MCP servers refused to continue.
 #[derive(Debug, thiserror::Error)]
 pub enum ReconcileError {
-    #[error("the MCP registry could not be read")]
+    #[error("the MCP registry could not be read: {0}")]
     Registry(#[source] McpDomainError),
     #[error("FATAL: MCP reconciliation failed: {0}\n\nCannot start API without MCP servers.")]
     Reconcile(#[source] McpDomainError),

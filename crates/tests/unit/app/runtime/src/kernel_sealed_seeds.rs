@@ -338,6 +338,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             type_name::<systemprompt_traits::DynDriveTokens>(),
             carrier::<systemprompt_documents::tokens::DocumentDriveTokens>(),
         ),
+        (
+            type_name::<systemprompt_extension::router::DynProxyBackendResolver>(),
+            carrier::<systemprompt_mcp_entry::http::proxy::McpProxyBackends>(),
+        ),
     ];
     let host: HashSet<TypeId> = state.host_types().map(|(id, _)| id).collect();
     let member_sealed: BTreeSet<&str> = state
