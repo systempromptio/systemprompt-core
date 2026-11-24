@@ -6,10 +6,11 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use systemprompt_extension::AdmittedDoctorChecks;
+use systemprompt_extension::contribute::StandingTag;
 use systemprompt_identifiers::ManagedSourceId;
 use systemprompt_provider_contracts::{
-    DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
-    GitCredentialSource, SecretPresence,
+    DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbeSource, DoctorProbes,
+    DoctorStatus, GitCredentialSource, SecretPresence,
 };
 
 use crate::probe::{Probe, profile};
@@ -103,4 +104,39 @@ fn install_and_core_checks_run_against_the_same_view() {
     assert_ne!(core.0.owner.as_str(), INSTALL);
     assert_eq!(core.1.status, DoctorStatus::Warn);
     assert!(core.1.detail.contains("no credential secret found for: ci"));
+}
+
+struct InstallSource;
+
+impl DoctorProbeSource for InstallSource {
+    fn probes(&self, _pool: Arc<sqlx::PgPool>) -> Box<dyn DoctorProbes> {
+        Box::new(FixedProbes)
+    }
+}
+
+#[test]
+fn the_doctor_opens_probes_through_the_core_source_never_an_install_one() {
+    let install: Arc<dyn DoctorProbeSource> = Arc::new(InstallSource);
+    let contributed = Arc::clone(&install);
+    let admitted = systemprompt::reference()
+        .with(Probe::new(INSTALL, move |c| {
+            c.doctor_probe_source(Arc::clone(&contributed));
+        }))
+        .build(&profile(&[]))
+        .expect("the composition admits");
+    let checks = AdmittedDoctorChecks::of(admitted.built());
+
+    let marketplace = checks
+        .entries()
+        .iter()
+        .find(|owned| owned.check.name() == "git-credentials")
+        .expect("the marketplace check is admitted");
+    assert_eq!(marketplace.standing, StandingTag::Core);
+    let source = checks
+        .probe_source()
+        .expect("the core marketplace member contributes a probe source");
+    assert!(
+        !std::ptr::addr_eq(Arc::as_ptr(source), Arc::as_ptr(&install)),
+        "an install member's probe source is never the one the doctor opens"
+    );
 }

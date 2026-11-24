@@ -1,0 +1,23 @@
+[root]
+section = "Fixed"
+text = "`cloud doctor` reads the Git source list through the probe source the core marketplace member contributes, and hands those probes to every core member's check by its admitted standing. The marketplace's own `git-credentials` check had been judged by reserved route ownership, so it was handed withheld probes and always warned that the database was unreachable."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`DoctorProbeSource` (`sqlx` feature): opens a member's `DoctorProbes` over the doctor's read-only pool."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Contributions::doctor_probe_source`, `AdmittedDoctorChecks::probe_source` (the first core member's source; an install member's is never read), `OwnedDoctorCheck::standing`, and `AdmittedConfigs::validate` with `validate_config`, `ExtensionConfigOutcome` and `ExtensionConfigFileError`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`validate_extension_configs` and `ExtensionConfigOutcome` are removed; use `systemprompt_extension::AdmittedConfigs::validate`. Its outcome's `error` is the typed `ExtensionConfigFileError`."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Changed"
+text = "No longer depends on `systemprompt-marketplace` or `systemprompt-runtime`."

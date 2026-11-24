@@ -4,7 +4,7 @@
 //! whenever this member is admitted.
 //!
 //! It contributes the `git-credentials` `cloud doctor` check
-//! ([`GitCredentialCheck`]) and provides the marketplace's runtime state:
+//! ([`GitCredentialCheck`]) with the probe source it reads ([`GitSourceProbes`]) and provides the marketplace's runtime state:
 //!
 //! - after governance, the `Arc<ManagedRepository>` with its publication
 //!   policy, assembled from the services marketplace configuration, the
@@ -50,8 +50,8 @@ use crate::inventory::{
 };
 use crate::managed::git_sources::GitCredentialReferences;
 use crate::managed::{
-    GitCredentialCheck, ManagedRepository, OrganizationSkillResolver, OwnerSkillView,
-    PublicationPolicy,
+    GitCredentialCheck, GitSourceProbes, ManagedRepository, OrganizationSkillResolver,
+    OwnerSkillView, PublicationPolicy,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -88,6 +88,7 @@ impl Extension for ManagedResourcesExtension {
         c.slot::<MarketplaceSlot>();
         c.job(InventoryRefreshJob::default())
             .doctor_check(Arc::new(GitCredentialCheck))
+            .doctor_probe_source(Arc::new(GitSourceProbes))
             .secret_references(|_: &Resolved<'_>| {
                 Ok::<_, FactoryError>(GitCredentialReferences::shared())
             });

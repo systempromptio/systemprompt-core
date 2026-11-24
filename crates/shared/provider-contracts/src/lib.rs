@@ -82,6 +82,8 @@ pub use config_plane::{
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, DependencyProvider};
 pub use dependency_error::{DuplicateDependency, MissingDependency};
+#[cfg(feature = "sqlx")]
+pub use doctor::DoctorProbeSource;
 pub use doctor::{
     DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, DoctorStatus,
     GitCredentialSource, SecretPresence,

@@ -143,6 +143,15 @@ impl<'a> Contributions<'a> {
         self
     }
 
+    #[cfg(feature = "sqlx")]
+    pub fn doctor_probe_source(
+        &mut self,
+        source: Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>,
+    ) -> &mut Self {
+        self.sink.doctor_probe_sources.push(source);
+        self
+    }
+
     pub fn role(&mut self, r: ExtensionRole) -> &mut Self {
         self.sink.roles.push(r);
         self

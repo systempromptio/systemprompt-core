@@ -110,7 +110,9 @@ mod traits;
 
 pub use admitted::{Admitted, BuiltState, DeclaredCommands};
 pub use admitted_assets::AdmittedAssets;
-pub use admitted_configs::AdmittedConfigs;
+pub use admitted_configs::{
+    AdmittedConfigs, ExtensionConfigFileError, ExtensionConfigOutcome, validate_config,
+};
 pub use admitted_doctor::{AdmittedDoctorChecks, OwnedDoctorCheck};
 pub use admitted_migrations::AdmittedMigrations;
 pub use admitted_purge::{
@@ -179,6 +181,8 @@ pub use retention::{
 pub use seed::Seed;
 pub use state::{StateHandle, StateRequirement};
 pub use systemprompt_models::{AlreadyBound, LateBinder, LateBound, LateRead, late_pair};
+#[cfg(feature = "sqlx")]
+pub use systemprompt_provider_contracts::DoctorProbeSource;
 pub use systemprompt_provider_contracts::MissingDependency;
 pub use traits::Extension;
 

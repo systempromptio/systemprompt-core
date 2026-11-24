@@ -29,15 +29,15 @@ pub fn check_profile_valid(profile: &Profile) -> CheckResult {
 
 pub fn check_extension_configs(profile: &Profile, configs: &AdmittedConfigs) -> CheckResult {
     let services_path = Path::new(&profile.paths.services);
-    let failures: Vec<String> =
-        systemprompt_runtime::validate_extension_configs(configs, services_path)
-            .iter()
-            .filter_map(|o| {
-                o.error
-                    .as_ref()
-                    .map(|msg| format!("[ext:{}] {msg}", o.extension_id))
-            })
-            .collect();
+    let failures: Vec<String> = configs
+        .validate(services_path)
+        .iter()
+        .filter_map(|o| {
+            o.error
+                .as_ref()
+                .map(|error| format!("[ext:{}] {error}", o.extension_id))
+        })
+        .collect();
     if failures.is_empty() {
         CheckResult::pass("extension-config", "all extension configs valid")
     } else {

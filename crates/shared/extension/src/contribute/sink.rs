@@ -48,6 +48,9 @@ pub struct ContributionSink {
     pub(crate) orphan_sweeps: Vec<OrphanSweep>,
     pub(crate) owner_reassignments: Vec<OwnerReassignment>,
     pub(crate) doctor_checks: Vec<DoctorCheckRef>,
+    #[cfg(feature = "sqlx")]
+    pub(crate) doctor_probe_sources:
+        Vec<Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>>,
     pub(crate) roles: Vec<ExtensionRole>,
     pub(crate) assets: Vec<AssetFn>,
     pub(crate) configs: Vec<ConfigDecl>,
@@ -125,6 +128,14 @@ impl ContributionSink {
     #[must_use]
     pub fn doctor_checks(&self) -> &[DoctorCheckRef] {
         &self.doctor_checks
+    }
+
+    #[cfg(feature = "sqlx")]
+    #[must_use]
+    pub fn doctor_probe_sources(
+        &self,
+    ) -> &[Arc<dyn systemprompt_provider_contracts::DoctorProbeSource>] {
+        &self.doctor_probe_sources
     }
 
     #[must_use]

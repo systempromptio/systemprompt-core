@@ -29,7 +29,7 @@ systemprompt-extension = { workspace = true }
 [dependencies]
 axum = { workspace = true, optional = true }
 schemars = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["sqlx"] }
 sqlx = { workspace = true }
 serde_jcs = { workspace = true }
 globset = { workspace = true }

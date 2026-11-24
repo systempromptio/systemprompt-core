@@ -110,6 +110,18 @@ pub trait DoctorProbes: Send + Sync {
     async fn git_credential_sources(&self) -> Result<Vec<GitCredentialSource>, DoctorProbeError>;
 }
 
+/// Opens a member's [`DoctorProbes`] over the doctor's read-only session.
+///
+/// A core member that owns the facts a probe reads contributes one source with
+/// `Contributions::doctor_probe_source`; the doctor opens one short-lived pool
+/// with `default_transaction_read_only` on and hands it to the source. The
+/// doctor takes the first core member's source; an install member's source is
+/// never opened. Held as `Arc<dyn DoctorProbeSource>`, so it is a plain trait.
+#[cfg(feature = "sqlx")]
+pub trait DoctorProbeSource: Send + Sync {
+    fn probes(&self, pool: std::sync::Arc<sqlx::PgPool>) -> Box<dyn DoctorProbes>;
+}
+
 /// What `cloud doctor` hands a contributed check: secret presence and
 /// read-only probes, the same for every member's standing.
 #[derive(Clone, Copy)]

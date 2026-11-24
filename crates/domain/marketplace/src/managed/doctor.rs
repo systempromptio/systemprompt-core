@@ -11,15 +11,25 @@
 //! is logged with its cause and reported with a fixed detail, so no database
 //! error text reaches the report.
 //!
+//! [`GitSourceProbes`] is the member's doctor probe source: over the doctor's
+//! read-only pool it answers the Git source list from the managed sources
+//! table, so the doctor reads no marketplace repository itself.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use sqlx::PgPool;
+use systemprompt_database::Database;
+use systemprompt_extension::DoctorProbeSource;
 use systemprompt_traits::{
-    DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, GitCredentialSource,
+    DoctorCheck, DoctorContext, DoctorOutcome, DoctorProbeError, DoctorProbes, GitCredentialSource,
     SecretPresence,
 };
 
+use super::ManagedRepository;
 use super::git_sources::{MIGRATE_GIT_CREDENTIALS_COMMAND, git_credential_key};
 
 /// The Git source credential check `cloud doctor` runs for this member.
@@ -43,6 +53,32 @@ impl DoctorCheck for GitCredentialCheck {
                 DoctorOutcome::warn("Git sources could not be listed")
             },
         }
+    }
+}
+
+/// The doctor probe source this member contributes.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GitSourceProbes;
+
+impl DoctorProbeSource for GitSourceProbes {
+    fn probes(&self, pool: Arc<PgPool>) -> Box<dyn DoctorProbes> {
+        Box::new(ManagedProbes {
+            managed: ManagedRepository::new(&Arc::new(Database::from_pools(pool, None))),
+        })
+    }
+}
+
+struct ManagedProbes {
+    managed: ManagedRepository,
+}
+
+#[async_trait]
+impl DoctorProbes for ManagedProbes {
+    async fn git_credential_sources(&self) -> Result<Vec<GitCredentialSource>, DoctorProbeError> {
+        self.managed
+            .git_sources_with_credentials()
+            .await
+            .map_err(|error| DoctorProbeError::Read(Box::new(error)))
     }
 }
 

@@ -1,10 +1,8 @@
-//! Direct tests of the public `validate_extension_configs` seam, which runs
+//! Direct tests of the public `AdmittedConfigs::validate` seam, which runs
 //! the same per-extension load-and-validate pass as the serve boot path but
 //! needs neither a profile nor a `Config`. The fixture members
 //! (`ext_fixtures::fixture_admitted`) provide one always-valid and one
 //! always-rejecting config section.
-
-use systemprompt_runtime::validate_extension_configs;
 
 use crate::ext_fixtures::fixture_admitted;
 
@@ -12,18 +10,16 @@ use crate::ext_fixtures::fixture_admitted;
 fn missing_config_files_fall_back_to_empty_config() {
     let tmp = tempfile::tempdir().expect("tempdir");
 
-    let outcomes = validate_extension_configs(
-        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
-        tmp.path(),
-    );
+    let outcomes = systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built())
+        .validate(tmp.path());
 
     let ok = outcomes
         .iter()
         .find(|o| o.extension_id == "covextok")
         .expect("covextok outcome present");
     assert_eq!(ok.config_key, "covextok.config");
-    assert_eq!(
-        ok.error, None,
+    assert!(
+        ok.error.is_none(),
         "an absent config file validates as an empty config"
     );
 
@@ -34,6 +30,8 @@ fn missing_config_files_fall_back_to_empty_config() {
     assert_eq!(bad.config_key, "covextbad.config");
     assert!(
         bad.error
+            .as_ref()
+            .map(ToString::to_string)
             .as_deref()
             .is_some_and(|e| e.contains("fixture always rejects")),
         "got: {:?}",
@@ -53,10 +51,8 @@ fn malformed_config_file_reports_load_error() {
     std::fs::write(tmp.path().join("config/covextok.yaml"), ": : not yaml [")
         .expect("write malformed config");
 
-    let outcomes = validate_extension_configs(
-        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
-        tmp.path(),
-    );
+    let outcomes = systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built())
+        .validate(tmp.path());
 
     let ok = outcomes
         .iter()
@@ -64,6 +60,8 @@ fn malformed_config_file_reports_load_error() {
         .expect("covextok outcome present");
     assert!(
         ok.error
+            .as_ref()
+            .map(ToString::to_string)
             .as_deref()
             .is_some_and(|e| e.contains("Cannot parse") && e.contains("covextok.yaml")),
         "got: {:?}",
@@ -78,16 +76,14 @@ fn valid_config_file_passes_validation() {
     std::fs::write(tmp.path().join("config/covextok.yaml"), "mode: fine\n")
         .expect("write valid config");
 
-    let outcomes = validate_extension_configs(
-        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
-        tmp.path(),
-    );
+    let outcomes = systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built())
+        .validate(tmp.path());
 
     let ok = outcomes
         .iter()
         .find(|o| o.extension_id == "covextok")
         .expect("covextok outcome present");
-    assert_eq!(ok.error, None);
+    assert!(ok.error.is_none());
 }
 
 #[test]
@@ -96,10 +92,8 @@ fn a_rejected_extension_config_file_is_reported_by_the_startup_pass() {
     std::fs::create_dir_all(tmp.path().join("config")).expect("mkdir config");
     std::fs::write(tmp.path().join("config/covextbad.yaml"), "mode: fine\n").expect("write config");
 
-    let outcomes = validate_extension_configs(
-        &systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built()),
-        tmp.path(),
-    );
+    let outcomes = systemprompt_extension::AdmittedConfigs::of(fixture_admitted().built())
+        .validate(tmp.path());
 
     let bad = outcomes
         .iter()
@@ -107,6 +101,8 @@ fn a_rejected_extension_config_file_is_reported_by_the_startup_pass() {
         .expect("covextbad outcome present");
     assert!(
         bad.error
+            .as_ref()
+            .map(ToString::to_string)
             .as_deref()
             .is_some_and(|e| e.contains("fixture always rejects")),
         "the member's own config document must reach its config validation, got: {:?}",

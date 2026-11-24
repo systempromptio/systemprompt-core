@@ -11,7 +11,7 @@ pub mod consumer;
 mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
 mod doctor;
-pub use doctor::{GitCredentialCheck, classify_git_credentials};
+pub use doctor::{GitCredentialCheck, GitSourceProbes, classify_git_credentials};
 mod error;
 pub mod git_execution;
 pub mod git_sources;

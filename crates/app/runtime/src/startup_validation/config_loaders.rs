@@ -167,9 +167,3 @@ pub(super) fn load_yaml_config<T: serde::de::DeserializeOwned>(
 ) -> Result<T, ConfigFileError> {
     parse_yaml(path, &read_config_file(path)?)
 }
-
-// JSON: Extension config block from the profile YAML; the extension owns it.
-pub(super) fn load_extension_config(path: &Path) -> Result<serde_json::Value, ConfigFileError> {
-    let yaml: serde_yaml::Value = parse_yaml(path, &read_config_file(path)?)?;
-    Ok(serde_json::to_value(yaml)?)
-}
