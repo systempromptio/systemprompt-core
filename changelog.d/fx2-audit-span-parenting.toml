@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Observability"
+text = "The live `tool_call` and `governance_decision` spans are roots in the request's trace, not children of its `ai_request` span; they correlate through the trace id and `gen_ai.tool.call.id`. A model tool call with no recorded execution, a request settled by crash recovery and a decision inside a transaction that rolls back emit no span. A collector query that walks parent/child from `ai_request` finds no tool or decision children; join on the trace id instead."

@@ -1,7 +1,7 @@
 [root]
 section = "Added"
 area = "Observability"
-text = "The live OTLP export carries the audit spans again: an `ai_request` span per settled gateway request (model, tokens, cost, latency, route, scope attribution, API key id) and `tool_call` and `governance_decision` spans, each handed to the exporter as the fact is recorded, with the attribute names the replay job used."
+text = "The live OTLP export carries the audit spans again: an `ai_request` span per settled gateway request (model, tokens, cost, latency, route, scope attribution, API key id) and `tool_call` and `governance_decision` spans, each handed to the exporter as the fact is recorded."
 
 [[crate]]
 name = "systemprompt-models"
