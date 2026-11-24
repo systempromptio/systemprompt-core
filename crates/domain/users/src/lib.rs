@@ -58,12 +58,13 @@ pub use repository::{
     UserRepository, UsersRoleDirectory, UsersRoleSubjectProvider,
 };
 pub use services::{
-    API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
+    ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
     DeviceCertService, EnrollDeviceCertServiceParams, EnsuredApiKey, IssueApiKeyParams,
     OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink, PromoteResult, PurgedArchive,
     UpdateUserParams, UserAdminService, UserRoleAudienceResolver, UserService,
 };
 
+pub use systemprompt_models::auth::API_KEY_PREFIX;
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};
 
 pub(crate) mod sessions;

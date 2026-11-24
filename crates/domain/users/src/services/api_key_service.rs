@@ -19,13 +19,13 @@ use std::sync::Arc;
 use subtle::ConstantTimeEq;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::attribution::ScopeBinding;
+use systemprompt_models::auth::API_KEY_PREFIX;
 
 use crate::error::{Result, UserError};
 use crate::models::{ApiKeyKind, ApiKeyLimits, NewApiKey, UserApiKey};
 use crate::repository::{CreateApiKeyParams, EnsuredApiKeyRecord, UserRepository};
 use crate::services::api_key_validation::{validate_limits, validate_scopes};
 
-pub const API_KEY_PREFIX: &str = "sp-live-";
 const SECRET_BYTES: usize = 32;
 const PREFIX_ID_BYTES: usize = 6;
 const USAGE_TOUCH_INTERVAL: chrono::TimeDelta = chrono::TimeDelta::seconds(60);

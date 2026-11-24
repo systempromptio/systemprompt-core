@@ -19,9 +19,7 @@ mod user;
 
 pub use crate::repository::UpdateUserParams;
 pub use admin_service::{DemoteResult, PromoteResult, UserAdminService};
-pub use api_key_service::{
-    API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, EnsuredApiKey, IssueApiKeyParams,
-};
+pub use api_key_service::{ApiKeyLifetime, ApiKeyService, EnsuredApiKey, IssueApiKeyParams};
 pub use device_cert_service::{
     DEVICE_FINGERPRINT_FOREIGN_USER, DeviceCertService,
     EnrollParams as EnrollDeviceCertServiceParams,

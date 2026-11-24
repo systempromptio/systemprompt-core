@@ -16,6 +16,7 @@ use super::enums::{AccountKind, UserType};
 use super::permission::Permission;
 
 pub const BEARER_PREFIX: &str = "Bearer ";
+pub const API_KEY_PREFIX: &str = "sp-live-";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthenticatedUser {

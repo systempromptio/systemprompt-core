@@ -1,7 +1,8 @@
 //! Unit tests for ApiKeyService pure logic and exported types.
 
 use systemprompt_identifiers::UserId;
-use systemprompt_users::{API_KEY_PREFIX, IssueApiKeyParams};
+use systemprompt_models::auth::API_KEY_PREFIX;
+use systemprompt_users::IssueApiKeyParams;
 
 mod api_key_prefix_tests {
     use super::*;

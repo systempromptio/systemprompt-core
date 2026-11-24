@@ -44,4 +44,6 @@ pub use request_auth::{
 };
 pub use roles::BaseRoles;
 pub use token_authority::{TokenAuthority, TokenError, TokenResult, UserJwtRequest};
-pub use types::{AuthRequestError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType};
+pub use types::{
+    API_KEY_PREFIX, AuthRequestError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType,
+};

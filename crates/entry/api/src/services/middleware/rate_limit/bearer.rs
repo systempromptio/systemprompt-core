@@ -20,8 +20,7 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_identifiers::headers::SYSTEMPROMPT_AUTHORIZATION;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::UserType;
-use systemprompt_users::API_KEY_PREFIX;
+use systemprompt_models::auth::{API_KEY_PREFIX, UserType};
 
 use super::global::{GlobalUserLimit, charge};
 use crate::services::middleware::jwt::JwtContextExtractor;
