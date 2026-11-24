@@ -31,8 +31,8 @@ use std::sync::Arc;
 use axum::Router;
 use systemprompt_extension::reserved::{CoreId, WEB_ROOT_BASE_PATH};
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, MissingDependency, ProtectionLayer, RateBudget, RateLimit, RouteGroup,
-    RouteProtection,
+    AuthzPolicy, ContextKind, MissingDependency, ProtectionLayer, RateBudget, RateLimit,
+    RouteGroup, RouteProtection,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;

@@ -56,8 +56,7 @@ async fn built(
         },
         None,
         &Arc::new(systemprompt_api::services::server::ReadinessState::new()),
-    )
-    ?;
+    )?;
     Ok(router.layer(axum::Extension(Arc::new(
         systemprompt_api::services::server::SchedulerHealth::new(),
     ))))
@@ -157,10 +156,7 @@ async fn the_api_key_routes_share_the_admin_routers_throttle() {
 }
 
 async fn refusal(admitted: Arc<systemprompt_extension::Admitted>) -> String {
-    let err = built(admitted, None)
-        .await
-        .err()
-        .expect("boot is refused");
+    let err = built(admitted, None).await.expect_err("boot is refused");
     format!("{err:#}")
 }
 

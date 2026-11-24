@@ -75,9 +75,7 @@ impl ConferralRow {
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
             Self::IdentityTokenAuthority
             | Self::IdentitySigningKeys
-            | Self::IdentityOAuthRepositories => {
-                (CoreId::Kernel.id(), CoreId::IdentityHttp)
-            },
+            | Self::IdentityOAuthRepositories => (CoreId::Kernel.id(), CoreId::IdentityHttp),
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
             Self::DocumentLinkTokens => ("documents", CoreId::FilesHttp),
         };

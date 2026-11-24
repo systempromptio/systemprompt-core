@@ -49,7 +49,7 @@ fn gateway_http_state(
                 )),
                 ctx.db_pool(),
             )
-                .expect("gateway repositories"),
+            .expect("gateway repositories"),
         ),
         engines: systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
             .expect("gateway engines"),
