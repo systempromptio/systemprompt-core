@@ -7,7 +7,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, folders_router, router};
+use systemprompt_files_entry::http::documents::{DocumentsState, folders_router, router};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -79,7 +79,7 @@ async fn folder(
 #[tokio::test]
 async fn subjects_are_searched_and_unknown_subjects_are_refused() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let base = format!("srch{}", Uuid::new_v4().simple());
     let owner = seed_bridge_credential(&pool, &format!("{base}-owner")).await?;
     let (status, found) = call(
@@ -142,7 +142,7 @@ async fn subjects_are_searched_and_unknown_subjects_are_refused() -> Result<()> 
 #[tokio::test]
 async fn history_is_read_by_share_holders_and_folder_grants_show_their_folder() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "share-hist-owner").await?;
     let reader = seed_bridge_credential(&pool, "share-hist-reader").await?;
     let parent_name = format!("Parent {}", Uuid::new_v4().simple());
@@ -243,7 +243,7 @@ async fn history_is_read_by_share_holders_and_folder_grants_show_their_folder() 
 #[tokio::test]
 async fn access_requests_stay_not_found_while_the_install_disables_them() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "share-req-owner").await?;
     let stranger = seed_bridge_credential(&pool, "share-req-stranger").await?;
     let id = document(&state, &owner, None).await?;

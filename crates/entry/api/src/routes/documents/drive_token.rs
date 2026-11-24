@@ -18,19 +18,17 @@
 use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderMap;
+use systemprompt_documents::actor::bearer_actor;
+use systemprompt_documents::http::error::DocumentsResult;
 use systemprompt_files::documents::agents::{AgentChannel, DocumentActor};
-use systemprompt_identifiers::JwtToken;
-use systemprompt_models::api::ApiError;
-use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::DriveSyncToken;
-use systemprompt_oauth_issuance::drive_sync::{device_audiences, drive_audiences};
-use systemprompt_runtime::documents::actor::bearer_actor;
-
-use super::caller::authenticated;
-use super::drive::DriveState;
-use super::error::DocumentsResult;
-use crate::kernel::ApiHttpError;
 use systemprompt_gateway::surface::credential::extract_credential;
+use systemprompt_models::api::ApiError;
+use systemprompt_models::auth::{AuthenticatedUser, TokenInteraction};
+use systemprompt_models::documents::DriveSyncToken;
+use systemprompt_traits::{DriveSyncAttendance, DriveTokenError};
+
+use super::drive::DriveState;
+use crate::kernel::ApiHttpError;
 
 pub(super) async fn issue(
     State(state): State<DriveState>,
@@ -38,19 +36,29 @@ pub(super) async fn issue(
 ) -> DocumentsResult<Json<DriveSyncToken>> {
     let credential = extract_credential(&headers)
         .ok_or_else(|| ApiHttpError::unauthorized("the trade takes the bridge device token"))?;
-    let (claims, user) = state
-        .jwt()
-        .decode_for_audiences(&JwtToken::new(credential), &device_audiences())
+    let grant = state
+        .tokens()
+        .trade(&credential)
         .await
-        .map_err(|error| {
-            ApiError::unauthorized("only the bridge device token trades for a Drive sync token")
-                .with_source(error)
+        .map_err(|error| match error {
+            DriveTokenError::Unverified(_) => ApiHttpError::from(
+                ApiError::unauthorized(
+                    "only the bridge device token trades for a Drive sync token",
+                )
+                .with_source(error),
+            ),
+            DriveTokenError::NotDeviceToken
+            | DriveTokenError::NoUserPermission
+            | DriveTokenError::PurposedOrDelegated => ApiHttpError::forbidden(error.to_string()),
+            DriveTokenError::Expired => ApiHttpError::unauthorized(error.to_string()),
+            DriveTokenError::Mint(_) => {
+                ApiHttpError::internal("drive sync token was not minted", error)
+            },
         })?;
-    let token = state
-        .drive_sync()
-        .exchange(&claims, user)
-        .map_err(ApiHttpError::from)?;
-    Ok(Json(token))
+    Ok(Json(DriveSyncToken {
+        token: grant.token,
+        expires_at: grant.expires_at,
+    }))
 }
 
 pub(super) async fn device_user(
@@ -59,17 +67,26 @@ pub(super) async fn device_user(
 ) -> DocumentsResult<(AuthenticatedUser, DocumentActor)> {
     let credential = extract_credential(headers)
         .ok_or_else(|| ApiHttpError::unauthorized("the Drive routes take the Drive sync token"))?;
-    let (claims, user) = state
-        .jwt()
-        .decode_for_audiences(&JwtToken::new(credential), &drive_audiences())
+    let principal = state
+        .tokens()
+        .verify(&credential)
         .await
-        .map_err(|error| {
-            ApiError::unauthorized("the Drive routes take only the Drive sync token")
-                .with_source(error)
+        .map_err(|error| match error {
+            DriveTokenError::PurposedOrDelegated => {
+                ApiHttpError::forbidden("a purposed or delegated token cannot sync")
+            },
+            other => ApiHttpError::from(
+                ApiError::unauthorized("the Drive routes take only the Drive sync token")
+                    .with_source(other),
+            ),
         })?;
-    if claims.purpose.is_some() || !claims.act_chain.is_empty() {
-        return Err(ApiHttpError::forbidden("a purposed or delegated token cannot sync").into());
-    }
-    let actor = bearer_actor(None, claims.client_id.as_ref(), claims.interaction);
-    Ok((authenticated(user), actor.on(AgentChannel::DriveSync)))
+    let interaction = principal.attendance.map(|attendance| match attendance {
+        DriveSyncAttendance::Interactive => TokenInteraction::Interactive,
+        DriveSyncAttendance::NonInteractive => TokenInteraction::NonInteractive,
+    });
+    let actor = bearer_actor(None, principal.client_id.as_ref(), interaction);
+    Ok((
+        AuthenticatedUser::from_provider_user(principal.user),
+        actor.on(AgentChannel::DriveSync),
+    ))
 }

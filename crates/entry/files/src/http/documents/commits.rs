@@ -1,0 +1,234 @@
+//! Commits: raw-byte writes with an `If-Match` base and node-guarded edit
+//! ops, answered with the new revision (with `merged_from` when the head
+//! moved under the write) or a 409 `stale_base` naming head, its content hash
+//! and base under `detail`. An `op_id` (query
+//! parameter on a byte write, body field on edits) makes the write
+//! idempotent: the commit stores its acknowledgement in its own transaction,
+//! and a repeat of the same request (over REST or MCP) answers it with
+//! `replayed`; a different request under a used op id is refused 409
+//! `op_id_mismatch`. A byte write by an agent capped at `suggest` is
+//! written as a proposal instead and answered `201` with it. Edits on a
+//! document with an open live session are written into that session as one
+//! engine update instead of a revision, and answered `{live}` with the
+//! session, the update's sequence number and the revision it is based on;
+//! the session's checkpoint lands them.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::body::Bytes;
+use axum::extract::{Path, Query, State};
+use axum::http::HeaderMap;
+use axum::http::request::Parts;
+use axum::response::{IntoResponse, Response};
+use axum::{Extension, Json};
+use serde::{Deserialize, Serialize};
+use systemprompt_documents::refusal::stale_base;
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
+use systemprompt_files::documents::revision::CommitBody;
+use systemprompt_files::documents::service::{
+    CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ExternalWrite, LandedCommit,
+    LiveEdit, ProposeRequest,
+};
+use systemprompt_identifiers::{
+    DocumentCommentId, DocumentEditSessionId, DocumentId, DocumentOpId, DocumentRevisionId,
+};
+use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
+use systemprompt_models::documents::{EditMode, EditOp};
+
+use super::DocumentsState;
+use super::caller::{api_author, caller};
+use super::content::request_context;
+use super::items::document_id;
+use super::proposals::proposed_response;
+use super::views::RevisionJson;
+use systemprompt_documents::http::error::{DocumentsResult, refused_response, status_of};
+use systemprompt_documents::http::headers::{base_revision, set_content_sha256, set_revision_tags};
+
+#[derive(Debug, Serialize)]
+pub(super) struct CommittedJson {
+    revision: RevisionJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merged_from: Option<DocumentRevisionId>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    replayed: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct LiveJson {
+    session_id: DocumentEditSessionId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    seq: Option<i64>,
+    base_revision_id: DocumentRevisionId,
+    applied: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct LiveWrittenJson {
+    live: LiveJson,
+}
+
+fn live_response(live: LiveEdit) -> Response {
+    Json(LiveWrittenJson {
+        live: LiveJson {
+            session_id: live.session_id,
+            seq: live.seq,
+            base_revision_id: live.base_revision,
+            applied: live.applied,
+        },
+    })
+    .into_response()
+}
+
+fn landed_response(landed: LandedCommit) -> Response {
+    let revision_id = landed.revision.id.clone();
+    let hash = landed.revision.content_sha256.clone();
+    let merged = landed.ack.merged_from.is_some();
+    let mut response = Json(CommittedJson {
+        revision: landed.revision.into(),
+        merged_from: landed.ack.merged_from,
+        replayed: landed.replayed,
+    })
+    .into_response();
+    if merged {
+        set_content_sha256(response.headers_mut(), &hash);
+    } else {
+        set_revision_tags(response.headers_mut(), &revision_id, &hash);
+    }
+    response
+}
+
+pub(super) fn outcome_response(outcome: CommitOutcome, document: &DocumentId) -> Response {
+    match outcome {
+        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => {
+            landed_response(*landed)
+        },
+        CommitOutcome::Conflict { head, base } => refused_response(
+            status_of(&DocumentsError::Conflict {
+                document_id: document.clone(),
+                head: head.id.clone(),
+                base: base.clone(),
+            }),
+            stale_base(document, &head, base.as_ref()),
+        ),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct WriteQuery {
+    message: Option<String>,
+    op_id: Option<DocumentOpId>,
+}
+
+pub(super) async fn write(
+    State(state): State<DocumentsState>,
+    Path(id): Path<String>,
+    Query(query): Query<WriteQuery>,
+    parts: Parts,
+    body: Bytes,
+) -> DocumentsResult<Response> {
+    let req_ctx = request_context(&parts)?;
+    let who = caller(&state, req_ctx).await?;
+    let headers = &parts.headers;
+    let id = document_id(&id)?;
+    let request = CommitRequest {
+        document_id: id.clone(),
+        base_revision: base_revision(headers)?,
+        body: CommitBody::Bytes(body.to_vec()),
+        author: api_author(&state, req_ctx, headers).await?,
+        message: query.message,
+        lock_holder: None,
+        comments: CommentPolicy::detach(),
+        op_id: query.op_id,
+        media: Media::new(),
+    };
+    match state
+        .service
+        .write_external(&who.user, request, &who.trace)
+        .await?
+    {
+        ExternalWrite::Landed(outcome) => Ok(outcome_response(outcome, &id)),
+        ExternalWrite::Proposed(proposed) => Ok(proposed_response(*proposed)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct EditsBody {
+    #[serde(default)]
+    base_revision: Option<DocumentRevisionId>,
+    ops: Vec<EditOp>,
+    #[serde(default)]
+    mode: Option<EditMode>,
+    #[serde(default)]
+    message: Option<String>,
+    #[serde(default)]
+    op_id: Option<DocumentOpId>,
+    #[serde(default)]
+    answering: Option<DocumentCommentId>,
+    #[serde(default)]
+    allow_detach: bool,
+}
+
+pub(super) async fn edits(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<EditsBody>,
+) -> DocumentsResult<Response> {
+    let who = caller(&state, &req_ctx).await?;
+    let id = document_id(&id)?;
+    if body.ops.is_empty() {
+        return Err(ApiError::bad_request("ops must name at least one edit").into());
+    }
+    let mode = state
+        .service
+        .edit_mode(
+            &who.user,
+            EditModeRequest {
+                document: &id,
+                requested: body.mode,
+            },
+            &who.trace,
+        )
+        .await?;
+    if mode == EditMode::Propose {
+        let request = ProposeRequest {
+            document_id: id,
+            base_revision: body.base_revision,
+            ops: body.ops,
+            author: api_author(&state, &req_ctx, &headers).await?,
+            message: body.message,
+        };
+        let proposed = state
+            .service
+            .propose(&who.user, request, &who.trace)
+            .await?;
+        return Ok(proposed_response(proposed));
+    }
+    let request = CommitRequest {
+        document_id: id.clone(),
+        base_revision: body.base_revision,
+        body: CommitBody::Ops(body.ops),
+        author: api_author(&state, &req_ctx, &headers).await?,
+        message: body.message,
+        lock_holder: None,
+        comments: CommentPolicy {
+            allow_detach: body.allow_detach,
+            answering: body.answering,
+        },
+        op_id: body.op_id,
+        media: Media::new(),
+    };
+    if let Some(live) = state
+        .service
+        .edit_live(&who.user, &request, &who.trace)
+        .await?
+    {
+        return Ok(live_response(live));
+    }
+    let outcome = state.service.commit(&who.user, request, &who.trace).await?;
+    Ok(outcome_response(outcome, &id))
+}

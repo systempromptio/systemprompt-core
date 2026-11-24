@@ -7,8 +7,8 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_files::DocumentsConfig;
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_test_fixtures::{
     AuthedFixture, TestBootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
     fixture_config, init_documents_bootstrap, seed_bridge_credential,
@@ -31,7 +31,7 @@ async fn requests_enabled() -> Result<(systemprompt_database::DbPool, DocumentsS
     let ctx =
         fixture_app_context_on_bootstrap(b, fixture_config(&b.database_url), fixture_admitted())
             .await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     Ok((ctx.db_pool().clone(), state))
 }
 

@@ -1,5 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
+use systemprompt_files::documents::collab::{CollabService, CollabTuning};
+use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_traits::{ContextDirectory, ContextProviderError, OwnedContextSummary};
 
 use systemprompt_database::DbPool;
 use systemprompt_files::documents::jobs::{
@@ -20,6 +23,28 @@ use uuid::Uuid;
 use crate::documents_service_fixture::{
     GroupSource, Harness, allow, create, harness, person, trace,
 };
+
+#[derive(Debug)]
+struct NoContexts;
+
+#[async_trait::async_trait]
+impl ContextDirectory for NoContexts {
+    async fn owned_context(
+        &self,
+        _user_id: &UserId,
+        _context_id: &ContextId,
+    ) -> Result<Option<OwnedContextSummary>, ContextProviderError> {
+        Ok(None)
+    }
+
+    async fn owned_names(
+        &self,
+        _user_id: &UserId,
+        _context_ids: &[ContextId],
+    ) -> Result<std::collections::HashMap<ContextId, String>, ContextProviderError> {
+        Ok(std::collections::HashMap::new())
+    }
+}
 
 fn files_config(enabled: bool) -> Arc<FilesConfig> {
     let yaml = FilesConfigYaml {
@@ -45,6 +70,13 @@ fn bound_handles(db: &DbPool, h: &Harness) -> DocumentsHandlesSlot {
             repositories: Arc::clone(&h.repos),
             issues: Arc::new(issues),
             service: Some(Arc::new(h.service.clone())),
+            uploads: Arc::clone(&h.uploads),
+            contexts: Arc::new(NoContexts),
+            collab: Arc::new(CollabService::new(
+                Arc::new(h.service.clone()),
+                CollabTuning::default(),
+                None,
+            )),
         }))
         .expect("a fresh cell binds");
     slot

@@ -2,6 +2,11 @@
 //! `mode: propose`, a comment-only caller's edit landing as a proposal,
 //! and `documents_proposals` listing, accepting and rejecting.
 
+use systemprompt_documents::mcp::{
+    DocumentsMcpTools, EditHandler, EditInput, GuideHandler, GuideInput, ProposalAction,
+    ProposalsHandler, ProposalsInput,
+};
+use systemprompt_documents::views::EditOutput;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::service::ShareRequest;
@@ -11,11 +16,6 @@ use systemprompt_models::documents::{
     AccessLevel, ContentAs, EditMode, EditOp, NodeTarget, ProposalStatus,
 };
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, EditHandler, EditInput, GuideHandler, GuideInput, ProposalAction,
-    ProposalsHandler, ProposalsInput,
-};
-use systemprompt_runtime::documents::views::EditOutput;
 
 use crate::documents_mcp_support::{
     create_text, ctx_for, exec, harness, line_for, read_text, registered,
@@ -85,7 +85,7 @@ async fn share(
         .expect("share");
 }
 
-fn texts(read: &systemprompt_runtime::documents::views::ReadOutput) -> Vec<String> {
+fn texts(read: &systemprompt_documents::views::ReadOutput) -> Vec<String> {
     read.lines
         .iter()
         .filter_map(|line| line.split_once("| ").map(|(_, text)| text.to_owned()))

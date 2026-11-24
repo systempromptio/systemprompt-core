@@ -6,12 +6,12 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use axum::response::Response;
-use systemprompt_api::routes::documents::DocumentsState;
-use systemprompt_api::routes::uploads::{router, with_upload_tokens};
-use systemprompt_identifiers::DocumentUploadId;
-use systemprompt_runtime::documents::upload_links::{
+use systemprompt_documents::upload_links::{
     UPLOAD_AUDIENCE, UPLOAD_LINK_TTL, UPLOAD_TOKEN_HEADER, UploadGrant, upload_purpose,
 };
+use systemprompt_files_entry::http::documents::DocumentsState;
+use systemprompt_files_entry::http::uploads::{router, with_upload_tokens};
+use systemprompt_identifiers::DocumentUploadId;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 
@@ -53,7 +53,7 @@ async fn gated(
 #[tokio::test]
 async fn a_signed_token_is_refused_outside_its_upload_and_grant() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let user = seed_bridge_credential(&pool, "uploads-token").await?;
     let id = open(&state, &user).await?;
     let other = open(&state, &user).await?;
@@ -128,7 +128,7 @@ async fn status_and_body(response: Response) -> Result<(StatusCode, Vec<u8>)> {
 #[tokio::test]
 async fn a_signed_token_carries_an_upload_from_part_to_content() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let user = seed_bridge_credential(&pool, "uploads-token-flow").await?;
     let id = open(&state, &user).await?;
     let write = token(&ctx, &user, UploadGrant::Write, &id);

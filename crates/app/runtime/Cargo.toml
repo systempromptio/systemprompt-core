@@ -22,14 +22,11 @@ workspace = true
 [features]
 default = []
 geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
-collab = ["systemprompt-files/collab"]
-engine-loro = ["collab", "systemprompt-files/collab-loro"]
 notifications = ["dep:systemprompt-notifications"]
 
 [dependencies]
 tokio = { workspace = true }
 chrono = { workspace = true }
-http = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -39,7 +36,6 @@ systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-config = { workspace = true }
-systemprompt-client = { workspace = true }
 jsonwebtoken = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx", "mcp"] }
@@ -60,9 +56,6 @@ systemprompt-content = { workspace = true }
 systemprompt-agent-runs = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-schemars = { workspace = true }
-base64 = { workspace = true }
-rmcp = { workspace = true }
 async-trait = { workspace = true }
 reqwest = { workspace = true }
 url = { workspace = true }

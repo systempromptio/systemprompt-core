@@ -86,6 +86,5 @@ pub struct Subsystems {
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
     pub spawner: Arc<systemprompt_loader::subprocess::Spawner>,
-    pub documents: Arc<crate::documents::DocumentsRuntime>,
     pub late_binders: crate::builder::kernel_binders::PendingBinders,
 }

@@ -13,6 +13,9 @@ workspace = true
 [dependencies]
 reqwest = { workspace = true }
 http = { workspace = true }
+systemprompt-issues = { workspace = true }
+systemprompt-documents = { workspace = true }
+systemprompt-files-entry = { workspace = true, features = ["http"] }
 systemprompt-runtime = { workspace = true, features = ["geolocation", "notifications"] }
 systemprompt-mcp-host = { workspace = true }
 systemprompt-models = { workspace = true }

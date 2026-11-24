@@ -1,0 +1,211 @@
+//! `/api/v1/documents/{id}/collab/*`: live co-editing of HTML and Markdown
+//! documents.
+//!
+//! Protocol v3. Clients join a document's edit session (`edit`, `comment`
+//! or `view`) and learn the engine, wire version, model, access level and
+//! the engine peer id (`peer_id`) their editor must use; they post engine
+//! updates, each validated on a server-side fork and refused as
+//! `update_rejected` with a `reason`, `peer_not_assigned` or
+//! `update_dependencies_missing` (resync from a fresh join), or as
+//! `update_contended` (send again), and leave. Everyone's updates reach them
+//! as `document.collab.update` events on the document's live channel
+//! (`GET /api/v1/documents/{id}/live`). Binary
+//! payloads (snapshots, updates and version vectors) travel as standard
+//! base64 in JSON; an update may instead be posted as raw
+//! `application/octet-stream` bytes (`collab_updates`).
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
+
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::{Extension, Json};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use serde::{Deserialize, Serialize};
+use systemprompt_files::documents::collab::{Checkpoint, CursorRequest, JoinMode, Left};
+use systemprompt_identifiers::{DocumentEditSessionId, DocumentProposalId, DocumentRevisionId};
+use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
+use systemprompt_models::documents::AccessLevel;
+
+use super::DocumentsState;
+use super::caller::caller;
+use super::items::document_id;
+use systemprompt_documents::http::error::DocumentsResult;
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum ModeJson {
+    Edit,
+    Comment,
+    View,
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct JoinBody {
+    mode: ModeJson,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct JoinedJson {
+    protocol: u32,
+    session_id: DocumentEditSessionId,
+    snapshot_b64: String,
+    vv: String,
+    seq: i64,
+    head_revision: Option<DocumentRevisionId>,
+    engine: &'static str,
+    wire_version: &'static str,
+    model: &'static str,
+    model_version: u32,
+    level: AccessLevel,
+    peer_id: u64,
+}
+
+const PROTOCOL_VERSION: u32 = 3;
+
+#[derive(Debug, Deserialize)]
+pub(super) struct LeaveBody {
+    session_id: DocumentEditSessionId,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum CheckpointKind {
+    Unchanged,
+    Committed,
+    Conflict,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct LeftJson {
+    closed: bool,
+    checkpoint: CheckpointKind,
+    checkpoint_revision: Option<DocumentRevisionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    head_revision: Option<DocumentRevisionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proposal_id: Option<DocumentProposalId>,
+}
+
+impl From<Left> for LeftJson {
+    fn from(left: Left) -> Self {
+        let (checkpoint, checkpoint_revision, head_revision, proposal_id) = match left.checkpoint {
+            Checkpoint::Unchanged => (CheckpointKind::Unchanged, None, None, None),
+            Checkpoint::Committed(revision) => {
+                (CheckpointKind::Committed, Some(revision), None, None)
+            },
+            Checkpoint::Conflict { head, proposal } => {
+                (CheckpointKind::Conflict, None, Some(head), proposal)
+            },
+        };
+        Self {
+            closed: left.closed,
+            checkpoint,
+            checkpoint_revision,
+            head_revision,
+            proposal_id,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct CursorBody {
+    session_id: DocumentEditSessionId,
+    // JSON: editor cursor position; the shape belongs to the client's editor.
+    cursor: serde_json::Value,
+}
+
+pub(super) async fn join(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path(id): Path<String>,
+    Json(body): Json<JoinBody>,
+) -> DocumentsResult<Json<JoinedJson>> {
+    let who = caller(&state, &req_ctx).await?;
+    let mode = match body.mode {
+        ModeJson::Edit => JoinMode::Edit,
+        ModeJson::Comment => JoinMode::Comment,
+        ModeJson::View => JoinMode::View,
+    };
+    let joined = state
+        .collab
+        .join(&who.user, &document_id(&id)?, mode, &who.trace)
+        .await?;
+    Ok(Json(JoinedJson {
+        protocol: PROTOCOL_VERSION,
+        session_id: joined.session_id,
+        snapshot_b64: STANDARD.encode(joined.snapshot),
+        vv: STANDARD.encode(joined.version),
+        seq: joined.seq,
+        head_revision: joined.head_revision,
+        engine: joined.engine,
+        wire_version: joined.wire_version,
+        model: joined.model,
+        model_version: joined.model_version,
+        level: joined.level,
+        peer_id: joined.peer,
+    }))
+}
+
+pub(super) async fn leave(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path(id): Path<String>,
+    Json(body): Json<LeaveBody>,
+) -> DocumentsResult<Json<LeftJson>> {
+    let who = caller(&state, &req_ctx).await?;
+    let id = document_id(&id)?;
+    let collab = Arc::clone(&state.collab);
+    // Why: axum drops the handler when a closing browser drops the connection,
+    // and a settle cut off mid-checkpoint leaves the session unsaved.
+    let (settled, settling) = tokio::sync::oneshot::channel();
+    state
+        .background
+        .spawn("documents.collab.leave", async move {
+            let left = collab
+                .leave(&who.user, &id, &body.session_id, &who.trace)
+                .await;
+            if settled.send(left).is_err() {
+                tracing::debug!("the leaving client went away before the session settled");
+            }
+        });
+    let left = settling.await??;
+    Ok(Json(LeftJson::from(left)))
+}
+
+pub(super) async fn cursor(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path(id): Path<String>,
+    Json(body): Json<CursorBody>,
+) -> DocumentsResult<StatusCode> {
+    let who = caller(&state, &req_ctx).await?;
+    state
+        .service
+        .check_cursor_limit(body.cursor.to_string().len())?;
+    state
+        .collab
+        .cursor(
+            &who.user,
+            CursorRequest {
+                document: document_id(&id)?,
+                session: body.session_id,
+                cursor: body.cursor,
+            },
+            &who.trace,
+        )
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub(super) fn decode(raw: &str) -> DocumentsResult<Vec<u8>> {
+    STANDARD.decode(raw).map_err(|error| {
+        ApiError::bad_request("payload is not valid base64")
+            .with_source(error)
+            .into()
+    })
+}

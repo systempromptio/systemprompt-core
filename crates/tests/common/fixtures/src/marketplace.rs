@@ -6,9 +6,9 @@
 use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
+use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_marketplace::contract::MarketplaceSlot;
 use systemprompt_marketplace::managed::ManagedRepository;
-use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_runtime::AppContext;
 
 pub fn fixture_managed_repository(ctx: &AppContext) -> &Arc<ManagedRepository> {

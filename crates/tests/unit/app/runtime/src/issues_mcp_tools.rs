@@ -1,17 +1,17 @@
 use std::sync::Arc;
 
 use serde_json::json;
+use systemprompt_documents::upload_links::UPLOAD_TOKEN_HEADER;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::{DocumentUploadId, IssueReportId, McpServerId};
+use systemprompt_issues::mcp::IssuesMcpTools;
+use systemprompt_issues::mcp::attach::{AttachmentHandler, AttachmentInput};
+use systemprompt_issues::mcp::read::{ListHandler, ListInput, StatusHandler, StatusInput};
+use systemprompt_issues::mcp::report::{ReportHandler, ReportInput, ReportOutput};
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::issues::{IssueKind, IssueSeverity, IssueStatus};
-use systemprompt_runtime::documents::upload_links::UPLOAD_TOKEN_HEADER;
-use systemprompt_runtime::issues::mcp::IssuesMcpTools;
-use systemprompt_runtime::issues::mcp::attach::{AttachmentHandler, AttachmentInput};
-use systemprompt_runtime::issues::mcp::read::{ListHandler, ListInput, StatusHandler, StatusInput};
-use systemprompt_runtime::issues::mcp::report::{ReportHandler, ReportInput, ReportOutput};
 
 use crate::documents_mcp_rig::{Rig, rig};
 use crate::documents_mcp_support::{ctx_for, exec, registered};
@@ -51,7 +51,7 @@ async fn attach(
     tools: &IssuesMcpTools,
     ctx: &RequestContext,
     value: serde_json::Value,
-) -> Result<systemprompt_runtime::issues::mcp::attach::AttachmentOutput, rmcp::ErrorData> {
+) -> Result<systemprompt_issues::mcp::attach::AttachmentOutput, rmcp::ErrorData> {
     let input: AttachmentInput = serde_json::from_value(value).expect("attachment input");
     let hop = ctx
         .user

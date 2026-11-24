@@ -193,3 +193,36 @@ pub fn agent_http_state(ctx: &AppContext) -> systemprompt_agent_entry::http::Age
     )
     .expect("the admitted kernel holds the agent route state")
 }
+
+pub fn documents_state(
+    ctx: &AppContext,
+) -> Result<systemprompt_files_entry::http::documents::DocumentsState> {
+    let owner = systemprompt_identifiers::ExtensionId::new(
+        systemprompt_extension::reserved::CoreId::FilesHttp.id(),
+    );
+    let state = systemprompt_documents::http::surface::FilesRouteState {
+        resolved: ctx
+            .kernel()
+            .route_scoped(&owner, systemprompt_extension::StandingTag::Core, &[]),
+        host: systemprompt_api::routes::documents::files_host_handles(ctx),
+    };
+    systemprompt_files_entry::http::documents::DocumentsState::build(&state)?
+        .ok_or_else(|| anyhow::anyhow!("the document store is disabled"))
+}
+
+pub fn issues_state(
+    ctx: &AppContext,
+) -> Result<systemprompt_files_entry::http::issues::IssuesState> {
+    let owner = systemprompt_identifiers::ExtensionId::new(
+        systemprompt_extension::reserved::CoreId::FilesHttp.id(),
+    );
+    let state = systemprompt_documents::http::surface::FilesRouteState {
+        resolved: ctx
+            .kernel()
+            .route_scoped(&owner, systemprompt_extension::StandingTag::Core, &[]),
+        host: systemprompt_api::routes::documents::files_host_handles(ctx),
+    };
+    Ok(systemprompt_files_entry::http::issues::IssuesState::build(
+        &state,
+    )?)
+}

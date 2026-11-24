@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
+use systemprompt_documents::UserSubjectDirectory;
 use systemprompt_extension::notifications::{
     Membership, NotificationAudienceError, NotificationAudienceResolver,
 };
@@ -9,7 +10,6 @@ use systemprompt_extension::{AudienceEntry, AudienceResolvers, StandingTag};
 use systemprompt_files::documents::SubjectDirectory;
 use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_models::notifications::AudienceSubject;
-use systemprompt_runtime::documents::UserSubjectDirectory;
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
 

@@ -1,6 +1,11 @@
 use std::sync::Arc;
 use systemprompt_users::UserRepository;
 
+use systemprompt_documents::mcp::{
+    CreateHandler, CreateInput, DocumentsMcpConfig, DocumentsMcpTools, EditHandler, EditInput,
+    ReadHandler,
+};
+use systemprompt_documents::views::{ReadInput, ReadOutput, ReadView};
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_governance::authz::{AllowAllHook, SharedAuthzHook};
 use systemprompt_identifiers::{
@@ -10,11 +15,6 @@ use systemprompt_identifiers::{
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::documents::EditOp;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::mcp::{
-    CreateHandler, CreateInput, DocumentsMcpConfig, DocumentsMcpTools, EditHandler, EditInput,
-    ReadHandler,
-};
-use systemprompt_runtime::documents::views::{ReadInput, ReadOutput, ReadView};
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_traits::FileStorage;
 use tempfile::TempDir;

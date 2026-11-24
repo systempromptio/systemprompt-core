@@ -7,14 +7,15 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Result;
+use axum::Router;
 use axum::body::Body;
 use axum::extract::connect_info::MockConnectInfo;
 use axum::http::{Method, StatusCode, header};
-use axum::{Extension, Router};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use systemprompt_api::routes::documents::{DocumentsState, document_service, public_link};
+use systemprompt_api::routes::documents::{document_service, files_host_handles};
 use systemprompt_files::{DocumentsConfig, ExternalSharingConfig};
+use systemprompt_files_entry::http::documents::{DocumentsState, public_link};
 use systemprompt_models::documents::DocumentFormat;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
@@ -44,12 +45,13 @@ pub(super) async fn instance(sharing: ExternalSharingConfig) -> Result<Instance>
         fixture_admitted(),
     )
     .await?;
-    let config = Arc::new(fixture_config(&bootstrap.database_url));
-    let public = public_link::router(document_service(&ctx))
-        .layer(Extension(config))
-        .layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 7], 4000))));
+    let public = public_link::router(
+        document_service(&ctx).expect("the document store is enabled"),
+        files_host_handles(&ctx).client_ip,
+    )
+    .layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 7], 4000))));
     Ok(Instance {
-        state: DocumentsState::build(&ctx)?,
+        state: crate::common::documents_state(&ctx)?,
         ctx,
         public,
     })

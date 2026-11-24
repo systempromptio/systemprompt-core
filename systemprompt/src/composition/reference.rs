@@ -29,6 +29,7 @@ pub const CORE_MEMBER_IDS: &[&str] = &[
     "agent",
     "analytics",
     "content",
+    "documents",
     "files",
     "brain",
     "notifications",
@@ -49,6 +50,7 @@ pub const CORE_MEMBER_IDS: &[&str] = &[
     CoreId::BrainHttp.id(),
     CoreId::GatewayHttp.id(),
     CoreId::IdentityHttp.id(),
+    CoreId::Issues.id(),
     CoreId::Slack.id(),
     CoreId::Teams.id(),
     CoreId::Kernel.id(),
@@ -108,7 +110,13 @@ fn domain_members() -> Vec<Member> {
         #[cfg(feature = "content")]
         Member::core::<systemprompt_content::ContentExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "full")]
+        Member::core::<systemprompt_documents::extension::DocumentsExtension>(CoreTerms::REQUIRED),
+        #[cfg(feature = "full")]
         Member::core::<systemprompt_files::FilesExtension>(CoreTerms::REQUIRED),
+        #[cfg(all(feature = "issues", feature = "full"))]
+        Member::core::<systemprompt_issues::extension::IssuesExtension>(CoreTerms::conferred(
+            CoreId::Issues,
+        )),
         #[cfg(feature = "brain")]
         Member::core::<systemprompt_brain::BrainExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "notifications")]

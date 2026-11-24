@@ -214,7 +214,8 @@ pub mod sso;
 pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
 pub use drive_tokens::{
-    DriveTokenError, DriveTokenSubject, DriveTokens, DynDriveTokens, IssuedDriveToken,
+    DriveSyncAttendance, DriveSyncGrant, DriveSyncPrincipal, DriveTokenError, DriveTokens,
+    DynDriveTokens,
 };
 pub use gateway_session::{
     DynGatewaySessionMint, GatewaySessionMint, GatewaySessionMintError, MintedGatewaySession,

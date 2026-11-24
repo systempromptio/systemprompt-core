@@ -2,8 +2,8 @@ use anyhow::Result;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use systemprompt_api::routes::documents::DocumentsState;
 use systemprompt_api::routes::gateway::gateway_router;
+use systemprompt_files_entry::http::documents::DocumentsState;
 use systemprompt_models::documents::content_hash;
 use systemprompt_test_fixtures::{AuthedFixture, seed_drive_credential};
 use uuid::Uuid;
@@ -61,7 +61,7 @@ impl Fixture for Drive {
 async fn a_second_device_user_is_refused_every_owned_drive_route() -> Result<()> {
     let (pool, ctx) = setup_drive_ctx().await?;
     let gateway = gateway_router(&ctx, ctx.admitted(), ctx.kernel())?;
-    let documents = DocumentsState::build(&ctx)?;
+    let documents = crate::common::documents_state(&ctx)?;
     let owner = seed_drive_credential(&pool, "sweep-drive-owner").await?;
     let stranger = seed_drive_credential(&pool, "sweep-drive-stranger").await?;
     let path = format!("sweep-{}.md", Uuid::new_v4().simple());

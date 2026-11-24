@@ -1,8 +1,8 @@
 use http::Method;
-use systemprompt_identifiers::DocumentUploadId;
-use systemprompt_runtime::documents::upload_links::{
+use systemprompt_documents::upload_links::{
     UploadGrant, purpose_permits, required_grant, upload_purpose,
 };
+use systemprompt_identifiers::DocumentUploadId;
 
 #[test]
 fn each_upload_route_names_the_grant_it_needs() {

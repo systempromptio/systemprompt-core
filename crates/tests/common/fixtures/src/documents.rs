@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_documents::{DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory};
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_extension::{
     DynNotificationSink, NotificationAudienceResolver, ResourceVisibility,
 };
+use systemprompt_files::DocumentsConfig;
 use systemprompt_files::contract::{AgentAccess, DocumentSeams};
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::repository::BlobHolders;
-use systemprompt_files::documents::{DocumentVisibility, DocumentsHandles, DocumentsHandlesSlot};
+use systemprompt_files::documents::{DocumentVisibility, DocumentsHandlesSlot};
 use systemprompt_files::issues::IssueVisibility;
-use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
@@ -19,11 +20,8 @@ use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_notifications::{
     NotificationsService, NotificationsServiceSlot, OutboxNotificationSink,
 };
-use systemprompt_runtime::documents::{
-    DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
-};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{core_seam, BackgroundTasks, CoreSeam, FileStorage};
+use systemprompt_traits::{BackgroundTasks, CoreSeam, FileStorage, core_seam};
 use systemprompt_users::{UserRepository, UserRoleAudienceResolver};
 
 pub fn fixture_notification_sink(pool: &DbPool) -> DynNotificationSink {
@@ -81,6 +79,30 @@ pub fn fixture_notifications(
         .get::<Arc<NotificationsServiceSlot>>()
         .expect("the notifications slot build returns its service");
     Arc::clone(slot.get().expect("the slot build binds the service"))
+}
+
+// The document store handles the context's documents member bound.
+pub fn documents_handles(ctx: &AppContext) -> Arc<systemprompt_files::documents::DocumentsHandles> {
+    let slot = ctx
+        .kernel()
+        .state()
+        .find::<systemprompt_files::documents::DocumentsHandlesSlot>()
+        .expect("the documents member provides the document store cell");
+    Arc::clone(
+        systemprompt_files::documents::bound(slot).expect("the documents member binds the cell"),
+    )
+}
+
+// The link token view the documents member confers on files-http.
+pub fn document_link_tokens(
+    ctx: &AppContext,
+) -> Arc<systemprompt_documents::tokens::DocumentLinkTokens> {
+    Arc::clone(
+        ctx.kernel()
+            .state()
+            .find::<Arc<systemprompt_documents::tokens::DocumentLinkTokens>>()
+            .expect("the documents member provides the link token view"),
+    )
 }
 
 pub fn notifications_service(ctx: &AppContext) -> Arc<NotificationsService> {
@@ -182,7 +204,7 @@ pub fn fixture_documents_runtime_configured(
         )),
         event_router,
         notifications: fixture_notification_sink(pool),
-        brain: Arc::new(systemprompt_runtime::documents::BrainUnavailableSink),
+        brain: Arc::new(systemprompt_documents::BrainUnavailableSink),
         catalog: Vec::new(),
         config,
         issues: Arc::new(systemprompt_files::issues::IssueService::new(
@@ -208,14 +230,8 @@ pub fn fixture_documents_runtime_configured(
             systemprompt_agent::repository::ContextRepository::new(pool),
         )),
     }));
-    let service = documents_enabled.then(|| Arc::clone(runtime.service()));
     binder
-        .bind(Arc::new(DocumentsHandles {
-            access: Arc::clone(runtime.access()),
-            repositories: Arc::clone(runtime.repositories()),
-            issues: Arc::clone(runtime.issues()),
-            service,
-        }))
+        .bind(Arc::new(runtime.handles(documents_enabled)))
         .expect("the fixture binds its own document store cell once");
     runtime
 }

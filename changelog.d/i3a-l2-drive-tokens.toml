@@ -1,0 +1,9 @@
+[root]
+section = "Added"
+area = "Security"
+text = "`DriveTokens` is the narrow token view the bridge Drive routes hold: it trades a bridge device token for a Drive sync token and verifies Drive sync tokens, and mints or admits no other audience."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`DriveTokens`, `DynDriveTokens`, `DriveSyncGrant`, `DriveSyncPrincipal`, `DriveSyncAttendance` and `DriveTokenError`."

@@ -1,10 +1,10 @@
-use systemprompt_extension::mcp::McpToolHandler;
-use systemprompt_files::documents::service::NewFolderRequest;
-use systemprompt_models::documents::{AccessLevel, DocumentFormat};
-use systemprompt_runtime::documents::mcp::{
+use systemprompt_documents::mcp::{
     ListHandler, ListInput, ListScopeInput, ListSortInput, SearchHandler, SearchInput,
     ShareHandler, ShareInput,
 };
+use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_files::documents::service::NewFolderRequest;
+use systemprompt_models::documents::{AccessLevel, DocumentFormat};
 use uuid::Uuid;
 
 use crate::documents_mcp_support::{create_text, ctx_for, exec, harness, person, registered};

@@ -18,9 +18,9 @@
 
 use std::time::{Duration, Instant};
 
+use systemprompt_documents::mcp::{EditHandler, EditInput};
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_models::documents::EditOp;
-use systemprompt_runtime::documents::mcp::{EditHandler, EditInput};
 use systemprompt_test_fixtures::DisposableDb;
 
 use crate::documents_mcp_support::{create_text, ctx_for, exec, harness_on, registered_on};

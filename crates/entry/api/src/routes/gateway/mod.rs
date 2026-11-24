@@ -71,7 +71,7 @@ use systemprompt_gateway::{
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_runtime::{AppContext, Kernel};
-use systemprompt_traits::AppContext as _;
+use systemprompt_traits::{AppContext as _, DynDriveTokens};
 
 use self::access_log::log_gateway_request;
 use self::builtin::confined;
@@ -122,14 +122,21 @@ pub fn gateway_repositories(
     )
 }
 
-fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
-    if !ctx.files_config().documents_config().is_enabled() {
+fn drive_routes(ctx: &AppContext, admitted: &Admitted, kernel: &Kernel) -> Router {
+    let owner = ExtensionId::new(CoreId::GatewayHttp.id());
+    let Some(standing) = admitted.built().standing_of(&owner) else {
         return Router::new();
-    }
-    crate::routes::documents::drive::router(crate::routes::documents::drive::DriveState::new(
+    };
+    let (Some(service), Ok(tokens)) = (
         crate::routes::documents::document_service(ctx),
-        Arc::clone(jwt_extractor),
-        ctx.token_authority(),
+        kernel
+            .route_scoped(&owner, standing, &[])
+            .get::<DynDriveTokens>(),
+    ) else {
+        return Router::new();
+    };
+    crate::routes::documents::drive::router(crate::routes::documents::drive::DriveState::new(
+        service, tokens,
     ))
 }
 
@@ -146,7 +153,7 @@ pub(crate) fn gateway_mount_parts(
         .merge(bridge_session_routes(ctx, &jwt_extractor));
     let registered = registered::admitted_gateway_routes(admitted, kernel, &jwt_extractor)?;
     let traffic = traffic
-        .merge(drive_routes(ctx, &jwt_extractor))
+        .merge(drive_routes(ctx, admitted, kernel))
         .merge(bridge_release::routes(ctx, &jwt_extractor)?)
         .route("/models", get(models::list).with_state(ctx.clone()))
         .route("/", get(models::root));

@@ -1,12 +1,12 @@
-use systemprompt_extension::mcp::McpToolHandler;
-use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_models::documents::{AccessLevel, ActorKind, ContentAs, EditOp, NodeTarget};
-use systemprompt_runtime::documents::mcp::{
+use systemprompt_documents::mcp::{
     EditHandler, EditInput, ExportAs, ExportFormat, ExportHandler, ExportInput, HistoryHandler,
     HistoryInput, ListHandler, ListInput, ListScopeInput, ListSortInput, ReadHandler, ShareHandler,
     ShareInput,
 };
-use systemprompt_runtime::documents::views::{ReadInput, ReadView};
+use systemprompt_documents::views::{ReadInput, ReadView};
+use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_identifiers::DocumentNodeId;
+use systemprompt_models::documents::{AccessLevel, ActorKind, ContentAs, EditOp, NodeTarget};
 
 use crate::documents_mcp_support::{
     create_text, ctx_for, exec, harness, line_for, read_text, registered,
@@ -411,9 +411,9 @@ async fn export_links_and_previews_the_revision() {
 
 #[tokio::test]
 async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
+    use systemprompt_documents::mcp::{CreateHandler, CreateInput};
     use systemprompt_identifiers::DocumentTemplateId;
     use systemprompt_models::documents::NodeKind;
-    use systemprompt_runtime::documents::mcp::{CreateHandler, CreateInput};
     let h = harness().await;
     let owner = registered("creator").await;
     let ctx = ctx_for(Some(&owner));

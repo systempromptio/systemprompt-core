@@ -12,6 +12,7 @@ use axum::{Extension, Router};
 use serde_json::{Value, json};
 use systemprompt_brain_entry::http::user_routes;
 use systemprompt_database::DbPool;
+use systemprompt_documents::NotificationsUnavailableSink;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_extension::router::RouteSet;
 use systemprompt_identifiers::{AgentName, BrainFactId, ContextId, SessionId, TraceId, UserId};
@@ -19,7 +20,6 @@ use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::RequestContext;
 use systemprompt_models::brain::FactStatus;
 use systemprompt_runtime::Kernel;
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, fixture_brain_kernel, seed_brain_fact,
     seed_bridge_credential, test_app_context, test_db_pool,
@@ -39,7 +39,7 @@ pub(super) async fn brain_fixture() -> Result<BrainFixture> {
     let notifications: DynNotificationSink = Arc::new(NotificationsUnavailableSink);
     let kernel = fixture_brain_kernel(
         &pool,
-        Some(ctx.documents()),
+        Some(&systemprompt_test_fixtures::documents_handles(&ctx)),
         notifications,
         BrainProfile {
             enabled: true,

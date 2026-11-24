@@ -19,6 +19,9 @@ use systemprompt_api::routes::documents::document_service;
 use systemprompt_api::routes::internal::links_router;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
+use systemprompt_documents::links::{
+    ApiLinkIssuer, IssuedLink, LinkIssueError, LinkIssuer, LinkMinter, LinkRefusal, LinkTarget,
+};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::uploads::models::NewUpload;
 use systemprompt_identifiers::{JwtToken, McpServerId, SessionId, TraceId, UserId, headers};
@@ -27,9 +30,6 @@ use systemprompt_models::auth::{AuthenticatedUser, McpHopIdentity, Permission, U
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::documents::links::{
-    ApiLinkIssuer, IssuedLink, LinkIssueError, LinkIssuer, LinkMinter, LinkRefusal, LinkTarget,
-};
 use systemprompt_security::jwt::{encode_mcp_hop, mcp_hop_claims};
 use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
 use systemprompt_test_fixtures::{
@@ -77,9 +77,9 @@ async fn person(pool: &systemprompt_database::DbPool, prefix: &str) -> Result<Au
 
 async fn serve(ctx: &Arc<AppContext>) -> Result<String> {
     let minter = LinkMinter {
-        tokens: ctx.token_authority(),
-        documents: document_service(ctx),
-        uploads: Arc::clone(ctx.documents().uploads()),
+        tokens: systemprompt_test_fixtures::document_link_tokens(ctx),
+        documents: document_service(ctx).expect("the document store is enabled"),
+        uploads: Arc::clone(&systemprompt_test_fixtures::documents_handles(ctx).uploads),
         services: services_hosting(SERVER, &["documents"]),
         api_external_url: "https://links.example.test".to_owned(),
     };
@@ -92,9 +92,8 @@ async fn serve(ctx: &Arc<AppContext>) -> Result<String> {
 
 async fn upload(ctx: &AppContext, owner: &UserId) -> Result<LinkTarget> {
     let bytes = vec![1u8; 32];
-    let session = ctx
-        .documents()
-        .uploads()
+    let session = systemprompt_test_fixtures::documents_handles(&ctx)
+        .uploads
         .create(
             owner,
             NewUpload {

@@ -1,13 +1,13 @@
-use systemprompt_extension::mcp::McpToolHandler;
-use systemprompt_files::documents::service::FolderMove;
-use systemprompt_identifiers::{DocumentId, DocumentNodeId};
-use systemprompt_models::documents::{AccessLevel, ContentAs, EditOp, NodeTarget};
-use systemprompt_runtime::documents::mcp::{
+use systemprompt_documents::mcp::{
     AccessHandler, AccessInput, CommentAction, CommentHandler, CommentInput, CopyHandler,
     CopyInput, DocumentInput, EditHandler, EditInput, GuideHandler, GuideInput, ListHandler,
     ListInput, ListScopeInput, ListSortInput, QuoteAnchor, ShareHandler, ShareInput, TrashHandler,
     UntrashHandler, UpdateHandler, UpdateInput, refusal_result,
 };
+use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_files::documents::service::FolderMove;
+use systemprompt_identifiers::{DocumentId, DocumentNodeId};
+use systemprompt_models::documents::{AccessLevel, ContentAs, EditOp, NodeTarget};
 
 use crate::documents_mcp_support::{
     create_text, ctx_for, exec, harness, line_for, person, read_text, registered,

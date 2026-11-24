@@ -2,7 +2,7 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::http::{Method, StatusCode};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::DocumentsState;
+use systemprompt_files_entry::http::documents::DocumentsState;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use uuid::Uuid;
 

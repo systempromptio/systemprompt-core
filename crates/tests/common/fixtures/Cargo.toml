@@ -10,6 +10,7 @@ reqwest = { workspace = true }
 anyhow = { workspace = true }
 lopdf = { workspace = true }
 dotenvy = { workspace = true }
+systemprompt-documents = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-config = { workspace = true }
@@ -36,6 +37,7 @@ systemprompt-governance = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-files-entry = { workspace = true, features = ["http"] }
 systemprompt-gateway = { workspace = true }
 systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
 tempfile = { workspace = true }

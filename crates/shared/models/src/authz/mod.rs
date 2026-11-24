@@ -17,6 +17,23 @@ mod handle;
 
 pub use handle::SubjectSourceHandle;
 
+/// The names of the roles the admitted members declare, seeded by the host so
+/// a member that resolves a role by name reads the same catalog.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CatalogRoleNames(Vec<String>);
+
+impl CatalogRoleNames {
+    #[must_use]
+    pub const fn new(names: Vec<String>) -> Self {
+        Self(names)
+    }
+
+    #[must_use]
+    pub fn names(&self) -> &[String] {
+        &self.0
+    }
+}
+
 /// Subject values per dimension, gathered before the pure resolver runs.
 ///
 /// A dimension with no values for the user is simply absent, which makes its

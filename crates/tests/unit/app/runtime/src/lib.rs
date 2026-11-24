@@ -112,6 +112,8 @@ mod brain_live;
 #[cfg(test)]
 mod core_secret_names;
 #[cfg(test)]
+mod document_token_views;
+#[cfg(test)]
 mod documents_mcp_attribution;
 #[cfg(test)]
 mod documents_mcp_browse;

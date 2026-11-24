@@ -353,8 +353,5 @@ pub(crate) fn host_admit() -> systemprompt_runtime::AdmitFn {
 }
 
 pub(crate) fn core_admit() -> systemprompt_runtime::AdmitFn {
-    Box::new(|_profile| {
-        systemprompt_test_fixtures::schema_admitted()
-            .map_err(|e| -> systemprompt_traits::BoxedSource { Box::new(e) })
-    })
+    Box::new(|_profile| Ok(systemprompt_test_fixtures::host_admitted()))
 }

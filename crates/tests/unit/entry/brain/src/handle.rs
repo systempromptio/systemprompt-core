@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use systemprompt_brain::BrainExtension;
+use systemprompt_documents::NotificationsUnavailableSink;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_runtime::documents::NotificationsUnavailableSink;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_admitted_of, fixture_brain_kernel, fixture_brain_slot,
     lazy_pg_pool,

@@ -8,17 +8,18 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, document_service, router};
+use systemprompt_api::routes::documents::document_service;
+use systemprompt_documents::mcp::{
+    DocumentsMcpConfig, DocumentsMcpTools, ReadHandler, refusal_result,
+};
+use systemprompt_documents::views::{NodeRange, ReadInput, ReadView};
 use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_identifiers::{
     DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId, McpServerId, UserId,
 };
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpConfig, DocumentsMcpTools, ReadHandler, refusal_result,
-};
-use systemprompt_runtime::documents::views::{NodeRange, ReadInput, ReadView};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -42,18 +43,20 @@ fn get(uri: &str) -> Request<Body> {
 
 fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
     DocumentsMcpTools::new(DocumentsMcpConfig {
-        service: document_service(ctx),
+        service: document_service(ctx).expect("the document store is enabled"),
         notifications: Some(systemprompt_test_fixtures::notifications_service(ctx)),
-        uploads: Some(Arc::clone(ctx.documents().uploads())),
+        uploads: Some(Arc::clone(
+            &systemprompt_test_fixtures::documents_handles(ctx).uploads,
+        )),
         users: Arc::clone(ctx.user_repository()),
         links: Arc::new(
-            systemprompt_runtime::documents::links::ApiLinkIssuer::new(
+            systemprompt_documents::links::ApiLinkIssuer::new(
                 "http://127.0.0.1:1",
                 McpServerId::new("documents"),
             )
             .expect("link client"),
         ),
-        contexts: Arc::clone(ctx.documents().contexts()),
+        contexts: Arc::clone(&systemprompt_test_fixtures::documents_handles(ctx).contexts),
         server_name: McpServerId::new("documents"),
     })
 }
@@ -163,7 +166,7 @@ fn first_node(read: &Value) -> String {
 #[tokio::test]
 async fn every_read_view_answers_alike_over_rest_and_mcp() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-read-parity").await?;
     let (document, base) = create(&state, &owner).await?;
     let (_, outline) = send(

@@ -211,7 +211,11 @@ fn the_inventory_sees_methods_bound_through_a_let_and_every_method_of_a_chain() 
         );
     }
     for method in ["GET", "HEAD", "PATCH", "DELETE"] {
-        assert!(has("routes/documents/mod.rs::router", method, "\"/{id}\""));
+        assert!(has(
+            "files/http/documents/mod.rs::router",
+            method,
+            "\"/{id}\""
+        ));
     }
     assert!(has(
         "routes/documents/drive.rs::router",

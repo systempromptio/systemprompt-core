@@ -1,9 +1,9 @@
 //! The document actor a request runs as, from its credential alone.
 
+use systemprompt_documents::actor::request_actor;
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_identifiers::{Actor, AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
-use systemprompt_runtime::documents::actor::request_actor;
 
 fn context() -> RequestContext {
     RequestContext::new(
@@ -82,8 +82,8 @@ fn a_token_with_a_purpose_is_never_attended() {
 
 #[tokio::test]
 async fn an_extension_runs_its_document_calls_as_the_request_actor() {
+    use systemprompt_documents::actor::act_as_request;
     use systemprompt_files::documents::agents::current_actor;
-    use systemprompt_runtime::documents::actor::act_as_request;
 
     let browser = context().with_browser_session();
     let inside = act_as_request(&browser, async { current_actor() }).await;

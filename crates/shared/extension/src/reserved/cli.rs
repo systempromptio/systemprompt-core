@@ -125,6 +125,12 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
         DIRECT_PRESERVING,
     ),
     cli(
+        CoreId::Issues,
+        &["admin", "issues"],
+        &[KernelGrant::CallerSession],
+        PRESERVING,
+    ),
+    cli(
         CoreId::McpHttp,
         &["plugins", "mcp"],
         &[KernelGrant::ServicesTree, KernelGrant::CallerSession],

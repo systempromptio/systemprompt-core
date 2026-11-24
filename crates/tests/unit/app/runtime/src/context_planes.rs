@@ -106,8 +106,6 @@ async fn plane_debug_impls_flag_optional_members() {
         systemprompt_storage::build_file_storage(systemprompt_storage::FileStorageBackend::Local {
             root: std::env::temp_dir(),
         });
-    let documents =
-        systemprompt_test_fixtures::fixture_documents_runtime(&pool, &file_storage, &authz_hook);
     let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
         systemprompt_events::EventBroadcasters::new(),
     ));
@@ -133,7 +131,6 @@ async fn plane_debug_impls_flag_optional_members() {
         shutdown: Default::default(),
         background_tasks: Default::default(),
         spawner: systemprompt_test_fixtures::test_spawner(),
-        documents,
         late_binders: Default::default(),
     };
     let dbg = format!("{subsystems:?}");

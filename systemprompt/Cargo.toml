@@ -79,7 +79,7 @@ client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
-cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli", "systemprompt-marketplace-entry?/cli", "systemprompt-files-entry?/cli", "systemprompt-mcp-entry?/cli", "systemprompt-agent-entry?/cli"]
+cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli", "systemprompt-marketplace-entry?/cli", "systemprompt-files-entry?/cli", "systemprompt-issues?/cli", "systemprompt-mcp-entry?/cli", "systemprompt-agent-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
@@ -141,15 +141,15 @@ files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf"]
 
 # Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
 # routes. `full` implies it.
-files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-runtime?/collab", "systemprompt-api?/collab"]
+files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-documents?/collab", "systemprompt-files-entry?/collab"]
 
 # The Loro CRDT engine for live sessions. Without it `files-collab` mounts the
 # routes and every session answers `collab_engine_unavailable`.
-files-collab-loro = ["files-collab", "systemprompt-runtime?/engine-loro"]
+files-collab-loro = ["files-collab", "systemprompt-documents?/engine-loro"]
 
 # The notifications domain: streams, rules, feed and the outbox consumer. `full` implies it.
 # Without it the server mounts no notification routes and comments record no notification.
-notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notifications-entry", "systemprompt-runtime?/notifications"]
+notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notifications-entry", "systemprompt-runtime?/notifications", "systemprompt-documents?/notifications"]
 
 # The brain: revisioned organisational memory, its capture consumer and gateway recall. `full` implies it.
 # Without it the documents store records no brain event and the gateway injects no team memory.
@@ -307,4 +307,4 @@ name = "cli"
 required-features = ["full"]
 
 [package.metadata.cargo-machete]
-ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-identity-entry"]
+ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry", "systemprompt-identity-entry"]

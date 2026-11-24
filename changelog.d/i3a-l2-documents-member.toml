@@ -1,0 +1,39 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The document store and the issue reports leave `systemprompt-runtime`: the `documents` member (`systemprompt-documents`) builds the store from the resolved kernel state, binds the `DocumentsHandlesSlot` it provides and confers two narrow token views, `DocumentLinkTokens` on `files-http` and `DynDriveTokens` on `gateway-http`; the `issues` member (`systemprompt-issues`) carries the issue MCP tools and the `admin issues` commands. Its access checks decide through the host's late-bound authz hook, which denies until the host binds it. Migrate `systemprompt_runtime::documents` and `systemprompt_runtime::issues` paths to `systemprompt_documents` and `systemprompt_issues`, and `AppContext::documents()` to the `DocumentsHandlesSlot` in the kernel state."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`documents` and `issues` modules, `AppContext::documents`, `HostParts::documents`, `RuntimeError::DocumentTemplates` and the `collab` and `engine-loro` features are removed; `KernelSeed::documents` is replaced by `KernelSeed::catalog_roles` and `KernelBinders` gains `authz_hook`. The base kernel state seeds the sealed `AuthzHookCell` and the open `CatalogRoleNames`."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "The document store engine, its MCP tools, signed links, the `documents` member (`DocumentsExtension`) and the narrow token views `DocumentLinkTokens` and `DocumentDriveTokens`. `signed_download_url` and `signed_upload_links` take `&DocumentLinkTokens`; `LinkMinter::tokens` is `Arc<DocumentLinkTokens>`; `DocumentsMcpTools::for_host` takes the bound `DocumentsHandles` and returns `None` while the store is disabled."
+
+[[crate]]
+name = "systemprompt-issues"
+section = "Added"
+text = "The issue report MCP tools, the `issues` member (`IssuesExtension`) and, with `cli`, the `admin issues` command group."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "`DocumentsHandles` carries `uploads`, `contexts` and, with `collab`, `collab`; `bound` and `bound_service` are exported from `documents`."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Added"
+text = "`LateAuthzHook`, `AuthzHookCell` and `AuthzHookBinder`: an authz hook a host binds after its kernel resolves, denying every request until then."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CoreId::Issues` and the `admin issues` reserved CLI path; `ConferralRow::DocumentLinkTokens` (documents → files-http) and `ConferralRow::DriveTokens` (documents → gateway-http)."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`systemprompt::runtime` is removed; the document store is `systemprompt::documents` and the issue reports `systemprompt::issues` under `full`."

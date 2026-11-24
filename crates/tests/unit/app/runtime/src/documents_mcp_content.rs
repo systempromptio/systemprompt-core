@@ -1,6 +1,6 @@
 use serde_json::json;
-use systemprompt_runtime::documents::mcp::{create_content, refusal_code};
-use systemprompt_runtime::documents::refusal::RefusalCode;
+use systemprompt_documents::mcp::{create_content, refusal_code};
+use systemprompt_documents::refusal::RefusalCode;
 
 #[test]
 fn content_accepts_markdown_or_a_model() {

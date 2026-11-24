@@ -1,0 +1,129 @@
+//! Tool descriptions carry one line each; the working detail lives here so
+//! the tool list stays small and an agent pays for a topic only when it
+//! needs it.
+//!
+//! The `formats` topic is built from the codec registry, so the node kinds
+//! it lists for `insert_after` are the ones each codec accepts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use rmcp::ErrorData as McpError;
+use systemprompt_extension::mcp::McpToolHandler;
+use systemprompt_identifiers::McpExecutionId;
+use systemprompt_models::execution::context::RequestContext;
+
+use super::DocumentsMcpTools;
+use super::guide_model::model_topic;
+use super::guide_topics::{
+    AGENTS, COMMENTS, EDITING, LIFECYCLE, PROPOSALS, SHARING, SHEETS, SLIDES, UPLOADS, refusal_text,
+};
+use super::inputs::GuideInput;
+use super::outputs::GuideOutput;
+use crate::refusal::RefusalCode;
+
+#[cfg(feature = "notifications")]
+const INBOX_TOPIC: &str = "inbox and ";
+#[cfg(not(feature = "notifications"))]
+const INBOX_TOPIC: &str = "and ";
+
+fn formats(tools: &DocumentsMcpTools) -> String {
+    let service = tools.service();
+    let mut out =
+        String::from("insert_after kinds per format (an empty list means no insert_after):");
+    for format in service.formats() {
+        let kinds = service.insert_kinds(format);
+        out.push_str(&format!("\n{format}: {}", kinds.join(", ")));
+    }
+    out.push_str(
+        "\nExport: native as url everywhere; pdf as url everywhere (rendered from the outline: \
+         headings, paragraphs, lists, tables, sheet grids, one page per slide; images omitted); \
+         html as preview everywhere; md or html as url only for a document already in that \
+         format.\nfile: any other upload (a PDF, an image, an archive) is a file document. It \
+         is listed, shared, downloaded (export native as url) and previewed (an image inline), \
+         but it has no outline and is never edited: every edit op refuses with unsupported_op. \
+         To change one, write a new version of the whole file, or upload a new file with \
+         documents_upload and documents_import it.",
+    );
+    out
+}
+
+fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
+    let body = match name {
+        "editing" => EDITING.to_owned(),
+        "formats" => formats(tools),
+        "sheets" => SHEETS.to_owned(),
+        "slides" => SLIDES.to_owned(),
+        "sharing" => SHARING.to_owned(),
+        "comments" => COMMENTS.to_owned(),
+        "lifecycle" => LIFECYCLE.to_owned(),
+        "proposals" => PROPOSALS.to_owned(),
+        "model" => model_topic(),
+        "uploads" => UPLOADS.to_owned(),
+        "agents" => AGENTS.to_owned(),
+        #[cfg(feature = "notifications")]
+        "inbox" => super::guide_topics::INBOX.to_owned(),
+        other => RefusalCode::ALL
+            .iter()
+            .find(|code| other.strip_prefix("refusal.") == Some(code.as_str()))
+            .map_or_else(
+                || {
+                    format!(
+                        "unknown topic; topics are editing, model, formats, uploads, sheets, \
+                         slides, sharing, comments, lifecycle, proposals, agents, {INBOX_TOPIC}\
+                         refusal.<code> for {}",
+                        RefusalCode::ALL.map(RefusalCode::as_str).join(", ")
+                    )
+                },
+                |code| refusal_text(*code).to_owned(),
+            ),
+    };
+    format!("## {name}\n{body}")
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GuideHandler<'a> {
+    pub tools: &'a DocumentsMcpTools,
+}
+
+impl McpToolHandler for GuideHandler<'_> {
+    type Input = GuideInput;
+    type Output = GuideOutput;
+
+    fn tool_name(&self) -> &'static str {
+        "documents_guide"
+    }
+
+    fn description(&self) -> &'static str {
+        "Detail by topic (editing, model, formats, ...)."
+    }
+
+    fn read_only(&self) -> bool {
+        true
+    }
+
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "the handler trait is async; the guide is assembled from static text"
+    )]
+    async fn handle(
+        &self,
+        input: GuideInput,
+        _ctx: &RequestContext,
+        _exec_id: &McpExecutionId,
+    ) -> Result<(GuideOutput, String), McpError> {
+        let text = input
+            .topics
+            .iter()
+            .map(|name| topic(self.tools, name))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        Ok((
+            GuideOutput {
+                topics: input.topics,
+                guide: text.clone(),
+            },
+            text,
+        ))
+    }
+}

@@ -56,9 +56,6 @@ pub enum RuntimeError {
     #[error(transparent)]
     Files(#[from] FilesError),
 
-    #[error("document template catalog could not be loaded")]
-    DocumentTemplates(#[from] systemprompt_files::documents::templates::TemplateCatalogError),
-
     #[error(transparent)]
     Users(#[from] UserError),
 

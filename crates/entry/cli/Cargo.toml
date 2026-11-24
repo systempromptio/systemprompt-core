@@ -41,7 +41,6 @@ systemprompt-oauth = { workspace = true }
 systemprompt-oauth-issuance = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-marketplace = { workspace = true }
-systemprompt-files = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }

@@ -1,14 +1,14 @@
 use serde_json::json;
+use systemprompt_documents::mcp::{
+    CreateHandler, CreateInput, DocumentsMcpTools, HistoryHandler, HistoryInput, ListHandler,
+    ListInput, ReadHandler, SearchHandler, SearchInput,
+};
+use systemprompt_documents::refusal::RefusalCode;
+use systemprompt_documents::views::{ReadInput, ReadOutput, ReadView};
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::{DocumentId, DocumentTemplateId};
 use systemprompt_models::documents::{AccessLevel, ActorKind, DocumentFormat};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::mcp::{
-    CreateHandler, CreateInput, DocumentsMcpTools, HistoryHandler, HistoryInput, ListHandler,
-    ListInput, ReadHandler, SearchHandler, SearchInput,
-};
-use systemprompt_runtime::documents::refusal::RefusalCode;
-use systemprompt_runtime::documents::views::{ReadInput, ReadOutput, ReadView};
 
 use crate::documents_mcp_rig::{code_of, rig};
 use crate::documents_mcp_support::{create_text, ctx_for, exec, registered};

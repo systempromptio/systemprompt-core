@@ -35,6 +35,7 @@ pub mod gateway_entities;
 pub mod hook;
 pub mod ingestion;
 pub mod keep;
+pub mod late_hook;
 pub mod marketplace_floor;
 pub mod parent_chain;
 pub mod plane;
@@ -67,6 +68,7 @@ pub use ingestion::{
     RegisteredEntities, SERVICES_SOURCE, UnknownSubject,
 };
 pub use keep::{BulkKeepQuery, allowed_ids};
+pub use late_hook::{AuthzHookBinder, AuthzHookCell, LateAuthzHook};
 pub use marketplace_floor::member_attribute_floor;
 pub use parent_chain::{
     ChainIndexCache, ChainSources, DecisionFacts, LoadedParent, MarketplaceSource,

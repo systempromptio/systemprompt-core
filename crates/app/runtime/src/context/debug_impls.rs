@@ -91,7 +91,6 @@ impl std::fmt::Debug for Subsystems {
                 &self.background_tasks.in_flight(),
             )
             .field("spawner", &"Spawner")
-            .field("documents", &self.documents)
             .field("late_binders", &self.late_binders);
         debug.finish()
     }

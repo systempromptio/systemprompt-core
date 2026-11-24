@@ -1,21 +1,27 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_documents::links::{
+    IssuedLink, LinkIssueError, LinkIssuer, LinkMinter, LinkRefusal, LinkRequest, LinkTarget,
+    mint_link,
+};
 use systemprompt_files::documents::DocumentService;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
 use systemprompt_models::auth::{AuthenticatedUser, McpHopIdentity, TokenAuthority, UserType};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::links::{
-    IssuedLink, LinkIssueError, LinkIssuer, LinkMinter, LinkRefusal, LinkRequest, LinkTarget,
-    mint_link,
-};
 
 pub(crate) const LINKS_ISSUER: &str = "documents-test";
 pub(crate) const LINKS_BASE: &str = "https://docs.example.test/";
 
 pub(crate) fn link_authority() -> Arc<dyn TokenAuthority> {
     systemprompt_test_fixtures::test_token_authority(LINKS_ISSUER)
+}
+
+pub(crate) fn link_tokens() -> Arc<systemprompt_documents::tokens::DocumentLinkTokens> {
+    Arc::new(systemprompt_documents::tokens::DocumentLinkTokens::new(
+        Some(link_authority()),
+    ))
 }
 
 #[derive(Debug)]
@@ -55,7 +61,7 @@ pub(crate) fn in_process_links(
 ) -> Arc<dyn LinkIssuer> {
     Arc::new(InProcessLinks {
         minter: LinkMinter {
-            tokens: link_authority(),
+            tokens: link_tokens(),
             documents,
             uploads,
             services: systemprompt_test_fixtures::services_hosting(

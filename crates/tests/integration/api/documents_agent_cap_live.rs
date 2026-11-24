@@ -11,7 +11,7 @@ use axum::response::Response;
 use axum::{Extension, Router};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
-use systemprompt_api::routes::documents::{DocumentsState, folders_router, router};
+use systemprompt_files_entry::http::documents::{DocumentsState, folders_router, router};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -62,7 +62,7 @@ async fn create_html(state: &DocumentsState, owner: &AuthedFixture) -> Result<St
 #[tokio::test]
 async fn the_owner_reads_sets_and_clears_a_document_agent_cap() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "cap-owner").await?;
     let stranger = seed_bridge_credential(&pool, "cap-stranger").await?;
     let id = create_html(&state, &owner).await?;
@@ -141,7 +141,7 @@ async fn the_owner_reads_sets_and_clears_a_document_agent_cap() -> Result<()> {
 #[tokio::test]
 async fn the_owner_sets_a_folder_agent_cap() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "cap-folder").await?;
     let folders = || app(folders_router(state.clone()), &owner);
     let name = format!("cap-folder-{}", Uuid::new_v4().simple());
@@ -193,7 +193,7 @@ async fn first_frames(response: Response) -> Result<String> {
 #[tokio::test]
 async fn the_live_channel_opens_ready_and_carries_awareness() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "live-owner").await?;
     let stranger = seed_bridge_credential(&pool, "live-stranger").await?;
     let id = create_html(&state, &owner).await?;
@@ -252,7 +252,7 @@ async fn the_live_channel_opens_ready_and_carries_awareness() -> Result<()> {
 #[tokio::test]
 async fn binary_collab_updates_need_a_session_in_the_query() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "collab-binary").await?;
     let id = create_html(&state, &owner).await?;
     let (status, joined) = json_call(

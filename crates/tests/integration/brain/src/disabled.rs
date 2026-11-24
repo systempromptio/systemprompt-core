@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use systemprompt_brain::service::BrainService;
 use systemprompt_brain::{BrainError, BrainHandle};
+use systemprompt_documents::{BrainUnavailableSink, NotificationsUnavailableSink};
 use systemprompt_extension::{DynBrainSink, DynNotificationSink};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{EnteredFact, EnteredStatus, FactScope, SubjectKey};
-use systemprompt_runtime::documents::{BrainUnavailableSink, NotificationsUnavailableSink};
 
 use crate::events::Landed;
 use crate::harness::Harness;

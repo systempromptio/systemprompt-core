@@ -15,8 +15,8 @@ use systemprompt_models::documents::{DriveCommitMeta, DriveCommitResponse};
 
 use super::drive::DriveState;
 use super::drive_token::device_user;
-use super::error::DocumentsResult;
-use super::headers::base_revision;
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::base_revision;
 
 pub(super) async fn commit(
     State(state): State<DriveState>,

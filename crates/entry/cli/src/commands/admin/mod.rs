@@ -16,7 +16,6 @@ pub mod bootstrap;
 pub mod bridge;
 pub mod config;
 pub mod identity;
-pub mod issues;
 pub mod keys;
 pub mod licence;
 pub mod mcp;
@@ -78,9 +77,6 @@ pub enum AdminCommands {
     )]
     Identity(identity::IdentityCommands),
 
-    #[command(subcommand, about = "Issue report triage (bug and feedback reports)")]
-    Issues(issues::IssuesCommands),
-
     #[command(subcommand, about = "Report-only licence check-in status")]
     Licence(licence::LicenceCommands),
 
@@ -118,7 +114,6 @@ pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<Comman
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, host).await,
         AdminCommands::Keys(cmd) => keys::execute(cmd, host).await,
         AdminCommands::Identity(cmd) => identity::execute(cmd, host),
-        AdminCommands::Issues(cmd) => Box::pin(issues::execute(cmd, host)).await,
         AdminCommands::Licence(cmd) => licence::execute(cmd, host).await,
         AdminCommands::Mcp(cmd) => mcp::execute(cmd, host).await,
     }
@@ -144,7 +139,6 @@ impl AdminCommands {
     pub const fn data_impact(&self) -> DataImpact {
         match self {
             Self::Users(cmd) => cmd.data_impact(),
-            Self::Issues(cmd) => cmd.data_impact(),
             Self::Setup(args) if args.reset_role_password => DataImpact::Irreversible,
             Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_))
             | Self::Keys(

@@ -9,9 +9,9 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::http::{Method, StatusCode, header};
 use serde_json::json;
-use systemprompt_api::routes::documents::DocumentsState;
 use systemprompt_database::DbPool;
 use systemprompt_files::{DocumentsConfig, RemoteOrigin, RenderedHtmlConfig, RenderedHtmlTier};
+use systemprompt_files_entry::http::documents::DocumentsState;
 use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, fixture_admitted, fixture_app_context_on_bootstrap,
     fixture_config, init_documents_bootstrap, seed_bridge_credential, test_db_pool,
@@ -34,7 +34,7 @@ async fn configured(rendered_html: RenderedHtmlConfig) -> Result<(DbPool, Docume
     });
     let config = fixture_config(&bootstrap.database_url);
     let ctx = fixture_app_context_on_bootstrap(&bootstrap, config, fixture_admitted()).await?;
-    Ok((ctx.db_pool().clone(), DocumentsState::build(&ctx)?))
+    Ok((ctx.db_pool().clone(), crate::common::documents_state(&ctx)?))
 }
 
 async fn designed_page(state: &DocumentsState, owner: &AuthedFixture) -> Result<String> {
@@ -256,7 +256,7 @@ async fn the_mounted_rendered_route_is_framed_by_the_app_alone_and_needs_a_sessi
         &Arc::new(ReadinessState::new()),
     )
     .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
-    let state = DocumentsState::build(&ctx)?;
+    let state = crate::common::documents_state(&ctx)?;
     let owner = seed_bridge_credential(&pool, "docs-rendered-mounted").await?;
     let id = designed_page(&state, &owner).await?;
     let get = |bearer: Option<String>| {

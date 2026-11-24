@@ -1,0 +1,107 @@
+//! `GET /{id}/media?ref=<reference>`: an image the document's head holds,
+//! for the live editor to draw.
+//!
+//! The reference is the image block's `blob` (`docx-media:media/image1.png`,
+//! or an upload's hash), passed as a query value because it holds slashes.
+//! The body is served as user content. Its `ETag` is the document-bound
+//! validator (`media_validator`), never the blob's hash, and it is compared
+//! only after the caller's access to the document is checked, so a revoked
+//! viewer is refused rather than told the image is unchanged.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use axum::extract::{Path, Query, State};
+use axum::http::request::Parts;
+use axum::http::{HeaderValue, StatusCode, header};
+use axum::response::{IntoResponse, Response};
+use serde::Deserialize;
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::MediaBlob;
+use systemprompt_files::documents::service::media_validator;
+use systemprompt_identifiers::DocumentId;
+
+use super::DocumentsState;
+use super::caller::{Caller, caller};
+use super::content::request_context;
+use super::items::document_id;
+use crate::http::user_content::{USER_CONTENT_CSP, harden};
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::{hash_etag, none_match};
+
+#[derive(Debug, Deserialize)]
+pub(super) struct MediaQuery {
+    #[serde(rename = "ref")]
+    reference: String,
+}
+
+#[cfg(feature = "collab")]
+async fn live_image(
+    state: &DocumentsState,
+    who: &Caller,
+    id: &DocumentId,
+    reference: &str,
+) -> Option<MediaBlob> {
+    state
+        .collab
+        .live_image(&who.user, id, reference, &who.trace)
+        .await
+}
+
+#[cfg(not(feature = "collab"))]
+#[expect(
+    clippy::unused_async,
+    reason = "the signature matches the collab build, which awaits"
+)]
+async fn live_image(
+    _state: &DocumentsState,
+    _who: &Caller,
+    _id: &DocumentId,
+    _reference: &str,
+) -> Option<MediaBlob> {
+    None
+}
+
+pub(super) async fn image(
+    State(state): State<DocumentsState>,
+    Path(id): Path<String>,
+    Query(query): Query<MediaQuery>,
+    parts: Parts,
+) -> DocumentsResult<Response> {
+    let who = caller(&state, request_context(&parts)?).await?;
+    let id = document_id(&id)?;
+    let held = state
+        .service
+        .held_image(&who.user, &id, &query.reference, &who.trace)
+        .await;
+    let blob = match held {
+        Err(missing @ DocumentsError::NotFound { .. }) => {
+            live_image(&state, &who, &id, &query.reference)
+                .await
+                .ok_or(missing)?
+        },
+        other => other?,
+    };
+    let tag = hash_etag(&media_validator(&id, &blob));
+    let mut response = if none_match(&parts.headers, &tag) {
+        StatusCode::NOT_MODIFIED.into_response()
+    } else {
+        blob.bytes.into_response()
+    };
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(&blob.mime)
+            .unwrap_or_else(|_invalid| HeaderValue::from_static("application/octet-stream")),
+    );
+    for (name, value) in [
+        (header::ETAG, tag.as_str()),
+        (header::CACHE_CONTROL, "private, no-cache"),
+    ] {
+        if let Ok(value) = HeaderValue::from_str(value) {
+            headers.insert(name, value);
+        }
+    }
+    harden(&mut response, HeaderValue::from_static(USER_CONTENT_CSP));
+    Ok(response)
+}

@@ -4,14 +4,18 @@
 //! The builder owns the bootstrap order: profile -> paths -> files -> database
 //! -> logging -> schema install over the admitted members -> kernel seeds ->
 //! [`Kernel::resolve`] -> the stages that read the resolved state (authz,
-//! governance, repositories, documents) -> the context. The kernel is seeded
-//! with plain handles ([`kernel_state`]) before it resolves, so every member's
-//! provide fn, slot and governance surface reads the kernel seeds; the authz
-//! hook, policy engine, user service (over the admitted owner reassignments)
-//! and document store are built from what it resolved. The host seeds the read
-//! half of the document store cell (`DocumentsHandlesSlot`) and binds it,
-//! through the binder it kept out of the state, once the store exists, so other
-//! members' document seams read it from then on. A failing step propagates as
+//! governance, repositories) -> the context. The kernel is seeded with plain
+//! handles ([`kernel_state`]) before it resolves, so every member's provide
+//! fn, slot and governance surface reads the kernel seeds; the authz hook,
+//! policy engine and user service (over the admitted owner reassignments) are
+//! built from what it resolved. The host seeds the read half of the authz hook
+//! cell (`AuthzHookCell`) and binds it, through the binder it kept out of the
+//! state, as soon as the hook exists, so a member service that decides
+//! through the cell denies until then and decides through the one hook from
+//! then on. The host seeds the read half of the document store cell
+//! (`DocumentsHandlesSlot`) too and binds it, through its binder, to the
+//! handles the `documents` member provides sealed, right after the kernel
+//! resolves. A failing step propagates as
 //! [`RuntimeError`](crate::error::RuntimeError); helpers are in [`assembly`].
 //!
 //! [`Kernel::resolve`]: crate::Kernel::resolve
@@ -25,7 +29,6 @@ pub(crate) mod composition;
 pub(crate) mod core_layer;
 pub(crate) mod database;
 mod debug_impl;
-pub(crate) mod documents;
 pub(crate) mod events;
 pub(crate) mod governance;
 pub(crate) mod kernel_binders;
@@ -40,7 +43,7 @@ use std::sync::Arc;
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::{Admitted, AdmittedOwnerReassignments};
-use systemprompt_files::documents::DocumentsHandlesSlot;
+use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot};
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::contract::AuthzHooks;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -173,6 +176,7 @@ impl AppContextBuilder {
                 system_admin: &system_admin,
                 event_router: &router,
                 documents: documents_slot,
+                catalog_roles: composition::catalog_roles(&self.admitted),
                 #[cfg(feature = "notifications")]
                 escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
             },
@@ -196,6 +200,9 @@ impl AppContextBuilder {
         );
         kernel.resolve(&self.admitted)?;
         let r = kernel.resolved();
+        if let Some(documents) = r.optional::<Arc<DocumentsHandles>>() {
+            documents_binder.bind(documents)?;
+        }
 
         let (authz_hook, market) = authz_stage(
             profile,
@@ -208,6 +215,7 @@ impl AppContextBuilder {
                 hooks: &*r.get::<Arc<AuthzHooks>>()?,
             },
         )?;
+        binders.base.authz_hook.bind(Arc::clone(&authz_hook))?;
         let governance = ConfigWatch::new(
             load_governance(profile, &database, &*r.get::<Arc<PolicyCatalog>>()?).await?,
         );
@@ -218,33 +226,6 @@ impl AppContextBuilder {
         );
         let repositories = build_domain_layer(&database, &seeded, &system_admin).await?;
         let plugins = new_plugins(&market);
-
-        #[cfg(feature = "notifications")]
-        let notification_sink = systemprompt_notifications::OutboxNotificationSink::over_write_pool(
-            &database,
-            &config.instance_id,
-        );
-        #[cfg(not(feature = "notifications"))]
-        let notification_sink: systemprompt_extension::DynNotificationSink =
-            Arc::new(crate::documents::NotificationsUnavailableSink);
-        let brain_sink = crate::documents::admitted_brain_sink(profile.brain.enabled, &r);
-        let documents = documents::build_documents(
-            &documents::DocumentsInputs {
-                services_root: &self.boot.require_services_root().path,
-                database: &database,
-                file_storage: &file_storage,
-                authz_hook: &authz_hook,
-                subjects: &plugins.subjects,
-                event_router: &router,
-                files_config: &files_config,
-                background_tasks: &background_tasks,
-                admitted: &self.admitted,
-                notifications: &notification_sink,
-                brain: &brain_sink,
-                binder: &documents_binder,
-            },
-            &r,
-        )?;
         let subsystems = Subsystems {
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
@@ -262,7 +243,6 @@ impl AppContextBuilder {
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks,
             spawner,
-            documents,
             late_binders: kernel_binders::PendingBinders::holding(binders.late),
         };
 

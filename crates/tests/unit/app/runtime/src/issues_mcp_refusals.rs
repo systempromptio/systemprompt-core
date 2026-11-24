@@ -1,6 +1,6 @@
 use systemprompt_files::issues::IssuesError;
 use systemprompt_identifiers::{DocumentUploadId, IssueReportId};
-use systemprompt_runtime::issues::mcp::refusal::{refusal_result, tool_error};
+use systemprompt_issues::mcp::refusal::{refusal_result, tool_error};
 
 fn code(error: IssuesError) -> (String, String) {
     let mcp = tool_error(error);

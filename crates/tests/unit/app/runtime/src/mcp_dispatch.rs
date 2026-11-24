@@ -4,14 +4,14 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
 use serde_json::{Map, Value, json};
 use systemprompt_ai::repository::AiRequestRepository;
+use systemprompt_documents::mcp::{DocumentsMcpTools, DocumentsToolCall, TOOL_NAMES};
 use systemprompt_identifiers::McpServerId;
+use systemprompt_issues::mcp::{IssuesMcpTools, IssuesToolCall};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
-use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, DocumentsToolCall, TOOL_NAMES};
-use systemprompt_runtime::issues::mcp::{IssuesMcpTools, IssuesToolCall};
 
 use crate::documents_mcp_rig::rig;
 use crate::documents_mcp_support::{ctx_for, registered};

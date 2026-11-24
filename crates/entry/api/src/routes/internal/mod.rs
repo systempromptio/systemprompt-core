@@ -26,11 +26,11 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use http::HeaderMap;
-use systemprompt_identifiers::headers;
-use systemprompt_models::api::{ApiError, ErrorCode};
-use systemprompt_runtime::documents::links::{
+use systemprompt_documents::links::{
     LinkMintError, LinkMinter, LinkRequest, mint_verified, verify_link_hop,
 };
+use systemprompt_identifiers::headers;
+use systemprompt_models::api::{ApiError, ErrorCode};
 
 use crate::kernel::{ApiHttpError, SubjectThrottle};
 

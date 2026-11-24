@@ -130,3 +130,16 @@ pub(super) fn new_spawner() -> RuntimeResult<Arc<systemprompt_loader::subprocess
         .map(Arc::new)
         .map_err(crate::error::RuntimeError::Spawner)
 }
+
+pub(crate) fn catalog_roles(
+    admitted: &systemprompt_extension::Admitted,
+) -> systemprompt_models::authz::CatalogRoleNames {
+    systemprompt_models::authz::CatalogRoleNames::new(
+        admitted
+            .built()
+            .members()
+            .flat_map(|member| member.sink.roles())
+            .map(|role| role.name.clone())
+            .collect(),
+    )
+}

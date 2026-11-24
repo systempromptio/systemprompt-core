@@ -1,10 +1,10 @@
 use serde_json::json;
+use systemprompt_documents::mcp::{CommentHandler, CommentInput, DocumentsMcpTools};
+use systemprompt_documents::refusal::RefusalCode;
+use systemprompt_documents::views::CommentOutput;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::{DocumentCommentId, DocumentId};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::mcp::{CommentHandler, CommentInput, DocumentsMcpTools};
-use systemprompt_runtime::documents::refusal::RefusalCode;
-use systemprompt_runtime::documents::views::CommentOutput;
 
 use crate::documents_mcp_rig::{code_of, rig};
 use crate::documents_mcp_support::{create_text, ctx_for, exec, line_for, read_text, registered};

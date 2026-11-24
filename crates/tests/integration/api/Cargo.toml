@@ -18,11 +18,12 @@ systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
 systemprompt = { workspace = true, features = ["full"] }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-api = { workspace = true, features = ["bridge", "collab"] }
+systemprompt-api = { workspace = true, features = ["bridge"] }
 systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }
 systemprompt-brain-entry = { workspace = true, features = ["http"] }
 systemprompt-gateway = { workspace = true }
-systemprompt-runtime = { workspace = true, features = ["engine-loro", "notifications"] }
+systemprompt-runtime = { workspace = true, features = ["notifications"] }
+systemprompt-documents = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -38,6 +39,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-files-entry = { workspace = true, features = ["http", "collab"] }
 systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-agent = { workspace = true }
 systemprompt-agent-entry = { workspace = true, features = ["http"] }

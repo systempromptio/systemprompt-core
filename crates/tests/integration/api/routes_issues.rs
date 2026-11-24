@@ -7,7 +7,7 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use serde_json::{Value, json};
-use systemprompt_api::routes::issues::{IssuesState, router};
+use systemprompt_files_entry::http::issues::router;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_runtime::AppContext;
@@ -23,12 +23,13 @@ fn as_user(ctx: &AppContext, user: &UserId, permissions: Vec<Permission>) -> Rou
         "issue-tester@example.invalid".to_owned(),
         permissions,
     );
-    router(IssuesState::from_context(ctx))
+    router(crate::common::issues_state(ctx).expect("the issue routes build"))
         .layer(Extension(request_context(user.as_str()).with_user(authed)))
 }
 
 fn anonymous(ctx: &AppContext) -> Router {
-    router(IssuesState::from_context(ctx)).layer(Extension(request_context("nobody")))
+    router(crate::common::issues_state(ctx).expect("the issue routes build"))
+        .layer(Extension(request_context("nobody")))
 }
 
 async fn call(

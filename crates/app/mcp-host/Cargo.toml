@@ -34,10 +34,12 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-documents = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["mcp"] }
 systemprompt-files = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-issues = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-manifest = { workspace = true }

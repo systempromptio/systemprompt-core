@@ -167,6 +167,7 @@ mod services_quota_sharding;
 #[path = "routes_bridge_data.rs"]
 mod routes_bridge_data;
 
+#[cfg(test)]
 mod gateway_http_member;
 #[cfg(test)]
 #[path = "routes_gateway_bridge_jwt.rs"]
@@ -232,6 +233,8 @@ mod documents_sharing;
 mod documents_subject_levels;
 #[cfg(test)]
 mod documents_ui_session;
+#[cfg(test)]
+mod files_http_surface;
 #[cfg(test)]
 mod internal_links;
 #[cfg(test)]

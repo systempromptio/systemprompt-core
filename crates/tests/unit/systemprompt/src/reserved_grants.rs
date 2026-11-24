@@ -30,13 +30,14 @@ fn the_services_tree_grant_is_listed_only_on_the_agent_marketplace_and_mcp_paths
 }
 
 #[test]
-fn the_caller_session_grant_is_listed_only_on_the_mcp_and_agent_paths() {
+fn the_caller_session_grant_is_listed_only_on_the_mcp_agent_and_issues_paths() {
     assert_eq!(
         rows_listing(KernelGrant::CallerSession),
         vec![
             (CoreId::AgentHttp, vec!["admin", "agents"]),
             (CoreId::AgentHttp, vec!["core", "contexts"]),
             (CoreId::AgentHttp, vec!["core", "artifacts"]),
+            (CoreId::Issues, vec!["admin", "issues"]),
             (CoreId::McpHttp, vec!["plugins", "mcp"]),
         ]
     );

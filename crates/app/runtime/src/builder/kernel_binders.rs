@@ -12,6 +12,7 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
+use systemprompt_governance::authz::AuthzHookBinder;
 use systemprompt_governance::policy::secrets::SecretScannerBinder;
 use systemprompt_models::LateBinder;
 use systemprompt_models::a2a::dispatch::AgentDispatchBinder;
@@ -23,6 +24,7 @@ use systemprompt_traits::MessagingDispatcher;
 #[derive(Debug)]
 pub struct KernelBinders {
     pub secret_scanner: SecretScannerBinder,
+    pub authz_hook: AuthzHookBinder,
 }
 
 /// The write halves of the late-bound cells only the API seeds, beside the

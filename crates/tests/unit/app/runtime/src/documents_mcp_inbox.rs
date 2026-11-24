@@ -1,11 +1,11 @@
 use serde_json::json;
+use systemprompt_documents::mcp::{
+    DocumentsMcpTools, InboxAction, InboxHandler, InboxInput, InboxOutput,
+};
+use systemprompt_documents::refusal::RefusalCode;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_identifiers::NotificationId;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, InboxAction, InboxHandler, InboxInput, InboxOutput,
-};
-use systemprompt_runtime::documents::refusal::RefusalCode;
 
 use crate::documents_mcp_rig::{code_of, rig};
 use crate::documents_mcp_support::{ctx_for, exec, registered};

@@ -13,6 +13,7 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
+use systemprompt_documents::links::LinkTarget;
 use systemprompt_files::uploads::models::NewUpload;
 use systemprompt_identifiers::{JwtToken, McpServerId, SessionId, TraceId, UserId, headers};
 use systemprompt_manifest::profile::{NodeRole, RateLimitsConfig};
@@ -20,7 +21,6 @@ use systemprompt_models::auth::{AuthenticatedUser, McpHopIdentity, Permission, U
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::documents::links::LinkTarget;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_services, fixture_config,
     seed_bridge_credential, services_hosting, test_db_pool,
@@ -111,9 +111,8 @@ async fn a_worker_signs_links_for_its_servers_behind_the_hop_check() -> Result<(
     let (pool, ctx, app) = worker().await?;
     let user = owner(&pool).await?;
     let bytes = vec![2u8; 32];
-    let session = ctx
-        .documents()
-        .uploads()
+    let session = systemprompt_test_fixtures::documents_handles(&ctx)
+        .uploads
         .create(
             &user.id,
             NewUpload {

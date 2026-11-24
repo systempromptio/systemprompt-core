@@ -37,27 +37,24 @@ use systemprompt_files::documents::service::parse_drive_cursor;
 use systemprompt_identifiers::{ContentHash, TraceId};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::documents::{
     DriveChanges, DriveManifest, DriveProposal, DriveProposals, PresenceBeacon,
 };
-use systemprompt_oauth_issuance::DriveSyncTokenService;
 
 use super::drive_commit::commit;
 use super::drive_token::device_user;
-use super::error::DocumentsResult;
-use super::headers::{hash_etag, none_match, range};
-use crate::kernel::JwtContextExtractor;
+use systemprompt_documents::http::error::DocumentsResult;
+use systemprompt_documents::http::headers::{hash_etag, none_match, range};
+use systemprompt_traits::{DriveTokens, DynDriveTokens};
 
 const DEFAULT_CHANGES: i64 = 500;
 
 /// Router-scoped state of the bridge Drive routes: the document service,
-/// the credential decoder and the authority that mints sync tokens.
+/// and the Drive token view that trades and verifies sync tokens.
 #[derive(Clone)]
 pub struct DriveState {
     pub(super) service: Arc<DocumentService>,
-    jwt: Arc<JwtContextExtractor>,
-    drive_sync: DriveSyncTokenService,
+    tokens: DynDriveTokens,
 }
 
 impl std::fmt::Debug for DriveState {
@@ -68,29 +65,17 @@ impl std::fmt::Debug for DriveState {
 
 impl DriveState {
     #[must_use]
-    pub fn new(
-        service: Arc<DocumentService>,
-        jwt: Arc<JwtContextExtractor>,
-        tokens: Arc<dyn TokenAuthority>,
-    ) -> Self {
-        Self {
-            service,
-            jwt,
-            drive_sync: DriveSyncTokenService::new(tokens),
-        }
+    pub fn new(service: Arc<DocumentService>, tokens: DynDriveTokens) -> Self {
+        Self { service, tokens }
     }
 
-    pub(super) fn jwt(&self) -> &JwtContextExtractor {
-        &self.jwt
-    }
-
-    pub(super) const fn drive_sync(&self) -> &DriveSyncTokenService {
-        &self.drive_sync
+    pub(super) fn tokens(&self) -> &dyn DriveTokens {
+        self.tokens.as_ref()
     }
 }
 
 pub fn router(state: DriveState) -> Router {
-    let limit = super::body_limit(&state.service);
+    let limit = systemprompt_documents::http::body_limit(&state.service);
     Router::new()
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_MANIFEST),

@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "The shared document store of systemprompt.io: documents, revisions, folders and their jobs."
+description = "The shared document store of systemprompt.io: the document engine, its MCP tools, signed links and the documents member."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -21,7 +21,42 @@ workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[features]
+default = []
+collab = ["systemprompt-files/collab"]
+engine-loro = ["collab", "systemprompt-files/collab-loro"]
+notifications = ["dep:systemprompt-notifications"]
+http = ["dep:axum", "dep:tokio", "dep:urlencoding", "systemprompt-extension/router"]
+
 [dependencies]
-systemprompt-extension = { workspace = true }
-[package.metadata.cargo-machete]
-ignored = ["systemprompt-extension"]
+systemprompt-client = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-events = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["mcp"] }
+systemprompt-files = { workspace = true }
+systemprompt-governance = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-loader = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-notifications = { workspace = true, optional = true }
+systemprompt-oauth-issuance = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-users = { workspace = true }
+
+async-trait = { workspace = true }
+axum = { workspace = true, optional = true, features = ["multipart"] }
+base64 = { workspace = true }
+chrono = { workspace = true }
+http = { workspace = true }
+reqwest = { workspace = true }
+rmcp = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, optional = true, features = ["sync"] }
+urlencoding = { workspace = true, optional = true }
+tracing = { workspace = true }

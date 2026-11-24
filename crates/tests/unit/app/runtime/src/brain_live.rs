@@ -5,6 +5,7 @@ use systemprompt_brain::mcp::{
     BrainMcpTools, BrainRefusalCode, DisputeHandler, ProposeHandler, RecallPreviewHandler,
     SearchHandler, WhyHandler, refusal_code,
 };
+use systemprompt_documents::mcp::{CommentHandler, CommentInput};
 use systemprompt_extension::brain::SourceContent;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_files::documents::DocumentSourceContent;
@@ -12,7 +13,6 @@ use systemprompt_identifiers::{
     BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, SessionId, UserId,
 };
 use systemprompt_models::brain::FactSource;
-use systemprompt_runtime::documents::mcp::{CommentHandler, CommentInput};
 
 use crate::brain_consumer_start::{handle_for, tools};
 use crate::documents_mcp_rig::rig;

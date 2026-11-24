@@ -6,7 +6,7 @@ use axum::body::Body;
 use axum::http::{Method, StatusCode};
 use axum::{Extension, Router};
 use serde_json::json;
-use systemprompt_api::routes::documents::DocumentsState;
+use systemprompt_files_entry::http::documents::DocumentsState;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 
@@ -15,7 +15,7 @@ use super::documents::{app, create_markdown, fixture, id_of, json_request, reque
 use super::routes_uploads::{PAYLOAD, open};
 
 fn uploads(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    systemprompt_api::routes::uploads::router(state.clone())
+    systemprompt_files_entry::http::uploads::router(state.clone())
         .layer(Extension(request_context(user.user_id.as_str())))
 }
 
