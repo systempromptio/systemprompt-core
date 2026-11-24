@@ -120,15 +120,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch, trigger: Trigger) {
     handle_job_result(&job_name, result, &repository, &instance_id).await;
 
     if let Some(run) = run {
-        match repository.finish_run(&run, status).await {
-            Ok(true) => {},
-            Ok(false) => {
-                warn!(job_name = %job_name, scheduled_at = %run.scheduled_at(), token = %run.token(), "run row no longer carries this claim's token; outcome not recorded on it");
-            },
-            Err(e) => {
-                error!(job_name = %job_name, error = %e, "Failed to close the job's run row");
-            },
-        }
+        close_run(&repository, &job_name, &run, status).await;
     }
     if let Some(lock) = lock {
         lock.release().await;
@@ -137,6 +129,23 @@ pub(super) async fn execute_job(dispatch: JobDispatch, trigger: Trigger) {
     {
         let mut guard = running_jobs.lock().await;
         guard.remove(&job_name);
+    }
+}
+
+async fn close_run(
+    repository: &SchedulerRepository,
+    job_name: &JobName,
+    run: &crate::repository::RunClaim,
+    status: JobStatus,
+) {
+    match repository.finish_run(run, status).await {
+        Ok(true) => {},
+        Ok(false) => {
+            warn!(job_name = %job_name, scheduled_at = %run.scheduled_at(), token = %run.token(), "run row no longer carries this claim's token; outcome not recorded on it");
+        },
+        Err(e) => {
+            error!(job_name = %job_name, error = %e, "Failed to close the job's run row");
+        },
     }
 }
 

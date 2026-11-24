@@ -54,6 +54,23 @@ pub(crate) async fn handle_livez(
     Ok(Json(serde_json::Value::Object(body)))
 }
 
+// JSON: the `/readyz` body of a node that refuses traffic.
+fn refusing_traffic(
+    api_ready: &ReadinessState,
+    shed: Option<&LoadShed>,
+) -> Option<serde_json::Value> {
+    if !api_ready.is_ready() {
+        return Some(json!({ "status": "draining" }));
+    }
+    shed.filter(|shed| shed.saturated()).map(|shed| {
+        json!({
+            "status": "saturated",
+            "in_flight": shed.in_flight(),
+            "limit": shed.limit(),
+        })
+    })
+}
+
 pub(super) fn seed_error(error: MissingDependency) -> ApiHttpError {
     ApiHttpError::internal("node state", error)
 }
@@ -80,22 +97,7 @@ pub(crate) async fn handle_readyz(
     };
     let bare = json!({ "fingerprint": fingerprint });
 
-    if !api_ready.is_ready() {
-        return respond(
-            StatusCode::SERVICE_UNAVAILABLE,
-            json!({ "status": "draining" }),
-            bare,
-        );
-    }
-
-    if let Some(axum::Extension(shed)) = shed
-        && shed.saturated()
-    {
-        let body = json!({
-            "status": "saturated",
-            "in_flight": shed.in_flight(),
-            "limit": shed.limit(),
-        });
+    if let Some(body) = refusing_traffic(&api_ready, shed.as_deref().map(AsRef::as_ref)) {
         return respond(StatusCode::SERVICE_UNAVAILABLE, body, bare);
     }
 

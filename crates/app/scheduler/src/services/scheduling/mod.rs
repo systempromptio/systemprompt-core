@@ -187,7 +187,7 @@ impl SchedulerService {
         let users = state
             .find::<systemprompt_traits::DynUserProvider>()
             .cloned();
-        let kernel_pool = state.get::<DbPool>()?.clone();
+        let kernel_pool = Arc::clone(state.get::<DbPool>()?);
         let instance_id = state.get::<Arc<Config>>()?.instance_id.clone();
         let system_admin_id = state.get::<SystemAdmin>()?.id().clone();
         let log_instance_id = state.get::<LoggingRuntime>()?.instance_id().cloned();
@@ -273,7 +273,7 @@ impl SchedulerService {
             let Some(job) = registered_jobs.get(job_config.name.as_str()) else {
                 continue;
             };
-            if !job.configured(&deployment) {
+            if !job.configured(deployment) {
                 continue;
             }
             let requirements = job.requires();

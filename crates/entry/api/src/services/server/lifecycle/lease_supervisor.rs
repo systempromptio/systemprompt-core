@@ -177,15 +177,14 @@ impl LeaseLoop {
                 let release = self.held.remove(&key).map(|held| held.lease);
                 self.command(ProcessCommand::Stop { key, release });
             },
-            KeyAction::Claim | KeyAction::Renew => match self.held.get(&key) {
-                Some(held) => {
+            KeyAction::Claim | KeyAction::Renew => {
+                if let Some(held) = self.held.get(&key) {
                     let renewal = self.leases.renew(&held.lease, LEASE_TTL).await;
                     self.renewed(key, renewal);
-                },
-                None => {
+                } else {
                     let claim = self.leases.claim(&lease, LEASE_TTL).await;
                     self.claimed(key, claim);
-                },
+                }
             },
         }
     }

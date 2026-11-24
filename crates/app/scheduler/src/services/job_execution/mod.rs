@@ -74,7 +74,7 @@ impl JobExecutionService {
         schedule: Arc<AdmittedSchedule>,
     ) -> SchedulerResult<Self> {
         let state = ctx.kernel().state();
-        let db_pool = state.get::<DbPool>()?.clone();
+        let db_pool = Arc::clone(state.get::<DbPool>()?);
         let instance_id = state.get::<Arc<Config>>()?.instance_id.clone();
         let admin_id = state.get::<SystemAdmin>()?.id().clone();
         let job_repo = JobRepository::new(&db_pool);

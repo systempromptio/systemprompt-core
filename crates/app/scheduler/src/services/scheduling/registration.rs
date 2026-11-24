@@ -172,7 +172,7 @@ impl SchedulerService {
                 actor,
                 repository: self.repository.clone(),
                 app_context: Arc::clone(&self.app_context),
-                db_pool: self.db_pool.clone(),
+                db_pool: Arc::clone(&self.db_pool),
                 instance_id: self.instance_id.clone(),
                 running_jobs: Arc::clone(ctx.running_jobs),
                 claim_policy,

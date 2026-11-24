@@ -116,17 +116,7 @@ async fn execute_connected(cmd: DbCommands, host: &dyn KernelHost) -> Result<Com
             )
             .await
         },
-        DbCommands::AssignAdmin { user, .. } => {
-            if host.is_database_scoped() {
-                bail!("assign-admin requires full profile context");
-            }
-            let app = app_context(host).await?;
-            let admins = systemprompt_runtime::admin_bootstrap(
-                host.admitted()?,
-                app.kernel().state().get::<DbPool>()?.clone(),
-            )?;
-            admin::execute_assign_admin(admins.as_ref(), &user).await
-        },
+        DbCommands::AssignAdmin { user, .. } => assign_admin(host, &user).await,
         DbCommands::Status => admin::execute_status(&admin_service).await,
         DbCommands::Count { table_name } => {
             schema::execute_count(&admin_service, &table_name).await
@@ -135,6 +125,18 @@ async fn execute_connected(cmd: DbCommands, host: &dyn KernelHost) -> Result<Com
         DbCommands::Size => introspect::execute_size(&admin_service).await,
         DbCommands::Doctor => doctor::execute_doctor(&pool, host.admitted()?.built()).await,
     }
+}
+
+async fn assign_admin(host: &dyn KernelHost, user: &str) -> Result<CommandOutput> {
+    if host.is_database_scoped() {
+        bail!("assign-admin requires full profile context");
+    }
+    let app = app_context(host).await?;
+    let admins = systemprompt_runtime::admin_bootstrap(
+        host.admitted()?,
+        Arc::<systemprompt_database::Database>::clone(app.kernel().state().get::<DbPool>()?),
+    )?;
+    admin::execute_assign_admin(admins.as_ref(), user).await
 }
 
 async fn connect_services(

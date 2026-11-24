@@ -123,6 +123,14 @@ async fn refresh_inventory(ctx: &AppContext, actor: &UserId) {
     }
 }
 
+fn served_hash(cached: &str, boot: &BootContext) -> Option<String> {
+    (!cached.is_empty()).then(|| cached.to_owned()).or_else(|| {
+        boot.services_root()
+            .and_then(composed_hash_of)
+            .map(str::to_owned)
+    })
+}
+
 async fn run_refresh(
     ctx: &AppContext,
     actor: &UserId,
@@ -138,13 +146,7 @@ async fn run_refresh(
     // is measured against that and a repeat import is a no-op.
     let cache = BundleCache::new(cache_root(profile));
     let previous = cache.read_state();
-    let served_hash = (!previous.composed_hash.is_empty())
-        .then_some(previous.composed_hash.clone())
-        .or_else(|| {
-            boot.services_root()
-                .and_then(composed_hash_of)
-                .map(str::to_owned)
-        });
+    let served_hash = served_hash(&previous.composed_hash, boot);
 
     let resolved = ServicesSourceBootstrap::resolve(
         profile,

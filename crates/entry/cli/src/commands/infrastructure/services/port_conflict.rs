@@ -15,11 +15,21 @@ use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 
 const PORT_RELEASE: Duration = Duration::from_secs(5);
 
+/// The API port to free and how a holder of it may be stopped.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PortRequest {
+    pub(super) port: u16,
+    pub(super) holder_grace: Duration,
+    pub(super) kill_port_process: bool,
+}
+
 pub(super) async fn ensure_port_free(
     prompter: &dyn Prompter,
-    port: u16,
-    holder_grace: Duration,
-    kill_port_process: bool,
+    PortRequest {
+        port,
+        holder_grace,
+        kill_port_process,
+    }: PortRequest,
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {

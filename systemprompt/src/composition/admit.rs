@@ -19,10 +19,12 @@ use super::SecretsSourceDecl;
 use super::error::CompositionError;
 use super::{DeclaredMember, Member, RESERVED_SECRETS_KINDS, SecretsKind};
 
+pub(super) type AbsentMember = (TypeId, ExtensionId);
+
 pub(super) fn apply_removals(
     members: Vec<Member>,
     removed: &[TypeId],
-) -> Result<(Vec<Member>, Vec<(TypeId, ExtensionId)>), CompositionError> {
+) -> Result<(Vec<Member>, Vec<AbsentMember>), CompositionError> {
     let mut kept = Vec::with_capacity(members.len());
     let mut gone = Vec::new();
     for member in members {
@@ -46,7 +48,7 @@ pub(super) fn apply_removals(
 
 pub(super) fn withhold_dependants(
     members: &mut Vec<DeclaredMember>,
-    absent: Vec<(TypeId, ExtensionId)>,
+    absent: Vec<AbsentMember>,
     because: AbsentDependency,
 ) -> Result<Vec<MemberWithheld>, CompositionError> {
     let mut absent = absent;

@@ -41,9 +41,11 @@ impl PlaneOutcome {
     }
 }
 
-/// Why a plane was not reconciled: a requirement the host does not provide
-/// (the plane is [`PlaneOutcome::Unavailable`]) or the error its read failed
-/// with ([`PlaneOutcome::Failed`]). It is rendered only where it leaves the
+/// Why a plane was not reconciled.
+///
+/// A requirement the host does not provide (the plane is
+/// [`PlaneOutcome::Unavailable`]) or the error its read failed with
+/// ([`PlaneOutcome::Failed`]). It is rendered only where it leaves the
 /// process: the CLI, the HTTP probe and `config_plane_state.last_error`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "reason", rename_all = "snake_case")]

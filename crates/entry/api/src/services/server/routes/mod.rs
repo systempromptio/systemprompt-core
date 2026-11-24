@@ -78,6 +78,22 @@ pub fn configure_routes_for_role(
     Ok(build_routes(ctx, composed, role, events, Some(engines))?)
 }
 
+fn install_metrics(ctx: &AppContext, composed: &Composed<'_>) -> Result<(), RouteMountError> {
+    let metrics: Vec<_> = composed
+        .admitted
+        .built()
+        .members()
+        .flat_map(|member| member.sink.metrics().iter().copied())
+        .collect();
+    let config = ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_manifest::Config>>()?;
+    super::metrics::install_recorder(&config.instance_id, &metrics)
+        .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
+    Ok(())
+}
+
 fn build_routes(
     ctx: &AppContext,
     composed: Composed<'_>,
@@ -89,19 +105,7 @@ fn build_routes(
     let serves = |group: RouteGroup| groups.contains(&group);
     let mut router = Router::new();
 
-    let metrics: Vec<_> = composed
-        .admitted
-        .built()
-        .members()
-        .flat_map(|member| member.sink.metrics().iter().copied())
-        .collect();
-    let config = Arc::clone(
-        ctx.kernel()
-            .state()
-            .get::<Arc<systemprompt_manifest::Config>>()?,
-    );
-    super::metrics::install_recorder(&config.instance_id, &metrics)
-        .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
+    install_metrics(ctx, &composed)?;
 
     let layers = mount_layers(ctx, role)?;
     let refresh_lock = RefreshLock::default();

@@ -12,7 +12,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_runtime::{ShutdownRequest, validate_system};
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
-use super::port_conflict::ensure_port_free;
+use super::port_conflict::{PortRequest, ensure_port_free};
 use super::{get_api_addr, get_api_port};
 
 #[derive(Debug, Clone, Copy)]
@@ -20,6 +20,24 @@ pub struct ServeOptions {
     pub foreground: bool,
     pub kill_port_process: bool,
     pub run_migrations: bool,
+}
+
+fn report_database_ready(events: Option<&StartupEventSender>, run_migrations: bool) {
+    let Some(tx) = events else {
+        if run_migrations {
+            CliService::phase_success("Database schemas installed", None);
+        } else {
+            CliService::phase_success("Schema current (migrations skipped)", None);
+        }
+        CliService::phase("Validation");
+        CliService::phase_info("Running system validation...", None);
+        return;
+    };
+    tx.phase_started(Phase::Database);
+    if let Err(e) = tx.unbounded_send(StartupEvent::DatabaseValidated) {
+        tracing::debug!(error = %e, "startup event channel closed: DatabaseValidated");
+    }
+    tx.phase_completed(Phase::Database);
 }
 
 pub async fn execute_with_events(
@@ -42,9 +60,11 @@ pub async fn execute_with_events(
 
     ensure_port_free(
         prompter,
-        port,
-        profile.server.shutdown.child_grace(),
-        kill_port_process,
+        PortRequest {
+            port,
+            holder_grace: profile.server.shutdown.child_grace(),
+            kill_port_process,
+        },
         host.output(),
         events,
     )
@@ -63,24 +83,7 @@ pub async fn execute_with_events(
             .context("Failed to initialize application context")?,
     );
 
-    if events.is_none() {
-        if run_migrations {
-            CliService::phase_success("Database schemas installed", None);
-        } else {
-            CliService::phase_success("Schema current (migrations skipped)", None);
-        }
-    }
-
-    if let Some(tx) = events {
-        tx.phase_started(Phase::Database);
-        if let Err(e) = tx.unbounded_send(StartupEvent::DatabaseValidated) {
-            tracing::debug!(error = %e, "startup event channel closed: DatabaseValidated");
-        }
-        tx.phase_completed(Phase::Database);
-    } else {
-        CliService::phase("Validation");
-        CliService::phase_info("Running system validation...", None);
-    }
+    report_database_ready(events, run_migrations);
 
     validate_system(&app)
         .await

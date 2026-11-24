@@ -191,14 +191,13 @@ impl ConfigReconcileService {
     }
 
     pub(crate) fn require(&self, plane: &dyn ConfigPlane) -> SchedulerResult<()> {
-        match self.unmet_requirement(plane) {
-            Some(requirement) => Err(ConfigPlaneError::UnmetRequirement {
+        self.unmet_requirement(plane).map_or(Ok(()), |requirement| {
+            Err(ConfigPlaneError::UnmetRequirement {
                 plane: plane.name().to_owned(),
                 requirement: requirement.type_name(),
             }
-            .into()),
-            None => Ok(()),
-        }
+            .into())
+        })
     }
 
     async fn reconcile_into(
