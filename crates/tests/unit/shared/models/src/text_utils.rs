@@ -1,4 +1,44 @@
-use systemprompt_models::text::{chunk_text, truncate_with_ellipsis};
+use std::borrow::Cow;
+
+use serde_json::json;
+use systemprompt_models::text::{
+    chunk_text, json_without_nul, truncate_with_ellipsis, without_nul,
+};
+
+mod nul_tests {
+    use super::*;
+
+    #[test]
+    fn text_without_a_nul_is_borrowed_unchanged() {
+        assert!(matches!(without_nul("plain é"), Cow::Borrowed("plain é")));
+    }
+
+    #[test]
+    fn every_nul_in_text_becomes_the_replacement_character() {
+        assert_eq!(without_nul("\0a\0\0b"), "\u{FFFD}a\u{FFFD}\u{FFFD}b");
+    }
+
+    #[test]
+    fn json_without_a_nul_is_borrowed() {
+        let value = json!({"a": ["b", 1, null, true]});
+        assert!(matches!(json_without_nul(&value), Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn json_leaves_and_keys_are_rewritten_at_any_depth() {
+        let value = json!({"k\0": [{"deep": "x\0y"}, 7, null, false], "kept": "z"});
+        assert_eq!(
+            json_without_nul(&value).into_owned(),
+            json!({"k\u{FFFD}": [{"deep": "x\u{FFFD}y"}, 7, null, false], "kept": "z"})
+        );
+    }
+
+    #[test]
+    fn an_escaped_nul_parsed_from_json_text_is_rewritten() {
+        let value = serde_json::from_str(r#"{"a":"\u0000"}"#).expect("json");
+        assert_eq!(*json_without_nul(&value), json!({"a": "\u{FFFD}"}));
+    }
+}
 
 mod chunk_text_tests {
     use super::*;
