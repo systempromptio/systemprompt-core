@@ -5,7 +5,7 @@
 //! # Spawning
 //!
 //! [`Spawner::spawn_supervised`] is the only sanctioned way to start a child,
-//! and [`mark_child`] stamps it with the environment markers that later prove
+//! and [`Spawner::mark_child`] stamps it with the environment markers that later prove
 //! it is ours. A [`Spawner`] owns the one dedicated thread every spawn runs on,
 //! which on Linux also arms the parent-death signal; the composition root
 //! creates it once and injects it.
