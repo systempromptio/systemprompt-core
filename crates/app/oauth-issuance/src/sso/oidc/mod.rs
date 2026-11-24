@@ -127,7 +127,7 @@ pub fn build(ctx: &SsoHookContext) -> Result<Option<OidcProvider>, OidcConfigErr
     if !cfg.enabled {
         return Ok(None);
     }
-    OidcProvider::new(cfg, Arc::clone(&ctx.secrets), &ctx.config.api_external_url).map(Some)
+    OidcProvider::new(cfg, Arc::clone(&ctx.secrets), &ctx.edge.api_external_url).map(Some)
 }
 
 pub(crate) fn factory(

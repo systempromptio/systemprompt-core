@@ -18,6 +18,7 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::{MissingDependency, Resolved};
 use systemprompt_identifiers::SsoProviderId;
 use systemprompt_manifest::Config;
+use systemprompt_security::http::EdgeConfigView;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_traits::SecretStore;
@@ -26,7 +27,7 @@ use systemprompt_traits::SecretStore;
 #[derive(Clone)]
 pub struct SsoHookContext {
     pub db: DbPool,
-    pub config: Arc<Config>,
+    pub edge: EdgeConfigView,
     pub services: ServicesView,
     pub services_root: ActiveServicesRoot,
     pub secrets: Arc<dyn SecretStore>,
@@ -35,7 +36,7 @@ pub struct SsoHookContext {
 impl std::fmt::Debug for SsoHookContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SsoHookContext")
-            .field("api_external_url", &self.config.api_external_url)
+            .field("api_external_url", &self.edge.api_external_url)
             .finish_non_exhaustive()
     }
 }
@@ -44,7 +45,7 @@ impl SsoHookContext {
     pub fn from_resolved(r: &Resolved<'_>) -> Result<Self, MissingDependency> {
         Ok(Self {
             db: r.get()?,
-            config: r.get()?,
+            edge: EdgeConfigView::of(r.get::<Arc<Config>>()?.as_ref()),
             services: r.get()?,
             services_root: r.get()?,
             secrets: r.get()?,
