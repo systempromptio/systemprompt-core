@@ -1,7 +1,7 @@
 //! The schema phase's retry classifier reads the SQLSTATE: a lock timeout, a
 //! deadlock and a serialization failure are retried, any other code is not,
-//! even when its message mentions a lock, and only an error that carries no
-//! code falls back to the message.
+//! even when its message mentions a lock, and an error that carries no code
+//! is not retried whatever its message says.
 
 use systemprompt_database::{
     RETRYABLE_SQLSTATES, is_retryable_lock_conflict, is_retryable_sqlstate,
@@ -54,15 +54,14 @@ fn another_sqlstate_is_not_retried_whatever_its_message_says() {
 }
 
 #[test]
-fn an_error_without_a_code_falls_back_to_the_message() {
+fn an_error_without_a_code_is_not_retried() {
     for message in [
         "canceling statement due to lock timeout",
         "deadlock detected",
         "could not serialize access due to concurrent update",
+        "relation \"x\" does not exist",
     ] {
         let error = phase_failure(database_error(None, message));
-        assert!(is_retryable_lock_conflict(&error), "{message}");
+        assert!(!is_retryable_lock_conflict(&error), "{message}");
     }
-    let error = phase_failure(database_error(None, "relation \"x\" does not exist"));
-    assert!(!is_retryable_lock_conflict(&error));
 }
