@@ -8,8 +8,7 @@ use std::path::Path;
 use systemprompt_marketplace::{ImportOptions, import_anthropic_tree};
 use tempfile::TempDir;
 
-const MARKETPLACE: &str =
-    r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[{"name":"pkg","source":"./plugins/pkg"}]}"#;
+const MARKETPLACE: &str = r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[{"name":"pkg","source":"./plugins/pkg"}]}"#;
 const PLUGIN: &str = r#"{"name":"pkg","description":"A plugin."}"#;
 const SKILL: &str = "---\nname: a-skill\ndescription: What it does.\n---\n\nBody.\n";
 const SIDECAR: &str = "schema: 1\n";
