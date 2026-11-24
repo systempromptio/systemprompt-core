@@ -56,9 +56,10 @@ fn gateway_http_state(
             systemprompt_gateway::surface::repositories::gateway_repositories(
                 &ctx.kernel().resolved(),
                 &systemprompt_api::routes::gateway::host_handles(ctx),
-                std::sync::Arc::new(systemprompt_api::repository::context_provider(
-                    ctx.db_pool(),
-                )),
+                ctx.kernel()
+                    .resolved()
+                    .get::<systemprompt_traits::DynContextMaterializer>()
+                    .expect("context materializer"),
                 ctx.db_pool(),
             )
             .expect("gateway repositories"),
