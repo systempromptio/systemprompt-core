@@ -42,7 +42,7 @@ async fn purge(pool: &PgPool, projection: &str) {
 }
 
 #[tokio::test]
-async fn queue_counts_only_new_keys_and_depth_reflects_them() {
+async fn queue_stages_every_named_key_and_depth_counts_each_key_once() {
     let pool = connect_pool().await;
     let projection = unique("queue");
 
@@ -50,8 +50,15 @@ async fn queue_counts_only_new_keys_and_depth_reflects_them() {
     let again = queue(&pool, &projection, &keys(4)).await.expect("requeue");
 
     assert_eq!(first, 3);
-    assert_eq!(again, 1, "already queued keys are not counted twice");
-    assert_eq!(depth(&pool, &projection).await.expect("depth"), 4);
+    assert_eq!(
+        again, 4,
+        "a call stages every distinct key it names; the queue is deduplicated at commit"
+    );
+    assert_eq!(
+        depth(&pool, &projection).await.expect("depth"),
+        4,
+        "an already queued key is held once"
+    );
     let all = depths(&pool).await.expect("depths");
     assert!(all.iter().any(|(p, d)| p == &projection && *d == 4));
 
