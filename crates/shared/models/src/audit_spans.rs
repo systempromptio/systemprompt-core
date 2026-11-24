@@ -93,8 +93,9 @@ pub struct GovernanceSpanRecord {
     pub decided_at: DateTime<Utc>,
 }
 
-/// Where producers hand the audit spans they record. Implemented by the
-/// logging crate's sink, which offers them to the OTLP exporter when one is
+/// Where producers hand the audit spans they record.
+///
+/// Implemented by the logging crate's sink, which offers them to the OTLP exporter when one is
 /// running and discards them otherwise. Every method is synchronous and
 /// non-blocking.
 pub trait AuditSpanSink: Send + Sync + std::fmt::Debug {

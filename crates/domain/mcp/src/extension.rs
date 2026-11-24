@@ -175,27 +175,7 @@ impl Extension for McpExtension {
         );
         contribute_stores(c);
         contribute_tool_provider(c);
-        c.provide_after_governance(
-            |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
-                let db = r.get::<DbPool>()?;
-                let intents = r.optional::<DynToolCallIntentClaims>();
-                if intents.is_none() {
-                    tracing::info!(
-                        "no tool-call intent claims are provided (the ai member is not admitted); \
-                         tool executions record no intent attribution"
-                    );
-                }
-                Ok(Arc::new(McpToolExecutions::new(
-                    Arc::new(
-                        ToolUsageRepository::new(&db)
-                            .with_audit_spans(r.optional::<DynAuditSpanSink>()),
-                    ),
-                    intents,
-                    r.get::<Arc<ArtifactIngest>>()?,
-                    r.get::<Arc<UiRendererRegistry>>()?,
-                )))
-            },
-        );
+        contribute_tool_executions(c);
         c.slot::<ServiceProcessSlot>().process_set(
             |r: &Resolved<'_>| -> Result<DynServiceProcessSet, FactoryError> {
                 let services = ServiceRepository::new(&r.get::<DbPool>()?, r.get::<InstanceId>()?);
@@ -208,6 +188,30 @@ impl Extension for McpExtension {
         contribute_user_data(c);
         Ok(())
     }
+}
+
+fn contribute_tool_executions(c: &mut Contributions<'_>) {
+    c.provide_after_governance(
+        |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
+            let db = r.get::<DbPool>()?;
+            let intents = r.optional::<DynToolCallIntentClaims>();
+            if intents.is_none() {
+                tracing::info!(
+                    "no tool-call intent claims are provided (the ai member is not admitted); \
+                     tool executions record no intent attribution"
+                );
+            }
+            Ok(Arc::new(McpToolExecutions::new(
+                Arc::new(
+                    ToolUsageRepository::new(&db)
+                        .with_audit_spans(r.optional::<DynAuditSpanSink>()),
+                ),
+                intents,
+                r.get::<Arc<ArtifactIngest>>()?,
+                r.get::<Arc<UiRendererRegistry>>()?,
+            )))
+        },
+    );
 }
 
 fn contribute_tool_provider(c: &mut Contributions<'_>) {
