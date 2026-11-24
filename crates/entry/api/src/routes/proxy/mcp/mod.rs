@@ -35,6 +35,11 @@ pub fn router(ctx: &AppContext) -> Result<Router, MissingDependency> {
     let intent_claims = state
         .find::<systemprompt_traits::DynToolCallIntentClaims>()
         .cloned();
+    if intent_claims.is_none() {
+        tracing::info!(
+            "the ai member is not admitted: proxied MCP executions are recorded and scanned but not paired with a model intent"
+        );
+    }
     let engine = engine.with_mcp_audit(crate::services::proxy::service::McpAuditSinks {
         executions: repo,
         intent_claims,
