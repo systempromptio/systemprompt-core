@@ -42,7 +42,8 @@ async fn setup_link_ctx() -> anyhow::Result<(
 
 fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthState> {
     let webauthn = WebAuthnService::new(
-        ctx.config(),
+        &ctx.config().api_external_url,
+        &ctx.config().sitename,
         systemprompt_test_fixtures::oauth_repositories(&ctx)
             .oauth
             .clone(),

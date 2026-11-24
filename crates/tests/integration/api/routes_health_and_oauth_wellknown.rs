@@ -33,7 +33,7 @@ async fn oauth_wellknown_routes_oauth_authz_server() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
@@ -55,7 +55,7 @@ async fn oauth_wellknown_routes_openid_config() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
@@ -77,7 +77,7 @@ async fn oauth_wellknown_routes_protected_resource() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
@@ -99,7 +99,7 @@ async fn oauth_wellknown_routes_protected_resource_with_path() -> anyhow::Result
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

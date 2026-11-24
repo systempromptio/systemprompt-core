@@ -24,7 +24,9 @@ async fn app() -> axum::Router {
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     router(SsoRouteState::build(
-        ctx.config_arc(),
+        &std::sync::Arc::new(
+            systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
+        ),
         ctx.db_pool(),
         &oauth,
         &systemprompt_oauth_issuance::contract::SsoProviders::default(),

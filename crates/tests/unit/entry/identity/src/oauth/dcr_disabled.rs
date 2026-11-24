@@ -81,7 +81,7 @@ async fn discovery_omits_registration_endpoint_when_dcr_is_closed() {
     let ctx = ctx().await;
     let app = wellknown_routes(
         systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-            ctx.config(),
+            &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
             ctx.kernel()
                 .state()
                 .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

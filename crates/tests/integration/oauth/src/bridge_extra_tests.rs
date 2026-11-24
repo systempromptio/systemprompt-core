@@ -107,7 +107,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
-            config: &config,
+            issuer: &config.jwt_issuer,
             request_headers: &headers,
             caller_ip: None,
             code: &issued.code,
@@ -127,7 +127,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
-            config: &config,
+            issuer: &config.jwt_issuer,
             request_headers: &headers,
             caller_ip: None,
             code: &issued.code,
@@ -155,7 +155,7 @@ async fn exchange_unknown_code_returns_none() {
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
-            config: &config,
+            issuer: &config.jwt_issuer,
             request_headers: &headers,
             caller_ip: None,
             code: "deadbeef",

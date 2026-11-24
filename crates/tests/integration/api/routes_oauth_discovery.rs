@@ -30,7 +30,7 @@ fn discovery_router_over(ctx: &systemprompt_runtime::AppContext) -> Router {
             get(oauth::discovery::handle_oauth_protected_resource_with_path),
         )
         .with_state(oauth::discovery::DiscoveryState::from_config(
-            ctx.config(),
+            &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
             ctx.kernel()
                 .state()
                 .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

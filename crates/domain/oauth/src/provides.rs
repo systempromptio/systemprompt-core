@@ -199,7 +199,7 @@ pub(crate) fn session_issuer(r: &Resolved<'_>) -> Result<DynSessionIssuer, Provi
             Arc::clone(&sessions),
             users,
             Arc::clone(&authority),
-            Arc::clone(&config),
+            config.jwt_access_token_expiration,
         ),
         sessions,
         authority,

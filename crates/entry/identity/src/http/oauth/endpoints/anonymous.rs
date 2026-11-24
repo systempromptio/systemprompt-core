@@ -101,7 +101,7 @@ fn build_session_service(state: &OAuthState, config: Arc<Config>) -> SessionCrea
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
         Arc::clone(state.token_authority()),
-        config,
+        config.jwt_access_token_expiration,
     );
     if let Some(fp_provider) = state.fingerprint_provider() {
         session_service = session_service.with_fingerprint_provider(Arc::clone(fp_provider));

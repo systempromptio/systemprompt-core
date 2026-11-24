@@ -48,7 +48,7 @@ fn driver_on(
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         ),
-        Arc::clone(&config),
+        config.jwt_access_token_expiration,
     );
     let mut sso = SsoBuilder::default();
     providers::contribute(&mut sso);
@@ -56,7 +56,7 @@ fn driver_on(
     SsoDriver::new(
         &build_sso(sso).expect("fake providers build"),
         db,
-        config,
+        Arc::new(systemprompt_oauth_issuance::surface::IdentityConfigView::of(&config)),
         systemprompt_test_fixtures::oauth_fixture_repository(db),
         Arc::new(service),
     )

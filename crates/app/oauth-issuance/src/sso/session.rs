@@ -11,11 +11,12 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AccessTokenId, SessionId, SessionSource, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, Permission, UserJwtRequest};
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::SsoError;
+
+use crate::surface::IdentityConfigView;
 
 /// Who the session is for.
 #[derive(Debug, Clone, Copy)]
@@ -43,7 +44,7 @@ pub fn permissions_for_roles(roles: &[String]) -> Vec<Permission> {
 
 pub async fn mint_browser_session(
     session_service: &SessionCreationService,
-    config: &Config,
+    config: &IdentityConfigView,
     subject: &BrowserSessionSubject<'_>,
     authenticated_at: DateTime<Utc>,
     analytics: &SessionAnalytics,

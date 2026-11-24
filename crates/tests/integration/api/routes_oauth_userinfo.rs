@@ -131,7 +131,7 @@ async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()
@@ -159,7 +159,7 @@ async fn wellknown_options_preflight_returns_200() -> anyhow::Result<()> {
     let app = super::common::with_config(
         wellknown_routes(
             systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                ctx.config(),
+                &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                 ctx.kernel()
                     .state()
                     .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

@@ -112,7 +112,12 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
         &analytics,
         &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&config, &exchange_request_headers(), None, &user_id),
+        BridgeAccessRequest::bridge(
+            &config.jwt_issuer,
+            &exchange_request_headers(),
+            None,
+            &user_id,
+        ),
     )
     .await
     .expect("mint bridge access");
@@ -159,7 +164,12 @@ async fn bridge_session_captures_request_analytics() {
         &analytics,
         &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&config, &exchange_request_headers(), caller_ip, &user_id),
+        BridgeAccessRequest::bridge(
+            &config.jwt_issuer,
+            &exchange_request_headers(),
+            caller_ip,
+            &user_id,
+        ),
     )
     .await
     .expect("mint bridge access");
@@ -208,7 +218,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
         &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
         BridgeAccessRequest::bridge(
-            &config,
+            &config.jwt_issuer,
             &exchange_headers_with_session(&supplied),
             None,
             &user_id,
@@ -258,7 +268,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
         &analytics,
         &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&config, &headers, None, &user_id),
+        BridgeAccessRequest::bridge(&config.jwt_issuer, &headers, None, &user_id),
     )
     .await
     .expect("first mint");
@@ -267,7 +277,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
         &analytics,
         &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&config, &headers, None, &user_id),
+        BridgeAccessRequest::bridge(&config.jwt_issuer, &headers, None, &user_id),
     )
     .await
     .expect("re-mint with the same session id must not fail");
@@ -298,8 +308,13 @@ async fn a_purposed_exchange_gets_no_device_token() {
         &analytics,
         &*systemprompt_test_fixtures::fixture_session_store(&db),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&config, &exchange_request_headers(), None, &user_id)
-            .with_purpose(Some("farm:run-1".to_owned())),
+        BridgeAccessRequest::bridge(
+            &config.jwt_issuer,
+            &exchange_request_headers(),
+            None,
+            &user_id,
+        )
+        .with_purpose(Some("farm:run-1".to_owned())),
     )
     .await
     .expect("mint bridge access");

@@ -261,7 +261,7 @@ fn test_session_creation_service_new() {
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         ),
-        systemprompt_test_fixtures::test_config(),
+        systemprompt_test_fixtures::test_config().jwt_access_token_expiration,
     );
     let debug_output = format!("{:?}", service);
 
@@ -281,7 +281,7 @@ fn test_session_creation_service_with_fingerprint_provider() {
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         ),
-        systemprompt_test_fixtures::test_config(),
+        systemprompt_test_fixtures::test_config().jwt_access_token_expiration,
     )
     .with_fingerprint_provider(fingerprint);
 }

@@ -71,7 +71,7 @@ async fn protected_resource(path: &str) -> anyhow::Result<(u16, serde_json::Valu
         super::common::with_config(
             systemprompt_identity_entry::http::oauth::wellknown_routes(
                 systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-                    ctx.config(),
+                    &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
                     ctx.kernel()
                         .state()
                         .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

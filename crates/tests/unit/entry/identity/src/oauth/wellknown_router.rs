@@ -23,7 +23,7 @@ async fn router() -> Router {
     let ctx = test_app_context(&url).await;
     wellknown_routes(
         systemprompt_identity_entry::http::oauth::discovery::DiscoveryState::from_config(
-            ctx.config(),
+            &systemprompt_oauth_issuance::surface::IdentityConfigView::of(ctx.config()),
             ctx.kernel()
                 .state()
                 .find::<std::sync::Arc<dyn systemprompt_traits::McpRegistryProvider>>()

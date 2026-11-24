@@ -52,7 +52,7 @@ impl SessionCreationService {
             &user_id,
             &session_id,
             client_id,
-            self.config.jwt_access_token_expiration,
+            self.access_token_expiration,
         )
         .inspect_err(|e| {
             tracing::warn!(error = %e, "Failed to generate JWT for session lookup");

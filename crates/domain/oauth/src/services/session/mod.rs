@@ -13,7 +13,6 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_traits::{
     BoxedSource, CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider,
@@ -66,7 +65,7 @@ pub struct SessionCreationService {
     fingerprint_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     authority: Arc<dyn TokenAuthority>,
-    config: Arc<Config>,
+    access_token_expiration: i64,
 }
 
 impl std::fmt::Debug for SessionCreationService {
@@ -82,7 +81,7 @@ impl SessionCreationService {
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
         authority: Arc<dyn TokenAuthority>,
-        config: Arc<Config>,
+        access_token_expiration: i64,
     ) -> Self {
         Self {
             session_provider,
@@ -90,7 +89,7 @@ impl SessionCreationService {
             fingerprint_locks: Arc::new(RwLock::new(HashMap::new())),
             fingerprint_provider: None,
             authority,
-            config,
+            access_token_expiration,
         }
     }
 
@@ -146,7 +145,7 @@ impl SessionCreationService {
             user_id,
             analytics,
             session_source,
-            chrono::Duration::seconds(self.config.jwt_access_token_expiration),
+            chrono::Duration::seconds(self.access_token_expiration),
         )
         .await
     }

@@ -1,0 +1,24 @@
+[root]
+section = "Changed"
+area = "OAuth"
+text = "The identity HTTP surface reads an `IdentityConfigView` (the external URL, site name, JWT issuer, audiences and access-token lifetime, trusted proxies, discovery switches and API-key lifetime cap) instead of the whole runtime configuration, and the OAuth services it calls take the one fact each reads."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Added"
+text = "`surface::IdentityConfigView` and `IdentityConfigView::of(&Config)`."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Breaking"
+text = "`IdentityHostHandles::config` is an `Arc<IdentityConfigView>`; `SsoDriver::new` takes an `Arc<IdentityConfigView>`, `SsoDriver::config` returns `&IdentityConfigView` and `sso::mint_browser_session` takes `&IdentityConfigView`. Migrate by passing `IdentityConfigView::of(&config)`."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`WebAuthnConfig::new` and `WebAuthnService::new` take the external URL and site name, `SessionCreationService::new` takes the access-token lifetime in seconds, and `BridgeAccessRequest::bridge` and `BridgeExchangeRequest` take the JWT issuer (`issuer`) in place of the configuration."
+
+[[crate]]
+name = "systemprompt-identity-entry"
+section = "Breaking"
+text = "`SsoRouteState::build` takes an `Arc<IdentityConfigView>`, `DiscoveryState::from_config` takes `&IdentityConfigView`, and `BridgeAuthState::config` is an `Arc<IdentityConfigView>`."

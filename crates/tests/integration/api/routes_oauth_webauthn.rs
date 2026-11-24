@@ -48,7 +48,8 @@ async fn setup_webauthn_ctx() -> anyhow::Result<(
 async fn webauthn_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_webauthn_ctx().await?;
     let webauthn = WebAuthnService::new(
-        ctx.config(),
+        &ctx.config().api_external_url,
+        &ctx.config().sitename,
         systemprompt_test_fixtures::oauth_repositories(&ctx)
             .oauth
             .clone(),
@@ -237,8 +238,13 @@ async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
     let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let (_pool, ctx) = setup_webauthn_ctx().await?;
-    let service = WebAuthnService::new(ctx.config(), repo, ctx.user_provider().expect("user"))
-        .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
+    let service = WebAuthnService::new(
+        &ctx.config().api_external_url,
+        &ctx.config().sitename,
+        repo,
+        ctx.user_provider().expect("user"),
+    )
+    .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     let token = generate_secure_token("webauthn_verified");
     service
         .store_verified_authentication(token.clone(), user.clone())
