@@ -1,5 +1,5 @@
-//! [`IssuesMcpTools`](crate::mcp::IssuesMcpTools): the issue report tools an install's MCP server
-//! serves.
+//! [`IssuesMcpTools`](crate::mcp::IssuesMcpTools): the issue report tools an
+//! install's MCP server serves.
 //!
 //! `report_issue` files a report and records the request's own trace,
 //! context, session, task and MCP execution, so triage follows the report to

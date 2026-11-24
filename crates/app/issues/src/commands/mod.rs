@@ -1,11 +1,12 @@
 //! `admin issues` command tree: operator triage of the bug and feedback
 //! reports users and agents file.
 //!
-//! [`IssuesCommands`](crate::commands::IssuesCommands) lists reports, shows one with the follow-up commands
-//! for the platform records it names, and moves a report through the triage
-//! states as the CLI session user. The `issues` member contributes the group
-//! under the kernel's `admin` group; every command reads the issue service
-//! from the `DocumentsHandlesSlot` the `documents` member provides.
+//! [`IssuesCommands`](crate::commands::IssuesCommands) lists reports, shows one
+//! with the follow-up commands for the platform records it names, and moves a
+//! report through the triage states as the CLI session user. The `issues`
+//! member contributes the group under the kernel's `admin` group; every command
+//! reads the issue service from the `DocumentsHandlesSlot` the `documents`
+//! member provides.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
