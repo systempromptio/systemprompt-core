@@ -9,7 +9,7 @@ use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 
 use systemprompt_test_fixtures::unique_instance;
 
@@ -35,7 +35,7 @@ async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRe
         .expect("app paths"),
     );
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("database-service"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );

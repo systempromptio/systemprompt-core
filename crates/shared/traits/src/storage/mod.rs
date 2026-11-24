@@ -17,7 +17,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::BoxedSource;
 
@@ -31,10 +31,10 @@ pub type FileStorageResult<T> = Result<T, FileStorageError>;
 #[non_exhaustive]
 pub enum FileStorageError {
     #[error("file not found: {0}")]
-    NotFound(String),
+    NotFound(StoredFileId),
 
     #[error("validation failed: {0}")]
-    Validation(String),
+    Validation(StorageValidation),
 
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
@@ -47,6 +47,26 @@ pub enum FileStorageError {
 
     #[error("requested range not satisfiable for an object of {size} bytes")]
     RangeNotSatisfiable { size: u64 },
+}
+
+/// Why a storage path or body was refused before any backend I/O.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum StorageValidation {
+    #[error("storage path must not be empty")]
+    EmptyPath,
+
+    #[error("storage path {} contains a parent-directory component", .path.display())]
+    ParentDirectory { path: PathBuf },
+
+    #[error("storage path {} must be relative to the storage root", .path.display())]
+    NotRelative { path: PathBuf },
+
+    #[error("storage path {} passes through a symbolic link", .path.display())]
+    SymbolicLink { path: PathBuf },
+
+    #[error("the body exceeds {limit} bytes")]
+    BodyTooLarge { limit: u64 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

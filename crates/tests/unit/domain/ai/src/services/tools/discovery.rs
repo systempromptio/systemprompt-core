@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_ai::services::tools::ToolDiscovery;
 use systemprompt_identifiers::{Actor, AgentName, JwtToken, McpServerId, McpToolName, UserId};
-use systemprompt_test_fixtures::fixture_actor;
+use systemprompt_test_fixtures::unique_user_id;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
     ToolProviderResult,
@@ -87,7 +87,10 @@ fn create_test_tool(name: &str, description: &str) -> ToolDefinition {
 }
 
 fn _create_test_context() -> ToolContext {
-    ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("test-token"))
+    ToolContext::new(systemprompt_identifiers::Actor::user(unique_user_id(
+        "discovery",
+    )))
+    .with_auth_token(JwtToken::new("test-token"))
 }
 
 mod tool_discovery_tests {

@@ -1,5 +1,6 @@
 use systemprompt_models::errors::{
     GlobalConfigError, MetadataError, ParseEnumError, SecretsError, ServicesValidationError,
+    ValidationSubject,
 };
 
 #[test]
@@ -42,37 +43,53 @@ fn config_error_invalid_postgres_url_display() {
 
 #[test]
 fn config_validation_error_required() {
-    let e = ServicesValidationError::required("name is required");
-    assert_eq!(e.to_string(), "name is required");
+    let e = ServicesValidationError::required(
+        ValidationSubject::named("Agent", "alpha"),
+        "name is required",
+    );
+    assert_eq!(e.to_string(), "Agent 'alpha': name is required");
 }
 
 #[test]
 fn config_validation_error_invalid_field() {
-    let e = ServicesValidationError::invalid_field("bad port");
-    assert_eq!(e.to_string(), "bad port");
+    let e = ServicesValidationError::invalid_field(
+        ValidationSubject::clause("Agent", "alpha"),
+        "has invalid port 0",
+    );
+    assert_eq!(e.to_string(), "Agent 'alpha' has invalid port 0");
 }
 
 #[test]
 fn config_validation_error_port_conflict() {
-    let e = ServicesValidationError::port_conflict("port 8080 in use");
-    assert_eq!(e.to_string(), "port 8080 in use");
+    let e = ServicesValidationError::port_conflict(8080, ("agent", "a"), ("mcp_server", "m"));
+    assert_eq!(
+        e.to_string(),
+        "Port conflict: 8080 used by both agent 'a' and mcp_server 'm'"
+    );
 }
 
 #[test]
 fn config_validation_error_unknown_reference() {
-    let e = ServicesValidationError::unknown_reference("ref agent_x not found");
-    assert_eq!(e.to_string(), "ref agent_x not found");
+    let e = ServicesValidationError::unknown_reference(
+        ValidationSubject::scope("marketplace.rings"),
+        "ref agent_x not found",
+    );
+    assert_eq!(e.to_string(), "marketplace.rings: ref agent_x not found");
 }
 
 #[test]
 fn config_validation_error_circular_dependency() {
-    let e = ServicesValidationError::circular_dependency("a → b → a");
+    let e = ServicesValidationError::circular_dependency(vec![
+        "a".to_owned(),
+        "b".to_owned(),
+        "a".to_owned(),
+    ]);
     assert_eq!(e.to_string(), "a → b → a");
 }
 
 #[test]
 fn config_validation_error_business_rule() {
-    let e = ServicesValidationError::business_rule("max 5 agents");
+    let e = ServicesValidationError::business_rule(ValidationSubject::Global, "max 5 agents");
     assert_eq!(e.to_string(), "max 5 agents");
 }
 

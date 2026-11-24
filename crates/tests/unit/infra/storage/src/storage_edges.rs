@@ -180,7 +180,7 @@ async fn gcs_metadata_of_a_missing_object_is_not_found() {
         .await
         .expect_err("missing");
     assert!(
-        matches!(err, FileStorageError::NotFound(ref id) if id == "gone.bin"),
+        matches!(err, FileStorageError::NotFound(ref id) if id.as_str() == "gone.bin"),
         "{err:?}"
     );
 }

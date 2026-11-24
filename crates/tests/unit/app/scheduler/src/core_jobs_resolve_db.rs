@@ -53,7 +53,9 @@ fn a_wrapped_missing_dependency_is_found_through_the_source_chain() {
     assert!(missing_dependency(&direct).is_some());
     let wrapped = ProviderError::Internal(Box::new(MissingDependency::of::<String>()));
     assert!(missing_dependency(&wrapped).is_some());
-    let other = ProviderError::NotFound("row".to_owned());
+    let other = ProviderError::SourceNotFound {
+        source_id: systemprompt_identifiers::SourceId::new("row"),
+    };
     assert!(missing_dependency(&other).is_none());
 }
 

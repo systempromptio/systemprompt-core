@@ -154,9 +154,7 @@ pub fn parse_response(
             && reason.empty_terminal_is_error()
             && content.is_empty()
         {
-            return Err(WireParseError::EmptyTerminal(format!(
-                "upstream finished with {finish}"
-            )));
+            return Err(WireParseError::empty_terminal(finish, None));
         }
     }
 

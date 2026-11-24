@@ -3,7 +3,7 @@ use systemprompt_governance::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
 use systemprompt_identifiers::{MarketplaceId, SkillId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn rule(rule_type: RuleType, value: &str, access: Access) -> AccessRule {
     AccessRule {
@@ -27,7 +27,7 @@ fn parent_entity() -> EntityRef {
 fn own_allow_wins_over_parent() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let own = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
     let parent_rules = vec![rule(RuleType::ROLE, "eng", Access::Deny)];
@@ -60,7 +60,7 @@ fn own_allow_wins_over_parent() {
 fn own_deny_overrides_parent_allow() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let own = vec![rule(RuleType::ROLE, "eng", Access::Deny)];
     let parent_rules = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
@@ -96,7 +96,7 @@ fn own_deny_overrides_parent_allow() {
 fn parent_allow_cascades_when_own_absent() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let parent_rules = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
     let parents = [ResolveParent {
@@ -128,7 +128,7 @@ fn parent_allow_cascades_when_own_absent() {
 fn parent_deny_overrides_parent_allow() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into(), "contractor".into()];
     let parent_rules = vec![
         rule(RuleType::ROLE, "eng", Access::Allow),
@@ -167,7 +167,7 @@ fn nearer_parent_allow_beats_farther_parent_deny() {
     let child = child();
     let near = EntityRef::Marketplace(MarketplaceId::new("near-market"));
     let far = EntityRef::Marketplace(MarketplaceId::new("far-market"));
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let near_rules = vec![rule(RuleType::ROLE, "eng", Access::Allow)];
     let far_rules = vec![rule(RuleType::ROLE, "eng", Access::Deny)];
@@ -207,7 +207,7 @@ fn nearer_parent_allow_beats_farther_parent_deny() {
 fn own_default_included_allows_before_parent_default() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let parents = [ResolveParent {
         entity: &parent,
@@ -238,7 +238,7 @@ fn own_default_included_allows_before_parent_default() {
 fn parent_default_included_allows_when_own_default_off() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let parents = [ResolveParent {
         entity: &parent,
@@ -269,7 +269,7 @@ fn parent_default_included_allows_when_own_default_off() {
 fn unknown_entity_when_nothing_matches_and_own_default_none() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let parents = [ResolveParent {
         entity: &parent,
@@ -303,7 +303,7 @@ fn unknown_entity_when_nothing_matches_and_own_default_none() {
 fn parent_default_allows_even_when_own_default_none() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["eng".into()];
     let parents = [ResolveParent {
         entity: &parent,
@@ -334,7 +334,7 @@ fn parent_default_allows_even_when_own_default_none() {
 fn non_matching_own_ruleset_does_not_inherit_parent_allow() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["user".into()];
     let own = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
     let parent_rules = vec![rule(RuleType::ROLE, "user", Access::Allow)];
@@ -370,7 +370,7 @@ fn non_matching_own_ruleset_does_not_inherit_parent_allow() {
 fn non_matching_own_ruleset_ignores_parent_default_included() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["user".into()];
     let own = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
     let parents = [ResolveParent {
@@ -405,7 +405,7 @@ fn non_matching_own_ruleset_ignores_parent_default_included() {
 fn matching_own_ruleset_still_allows() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["admin".into()];
     let own = vec![rule(RuleType::ROLE, "admin", Access::Allow)];
     let parents = [ResolveParent {
@@ -439,7 +439,7 @@ fn matching_own_ruleset_still_allows() {
 fn empty_own_ruleset_still_inherits() {
     let child = child();
     let parent = parent_entity();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     let roles: Vec<String> = vec!["user".into()];
     let parent_rules = vec![rule(RuleType::ROLE, "user", Access::Allow)];
     let parents = [ResolveParent {
@@ -480,7 +480,7 @@ fn resolve_child(
     parents: &[ResolveParent<'_>],
 ) -> Decision {
     let child = child();
-    let user = fixture_user_id();
+    let user = unique_user_id("resolver-parents");
     resolve(ResolveInput {
         entity: &child,
         rules: own,

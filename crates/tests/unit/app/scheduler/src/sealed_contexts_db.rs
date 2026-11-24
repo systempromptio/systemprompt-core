@@ -5,9 +5,10 @@
 //! a type sealed later is covered without changing them, and they fail the
 //! moment one context is built from an unwithheld map.
 
+use systemprompt_identifiers::Actor;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::ConfigReconcileService;
-use systemprompt_test_fixtures::{fixture_actor, test_database_url};
+use systemprompt_test_fixtures::{test_database_url, unique_user_id};
 use systemprompt_traits::{Dependencies, JobContext};
 
 fn reachable(state: &Dependencies, context: &Dependencies) -> Vec<&'static str> {
@@ -34,7 +35,10 @@ async fn every_runtime_context_withholds_every_sealed_seed_of_the_kernel_state()
         "runner-service state"
     );
 
-    let job = JobContext::new(fixture_actor(), state.clone());
+    let job = JobContext::new(
+        Actor::user(unique_user_id("sealed-contexts-db")),
+        state.clone(),
+    );
     assert_eq!(
         reachable(state, job.dependencies()),
         Vec::<&str>::new(),

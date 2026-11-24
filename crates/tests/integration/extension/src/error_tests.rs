@@ -52,11 +52,14 @@ fn test_loader_error_schema_installation_failed_display() {
 fn test_loader_error_config_validation_failed_display() {
     let err = LoaderError::ConfigValidationFailed {
         extension: ExtensionId::new("smtp"),
-        source: ExtensionConfigError::NotFound("host".to_string()),
+        source: ExtensionConfigError::InvalidValue {
+            key: "host".to_string(),
+            message: "must not be empty".to_string(),
+        },
     };
     let msg = err.to_string();
     assert!(msg.contains("smtp"));
-    assert!(msg.contains("'host' not found"));
+    assert!(msg.contains("'host'"));
     assert!(msg.contains("Configuration validation"));
     assert!(std::error::Error::source(&err).is_some());
 }
@@ -81,14 +84,6 @@ fn test_loader_error_circular_dependency_display() {
     let msg = err.to_string();
     assert!(msg.contains("a -> b -> c -> a"));
     assert!(msg.contains("Dependency cycle"));
-}
-
-#[test]
-fn test_config_error_not_found_display() {
-    let err = ExtensionConfigError::NotFound("database.host".to_string());
-    let msg = err.to_string();
-    assert!(msg.contains("database.host"));
-    assert!(msg.contains("not found"));
 }
 
 #[test]
@@ -138,7 +133,10 @@ fn test_loader_error_variant_matching() {
         },
         LoaderError::ConfigValidationFailed {
             extension: ExtensionId::new("f"),
-            source: ExtensionConfigError::NotFound("port".to_string()),
+            source: ExtensionConfigError::InvalidValue {
+                key: "port".to_string(),
+                message: "msg".to_string(),
+            },
         },
         LoaderError::RouterBuildFailed {
             extension: ExtensionId::new("g"),
@@ -385,7 +383,6 @@ fn test_loader_error_variant_matching() {
 #[test]
 fn test_config_error_variant_matching() {
     let errors = vec![
-        ExtensionConfigError::NotFound("key".to_string()),
         ExtensionConfigError::InvalidValue {
             key: "key".to_string(),
             message: "msg".to_string(),
@@ -398,9 +395,6 @@ fn test_config_error_variant_matching() {
 
     for err in errors {
         match &err {
-            ExtensionConfigError::NotFound(key) => {
-                assert!(!key.is_empty());
-            },
             ExtensionConfigError::InvalidValue { key, message } => {
                 assert!(!key.is_empty());
                 assert!(!message.is_empty());

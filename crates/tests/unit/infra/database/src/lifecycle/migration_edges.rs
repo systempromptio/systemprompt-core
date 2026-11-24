@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use systemprompt_database::{
-    DatabaseAdminService, DatabaseProvider, MigrationService, PostgresProvider,
+    DatabaseAdminService, DatabaseProvider, MigrationService, PostgresProvider, SchemaName,
 };
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError, Migration,
@@ -11,7 +11,9 @@ use tracing_subscriber::layer::SubscriberExt;
 
 use super::installation::{StubExtension, provider_and_db, registry_with, unique_id};
 use super::members::{admitted_of, install, unit};
-use crate::services::db_helper::test_pool;
+use systemprompt_test_fixtures::ScratchSchema;
+
+use crate::services::db_helper::{scratch_pool, test_pool};
 
 struct OwnedExtension {
     id: &'static str,
@@ -96,24 +98,14 @@ impl LogBuffer {
     }
 }
 
-async fn provider() -> PostgresProvider {
-    PostgresProvider::from_pool(test_pool().await.write_pool())
-}
-
-async fn drop(provider: &PostgresProvider, ext_id: &str, table: &str) {
-    let _ = provider
-        .execute_raw(&format!(
-            "DELETE FROM extension_migrations WHERE extension_id = '{ext_id}'"
-        ))
-        .await;
-    let _ = provider
-        .execute_raw(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .await;
+async fn provider() -> (ScratchSchema, PostgresProvider) {
+    let (scratch, db) = scratch_pool("migration_edges").await;
+    (scratch, PostgresProvider::from_pool(db.write_pool()))
 }
 
 #[tokio::test]
 async fn an_alter_on_a_foreign_table_is_refused_before_it_runs() {
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = unique_id("alter_foreign");
     let table = unique_id("alter_foreign_t");
     provider
@@ -150,12 +142,12 @@ async fn an_alter_on_a_foreign_table_is_refused_before_it_runs() {
         .await
         .expect("columns");
     assert_eq!(columns.len(), 1, "the refused alter never ran");
-    drop(&provider, ext_id, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn alters_on_declared_and_previously_created_tables_run() {
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = unique_id("alter_owned");
     let declared = unique_id("alter_declared_t");
     let created = unique_id("alter_created_t");
@@ -209,9 +201,7 @@ async fn alters_on_declared_and_previously_created_tables_run() {
             .expect("column probe");
         assert_eq!(rows.len(), 1, "{table} gained v");
     }
-    drop(&provider, ext_id, declared).await;
-    drop(&provider, ext_id, created).await;
-    drop(&provider, ext_id, owned).await;
+    scratch.drop_now().await;
 }
 
 async fn table_with_trigger(provider: &PostgresProvider, table: &str) {
@@ -233,7 +223,7 @@ async fn table_with_trigger(provider: &PostgresProvider, table: &str) {
 async fn suspended_triggers_are_named_in_the_migration_log() {
     let logs = LogBuffer::default();
     let _guard = logs.install();
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = unique_id("trg_log");
     let table = unique_id("trg_log_t");
     table_with_trigger(&provider, table).await;
@@ -266,12 +256,12 @@ async fn suspended_triggers_are_named_in_the_migration_log() {
     );
     assert!(text.contains(&named), "{text}");
     assert!(text.contains("Migration applied"), "{text}");
-    drop(&provider, ext_id, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_costed_migration_over_a_populated_table_applies() {
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = unique_id("costed");
     let table = unique_id("costed_t");
     table_with_trigger(&provider, table).await;
@@ -302,12 +292,13 @@ async fn a_costed_migration_over_a_populated_table_applies() {
         .await
         .expect("count");
     assert_eq!(rows[0]["n"].as_i64(), Some(20));
-    drop(&provider, ext_id, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn counted_table_listing_reports_live_row_counts() {
-    let provider = provider().await;
+    let pool = test_pool().await;
+    let provider = PostgresProvider::from_pool(pool.write_pool());
     let table = unique_id("counted_t");
     provider
         .execute_batch(&format!(
@@ -316,7 +307,6 @@ async fn counted_table_listing_reports_live_row_counts() {
         ))
         .await
         .expect("counted table");
-    let pool = test_pool().await;
     let service = DatabaseAdminService::new(pool.write_pool());
 
     let tables = service
@@ -338,12 +328,11 @@ async fn counted_table_listing_reports_live_row_counts() {
 async fn an_unmeasured_pending_rewrite_of_a_populated_hot_table_is_warned() {
     let logs = LogBuffer::default();
     let _guard = logs.install();
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("migration_edges_hot").await;
     provider
         .execute_batch(
-            "INSERT INTO logs (level, module, message, user_id, session_id, trace_id)
-             VALUES ('INFO', 'cost_warning_test', 'seed', 'cost_warning_test_user',
-                     'cost_warning_test_session', 'cost_warning_test_trace');
+            "CREATE TABLE logs (level TEXT NOT NULL, module TEXT NOT NULL, message TEXT NOT NULL);
+             INSERT INTO logs (level, module, message) VALUES ('INFO', 'cost_warning_test', 'seed');
              ANALYZE logs;",
         )
         .await
@@ -364,7 +353,7 @@ async fn an_unmeasured_pending_rewrite_of_a_populated_hot_table_is_warned() {
         )],
     };
 
-    let outcome = install(&registry_with(ext), &provider).await;
+    let outcome = install(&registry_with(ext), &provider, &scratch.schema_name()).await;
 
     let text = logs.text();
     assert!(
@@ -372,20 +361,12 @@ async fn an_unmeasured_pending_rewrite_of_a_populated_hot_table_is_warned() {
         "outcome {outcome:?}\n{text}"
     );
     assert!(text.contains("UPDATE on logs"), "{text}");
-    let _ = provider
-        .execute_raw("DELETE FROM logs WHERE module = 'cost_warning_test'")
-        .await;
-    let _ = provider
-        .execute_raw(&format!(
-            "DELETE FROM extension_migrations WHERE extension_id = '{ext_id}'"
-        ))
-        .await;
-    super::installation::drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_tombstone_cannot_be_marked_applied() {
-    let provider = provider().await;
+    let (scratch, provider) = provider().await;
     let ext_id = unique_id("tomb_mark");
     let ext = StubExtension {
         id: ext_id,
@@ -411,11 +392,12 @@ async fn a_tombstone_cannot_be_marked_applied() {
         },
         other => panic!("unexpected error: {other:?}"),
     }
+    scratch.drop_now().await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn a_failing_declarative_routine_aborts_the_install_with_its_statement() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("migration_edges").await;
     let ext_id = unique_id("routine_fail");
     let table = unique_id("routine_fail_t");
     let ext = StubExtension {
@@ -432,19 +414,19 @@ async fn a_failing_declarative_routine_aborts_the_install_with_its_statement() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("routine with an unknown return type");
 
     let rendered = format!("{err:?}");
     assert!(rendered.contains("routine pre-pass"), "{rendered}");
     assert!(rendered.contains("Statement 1/1 failed"), "{rendered}");
-    super::installation::drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_failing_schema_statement_rolls_back_and_names_the_statement() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("migration_edges").await;
     let ext_id = unique_id("phase_fail");
     let table = unique_id("phase_fail_t");
     let ext = StubExtension {
@@ -460,7 +442,7 @@ async fn a_failing_schema_statement_rolls_back_and_names_the_statement() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("an index over a missing column fails the phase");
 
@@ -470,6 +452,7 @@ async fn a_failing_schema_statement_rolls_back_and_names_the_statement() {
         !super::installation::table_exists(&db, table).await,
         "the failed phase rolled its table back"
     );
+    scratch.drop_now().await;
 }
 
 fn unreachable_provider() -> PostgresProvider {
@@ -548,9 +531,11 @@ async fn reverting_zero_migrations_touches_nothing() {
 async fn schema_residue_on_an_unreachable_database_is_an_error() {
     let provider = unreachable_provider();
 
-    let err = systemprompt_database::audit_schema_residue(&provider, &["t".to_owned()], &[])
-        .await
-        .expect_err("no database");
+    let target = SchemaName::try_new("unreachable").expect("a schema identifier");
+    let err =
+        systemprompt_database::audit_schema_residue(&provider, &["t".to_owned()], &[], &target)
+            .await
+            .expect_err("no database");
 
     match err {
         LoaderError::SchemaInstallationStepFailed { context, .. } => {
@@ -562,7 +547,7 @@ async fn schema_residue_on_an_unreachable_database_is_an_error() {
 
 #[tokio::test]
 async fn a_cross_extension_table_nobody_owns_is_refused() {
-    let (provider, _db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("migration_edges").await;
     let ext_id = unique_id("cross_unowned");
     let table = unique_id("cross_unowned_t");
     let phantom = unique_id("cross_phantom_t");
@@ -575,9 +560,13 @@ async fn a_cross_extension_table_nobody_owns_is_refused() {
         cross: vec![phantom],
         migrations: vec![],
     };
-    let err = install(&admitted_of(vec![Box::new(ext)]), &provider)
-        .await
-        .expect_err("phantom cross-extension table");
+    let err = install(
+        &admitted_of(vec![Box::new(ext)]),
+        &provider,
+        &scratch.schema_name(),
+    )
+    .await
+    .expect_err("phantom cross-extension table");
 
     match err {
         LoaderError::CrossExtensionTableNotOwned { table: refused, .. } => {
@@ -585,4 +574,5 @@ async fn a_cross_extension_table_nobody_owns_is_refused() {
         },
         other => panic!("unexpected error: {other:?}"),
     }
+    scratch.drop_now().await;
 }

@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use axum::response::IntoResponse;
 use http::StatusCode;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_identifiers::{MarketplaceId, PluginId};
+use systemprompt_identifiers::{MarketplaceId, PluginId, UserId};
 use systemprompt_loader::BundleError;
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::{ApiError, ErrorCode};
-use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_models::execution::{ContextExtractionError, UserUnavailable};
 use systemprompt_traits::RepositoryError;
 
 fn code_of(err: impl Into<ApiHttpError>) -> ApiError {
@@ -118,7 +118,7 @@ fn context_extraction_error_maps_every_class() {
             ErrorCode::Unauthorized,
         ),
         (
-            ContextExtractionError::MissingHeader("x".into()),
+            ContextExtractionError::MissingHeader { header: "x".into() },
             ErrorCode::Unauthorized,
         ),
         (
@@ -146,10 +146,6 @@ fn context_extraction_error_maps_every_class() {
             ErrorCode::BadRequest,
         ),
         (
-            ContextExtractionError::InvalidUserId("u".into()),
-            ErrorCode::BadRequest,
-        ),
-        (
             ContextExtractionError::ForbiddenHeader {
                 header: "h".into(),
                 reason: "r".into(),
@@ -157,7 +153,10 @@ fn context_extraction_error_maps_every_class() {
             ErrorCode::Forbidden,
         ),
         (
-            ContextExtractionError::UserNotFound("u".into()),
+            ContextExtractionError::UserNotFound {
+                user_id: UserId::new("u"),
+                state: UserUnavailable::Missing,
+            },
             ErrorCode::NotFound,
         ),
         (

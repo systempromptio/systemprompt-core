@@ -11,7 +11,7 @@ use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_test_fixtures::{block_on, fixture_user_id};
+use systemprompt_test_fixtures::{block_on, unique_user_id};
 
 // Why: the MCP writer mints the loopback secret under the bridge config dir;
 // pinning XDG_CONFIG_HOME/HOME to the sandbox keeps the test off the real
@@ -49,7 +49,7 @@ fn manifest_with(
         not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("hermes-managed-resources"),
         tenant_id: None,
         user: None,
         plugins: vec![],

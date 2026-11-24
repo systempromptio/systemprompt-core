@@ -89,7 +89,9 @@ impl ClientAttestation {
         Self::ALL
             .into_iter()
             .find(|tier| tier.as_str() == value)
-            .ok_or_else(|| OriginParseError::Attestation(value.to_owned()))
+            .ok_or_else(|| OriginParseError::Attestation {
+                value: value.to_owned(),
+            })
     }
 
     #[must_use]
@@ -122,7 +124,9 @@ impl NativeMarker {
         Self::ALL
             .into_iter()
             .find(|marker| marker.as_str() == value)
-            .ok_or_else(|| OriginParseError::NativeMarker(value.to_owned()))
+            .ok_or_else(|| OriginParseError::NativeMarker {
+                value: value.to_owned(),
+            })
     }
 
     #[must_use]

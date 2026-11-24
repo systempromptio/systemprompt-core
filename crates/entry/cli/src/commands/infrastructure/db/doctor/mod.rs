@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::services::schema_linter::created_table_names;
-use systemprompt_database::{DbPool, SchemaMember, audit_schema_residue};
+use systemprompt_database::{DbPool, SchemaMember, SchemaName, audit_schema_residue};
 use systemprompt_extension::BuiltState;
 use systemprompt_extension::cli::CommandError;
 use systemprompt_identifiers::ExtensionId;
@@ -76,7 +76,8 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, built: &BuiltState) -> Resu
         }
         ids.push(ext_id);
     }
-    let residue = audit_schema_residue(write_provider, &created_tables, &ids).await?;
+    let residue =
+        audit_schema_residue(write_provider, &created_tables, &ids, &SchemaName::public()).await?;
     let undeclared: Vec<String> = residue
         .undeclared_tables
         .iter()

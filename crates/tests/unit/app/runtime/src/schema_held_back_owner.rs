@@ -2,7 +2,7 @@
 //! database is ahead of it: a member referencing the held-back member's table
 //! as a cross-extension table installs, as it does when neither is ahead.
 
-use systemprompt_database::{MigrationConfig, install_schema_members, schema_members};
+use systemprompt_database::{MigrationConfig, SchemaName, install_schema_members, schema_members};
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, Migration, SchemaDefinition,
 };
@@ -85,7 +85,13 @@ async fn a_held_back_member_still_owns_its_tables_for_a_cross_extension_referenc
     ]);
     let members = schema_members(admitted.built());
 
-    let first = install_schema_members(&members, db.write(), MigrationConfig::default()).await;
+    let first = install_schema_members(
+        &members,
+        db.write(),
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await;
     assert!(
         first.is_ok(),
         "control: neither member ahead installs: {first:?}"
@@ -101,7 +107,13 @@ async fn a_held_back_member_still_owns_its_tables_for_a_cross_extension_referenc
     .await
     .expect("record a migration newer than the owner declares");
 
-    let ahead = install_schema_members(&members, db.write(), MigrationConfig::default()).await;
+    let ahead = install_schema_members(
+        &members,
+        db.write(),
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await;
     let report = ahead.unwrap_or_else(|e| panic!("the held-back owner still owns {owned}: {e:?}"));
     assert!(
         report

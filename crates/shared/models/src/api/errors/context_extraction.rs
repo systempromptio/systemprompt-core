@@ -13,16 +13,17 @@ impl From<ContextExtractionError> for ApiError {
             ContextExtractionError::InvalidToken(source) => {
                 Self::unauthorized("Invalid or expired token").with_source(source)
             },
-            e @ (ContextExtractionError::MissingHeader(_)
+            e @ (ContextExtractionError::MissingHeader { .. }
             | ContextExtractionError::MissingAuthHeader
             | ContextExtractionError::Revoked
             | ContextExtractionError::MissingSessionId
             | ContextExtractionError::MissingUserId) => Self::unauthorized(e.to_string()),
             e @ (ContextExtractionError::MissingContextId
-            | ContextExtractionError::InvalidHeaderValue { .. }
-            | ContextExtractionError::InvalidUserId(_)) => Self::bad_request(e.to_string()),
+            | ContextExtractionError::InvalidHeaderValue { .. }) => {
+                Self::bad_request(e.to_string())
+            },
             e @ ContextExtractionError::ForbiddenHeader { .. } => Self::forbidden(e.to_string()),
-            e @ ContextExtractionError::UserNotFound(_) => Self::not_found(e.to_string()),
+            e @ ContextExtractionError::UserNotFound { .. } => Self::not_found(e.to_string()),
             e @ ContextExtractionError::PayloadTooLarge { .. } => {
                 Self::payload_too_large(e.to_string())
             },

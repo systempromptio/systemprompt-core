@@ -7,7 +7,7 @@ use crate::kernel::KernelHost;
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::{
-    Database, MigrationConfig, MigrationService, SchemaInstallReport, SchemaMember,
+    Database, MigrationConfig, MigrationService, SchemaInstallReport, SchemaMember, SchemaName,
     install_admitted_schemas, schema_members,
 };
 use systemprompt_extension::{BuiltState, LoaderError};
@@ -119,27 +119,29 @@ async fn run_install(
         allow_checksum_drift,
         force_full_install: full,
     };
+    let target = SchemaName::public();
 
-    let report = match install_admitted_schemas(built, write_provider, migration_config).await {
-        Ok(report) => report,
-        Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
-            notes.push(NoticeLine::new(
-                "warning",
-                "Migration checksum drift found; re-applied drifted migrations",
-            ));
-            let service = MigrationService::new(write_provider);
-            for ext in install_set(built) {
-                service
-                    .repair_drift(ext.as_ref())
+    let report =
+        match install_admitted_schemas(built, write_provider, &target, migration_config).await {
+            Ok(report) => report,
+            Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
+                notes.push(NoticeLine::new(
+                    "warning",
+                    "Migration checksum drift found; re-applied drifted migrations",
+                ));
+                let service = MigrationService::new(write_provider);
+                for ext in install_set(built) {
+                    service
+                        .repair_drift(ext.as_ref())
+                        .await
+                        .map_err(|e| anyhow!("Failed to repair migrations: {e}"))?;
+                }
+                install_admitted_schemas(built, write_provider, &target, migration_config)
                     .await
-                    .map_err(|e| anyhow!("Failed to repair migrations: {e}"))?;
-            }
-            install_admitted_schemas(built, write_provider, migration_config)
-                .await
-                .map_err(|e| failure(&e))?
-        },
-        Err(e) => return Err(failure(&e)),
-    };
+                    .map_err(|e| failure(&e))?
+            },
+            Err(e) => return Err(failure(&e)),
+        };
     if let Some(superseded) = &report.superseded {
         return Err(anyhow!(
             "Schema install refused: release {} is older than release {}, which installed this \

@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::{MarketplaceConfig, PluginConfig, ServicesConfig};
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::plugin::ComponentSource;
 
 impl ServicesConfig {
@@ -16,17 +16,17 @@ impl ServicesConfig {
                 .find(|(k, _)| k.as_str() == id.as_str())
                 .map(|(_, m)| m)
             else {
-                return Err(ServicesValidationError::unknown_reference(format!(
-                    "settings.default_marketplace_id '{}' does not match any configured \
+                return Err(ServicesValidationError::unknown_reference(
+                    ValidationSubject::clause("settings.default_marketplace_id", id.as_str()),
+                    "does not match any configured \
                      marketplace",
-                    id.as_str()
-                )));
+                ));
             };
             if !marketplace.enabled {
-                return Err(ServicesValidationError::business_rule(format!(
-                    "settings.default_marketplace_id '{}' selects a disabled marketplace",
-                    id.as_str()
-                )));
+                return Err(ServicesValidationError::business_rule(
+                    ValidationSubject::clause("settings.default_marketplace_id", id.as_str()),
+                    "selects a disabled marketplace",
+                ));
             }
         }
 
@@ -40,10 +40,13 @@ impl ServicesConfig {
     ) -> Result<(), ServicesValidationError> {
         for plugin_ref in &marketplace.plugins.include {
             if !self.plugins.contains_key(plugin_ref) {
-                return Err(ServicesValidationError::unknown_reference(format!(
-                    "Marketplace '{name}': plugins.include references unknown plugin \
+                return Err(ServicesValidationError::unknown_reference(
+                    ValidationSubject::named("Marketplace", name),
+                    format!(
+                        "plugins.include references unknown plugin \
                      '{plugin_ref}'"
-                )));
+                    ),
+                ));
             }
         }
 
@@ -59,24 +62,31 @@ impl ServicesConfig {
 
         for mcp_ref in &marketplace.mcp_servers.include {
             if marketplace.enabled && self.mcp_servers.get(mcp_ref).is_some_and(|d| !d.enabled) {
-                return Err(ServicesValidationError::business_rule(format!(
-                    "Marketplace '{name}': mcp_servers.include names disabled mcp_server \
+                return Err(ServicesValidationError::business_rule(
+                    ValidationSubject::named("Marketplace", name),
+                    format!(
+                        "mcp_servers.include names disabled mcp_server \
                      '{mcp_ref}' — enable the server or drop it from the marketplace"
-                )));
+                    ),
+                ));
             }
             if !self.mcp_servers.contains_key(mcp_ref) {
-                return Err(ServicesValidationError::unknown_reference(format!(
-                    "Marketplace '{name}': mcp_servers.include references unknown mcp_server \
+                return Err(ServicesValidationError::unknown_reference(
+                    ValidationSubject::named("Marketplace", name),
+                    format!(
+                        "mcp_servers.include references unknown mcp_server \
                      '{mcp_ref}'"
-                )));
+                    ),
+                ));
             }
         }
 
         for agent_ref in &marketplace.agents.include {
             if !self.agents.contains_key(agent_ref) {
-                return Err(ServicesValidationError::unknown_reference(format!(
-                    "Marketplace '{name}': agents.include references unknown agent '{agent_ref}'"
-                )));
+                return Err(ServicesValidationError::unknown_reference(
+                    ValidationSubject::named("Marketplace", name),
+                    format!("agents.include references unknown agent '{agent_ref}'"),
+                ));
             }
         }
 
@@ -102,13 +112,16 @@ impl ServicesConfig {
                             .iter()
                             .any(|p| p.name == dependency.name);
                     if !carried {
-                        return Err(ServicesValidationError::unknown_reference(format!(
-                            "Marketplace '{name}': plugin '{}' depends on '{}', which this \
+                        return Err(ServicesValidationError::unknown_reference(
+                            ValidationSubject::named("Marketplace", name),
+                            format!(
+                                "plugin '{}' depends on '{}', which this \
                              marketplace does not carry — name its marketplace, add it to \
                              plugins.include or list it under external_plugins",
-                            plugin.id.as_str(),
-                            dependency.name
-                        )));
+                                plugin.id.as_str(),
+                                dependency.name
+                            ),
+                        ));
                     }
                     continue;
                 };
@@ -120,22 +133,28 @@ impl ServicesConfig {
                     .iter()
                     .any(|allowed| allowed == target)
                 {
-                    return Err(ServicesValidationError::business_rule(format!(
-                        "Marketplace '{name}': plugin '{}' depends on '{}@{target}' but \
+                    return Err(ServicesValidationError::business_rule(
+                        ValidationSubject::named("Marketplace", name),
+                        format!(
+                            "plugin '{}' depends on '{}@{target}' but \
                          '{target}' is not in allow_cross_marketplace_dependencies_on",
-                        plugin.id.as_str(),
-                        dependency.name
-                    )));
+                            plugin.id.as_str(),
+                            dependency.name
+                        ),
+                    ));
                 }
                 let local = self.marketplaces.keys().any(|id| id.as_str() == target);
                 if !local && marketplace.external_marketplace(target).is_none() {
-                    return Err(ServicesValidationError::unknown_reference(format!(
-                        "Marketplace '{name}': plugin '{}' depends on '{}@{target}' but \
+                    return Err(ServicesValidationError::unknown_reference(
+                        ValidationSubject::named("Marketplace", name),
+                        format!(
+                            "plugin '{}' depends on '{}@{target}' but \
                          '{target}' is neither a configured marketplace nor declared under \
                          external_marketplaces",
-                        plugin.id.as_str(),
-                        dependency.name
-                    )));
+                            plugin.id.as_str(),
+                            dependency.name
+                        ),
+                    ));
                 }
             }
         }
@@ -150,10 +169,13 @@ impl ServicesConfig {
         if plugin.skills.source == ComponentSource::Explicit {
             for skill_ref in &plugin.skills.include {
                 if !self.skills.skills.contains_key(skill_ref) {
-                    return Err(ServicesValidationError::unknown_reference(format!(
-                        "Plugin '{plugin_name}': skills.include references unknown skill \
+                    return Err(ServicesValidationError::unknown_reference(
+                        ValidationSubject::named("Plugin", plugin_name),
+                        format!(
+                            "skills.include references unknown skill \
                          '{skill_ref}'"
-                    )));
+                        ),
+                    ));
                 }
             }
         }
@@ -181,16 +203,22 @@ impl ServicesConfig {
         for mcp_ref in &plugin.mcp_servers.include {
             match self.mcp_servers.get(mcp_ref) {
                 None => {
-                    return Err(ServicesValidationError::unknown_reference(format!(
-                        "Plugin '{plugin_name}': mcp_servers.include references unknown \
+                    return Err(ServicesValidationError::unknown_reference(
+                        ValidationSubject::named("Plugin", plugin_name),
+                        format!(
+                            "mcp_servers.include references unknown \
                          mcp_server '{mcp_ref}'"
-                    )));
+                        ),
+                    ));
                 },
                 Some(deployment) if plugin.enabled && !deployment.enabled => {
-                    return Err(ServicesValidationError::business_rule(format!(
-                        "Plugin '{plugin_name}' is enabled but depends on disabled mcp_server \
+                    return Err(ServicesValidationError::business_rule(
+                        ValidationSubject::clause("Plugin", plugin_name),
+                        format!(
+                            "is enabled but depends on disabled mcp_server \
                          '{mcp_ref}' — enable the server or disable the plugin"
-                    )));
+                        ),
+                    ));
                 },
                 Some(_) => {},
             }
@@ -198,9 +226,10 @@ impl ServicesConfig {
 
         for agent_ref in &plugin.agents.include {
             if !self.agents.contains_key(agent_ref) {
-                return Err(ServicesValidationError::unknown_reference(format!(
-                    "Plugin '{plugin_name}': agents.include references unknown agent '{agent_ref}'"
-                )));
+                return Err(ServicesValidationError::unknown_reference(
+                    ValidationSubject::named("Plugin", plugin_name),
+                    format!("agents.include references unknown agent '{agent_ref}'"),
+                ));
             }
         }
 
@@ -222,10 +251,13 @@ impl ServicesConfig {
 
         match default_agents.len() {
             0 | 1 => Ok(()),
-            _ => Err(ServicesValidationError::business_rule(format!(
-                "Multiple agents marked as default: {}. Only one agent can have 'default: true'",
-                default_agents.join(", ")
-            ))),
+            _ => Err(ServicesValidationError::business_rule(
+                ValidationSubject::Global,
+                format!(
+                    "Multiple agents marked as default: {}. Only one agent can have 'default: true'",
+                    default_agents.join(", ")
+                ),
+            )),
         }
     }
 
@@ -248,11 +280,14 @@ impl ServicesConfig {
                 Ok(())
             },
             1 => Ok(()),
-            _ => Err(ServicesValidationError::business_rule(format!(
-                "Multiple plugins set 'hooks.governance: true': {}. Hooks run session-globally, \
+            _ => Err(ServicesValidationError::business_rule(
+                ValidationSubject::Global,
+                format!(
+                    "Multiple plugins set 'hooks.governance: true': {}. Hooks run session-globally, \
                  so at most one plugin may own them",
-                owners.join(", ")
-            ))),
+                    owners.join(", ")
+                ),
+            )),
         }
     }
 
@@ -269,11 +304,11 @@ impl ServicesConfig {
             .values()
             .find(|p| p.enabled && p.hooks.judge && !p.hooks.governance)
         {
-            return Err(ServicesValidationError::business_rule(format!(
-                "Plugin '{}' sets 'hooks.judge: true' without 'hooks.governance: true'. \
+            return Err(ServicesValidationError::business_rule(
+                ValidationSubject::clause("Plugin", &orphan.id),
+                "sets 'hooks.judge: true' without 'hooks.governance: true'. \
                  The judge consumes the track hook that only the governance owner installs",
-                orphan.id
-            )));
+            ));
         }
 
         match owners.len() {
@@ -285,11 +320,14 @@ impl ServicesConfig {
                 Ok(())
             },
             1 => Ok(()),
-            _ => Err(ServicesValidationError::business_rule(format!(
-                "Multiple plugins set 'hooks.judge: true': {}. The judge has \
+            _ => Err(ServicesValidationError::business_rule(
+                ValidationSubject::Global,
+                format!(
+                    "Multiple plugins set 'hooks.judge: true': {}. The judge has \
                  one owner",
-                owners.join(", ")
-            ))),
+                    owners.join(", ")
+                ),
+            )),
         }
     }
 }

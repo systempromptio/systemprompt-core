@@ -264,7 +264,7 @@ pub fn internal_mcp_config(name: &str, port: u16) -> systemprompt_models::mcp::M
 
     systemprompt_models::mcp::McpServerConfig {
         name: name.to_owned(),
-        owner: systemprompt_test_fixtures::fixture_user_id(),
+        owner: systemprompt_test_fixtures::unique_user_id("harness"),
         server_type: McpServerType::Internal,
         binary: Some(format!("{name}-bin")),
         enabled: true,

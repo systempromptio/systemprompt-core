@@ -256,7 +256,10 @@ async fn a_stream_that_ends_before_the_exit_code_is_not_success() {
         .await
         .expect_err("the server died before reporting an exit code");
 
-    assert!(matches!(err, ClientError::ServerUnavailable(_)), "{err}");
+    assert!(
+        matches!(err, ClientError::StreamEndedWithoutExitCode),
+        "{err}"
+    );
     assert_eq!(sink.stdout, "still running");
 }
 

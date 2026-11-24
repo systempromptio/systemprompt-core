@@ -8,7 +8,7 @@ use systemprompt_extension::StandingTag;
 use systemprompt_identifiers::Actor;
 use systemprompt_mcp::McpExtension;
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext, ProviderError};
-use systemprompt_test_fixtures::{admitted_member, closed_db_pool, fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{admitted_member, closed_db_pool, test_db_pool, unique_user_id};
 
 fn cleanup_job() -> Arc<dyn Job> {
     admitted_member(&McpExtension, StandingTag::Core)
@@ -22,7 +22,7 @@ fn cleanup_job() -> Arc<dyn Job> {
 }
 
 fn context_with(dependencies: Dependencies) -> JobContext {
-    JobContext::new(Actor::user(fixture_user_id()), dependencies)
+    JobContext::new(Actor::user(unique_user_id("jobs-cleanup")), dependencies)
 }
 
 #[test]

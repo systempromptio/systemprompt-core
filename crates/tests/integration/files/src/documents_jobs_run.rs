@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_files::documents::collab::{CollabService, CollabTuning};
-use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_identifiers::{Actor, ContextId, UserId};
 use systemprompt_traits::{
     CallerContexts, ContextDirectory, ContextProviderError, OwnedContextSummary,
 };
@@ -19,7 +19,7 @@ use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml, IssuesCo
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::documents::EditOp;
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope};
-use systemprompt_test_fixtures::{fixture_actor, fixture_notification_sink, test_db_pool};
+use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool, unique_user_id};
 use uuid::Uuid;
 
 use crate::documents_service_fixture::{
@@ -95,7 +95,7 @@ fn context(db: DbPool, enabled: bool, harness: Option<&Harness>) -> JobContext {
     if let Some(h) = harness {
         deps.insert(bound_handles(&db, h));
     }
-    JobContext::new(fixture_actor(), deps)
+    JobContext::new(Actor::user(unique_user_id("documents-jobs-run")), deps)
 }
 
 async fn memo(h: &Harness) -> (DocumentId, DocumentRevisionId) {

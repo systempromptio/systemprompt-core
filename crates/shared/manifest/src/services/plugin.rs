@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::PluginId;
 
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::plugin::{
     ComponentSource, PluginComponentRef, PluginDependency, PluginHooksRef,
 };
@@ -115,24 +115,27 @@ impl PluginConfig {
     pub fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         let id_str = self.id.as_str();
         if id_str.len() < 3 || id_str.len() > 50 {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Plugin '{key}': id must be between 3 and 50 characters"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Plugin", key),
+                "id must be between 3 and 50 characters",
+            ));
         }
 
         if !id_str
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Plugin '{key}': id must be lowercase alphanumeric with hyphens only (kebab-case)"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Plugin", key),
+                "id must be lowercase alphanumeric with hyphens only (kebab-case)",
+            ));
         }
 
         if self.version.is_empty() {
-            return Err(ServicesValidationError::required(format!(
-                "Plugin '{key}': version must not be empty"
-            )));
+            return Err(ServicesValidationError::required(
+                ValidationSubject::named("Plugin", key),
+                "version must not be empty",
+            ));
         }
 
         Self::validate_component_ref(&self.skills, key, "skills")?;
@@ -146,10 +149,10 @@ impl PluginConfig {
         let mut seen = std::collections::BTreeSet::new();
         for dependency in &self.dependencies {
             if !seen.insert((dependency.name.as_str(), dependency.marketplace.as_deref())) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Plugin '{key}': dependency '{}' is listed twice",
-                    dependency.name
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Plugin", key),
+                    format!("dependency '{}' is listed twice", dependency.name),
+                ));
             }
         }
 
@@ -162,9 +165,10 @@ impl PluginConfig {
         field: &str,
     ) -> Result<(), ServicesValidationError> {
         if component.source == ComponentSource::Instance && !component.include.is_empty() {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Plugin '{key}': {field}.source is 'instance' but {field}.include is set (ignored)"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Plugin", key),
+                format!("{field}.source is 'instance' but {field}.include is set (ignored)"),
+            ));
         }
 
         Ok(())
@@ -176,27 +180,31 @@ fn validate_dependency(
     key: &str,
 ) -> Result<(), ServicesValidationError> {
     if dependency.name.trim().is_empty() {
-        return Err(ServicesValidationError::required(format!(
-            "Plugin '{key}': dependencies entries must name a plugin"
-        )));
+        return Err(ServicesValidationError::required(
+            ValidationSubject::named("Plugin", key),
+            "dependencies entries must name a plugin",
+        ));
     }
     if dependency
         .marketplace
         .as_deref()
         .is_some_and(|m| m.trim().is_empty())
     {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "Plugin '{key}': dependency '{}' sets an empty marketplace",
-            dependency.name
-        )));
+        return Err(ServicesValidationError::invalid_field(
+            ValidationSubject::named("Plugin", key),
+            format!("dependency '{}' sets an empty marketplace", dependency.name),
+        ));
     }
     if let Some(range) = &dependency.version
         && semver::VersionReq::parse(range).is_err()
     {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "Plugin '{key}': dependency '{}' version '{range}' is not a semver range",
-            dependency.name
-        )));
+        return Err(ServicesValidationError::invalid_field(
+            ValidationSubject::named("Plugin", key),
+            format!(
+                "dependency '{}' version '{range}' is not a semver range",
+                dependency.name
+            ),
+        ));
     }
     Ok(())
 }

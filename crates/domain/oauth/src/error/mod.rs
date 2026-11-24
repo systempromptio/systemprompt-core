@@ -190,7 +190,7 @@ impl From<systemprompt_models::auth::TokenError> for OauthError {
                 expected: "RS256".to_owned(),
             },
             TokenError::KidMismatch => Self::TokenMissingKid,
-            TokenError::UnknownKid(kid) => Self::TokenUnknownKid { kid },
+            TokenError::UnknownKid { kid } => Self::TokenUnknownKid { kid },
             TokenError::Expired => Self::Expired {
                 reason: "Token has expired",
             },

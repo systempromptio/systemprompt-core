@@ -17,7 +17,8 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
 use systemprompt_bridge::sync::SyncOptions;
-use systemprompt_test_fixtures::{block_on, fixture_user_id};
+use systemprompt_identifiers::UserId;
+use systemprompt_test_fixtures::{block_on, unique_user_id};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -30,6 +31,10 @@ fn pubkey_b64(key: &SigningKey) -> String {
 }
 
 fn manifest() -> SignedManifest {
+    manifest_for(unique_user_id("manifest-verify"))
+}
+
+fn manifest_for(user_id: UserId) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
@@ -40,7 +45,7 @@ fn manifest() -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-07-02T00:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id,
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -87,10 +92,11 @@ fn envelope_with_signature(signature: &str) -> SignedManifestEnvelope {
 #[test]
 fn verify_accepts_a_correctly_signed_envelope() {
     let key = signing_key();
-    let env = signed_envelope(&key);
+    let user_id = unique_user_id("manifest-verify");
+    let env = signed_envelope_of(&key, &manifest_for(user_id.clone()));
     verify_envelope(&env, &pubkey_b64(&key)).unwrap();
     let decoded = decode_payload(&env).unwrap();
-    assert_eq!(decoded.user_id, fixture_user_id());
+    assert_eq!(decoded.user_id, user_id);
 }
 
 #[test]

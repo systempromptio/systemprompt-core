@@ -1,4 +1,4 @@
-use systemprompt_traits::storage::{FileStorageError, StoredFileId};
+use systemprompt_traits::storage::{FileStorageError, StorageValidation, StoredFileId};
 
 #[test]
 fn stored_file_id_new_and_as_str() {
@@ -37,10 +37,10 @@ fn stored_file_id_equality_and_hash() {
 
 #[test]
 fn file_storage_error_variants_display_useful_messages() {
-    let e = FileStorageError::NotFound("foo".to_owned());
+    let e = FileStorageError::NotFound(StoredFileId::new("foo"));
     assert!(format!("{e}").contains("foo"));
-    let e = FileStorageError::Validation("size".to_owned());
-    assert!(format!("{e}").contains("size"));
+    let e = FileStorageError::Validation(StorageValidation::BodyTooLarge { limit: 7 });
+    assert!(format!("{e}").contains("exceeds 7 bytes"));
     let e = FileStorageError::Backend("network".into());
     assert!(format!("{e}").contains("network"));
 }

@@ -2,11 +2,11 @@
 //! RequestContext injection, and various ID format tests
 
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, headers};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TaskId, TraceId, headers};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::HeaderInjector;
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_actor, fixture_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -50,12 +50,12 @@ fn test_inject_session_id_success() {
 #[test]
 fn test_inject_user_id_success() {
     let mut headers = HeaderMap::new();
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("injection");
 
     HeaderInjector::inject_user_id(&mut headers, &user_id).expect("Should inject user id");
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
-        FIXTURE_USER_ID
+        user_id.as_str()
     );
 }
 
@@ -132,12 +132,13 @@ fn test_inject_overwrites_existing_header() {
 fn test_inject_from_request_context_success() {
     let mut headers = HeaderMap::new();
 
+    let user_id = unique_user_id("header-injection");
     let ctx = RequestContext::new(
         SessionId::new("ctx_session".to_string()),
         TraceId::new("ctx_trace".to_string()),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         AgentName::try_new("ctx_agent".to_string()).expect("valid AgentName"),
-        fixture_actor(),
+        Actor::user(user_id.clone()),
     )
     .with_user_type(UserType::User);
 
@@ -150,7 +151,7 @@ fn test_inject_from_request_context_success() {
     );
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
-        FIXTURE_USER_ID
+        user_id.as_str()
     );
     assert_eq!(
         headers.get("x-trace-id").unwrap().to_str().unwrap(),
@@ -190,13 +191,13 @@ fn test_inject_uuid_format() {
 #[test]
 fn test_inject_alphanumeric_id() {
     let mut headers = HeaderMap::new();
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("injection");
 
     HeaderInjector::inject_user_id(&mut headers, &user_id)
         .expect("Should inject alphanumeric user id");
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
-        FIXTURE_USER_ID
+        user_id.as_str()
     );
 }
 

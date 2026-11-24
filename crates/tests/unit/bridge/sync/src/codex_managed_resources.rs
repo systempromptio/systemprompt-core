@@ -12,7 +12,7 @@ use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::codex::CodexSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_test_fixtures::{block_on, fixture_user_id};
+use systemprompt_test_fixtures::{block_on, unique_user_id};
 
 fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -41,7 +41,7 @@ fn manifest_with(
         not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("codex-managed-resources"),
         tenant_id: None,
         user: None,
         plugins: vec![],

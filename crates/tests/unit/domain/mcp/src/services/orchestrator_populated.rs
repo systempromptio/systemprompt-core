@@ -13,7 +13,7 @@ use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{TestBootstrap, test_db_pool, unique_user_id};
 use wiremock::MockServer;
 
 use crate::harness::{
@@ -59,7 +59,7 @@ async fn orchestrator_and_repo(
         .expect("application paths"),
     );
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("orchestrator-populated"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );

@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{JwtUserContext, UserRole};
-use systemprompt_models::execution::context::ContextExtractionError;
+use systemprompt_models::execution::context::{ContextExtractionError, UserUnavailable};
 use systemprompt_traits::{AuthUser, SessionProvider, UserProvider};
 
 use super::attestation::{SessionAttestationError, attest_session};
@@ -93,10 +93,10 @@ pub async fn validate_user_exists(
                 route = %route_context,
                 "credential validation failed: user no longer exists in database"
             );
-            ContextExtractionError::UserNotFound(format!(
-                "User {} no longer exists",
-                user_id.as_str()
-            ))
+            ContextExtractionError::UserNotFound {
+                user_id: user_id.clone(),
+                state: UserUnavailable::Missing,
+            }
         })?;
 
     cache.put(user_id.clone(), user.clone());
@@ -114,10 +114,10 @@ fn require_active(
             route = %route_context,
             "credential validation failed: user is not active"
         );
-        return Err(ContextExtractionError::UserNotFound(format!(
-            "User {} is not active",
-            user_id.as_str()
-        )));
+        return Err(ContextExtractionError::UserNotFound {
+            user_id: user_id.clone(),
+            state: UserUnavailable::Inactive,
+        });
     }
     Ok(ValidatedUser { user })
 }

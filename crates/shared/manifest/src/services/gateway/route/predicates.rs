@@ -177,7 +177,9 @@ impl RouteMatch {
             .iter()
             .find(|prefix| prefix.is_empty() || prefix.chars().any(char::is_whitespace))
         {
-            return Err(GatewayProfileError::RouteMatchBadToolType(bad.clone()));
+            return Err(GatewayProfileError::RouteMatchBadToolType {
+                tool_type: bad.clone(),
+            });
         }
         Ok(())
     }

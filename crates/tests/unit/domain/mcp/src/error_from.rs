@@ -106,8 +106,9 @@ fn test_from_rmcp_service_error_is_transient() {
 
 #[test]
 fn test_from_config_validation_error() {
-    let source = systemprompt_models::errors::ServicesValidationError::Required(
-        "database.url is required".to_string(),
+    let source = systemprompt_models::errors::ServicesValidationError::required(
+        systemprompt_models::errors::ValidationSubject::Global,
+        "database.url is required",
     );
     let err: McpDomainError = source.into();
     assert!(matches!(err, McpDomainError::ConfigValidation(_)));

@@ -223,14 +223,11 @@ fn repository_error_is_std_error() {
 
 #[test]
 fn context_provider_not_found_display() {
-    let e = ContextProviderError::NotFound("ctx-42".to_owned());
-    assert!(format!("{e}").contains("ctx-42"));
-}
-
-#[test]
-fn context_provider_access_denied_display() {
-    let e = ContextProviderError::AccessDenied("unauthorized".to_owned());
-    assert!(format!("{e}").contains("unauthorized"));
+    let context_id = systemprompt_identifiers::ContextId::generate();
+    let e = ContextProviderError::NotFound {
+        context_id: context_id.clone(),
+    };
+    assert!(format!("{e}").contains(context_id.as_str()));
 }
 
 #[test]

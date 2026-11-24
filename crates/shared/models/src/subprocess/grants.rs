@@ -156,22 +156,22 @@ impl From<SecretGrant> for String {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SecretGrantError {
     #[error(
-        "secret '{0}' is held by the API process only and cannot be granted to a spawned server \
+        "secret '{name}' is held by the API process only and cannot be granted to a spawned server \
          or agent"
     )]
-    ApiHeld(String),
+    ApiHeld { name: String },
     #[error(
-        "secret '{0}' is not grantable: name a provider (anthropic, openai, gemini, moonshot, \
+        "secret '{name}' is not grantable: name a provider (anthropic, openai, gemini, moonshot, \
          qwen, github), encryption_master_key, storage, or custom:<name>"
     )]
-    Unknown(String),
-    #[error("custom secret name '{0}' must be non-empty lowercase ASCII letters, digits or '_'")]
-    InvalidCustomName(String),
+    Unknown { name: String },
+    #[error("custom secret name '{name}' must be non-empty lowercase ASCII letters, digits or '_'")]
+    InvalidCustomName { name: String },
     #[error(
-        "the database URLs and verification keys are granted to every child; remove '{0}' from \
+        "the database URLs and verification keys are granted to every child; remove '{name}' from \
          secrets"
     )]
-    AlwaysGranted(String),
+    AlwaysGranted { name: String },
 }
 
 impl TryFrom<String> for SecretGrant {
@@ -194,10 +194,10 @@ impl std::str::FromStr for SecretGrant {
                     .chars()
                     .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
             {
-                return Err(SecretGrantError::InvalidCustomName(name));
+                return Err(SecretGrantError::InvalidCustomName { name });
             }
             if API_HELD.contains(&name.as_str()) {
-                return Err(SecretGrantError::ApiHeld(name));
+                return Err(SecretGrantError::ApiHeld { name });
             }
             if name == "encryption_master_key" {
                 return Ok(Self::EncryptionMasterKey);
@@ -206,10 +206,10 @@ impl std::str::FromStr for SecretGrant {
         }
         let name = raw.to_ascii_lowercase();
         if API_HELD.contains(&name.as_str()) {
-            return Err(SecretGrantError::ApiHeld(name));
+            return Err(SecretGrantError::ApiHeld { name });
         }
         if name.starts_with("database") || name.ends_with("database_url") {
-            return Err(SecretGrantError::AlwaysGranted(name));
+            return Err(SecretGrantError::AlwaysGranted { name });
         }
         if name == "encryption_master_key" {
             return Ok(Self::EncryptionMasterKey);
@@ -219,7 +219,7 @@ impl std::str::FromStr for SecretGrant {
         }
         ProviderSecret::from_name(&name)
             .map(Self::Provider)
-            .ok_or(SecretGrantError::Unknown(name))
+            .ok_or(SecretGrantError::Unknown { name })
     }
 }
 

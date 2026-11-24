@@ -10,7 +10,7 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -73,7 +73,7 @@ async fn provider_for_endpoint(
     let provider = McpToolProvider::new(
         db,
         RegistryService::new(
-            fixture_user_id(),
+            unique_user_id("tool-provider-resilience"),
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),

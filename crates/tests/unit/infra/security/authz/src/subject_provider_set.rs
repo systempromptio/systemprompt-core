@@ -142,8 +142,8 @@ async fn values_for_unknown_dimension_is_refused() {
         .await
         .expect_err("unknown");
     match err {
-        SubjectSourceError::UnknownDimension(name) => {
-            assert_eq!(name, dim("site").rule_type.as_str());
+        SubjectSourceError::UnknownDimension { dimension } => {
+            assert_eq!(dimension.as_str(), dim("site").rule_type.as_str());
         },
         other => panic!("unexpected {other:?}"),
     }
@@ -198,7 +198,7 @@ async fn known_values_delegates_and_refuses_unknown() {
     ));
     assert!(matches!(
         set.known_values(&dim("region")).await,
-        Err(SubjectSourceError::UnknownDimension(_))
+        Err(SubjectSourceError::UnknownDimension { .. })
     ));
 }
 

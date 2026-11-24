@@ -143,10 +143,12 @@ mod ai_error_tests {
     fn storage_error_keeps_the_backend_cause() {
         let err = AiError::Storage(StorageError::Operation {
             operation: StorageOperation::WriteImage(PathBuf::from("a.png")),
-            source: systemprompt_traits::FileStorageError::Validation("disk full".to_string()),
+            source: systemprompt_traits::FileStorageError::Validation(
+                systemprompt_traits::StorageValidation::BodyTooLarge { limit: 4096 },
+            ),
         });
         let msg = err.to_string();
-        assert!(msg.contains("disk full"));
+        assert!(msg.contains("the body exceeds 4096 bytes"));
         assert!(msg.contains("a.png"));
         assert!(std::error::Error::source(&err).is_some());
     }

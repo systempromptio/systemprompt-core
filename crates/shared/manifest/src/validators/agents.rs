@@ -34,7 +34,7 @@ impl DomainConfig for AgentConfigValidator {
     fn load(&mut self, config: &dyn ConfigProvider) -> Result<(), DomainConfigError> {
         let skills_path = config
             .get("skills_path")
-            .ok_or_else(|| DomainConfigError::NotFound("skills_path not configured".into()))?;
+            .ok_or(DomainConfigError::SkillsPathNotConfigured)?;
 
         self.skills_path = Some(skills_path);
 

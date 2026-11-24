@@ -2,7 +2,7 @@
 
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_analytics::SessionAnalyticsBuilder;
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 mod analytics_service_instance_tests {
     use axum::body::Body;
@@ -247,7 +247,7 @@ mod create_analytics_session_input_tests {
     #[test]
     fn input_stores_user_id() {
         let session_id = SessionId::new("sess_456".to_string());
-        let user_id = fixture_user_id();
+        let user_id = unique_user_id("service");
         let headers = HeaderMap::new();
         let analytics = SessionAnalyticsBuilder::new(&headers).build();
         let expires_at = Utc::now();
@@ -263,7 +263,7 @@ mod create_analytics_session_input_tests {
         };
 
         input.user_id.expect("expected Some value");
-        assert_eq!(input.user_id.unwrap().as_str(), FIXTURE_USER_ID);
+        assert_eq!(input.user_id, Some(&user_id));
     }
 
     #[test]

@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Duration, Utc};
-use systemprompt_identifiers::SsoRequestId;
+use systemprompt_identifiers::{SsoProviderId, SsoRequestId};
 use systemprompt_oauth::repository::SsoStateParams;
 use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_traits::sso::{SsoError, SsoReauth, SsoStart};
@@ -32,9 +32,9 @@ impl SsoDriver {
         return_to: Option<&str>,
         reauth: SsoReauth,
     ) -> Result<StartOutcome, SsoError> {
-        let provider = self
-            .provider(id)
-            .ok_or_else(|| SsoError::Unavailable(format!("no SSO provider '{id}'")))?;
+        let provider = self.provider(id).ok_or_else(|| SsoError::Unavailable {
+            provider: SsoProviderId::new(id),
+        })?;
         let return_to = return_to
             .and_then(sanitize_return_to)
             .unwrap_or_else(|| provider.default_return_to())

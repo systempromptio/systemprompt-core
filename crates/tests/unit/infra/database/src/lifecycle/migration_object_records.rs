@@ -13,7 +13,9 @@
 use std::sync::Arc;
 
 use systemprompt_database::lifecycle::{MigrationOwnershipError, TableMutation};
-use systemprompt_database::{MigrationConfig, SchemaMember, SchemaUnit, install_schema_members};
+use systemprompt_database::{
+    MigrationConfig, SchemaMember, SchemaName, SchemaUnit, install_schema_members,
+};
 use systemprompt_extension::{
     ExtensionMetadata, LoaderError, Migration, SchemaDefinition, StandingTag,
 };
@@ -327,6 +329,7 @@ async fn a_core_create_of_an_absent_members_table_is_refused_and_changes_nothing
     let report = install_schema_members(
         &[ledger(), owner_now()],
         pool.write(),
+        &SchemaName::public(),
         MigrationConfig::default(),
     )
     .await

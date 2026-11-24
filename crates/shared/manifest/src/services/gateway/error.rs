@@ -49,8 +49,8 @@ pub enum GatewayProfileError {
     #[error("route `when` sets `requires_tools: false` but also a positive `min_tools`")]
     RouteMatchContradictoryTools,
 
-    #[error("route `when.tool_types_any` entry `{0}` is not a server tool type prefix")]
-    RouteMatchBadToolType(String),
+    #[error("route `when.tool_types_any` entry `{tool_type}` is not a server tool type prefix")]
+    RouteMatchBadToolType { tool_type: String },
 
     #[error(
         "gateway `bridge_instance.{field}` is '{value}': it must be a path on this gateway \

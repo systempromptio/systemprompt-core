@@ -38,7 +38,7 @@ fn state() -> Option<SsoStateContext> {
 
 fn assertion(result: Result<impl std::fmt::Debug, SsoError>) -> String {
     match result {
-        Err(SsoError::InvalidAssertion(reason)) => reason,
+        Err(SsoError::InvalidAssertion { reason }) => reason.to_owned(),
         other => panic!("expected an invalid assertion, got {other:?}"),
     }
 }

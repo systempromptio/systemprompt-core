@@ -18,7 +18,7 @@ pub use summary::AgentSummary;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_models::auth::{Permission, validate_required_scopes};
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::subprocess::SecretGrant;
 
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
@@ -52,10 +52,10 @@ pub struct AgentConfig {
 impl AgentConfig {
     pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
         if self.name != name {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent config key '{}' does not match name field '{}'",
-                name, self.name
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent config key", name),
+                format!("does not match name field '{}'", self.name),
+            ));
         }
 
         if !self
@@ -63,31 +63,34 @@ impl AgentConfig {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent name '{}' must be lowercase alphanumeric with underscores only",
-                self.name
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent name", &self.name),
+                "must be lowercase alphanumeric with underscores only",
+            ));
         }
 
         if RESERVED_AGENT_NAMES.contains(&self.name.as_str()) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent name '{}' is reserved: /api/v1/agents/{} is the agent registry",
-                self.name, self.name
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent name", &self.name),
+                format!(
+                    "is reserved: /api/v1/agents/{} is the agent registry",
+                    self.name
+                ),
+            ));
         }
 
         if self.name.len() < 3 || self.name.len() > 50 {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent name '{}' must be between 3 and 50 characters",
-                self.name
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent name", &self.name),
+                "must be between 3 and 50 characters",
+            ));
         }
 
         if self.port == 0 {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent '{}' has invalid port {}",
-                self.name, self.port
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent", &self.name),
+                format!("has invalid port {}", self.port),
+            ));
         }
 
         validate_agent_grants(&self.name, &self.secrets)?;
@@ -148,9 +151,12 @@ pub fn validate_agent_grants(
         .iter()
         .find(|grant| matches!(grant, SecretGrant::Provider(_)))
         .map_or(Ok(()), |grant| {
-            Err(ServicesValidationError::invalid_field(format!(
-                "Agent '{name}': secrets names the provider key '{grant}'; an agent receives the \
+            Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Agent", name),
+                format!(
+                    "secrets names the provider key '{grant}'; an agent receives the \
                  keys of the providers its model configuration uses, so remove it"
-            )))
+                ),
+            ))
         })
 }

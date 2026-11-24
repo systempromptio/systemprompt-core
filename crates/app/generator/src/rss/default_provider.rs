@@ -140,8 +140,8 @@ impl RssFeedProvider for DefaultRssFeedProvider {
             .content_sources
             .values()
             .find(|s| s.source_id.as_str() == ctx.source_name)
-            .ok_or_else(|| {
-                ProviderError::NotFound(format!("Source not found: {}", ctx.source_name))
+            .ok_or_else(|| ProviderError::SourceNotFound {
+                source_id: SourceId::new(ctx.source_name),
             })?;
 
         let url_pattern = source_config

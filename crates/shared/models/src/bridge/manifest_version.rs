@@ -23,16 +23,18 @@ const MIN_HEX_SUFFIX_LEN: usize = 8;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestVersionParseError {
-    #[error("manifest version missing '-' separator: {0}")]
-    NoSeparator(String),
+    #[error("manifest version missing '-' separator: {input}")]
+    NoSeparator { input: String },
     #[error("manifest version timestamp not RFC3339: {input}: {source}")]
     BadTimestamp {
         input: String,
         #[source]
         source: chrono::ParseError,
     },
-    #[error("manifest version suffix must be hex with at least {MIN_HEX_SUFFIX_LEN} chars: {0}")]
-    BadSuffix(String),
+    #[error(
+        "manifest version suffix must be hex with at least {MIN_HEX_SUFFIX_LEN} chars: {input}"
+    )]
+    BadSuffix { input: String },
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +55,7 @@ impl ManifestVersion {
         let raw = s.into();
         let (prefix, suffix) = raw
             .rsplit_once('-')
-            .ok_or_else(|| ManifestVersionParseError::NoSeparator(raw.clone()))?;
+            .ok_or_else(|| ManifestVersionParseError::NoSeparator { input: raw.clone() })?;
         let timestamp = DateTime::parse_from_rfc3339(prefix)
             .map_err(|source| ManifestVersionParseError::BadTimestamp {
                 input: raw.clone(),
@@ -61,7 +63,7 @@ impl ManifestVersion {
             })?
             .with_timezone(&Utc);
         if suffix.len() < MIN_HEX_SUFFIX_LEN || !suffix.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(ManifestVersionParseError::BadSuffix(raw));
+            return Err(ManifestVersionParseError::BadSuffix { input: raw });
         }
         let parsed = Parsed {
             timestamp,

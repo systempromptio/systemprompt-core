@@ -10,7 +10,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use systemprompt_identifiers::HookId;
 
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::hooks::{HookCategory, HookEvent};
 
 pub const HOOK_CONFIG_FILENAME: &str = "config.yaml";
@@ -159,18 +159,18 @@ impl HookEventsConfig {
                     match action.hook_type {
                         HookType::Command => {
                             if action.command.is_none() {
-                                return Err(ServicesValidationError::required(format!(
-                                    "Hook matcher '{}': command hook requires a 'command' field",
-                                    matcher.matcher
-                                )));
+                                return Err(ServicesValidationError::required(
+                                    ValidationSubject::named("Hook matcher", &matcher.matcher),
+                                    "command hook requires a 'command' field",
+                                ));
                             }
                         },
                         HookType::Prompt => {
                             if action.prompt.is_none() {
-                                return Err(ServicesValidationError::required(format!(
-                                    "Hook matcher '{}': prompt hook requires a 'prompt' field",
-                                    matcher.matcher
-                                )));
+                                return Err(ServicesValidationError::required(
+                                    ValidationSubject::named("Hook matcher", &matcher.matcher),
+                                    "prompt hook requires a 'prompt' field",
+                                ));
                             }
                         },
                         HookType::Agent => {},

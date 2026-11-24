@@ -3,13 +3,13 @@
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 
 #[tokio::test]
 async fn tool_provider_construction_and_accessors() {
     let db = test_db_pool().await;
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("tool-provider"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -32,7 +32,7 @@ async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
     use systemprompt_traits::{ToolContext, ToolProvider};
     let db = test_db_pool().await;
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("tool-provider"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -43,7 +43,7 @@ async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
         std::sync::Arc::default(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     );
-    let ctx = ToolContext::new(Actor::user(fixture_user_id()));
+    let ctx = ToolContext::new(Actor::user(unique_user_id("tool-provider")));
     let res = provider
         .list_tools(
             &AgentName::try_new(format!("no-agent-{}", uuid::Uuid::new_v4().simple()))

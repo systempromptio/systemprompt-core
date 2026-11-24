@@ -12,7 +12,7 @@ use systemprompt_mcp::services::monitoring::status::display_service_status;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{ExternalAuth, McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use wiremock::MockServer;
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};
@@ -20,7 +20,7 @@ use crate::harness::{default_tools_json, mount_mcp_endpoint};
 fn external_config(name: &str, endpoint: &str) -> McpServerConfig {
     McpServerConfig {
         name: name.to_owned(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("monitoring-live"),
         server_type: McpServerType::External,
         binary: None,
         enabled: true,

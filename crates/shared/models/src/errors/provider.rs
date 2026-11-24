@@ -51,8 +51,8 @@ pub type AiInferenceResult<T> = Result<T, AiInferenceError>;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum McpRegistryError {
-    #[error("MCP server not found: {0}")]
-    NotFound(String),
+    #[error("MCP server not found: {server}")]
+    NotFound { server: String },
 
     #[error("MCP registry configuration error: {0}")]
     Configuration(#[source] BoxedSource),

@@ -11,7 +11,7 @@ use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::sync::{SyncOptions, run_once};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -44,7 +44,7 @@ fn manifest(
         manifest_version: fresh_version(now),
         issued_at: not_before,
         not_before,
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("replay-gate"),
         tenant_id: None,
         user: None,
         plugins: vec![],

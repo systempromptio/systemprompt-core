@@ -5,7 +5,7 @@ use systemprompt_ai::models::image_generation::{
 };
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
 use systemprompt_ai::services::providers::openai_images::OpenAiImageProvider;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -18,7 +18,7 @@ fn make_request(prompt: &str) -> ImageGenerationRequest {
         aspect_ratio: AspectRatio::Square,
         reference_images: vec![],
         enable_search_grounding: false,
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("openai-images-http"),
         session_id: None,
         trace_id: None,
         mcp_execution_id: None,

@@ -26,20 +26,20 @@ pub enum OciReferenceError {
     #[error("OCI reference is empty")]
     Empty,
 
-    #[error("OCI reference must be registry/repository[:tag|@sha256:...], got: {0}")]
-    MissingRegistry(String),
+    #[error("OCI reference must be registry/repository[:tag|@sha256:...], got: {reference}")]
+    MissingRegistry { reference: String },
 
-    #[error("OCI reference has an empty repository: {0}")]
-    EmptyRepository(String),
+    #[error("OCI reference has an empty repository: {reference}")]
+    EmptyRepository { reference: String },
 
-    #[error("OCI repository path segment is not [a-z0-9] with . _ - separators: {0}")]
-    InvalidRepository(String),
+    #[error("OCI repository path segment is not [a-z0-9] with . _ - separators: {repository}")]
+    InvalidRepository { repository: String },
 
-    #[error("OCI digest must be sha256:<64 lowercase hex>, got: {0}")]
-    InvalidDigest(String),
+    #[error("OCI digest must be sha256:<64 lowercase hex>, got: {digest}")]
+    InvalidDigest { digest: String },
 
-    #[error("OCI tag must be [A-Za-z0-9_][A-Za-z0-9._-]{{0,127}}, got: {0}")]
-    InvalidTag(String),
+    #[error("OCI tag must be [A-Za-z0-9_][A-Za-z0-9._-]{{0,127}}, got: {tag}")]
+    InvalidTag { tag: String },
 }
 
 impl OciReference {
@@ -54,7 +54,9 @@ fn is_registry_host(segment: &str) -> bool {
 }
 
 fn validate_repository(repository: &str) -> Result<(), OciReferenceError> {
-    let invalid = || OciReferenceError::InvalidRepository(repository.to_owned());
+    let invalid = || OciReferenceError::InvalidRepository {
+        repository: repository.to_owned(),
+    };
     for segment in repository.split('/') {
         if segment.is_empty() {
             return Err(invalid());
@@ -73,7 +75,9 @@ fn validate_repository(repository: &str) -> Result<(), OciReferenceError> {
 }
 
 fn validate_tag(tag: &str) -> Result<(), OciReferenceError> {
-    let invalid = || OciReferenceError::InvalidTag(tag.to_owned());
+    let invalid = || OciReferenceError::InvalidTag {
+        tag: tag.to_owned(),
+    };
     if tag.is_empty() || tag.len() > 128 {
         return Err(invalid());
     }
@@ -94,14 +98,18 @@ fn validate_tag(tag: &str) -> Result<(), OciReferenceError> {
 fn validate_digest(digest: &str) -> Result<(), OciReferenceError> {
     let hex = digest
         .strip_prefix("sha256:")
-        .ok_or_else(|| OciReferenceError::InvalidDigest(digest.to_owned()))?;
+        .ok_or_else(|| OciReferenceError::InvalidDigest {
+            digest: digest.to_owned(),
+        })?;
     let lower_hex = hex
         .chars()
         .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c));
     if hex.len() == 64 && lower_hex {
         Ok(())
     } else {
-        Err(OciReferenceError::InvalidDigest(digest.to_owned()))
+        Err(OciReferenceError::InvalidDigest {
+            digest: digest.to_owned(),
+        })
     }
 }
 
@@ -131,15 +139,21 @@ impl FromStr for OciReference {
             _ => (name, None),
         };
 
-        let (registry, repository) = name
-            .split_once('/')
-            .ok_or_else(|| OciReferenceError::MissingRegistry(s.to_owned()))?;
+        let (registry, repository) =
+            name.split_once('/')
+                .ok_or_else(|| OciReferenceError::MissingRegistry {
+                    reference: s.to_owned(),
+                })?;
 
         if !is_registry_host(registry) {
-            return Err(OciReferenceError::MissingRegistry(s.to_owned()));
+            return Err(OciReferenceError::MissingRegistry {
+                reference: s.to_owned(),
+            });
         }
         if repository.is_empty() {
-            return Err(OciReferenceError::EmptyRepository(s.to_owned()));
+            return Err(OciReferenceError::EmptyRepository {
+                reference: s.to_owned(),
+            });
         }
         validate_repository(repository)?;
 

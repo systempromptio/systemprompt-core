@@ -7,12 +7,12 @@ use systemprompt_mcp::services::monitoring::status::{McpServiceStatus, display_s
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn make_config(name: &str) -> McpServerConfig {
     McpServerConfig {
         name: name.to_owned(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("display-status"),
         server_type: McpServerType::Internal,
         binary: Some("bin".to_owned()),
         enabled: true,

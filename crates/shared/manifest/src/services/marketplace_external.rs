@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::marketplace::MarketplaceConfig;
 use super::marketplace_external_error::{ExternalEntryError, MAX_GIT_REF_CHARS};
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 
 /// Where Claude Code fetches a marketplace this instance does not serve.
 ///
@@ -50,13 +50,19 @@ pub(super) fn validate_git_ref(reference: &str) -> Result<(), ExternalEntryError
         .chars()
         .any(|c| c.is_whitespace() || c.is_control())
     {
-        return Err(ExternalEntryError::RefWhitespace(reference.to_owned()));
+        return Err(ExternalEntryError::RefWhitespace {
+            reference: reference.to_owned(),
+        });
     }
     if reference.contains("..") {
-        return Err(ExternalEntryError::RefParentTraversal(reference.to_owned()));
+        return Err(ExternalEntryError::RefParentTraversal {
+            reference: reference.to_owned(),
+        });
     }
     if reference.starts_with('-') {
-        return Err(ExternalEntryError::RefLeadingDash(reference.to_owned()));
+        return Err(ExternalEntryError::RefLeadingDash {
+            reference: reference.to_owned(),
+        });
     }
     Ok(())
 }
@@ -95,23 +101,30 @@ impl ExternalMarketplace {
     pub(super) fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         let name = self.name.trim();
         if name.is_empty() {
-            return Err(ServicesValidationError::required(format!(
-                "Marketplace '{key}': external_marketplaces entries must be named"
-            )));
+            return Err(ServicesValidationError::required(
+                ValidationSubject::named("Marketplace", key),
+                "external_marketplaces entries must be named",
+            ));
         }
         if !is_external_name(name) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Marketplace '{key}': external marketplace name '{name}' may only contain \
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                format!(
+                    "external marketplace name '{name}' may only contain \
                  letters, digits, '-', '_' and '.'"
-            )));
+                ),
+            ));
         }
         match &self.source {
             ExternalMarketplaceSource::Github { repo, .. } => {
                 if !is_github_repo(repo) {
-                    return Err(ServicesValidationError::invalid_field(format!(
-                        "Marketplace '{key}': external marketplace '{name}' github repo '{repo}' \
+                    return Err(ServicesValidationError::invalid_field(
+                        ValidationSubject::named("Marketplace", key),
+                        format!(
+                            "external marketplace '{name}' github repo '{repo}' \
                          must be 'owner/repository'"
-                    )));
+                        ),
+                    ));
                 }
             },
             ExternalMarketplaceSource::Git { url, .. } => {
@@ -129,9 +142,10 @@ impl ExternalMarketplace {
                     )
                 })?;
                 if parsed.scheme() != "https" {
-                    return Err(ServicesValidationError::invalid_field(format!(
-                        "Marketplace '{key}': external marketplace '{name}' git url must use https"
-                    )));
+                    return Err(ServicesValidationError::invalid_field(
+                        ValidationSubject::named("Marketplace", key),
+                        format!("external marketplace '{name}' git url must use https"),
+                    ));
                 }
             },
         }

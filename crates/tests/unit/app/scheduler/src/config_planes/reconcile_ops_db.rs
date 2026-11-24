@@ -54,7 +54,7 @@ async fn operations_on_an_unknown_plane_are_refused() {
     let err = svc.diff("no_such_plane").await.expect_err("unknown");
     assert!(matches!(
         err,
-        SchedulerError::ConfigPlane(ConfigPlaneError::UnknownPlane(_))
+        SchedulerError::ConfigPlane(ConfigPlaneError::UnknownPlane { .. })
     ));
     let err = svc
         .apply(
@@ -67,7 +67,7 @@ async fn operations_on_an_unknown_plane_are_refused() {
         .expect_err("unknown");
     assert!(matches!(
         err,
-        SchedulerError::ConfigPlane(ConfigPlaneError::UnknownPlane(_))
+        SchedulerError::ConfigPlane(ConfigPlaneError::UnknownPlane { .. })
     ));
 }
 

@@ -14,7 +14,7 @@ pub use super::marketplace_external::{ExternalMarketplace, ExternalMarketplaceSo
 use super::marketplace_external_plugin::{ExternalPluginEntry, validate_external_plugins};
 pub use super::marketplace_opencode::{OpenCodeMarketplaceConfig, OpenCodeThemeConfig};
 use super::plugin::PluginAuthor;
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::plugin::PluginComponentRef;
 
 const fn default_true() -> bool {
@@ -147,25 +147,28 @@ impl MarketplaceConfig {
     pub fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         let id_str = self.id.as_str();
         if id_str.len() < 3 || id_str.len() > 50 {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Marketplace '{key}': id must be between 3 and 50 characters"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                "id must be between 3 and 50 characters",
+            ));
         }
 
         if !id_str
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Marketplace '{key}': id must be lowercase alphanumeric with hyphens only \
-                 (kebab-case)"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                "id must be lowercase alphanumeric with hyphens only \
+                 (kebab-case)",
+            ));
         }
 
         if self.version.is_empty() {
-            return Err(ServicesValidationError::required(format!(
-                "Marketplace '{key}': version must not be empty"
-            )));
+            return Err(ServicesValidationError::required(
+                ValidationSubject::named("Marketplace", key),
+                "version must not be empty",
+            ));
         }
 
         self.access.validate(key)?;
@@ -187,29 +190,33 @@ impl MarketplaceConfig {
             external.validate(key)?;
             let name = external.name.trim();
             if name == self.id.as_str() {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Marketplace '{key}': external_marketplaces may not reuse this \
-                     marketplace's own id"
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Marketplace", key),
+                    "external_marketplaces may not reuse this \
+                     marketplace's own id",
+                ));
             }
             if !names.insert(name) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Marketplace '{key}': external marketplace '{name}' is declared twice"
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Marketplace", key),
+                    format!("external marketplace '{name}' is declared twice"),
+                ));
             }
         }
         for allowed in &self.allow_cross_marketplace_dependencies_on {
             if allowed.trim().is_empty() {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Marketplace '{key}': allow_cross_marketplace_dependencies_on must not \
-                     contain blank entries"
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Marketplace", key),
+                    "allow_cross_marketplace_dependencies_on must not \
+                     contain blank entries",
+                ));
             }
             if allowed == self.id.as_str() {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Marketplace '{key}': allow_cross_marketplace_dependencies_on names this \
-                     marketplace itself"
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Marketplace", key),
+                    "allow_cross_marketplace_dependencies_on names this \
+                     marketplace itself",
+                ));
             }
         }
         Ok(())

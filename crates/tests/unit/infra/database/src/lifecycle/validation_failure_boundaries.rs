@@ -5,7 +5,8 @@ use async_trait::async_trait;
 use serde_json::json;
 use systemprompt_database::{
     DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
-    QuerySelector, ToDbValue, replica_status, validate_column_exists, validate_table_exists,
+    QuerySelector, SchemaName, ToDbValue, replica_status, validate_column_exists,
+    validate_table_exists,
 };
 use systemprompt_test_fixtures::error_chain;
 use systemprompt_traits::RepositoryError;
@@ -147,16 +148,22 @@ async fn table_and_column_probes_reject_absent_or_non_boolean_results() {
         ResultProvider::new(vec![row(&[("exists", json!("yes"))])]),
         ResultProvider::new(vec![row(&[("other", json!(true))])]),
     ] {
-        let table_error = validate_table_exists(&provider, "managed_resources")
-            .await
-            .expect_err("malformed table probe rejected");
+        let table_error =
+            validate_table_exists(&provider, &SchemaName::public(), "managed_resources")
+                .await
+                .expect_err("malformed table probe rejected");
         assert!(
             error_chain(&table_error).contains("managed_resources"),
             "{table_error}"
         );
-        let column_error = validate_column_exists(&provider, "managed_resources", "owner_id")
-            .await
-            .expect_err("malformed column probe rejected");
+        let column_error = validate_column_exists(
+            &provider,
+            &SchemaName::public(),
+            "managed_resources",
+            "owner_id",
+        )
+        .await
+        .expect_err("malformed column probe rejected");
         assert!(
             column_error
                 .to_string()

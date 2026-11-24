@@ -8,7 +8,7 @@ use systemprompt_ai::jobs::usage_anomaly_scan::{
 use systemprompt_ai::repository::{AiUsageAnomalyRepository, HourlyUsageProfile};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{DisposableDb, fixture_actor};
+use systemprompt_test_fixtures::{DisposableDb, unique_user_id};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
 async fn seed(pool: &DbPool, user: &str, at: DateTime<Utc>, count: i64, cost_each: i64) {
@@ -125,7 +125,10 @@ async fn a_spike_over_the_baseline_is_flagged_and_a_flat_profile_is_not() {
     assert_eq!(spike.observed_cost_microdollars, 4_000_000);
     assert!((spike.baseline_requests_per_hour - 180.0 / 168.0).abs() < 1e-9);
 
-    let ctx = JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(&pool)));
+    let ctx = JobContext::new(
+        systemprompt_identifiers::Actor::user(unique_user_id("usage-anomaly-scan")),
+        Dependencies::new().with(Arc::clone(&pool)),
+    );
     let result = UsageAnomalyScanJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
     pool.pool().close().await;

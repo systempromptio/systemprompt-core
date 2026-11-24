@@ -6,14 +6,14 @@
 //! - is_active logic in conversion
 
 use chrono::Utc;
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 use systemprompt_traits::AuthUser;
 use systemprompt_users::{User, UserStatus};
 
 fn create_test_user() -> User {
     User {
         account_kind: Default::default(),
-        id: fixture_user_id(),
+        id: unique_user_id("user-provider"),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
@@ -35,9 +35,10 @@ mod auth_user_conversion_tests {
     #[test]
     fn conversion_maps_id_correctly() {
         let user = create_test_user();
+        let user_id = user.id.clone();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, FIXTURE_USER_ID);
+        assert_eq!(auth_user.id, user_id.as_str());
     }
 
     #[test]
@@ -156,19 +157,21 @@ mod auth_user_conversion_tests {
     #[test]
     fn conversion_with_uuid_style_id() {
         let mut user = create_test_user();
-        user.id = fixture_user_id();
+        let user_id = unique_user_id("user-provider");
+        user.id = user_id.clone();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, FIXTURE_USER_ID);
+        assert_eq!(auth_user.id, user_id.as_str());
     }
 
     #[test]
     fn conversion_with_short_id() {
         let mut user = create_test_user();
-        user.id = fixture_user_id();
+        let user_id = unique_user_id("user-provider");
+        user.id = user_id.clone();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, FIXTURE_USER_ID);
+        assert_eq!(auth_user.id, user_id.as_str());
     }
 }
 
@@ -194,9 +197,10 @@ mod edge_case_tests {
 
     #[test]
     fn conversion_with_empty_strings() {
+        let user_id = unique_user_id("user-provider");
         let user = User {
             account_kind: Default::default(),
-            id: fixture_user_id(),
+            id: user_id.clone(),
             name: "".to_string(),
             email: "".to_string(),
             full_name: None,
@@ -213,7 +217,7 @@ mod edge_case_tests {
 
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, FIXTURE_USER_ID);
+        assert_eq!(auth_user.id, user_id.as_str());
         assert_eq!(auth_user.name, "");
         assert_eq!(auth_user.email, "");
         assert!(auth_user.is_active);

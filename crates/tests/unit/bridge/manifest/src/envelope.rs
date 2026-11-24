@@ -4,14 +4,19 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn version(s: &str) -> ManifestVersion {
     ManifestVersion::try_new(s).expect("valid manifest version literal")
 }
 
 fn payload_value() -> serde_json::Value {
+    payload_value_for(&unique_user_id("envelope"))
+}
+
+fn payload_value_for(user_id: &UserId) -> serde_json::Value {
     let manifest = SignedManifestBuilder::new(
         version("2026-04-22T00:00:00Z-01abcdef"),
         chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
@@ -20,7 +25,7 @@ fn payload_value() -> serde_json::Value {
         chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        fixture_user_id(),
+        user_id.clone(),
     )
     .with_enabled_hosts(vec![HostKind::ClaudeDesktop])
     .build();
@@ -36,18 +41,20 @@ fn envelope(payload: &serde_json::Value) -> SignedManifestEnvelope {
 
 #[test]
 fn decode_payload_round_trips_builder_manifest() {
-    let manifest = decode_payload(&envelope(&payload_value())).expect("decodes");
-    assert_eq!(manifest.user_id, fixture_user_id());
+    let user_id = unique_user_id("envelope");
+    let manifest = decode_payload(&envelope(&payload_value_for(&user_id))).expect("decodes");
+    assert_eq!(manifest.user_id, user_id);
     assert_eq!(manifest.min_schema_version, MANIFEST_INLINE_SCHEMA_VERSION);
     assert_eq!(manifest.enabled_hosts, vec![HostKind::ClaudeDesktop]);
 }
 
 #[test]
 fn decode_payload_ignores_unknown_fields() {
-    let mut payload = payload_value();
+    let user_id = unique_user_id("envelope");
+    let mut payload = payload_value_for(&user_id);
     payload["field_from_a_future_gateway"] = serde_json::json!({"nested": [1, 2, 3]});
     let manifest = decode_payload(&envelope(&payload)).expect("unknown fields tolerated");
-    assert_eq!(manifest.user_id, fixture_user_id());
+    assert_eq!(manifest.user_id, user_id);
 }
 
 #[test]

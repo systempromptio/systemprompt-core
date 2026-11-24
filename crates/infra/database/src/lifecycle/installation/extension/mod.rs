@@ -49,6 +49,7 @@ mod trigger_reuse;
 mod validation;
 
 use crate::lifecycle::schema_member::{SchemaMember, schema_members};
+use crate::lifecycle::schema_name::SchemaName;
 use systemprompt_extension::{BuiltState, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info};
@@ -81,14 +82,16 @@ type FreshSet = std::collections::HashSet<ExtensionId>;
 pub async fn install_admitted_schemas(
     built: &BuiltState,
     db: &dyn DatabaseProvider,
+    target: &SchemaName,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
-    install_schema_members(&schema_members(built), db, migration_config).await
+    install_schema_members(&schema_members(built), db, target, migration_config).await
 }
 
 pub async fn install_schema_members(
     schema_extensions: &ExtensionSet,
     db: &dyn DatabaseProvider,
+    target: &SchemaName,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     if schema_extensions.is_empty() {
@@ -104,7 +107,7 @@ pub async fn install_schema_members(
     );
 
     let guard = BootstrapLockGuard::acquire(db).await?;
-    let result = install_in_release_order(db, schema_extensions, migration_config).await;
+    let result = install_in_release_order(db, schema_extensions, target, migration_config).await;
     guard.release().await;
 
     let report = result?;
@@ -116,10 +119,11 @@ pub async fn install_schema_members(
 async fn install_in_release_order(
     db: &dyn DatabaseProvider,
     schema_extensions: &ExtensionSet,
+    target: &SchemaName,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     if let Some(superseded) = release_order::newer_recorded(db).await? {
-        let currency = current::members_currency(db, schema_extensions).await?;
+        let currency = current::members_currency(db, schema_extensions, target).await?;
         release_order::judge_superseded(&superseded, &currency)?;
         return Ok(SchemaInstallReport {
             ahead: super::report::SchemaAhead::from_currency(&currency),
@@ -127,7 +131,7 @@ async fn install_in_release_order(
             ..SchemaInstallReport::default()
         });
     }
-    let currency = current::members_currency(db, schema_extensions).await?;
+    let currency = current::members_currency(db, schema_extensions, target).await?;
     let (held_back, active): (Vec<_>, Vec<_>) =
         schema_extensions.iter().cloned().partition(|ext| {
             currency
@@ -139,6 +143,7 @@ async fn install_in_release_order(
         db,
         settled::InstallSets::new(schema_extensions, &active, &held_back),
         &currency,
+        target,
         migration_config,
     )
     .await?;
@@ -155,12 +160,13 @@ async fn fresh_extension_ids(
     migration_service: &MigrationService<'_>,
     schema_extensions: &ExtensionSet,
     prepared: &[PreparedSchema],
+    target: &SchemaName,
 ) -> Result<FreshSet, LoaderError> {
     let mut fresh = FreshSet::new();
     for (ext, p) in schema_extensions.iter().zip(prepared) {
         if ext.has_migrations()
             && migration_service
-                .assess_freshness(&p.extension_id, &p.owned_tables)
+                .assess_freshness(&p.extension_id, &p.owned_tables, target)
                 .await?
                 .is_fresh()
         {
@@ -174,16 +180,19 @@ async fn run_install(
     db: &dyn DatabaseProvider,
     members: MigrationMembers<'_>,
     schema_extensions: &ExtensionSet,
+    target: &SchemaName,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     if schema_extensions.is_empty() {
         return Ok(SchemaInstallReport::default());
     }
     let migration_service = MigrationService::new(db).with_config(migration_config);
-    let prepared = prepare_and_check(db, &migration_service, members, schema_extensions).await?;
+    let prepared =
+        prepare_and_check(db, &migration_service, members, schema_extensions, target).await?;
 
     apply_retirements(db, schema_extensions).await?;
-    let fresh = fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
+    let fresh =
+        fresh_extension_ids(&migration_service, schema_extensions, &prepared, target).await?;
     apply_structural(db, &migration_service, schema_extensions, &prepared, &fresh).await?;
     apply_routine_prepass(db, &prepared).await?;
 
@@ -201,7 +210,8 @@ async fn run_install(
     } else {
         TriggerReuse::Reuse
     };
-    let mut report = apply_dependent(db, schema_extensions, &prepared, &fresh, reuse).await?;
+    let mut report =
+        apply_dependent(db, schema_extensions, &prepared, &fresh, target, reuse).await?;
 
     // Why: after every phase, so the schema checked is the one the server
     // will write to; a trigger left writing a dropped table fails every
@@ -215,7 +225,7 @@ async fn run_install(
     record_owners(db, &prepared, members).await?;
     reassignment_targets::check_catalog_targets(db, schema_extensions).await?;
     record_purges(db, schema_extensions).await?;
-    report.residue = residue_including(db, &prepared, members.held_back()).await?;
+    report.residue = residue_including(db, &prepared, members.held_back(), target).await?;
 
     Ok(report)
 }
@@ -225,6 +235,7 @@ async fn prepare_and_check(
     migration_service: &MigrationService<'_>,
     members: MigrationMembers<'_>,
     schema_extensions: &ExtensionSet,
+    target: &SchemaName,
 ) -> Result<Vec<PreparedSchema>, LoaderError> {
     let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
     for ext in schema_extensions {
@@ -233,7 +244,8 @@ async fn prepare_and_check(
     validate_table_ownership(&prepared, members.held_back(), schema_extensions)?;
     let owners = recorded_table_owners(db).await?;
     check_recorded_owners(&owners, &prepared)?;
-    check_pending_migration_owners(db, &owners, migration_service, members, &prepared).await?;
+    check_pending_migration_owners(db, &owners, migration_service, members, &prepared, target)
+        .await?;
     check_recorded_purges(db, schema_extensions).await?;
     check_migration_references(schema_extensions)?;
     check_retirements(schema_extensions)?;
@@ -293,12 +305,13 @@ async fn apply_dependent(
     schema_extensions: &ExtensionSet,
     prepared: &[PreparedSchema],
     fresh: &FreshSet,
+    target: &SchemaName,
     reuse: TriggerReuse,
 ) -> Result<SchemaInstallReport, LoaderError> {
     for p in prepared {
         execute_phase(db, &p.dependent, &[], &p.extension_id, reuse).await?;
         for cols in &p.columns_to_validate {
-            validate_extension_columns(db, cols, &p.extension_id).await?;
+            validate_extension_columns(db, cols, target, &p.extension_id).await?;
         }
     }
 

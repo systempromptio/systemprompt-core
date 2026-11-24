@@ -160,11 +160,6 @@ fn auth_error_displays_have_useful_text() {
         .to_string()
         .contains("bad")
     );
-    assert!(
-        AuthRequestError::Internal("x".to_owned())
-            .to_string()
-            .contains("x")
-    );
 }
 
 #[test]

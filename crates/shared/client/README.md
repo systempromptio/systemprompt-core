@@ -33,12 +33,12 @@ Provides typed HTTP clients for systemprompt API consumers.
 | `AuthError` | Authentication or authorization failure |
 | `NotFound` | Requested resource does not exist |
 | `Timeout` | Request exceeded its time limit |
-| `ServerUnavailable` | Server unreachable |
+| `StreamEndedWithoutExitCode` | A remote CLI stream ended before the server sent an exit code |
 | `ConfigError` | Invalid client configuration |
 | `EventStreamSetup` | Failed to open a server-sent event stream |
 | `Io` | Local I/O failure (wraps `std::io::Error`) |
 
-`is_retryable()` returns true for `Timeout`, `ServerUnavailable`, and `HttpError`.
+`is_retryable()` returns true for `Timeout`, `StreamEndedWithoutExitCode`, `UndecodableEvent`, and `HttpError`.
 
 ## Usage
 

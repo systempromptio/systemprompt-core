@@ -38,7 +38,7 @@ async fn create_test_client(db: &systemprompt_database::DbPool, client_id: &Clie
     let repo = ClientRepository::new(db);
     let params = CreateClientParams {
         client_id: client_id.clone(),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: create_test_user(db).await,
         client_secret_hash: Some("test_hash".to_string()),
         registration_token_hash: None,
         client_name: "Test Client".to_string(),

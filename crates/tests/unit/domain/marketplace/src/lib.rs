@@ -83,7 +83,7 @@ use systemprompt_models::bridge::ids::Sha256Digest;
 #[cfg(test)]
 use systemprompt_models::bridge::manifest::PluginEntry;
 #[cfg(test)]
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 #[cfg(test)]
 fn plugin(id: &str) -> PluginEntry {
@@ -111,7 +111,7 @@ fn sample_candidate() -> MarketplaceCandidate {
 #[tokio::test]
 async fn allow_all_filter_returns_input_unchanged() {
     let filter = AllowAllFilter;
-    let user = fixture_user_id();
+    let user = unique_user_id("marketplace");
     let before = sample_candidate();
     let after = filter
         .filter(&user, before.clone())
@@ -135,7 +135,7 @@ async fn allow_all_filter_returns_input_unchanged() {
 #[tokio::test]
 async fn empty_candidate_round_trips() {
     let filter = AllowAllFilter;
-    let user = fixture_user_id();
+    let user = unique_user_id("marketplace");
     let after = filter
         .filter(&user, MarketplaceCandidate::default())
         .await
@@ -162,7 +162,7 @@ impl MarketplaceFilter for DropAllFilter {
 #[tokio::test]
 async fn custom_filter_can_drop_everything() {
     let filter = DropAllFilter;
-    let user = fixture_user_id();
+    let user = unique_user_id("marketplace");
     let after = filter
         .filter(&user, sample_candidate())
         .await
@@ -187,7 +187,9 @@ async fn errors_propagate() {
         }
     }
 
-    let result = Failing.filter(&fixture_user_id(), sample_candidate()).await;
+    let result = Failing
+        .filter(&unique_user_id("marketplace"), sample_candidate())
+        .await;
     assert!(matches!(result, Err(MarketplaceFilterError::Backend(_))));
 }
 

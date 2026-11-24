@@ -34,7 +34,7 @@ proptest! {
         let url = format!("https://{a}.{b}.{c}.{d}/h");
         let res = validate_outbound_url(&url, LoopbackPolicy::Allow);
         prop_assert!(
-            matches!(res, Err(OutboundUrlError::BlockedHost(_))),
+            matches!(res, Err(OutboundUrlError::BlockedHost { .. })),
             "{url} must be blocked, got {res:?}",
         );
     }
@@ -44,7 +44,7 @@ proptest! {
         let url = format!("https://[::ffff:{a}.{b}.{c}.{d}]/h");
         let res = validate_outbound_url(&url, LoopbackPolicy::Allow);
         prop_assert!(
-            matches!(res, Err(OutboundUrlError::BlockedHost(_))),
+            matches!(res, Err(OutboundUrlError::BlockedHost { .. })),
             "{url} must be blocked, got {res:?}",
         );
     }
@@ -56,7 +56,7 @@ proptest! {
         let url = format!("{scheme}://example.com/h");
         let res = validate_outbound_url(&url, LoopbackPolicy::Allow);
         prop_assert!(
-            matches!(res, Err(OutboundUrlError::Scheme(_)) | Err(OutboundUrlError::Parse(_))),
+            matches!(res, Err(OutboundUrlError::Scheme { .. }) | Err(OutboundUrlError::Parse(_))),
             "{url} must be rejected, got {res:?}",
         );
     }

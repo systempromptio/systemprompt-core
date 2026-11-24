@@ -113,7 +113,9 @@ fn from_inference_error_maps_to_ai_inference() {
 
 #[test]
 fn from_mcp_registry_error_maps_to_mcp_registry() {
-    let registry_err = systemprompt_models::errors::McpRegistryError::NotFound("srv".to_owned());
+    let registry_err = systemprompt_models::errors::McpRegistryError::NotFound {
+        server: "srv".to_owned(),
+    };
     let err: AgentServiceError = registry_err.into();
     assert!(matches!(err, AgentServiceError::McpRegistry(_)));
     assert!(err.to_string().contains("srv"));

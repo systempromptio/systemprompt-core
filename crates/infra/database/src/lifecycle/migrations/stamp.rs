@@ -26,6 +26,7 @@
 use super::MigrationService;
 use super::exec::execute_statements_transactional;
 use crate::lifecycle::schema_member::SchemaMember;
+use crate::lifecycle::schema_name::SchemaName;
 use crate::services::SqlExecutor;
 use pg_query::NodeEnum;
 use systemprompt_extension::{LoaderError, Migration};
@@ -67,6 +68,7 @@ impl MigrationService<'_> {
         &self,
         extension_id: &ExtensionId,
         owned_tables: &[String],
+        target: &SchemaName,
     ) -> Result<FreshnessCheck, LoaderError> {
         self.ensure_migrations_table_exists().await?;
 
@@ -75,8 +77,10 @@ impl MigrationService<'_> {
         let mut tables_present = 0usize;
         let mut tables_total = 0usize;
         for table in owned_tables {
-            let (schema, name) = table.split_once('.').unwrap_or(("public", table.as_str()));
-            if schema == "public" && name == LEDGER_TABLE {
+            let (schema, name) = table
+                .split_once('.')
+                .unwrap_or((target.as_str(), table.as_str()));
+            if schema == target.as_str() && name == LEDGER_TABLE {
                 continue;
             }
             tables_total += 1;

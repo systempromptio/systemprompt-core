@@ -1,12 +1,15 @@
 //! Tests for registry.rs error types.
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_traits::registry::{AgentInfo, McpServerInfo, RegistryError, ServiceOAuthConfig};
 
 // --- RegistryError display ---
 
 #[test]
 fn registry_not_found_display() {
-    let e = RegistryError::NotFound("my-agent".to_owned());
+    let e = RegistryError::NotFound {
+        service: ServiceName::new("my-agent"),
+    };
     assert!(format!("{e}").contains("my-agent"));
 }
 
@@ -31,7 +34,10 @@ fn registry_internal_display() {
 #[test]
 fn registry_errors_are_debug() {
     let variants: &[RegistryError] = &[
-        RegistryError::NotFound("a".into()),
+        RegistryError::NotFound {
+            service: ServiceName::new("a"),
+        },
+        RegistryError::NoDefaultAgent,
         RegistryError::Unavailable("b".into()),
         RegistryError::Configuration("c".into()),
         RegistryError::Internal("d".into()),

@@ -7,8 +7,8 @@ use systemprompt_identifiers::ResourceRevisionId;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RevisionBundleError {
-    #[error("Invalid managed resource: {0}")]
-    Invalid(String),
+    #[error("Invalid managed resource: {reason}")]
+    Invalid { reason: &'static str },
     #[error("Managed resource integrity check failed")]
     Integrity,
     #[error("Revision {0} is not part of the bundle")]
@@ -17,6 +17,6 @@ pub enum RevisionBundleError {
     Json(#[from] serde_json::Error),
 }
 
-pub(super) fn invalid(message: &str) -> RevisionBundleError {
-    RevisionBundleError::Invalid(message.to_owned())
+pub(super) const fn invalid(reason: &'static str) -> RevisionBundleError {
+    RevisionBundleError::Invalid { reason }
 }

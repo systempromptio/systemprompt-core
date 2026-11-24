@@ -9,28 +9,28 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use systemprompt_traits::{FileStorageError, StoredFileId};
+use systemprompt_traits::{FileStorageError, StorageValidation, StoredFileId};
 
 pub(crate) fn relative_path(path: &Path) -> Result<&Path, FileStorageError> {
     if path.as_os_str().is_empty() {
-        return Err(FileStorageError::Validation(
-            "storage path must not be empty".to_owned(),
-        ));
+        return Err(FileStorageError::Validation(StorageValidation::EmptyPath));
     }
     for component in path.components() {
         match component {
             Component::Normal(_) | Component::CurDir => {},
             Component::ParentDir => {
-                return Err(FileStorageError::Validation(format!(
-                    "storage path {} contains a parent-directory component",
-                    path.display()
-                )));
+                return Err(FileStorageError::Validation(
+                    StorageValidation::ParentDirectory {
+                        path: path.to_path_buf(),
+                    },
+                ));
             },
             Component::RootDir | Component::Prefix(_) => {
-                return Err(FileStorageError::Validation(format!(
-                    "storage path {} must be relative to the storage root",
-                    path.display()
-                )));
+                return Err(FileStorageError::Validation(
+                    StorageValidation::NotRelative {
+                        path: path.to_path_buf(),
+                    },
+                ));
             },
         }
     }

@@ -160,7 +160,7 @@ mod guarded_policy_tests {
             let config = GuardedClientConfig::for_configured();
             let (err, landing) = public_redirect_to(config, "https://127.0.0.1:{port}/").await;
             assert!(
-                matches!(redirect_refusal(&err), Some(OutboundUrlError::Loopback(host)) if host == "127.0.0.1"),
+                matches!(redirect_refusal(&err), Some(OutboundUrlError::Loopback { host }) if host == "127.0.0.1"),
                 "{err:?}"
             );
             assert_eq!(landing.hits(), 0);
@@ -245,7 +245,7 @@ mod guarded_policy_tests {
         let refused = client.get(&format!("https://localhost:{}/", landing.addr.port()));
 
         assert!(
-            matches!(refused, Err(OutboundUrlError::Loopback(ref host)) if host == "localhost"),
+            matches!(refused, Err(OutboundUrlError::Loopback { ref host }) if host == "localhost"),
             "{refused:?}"
         );
         assert_eq!(landing.hits(), 0);
@@ -374,7 +374,7 @@ mod guarded_policy_tests {
             proxy.url.port().unwrap_or(0)
         ));
         assert!(
-            matches!(first, Err(OutboundUrlError::ProxyHost(ref host)) if host == "127.0.0.1"),
+            matches!(first, Err(OutboundUrlError::ProxyHost { ref host }) if host == "127.0.0.1"),
             "{first:?}"
         );
 
@@ -385,7 +385,10 @@ mod guarded_policy_tests {
             .await
             .expect_err("a hop onto the proxy host is refused");
         assert!(
-            matches!(redirect_refusal(&err), Some(OutboundUrlError::ProxyHost(_))),
+            matches!(
+                redirect_refusal(&err),
+                Some(OutboundUrlError::ProxyHost { .. })
+            ),
             "{err:?}"
         );
         assert_eq!(

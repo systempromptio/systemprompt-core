@@ -209,7 +209,7 @@ pub async fn verify_hop(
     match admitted {
         Ok(principal) => run_as(principal, next.run(request)).await,
         Err(HopAdmissionError::Rejected(error)) => {
-            if matches!(error, HopRejection::Token(TokenError::UnknownKid(_))) {
+            if matches!(error, HopRejection::Token(TokenError::UnknownKid { .. })) {
                 tracing::error!(server = %verifier.server_id, %error, "Refused an MCP request signed by a key this server does not know; restart it to load the deployment's current signing keys");
             } else {
                 tracing::warn!(server = %verifier.server_id, %error, "Refused an MCP request whose hop token did not verify");

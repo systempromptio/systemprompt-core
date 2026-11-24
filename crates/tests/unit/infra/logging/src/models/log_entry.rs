@@ -1,8 +1,8 @@
 //! Unit tests for LogEntry struct
 
-use systemprompt_identifiers::{SessionId, TraceId};
+use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel};
-use systemprompt_test_fixtures::{fixture_system_admin, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_system_admin, unique_user_id};
 
 fn fixture_session_id() -> SessionId {
     SessionId::new("test-session")
@@ -13,11 +13,15 @@ fn fixture_trace_id() -> TraceId {
 }
 
 fn make_entry(level: LogLevel, module: &str, message: &str) -> LogEntry {
+    make_entry_for(&unique_user_id("log-entry"), level, module, message)
+}
+
+fn make_entry_for(user_id: &UserId, level: LogLevel, module: &str, message: &str) -> LogEntry {
     LogEntry::new(
         level,
         module,
         message,
-        LogActor::new(fixture_user_id(), fixture_session_id(), fixture_trace_id()),
+        LogActor::new(user_id.clone(), fixture_session_id(), fixture_trace_id()),
     )
 }
 
@@ -33,9 +37,10 @@ fn test_log_entry_new() {
 
 #[test]
 fn test_log_entry_carries_required_attribution() {
-    let entry = make_entry(LogLevel::Info, "module", "message");
+    let user_id = unique_user_id("log-entry");
+    let entry = make_entry_for(&user_id, LogLevel::Info, "module", "message");
 
-    assert_eq!(entry.user_id, fixture_user_id());
+    assert_eq!(entry.user_id, user_id);
     assert_eq!(entry.session_id, fixture_session_id());
     assert_eq!(entry.trace_id, fixture_trace_id());
 }

@@ -248,9 +248,9 @@ mod scheduler_error_additional_tests {
             (
                 SchedulerError::job_execution_failed(
                     JobName::new("job"),
-                    ProviderError::InvalidInput("error".to_owned()),
+                    ProviderError::Internal("error".into()),
                 ),
-                "Job execution failed: job - Invalid input: error",
+                "Job execution failed: job - Internal provider error: error",
             ),
             (SchedulerError::AlreadyRunning, "Scheduler already running"),
             (SchedulerError::NotInitialized, "Scheduler not initialized"),

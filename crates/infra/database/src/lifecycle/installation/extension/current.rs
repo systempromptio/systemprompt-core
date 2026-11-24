@@ -24,6 +24,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::lifecycle::schema_member::{SchemaMember, schema_members};
+use crate::lifecycle::schema_name::SchemaName;
 use systemprompt_extension::{BuiltState, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 
@@ -67,13 +68,15 @@ impl SchemaCurrency {
 pub async fn schema_currency(
     db: &dyn DatabaseProvider,
     built: &BuiltState,
+    target: &SchemaName,
 ) -> Result<SchemaCurrency, LoaderError> {
-    members_currency(db, &schema_members(built)).await
+    members_currency(db, &schema_members(built), target).await
 }
 
 pub(super) async fn members_currency(
     db: &dyn DatabaseProvider,
     members: &[std::sync::Arc<dyn SchemaMember>],
+    target: &SchemaName,
 ) -> Result<SchemaCurrency, LoaderError> {
     let migrations = MigrationService::new(db);
     let mut currency = SchemaCurrency::default();
@@ -81,7 +84,7 @@ pub(super) async fn members_currency(
     for ext in members {
         let prepared = prepare_extension_schema(ext.as_ref())?;
         let freshness = migrations
-            .assess_freshness(&prepared.extension_id, &prepared.owned_tables)
+            .assess_freshness(&prepared.extension_id, &prepared.owned_tables, target)
             .await?;
         if freshness.tables_total > 0 && freshness.tables_present == 0 {
             currency.fresh_extensions.push(prepared.extension_id);

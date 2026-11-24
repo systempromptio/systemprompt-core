@@ -52,7 +52,7 @@ async fn context_lifecycle_roundtrip() {
         .expect("delete");
     let missing = provider.get_context(&ctx_id, &user).await;
     assert!(
-        matches!(missing, Err(ContextProviderError::NotFound(_))),
+        matches!(missing, Err(ContextProviderError::NotFound { .. })),
         "deleted context must map to NotFound, got {missing:?}"
     );
 }
@@ -65,11 +65,11 @@ async fn unknown_context_lookups_map_to_not_found() {
     let ghost = ContextId::generate();
 
     let get = provider.get_context(&ghost, &user).await;
-    assert!(matches!(get, Err(ContextProviderError::NotFound(_))));
+    assert!(matches!(get, Err(ContextProviderError::NotFound { .. })));
 
     let rename = provider.update_context_name(&ghost, &user, "x").await;
-    assert!(matches!(rename, Err(ContextProviderError::NotFound(_))));
+    assert!(matches!(rename, Err(ContextProviderError::NotFound { .. })));
 
     let delete = provider.delete_context(&ghost, &user).await;
-    assert!(matches!(delete, Err(ContextProviderError::NotFound(_))));
+    assert!(matches!(delete, Err(ContextProviderError::NotFound { .. })));
 }

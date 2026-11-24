@@ -37,7 +37,7 @@ pub enum GcsError {
 impl GcsError {
     pub(crate) fn into_storage(self, id: &StoredFileId) -> FileStorageError {
         match self {
-            Self::Status { status: 404, .. } => FileStorageError::NotFound(id.as_str().to_owned()),
+            Self::Status { status: 404, .. } => FileStorageError::NotFound(id.clone()),
             other => FileStorageError::Backend(Box::new(other)),
         }
     }

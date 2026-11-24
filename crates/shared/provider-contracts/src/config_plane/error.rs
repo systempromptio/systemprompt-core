@@ -43,11 +43,11 @@ pub enum ConfigPlaneError {
     )]
     FileManaged { plane: String, path: String },
 
-    #[error("no config plane named '{0}' is registered")]
-    UnknownPlane(String),
+    #[error("no config plane named '{plane}' is registered")]
+    UnknownPlane { plane: String },
 
-    #[error("config plane '{0}' is registered by more than one extension")]
-    DuplicatePlane(String),
+    #[error("config plane '{plane}' is registered by more than one extension")]
+    DuplicatePlane { plane: &'static str },
 
     #[error("config plane '{plane}': apply did not converge, {remaining} drift rows remain")]
     NotConverged { plane: String, remaining: usize },
@@ -61,8 +61,8 @@ pub enum ConfigPlaneError {
     #[error("config plane '{plane}' depends on '{dependency}', which no extension registers")]
     UnknownDependency { plane: String, dependency: String },
 
-    #[error("config plane '{0}' is part of a dependency cycle")]
-    DependencyCycle(String),
+    #[error("config plane '{plane}' is part of a dependency cycle")]
+    DependencyCycle { plane: &'static str },
 
     #[error("this host does not expose its config planes")]
     PlanesUnavailable,

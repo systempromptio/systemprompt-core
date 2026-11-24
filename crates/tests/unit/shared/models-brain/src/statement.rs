@@ -50,7 +50,9 @@ fn missing_required_field_is_an_error() {
     let rendered = render_statement(TEMPLATE, &subject(), &fields(json!({"party": "Acme"})));
     assert_eq!(
         rendered,
-        Err(StatementError::MissingField("action".to_owned()))
+        Err(StatementError::MissingField {
+            field: "action".to_owned()
+        })
     );
 }
 
@@ -81,11 +83,11 @@ fn placeholders_lists_every_name() {
 fn malformed_templates_are_refused() {
     assert!(matches!(
         placeholders("{Party}"),
-        Err(StatementError::BadPlaceholder(_))
+        Err(StatementError::BadPlaceholder { .. })
     ));
     assert!(matches!(
         placeholders("{}"),
-        Err(StatementError::BadPlaceholder(_))
+        Err(StatementError::BadPlaceholder { .. })
     ));
     assert!(matches!(
         placeholders("{party"),

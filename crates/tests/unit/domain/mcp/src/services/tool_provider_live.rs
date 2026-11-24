@@ -9,7 +9,7 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use wiremock::MockServer;
 
@@ -62,7 +62,7 @@ async fn setup(agent: &str) -> (McpToolProvider, McpServerId, MockServer) {
     let provider = McpToolProvider::new(
         db,
         RegistryService::new(
-            fixture_user_id(),
+            unique_user_id("tool-provider-live"),
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),
@@ -219,7 +219,7 @@ async fn list_tools_tolerates_unreachable_server() {
     let provider = McpToolProvider::new(
         db,
         RegistryService::new(
-            fixture_user_id(),
+            unique_user_id("tool-provider-live"),
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),
@@ -271,7 +271,7 @@ async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_
     let provider = McpToolProvider::new(
         db,
         RegistryService::new(
-            fixture_user_id(),
+            unique_user_id("tool-provider-live"),
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),

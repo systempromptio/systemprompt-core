@@ -50,7 +50,9 @@ fn text_outside_the_vocabulary_is_refused() {
     ] {
         assert_eq!(
             text.parse::<ChangeSource>(),
-            Err(ChangeSourceError::Unknown(text.to_owned())),
+            Err(ChangeSourceError::Unknown {
+                text: text.to_owned()
+            }),
             "{text}"
         );
     }

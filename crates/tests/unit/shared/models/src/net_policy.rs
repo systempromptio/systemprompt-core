@@ -42,7 +42,7 @@ mod loopback_policy_tests {
     fn deny_names_a_loopback_domain_as_loopback() {
         assert!(matches!(
             validate_outbound_url("https://localhost:8443/h", LoopbackPolicy::Deny),
-            Err(OutboundUrlError::Loopback(host)) if host == "localhost"
+            Err(OutboundUrlError::Loopback { host }) if host == "localhost"
         ));
     }
 
@@ -71,7 +71,7 @@ mod loopback_policy_tests {
             assert!(
                 matches!(
                     validate_outbound_url(url, LoopbackPolicy::Allow),
-                    Err(OutboundUrlError::BlockedHost(_))
+                    Err(OutboundUrlError::BlockedHost { .. })
                 ),
                 "{url} must be blocked"
             );
@@ -187,7 +187,7 @@ mod pin_resolved_tests {
                 &NO_TRUST,
                 LoopbackPolicy::Deny
             ),
-            Err(OutboundUrlError::Unresolved(_))
+            Err(OutboundUrlError::Unresolved { .. })
         ));
     }
 }

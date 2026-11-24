@@ -102,7 +102,7 @@ fn test_timeout_is_retryable() {
 
 #[test]
 fn test_server_unavailable_is_retryable() {
-    let error = ClientError::ServerUnavailable("Connection refused".to_string());
+    let error = ClientError::StreamEndedWithoutExitCode;
     assert!(error.is_retryable());
 }
 
@@ -147,8 +147,11 @@ fn test_auth_error_display() {
 
 #[test]
 fn test_server_unavailable_display() {
-    let error = ClientError::ServerUnavailable("Database down".to_string());
-    assert_eq!(error.to_string(), "Server unavailable: Database down");
+    let error = ClientError::StreamEndedWithoutExitCode;
+    assert_eq!(
+        error.to_string(),
+        "Server unavailable: stream ended before the remote exit code"
+    );
 }
 
 #[test]

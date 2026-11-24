@@ -109,7 +109,7 @@ pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims>
 impl From<AuthError> for TokenError {
     fn from(error: AuthError) -> Self {
         match error {
-            AuthError::UnknownKid { kid } => Self::UnknownKid(kid),
+            AuthError::UnknownKid { kid } => Self::UnknownKid { kid },
             AuthError::MissingKid => Self::KidMismatch,
             AuthError::InvalidToken(inner) => match inner.kind() {
                 ErrorKind::ExpiredSignature => Self::Expired,

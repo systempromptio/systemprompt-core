@@ -17,7 +17,7 @@ fn config(rings: Vec<CohortRing>) -> ManagedMarketplaceConfig {
 
 fn refusal(config: &ManagedMarketplaceConfig) -> String {
     match config.validate().expect_err("refused") {
-        ServicesValidationError::InvalidField(message) => message,
+        e @ ServicesValidationError::InvalidField { .. } => e.to_string(),
         other => panic!("unexpected {other:?}"),
     }
 }

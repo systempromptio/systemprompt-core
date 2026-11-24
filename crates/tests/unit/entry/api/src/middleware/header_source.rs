@@ -16,7 +16,9 @@ fn extract_required_returns_present_value() {
 fn extract_required_missing_header_errors() {
     let headers = HeaderMap::new();
     let err = HeaderSource::extract_required(&headers, "x-context-id").expect_err("missing");
-    assert!(matches!(err, ContextExtractionError::MissingHeader(name) if name == "x-context-id"));
+    assert!(
+        matches!(err, ContextExtractionError::MissingHeader { header } if header == "x-context-id")
+    );
 }
 
 #[test]

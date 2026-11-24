@@ -86,7 +86,7 @@ impl From<sqlx::Error> for ManagedError {
 impl From<RevisionBundleError> for ManagedError {
     fn from(error: RevisionBundleError) -> Self {
         match error {
-            invalid @ RevisionBundleError::Invalid(_) => Self::InvalidBundle(invalid),
+            invalid @ RevisionBundleError::Invalid { .. } => Self::InvalidBundle(invalid),
             RevisionBundleError::Integrity => Self::Integrity,
             RevisionBundleError::MissingRevision(_) => Self::Unavailable,
             RevisionBundleError::Json(error) => Self::Json(error),

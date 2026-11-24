@@ -81,8 +81,8 @@ impl FromIterator<(RuleType, Vec<String>)> for SubjectAttributes {
 pub enum SubjectSourceError {
     #[error("the subject attribute source is not ready")]
     NotReady,
-    #[error("no subject dimension '{0}' is registered")]
-    UnknownDimension(String),
+    #[error("no subject dimension '{}' is registered", dimension.as_str())]
+    UnknownDimension { dimension: RuleType },
     #[error("subject dimension '{dimension}' could not be read")]
     Provider {
         dimension: String,

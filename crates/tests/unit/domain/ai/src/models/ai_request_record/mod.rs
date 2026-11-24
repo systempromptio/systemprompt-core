@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::origin::RequestOrigin;
-use systemprompt_test_fixtures::{fixture_user_id, usage};
+use systemprompt_test_fixtures::{unique_user_id, usage};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -93,7 +93,7 @@ mod ai_request_record_builder_tests {
     use super::*;
 
     fn test_user_id() -> UserId {
-        fixture_user_id()
+        unique_user_id("ai-request-record")
     }
 
     #[test]
@@ -453,7 +453,7 @@ mod builder_optional_ids_tests {
 
     #[test]
     fn builder_sets_actor() {
-        let user = fixture_user_id();
+        let user = unique_user_id("ai-request-record");
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-actor"),
             user.clone(),
@@ -471,7 +471,7 @@ mod builder_optional_ids_tests {
     fn builder_defaults_actor_to_user() {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-d"),
-            fixture_user_id(),
+            unique_user_id("ai-request-record"),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             RequestOrigin::INTERNAL,
         )
@@ -487,7 +487,7 @@ mod builder_optional_ids_tests {
             .expect("valid GatewayConversationId");
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-g"),
-            fixture_user_id(),
+            unique_user_id("ai-request-record"),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             RequestOrigin::INTERNAL,
         )
@@ -503,7 +503,7 @@ mod builder_optional_ids_tests {
         let prid = ProviderRequestId::try_new("prov-1").expect("valid ProviderRequestId");
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-p"),
-            fixture_user_id(),
+            unique_user_id("ai-request-record"),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             RequestOrigin::INTERNAL,
         )
@@ -519,7 +519,7 @@ mod builder_optional_ids_tests {
         let mid = McpExecutionId::new("mcp-1");
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-m"),
-            fixture_user_id(),
+            unique_user_id("ai-request-record"),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             RequestOrigin::INTERNAL,
         )
@@ -534,7 +534,7 @@ mod builder_optional_ids_tests {
     fn builder_tokens_with_no_values() {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-n"),
-            fixture_user_id(),
+            unique_user_id("ai-request-record"),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             RequestOrigin::INTERNAL,
         )
@@ -551,7 +551,7 @@ mod ai_request_record_tests {
 
     #[test]
     fn builder_method_creates_builder() {
-        let user_id = fixture_user_id();
+        let user_id = unique_user_id("ai-request-record");
         let builder = AiRequestRecord::builder(
             AiRequestId::new("req-456"),
             user_id,

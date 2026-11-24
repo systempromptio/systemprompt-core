@@ -1,13 +1,11 @@
 use systemprompt_extension::{LoaderError, SchemaDefinition};
 
-use super::installation::{
-    StubExtension, drop_table, provider_and_db, registry_with, table_exists, unique_id,
-};
+use super::installation::{StubExtension, provider_and_db, registry_with, table_exists, unique_id};
 use super::members::install;
 
 #[tokio::test]
 async fn a_failing_schema_statement_rolls_the_whole_phase_back() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_phase").await;
     let table = unique_id("phase_fail");
     let sql = format!(
         "CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY, label \
@@ -20,7 +18,7 @@ async fn a_failing_schema_statement_rolls_the_whole_phase_back() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("the column type does not exist");
     let rendered = format!("{err}");
@@ -34,5 +32,5 @@ async fn a_failing_schema_statement_rolls_the_whole_phase_back() {
         !table_exists(&db, table).await,
         "a failed phase leaves no table behind"
     );
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }

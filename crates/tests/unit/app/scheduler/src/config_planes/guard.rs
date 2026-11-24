@@ -56,7 +56,7 @@ fn an_unknown_plane_is_a_typed_error() {
     let set = plane_set(root.path(), &[], &[]);
     assert!(matches!(
         set.writer("nope"),
-        Err(ConfigPlaneError::UnknownPlane(name)) if name == "nope"
+        Err(ConfigPlaneError::UnknownPlane { plane }) if plane == "nope"
     ));
 }
 
@@ -68,7 +68,7 @@ fn duplicate_plane_names_are_refused() {
         Arc::new(FakePlane::new(name, &[])),
     ];
     let result = ConfigPlaneSet::new(planes, BTreeMap::new(), "/tmp".into());
-    assert!(matches!(result, Err(ConfigPlaneError::DuplicatePlane(n)) if n == name));
+    assert!(matches!(result, Err(ConfigPlaneError::DuplicatePlane { plane }) if plane == name));
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn profile_keys_without_a_registered_plane_are_listed() {
 
 #[test]
 fn plane_errors_map_to_stable_http_classes() {
-    let unknown: ApiError = ConfigPlaneError::UnknownPlane("x".into()).into();
+    let unknown: ApiError = ConfigPlaneError::UnknownPlane { plane: "x".into() }.into();
     assert!(matches!(unknown.code, ErrorCode::NotFound));
     let unsupported: ApiError = ConfigPlaneError::Unsupported {
         plane: "x".into(),

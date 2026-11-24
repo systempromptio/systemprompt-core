@@ -14,7 +14,7 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_instance, unique_user_id};
 
 async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
     let db = test_db_pool().await;
@@ -38,7 +38,7 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
         .expect("app paths"),
     );
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("lifecycle-smoke"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -62,7 +62,7 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
 
     let config = McpServerConfig {
         name: format!("ghost-{}", uuid::Uuid::new_v4().simple()),
-        owner: fixture_user_id(),
+        owner: unique_user_id("lifecycle-smoke"),
         server_type: McpServerType::Internal,
         binary: Some("nonexistent-bin".to_string()),
         enabled: true,

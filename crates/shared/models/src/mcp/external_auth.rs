@@ -8,7 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::errors::ServicesValidationError;
+use crate::errors::{ServicesValidationError, ValidationSubject};
 
 /// Per-user bearer resolution for an `external` MCP server.
 ///
@@ -50,22 +50,25 @@ pub(super) fn validate_external_auth(
     ext: &ExternalAuth,
 ) -> Result<(), ServicesValidationError> {
     if ext.token_endpoint.starts_with("http://") || ext.token_endpoint.starts_with("https://") {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.token_endpoint must be a relative \
+        return Err(ServicesValidationError::invalid_field(
+            ValidationSubject::named("MCP server", name),
+            "external_auth.token_endpoint must be a relative \
                  path (e.g. /api/public/<provider>/token); the host is derived from \
-                 server.api_external_url. Remove the scheme+host prefix."
-        )));
+                 server.api_external_url. Remove the scheme+host prefix.",
+        ));
     }
     if !ext.token_endpoint.starts_with('/') {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.token_endpoint must be an absolute \
-                 path beginning with '/'."
-        )));
+        return Err(ServicesValidationError::invalid_field(
+            ValidationSubject::named("MCP server", name),
+            "external_auth.token_endpoint must be an absolute \
+                 path beginning with '/'.",
+        ));
     }
     if ext.header.trim().is_empty() {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.header must not be empty."
-        )));
+        return Err(ServicesValidationError::invalid_field(
+            ValidationSubject::named("MCP server", name),
+            "external_auth.header must not be empty.",
+        ));
     }
     Ok(())
 }

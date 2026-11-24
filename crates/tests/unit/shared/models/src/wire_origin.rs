@@ -350,7 +350,9 @@ fn every_enum_round_trips_through_its_column_string() {
     }
     assert_eq!(
         ClientKind::parse("gpt"),
-        Err(OriginParseError::ClientKind("gpt".to_owned()))
+        Err(OriginParseError::ClientKind {
+            value: "gpt".to_owned()
+        })
     );
     let strings: std::collections::BTreeSet<&str> =
         ClientKind::ALL.iter().map(|kind| kind.as_str()).collect();
@@ -365,7 +367,9 @@ fn every_enum_round_trips_through_its_column_string() {
     }
     assert_eq!(
         InboundWireProtocol::parse("grpc"),
-        Err(OriginParseError::WireProtocol("grpc".to_owned()))
+        Err(OriginParseError::WireProtocol {
+            value: "grpc".to_owned()
+        })
     );
 
     for tier in ClientAttestation::ALL {
@@ -373,7 +377,9 @@ fn every_enum_round_trips_through_its_column_string() {
     }
     assert_eq!(
         ClientAttestation::parse("Host-Token"),
-        Err(OriginParseError::Attestation("Host-Token".to_owned()))
+        Err(OriginParseError::Attestation {
+            value: "Host-Token".to_owned()
+        })
     );
     assert!(ClientAttestation::HostToken < ClientAttestation::Declared);
     assert!(ClientAttestation::Declared < ClientAttestation::UserAgent);

@@ -11,6 +11,7 @@
 
 mod installation;
 mod migrations;
+mod schema_name;
 mod validation;
 
 pub mod schema_member;
@@ -35,6 +36,7 @@ pub use migrations::{
     is_retirement,
 };
 pub use schema_member::{SchemaMember, SchemaUnit, schema_members};
+pub use schema_name::{SchemaName, SchemaNameError};
 pub use validation::{
     ReplicaStatus, replica_status, validate_column_exists, validate_database_connection,
     validate_table_exists, validate_write_pool_is_primary,

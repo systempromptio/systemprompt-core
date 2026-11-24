@@ -168,7 +168,7 @@ pub(super) fn refuse_proxy_target(
 ) -> Result<(), OutboundUrlError> {
     let host = target.host_str().unwrap_or_default().to_ascii_lowercase();
     if loopback == LoopbackPolicy::Deny && proxy_hosts.iter().any(|p| p == &host) {
-        return Err(OutboundUrlError::ProxyHost(host));
+        return Err(OutboundUrlError::ProxyHost { host });
     }
     Ok(())
 }

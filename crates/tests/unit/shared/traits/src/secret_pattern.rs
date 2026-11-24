@@ -47,7 +47,7 @@ fn an_empty_name_a_bare_wildcard_and_a_misplaced_wildcard_are_refused() {
         assert!(
             matches!(
                 SecretPattern::parse(text),
-                Err(SecretPatternError::MisplacedWildcard(_))
+                Err(SecretPatternError::MisplacedWildcard { .. })
             ),
             "{text}"
         );

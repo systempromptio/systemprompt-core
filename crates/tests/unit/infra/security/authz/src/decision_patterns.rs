@@ -11,7 +11,7 @@ use systemprompt_governance::authz::{
     ParentChainIndex, ResolveBase,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, RuleId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn role(value: &str, access: Access) -> AccessRule {
     AccessRule {
@@ -46,7 +46,7 @@ fn decide(
     roles: &[&str],
     model: &str,
 ) -> Decision {
-    let user = fixture_user_id();
+    let user = unique_user_id("decision-patterns");
     let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
     index.resolve(
         EntityKind::GatewayRoute,
@@ -148,7 +148,7 @@ fn a_decision_without_facts_ignores_entitlements() {
         vec![role("eng", Access::Allow)],
         false,
     )]);
-    let user = fixture_user_id();
+    let user = unique_user_id("decision-patterns");
     let roles = vec!["user".to_owned()];
 
     let parents = idx.pattern_parents(
@@ -174,7 +174,7 @@ fn a_decision_without_facts_ignores_entitlements() {
 }
 
 fn decide_model(index: &ParentChainIndex, roles: &[&str], model: &str) -> Decision {
-    let user = fixture_user_id();
+    let user = unique_user_id("decision-patterns");
     let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
     index.resolve(
         EntityKind::Model,

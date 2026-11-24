@@ -66,12 +66,12 @@ async fn a_failing_body_stream_leaves_neither_target_nor_staging() {
             Path::new("up/broken.bin"),
             stream(vec![
                 Ok(Bytes::from_static(b"first")),
-                Err(FileStorageError::NotFound("upstream".to_owned())),
+                Err(FileStorageError::NotFound(StoredFileId::new("upstream"))),
             ]),
         )
         .await
         .expect_err("body failed");
-    assert!(matches!(err, FileStorageError::NotFound(ref what) if what == "upstream"));
+    assert!(matches!(err, FileStorageError::NotFound(ref what) if what.as_str() == "upstream"));
     assert!(entries(&dir.path().join("up")).is_empty());
     assert!(
         !storage
@@ -124,5 +124,5 @@ async fn metadata_of_a_directory_is_not_found() {
         .metadata(&StoredFileId::new("bdir"))
         .await
         .expect_err("not a file");
-    assert!(matches!(err, FileStorageError::NotFound(ref id) if id == "bdir"));
+    assert!(matches!(err, FileStorageError::NotFound(ref id) if id.as_str() == "bdir"));
 }

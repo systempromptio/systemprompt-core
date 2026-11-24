@@ -14,7 +14,7 @@ use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_user_id, test_db_pool, unique_instance,
+    ensure_test_bootstrap, test_db_pool, unique_instance, unique_user_id,
 };
 
 async fn make_orchestrator() -> McpOrchestrator {
@@ -44,7 +44,7 @@ async fn make_orchestrator_and_repo() -> (McpOrchestrator, ServiceRepository) {
         .expect("app paths"),
     );
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("orchestrator-smoke"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );

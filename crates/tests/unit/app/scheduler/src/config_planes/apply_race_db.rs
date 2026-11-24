@@ -12,12 +12,14 @@ use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::{
     ApplyOptions, ConfigApplyService, ConfigReconcileService, MergeReport, PlaneMerge,
 };
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{ScratchSchema, test_db_pool};
 
-use super::db_plane::{DbPlane, ensure_table, seed_rows, stored_rows};
+use super::db_plane::{DbPlane, PlaneRows, ensure_table, seed_rows, stored_rows};
 use super::fake_plane::unique_plane_name;
 
 struct Race {
+    scratch: ScratchSchema,
+    rows: PlaneRows,
     pool: DbPool,
     name: &'static str,
     plane: Arc<DbPlane>,
@@ -27,17 +29,30 @@ struct Race {
 impl Race {
     async fn new(prefix: &str) -> Self {
         let pool = test_db_pool().await;
-        ensure_table(&pool).await;
+        let scratch = ScratchSchema::create("plane_race").await;
+        let rows = PlaneRows::in_scratch(&scratch);
+        ensure_table(&pool, &rows).await;
         let plane = Arc::new(DbPlane::new(
             unique_plane_name(prefix),
             &Arc::new(Mutex::new(Vec::new())),
+            rows.clone(),
         ));
         Self {
+            scratch,
+            rows,
             pool,
             name: plane.name,
             plane,
             root: tempfile::tempdir().expect("tempdir"),
         }
+    }
+
+    async fn finish(self) {
+        self.scratch.drop_now().await;
+    }
+
+    async fn stored(&self) -> PlaneSnapshot {
+        stored_rows(&self.pool, &self.rows, self.name).await
     }
 
     fn declare(&self, lines: &[(&str, &str)]) {
@@ -75,13 +90,16 @@ impl Race {
     }
 
     async fn console_edit(&self, entity: &str, value: &str) {
-        sqlx::query("UPDATE plane_e2e.rows SET value = $3 WHERE plane = $1 AND entity = $2")
-            .bind(self.name)
-            .bind(entity)
-            .bind(value)
-            .execute(&*self.pool.write_pool())
-            .await
-            .expect("console edit");
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "UPDATE {} SET value = $3 WHERE plane = $1 AND entity = $2",
+            self.rows.qualified()
+        )))
+        .bind(self.name)
+        .bind(entity)
+        .bind(value)
+        .execute(&*self.pool.write_pool())
+        .await
+        .expect("console edit");
     }
 
     async fn audit_rows(&self) -> usize {
@@ -139,6 +157,7 @@ async fn neither_side_moved_both_appliers_are_no_ops() {
     assert!(x.applied.is_empty() && y.applied.is_empty());
     assert_eq!((x.unchanged, y.unchanged), (1, 1));
     assert_eq!(r.audit_rows().await, audit);
+    r.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -156,10 +175,8 @@ async fn only_the_file_moved_exactly_one_applier_writes_it() {
     let winner = if x.applied.is_empty() { &y } else { &x };
     assert_eq!(winner.applied, vec!["a", "b", "gone"]);
     assert_eq!(r.audit_rows().await, audit + 3);
-    assert_eq!(
-        stored_rows(&r.pool, r.name).await,
-        snapshot(&[("a", "2"), ("b", "3")])
-    );
+    assert_eq!(r.stored().await, snapshot(&[("a", "2"), ("b", "3")]));
+    r.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -178,15 +195,13 @@ async fn only_the_database_moved_the_console_edit_is_kept_as_drift() {
     );
     assert!(x.applied.is_empty() && y.applied.is_empty());
     assert_eq!(r.audit_rows().await, audit);
-    assert_eq!(
-        stored_rows(&r.pool, r.name).await,
-        snapshot(&[("a", "console")])
-    );
+    assert_eq!(r.stored().await, snapshot(&[("a", "console")]));
 
     let patches = r.service().export_patches(&[]).await.expect("export");
     assert_eq!(patches.len(), 1);
     assert_eq!(patches[0].text, "a=console\n");
     assert_eq!(patches[0].entities, vec!["a"]);
+    r.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -203,10 +218,7 @@ async fn both_moved_one_conflict_is_recorded_and_nothing_is_written() {
     assert_eq!((x.conflicts.len(), y.conflicts.len()), (1, 1));
     assert_eq!(r.open_conflicts().await, 1);
     assert_eq!(r.audit_rows().await, audit);
-    assert_eq!(
-        stored_rows(&r.pool, r.name).await,
-        snapshot(&[("a", "console")])
-    );
+    assert_eq!(r.stored().await, snapshot(&[("a", "console")]));
 
     r.console_edit("a", "2").await;
     let settled = r.apply(false).await;
@@ -216,12 +228,13 @@ async fn both_moved_one_conflict_is_recorded_and_nothing_is_written() {
         0,
         "agreeing sides close the conflict"
     );
+    r.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_first_apply_adopts_the_database_and_only_inserts_what_it_lacks() {
     let r = Race::new("race_adopt").await;
-    seed_rows(&r.pool, r.name, &[("a", "console"), ("mine", "m")]).await;
+    seed_rows(&r.pool, &r.rows, r.name, &[("a", "console"), ("mine", "m")]).await;
     r.declare(&[("a", "1"), ("b", "2")]);
 
     let first = r.apply(false).await;
@@ -230,13 +243,14 @@ async fn the_first_apply_adopts_the_database_and_only_inserts_what_it_lacks() {
     assert_eq!(first.applied, vec!["b"]);
     assert_eq!(first.drift, vec!["a", "mine"]);
     assert_eq!(
-        stored_rows(&r.pool, r.name).await,
+        r.stored().await,
         snapshot(&[("a", "console"), ("b", "2"), ("mine", "m")])
     );
     let second = r.apply(false).await;
     assert!(!second.adopted);
     assert!(second.applied.is_empty());
     assert_eq!(second.drift, vec!["a", "mine"]);
+    r.finish().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -247,7 +261,8 @@ async fn a_dry_run_reports_the_merge_and_writes_nothing() {
     let dry = r.apply(true).await;
 
     assert_eq!(dry.applied, vec!["a"]);
-    assert!(stored_rows(&r.pool, r.name).await.is_empty());
+    assert!(r.stored().await.is_empty());
     assert_eq!(r.audit_rows().await, 0);
     assert!(r.apply(false).await.adopted, "a dry run records no base");
+    r.finish().await;
 }

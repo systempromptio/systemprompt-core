@@ -22,7 +22,7 @@ fn create_test_client_row() -> OAuthClientRow {
         created_at: Utc::now(),
         updated_at: Utc::now(),
         last_used_at: Some(Utc::now()),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: systemprompt_test_fixtures::unique_user_id("request-and-response"),
     }
 }
 

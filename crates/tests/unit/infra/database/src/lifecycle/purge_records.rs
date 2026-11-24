@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::{
-    DbPool, MigrationConfig, SchemaMember, SchemaUnit, install_schema_members,
+    DbPool, MigrationConfig, SchemaMember, SchemaName, SchemaUnit, install_schema_members,
 };
 use systemprompt_extension::{
     ExtensionMetadata, LoaderError, PurgeAdmissionError, PurgeDeclaration, SchemaDefinition,
@@ -74,9 +74,14 @@ fn notes(purges: Vec<PurgeDeclaration>) -> Arc<dyn SchemaMember> {
 }
 
 async fn install(pool: &DbPool, members: Vec<Arc<dyn SchemaMember>>) -> Result<(), LoaderError> {
-    install_schema_members(&members, pool.write(), MigrationConfig::default())
-        .await
-        .map(drop)
+    install_schema_members(
+        &members,
+        pool.write(),
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await
+    .map(drop)
 }
 
 async fn recorded(pool: &DbPool, member: &str) -> Option<Vec<PurgeDeclaration>> {

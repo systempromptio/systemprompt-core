@@ -33,8 +33,8 @@ pub enum DomainConfigError {
         source: std::io::Error,
     },
 
-    #[error("Config file not found: {0}")]
-    NotFound(String),
+    #[error("Config file not found: skills_path not configured")]
+    SkillsPathNotConfigured,
 
     #[error("Failed to parse config: {message}")]
     ParseError { message: String },

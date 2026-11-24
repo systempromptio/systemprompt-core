@@ -9,7 +9,7 @@ use systemprompt_identifiers::AgentId;
 
 use super::card::{AgentCardConfig, AgentMetadataConfig, OAuthConfig, default_true};
 use super::{AgentConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE};
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::plugin::PluginComponentRef;
 use systemprompt_models::subprocess::SecretGrant;
 
@@ -118,9 +118,10 @@ impl DiskAgentConfig {
         if let Some(id) = &self.id
             && id.as_str() != dir_name
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent config id '{id}' does not match directory name '{dir_name}'"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent config id", id),
+                format!("does not match directory name '{dir_name}'"),
+            ));
         }
 
         if !self
@@ -128,33 +129,33 @@ impl DiskAgentConfig {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent name '{}' must be lowercase alphanumeric with underscores only",
-                self.name
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent name", &self.name),
+                "must be lowercase alphanumeric with underscores only",
+            ));
         }
 
         if self.name.len() < 3 || self.name.len() > 50 {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent name '{}' must be between 3 and 50 characters",
-                self.name
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent name", &self.name),
+                "must be between 3 and 50 characters",
+            ));
         }
 
         super::validate_agent_grants(&self.name, &self.secrets)?;
 
         if self.port == 0 {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Agent '{}' has invalid port {}",
-                self.name, self.port
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::clause("Agent", &self.name),
+                format!("has invalid port {}", self.port),
+            ));
         }
 
         if self.display_name.is_empty() {
-            return Err(ServicesValidationError::required(format!(
-                "Agent '{}' display_name must not be empty",
-                self.name
-            )));
+            return Err(ServicesValidationError::required(
+                ValidationSubject::clause("Agent", &self.name),
+                "display_name must not be empty",
+            ));
         }
 
         Ok(())

@@ -100,12 +100,13 @@ async fn start_and_complete_execution_roundtrip() {
 
     let db = test_db_pool().await;
     let repo = ToolUsageRepository::new(&db);
+    let user_id = UserId::generate();
     let ctx = RequestContext::new(
         SessionId::new("s1"),
         TraceId::new("t1"),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
-        systemprompt_identifiers::Actor::user(UserId::new("test-user")),
+        systemprompt_identifiers::Actor::user(user_id.clone()),
     );
 
     let started_at = Utc::now();
@@ -174,7 +175,7 @@ async fn start_and_complete_execution_roundtrip() {
     .await
     .unwrap();
     assert_eq!(actor_kind.as_deref(), Some("user"));
-    assert_eq!(actor_id.as_deref(), Some("test-user"));
+    assert_eq!(actor_id.as_deref(), Some(user_id.as_str()));
     assert_eq!(request_method.as_deref(), Some("mcp"));
     assert_eq!(request_source.as_deref(), Some("srv-x"));
 }

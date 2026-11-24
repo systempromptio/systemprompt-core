@@ -21,7 +21,7 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 
 use systemprompt_test_fixtures::unique_instance;
 
@@ -47,7 +47,7 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
         .expect("app paths"),
     );
     let registry = RegistryService::new(
-        fixture_user_id(),
+        unique_user_id("lifecycle-deep"),
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
@@ -71,7 +71,7 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
 fn make_config(name: &str, port: u16) -> McpServerConfig {
     McpServerConfig {
         name: name.to_owned(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("lifecycle-deep"),
         server_type: McpServerType::Internal,
         binary: Some(format!("{name}-bin")),
         enabled: true,

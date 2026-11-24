@@ -4,12 +4,12 @@ use std::time::Duration;
 use systemprompt_events::{Broadcaster, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
-use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 type TestBroadcaster = GenericBroadcaster<SystemEvent>;
 
 fn test_user_id() -> UserId {
-    fixture_user_id()
+    unique_user_id("basics-and-registration")
 }
 
 #[test]

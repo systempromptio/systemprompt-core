@@ -5,16 +5,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{ConnectorConfig, ConnectorGrant};
-use crate::errors::ServicesValidationError;
+use crate::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_identifiers::{ConnectorAppId, ConnectorInstallationId};
 
 impl ConnectorConfig {
     pub(super) fn validate_grant(&self, name: &str) -> Result<(), ServicesValidationError> {
         let grant = self.grant.as_str();
         let invalid = |message: String| {
-            ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': connector grant {grant} {message}"
-            ))
+            ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                format!("connector grant {grant} {message}"),
+            )
         };
         let present = |field: Option<&str>| field.is_some_and(|v| !v.trim().is_empty());
         let require = |field: Option<&str>, label: &str| {

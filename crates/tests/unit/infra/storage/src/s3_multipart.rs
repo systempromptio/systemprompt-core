@@ -198,7 +198,9 @@ async fn a_source_error_mid_stream_aborts_and_surfaces_the_source_error() {
     let body = stream_of(vec![
         Ok(Bytes::from(vec![b'a'; CHUNK])),
         Ok(Bytes::from(vec![b'b'; CHUNK])),
-        Err(FileStorageError::NotFound("source".to_owned())),
+        Err(FileStorageError::NotFound(
+            systemprompt_traits::StoredFileId::new("source"),
+        )),
     ]);
     let error = storage(&server)
         .store_stream(Path::new("big.bin"), body)

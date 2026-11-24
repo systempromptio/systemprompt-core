@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::lifecycle::schema_member::SchemaMember;
+use crate::lifecycle::schema_name::SchemaName;
 use systemprompt_extension::{LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 
@@ -57,10 +58,12 @@ pub(super) fn validate_table_ownership(
 pub(super) async fn validate_extension_columns(
     db: &dyn DatabaseProvider,
     cols: &ColumnsToValidate,
+    target: &SchemaName,
     extension_id: &ExtensionId,
 ) -> Result<(), LoaderError> {
+    let schema = cols.schema.as_deref().unwrap_or(target.as_str());
     for column in &cols.columns {
-        validate_single_column(db, &cols.schema, &cols.table, column, extension_id).await?;
+        validate_single_column(db, schema, &cols.table, column, extension_id).await?;
     }
     Ok(())
 }

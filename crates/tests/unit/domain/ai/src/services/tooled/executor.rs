@@ -152,9 +152,7 @@ mod tooled_executor_tests {
                 .expect("lock")
                 .push((request.name.clone(), service_id.to_string()));
             if self.fail {
-                return Err(ToolProviderError::ExecutionFailed(
-                    "scripted failure".into(),
-                ));
+                return Err(ToolProviderError::Internal("scripted failure".into()));
             }
             Ok(ToolCallResult {
                 content: vec![ToolContent::text(format!("ran {}", request.name))],

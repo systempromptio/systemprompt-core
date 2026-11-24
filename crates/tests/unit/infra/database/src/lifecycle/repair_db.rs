@@ -5,7 +5,9 @@ use systemprompt_extension::{
     SchemaDefinition,
 };
 
-use crate::services::db_helper::test_pool;
+use systemprompt_test_fixtures::ScratchSchema;
+
+use crate::services::db_helper::scratch_pool;
 
 struct Ext {
     id: &'static str,
@@ -40,27 +42,15 @@ impl Extension for Ext {
     }
 }
 
-async fn provider() -> PostgresProvider {
-    PostgresProvider::from_pool(test_pool().await.write_pool())
-}
-
-async fn reset(provider: &PostgresProvider, ext: &str, table: &str) {
-    provider
-        .execute_raw(&format!(
-            "DELETE FROM extension_migrations WHERE extension_id = '{ext}'"
-        ))
-        .await
-        .expect("clear tracking");
-    provider
-        .execute_raw(&format!("DROP TABLE IF EXISTS {table}"))
-        .await
-        .expect("drop table");
+async fn provider() -> (ScratchSchema, PostgresProvider) {
+    let (scratch, db) = scratch_pool("repair").await;
+    (scratch, PostgresProvider::from_pool(db.write_pool()))
 }
 
 async fn column_exists(provider: &PostgresProvider, table: &str, column: &str) -> bool {
     let row: (bool,) = sqlx::query_as(
-        "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND \
-         column_name = $2)",
+        "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = \
+         current_schema() AND table_name = $1 AND column_name = $2)",
     )
     .bind(table)
     .bind(column)
@@ -72,8 +62,7 @@ async fn column_exists(provider: &PostgresProvider, table: &str, column: &str) -
 
 #[tokio::test]
 async fn a_drifted_no_transaction_migration_is_reapplied_and_restamped() {
-    let provider = provider().await;
-    reset(&provider, "repair_nt_ext", "repair_nt_t").await;
+    let (scratch, provider) = provider().await;
     let service = MigrationService::new(&provider);
 
     let original = Ext {
@@ -128,12 +117,12 @@ async fn a_drifted_no_transaction_migration_is_reapplied_and_restamped() {
         .expect("repair noop");
     assert_eq!(again.reapplied, 0);
     assert!(again.repaired.is_empty());
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_failing_no_transaction_reapply_keeps_the_drift_tracked() {
-    let provider = provider().await;
-    reset(&provider, "repair_ntfail_ext", "repair_ntfail_t").await;
+    let (scratch, provider) = provider().await;
     let service = MigrationService::new(&provider);
 
     let original = Ext {
@@ -180,12 +169,12 @@ async fn a_failing_no_transaction_reapply_keeps_the_drift_tracked() {
             .len(),
         1
     );
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_failing_transactional_reapply_rolls_back_and_stays_drifted() {
-    let provider = provider().await;
-    reset(&provider, "repair_tx_ext", "repair_tx_t").await;
+    let (scratch, provider) = provider().await;
     let service = MigrationService::new(&provider);
 
     let original = Ext {
@@ -240,12 +229,12 @@ async fn a_failing_transactional_reapply_rolls_back_and_stays_drifted() {
             .drift
             .is_empty()
     );
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn reconcile_without_drift_is_a_noop() {
-    let provider = provider().await;
-    reset(&provider, "repair_clean_ext", "repair_clean_t").await;
+    let (scratch, provider) = provider().await;
     let service = MigrationService::new(&provider);
     let ext = Ext {
         id: "repair_clean_ext",
@@ -265,4 +254,5 @@ async fn reconcile_without_drift_is_a_noop() {
         .expect("reconcile");
     assert!(result.repaired.is_empty());
     assert_eq!(result.migrations_run, 0);
+    scratch.drop_now().await;
 }

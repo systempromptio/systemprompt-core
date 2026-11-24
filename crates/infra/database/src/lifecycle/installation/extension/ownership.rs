@@ -60,6 +60,7 @@ use super::super::prepare::PreparedSchema;
 use super::super::undeclared::qualify;
 use super::object_owners::{record_object_owners, recorded_object_owners, release_stale_records};
 use crate::lifecycle::migrations::MigrationService;
+use crate::lifecycle::schema_name::SchemaName;
 use crate::services::DatabaseProvider;
 
 const OWNERS_PRESENT_SQL: &str = "SELECT to_regclass('schema_table_owners') IS NOT NULL AS present";
@@ -117,9 +118,10 @@ pub(super) async fn check_pending_migration_owners(
     migration_service: &MigrationService<'_>,
     judged: MigrationMembers<'_>,
     prepared: &[PreparedSchema],
+    target: &SchemaName,
 ) -> Result<(), LoaderError> {
     let members: Vec<_> = judged.judged().cloned().collect();
-    let fresh = super::fresh_extension_ids(migration_service, &members, prepared).await?;
+    let fresh = super::fresh_extension_ids(migration_service, &members, prepared, target).await?;
     let mut applied: BTreeMap<ExtensionId, BTreeSet<u32>> = BTreeMap::new();
     for member in members
         .iter()

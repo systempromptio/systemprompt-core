@@ -160,7 +160,9 @@ impl ConfigPlaneSet {
         self.planes
             .iter()
             .find(|p| p.name() == name)
-            .ok_or_else(|| ConfigPlaneError::UnknownPlane(name.to_owned()))
+            .ok_or_else(|| ConfigPlaneError::UnknownPlane {
+                plane: name.to_owned(),
+            })
     }
 
     #[must_use]
@@ -219,7 +221,9 @@ fn dependency_order(
     let mut seen = HashSet::new();
     for plane in &planes {
         if !seen.insert(plane.name()) {
-            return Err(ConfigPlaneError::DuplicatePlane(plane.name().to_owned()));
+            return Err(ConfigPlaneError::DuplicatePlane {
+                plane: plane.name(),
+            });
         }
     }
     for plane in &planes {
@@ -240,7 +244,7 @@ fn dependency_order(
         });
         let Some(index) = ready else {
             let stuck = pending.iter().flatten().next().map_or("", |p| p.name());
-            return Err(ConfigPlaneError::DependencyCycle(stuck.to_owned()));
+            return Err(ConfigPlaneError::DependencyCycle { plane: stuck });
         };
         if let Some(plane) = pending.get_mut(index).and_then(Option::take) {
             placed.insert(plane.name());

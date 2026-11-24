@@ -18,7 +18,7 @@ fn create_test_client_row() -> OAuthClientRow {
         created_at: Utc::now(),
         updated_at: Utc::now(),
         last_used_at: Some(Utc::now()),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: systemprompt_test_fixtures::unique_user_id("client-validation"),
     }
 }
 
@@ -63,7 +63,7 @@ fn test_oauth_client_from_row_with_default_values() {
         created_at: Utc::now(),
         updated_at: Utc::now(),
         last_used_at: None,
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: systemprompt_test_fixtures::unique_user_id("client-validation"),
     };
 
     let relations = create_test_relations();

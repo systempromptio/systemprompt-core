@@ -9,16 +9,16 @@ pub enum DesktopPolicyError {
     SchemaVersion,
     #[error("Desktop settings catalog: {0}")]
     Catalog(#[from] serde_json::Error),
-    #[error("unsupported Desktop setting {0}; use the documented current spelling")]
-    Unsupported(String),
-    #[error("{0} is controlled by the Bridge or inapplicable to gateway mode")]
-    Reserved(String),
+    #[error("unsupported Desktop setting {setting}; use the documented current spelling")]
+    Unsupported { setting: String },
+    #[error("{setting} is controlled by the Bridge or inapplicable to gateway mode")]
+    Reserved { setting: String },
     #[error("{setting} requires {expected}")]
     InvalidType { setting: String, expected: String },
-    #[error("{0} is outside its documented range")]
-    Range(String),
-    #[error("{0} has an unsupported enum value")]
-    EnumValue(String),
+    #[error("{setting} is outside its documented range")]
+    Range { setting: String },
+    #[error("{setting} has an unsupported enum value")]
+    EnumValue { setting: String },
     #[error(
         "builtinToolPolicy decisions must be allow or ask; use disabledBuiltinTools to deny tools"
     )]
@@ -31,6 +31,6 @@ pub enum DesktopPolicyError {
     Field { setting: String, field: String },
     #[error("inferenceModelPricing rows require a name and all four prices")]
     PricingFields,
-    #[error("{0} rows require serverUrl")]
-    ServerUrl(String),
+    #[error("{setting} rows require serverUrl")]
+    ServerUrl { setting: String },
 }

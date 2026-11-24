@@ -11,7 +11,7 @@ use systemprompt_mcp::services::process::spawner::{
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
     let paths = PathsConfig {
@@ -60,7 +60,7 @@ fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
 fn make_config(binary: &str) -> McpServerConfig {
     McpServerConfig {
         name: "verify-bin".to_string(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("process-spawner"),
         server_type: McpServerType::Internal,
         binary: Some(binary.to_string()),
         enabled: true,

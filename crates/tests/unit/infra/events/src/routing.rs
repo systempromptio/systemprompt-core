@@ -9,7 +9,7 @@ use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,
     SystemEvent,
 };
-use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -24,7 +24,7 @@ async fn next_frame(
 }
 
 fn test_user_id() -> UserId {
-    fixture_user_id()
+    unique_user_id("routing")
 }
 
 fn test_agui_event() -> AgUiEvent {

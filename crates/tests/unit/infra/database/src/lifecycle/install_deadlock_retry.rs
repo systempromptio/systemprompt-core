@@ -10,7 +10,7 @@ use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_extension::SchemaDefinition;
 
-use super::installation::{StubExtension, drop_table, provider_and_db, registry_with, unique_id};
+use super::installation::{StubExtension, provider_and_db, registry_with, unique_id};
 use super::members::install;
 
 async fn run(db: &DbPool, sql: String) {
@@ -41,7 +41,7 @@ async fn trigger_count(db: &DbPool, names: [&str; 2]) -> i64 {
 
 #[tokio::test]
 async fn a_phase_that_deadlocks_with_a_writer_is_retried() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_deadlock").await;
     let a = unique_id("dl_a");
     let b = unique_id("dl_b");
     let function = unique_id("dl_fn");
@@ -90,7 +90,8 @@ async fn a_phase_that_deadlocks_with_a_writer_is_retried() {
     .await
     .expect("writer holds a row lock on b");
 
-    let install = tokio::spawn(async move { install(&registry, &provider).await });
+    let target = scratch.schema_name();
+    let install = tokio::spawn(async move { install(&registry, &provider, &target).await });
 
     let mut blocked = false;
     for _ in 0..200 {
@@ -118,7 +119,5 @@ async fn a_phase_that_deadlocks_with_a_writer_is_retried() {
     report.expect("the deadlocked phase was retried and succeeded");
     assert_eq!(trigger_count(&db, [trigger_a, trigger_b]).await, 2);
 
-    drop_table(&db, a).await;
-    drop_table(&db, b).await;
-    run(&db, format!("DROP FUNCTION IF EXISTS \"{function}\"()")).await;
+    scratch.drop_now().await;
 }

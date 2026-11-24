@@ -1,7 +1,7 @@
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
 use systemprompt_identifiers::{AgentName, JwtToken, McpServerId};
-use systemprompt_test_fixtures::fixture_actor;
+use systemprompt_test_fixtures::unique_user_id;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider, ToolProviderError};
 
 mod noop_default_tests {
@@ -32,7 +32,10 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn call_tool_error_contains_tool_name() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("token"));
+        let context = ToolContext::new(systemprompt_identifiers::Actor::user(unique_user_id(
+            "noop-provider-extended",
+        )))
+        .with_auth_token(JwtToken::new("token"));
         let request = ToolCallRequest {
             tool_call_id: systemprompt_identifiers::AiToolCallId::new("id-1"),
             name: "specific_tool_name".to_string(),
@@ -54,7 +57,10 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn call_tool_error_is_no_tools() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("token"));
+        let context = ToolContext::new(systemprompt_identifiers::Actor::user(unique_user_id(
+            "noop-provider-extended",
+        )))
+        .with_auth_token(JwtToken::new("token"));
         let request = ToolCallRequest {
             tool_call_id: systemprompt_identifiers::AiToolCallId::new("id-2"),
             name: "any_tool".to_string(),
@@ -79,7 +85,10 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn call_tool_ignores_service_id() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("token"));
+        let context = ToolContext::new(systemprompt_identifiers::Actor::user(unique_user_id(
+            "noop-provider-extended",
+        )))
+        .with_auth_token(JwtToken::new("token"));
         let request = ToolCallRequest {
             tool_call_id: systemprompt_identifiers::AiToolCallId::new("id-3"),
             name: "tool".to_string(),
@@ -116,7 +125,10 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn list_tools_ignores_agent_name() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("token"));
+        let context = ToolContext::new(systemprompt_identifiers::Actor::user(unique_user_id(
+            "noop-provider-extended",
+        )))
+        .with_auth_token(JwtToken::new("token"));
 
         let tools_a = provider
             .list_tools(
