@@ -17,22 +17,28 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::error::ApiHttpError;
 use axum::Json;
+use axum::http::StatusCode;
 use serde_json::json;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_manifest::services::ServiceModule;
+use systemprompt_models::BuildIdentity;
 use systemprompt_runtime::AppContext;
 
 use super::contributed::admitted_factories;
 use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
-use super::probes::ExtensionReadiness;
+use super::probes::{ExtensionReadiness, seed_error};
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, SlotError};
 use systemprompt_identifiers::ExtensionId;
 
 type ExtensionDiagnostic = (ExtensionId, Arc<dyn DiagnosticProbe>);
 
-async fn check_service_counts(ctx: &AppContext) -> (usize, &'static str, usize, &'static str) {
-    let service_repo = ctx.service_repository();
+async fn check_service_counts(
+    service_repo: &ServiceRepository,
+) -> (usize, &'static str, usize, &'static str) {
     let (ac, as_) = match service_repo
         .count_running_services(ServiceModule::Agent)
         .await
@@ -59,11 +65,11 @@ fn check_static_content(web_dir: &Path) -> (bool, bool) {
     )
 }
 
-async fn probe_database(ctx: &AppContext) -> (&'static str, u128) {
+async fn probe_database(db: &DbPool) -> (&'static str, u128) {
     use systemprompt_database::DatabaseProvider;
 
     let db_start = std::time::Instant::now();
-    let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
+    let probe = db.fetch_optional(&HEALTH_CHECK_QUERY, &[]);
     let status = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
         Ok(Ok(_)) => "healthy",
         Ok(Err(_)) | Err(_) => "unhealthy",
@@ -104,17 +110,25 @@ pub async fn handle_health_detail(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
     readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
     diagnostics: Option<axum::Extension<Arc<ExtensionDiagnostics>>>,
-) -> impl axum::response::IntoResponse {
-    use axum::http::StatusCode;
-
+) -> Result<(StatusCode, Json<serde_json::Value>), ApiHttpError> {
     let start = std::time::Instant::now();
+    let state = ctx.kernel().state();
+    let db = state.get::<DbPool>().map_err(seed_error)?;
+    let service_repo = state.get::<Arc<ServiceRepository>>().map_err(seed_error)?;
+    let build = state.get::<BuildIdentity>().map_err(seed_error)?;
 
-    let (db_status, db_latency_ms) = probe_database(&ctx).await;
+    let (db_status, db_latency_ms) = probe_database(db).await;
 
-    let (agent_count, agent_status, mcp_count, mcp_status) = check_service_counts(&ctx).await;
+    let (agent_count, agent_status, mcp_count, mcp_status) =
+        check_service_counts(service_repo).await;
     let (extensions_ok, extensions) = readiness_checks(readiness).await;
     let (diagnostics_ok, diagnostic_entries) = diagnostic_checks(diagnostics).await;
-    let web_dir = ctx.app_paths().web().dist().to_path_buf();
+    let web_dir = state
+        .get::<Arc<AppPaths>>()
+        .map_err(seed_error)?
+        .web()
+        .dist()
+        .to_path_buf();
     let (memory, (index_exists, sitemap_exists)) =
         tokio::task::spawn_blocking(move || (get_process_memory(), check_static_content(&web_dir)))
             .await
@@ -135,14 +149,14 @@ pub async fn handle_health_detail(
         (true, true) => ("healthy", StatusCode::OK),
     };
 
-    let system_stats = get_system_stats(ctx.db_pool().as_ref()).await;
+    let system_stats = get_system_stats(db.as_ref()).await;
     let check_duration_ms = start.elapsed().as_millis();
 
     let mut data = json!({
         "status": overall_status,
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "version": env!("CARGO_PKG_VERSION"),
-        "build": ctx.build_identity(),
+        "build": build,
         "checks": {
             "database": { "status": db_status, "latency_ms": db_latency_ms },
             "agents": { "status": agent_status, "count": agent_count },
@@ -175,7 +189,7 @@ pub async fn handle_health_detail(
         }
     }
 
-    (http_status, Json(data))
+    Ok((http_status, Json(data)))
 }
 
 /// The enabled extensions' non-gating diagnostic probes, reported by

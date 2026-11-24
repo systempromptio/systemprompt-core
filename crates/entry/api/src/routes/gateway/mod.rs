@@ -50,6 +50,7 @@ pub mod registered;
 
 use axum::Router;
 use std::sync::Arc;
+use systemprompt_database::DbPool;
 use systemprompt_documents::http::surface::{DynDriveSurface, FilesSurfaceError};
 use systemprompt_extension::Admitted;
 use systemprompt_extension::reserved::CoreId;
@@ -58,12 +59,16 @@ use systemprompt_gateway::{
     DynGatewaySurface, GatewayEngines, GatewayHostHandles, GatewayRouteState, GatewaySurfaceError,
     GatewaySurfaceRoutes,
 };
+use systemprompt_governance::authz::SharedAuthzHook;
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_models::auth::DynRequestAuthenticator;
-use systemprompt_provider_contracts::DependencyProvider;
+use systemprompt_provider_contracts::{DependencyProvider, MissingDependency};
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_traits::AppContext as _;
+use systemprompt_traits::ConfigWatch;
 
 use self::access_log::log_gateway_request;
 use self::builtin::confined;
@@ -82,18 +87,19 @@ fn surface_routes(
     };
     surface.build(GatewayRouteState {
         resolved: kernel.route_scoped(&owner, standing, &[]),
-        host: host_handles(ctx),
+        host: host_handles(ctx)?,
     })
 }
 
-pub fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
-    let profile = ctx.profile();
-    GatewayHostHandles {
-        services: ctx.services_state().clone(),
-        governance: ctx.governance_watch().clone(),
-        authz_hook: Arc::clone(ctx.authz_hook()),
+pub fn host_handles(ctx: &AppContext) -> Result<GatewayHostHandles, MissingDependency> {
+    let state = ctx.kernel().state();
+    let profile = state.get::<BootContext>()?.profile();
+    Ok(GatewayHostHandles {
+        services: state.get::<ServicesState>()?.clone(),
+        governance: state.get::<ConfigWatch<GovernanceEngine>>()?.clone(),
+        authz_hook: Arc::clone(state.get::<SharedAuthzHook>()?),
         analytics: ctx.analytics_provider(),
-        logging: ctx.logging().clone(),
+        logging: state.get::<LoggingRuntime>()?.clone(),
         payload_cap_bytes: profile.payload_cap_bytes(),
         quota: profile.quota_config(),
         unapplied_plane: profile.unapplied_plane_mode(),
@@ -102,7 +108,7 @@ pub fn host_handles(ctx: &AppContext) -> GatewayHostHandles {
             .cloud
             .as_ref()
             .and_then(|cloud| cloud.tenant_id.clone()),
-    }
+    })
 }
 
 pub(crate) fn gateway_repositories(
@@ -110,11 +116,11 @@ pub(crate) fn gateway_repositories(
 ) -> Result<systemprompt_gateway::GatewayRepositories, GatewaySurfaceError> {
     systemprompt_gateway::surface::repositories::gateway_repositories(
         &ctx.kernel().resolved(),
-        &host_handles(ctx),
+        &host_handles(ctx)?,
         ctx.kernel()
             .resolved()
             .get::<systemprompt_traits::DynContextMaterializer>()?,
-        ctx.db_pool(),
+        ctx.kernel().state().get::<DbPool>()?,
     )
 }
 
@@ -193,7 +199,10 @@ pub fn gateway_router(
         .fold(parts.traffic.merge(parts.bridge_auth), |routes, group| {
             routes.merge(group.router)
         });
-    Ok(with_access_log(ctx.logging(), routes))
+    Ok(with_access_log(
+        ctx.kernel().state().get::<LoggingRuntime>()?,
+        routes,
+    ))
 }
 
 pub(crate) struct GatewayMountParts {

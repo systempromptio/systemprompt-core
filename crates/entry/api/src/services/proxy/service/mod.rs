@@ -37,6 +37,7 @@ use std::sync::Arc;
 use systemprompt_database::{ServiceConfig, ServiceModule};
 use systemprompt_extension::router::DynProxyBackendResolver;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_runtime::AppContext;
@@ -127,11 +128,12 @@ impl ProxyService {
                 .await;
         }
 
-        if !ctx.config().role.supervises_processes() {
+        let config = Arc::clone(ctx.kernel().state().get::<Arc<Config>>()?);
+        if !config.role.supervises_processes() {
             return self.forward_to_owner(service_name, request, &ctx).await;
         }
-        if ctx.config().role.shares_process_ownership()
-            && !owner::forwarded_by_replica(request.headers(), service_name, &ctx)
+        if config.role.shares_process_ownership()
+            && !owner::forwarded_by_replica(request.headers(), service_name, &ctx)?
             && let Some(owner) = self.process_owner(service_name, &ctx).await?
         {
             return self.forward_to(&owner, service_name, request, &ctx).await;
@@ -161,7 +163,7 @@ impl ProxyService {
             .await?;
         }
 
-        let tokens = ctx.token_authority();
+        let tokens = Arc::clone(ctx.kernel().state().get::<Arc<dyn TokenAuthority>>()?);
         self.proxy_managed(
             ManagedRequest {
                 service: &service,

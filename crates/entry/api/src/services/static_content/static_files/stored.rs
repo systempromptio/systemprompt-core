@@ -11,10 +11,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
+use systemprompt_config::AppPaths;
 use systemprompt_manifest::paths::constants::storage;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
@@ -58,8 +60,17 @@ pub(super) async fn serve_files_path(
         .and_then(ByteRange::parse);
 
     let writable = LocalFileStorage::new(files.root);
-    let shipped = ctx
-        .app_paths()
+    let state = ctx.kernel().state();
+    let (paths, backend) = match (
+        state.get::<Arc<AppPaths>>(),
+        state.get::<Arc<dyn FileStorage>>(),
+    ) {
+        (Ok(paths), Ok(backend)) => (paths, backend),
+        (Err(missing), _) | (_, Err(missing)) => {
+            return ApiHttpError::from(missing).into_response();
+        },
+    };
+    let shipped = paths
         .storage()
         .shipped_files()
         .map(|root| LocalFileStorage::new(root.to_path_buf()));
@@ -69,7 +80,7 @@ pub(super) async fn serve_files_path(
     if let Some(shipped) = shipped.as_ref() {
         layers.push((shipped, &local_id));
     }
-    layers.push((ctx.file_storage().as_ref(), &backend_id));
+    layers.push((backend.as_ref(), &backend_id));
 
     for (layer, id) in layers {
         let opened = open_layer(layer, id, range, &req).await;

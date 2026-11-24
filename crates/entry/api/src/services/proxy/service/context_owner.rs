@@ -41,10 +41,10 @@ pub(super) async fn ensure_owned(
         .ok()
         .and_then(|value| ContextId::try_new(value.to_owned()).ok())
         .ok_or_else(not_owned)?;
-    let verified = user.map_or_else(
-        || AccessValidator::verified_caller(request_headers, service_name, ctx, req_context),
-        |user| Some(user.clone()),
-    );
+    let verified = match user {
+        Some(user) => Some(user.clone()),
+        None => AccessValidator::verified_caller(request_headers, service_name, ctx, req_context)?,
+    };
     let user = verified.ok_or_else(not_owned)?;
     let lookup_failed = |source: BoxedSource| ProxyError::ContextLookupFailed {
         service: service_name.to_string(),

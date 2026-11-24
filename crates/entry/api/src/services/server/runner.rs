@@ -15,12 +15,16 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use systemprompt_events::EventRouter;
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_identifiers::Actor;
-use systemprompt_runtime::AppContext;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::services::SchedulerHandle;
 use systemprompt_traits::{
-    Dependencies, JobContext, OwnedTask, Phase, RunnerService, StartupEventExt, StartupEventSender,
+    BackgroundTasks, Dependencies, JobContext, OwnedTask, Phase, RunnerService, StartupEventExt,
+    StartupEventSender,
 };
 
 use super::lifecycle::{
@@ -47,9 +51,10 @@ pub async fn run_server(
         .context("replica identity")?;
     tracing::info!(instance_id = %instance_claim.instance_id(), "replica identity claimed");
 
-    let plan = super::routes::role::lifecycle_plan(ctx.config().role);
+    let config = Arc::clone(ctx.kernel().state().get::<Arc<Config>>()?);
+    let plan = super::routes::role::lifecycle_plan(config.role);
     tracing::info!(
-        role = %ctx.config().role,
+        role = %config.role,
         scheduler = plan.scheduler,
         process_ownership = ?plan.process_ownership,
         runner_services = plan.runner_services,
@@ -71,7 +76,7 @@ pub async fn run_server(
     .await?;
     super::boot_steps::reconcile_document_folders(&ctx).await?;
     #[cfg(feature = "otel")]
-    super::boot_steps::start_otlp_export(&ctx);
+    super::boot_steps::start_otlp_export(&ctx)?;
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
@@ -85,7 +90,7 @@ pub async fn run_server(
     )?
     .layer(axum::Extension(Arc::clone(early.scheduler_health())));
     super::boot_steps::start_accounting_recovery(&ctx).await?;
-    let addr = ctx.server_address();
+    let addr = format!("{}:{}", config.host, config.port);
 
     early.activate(router);
     let metrics_listener = start_metrics_listener(&ctx, plan.scheduler, early.readiness()).await?;
@@ -118,12 +123,12 @@ async fn start_role_phases(
     scheduler_health: &SchedulerHealth,
     engines: Option<&Arc<systemprompt_gateway::GatewayEngines>>,
 ) -> Result<Option<SchedulerHandle>> {
-    start_event_bridge(ctx);
-    start_governance_watch(ctx);
-    start_services_watch(ctx);
-    start_registry_heartbeat(ctx);
-    start_secrets_refresh(ctx);
-    start_schema_watch(ctx);
+    start_event_bridge(ctx)?;
+    start_governance_watch(ctx)?;
+    start_services_watch(ctx)?;
+    start_registry_heartbeat(ctx)?;
+    start_secrets_refresh(ctx)?;
+    start_schema_watch(ctx)?;
     match plan.process_ownership {
         ProcessOwnership::None => {},
         ProcessOwnership::Local => {
@@ -134,7 +139,7 @@ async fn start_role_phases(
                 run_agents_phase(ctx, events).await?;
             }
         },
-        ProcessOwnership::Leased => start_leased_supervision(ctx),
+        ProcessOwnership::Leased => start_leased_supervision(ctx)?,
     }
     let scheduler_handle = if plan.scheduler {
         run_scheduler_phase(ctx, events, scheduler_health).await?
@@ -155,7 +160,8 @@ async fn serve_until_shutdown(
     scheduler_handle: Option<SchedulerHandle>,
     instance_claim: systemprompt_database::InstanceClaim,
 ) -> Result<()> {
-    let timings = ctx.config().shutdown;
+    let state = ctx.kernel().state();
+    let timings = state.get::<Arc<Config>>()?.shutdown;
     tracing::info!(
         pre_stop_delay_secs = timings.pre_stop_delay_secs,
         drain_grace_secs = timings.drain_grace_secs,
@@ -163,13 +169,13 @@ async fn serve_until_shutdown(
         total_budget_secs = timings.total_budget().as_secs(),
         "Shutdown budget; the orchestrator's termination grace must cover the total"
     );
-    let restart = ctx.shutdown_request().clone();
+    let restart = state.get::<ShutdownRequest>()?.clone();
     let readiness = Arc::clone(early.readiness());
     let serve_result = super::shutdown::join_within_drain_grace(
         early.join(),
         &restart,
         &timings,
-        ctx.background_tasks().stream_drain(),
+        state.get::<BackgroundTasks>()?.stream_drain(),
         &readiness,
     )
     .await;
@@ -180,10 +186,11 @@ async fn serve_until_shutdown(
     {
         tracing::debug!("Metrics listener had already stopped on the shutdown signal");
     }
-    super::shutdown::drain(ctx, scheduler_handle).await;
+    let drained = super::shutdown::drain(ctx, scheduler_handle).await;
     instance_claim.release().await;
     forced_exit.abort();
 
+    drained?;
     serve_result
 }
 
@@ -191,7 +198,7 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
     let shared = ctx.kernel().runtime_state();
     let mut started = 0usize;
     if let Some(consumer) = brain {
-        spawn_runner_service(ctx, &shared, consumer);
+        spawn_runner_service(ctx, &shared, consumer)?;
         tracing::info!(service = "brain", "runner service started");
         started += 1;
     }
@@ -205,7 +212,7 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
         .context("runner services")?;
     for (owner, service) in services {
         let name = service.name();
-        spawn_runner_service(ctx, &shared, service);
+        spawn_runner_service(ctx, &shared, service)?;
         tracing::info!(extension = %owner, service = name, "runner service started");
         started += 1;
     }
@@ -213,13 +220,19 @@ fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>
     Ok(())
 }
 
-fn spawn_runner_service(ctx: &AppContext, shared: &Dependencies, service: Arc<dyn RunnerService>) {
+fn spawn_runner_service(
+    ctx: &AppContext,
+    shared: &Dependencies,
+    service: Arc<dyn RunnerService>,
+) -> Result<()> {
+    let state = ctx.kernel().state();
     let name = service.name();
-    let admin = ctx.system_admin().id().clone();
+    let admin = state.get::<SystemAdmin>()?.id().clone();
     let shared = shared.clone();
-    super::runner_supervisor::supervise(ctx.background_tasks(), service, move || {
+    super::runner_supervisor::supervise(state.get::<BackgroundTasks>()?, service, move || {
         JobContext::new(Actor::job(admin.clone(), name), shared.clone())
     });
+    Ok(())
 }
 
 async fn start_metrics_listener(
@@ -227,7 +240,9 @@ async fn start_metrics_listener(
     runs_scheduler: bool,
     readiness: &ReadinessState,
 ) -> Result<Option<OwnedTask<()>>> {
-    let Some(port) = ctx.config().metrics_port else {
+    let state = ctx.kernel().state();
+    let config = state.get::<Arc<Config>>()?;
+    let Some(port) = config.metrics_port else {
         return Ok(None);
     };
     let metrics: Vec<_> = ctx
@@ -236,13 +251,13 @@ async fn start_metrics_listener(
         .members()
         .flat_map(|member| member.sink.metrics().iter().copied())
         .collect();
-    let handle = super::metrics::install_recorder(&ctx.config().instance_id, &metrics)?;
-    super::pool_metrics::spawn_sampler(ctx);
-    super::ops_metrics::spawn_samplers(ctx, runs_scheduler);
-    let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
+    let handle = super::metrics::install_recorder(&config.instance_id, &metrics)?;
+    super::pool_metrics::spawn_sampler(ctx)?;
+    super::ops_metrics::spawn_samplers(ctx, runs_scheduler)?;
+    let addr = std::net::SocketAddr::new(config.host.parse()?, port);
     let state = super::metrics::MetricsState {
         handle,
-        broadcasters: Arc::clone(ctx.event_broadcasters()),
+        broadcasters: Arc::clone(state.get::<Arc<EventRouter>>()?.broadcasters()),
     };
     Ok(Some(
         super::metrics::serve_metrics_listener(addr, state, readiness).await?,

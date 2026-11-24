@@ -33,11 +33,16 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_database::ServiceRepository;
+use systemprompt_events::EventBridgeHandle;
 use systemprompt_loader::subprocess::{ChildClaim, ChildKind, SpawnStamp, StopOutcome};
+use systemprompt_logging::LoggingRuntime;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::ShutdownConfig;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::SchedulerHandle;
-use systemprompt_traits::{DrainOutcome, OwnedTask, StreamDrain};
+use systemprompt_traits::{BackgroundTasks, DrainOutcome, OwnedTask, StreamDrain};
 
 use super::readiness::ReadinessState;
 
@@ -171,9 +176,16 @@ pub async fn join_within_drain_grace(
     }
 }
 
-pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
-    let timings = ctx.config().shutdown;
-    ctx.event_bridge().shutdown().await;
+pub async fn drain(
+    ctx: &AppContext,
+    scheduler: Option<SchedulerHandle>,
+) -> Result<(), MissingDependency> {
+    let state = ctx.kernel().state();
+    let config = state.get::<Arc<Config>>()?;
+    let timings = config.shutdown;
+    let background_tasks = state.get::<BackgroundTasks>()?;
+    let logging = state.get::<LoggingRuntime>()?;
+    state.get::<Arc<EventBridgeHandle>>()?.shutdown().await;
 
     if let Some(handle) = scheduler
         && let Err(e) = handle.shutdown().await
@@ -181,8 +193,8 @@ pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
         tracing::warn!(error = %e, "Scheduler failed to drain cleanly");
     }
 
-    let (background, ()) = tokio::join!(
-        ctx.background_tasks().shutdown(timings.background_grace()),
+    let (background, children) = tokio::join!(
+        background_tasks.shutdown(timings.background_grace()),
         terminate_children(ctx),
     );
     if let DrainOutcome::TimedOut { in_flight } = background {
@@ -193,25 +205,25 @@ pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
         );
     }
 
-    if let Err(e) = ctx.logging().sink().shutdown().await {
+    if let Err(e) = logging.sink().shutdown().await {
         tracing::warn!(error = %e, "Database log writer failed to flush on shutdown");
     }
+    children
 }
 
-pub async fn terminate_children(ctx: &AppContext) {
-    let repo = ctx.service_repository();
-    let grace = ctx.config().shutdown.child_grace();
+pub async fn terminate_children(ctx: &AppContext) -> Result<(), MissingDependency> {
+    let state = ctx.kernel().state();
+    let repo = state.get::<Arc<ServiceRepository>>()?;
+    let grace = state.get::<Arc<Config>>()?.shutdown.child_grace();
 
     tokio::join!(
         terminate_agent_children(repo, grace),
         terminate_mcp_children(repo, grace),
     );
+    Ok(())
 }
 
-async fn terminate_agent_children(
-    repo: &systemprompt_database::ServiceRepository,
-    grace: Duration,
-) {
+async fn terminate_agent_children(repo: &ServiceRepository, grace: Duration) {
     let names = match repo.list_all_agent_service_names().await {
         Ok(names) => names,
         Err(e) => {
@@ -228,7 +240,7 @@ async fn terminate_agent_children(
     .await;
 }
 
-async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository, grace: Duration) {
+async fn terminate_mcp_children(repo: &ServiceRepository, grace: Duration) {
     let services = match repo.list_mcp_services().await {
         Ok(services) => services,
         Err(e) => {
@@ -244,7 +256,7 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository,
 }
 
 async fn terminate_service_child(
-    repo: &systemprompt_database::ServiceRepository,
+    repo: &ServiceRepository,
     service: &systemprompt_database::ServiceConfig,
     kind: ChildKind,
     grace: Duration,

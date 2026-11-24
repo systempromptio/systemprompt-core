@@ -108,7 +108,11 @@ fn build_identity_routes(
         .build(IdentityRouteState {
             resolved: kernel.route_scoped(&owner, standing, &[]),
             host: IdentityHostHandles {
-                config: Arc::new(IdentityConfigView::of(ctx.config())),
+                config: Arc::new(IdentityConfigView::of(
+                    ctx.kernel()
+                        .state()
+                        .get::<Arc<systemprompt_manifest::Config>>()?,
+                )),
                 analytics: ctx.analytics_provider(),
                 users: ctx.user_provider(),
                 sso,

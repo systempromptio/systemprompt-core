@@ -157,6 +157,9 @@ pub enum ProxyError {
         source: systemprompt_security::JwtError,
     },
 
+    #[error(transparent)]
+    Missing(#[from] systemprompt_provider_contracts::MissingDependency),
+
     #[error("The hop token for '{service}' is not a valid header value")]
     HopTokenHeader {
         service: String,
@@ -202,7 +205,8 @@ impl ProxyError {
             | Self::HopTokenHeader { .. }
             | Self::OwnerHopUnavailable { .. }
             | Self::RegistryLookupFailed { .. }
-            | Self::ContextLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::ContextLookupFailed { .. }
+            | Self::Missing(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
             | Self::InvalidServiceName { .. }
@@ -248,6 +252,7 @@ impl ProxyError {
             Self::ContextNotOwned { .. } => "context_not_owned",
             Self::McpBackendsUnavailable { .. } => "mcp_backends_unavailable",
             Self::ContextLookupFailed { .. } => "context_lookup_failed",
+            Self::Missing(_) => "missing_dependency",
         }
     }
 }

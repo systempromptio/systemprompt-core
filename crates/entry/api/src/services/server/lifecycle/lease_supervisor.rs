@@ -30,12 +30,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use systemprompt_database::{InstanceLeaseRepository, ProcessOwnershipWake, ServiceModule};
+use anyhow::Result;
+use systemprompt_database::{
+    CoordinationRepositories, DbPool, InstanceLeaseRepository, ProcessOwnershipWake, ServiceModule,
+    ServiceRepository,
+};
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp, StopOutcome};
-use systemprompt_manifest::profile::NodeRole;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{NodeRole, ShutdownConfig};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::LeaseRepository;
+use systemprompt_traits::{BackgroundTasks, LeaseRepository};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 use super::process_actuator::{ProcessCommand, release_and_announce, spawn_process_actuator};
@@ -46,6 +51,8 @@ use super::process_ownership::{
 
 struct LeaseLoop {
     ctx: AppContext,
+    services: Arc<ServiceRepository>,
+    shutdown: ShutdownConfig,
     me: InstanceId,
     leases: Arc<InstanceLeaseRepository>,
     actuator: UnboundedSender<ProcessCommand>,
@@ -55,14 +62,18 @@ struct LeaseLoop {
     pending: bool,
 }
 
-pub(in crate::services::server) fn start_leased_supervision(ctx: &AppContext) {
+pub(in crate::services::server) fn start_leased_supervision(ctx: &AppContext) -> Result<()> {
+    let seeds = ctx.kernel().state();
+    let config = seeds.get::<Arc<Config>>()?;
     let (failed_tx, mut failed_rx) = unbounded_channel();
-    let actuator = spawn_process_actuator(ctx, failed_tx);
-    let tasks = ctx.background_tasks().clone();
-    let me = ctx.config().instance_id.clone();
+    let actuator = spawn_process_actuator(ctx, failed_tx)?;
+    let tasks = seeds.get::<BackgroundTasks>()?.clone();
+    let me = config.instance_id.clone();
     let mut state = LeaseLoop {
         ctx: ctx.clone(),
-        leases: Arc::clone(&ctx.coordination_repositories().leases),
+        services: Arc::clone(seeds.get::<Arc<ServiceRepository>>()?),
+        shutdown: config.shutdown,
+        leases: Arc::clone(&seeds.get::<Arc<CoordinationRepositories>>()?.leases),
         settled: vec![me.clone()],
         me,
         actuator,
@@ -70,7 +81,7 @@ pub(in crate::services::server) fn start_leased_supervision(ctx: &AppContext) {
         backoff: HashMap::new(),
         pending: false,
     };
-    let mut wake = ProcessOwnershipWake::new(ctx.db_pool());
+    let mut wake = ProcessOwnershipWake::new(seeds.get::<DbPool>()?);
     tasks.spawn_cancellable("process_leases", move |cancel| async move {
         let mut last_full: Option<Instant> = None;
         let mut wait = Duration::ZERO;
@@ -90,6 +101,7 @@ pub(in crate::services::server) fn start_leased_supervision(ctx: &AppContext) {
         }
         state.stop_and_release_all().await;
     });
+    Ok(())
 }
 
 impl LeaseLoop {
@@ -106,8 +118,7 @@ impl LeaseLoop {
     async fn tick(&mut self, kind: TickKind) {
         self.pending = false;
         let workers = match self
-            .ctx
-            .service_repository()
+            .services
             .list_reachable_instances(NodeRole::Worker, LEASE_TTL.as_secs() as i64)
             .await
         {
@@ -207,26 +218,27 @@ impl LeaseLoop {
     }
 
     async fn withdraw_presence(&self) {
-        if let Err(error) = self.ctx.service_repository().delete_presence().await {
+        if let Err(error) = self.services.delete_presence().await {
             tracing::warn!(error = %error, "worker presence could not be withdrawn on shutdown; peers wait for it to go stale");
         }
     }
 
     async fn stop_and_release_all(&mut self) {
         self.withdraw_presence().await;
-        let timings = self.ctx.config().shutdown;
+        let timings = self.shutdown;
         let budget = timings
             .background_grace()
             .saturating_sub(RELEASE_MARGIN)
             .min(timings.child_grace() + RELEASE_MARGIN);
         let held = std::mem::take(&mut self.held).into_keys();
-        let ctx = &self.ctx;
+        let services = &*self.services;
         let leases = &self.leases;
         futures_util::future::join_all(held.map(|key| async move {
             let stopped =
-                tokio::time::timeout(budget, stop_held(ctx, &key, timings.child_grace())).await;
+                tokio::time::timeout(budget, stop_held(services, &key, timings.child_grace()))
+                    .await;
             if stopped == Ok(true) {
-                release_and_announce(ctx, &**leases, &key).await;
+                release_and_announce(services, &**leases, &key).await;
             } else {
                 tracing::warn!(
                     service = %key.name(),
@@ -241,12 +253,8 @@ impl LeaseLoop {
 
 const RELEASE_MARGIN: Duration = Duration::from_secs(1);
 
-async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool {
-    let service = match ctx
-        .service_repository()
-        .find_service_by_name(key.name())
-        .await
-    {
+async fn stop_held(services: &ServiceRepository, key: &ProcessKey, grace: Duration) -> bool {
+    let service = match services.find_service_by_name(key.name()).await {
         Ok(service) => service,
         Err(error) => {
             tracing::warn!(service = %key.name(), error = %error, "process row unreadable on shutdown");
@@ -279,7 +287,7 @@ async fn stop_held(ctx: &AppContext, key: &ProcessKey, grace: Duration) -> bool 
     }
 }
 
-pub(crate) async fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<ProcessKey>> {
+pub(crate) async fn desired_processes(ctx: &AppContext) -> Result<Vec<ProcessKey>> {
     let mut wanted: Vec<ProcessKey> = match crate::services::proxy::mcp_registry(ctx) {
         Ok(registry) => registry
             .managed_servers()
@@ -290,7 +298,7 @@ pub(crate) async fn desired_processes(ctx: &AppContext) -> anyhow::Result<Vec<Pr
         Err(_) => Vec::new(),
     };
     wanted.extend(
-        super::agents::enabled_agents(ctx)
+        super::agents::enabled_agents(ctx)?
             .into_iter()
             .map(|agent| ProcessKey::new(ServiceModule::Agent, ServiceName::new(agent.name))),
     );

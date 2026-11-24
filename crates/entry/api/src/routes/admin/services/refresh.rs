@@ -27,17 +27,18 @@ use std::time::Duration;
 use axum::Json;
 use axum::extract::{Extension, Query, State};
 use serde::Deserialize;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, BundleError, SourceRefusal, cache_root};
-use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
+use systemprompt_loader::{BootContext, ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
 use systemprompt_manifest::profile::Profile;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
-use systemprompt_runtime::{AppContext, RuntimeError};
-use systemprompt_traits::{CacheDomain, DynInventoryPublisher};
+use systemprompt_runtime::{AppContext, RuntimeError, ShutdownRequest};
+use systemprompt_traits::{BackgroundTasks, CacheDomain, CacheEpochs, DynInventoryPublisher};
 
 use super::{
     RefreshLock, ServicesRefreshResponse, composed_hash_of, provenance_view, source_views,
@@ -127,8 +128,10 @@ async fn run_refresh(
     actor: &UserId,
     restart: bool,
 ) -> Result<ServicesRefreshResponse, ApiHttpError> {
-    let profile = ctx.profile();
-    let secrets = ctx.secrets().get();
+    let seeds = ctx.kernel().state();
+    let boot = seeds.get::<BootContext>()?;
+    let profile = boot.profile();
+    let secrets = boot.secrets().get();
 
     // Why: the boot-time root is fixed for the process; after an in-place import
     // the cache state names the composition actually being served, so "changed"
@@ -138,8 +141,7 @@ async fn run_refresh(
     let served_hash = (!previous.composed_hash.is_empty())
         .then_some(previous.composed_hash.clone())
         .or_else(|| {
-            ctx.boot()
-                .services_root()
+            boot.services_root()
                 .and_then(composed_hash_of)
                 .map(str::to_owned)
         });
@@ -166,11 +168,12 @@ async fn run_refresh(
             Some(profile),
         )
         .map_err(RefreshError::RecomposedConfig)?;
-        let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
-            .await
-            .map_err(RefreshError::Reconcile)?;
+        let outcome =
+            reconcile_fetched_services(profile, &resolved, &services, seeds.get::<DbPool>()?)
+                .await
+                .map_err(RefreshError::Reconcile)?;
         reconciled = outcome == ReconcileOutcome::Projected;
-        ctx.cache_epochs().advance(CacheDomain::Services);
+        seeds.get::<CacheEpochs>()?.advance(CacheDomain::Services);
 
         refresh_inventory(ctx, actor).await;
     }
@@ -193,14 +196,16 @@ async fn run_refresh(
     );
 
     if restarting {
-        let restart_ctx = ctx.clone();
-        ctx.background_tasks()
-            .spawn_cancellable("services_refresh_restart", |cancel| async move {
+        let shutdown = seeds.get::<ShutdownRequest>()?.clone();
+        seeds.get::<BackgroundTasks>()?.spawn_cancellable(
+            "services_refresh_restart",
+            |cancel| async move {
                 tokio::select! {
                     () = cancel.cancelled() => {},
-                    () = tokio::time::sleep(RESTART_DELAY) => restart_ctx.request_restart(RESTART_REASON),
+                    () = tokio::time::sleep(RESTART_DELAY) => shutdown.request(RESTART_REASON),
                 }
-            });
+            },
+        );
     }
 
     Ok(ServicesRefreshResponse {

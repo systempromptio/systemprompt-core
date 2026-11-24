@@ -17,6 +17,7 @@ use std::time::Instant;
 use systemprompt_extension::service_process::ServiceProcessSets;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::AgentConfig;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{
     DynServiceProcessSet, RestartMode, ServiceProcessError, ServiceProcessKind, StartupEventExt,
@@ -33,23 +34,25 @@ pub(super) fn process_set(
         .and_then(|sets| sets.of_kind(kind).cloned())
 }
 
-pub(crate) fn enabled_agents(ctx: &AppContext) -> Vec<AgentConfig> {
-    let is_cloud = ctx.config().is_cloud;
-    ctx.services_state()
+pub(crate) fn enabled_agents(ctx: &AppContext) -> Result<Vec<AgentConfig>, MissingDependency> {
+    let state = ctx.kernel().state();
+    let is_cloud = state.get::<Arc<systemprompt_manifest::Config>>()?.is_cloud;
+    Ok(state
+        .get::<systemprompt_loader::ServicesState>()?
         .view()
         .config()
         .agents
         .values()
         .filter(|agent| agent.enabled && !(agent.dev_only && is_cloud))
         .cloned()
-        .collect()
+        .collect())
 }
 
 pub async fn reconcile_agents(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {
-    let enabled_agents = enabled_agents(ctx);
+    let enabled_agents = enabled_agents(ctx)?;
     let required_count = enabled_agents.len();
     let Some(agents) = process_set(ctx, ServiceProcessKind::Agent) else {
         if required_count > 0 {

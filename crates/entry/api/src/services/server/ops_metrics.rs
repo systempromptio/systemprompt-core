@@ -23,12 +23,15 @@ use std::time::{Duration, Instant};
 use metrics_exporter_prometheus::{BuildError, Matcher, PrometheusBuilder};
 use sqlx::PgPool;
 use systemprompt_config::ConfigFingerprint;
-use systemprompt_database::Database;
+use systemprompt_database::{Database, DbPool};
 use systemprompt_loader::BootContext;
+use systemprompt_logging::LoggingRuntime;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::job_metrics::{
     JOB_DURATION_BUCKETS, SCHEDULER_JOB_DURATION_SECONDS, SCHEDULER_JOB_RUNS_TOTAL,
 };
+use systemprompt_traits::BackgroundTasks;
 
 pub(super) const DB_POOL_ACQUIRE_SECONDS: &str = "db_pool_acquire_seconds";
 pub(super) const PROJECTION_BACKLOG_DEPTH: &str = "projection_backlog_depth";
@@ -99,14 +102,19 @@ pub(super) fn describe() {
     );
 }
 
-pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
+pub(super) fn spawn_samplers(
+    ctx: &AppContext,
+    runs_scheduler: bool,
+) -> Result<(), MissingDependency> {
+    let state = ctx.kernel().state();
     let mut sampler = OpsSampler::new(
-        ctx.boot().clone(),
-        ctx.db_pool(),
+        state.get::<BootContext>()?.clone(),
+        state.get::<DbPool>()?,
         runs_scheduler,
-        ctx.logging().sink().clone(),
+        state.get::<LoggingRuntime>()?.sink().clone(),
     );
-    ctx.background_tasks()
+    state
+        .get::<BackgroundTasks>()?
         .spawn_cancellable("ops_metrics", |cancel| async move {
             let mut tick = tokio::time::interval(SAMPLE_INTERVAL);
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -118,6 +126,7 @@ pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
                 sampler.sample().await;
             }
         });
+    Ok(())
 }
 
 #[derive(Debug)]

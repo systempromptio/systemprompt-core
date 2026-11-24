@@ -11,26 +11,37 @@
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
+use std::sync::Arc;
 use systemprompt_extension::SlotError;
+
+use crate::error::ApiHttpError;
+use systemprompt_database::DbPool;
+use systemprompt_manifest::Config;
+use systemprompt_models::BuildIdentity;
 use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
 use super::health::handle_health;
 use super::health_detail::{diagnostics_layer, handle_health_detail};
-use super::probes::{handle_livez, handle_readyz, readiness_layer};
+use super::probes::{handle_livez, handle_readyz, readiness_layer, seed_error};
 use systemprompt_documents::discovery::DocumentsDiscovery;
 use systemprompt_manifest::profile::UiSessionDiscovery;
 
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
-) -> impl axum::response::IntoResponse {
-    let base = &ctx.config().api_external_url;
+) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {
+    let config = ctx
+        .kernel()
+        .state()
+        .get::<Arc<Config>>()
+        .map_err(seed_error)?;
+    let base = &config.api_external_url;
     let documents = DocumentsDiscovery::of_state(ctx.kernel().state(), base);
     let data = json!({
-        "name": format!("{} API", ctx.config().sitename),
+        "name": format!("{} API", config.sitename),
         "version": env!("CARGO_PKG_VERSION"),
-        "build": ctx.build_identity(),
+        "build": ctx.kernel().state().get::<BuildIdentity>().map_err(seed_error)?,
         "description": "systemprompt.io OS API Gateway",
         "endpoints": {
             "health": format!("{}{}", base, ApiPaths::HEALTH),
@@ -46,7 +57,7 @@ pub async fn handle_root_discovery(
                     "webauthn": format!("{}{}/webauthn", base, ApiPaths::OAUTH_BASE)
                 },
                 "ui_session_supported": true,
-                "ui_session": UiSessionDiscovery::from_config(&ctx.config().ui_session),
+                "ui_session": UiSessionDiscovery::from_config(&config.ui_session),
                 "device_link_ui_session_supported": true
             },
             "core": {
@@ -89,13 +100,18 @@ pub async fn handle_root_discovery(
         }
     });
 
-    Json(SingleResponse::new(data))
+    Ok(Json(SingleResponse::new(data)))
 }
 
 pub async fn handle_core_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
-) -> impl axum::response::IntoResponse {
-    let base = &ctx.config().api_external_url;
+) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {
+    let config = ctx
+        .kernel()
+        .state()
+        .get::<Arc<Config>>()
+        .map_err(seed_error)?;
+    let base = &config.api_external_url;
     let data = json!({
         "name": "Core Services",
         "description": "Core conversation, task, and artifact management APIs",
@@ -121,13 +137,18 @@ pub async fn handle_core_discovery(
             }
         }
     });
-    Json(SingleResponse::new(data))
+    Ok(Json(SingleResponse::new(data)))
 }
 
 pub async fn handle_agents_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
-) -> impl axum::response::IntoResponse {
-    let base = &ctx.config().api_external_url;
+) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {
+    let config = ctx
+        .kernel()
+        .state()
+        .get::<Arc<Config>>()
+        .map_err(seed_error)?;
+    let base = &config.api_external_url;
     let data = json!({
         "name": "Agent Services",
         "description": "A2A protocol agent registry and proxy",
@@ -144,13 +165,18 @@ pub async fn handle_agents_discovery(
             }
         }
     });
-    Json(SingleResponse::new(data))
+    Ok(Json(SingleResponse::new(data)))
 }
 
 pub async fn handle_mcp_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
-) -> impl axum::response::IntoResponse {
-    let base = &ctx.config().api_external_url;
+) -> Result<Json<SingleResponse<serde_json::Value>>, ApiHttpError> {
+    let config = ctx
+        .kernel()
+        .state()
+        .get::<Arc<Config>>()
+        .map_err(seed_error)?;
+    let base = &config.api_external_url;
     let data = json!({
         "name": "MCP Services",
         "description": "Model Context Protocol server registry and proxy",
@@ -167,7 +193,7 @@ pub async fn handle_mcp_discovery(
             }
         }
     });
-    Json(SingleResponse::new(data))
+    Ok(Json(SingleResponse::new(data)))
 }
 
 pub fn discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {
@@ -180,7 +206,7 @@ pub fn discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {
         .route(ApiPaths::CORE_BASE, get(handle_core_discovery))
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))
-        .layer(config_state_layer(ctx))
+        .layer(config_state_layer(ctx)?)
         .layer(readiness_layer(ctx)?)
         .with_state(ctx.clone()))
 }
@@ -191,16 +217,20 @@ pub fn probes_router(ctx: &AppContext) -> Result<Router, SlotError> {
         .route("/health", get(handle_health))
         .route(ApiPaths::LIVEZ, get(handle_livez))
         .route(ApiPaths::READYZ, get(handle_readyz))
-        .layer(config_state_layer(ctx))
+        .layer(config_state_layer(ctx)?)
         .layer(readiness_layer(ctx)?)
         .with_state(ctx.clone()))
 }
 
 fn config_state_layer(
     ctx: &AppContext,
-) -> axum::Extension<std::sync::Arc<systemprompt_scheduler::repository::ConfigReconcileRepository>>
-{
-    axum::Extension(crate::repository::config_plane_state(ctx.db_pool()))
+) -> Result<
+    axum::Extension<Arc<systemprompt_scheduler::repository::ConfigReconcileRepository>>,
+    systemprompt_provider_contracts::MissingDependency,
+> {
+    Ok(axum::Extension(crate::repository::config_plane_state(
+        ctx.kernel().state().get::<DbPool>()?,
+    )))
 }
 
 pub fn authenticated_discovery_router(ctx: &AppContext) -> Result<Router, SlotError> {

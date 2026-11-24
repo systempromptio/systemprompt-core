@@ -21,14 +21,18 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{BrainModelClient, DynBrainConsumerStart};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_gateway::client::principal::{ServiceIdentity, ServicePrincipal};
 use systemprompt_gateway::client::{GatewayClient, GatewayClientParts};
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::{BootContext, ServicesState};
+use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_models::brain::BRAIN_ACTOR;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as _, RunnerService};
+use systemprompt_traits::{AppContext as _, ConfigWatch, RunnerService};
 
 const BRAIN_SERVICE_EMAIL: &str = "brain@service.invalid";
 
@@ -44,7 +48,14 @@ pub(super) async fn brain_consumer(
     else {
         return Ok(None);
     };
-    if !ctx.profile().brain.enabled {
+    if !ctx
+        .kernel()
+        .state()
+        .get::<BootContext>()?
+        .profile()
+        .brain
+        .enabled
+    {
         return Ok(None);
     }
     let model = brain_model_client(ctx, engines).await?;
@@ -55,8 +66,10 @@ async fn brain_model_client(
     ctx: &AppContext,
     engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Arc<dyn BrainModelClient>> {
-    let gateway = ctx
-        .services_config()
+    let state = ctx.kernel().state();
+    let services = state.get::<ServicesState>()?;
+    let gateway = services
+        .config()
         .gateway_config()
         .filter(|gateway| gateway.enabled)
         .cloned();
@@ -77,19 +90,19 @@ async fn brain_model_client(
         ServiceIdentity {
             name: ServiceName::try_new(BRAIN_ACTOR)?,
             email: BRAIN_SERVICE_EMAIL.to_owned(),
-            created_by: ctx.system_admin().id().clone(),
+            created_by: state.get::<SystemAdmin>()?.id().clone(),
         },
     )
     .await
     .context("brain service principal")?;
-    let extraction = &ctx.profile().brain.extraction;
+    let extraction = &state.get::<BootContext>()?.profile().brain.extraction;
     let parts = GatewayClientParts {
         config: Arc::new(gateway),
-        catalog: Arc::clone(ctx.services_state().catalog()),
-        db: Arc::clone(ctx.db_pool()),
+        catalog: Arc::clone(services.catalog()),
+        db: Arc::clone(state.get::<DbPool>()?),
         repos: Arc::new(crate::routes::gateway::gateway_repositories(ctx)?),
         engines: Arc::clone(engines),
-        governance: ctx.governance(),
+        governance: state.get::<ConfigWatch<GovernanceEngine>>()?.get(),
     };
     let mut client = GatewayClient::builder(parts, principal)
         .timeout(Duration::from_millis(extraction.timeout_ms));

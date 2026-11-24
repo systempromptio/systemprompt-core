@@ -19,7 +19,8 @@ use super::RouteMountError;
 use super::protocol::MountCtx;
 use axum::{Extension, Router};
 use systemprompt_extension::router::full_path;
-use systemprompt_traits::{StartupEvent, StartupEventSender};
+use systemprompt_governance::policy::GovernanceEngine;
+use systemprompt_traits::{ConfigWatch, StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
 use crate::services::middleware::mount_admitted;
@@ -31,9 +32,14 @@ pub(super) fn mount_extension_routes(
     events: Option<&StartupEventSender>,
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
+    let governance = ctx
+        .kernel()
+        .state()
+        .get::<ConfigWatch<GovernanceEngine>>()?
+        .clone();
     let decorate = |routes: Router| {
         routes
-            .layer(Extension(ctx.governance_watch().clone()))
+            .layer(Extension(governance.clone()))
             .layer(Extension(ServicesRefresh::new(ctx, refresh_lock.clone())))
     };
     let admitted = mount.composed.admitted;

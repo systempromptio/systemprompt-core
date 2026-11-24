@@ -12,6 +12,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use systemprompt_database::ServiceRepository;
 use systemprompt_extension::service_process::ServiceProcessSets;
 use systemprompt_loader::subprocess::SubprocessLiveness;
 use systemprompt_manifest::services::ServiceModule;
@@ -66,7 +67,9 @@ pub async fn cleanup_stale_service_entries(
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
     let reaped = ctx
-        .service_repository()
+        .kernel()
+        .state()
+        .get::<Arc<ServiceRepository>>()?
         .reap_stale(&SubprocessLiveness)
         .await?;
     for dead in &reaped.dead {

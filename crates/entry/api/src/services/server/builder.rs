@@ -26,7 +26,10 @@ use std::sync::Arc;
 use anyhow::Result;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_gateway::GatewayEngines;
+use systemprompt_loader::BootContext;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
@@ -74,13 +77,17 @@ pub fn assemble_api_server(
     readiness: &Arc<ReadinessState>,
     engines: Option<&Arc<GatewayEngines>>,
 ) -> Result<Router> {
-    let services_cache = systemprompt_loader::bundle::cache_root(ctx.profile());
+    let state = ctx.kernel().state();
+    let config = state.get::<Arc<Config>>()?;
+    let services_cache =
+        systemprompt_loader::bundle::cache_root(state.get::<BootContext>()?.profile());
     systemprompt_config::ensure_state_dirs_writable(
-        &ctx.app_paths()
-            .writable_roots(ctx.config().role, &services_cache),
+        &state
+            .get::<Arc<AppPaths>>()?
+            .writable_roots(config.role, &services_cache),
     )?;
 
-    let rate_config = &ctx.config().rate_limits;
+    let rate_config = &config.rate_limits;
 
     if rate_config.disabled
         && let Some(tx) = events
@@ -94,11 +101,12 @@ pub fn assemble_api_server(
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
+    let config = Arc::clone(ctx.kernel().state().get::<Arc<Config>>()?);
     let mut router = router.layer(panic_fence());
 
     router = router.layer(DefaultBodyLimit::max(DEFAULT_BODY_LIMIT_BYTES));
 
-    let analytics_middleware = AnalyticsMiddleware::new(ctx);
+    let analytics_middleware = AnalyticsMiddleware::new(ctx)?;
     router = router.layer(axum::middleware::from_fn({
         let middleware = analytics_middleware;
         move |req, next| {
@@ -122,9 +130,9 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }
     }));
 
-    router = with_pre_auth_ip_limit(router, &RateLimitState::from_context(ctx));
+    router = with_pre_auth_ip_limit(router, &RateLimitState::from_context(ctx)?);
 
-    let cors = CorsMiddleware::build_layer(ctx.config())?;
+    let cors = CorsMiddleware::build_layer(&config)?;
     router = router.layer(cors);
 
     router = router.layer(axum::middleware::from_fn(remove_trailing_slash));
@@ -132,7 +140,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     router = router.layer(axum::middleware::from_fn(inject_trace_header));
 
     router = router.layer(axum::middleware::from_fn_with_state(
-        ctx.config().instance_id.clone(),
+        config.instance_id.clone(),
         inject_served_by,
     ));
 
@@ -140,14 +148,14 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         crate::services::middleware::strip_caller_purpose,
     ));
 
-    if ctx.config().content_negotiation.enabled {
+    if config.content_negotiation.enabled {
         router = router.layer(axum::middleware::from_fn(
             systemprompt_extension::router::content_negotiation_middleware,
         ));
     }
 
-    if ctx.config().security_headers.enabled {
-        let security_config = ctx.config().security_headers.clone();
+    if config.security_headers.enabled {
+        let security_config = config.security_headers.clone();
         router = router.layer(axum::middleware::from_fn(move |req, next| {
             let config = security_config.clone();
             inject_security_headers(config, req, next)
@@ -155,10 +163,10 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     }
 
     let router = router.layer(axum::Extension(Arc::new(
-        systemprompt_security::http::EdgeConfigView::of(ctx.config()),
+        systemprompt_security::http::EdgeConfigView::of(&config),
     )));
     Ok(crate::services::middleware::load_shed::outermost(
         router,
-        ctx.config().max_in_flight,
+        config.max_in_flight,
     ))
 }

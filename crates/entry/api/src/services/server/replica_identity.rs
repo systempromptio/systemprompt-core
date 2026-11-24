@@ -10,12 +10,16 @@ use systemprompt_runtime::AppContext;
 // dead; waiting past that window tells a vanished holder from a live one.
 pub(super) async fn claim(
     ctx: &AppContext,
-) -> Result<systemprompt_database::InstanceClaim, systemprompt_database::InstanceClaimError> {
+) -> anyhow::Result<systemprompt_database::InstanceClaim> {
     let window = std::time::Duration::from_secs(systemprompt_database::CLAIM_DEAD_PEER_SECS * 3);
     let deadline = std::time::Instant::now() + window;
     let mut backoff = std::time::Duration::from_secs(1);
+    let repository = ctx
+        .kernel()
+        .state()
+        .get::<std::sync::Arc<systemprompt_database::ServiceRepository>>()?;
     loop {
-        match ctx.service_repository().claim_instance().await {
+        match repository.claim_instance().await {
             Err(systemprompt_database::InstanceClaimError::Claimed { instance_id })
                 if std::time::Instant::now() + backoff < deadline =>
             {
@@ -27,7 +31,7 @@ pub(super) async fn claim(
                 tokio::time::sleep(backoff).await;
                 backoff = (backoff * 2).min(std::time::Duration::from_secs(8));
             },
-            outcome => return outcome,
+            outcome => return Ok(outcome?),
         }
     }
 }

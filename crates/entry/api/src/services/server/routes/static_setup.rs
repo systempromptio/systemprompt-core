@@ -32,7 +32,12 @@ pub(super) fn build_static_router(
     layers: &MountLayers,
     events: Option<&StartupEventSender>,
 ) -> Result<RootFallback, MountError> {
-    let path = ctx.app_paths().system().content_config().to_path_buf();
+    let state = ctx.kernel().state();
+    let path = state
+        .get::<Arc<systemprompt_config::paths::AppPaths>>()?
+        .system()
+        .content_config()
+        .to_path_buf();
     let content_matcher = path.to_str().map_or_else(
         || {
             if let Some(tx) = events
@@ -68,7 +73,7 @@ pub(super) fn build_static_router(
     let static_state = StaticContentState {
         ctx: Arc::new(ctx.clone()),
         matcher: content_matcher,
-        route_classifier: Arc::clone(ctx.route_classifier()),
+        route_classifier: Arc::clone(state.get::<Arc<systemprompt_models::RouteClassifier>>()?),
     };
 
     let static_router = Router::new()

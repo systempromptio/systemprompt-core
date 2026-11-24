@@ -7,11 +7,13 @@
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use std::sync::Arc;
 use systemprompt_extension::{SiteAuthConfig, SlotError};
+use systemprompt_manifest::Config;
 use systemprompt_models::ApiError;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_oauth_issuance::IDENTITY_PLANE;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, config_plane_set};
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::site_auth::{SiteAuthSession, site_auth_gate};
@@ -66,7 +68,12 @@ impl SiteAuthGuard {
         Ok(Some(Self {
             config,
             authenticator,
-            cookie: SessionCookie::from_config(ctx.config()),
+            cookie: SessionCookie::from_config(ctx.kernel().state().get::<Arc<Config>>().map_err(
+                |missing| SlotError::Refused {
+                    slot: "site_auth",
+                    source: Box::new(missing),
+                },
+            )?),
         }))
     }
 
@@ -105,9 +112,11 @@ impl ClientWritesGuard {
 
     pub(super) async fn refuse(self, request: Request, next: Next) -> Response {
         if request.uri().path().starts_with(CLIENTS_PATH) && !request.method().is_safe() {
-            let refused = self
-                .ctx
-                .config_planes()
+            let config = match self.ctx.kernel().state().get::<Arc<Config>>() {
+                Ok(config) => config,
+                Err(missing) => return ApiHttpError::from(missing).into_response(),
+            };
+            let refused = config_plane_set(self.ctx.admitted(), config)
                 .and_then(|planes| planes.writer(IDENTITY_PLANE).map(|_| ()));
             if let Err(error) = refused {
                 return ApiHttpError::from(ApiError::from(error)).into_response();

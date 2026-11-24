@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::{ServiceConfig, ServiceModule};
+use systemprompt_database::{ServiceConfig, ServiceModule, ServiceRepository};
 use systemprompt_extension::router::ProxyBackendResolver;
 use systemprompt_extension::service_process::ServiceProcessSets;
 use systemprompt_identifiers::ServiceName;
@@ -37,7 +37,7 @@ impl ServiceResolver {
         ctx: &AppContext,
         backends: Option<&dyn ProxyBackendResolver>,
     ) -> Result<ServiceConfig, ProxyError> {
-        let service_repo = ctx.service_repository();
+        let service_repo = ctx.kernel().state().get::<Arc<ServiceRepository>>()?;
 
         let service = match service_repo.find_service_by_name(service_name).await {
             Ok(svc) => svc,
@@ -120,12 +120,15 @@ impl ServiceResolver {
                 config_port = new_port,
                 "DB service port is stale; reconciling to the port this instance spawns before proxying"
             );
-            if let Err(e) = ctx
-                .service_repository()
-                .update_service_port(service_name, new_port)
-                .await
-            {
-                tracing::error!(service = %service_name, error = %e, "Failed to persist reconciled service port");
+            match ctx.kernel().state().get::<Arc<ServiceRepository>>() {
+                Ok(repo) => {
+                    if let Err(e) = repo.update_service_port(service_name, new_port).await {
+                        tracing::error!(service = %service_name, error = %e, "Failed to persist reconciled service port");
+                    }
+                },
+                Err(e) => {
+                    tracing::error!(service = %service_name, error = %e, "Failed to persist reconciled service port");
+                },
             }
             service.port = i32::from(new_port);
         }

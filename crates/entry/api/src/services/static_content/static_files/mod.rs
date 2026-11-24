@@ -25,6 +25,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Method, Uri};
 use axum::response::IntoResponse;
 use std::sync::Arc;
+use systemprompt_config::AppPaths;
 use systemprompt_traits::DynContentCatalogStats;
 
 use super::config::StaticContentMatcher;
@@ -50,7 +51,10 @@ pub async fn serve_static_content(
     headers: HeaderMap,
     _req_ctx: Option<axum::Extension<systemprompt_models::RequestContext>>,
 ) -> impl IntoResponse {
-    let dist_dir = state.ctx.app_paths().web().dist().to_path_buf();
+    let dist_dir = match state.ctx.kernel().state().get::<Arc<AppPaths>>() {
+        Ok(paths) => paths.web().dist().to_path_buf(),
+        Err(missing) => return ApiHttpError::from(missing).into_response(),
+    };
 
     let path = uri.path();
 

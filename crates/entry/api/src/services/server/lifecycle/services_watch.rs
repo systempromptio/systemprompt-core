@@ -18,12 +18,14 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use anyhow::Result;
 use async_trait::async_trait;
-use systemprompt_database::PgConfigVersion;
-use systemprompt_loader::{BootContext, tree_fingerprint};
+use systemprompt_database::{DbPool, PgConfigVersion};
+use systemprompt_loader::{BootContext, ServicesState, tree_fingerprint};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{
-    CONFIG_WATCH_POLL, CacheDomain, ConfigVersionSource, RepositoryError, WatchSignals,
+    BackgroundTasks, CONFIG_WATCH_POLL, CacheDomain, CacheEpochs, ConfigVersionSource,
+    RepositoryError, WatchSignals,
 };
 
 struct TreeAndDbVersion {
@@ -62,21 +64,26 @@ impl ConfigVersionSource for TreeAndDbVersion {
     }
 }
 
-pub(in crate::services::server) fn start_services_watch(ctx: &AppContext) {
-    let boot = ctx.boot().clone();
+pub(in crate::services::server) fn start_services_watch(ctx: &AppContext) -> Result<()> {
+    let state = ctx.kernel().state();
+    let boot = state.get::<BootContext>()?.clone();
     let signals = WatchSignals {
         domain: CacheDomain::Services,
-        epochs: ctx.cache_epochs().clone(),
+        epochs: state.get::<CacheEpochs>()?.clone(),
         version: Arc::new(TreeAndDbVersion::new(
-            Arc::new(PgConfigVersion::new(ctx.db_pool())),
+            Arc::new(PgConfigVersion::new(state.get::<DbPool>()?)),
             boot.clone(),
         )),
         poll: CONFIG_WATCH_POLL,
     };
-    ctx.services_watch()
-        .spawn(ctx.background_tasks(), signals, move || {
+    state.get::<ServicesState>()?.watch().spawn(
+        state.get::<BackgroundTasks>()?,
+        signals,
+        move || {
             let boot = boot.clone();
             async move { boot.load_services_config() }
-        });
+        },
+    );
     tracing::info!("Services config follows the served services tree and its files on disk");
+    Ok(())
 }

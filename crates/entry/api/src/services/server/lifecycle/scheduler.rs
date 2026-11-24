@@ -5,8 +5,10 @@
 
 use anyhow::{Result, bail};
 use std::sync::Arc;
+use systemprompt_database::DbPool;
 use systemprompt_extension::AdmittedSchedule;
 use systemprompt_extension::prelude::ChangeActor;
+use systemprompt_loader::ServicesState;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_scheduler::services::{
@@ -25,14 +27,17 @@ pub(in crate::services::server) async fn initialize_scheduler(
     events.scheduler_initializing();
     reconcile_config_planes(ctx).await?;
 
-    let config = ctx
-        .services_config()
+    let state = ctx.kernel().state();
+    let db = state.get::<DbPool>()?;
+    let config = state
+        .get::<ServicesState>()?
+        .config()
         .scheduler
         .clone()
         .unwrap_or_else(SchedulerConfig::with_system_admin);
 
     let schedule = Arc::new(ctx.kernel().resolved().get::<AdmittedSchedule>()?);
-    let scheduler = SchedulerService::new(config, ctx.db_pool(), Arc::new(ctx.clone()), schedule);
+    let scheduler = SchedulerService::new(config, db, Arc::new(ctx.clone()), schedule)?;
 
     let available_jobs = scheduler.run_bootstrap_jobs(events).await?;
     let startup = scheduler.start().await?;
@@ -52,7 +57,7 @@ pub(in crate::services::server) async fn initialize_scheduler(
 async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
     let service = ConfigReconcileService::from_app_context(
         &Arc::new(ctx.clone()),
-        (*crate::repository::config_plane_state(ctx.db_pool())).clone(),
+        (*crate::repository::config_plane_state(ctx.kernel().state().get::<DbPool>()?)).clone(),
     )?;
     let applier = ConfigApplyService::new(service);
     let file_planes = applier

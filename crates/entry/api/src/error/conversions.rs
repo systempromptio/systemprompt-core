@@ -16,6 +16,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth_issuance::DriveSyncError;
+use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::RepositoryError;
 
 use super::ApiHttpError;
@@ -23,6 +24,15 @@ use super::ApiHttpError;
 impl From<IdValidationError> for ApiHttpError {
     fn from(err: IdValidationError) -> Self {
         Self(Box::new(ApiError::from(err)))
+    }
+}
+
+impl From<MissingDependency> for ApiHttpError {
+    fn from(err: MissingDependency) -> Self {
+        Self(Box::new(ApiError::internal(
+            "Host dependency unavailable",
+            err,
+        )))
     }
 }
 

@@ -12,22 +12,31 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::PgConfigVersion;
+use anyhow::Result;
+use systemprompt_database::{DbPool, PgConfigVersion};
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{CONFIG_WATCH_POLL, CacheDomain, WatchSignals};
+use systemprompt_traits::{
+    BackgroundTasks, CONFIG_WATCH_POLL, CacheDomain, CacheEpochs, ConfigWatch, WatchSignals,
+};
 
-pub(in crate::services::server) fn start_governance_watch(ctx: &AppContext) {
+pub(in crate::services::server) fn start_governance_watch(ctx: &AppContext) -> Result<()> {
+    let state = ctx.kernel().state();
     let signals = WatchSignals {
         domain: CacheDomain::Governance,
-        epochs: ctx.cache_epochs().clone(),
-        version: Arc::new(PgConfigVersion::new(ctx.db_pool())),
+        epochs: state.get::<CacheEpochs>()?.clone(),
+        version: Arc::new(PgConfigVersion::new(state.get::<DbPool>()?)),
         poll: CONFIG_WATCH_POLL,
     };
-    let reload_ctx = ctx.clone();
-    ctx.governance_watch()
-        .spawn(ctx.background_tasks(), signals, move || {
-            let ctx = reload_ctx.clone();
-            async move { ctx.load_governance().await }
-        });
+    let kernel = Arc::clone(ctx.kernel());
+    state.get::<ConfigWatch<GovernanceEngine>>()?.spawn(
+        state.get::<BackgroundTasks>()?,
+        signals,
+        move || {
+            let kernel = Arc::clone(&kernel);
+            async move { systemprompt_runtime::reload_governance(&kernel).await }
+        },
+    );
     tracing::info!("Governance engine follows the governance config plane");
+    Ok(())
 }

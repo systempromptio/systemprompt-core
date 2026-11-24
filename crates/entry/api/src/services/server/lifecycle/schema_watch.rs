@@ -12,15 +12,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
+
+use anyhow::Result;
+use systemprompt_database::DbPool;
+use systemprompt_runtime::SchemaState;
+use systemprompt_traits::BackgroundTasks;
 
 use systemprompt_runtime::AppContext;
 
 const SCHEMA_RECHECK_INTERVAL: Duration = Duration::from_secs(60);
 
-pub(in crate::services::server) fn start_schema_watch(ctx: &AppContext) {
+pub(in crate::services::server) fn start_schema_watch(ctx: &AppContext) -> Result<()> {
+    let state = ctx.kernel().state();
     let watched = ctx.clone();
-    ctx.background_tasks()
+    let db = DbPool::clone(state.get::<DbPool>()?);
+    let schema = Arc::clone(state.get::<Arc<SchemaState>>()?);
+    state
+        .get::<BackgroundTasks>()?
         .spawn_cancellable("schema_watch", move |cancel| async move {
             let mut tick = tokio::time::interval(SCHEMA_RECHECK_INTERVAL);
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -32,9 +42,9 @@ pub(in crate::services::server) fn start_schema_watch(ctx: &AppContext) {
                 }
                 if let Err(error) = systemprompt_runtime::schema_currency::recheck(
                     watched.admitted().built(),
-                    watched.db_pool().write(),
+                    db.write(),
                     &systemprompt_database::SchemaName::public(),
-                    watched.schema_state(),
+                    &schema,
                 )
                 .await
                 {
@@ -45,4 +55,5 @@ pub(in crate::services::server) fn start_schema_watch(ctx: &AppContext) {
                 }
             }
         });
+    Ok(())
 }

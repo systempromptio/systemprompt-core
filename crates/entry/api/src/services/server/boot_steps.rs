@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::FilesConfigView;
+use systemprompt_traits::{BackgroundTasks, FilesConfigView};
 
 pub(super) async fn reconcile_document_folders(ctx: &AppContext) -> Result<()> {
     if !documents_enabled(ctx) {
@@ -28,17 +28,24 @@ pub(super) async fn reconcile_document_folders(ctx: &AppContext) -> Result<()> {
 }
 
 #[cfg(feature = "otel")]
-pub(super) fn start_otlp_export(ctx: &AppContext) {
-    let Some(config) = ctx.profile().observability.otlp() else {
-        return;
+pub(super) fn start_otlp_export(ctx: &AppContext) -> Result<()> {
+    let state = ctx.kernel().state();
+    let Some(config) = state
+        .get::<systemprompt_loader::BootContext>()?
+        .profile()
+        .observability
+        .otlp()
+    else {
+        return Ok(());
     };
-    if ctx
-        .logging()
+    if state
+        .get::<systemprompt_logging::LoggingRuntime>()?
         .sink()
-        .start_otlp_export(config, ctx.background_tasks())
+        .start_otlp_export(config, state.get::<BackgroundTasks>()?)
     {
         tracing::info!(endpoint = %config.endpoint, "OTLP export started");
     }
+    Ok(())
 }
 
 pub(super) async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
@@ -47,7 +54,10 @@ pub(super) async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
     if settled > 0 {
         tracing::info!(settled, "Gateway accounting receipts recovered at startup");
     }
-    systemprompt_gateway::audit::journal::spawn_recovery(settlement, ctx.background_tasks());
+    systemprompt_gateway::audit::journal::spawn_recovery(
+        settlement,
+        ctx.kernel().state().get::<BackgroundTasks>()?,
+    );
     Ok(())
 }
 
