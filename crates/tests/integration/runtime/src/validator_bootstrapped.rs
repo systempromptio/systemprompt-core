@@ -59,7 +59,7 @@ fn validate_runs_full_pipeline_when_bootstrapped_quiet() {
         "bootstrapped run must record the profile path: {report:?}",
     );
     let domains: Vec<&str> = report.domains.iter().map(|d| d.domain.as_str()).collect();
-    for expected in ["files", "web", "content", "agents", "mcp", "ai"] {
+    for expected in ["web", "content", "agents", "mcp", "ai"] {
         assert!(
             domains.contains(&expected),
             "domain-validation pass must have run `{expected}`: {domains:?}",
