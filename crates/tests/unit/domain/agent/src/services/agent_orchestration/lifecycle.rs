@@ -4,7 +4,7 @@
 // already dead, and crash cleanup when no service record exists.
 
 use std::sync::Arc;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, SpawnNonce};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -96,7 +96,7 @@ async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
     let db = db_service(&pool, &instance);
 
     let name = unique_agent_name("lc_restart");
-    db.register_agent(&name, DEAD_PID, 9410)
+    db.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9410)
         .await
         .expect("register");
 
@@ -118,7 +118,7 @@ async fn disable_agent_with_dead_pid_removes_service_row() {
     let db = db_service(&pool, &instance);
 
     let name = unique_agent_name("lc_disable");
-    db.register_agent(&name, DEAD_PID, 9411)
+    db.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9411)
         .await
         .expect("register");
 
@@ -151,7 +151,7 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
     let db = db_service(&pool, &instance);
     let name = unique_agent_name("lc_crashed");
 
-    db.register_agent(&name, DEAD_PID, 9413)
+    db.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9413)
         .await
         .expect("register running record");
     let row = sqlx::query_as::<_, (String, Option<i32>, Option<i32>)>(
@@ -188,7 +188,7 @@ async fn disable_removes_the_service_row() {
     let db = db_service(&pool, &instance);
 
     let name = unique_agent_name("lc_bus_dis");
-    db.register_agent(&name, DEAD_PID, 9412)
+    db.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9412)
         .await
         .expect("register");
 

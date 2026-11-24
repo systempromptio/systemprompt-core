@@ -1,7 +1,11 @@
 //! Unit tests for port management functions
 
+use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_mcp::services::network::port::{is_port_in_use, is_port_responsive};
+use systemprompt_loader::subprocess::SpawnStamp;
+use systemprompt_mcp::services::network::port::{
+    PortHolderClaim, is_port_in_use, is_port_responsive,
+};
 
 #[tokio::test]
 async fn test_is_port_in_use_unused_high_port() {
@@ -37,7 +41,15 @@ async fn test_is_port_responsive_unused() {
 async fn test_prepare_port_unused() {
     use systemprompt_mcp::services::network::port::prepare_port;
 
-    let result = prepare_port(59989, &ServiceName::new("systemprompt")).await;
+    let result = prepare_port(
+        59989,
+        &PortHolderClaim {
+            service: &ServiceName::new("systemprompt"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+    )
+    .await;
     result.expect("expected success");
 }
 
@@ -53,7 +65,15 @@ async fn test_wait_for_port_release_already_free() {
 async fn test_cleanup_port_processes_no_processes() {
     use systemprompt_mcp::services::network::port::cleanup_port_processes;
 
-    let result = cleanup_port_processes(59987, &ServiceName::new("systemprompt")).await;
+    let result = cleanup_port_processes(
+        59987,
+        &PortHolderClaim {
+            service: &ServiceName::new("systemprompt"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+    )
+    .await;
     result.expect("expected success");
 }
 

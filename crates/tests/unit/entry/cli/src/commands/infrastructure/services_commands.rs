@@ -142,6 +142,7 @@ async fn cleanup_dry_run_result_counts_services() {
         module_name: ServiceModule::Mcp,
         status: ServiceStatus::Running,
         pid: Some(4_000_000),
+        spawn_nonce: None,
         port: 5001,
         binary_mtime: None,
         created_at: String::new(),

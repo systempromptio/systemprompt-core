@@ -29,7 +29,8 @@ use std::process::{Child, Command, Output, Stdio};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
-use systemprompt_loader::subprocess::Spawner;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{ChildClaim, SpawnStamp, Spawner};
 
 static TEST_SPAWNER: OnceLock<Arc<Spawner>> = OnceLock::new();
 
@@ -102,6 +103,7 @@ pub fn helper(helper_test: &str) -> Helper {
 
 pub struct MarkedChild {
     pub child: Child,
+    pub nonce: SpawnNonce,
     _helper: Helper,
 }
 
@@ -109,6 +111,19 @@ impl MarkedChild {
     #[must_use]
     pub fn pid(&self) -> u32 {
         self.child.id()
+    }
+
+    #[must_use]
+    pub fn stamp(&self) -> SpawnStamp {
+        SpawnStamp::Boot(self.nonce.clone())
+    }
+
+    #[must_use]
+    pub fn mcp_claim(&self, service: &str) -> ChildClaim {
+        ChildClaim::Mcp {
+            service: ServiceName::new(service),
+            stamp: self.stamp(),
+        }
     }
 }
 
@@ -126,15 +141,33 @@ pub fn announce_helper_ready() {
 }
 
 pub fn spawn_marked_child(helper_test: &str, service_name: &str) -> MarkedChild {
+    spawn_marked(
+        helper_test,
+        systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+        service_name,
+    )
+}
+
+pub fn spawn_marked_agent(helper_test: &str, agent_name: &str) -> MarkedChild {
+    spawn_marked(
+        helper_test,
+        systemprompt_models::subprocess::AGENT_NAME_ENV,
+        agent_name,
+    )
+}
+
+fn spawn_marked(helper_test: &str, name_key: &str, service_name: &str) -> MarkedChild {
     let helper = helper(helper_test);
+    let nonce = SpawnNonce::generate();
 
     let child = Command::new(std::env::current_exe().expect("test binary path"))
         .args(["--exact", helper_test, "--ignored"])
         .env(HELPER_READY_ENV, helper.ready_path())
         .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
+        .env(name_key, service_name)
         .env(
-            systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-            service_name,
+            systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+            nonce.as_str(),
         )
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -145,6 +178,7 @@ pub fn spawn_marked_child(helper_test: &str, service_name: &str) -> MarkedChild 
 
     MarkedChild {
         child,
+        nonce,
         _helper: helper,
     }
 }

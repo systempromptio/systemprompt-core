@@ -8,14 +8,16 @@
 
 use std::process::Command;
 use std::time::{Duration, Instant};
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
 
-use systemprompt_loader::subprocess;
-use systemprompt_mcp::services::network::port::{cleanup_port_processes, is_port_in_use};
+use systemprompt_loader::subprocess::{self, SpawnStamp};
+use systemprompt_mcp::services::network::port::{
+    PortHolderClaim, cleanup_port_processes, is_port_in_use,
+};
 
 // Orphaned rather than kept as a direct child, as a stale server left behind by
 // a previous run would be: init, not this test, reaps it.
-async fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
+async fn spawn_owned_listener(port: u16, service_name: &str, nonce: &SpawnNonce) -> Option<u32> {
     let python = format!(
         "import socket,time; s=socket.socket(); \
          s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); \
@@ -28,6 +30,10 @@ async fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
         .env(
             systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
             service_name,
+        )
+        .env(
+            systemprompt_models::subprocess::SPAWN_NONCE_ENV,
+            nonce.as_str(),
         )
         .output()
         .ok()?;
@@ -74,11 +80,20 @@ fn free_port() -> u16 {
 async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies() {
     let service = "port_reclaim_fixture";
     let port = free_port();
-    let Some(pid) = spawn_owned_listener(port, service).await else {
+    let nonce = SpawnNonce::generate();
+    let Some(pid) = spawn_owned_listener(port, service, &nonce).await else {
         panic!("could not stand up a marked listener on port {port}");
     };
 
-    let outcome = cleanup_port_processes(port, &ServiceName::new(service)).await;
+    let outcome = cleanup_port_processes(
+        port,
+        &PortHolderClaim {
+            service: &ServiceName::new(service),
+            stamp: &SpawnStamp::Boot(nonce),
+            grace: Duration::from_secs(5),
+        },
+    )
+    .await;
 
     if let Err(error) = &outcome {
         let killed = kill(pid);
@@ -101,7 +116,14 @@ async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies
 // every clean boot would report a failure.
 #[tokio::test]
 async fn a_port_nobody_holds_is_a_no_op_rather_than_an_error() {
-    cleanup_port_processes(free_port(), &ServiceName::new("port_reclaim_fixture"))
+    let service = ServiceName::new("port_reclaim_fixture");
+    let stamp = systemprompt_loader::subprocess::SpawnStamp::Unrecorded;
+    let holder = systemprompt_mcp::services::network::PortHolderClaim {
+        service: &service,
+        stamp: &stamp,
+        grace: std::time::Duration::from_secs(5),
+    };
+    cleanup_port_processes(free_port(), &holder)
         .await
         .expect("an unheld port needs no reclaiming and must not error");
 }

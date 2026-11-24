@@ -3,7 +3,10 @@
 //! stop of a marked child is covered in `process::cleanup_live`.
 
 use std::net::TcpListener;
+use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::SpawnStamp;
+use systemprompt_mcp::services::network::port::PortHolderClaim;
 
 use systemprompt_mcp::services::client::validate_connection_by_url;
 use systemprompt_mcp::services::network::port::{cleanup_port_processes, is_port_in_use};
@@ -30,16 +33,30 @@ async fn cleanup_port_processes_is_a_no_op_for_a_port_with_no_holder() {
     let (listener, port) = held_port();
     drop(listener);
 
-    cleanup_port_processes(port, &ServiceName::new("unheld"))
-        .await
-        .expect("an unheld port yields nothing to clean");
+    cleanup_port_processes(
+        port,
+        &PortHolderClaim {
+            service: &ServiceName::new("unheld"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+    )
+    .await
+    .expect("an unheld port yields nothing to clean");
 }
 
 #[tokio::test]
 async fn cleanup_port_processes_never_looks_up_port_zero() {
-    cleanup_port_processes(0, &ServiceName::new("port-zero"))
-        .await
-        .expect("port 0 has no holder to clean");
+    cleanup_port_processes(
+        0,
+        &PortHolderClaim {
+            service: &ServiceName::new("port-zero"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+    )
+    .await
+    .expect("port 0 has no holder to clean");
 }
 
 #[tokio::test]

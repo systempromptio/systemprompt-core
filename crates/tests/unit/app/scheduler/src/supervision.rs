@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind};
+use systemprompt_loader::subprocess::{self, ChildClaim, ChildKind, SpawnStamp};
 use systemprompt_manifest::services::ServiceModule;
 use systemprompt_scheduler::{
     ApiListenerStop, SchedulerError, child_kind, port_holders, stop_api_listeners,
@@ -107,6 +107,14 @@ mod live_holders {
         }
     }
 
+    fn mcp_claim(service: &ServiceName) -> ChildClaim {
+        ChildClaim::spawned(
+            ChildKind::Mcp,
+            service,
+            SpawnStamp::Boot(systemprompt_test_fixtures::test_spawner().nonce().clone()),
+        )
+    }
+
     fn spawn_holder(marked_as: Option<(ChildKind, &ServiceName)>) -> (Holder, u32, u16) {
         let mut command = Command::new("python3");
         command
@@ -116,7 +124,7 @@ mod live_holders {
             ])
             .stdout(Stdio::piped());
         if let Some((kind, service)) = marked_as {
-            subprocess::mark_child(&mut command, kind, service);
+            systemprompt_test_fixtures::test_spawner().mark_child(&mut command, kind, service);
         }
         let mut child = command.spawn().expect("spawn python3 port holder");
         let stdout = child.stdout.take().expect("holder stdout");
@@ -134,7 +142,7 @@ mod live_holders {
         let service = ServiceName::new(format!("sup-owned-{}", uuid::Uuid::new_v4().simple()));
         let (_holder, pid, port) = spawn_holder(Some((ChildKind::Mcp, &service)));
 
-        let stopped = stop_owned_port_holders(port, ChildKind::Mcp, &service, Duration::ZERO)
+        let stopped = stop_owned_port_holders(port, &mcp_claim(&service), Duration::ZERO)
             .await
             .expect("owned holder stop");
 
@@ -150,7 +158,7 @@ mod live_holders {
         let service = ServiceName::new(format!("sup-foreign-{}", uuid::Uuid::new_v4().simple()));
         let (_holder, pid, port) = spawn_holder(None);
 
-        let stopped = stop_owned_port_holders(port, ChildKind::Mcp, &service, Duration::ZERO)
+        let stopped = stop_owned_port_holders(port, &mcp_claim(&service), Duration::ZERO)
             .await
             .expect("foreign holder stop");
 
@@ -160,12 +168,30 @@ mod live_holders {
     }
 
     #[tokio::test]
+    async fn a_holder_of_another_boot_is_left_running() {
+        let service = ServiceName::new(format!("sup-boot-{}", uuid::Uuid::new_v4().simple()));
+        let (_holder, pid, port) = spawn_holder(Some((ChildKind::Mcp, &service)));
+        let other_boot = ChildClaim::spawned(
+            ChildKind::Mcp,
+            &service,
+            SpawnStamp::Boot(systemprompt_identifiers::SpawnNonce::generate()),
+        );
+
+        let stopped = stop_owned_port_holders(port, &other_boot, Duration::ZERO)
+            .await
+            .expect("other-boot holder stop");
+
+        assert!(stopped.is_empty());
+        assert!(subprocess::is_running(pid).await);
+    }
+
+    #[tokio::test]
     async fn a_holder_marked_for_another_service_is_left_running() {
         let other = ServiceName::new(format!("sup-other-{}", uuid::Uuid::new_v4().simple()));
         let service = ServiceName::new(format!("sup-this-{}", uuid::Uuid::new_v4().simple()));
         let (_holder, pid, port) = spawn_holder(Some((ChildKind::Mcp, &other)));
 
-        let stopped = stop_owned_port_holders(port, ChildKind::Mcp, &service, Duration::ZERO)
+        let stopped = stop_owned_port_holders(port, &mcp_claim(&service), Duration::ZERO)
             .await
             .expect("mismatched holder stop");
 

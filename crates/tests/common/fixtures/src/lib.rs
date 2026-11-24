@@ -122,8 +122,8 @@ pub use poll::{await_window_headroom, block_on, eventually, settle_background};
 pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{
-    announce_helper_ready, bounded_output, helper, spawn_marked_child, test_spawner, Helper,
-    MarkedChild, HELPER_READY_ENV,
+    announce_helper_ready, bounded_output, helper, spawn_marked_agent, spawn_marked_child,
+    test_spawner, Helper, MarkedChild, HELPER_READY_ENV,
 };
 pub use systemprompt_test_migrate::{
     admitted_member, core_members, install_core_schemas, schema_admitted, InstallError,

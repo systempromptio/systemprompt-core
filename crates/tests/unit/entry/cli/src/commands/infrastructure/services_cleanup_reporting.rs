@@ -18,6 +18,7 @@ fn service(name: &str, pid: Option<i32>, port: i32) -> ServiceConfig {
         module_name: ServiceModule::Mcp,
         status: ServiceStatus::Running,
         pid,
+        spawn_nonce: None,
         port,
         binary_mtime: None,
         heartbeat_at: "2026-01-01T00:00:00Z".to_owned(),

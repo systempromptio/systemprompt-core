@@ -12,7 +12,7 @@ use systemprompt_database::{
     CreateServiceInput, Database, DbPool, InstanceClaimError, PoolConfig, ServiceModule,
     ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
 };
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::{InstanceId, ServiceName, SpawnNonce};
 use systemprompt_test_fixtures::{LivePids, test_database_url};
 
 const REPLICAS: usize = 8;
@@ -56,6 +56,7 @@ async fn boot_replica(db: DbPool, names: Vec<ServiceName>) -> Result<InstanceId,
             module_name: ServiceModule::Mcp,
             status: ServiceStatus::Running,
             pid: 10_000 + offset as i32,
+            spawn_nonce: &SpawnNonce::generate(),
             port: 6000 + offset as u16,
         })
         .await

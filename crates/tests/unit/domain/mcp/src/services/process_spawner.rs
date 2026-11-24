@@ -262,22 +262,18 @@ fn coverage_spawn_invalid_executable_returns_a_detached_start_error() {
 async fn spawned_server_receives_service_environment_and_owned_stop_ends_it() {
     use std::os::unix::fs::PermissionsExt;
     use std::time::Duration;
-    use systemprompt_identifiers::ServiceName;
-    use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+    use systemprompt_identifiers::{ServiceName, SpawnNonce};
+    use systemprompt_loader::subprocess::{self, ChildClaim, SpawnStamp, StopOutcome};
     use systemprompt_mcp::services::process::ProcessService;
 
     struct OwnedPid {
         pid: Option<u32>,
-        service_name: ServiceName,
+        claim: ChildClaim,
     }
     impl Drop for OwnedPid {
         fn drop(&mut self) {
             if let Some(pid) = self.pid
-                && subprocess::live_pid_is_subprocess(
-                    pid,
-                    ChildKind::Mcp.marker_env(),
-                    &self.service_name,
-                )
+                && subprocess::live_pid_is_subprocess(pid, &self.claim)
             {
                 let _ = std::process::Command::new("kill")
                     .args(["-9", &pid.to_string()])
@@ -305,17 +301,24 @@ async fn spawned_server_receives_service_environment_and_owned_stop_ends_it() {
     config.port = Some(65431);
     let service_name = config.service_name();
 
-    let pid = ProcessService::new(
+    let process = ProcessService::new(
         systemprompt_test_fixtures::test_spawner(),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
         systemprompt_test_fixtures::fixture_verification_keys(),
-    )
-    .spawn_server(&boot.app_paths, &config)
-    .expect("spawn fixture");
+    );
+    assert_eq!(
+        process.child_grace(),
+        crate::harness::config().shutdown.child_grace(),
+        "a stop waits the profile's child grace"
+    );
+    let stamp = SpawnStamp::Boot(process.nonce().clone());
+    let pid = process
+        .spawn_server(&boot.app_paths, &config)
+        .expect("spawn fixture");
     let mut cleanup = OwnedPid {
         pid: Some(pid),
-        service_name: service_name.clone(),
+        claim: ProcessService::claim(&service_name, &stamp),
     };
     assert!(ProcessService::is_running(pid).await);
     for _ in 0..80 {
@@ -329,15 +332,25 @@ async fn spawned_server_receives_service_environment_and_owned_stop_ends_it() {
         format!("1|{}|65431", config.name)
     );
     assert!(
-        subprocess::owns(pid, ChildKind::Mcp, &service_name).await,
+        ProcessService::owns(pid, &service_name, &stamp).await,
         "spawn_server stamps the MCP marker the stop path verifies"
     );
     assert!(
-        !subprocess::owns(pid, ChildKind::Mcp, &ServiceName::new("another-server")).await,
+        !ProcessService::owns(pid, &ServiceName::new("another-server"), &stamp).await,
         "the marker names exactly this service"
     );
 
-    let outcome = ProcessService::stop(pid, &service_name).await;
+    assert!(
+        !ProcessService::owns(
+            pid,
+            &service_name,
+            &SpawnStamp::Boot(SpawnNonce::generate())
+        )
+        .await,
+        "a child of another boot is never ours"
+    );
+
+    let outcome = ProcessService::stop(pid, &service_name, &stamp, process.child_grace()).await;
 
     assert!(
         matches!(outcome, Ok(StopOutcome::Stopped(_))),

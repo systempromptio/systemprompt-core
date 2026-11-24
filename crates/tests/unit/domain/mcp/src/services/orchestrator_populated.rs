@@ -412,11 +412,13 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     // Why: reconcile demotes a "running" row whose port is dead to stopped and
     // then crashed, and only rows still marked running are signalled — so a
     // stand-in process that never listens is pruned on paper and left alive.
+    let nonce = systemprompt_identifiers::SpawnNonce::generate();
     let child = std::process::Command::new("python3")
         .arg("-c")
         .arg(LISTENER)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .env("MCP_SERVICE_ID", &name)
+        .env("SYSTEMPROMPT_SPAWN_NONCE", nonce.as_str())
         .env("MCP_PORT", port.to_string())
         .spawn()
         .expect("spawn port listener");
@@ -430,7 +432,7 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     })
     .await
     .unwrap();
-    repo.update_service_pid(&name_id, i32::try_from(child.id()).unwrap())
+    repo.update_service_pid(&name_id, i32::try_from(child.id()).unwrap(), &nonce)
         .await
         .unwrap();
 

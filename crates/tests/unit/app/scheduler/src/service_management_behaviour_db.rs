@@ -34,6 +34,7 @@ fn config_with_pid(
         module_name: module,
         status: ServiceStatus::Running,
         pid,
+        spawn_nonce: pid.map(|_| systemprompt_test_fixtures::test_spawner().nonce().clone()),
         port,
         binary_mtime: None,
         created_at: String::new(),
@@ -59,9 +60,13 @@ async fn seed_running_row(
     .await
     .expect("seed service row");
     if let Some(pid) = pid {
-        repo.update_service_pid(name, pid)
-            .await
-            .expect("seed service pid");
+        repo.update_service_pid(
+            name,
+            pid,
+            systemprompt_test_fixtures::test_spawner().nonce(),
+        )
+        .await
+        .expect("seed service pid");
     }
 }
 
@@ -301,7 +306,11 @@ mod live_child_stop_paths {
                 "import time\nprint('ready', flush=True)\ntime.sleep(30)",
             ])
             .stdout(Stdio::piped());
-        subprocess::mark_child(&mut command, ChildKind::Agent, service_name);
+        systemprompt_test_fixtures::test_spawner().mark_child(
+            &mut command,
+            ChildKind::Agent,
+            service_name,
+        );
         let mut child = command.spawn().expect("spawn marked python child");
         let stdout = child.stdout.take().expect("marked child stdout");
         let mut line = String::new();
@@ -563,7 +572,7 @@ mod live_child_stop_paths {
             ])
             .stdout(Stdio::piped());
         if stamped_as_api {
-            subprocess::mark_child(
+            systemprompt_test_fixtures::test_spawner().mark_child(
                 &mut command,
                 ChildKind::Api,
                 &subprocess::api_server_service(),

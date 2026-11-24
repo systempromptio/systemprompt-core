@@ -1,4 +1,7 @@
-use systemprompt_loader::subprocess::{ChildKind, api_server_service, live_pid_is_subprocess};
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{
+    ChildClaim, SpawnStamp, api_server_service, live_pid_is_subprocess,
+};
 use systemprompt_models::subprocess::{
     AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, environ_from_procargs2, environ_has_entries,
     environ_identifies_api_server, environ_identifies_child,
@@ -23,7 +26,8 @@ fn matches_agent_child_with_marker_and_name() {
     assert!(environ_identifies_child(
         &env,
         AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &systemprompt_identifiers::ServiceName::new("greeter"),
+        None
     ));
 }
 
@@ -33,7 +37,8 @@ fn matches_mcp_child_with_marker_and_name() {
     assert!(environ_identifies_child(
         &env,
         MCP_SERVICE_ID_ENV,
-        &systemprompt_identifiers::ServiceName::new("files")
+        &systemprompt_identifiers::ServiceName::new("files"),
+        None
     ));
 }
 
@@ -41,19 +46,23 @@ fn matches_mcp_child_with_marker_and_name() {
 fn api_server_marker_identifies_without_the_subprocess_marker() {
     let env = environ(&["PATH=/usr/bin", "SYSTEMPROMPT_API_SERVER=api"]);
     assert!(environ_identifies_api_server(&env, &api_server_service()));
-    assert!(ChildKind::Api.identifies(&env, &api_server_service()));
+    assert!(ChildClaim::ApiServer.identifies(&env));
 }
 
 #[test]
 fn api_server_identity_rejects_child_markers_and_other_names() {
     let child = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "AGENT_NAME=api"]);
-    assert!(!ChildKind::Api.identifies(&child, &api_server_service()));
+    assert!(!ChildClaim::ApiServer.identifies(&child));
 
     let renamed = environ(&["SYSTEMPROMPT_API_SERVER=apix"]);
-    assert!(!ChildKind::Api.identifies(&renamed, &api_server_service()));
+    assert!(!ChildClaim::ApiServer.identifies(&renamed));
 
     let api = environ(&["SYSTEMPROMPT_API_SERVER=api"]);
-    assert!(!ChildKind::Agent.identifies(&api, &api_server_service()));
+    let agent = ChildClaim::Agent {
+        service: api_server_service(),
+        stamp: SpawnStamp::PreNonce,
+    };
+    assert!(!agent.identifies(&api));
 }
 
 #[test]
@@ -69,7 +78,8 @@ fn rejects_missing_subprocess_marker() {
     assert!(!environ_identifies_child(
         &env,
         AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &systemprompt_identifiers::ServiceName::new("greeter"),
+        None
     ));
 }
 
@@ -79,7 +89,8 @@ fn rejects_marker_with_wrong_name() {
     assert!(!environ_identifies_child(
         &env,
         AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &systemprompt_identifiers::ServiceName::new("greeter"),
+        None
     ));
 }
 
@@ -89,7 +100,8 @@ fn rejects_name_as_substring() {
     assert!(!environ_identifies_child(
         &env,
         AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &systemprompt_identifiers::ServiceName::new("greeter"),
+        None
     ));
 }
 
@@ -98,7 +110,8 @@ fn rejects_empty_environ() {
     assert!(!environ_identifies_child(
         &[],
         AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &systemprompt_identifiers::ServiceName::new("greeter"),
+        None
     ));
 }
 
@@ -108,7 +121,8 @@ fn rejects_unrelated_process() {
     assert!(!environ_identifies_child(
         &env,
         AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &systemprompt_identifiers::ServiceName::new("greeter"),
+        None
     ));
 }
 
@@ -116,8 +130,10 @@ fn rejects_unrelated_process() {
 fn live_pid_without_proc_entry_is_not_our_child() {
     assert!(!live_pid_is_subprocess(
         4_000_000,
-        AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &ChildClaim::Agent {
+            service: ServiceName::new("greeter"),
+            stamp: SpawnStamp::PreNonce,
+        }
     ));
 }
 
@@ -126,9 +142,85 @@ fn live_pid_self_is_not_claimed() {
     let me = std::process::id();
     assert!(!live_pid_is_subprocess(
         me,
-        AGENT_NAME_ENV,
-        &systemprompt_identifiers::ServiceName::new("greeter")
+        &ChildClaim::Agent {
+            service: ServiceName::new("greeter"),
+            stamp: SpawnStamp::PreNonce,
+        }
     ));
+}
+
+fn mcp_boot(service: &str, nonce: &SpawnNonce) -> ChildClaim {
+    ChildClaim::Mcp {
+        service: ServiceName::new(service),
+        stamp: SpawnStamp::Boot(nonce.clone()),
+    }
+}
+
+#[test]
+fn a_boot_claim_rejects_a_forged_marker_without_a_nonce() {
+    let env = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "MCP_SERVICE_ID=files"]);
+    assert!(!mcp_boot("files", &SpawnNonce::generate()).identifies(&env));
+}
+
+#[test]
+fn a_boot_claim_rejects_a_child_of_another_boot() {
+    let other = SpawnNonce::generate();
+    let entry = format!("SYSTEMPROMPT_SPAWN_NONCE={other}");
+    let env = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "MCP_SERVICE_ID=files", &entry]);
+    assert!(!mcp_boot("files", &SpawnNonce::generate()).identifies(&env));
+}
+
+#[test]
+fn a_boot_claim_identifies_a_child_carrying_its_nonce() {
+    let nonce = SpawnNonce::generate();
+    let entry = format!("SYSTEMPROMPT_SPAWN_NONCE={nonce}");
+    let env = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "MCP_SERVICE_ID=files", &entry]);
+    assert!(mcp_boot("files", &nonce).identifies(&env));
+    assert!(!mcp_boot("other", &nonce).identifies(&env));
+}
+
+#[test]
+fn a_pre_nonce_claim_identifies_only_a_child_without_any_nonce() {
+    let claim = ChildClaim::Mcp {
+        service: ServiceName::new("files"),
+        stamp: SpawnStamp::PreNonce,
+    };
+    let bare = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "MCP_SERVICE_ID=files"]);
+    assert!(claim.identifies(&bare));
+
+    let entry = format!("SYSTEMPROMPT_SPAWN_NONCE={}", SpawnNonce::generate());
+    let stamped = environ(&["SYSTEMPROMPT_SUBPROCESS=1", "MCP_SERVICE_ID=files", &entry]);
+    assert!(!claim.identifies(&stamped));
+}
+
+#[test]
+fn an_unrecorded_claim_identifies_nothing() {
+    let nonce = SpawnNonce::generate();
+    let entry = format!("SYSTEMPROMPT_SPAWN_NONCE={nonce}");
+    let claim = ChildClaim::Mcp {
+        service: ServiceName::new("files"),
+        stamp: SpawnStamp::Unrecorded,
+    };
+    assert!(!claim.identifies(&environ(&[
+        "SYSTEMPROMPT_SUBPROCESS=1",
+        "MCP_SERVICE_ID=files"
+    ])));
+    assert!(!claim.identifies(&environ(&[
+        "SYSTEMPROMPT_SUBPROCESS=1",
+        "MCP_SERVICE_ID=files",
+        &entry
+    ])));
+}
+
+#[test]
+fn a_recorded_stamp_follows_the_row() {
+    let nonce = SpawnNonce::generate();
+    assert_eq!(
+        SpawnStamp::recorded(Some(7), Some(&nonce)),
+        SpawnStamp::Boot(nonce.clone())
+    );
+    assert_eq!(SpawnStamp::recorded(Some(7), None), SpawnStamp::PreNonce);
+    assert_eq!(SpawnStamp::recorded(None, None), SpawnStamp::Unrecorded);
 }
 
 mod procargs2 {
@@ -167,7 +259,8 @@ mod procargs2 {
         assert!(environ_identifies_child(
             environ,
             MCP_SERVICE_ID_ENV,
-            &systemprompt_identifiers::ServiceName::new("files")
+            &systemprompt_identifiers::ServiceName::new("files"),
+            None
         ));
     }
 
@@ -190,7 +283,8 @@ mod procargs2 {
         assert!(!environ_identifies_child(
             environ,
             MCP_SERVICE_ID_ENV,
-            &systemprompt_identifiers::ServiceName::new("files")
+            &systemprompt_identifiers::ServiceName::new("files"),
+            None
         ));
     }
 
@@ -241,7 +335,7 @@ mod supervised_spawn {
     //! concurrent callers are serialised onto the one long-lived spawner thread
     //! that makes the signal meaningful.
 
-    use super::{MCP_SERVICE_ID_ENV, live_pid_is_subprocess};
+    use super::{ChildClaim, SpawnStamp, live_pid_is_subprocess};
     use std::process::Command;
     use std::sync::OnceLock;
     use std::time::{Duration, Instant};
@@ -363,19 +457,11 @@ mod supervised_spawn {
         let child = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "files");
 
         assert!(
-            live_pid_is_subprocess(
-                child.pid(),
-                MCP_SERVICE_ID_ENV,
-                &systemprompt_identifiers::ServiceName::new("files")
-            ),
+            live_pid_is_subprocess(child.pid(), &child.mcp_claim("files")),
             "a child carrying our markers must verify as ours"
         );
         assert!(
-            !live_pid_is_subprocess(
-                child.pid(),
-                MCP_SERVICE_ID_ENV,
-                &systemprompt_identifiers::ServiceName::new("other")
-            ),
+            !live_pid_is_subprocess(child.pid(), &child.mcp_claim("other")),
             "a different service name must not claim this child"
         );
     }
@@ -387,8 +473,10 @@ mod supervised_spawn {
         assert!(alive(pid));
         assert!(!live_pid_is_subprocess(
             pid,
-            MCP_SERVICE_ID_ENV,
-            &systemprompt_identifiers::ServiceName::new("files")
+            &ChildClaim::Mcp {
+                service: systemprompt_identifiers::ServiceName::new("files"),
+                stamp: SpawnStamp::PreNonce,
+            }
         ));
 
         kill(pid);

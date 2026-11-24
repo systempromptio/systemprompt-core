@@ -1,8 +1,10 @@
 //! A registry PID that has since died must read as not-running on
 //! reconciliation, and a stop of it must not signal anything.
 
-use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::StopOutcome;
+use std::time::Duration;
+
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{SpawnStamp, StopOutcome};
 use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::{spawn_sleep, spawn_tcp_accept_loop};
@@ -46,7 +48,13 @@ async fn stopping_a_reaped_recorded_pid_reports_not_running() {
     child.kill().expect("kill sleep");
     child.wait().expect("reap sleep");
 
-    let outcome = ProcessService::stop(pid, &ServiceName::new("stale-pid")).await;
+    let outcome = ProcessService::stop(
+        pid,
+        &ServiceName::new("stale-pid"),
+        &SpawnStamp::Boot(SpawnNonce::generate()),
+        Duration::from_secs(5),
+    )
+    .await;
 
     assert!(
         matches!(outcome, Ok(StopOutcome::NotRunning)),

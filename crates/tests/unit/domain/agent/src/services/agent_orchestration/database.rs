@@ -10,7 +10,7 @@
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::{AgentStatus, OrchestrationError};
-use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_identifiers::{AgentName, InstanceId, SpawnNonce};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, unique_agent_name, unique_instance};
 use systemprompt_traits::RepositoryError;
 
@@ -38,7 +38,7 @@ async fn register_then_status_reconciles_dead_pid_to_failed() {
     let svc = service(&pool, &instance).await;
     let name = unique_agent_name("orch-dead");
 
-    svc.register_agent(&name, DEAD_PID, 9300)
+    svc.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9300)
         .await
         .expect("register");
 
@@ -76,7 +76,7 @@ async fn status_starting_is_failed_with_starting_reason() {
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
     let name = unique_agent_name("orch-starting");
-    svc.register_agent_starting(&name, DEAD_PID, 9301)
+    svc.register_agent_starting(&name, DEAD_PID, &SpawnNonce::generate(), 9301)
         .await
         .expect("register starting");
 
@@ -95,7 +95,7 @@ async fn status_stopped_is_failed() {
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
     let name = unique_agent_name("orch-stopped");
-    svc.register_agent(&name, DEAD_PID, 9302)
+    svc.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9302)
         .await
         .expect("register");
     svc.update_agent_stopped(&name).await.expect("stop");
@@ -112,7 +112,7 @@ async fn list_running_agents_includes_registered() {
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
     let name = unique_agent_name("orch-listrun");
-    svc.register_agent(&name, DEAD_PID, 9304)
+    svc.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9304)
         .await
         .expect("register");
 
@@ -129,12 +129,11 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
     let svc = service(&pool, &instance).await;
     let name = unique_agent_name("orch-lifecycle");
 
-    svc.register_agent_starting(&name, DEAD_PID, 9306)
+    svc.register_agent_starting(&name, DEAD_PID, &SpawnNonce::generate(), 9306)
         .await
         .expect("starting");
     svc.mark_running(&name).await.expect("running");
-    // update_agent_running upserts the row back to running.
-    svc.update_agent_running(&name, DEAD_PID, 9307)
+    svc.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9307)
         .await
         .expect("update running");
     svc.update_agent_stopped(&name).await.expect("stopped");
@@ -167,7 +166,7 @@ async fn error_row_reads_as_failed_without_rewriting_it() {
     let svc = service(&pool, &instance).await;
     let raw = pool.pool();
     let name = unique_agent_name("orch-crash");
-    svc.register_agent(&name, DEAD_PID, 9308)
+    svc.register_agent(&name, DEAD_PID, &SpawnNonce::generate(), 9308)
         .await
         .expect("register");
     svc.mark_failed(&name).await.expect("mark failed");
@@ -205,6 +204,7 @@ async fn mcp_rows_are_invisible_to_agent_supervision() {
             pid: i32::try_from(DEAD_PID).expect("pid fits"),
             port: 9310,
             status: systemprompt_database::ServiceStatus::Running,
+            spawn_nonce: &SpawnNonce::generate(),
         })
         .await
         .expect("seed mcp row");
@@ -279,7 +279,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
     let svc = service(&pool, &instance).await;
     let raw = pool.pool();
     let name = unique_agent_name("orch-corrupt-process");
-    svc.register_agent(&name, std::process::id(), 9309)
+    svc.register_agent(&name, std::process::id(), &SpawnNonce::generate(), 9309)
         .await
         .expect("register owned process identity");
 

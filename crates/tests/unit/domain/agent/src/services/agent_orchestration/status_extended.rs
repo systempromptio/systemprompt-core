@@ -3,27 +3,68 @@ use systemprompt_agent::services::agent_orchestration::{
     AgentStatus, OrchestrationError, ValidationReport,
 };
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::subprocess::SpawnStamp;
 
 #[test]
 fn test_agent_status_running_eq() {
-    let a = AgentStatus::Running { pid: 1, port: 80 };
-    let b = AgentStatus::Running { pid: 1, port: 80 };
+    let a = AgentStatus::Running {
+        pid: 1,
+        port: 80,
+        stamp: SpawnStamp::PreNonce,
+    };
+    let b = AgentStatus::Running {
+        pid: 1,
+        port: 80,
+        stamp: SpawnStamp::PreNonce,
+    };
 
     assert_eq!(a, b);
 }
 
 #[test]
 fn test_agent_status_running_ne_pid() {
-    let a = AgentStatus::Running { pid: 1, port: 80 };
-    let b = AgentStatus::Running { pid: 2, port: 80 };
+    let a = AgentStatus::Running {
+        pid: 1,
+        port: 80,
+        stamp: SpawnStamp::PreNonce,
+    };
+    let b = AgentStatus::Running {
+        pid: 2,
+        port: 80,
+        stamp: SpawnStamp::PreNonce,
+    };
 
     assert_ne!(a, b);
 }
 
 #[test]
 fn test_agent_status_running_ne_port() {
-    let a = AgentStatus::Running { pid: 1, port: 8080 };
-    let b = AgentStatus::Running { pid: 1, port: 9090 };
+    let a = AgentStatus::Running {
+        pid: 1,
+        port: 8080,
+        stamp: SpawnStamp::PreNonce,
+    };
+    let b = AgentStatus::Running {
+        pid: 1,
+        port: 9090,
+        stamp: SpawnStamp::PreNonce,
+    };
+
+    assert_ne!(a, b);
+}
+
+#[test]
+fn test_agent_status_running_ne_stamp() {
+    let a = AgentStatus::Running {
+        pid: 1,
+        port: 80,
+        stamp: SpawnStamp::PreNonce,
+    };
+    let b = AgentStatus::Running {
+        pid: 1,
+        port: 80,
+        stamp: SpawnStamp::Boot(systemprompt_identifiers::SpawnNonce::generate()),
+    };
 
     assert_ne!(a, b);
 }
@@ -62,7 +103,11 @@ fn test_agent_status_failed_ne_reason() {
 
 #[test]
 fn test_agent_status_running_ne_failed() {
-    let running = AgentStatus::Running { pid: 1, port: 80 };
+    let running = AgentStatus::Running {
+        pid: 1,
+        port: 80,
+        stamp: SpawnStamp::PreNonce,
+    };
     let failed = AgentStatus::Failed {
         reason: "x".to_string(),
         last_attempt: None,
@@ -88,6 +133,7 @@ fn test_agent_info_construction() {
         status: AgentStatus::Running {
             pid: 100,
             port: 8080,
+            stamp: SpawnStamp::PreNonce,
         },
         port: 8080,
     };
@@ -119,6 +165,7 @@ fn test_agent_info_debug() {
         status: AgentStatus::Running {
             pid: 300,
             port: 5000,
+            stamp: SpawnStamp::PreNonce,
         },
         port: 5000,
     };

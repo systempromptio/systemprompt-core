@@ -161,9 +161,13 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
     let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
 
     seed_service(&repo, &name_id, port).await;
-    repo.update_service_pid(&name_id, i32::try_from(marked.pid()).unwrap())
-        .await
-        .unwrap();
+    repo.update_service_pid(
+        &name_id,
+        i32::try_from(marked.pid()).unwrap(),
+        &marked.nonce,
+    )
+    .await
+    .unwrap();
 
     life.stop_server(&make_config(&name, port)).await.unwrap();
 

@@ -3,7 +3,10 @@
 //! gone, so no window exists in which another process can claim the port.
 
 use std::net::TcpListener;
+use std::time::Duration;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::SpawnStamp;
+use systemprompt_mcp::services::network::port::PortHolderClaim;
 
 use systemprompt_mcp::services::network::NetworkService;
 
@@ -25,7 +28,14 @@ async fn prepare_port_is_a_no_op_while_this_process_still_holds_the_port() {
     // The reclaim sweep skips this process's own pid, so the listener survives
     // the call — killing the caller is never the intent.
     let result = NetworkService::new()
-        .prepare_port(port, &ServiceName::new("systemprompt"))
+        .prepare_port(
+            port,
+            &PortHolderClaim {
+                service: &ServiceName::new("systemprompt"),
+                stamp: &SpawnStamp::Unrecorded,
+                grace: Duration::from_secs(5),
+            },
+        )
         .await;
     let still_held = NetworkService::is_port_responsive(port).await;
     drop(listener);
@@ -66,7 +76,15 @@ async fn wait_for_port_release_with_retry_gives_up_on_a_port_that_stays_bound() 
     let (listener, port) = held_port();
 
     let result = NetworkService::new()
-        .wait_for_port_release_with_retry(port, &ServiceName::new("systemprompt"), 2)
+        .wait_for_port_release_with_retry(
+            port,
+            &PortHolderClaim {
+                service: &ServiceName::new("systemprompt"),
+                stamp: &SpawnStamp::Unrecorded,
+                grace: Duration::from_secs(5),
+            },
+            2,
+        )
         .await;
     drop(listener);
 
@@ -83,7 +101,15 @@ async fn wait_for_port_release_with_retry_succeeds_for_a_released_port() {
     drop(listener);
 
     NetworkService::new()
-        .wait_for_port_release_with_retry(port, &ServiceName::new("systemprompt"), 2)
+        .wait_for_port_release_with_retry(
+            port,
+            &PortHolderClaim {
+                service: &ServiceName::new("systemprompt"),
+                stamp: &SpawnStamp::Unrecorded,
+                grace: Duration::from_secs(5),
+            },
+            2,
+        )
         .await
         .expect("a released port passes on the first attempt");
 }

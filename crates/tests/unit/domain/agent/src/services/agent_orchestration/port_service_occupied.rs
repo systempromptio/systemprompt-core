@@ -14,7 +14,7 @@ use std::time::Duration;
 use systemprompt_agent::services::agent_orchestration::OrchestrationError;
 use systemprompt_agent::services::agent_orchestration::port_service::PortService;
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::subprocess::SupervisionError;
+use systemprompt_loader::subprocess::{SpawnStamp, SupervisionError};
 
 fn held_port() -> (TcpListener, u16) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind ephemeral");
@@ -57,8 +57,8 @@ async fn malformed_lsof_output_fails_closed_without_disturbing_the_listener() {
     let _path = PathGuard(std::env::var_os("PATH"));
     unsafe { std::env::set_var("PATH", shim.path()) };
 
-    let error = PortService::new()
-        .cleanup_port_if_needed(port, &agent())
+    let error = PortService::new(Duration::from_secs(5))
+        .cleanup_port_if_needed(port, &agent(), &SpawnStamp::Unrecorded)
         .await
         .expect_err("an unparseable holder identity must fail closed");
 
@@ -81,8 +81,8 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
     let path = PathGuard(std::env::var_os("PATH"));
     unsafe { std::env::set_var("PATH", unavailable.path()) };
 
-    let error = PortService::new()
-        .cleanup_port_if_needed(port, &agent())
+    let error = PortService::new(Duration::from_secs(5))
+        .cleanup_port_if_needed(port, &agent(), &SpawnStamp::Unrecorded)
         .await
         .expect_err("a missing port probe must fail closed");
     assert!(
@@ -98,8 +98,8 @@ async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener
     );
 
     drop(path);
-    let restored = PortService::new()
-        .cleanup_port_if_needed(port, &agent())
+    let restored = PortService::new(Duration::from_secs(5))
+        .cleanup_port_if_needed(port, &agent(), &SpawnStamp::Unrecorded)
         .await
         .expect_err("the restored probe must still refuse the unmarked listener");
     assert!(

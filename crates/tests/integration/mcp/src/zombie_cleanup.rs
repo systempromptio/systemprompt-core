@@ -2,8 +2,8 @@
 //! and a stop of an already-dead recorded PID is a clean, typed no-op.
 
 use std::time::{Duration, Instant};
-use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::StopOutcome;
+use systemprompt_identifiers::{ServiceName, SpawnNonce};
+use systemprompt_loader::subprocess::{SpawnStamp, StopOutcome};
 use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::{sigkill, spawn_sleep};
@@ -46,7 +46,13 @@ async fn stop_on_an_externally_killed_pid_is_a_noop() {
     sigkill(pid);
     let gone = exits_within_five_seconds(pid).await;
 
-    let outcome = ProcessService::stop(pid, &ServiceName::new("zombie-probe")).await;
+    let outcome = ProcessService::stop(
+        pid,
+        &ServiceName::new("zombie-probe"),
+        &SpawnStamp::Boot(SpawnNonce::generate()),
+        Duration::from_secs(5),
+    )
+    .await;
     drop(child);
 
     assert!(gone, "PID {pid} must be reported dead after SIGKILL");

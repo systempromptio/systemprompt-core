@@ -5,7 +5,7 @@
 //! other's rows. Only the heartbeat reaper crosses instances.
 
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
-use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_identifiers::{InstanceId, ServiceName, SpawnNonce};
 use systemprompt_test_fixtures::LivePids;
 
 use crate::services::db_helper::test_pool;
@@ -29,7 +29,9 @@ async fn register(repo: &ServiceRepository, name: &ServiceName, pid: i32) {
     })
     .await
     .expect("create service");
-    repo.update_service_pid(name, pid).await.expect("set pid");
+    repo.update_service_pid(name, pid, &SpawnNonce::generate())
+        .await
+        .expect("set pid");
 }
 
 async fn age_heartbeat(pg: &sqlx::PgPool, instance_id: &InstanceId, secs: i64) {

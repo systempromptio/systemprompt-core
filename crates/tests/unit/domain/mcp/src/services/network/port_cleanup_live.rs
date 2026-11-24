@@ -2,6 +2,8 @@ use std::net::TcpListener;
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::SpawnStamp;
+use systemprompt_mcp::services::network::port::PortHolderClaim;
 
 use systemprompt_mcp::services::network::port::{
     cleanup_port_processes, is_port_in_use, prepare_port, wait_for_port_release_with_retry,
@@ -39,9 +41,16 @@ async fn cleanup_port_processes_refuses_to_kill_a_foreign_listener() {
     let mut child = spawn_listener_child(port);
     await_port_state(port, true).await;
 
-    let err = cleanup_port_processes(port, &ServiceName::new("systemprompt"))
-        .await
-        .expect_err("a listener we did not spawn must not be reclaimed");
+    let err = cleanup_port_processes(
+        port,
+        &PortHolderClaim {
+            service: &ServiceName::new("systemprompt"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+    )
+    .await
+    .expect_err("a listener we did not spawn must not be reclaimed");
 
     assert!(err.to_string().contains(&port.to_string()));
     assert!(
@@ -58,9 +67,16 @@ async fn prepare_port_skips_self_held_listener() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
 
-    prepare_port(port, &ServiceName::new("systemprompt"))
-        .await
-        .expect("prepare ok");
+    prepare_port(
+        port,
+        &PortHolderClaim {
+            service: &ServiceName::new("systemprompt"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+    )
+    .await
+    .expect("prepare ok");
 
     assert!(listener.local_addr().is_ok());
 }
@@ -71,9 +87,17 @@ async fn wait_for_port_release_with_retry_leaves_a_foreign_listener_alone() {
     let mut child = spawn_listener_child(port);
     await_port_state(port, true).await;
 
-    wait_for_port_release_with_retry(port, &ServiceName::new("systemprompt"), 3)
-        .await
-        .expect_err("a foreign listener must not be reclaimed");
+    wait_for_port_release_with_retry(
+        port,
+        &PortHolderClaim {
+            service: &ServiceName::new("systemprompt"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+        3,
+    )
+    .await
+    .expect_err("a foreign listener must not be reclaimed");
 
     assert!(is_port_in_use(port).await);
 
@@ -86,9 +110,17 @@ async fn wait_for_port_release_with_retry_gives_up_on_self_held_port() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
 
-    let err = wait_for_port_release_with_retry(port, &ServiceName::new("systemprompt"), 2)
-        .await
-        .unwrap_err();
+    let err = wait_for_port_release_with_retry(
+        port,
+        &PortHolderClaim {
+            service: &ServiceName::new("systemprompt"),
+            stamp: &SpawnStamp::Unrecorded,
+            grace: Duration::from_secs(5),
+        },
+        2,
+    )
+    .await
+    .unwrap_err();
 
     assert!(
         matches!(

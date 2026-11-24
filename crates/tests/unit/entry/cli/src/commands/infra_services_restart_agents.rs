@@ -94,7 +94,7 @@ fn seed_agents() -> PathBuf {
 #[tokio::test]
 async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     use systemprompt_cli::infrastructure::services::restart;
-    use systemprompt_loader::subprocess::{self, ChildKind};
+    use systemprompt_loader::subprocess::{self, ChildClaim, SpawnStamp};
     use systemprompt_test_fixtures::DisposableDb;
 
     let root = seed_agents();
@@ -110,8 +110,10 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     assert!(
         !subprocess::owns(
             std::process::id(),
-            ChildKind::Agent,
-            &systemprompt_identifiers::ServiceName::new("covlister"),
+            &ChildClaim::Agent {
+                service: systemprompt_identifiers::ServiceName::new("covlister"),
+                stamp: SpawnStamp::PreNonce,
+            },
         )
         .await,
         "the production port cleanup identity check must reject the unit-test process"
@@ -131,6 +133,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         .register_agent(
             &systemprompt_identifiers::AgentName::new("covlister"),
             2_000_000_000,
+            &systemprompt_identifiers::SpawnNonce::generate(),
             port,
         )
         .await
@@ -175,7 +178,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
 #[tokio::test]
 async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_disabled_agents() {
     use systemprompt_cli::infrastructure::services::restart;
-    use systemprompt_loader::subprocess::{self, ChildKind};
+    use systemprompt_loader::subprocess::{self, ChildClaim, SpawnStamp};
     use systemprompt_test_fixtures::DisposableDb;
 
     let root = seed_agents();
@@ -193,8 +196,10 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     assert!(
         !subprocess::owns(
             std::process::id(),
-            ChildKind::Agent,
-            &systemprompt_identifiers::ServiceName::new("covlister"),
+            &ChildClaim::Agent {
+                service: systemprompt_identifiers::ServiceName::new("covlister"),
+                stamp: SpawnStamp::PreNonce,
+            },
         )
         .await,
         "production cleanup must reject the unit-test process"
