@@ -377,7 +377,7 @@ fn credentials_with_an_unparseable_api_url_are_not_saved() {
     let creds = CloudCredentials::new(
         CloudAuthToken::new(create_valid_token(3600)),
         "not a url".to_string(),
-        Email::new("user@example.com".to_string()),
+        Email::try_new("user@example.com".to_string()).expect("valid Email"),
     );
 
     let err = creds.save_to_path(&creds_path).unwrap_err();
@@ -400,7 +400,7 @@ fn stored_credentials_with_an_unparseable_api_url_are_refused_on_load() {
     let good = CloudCredentials::new(
         CloudAuthToken::new(create_valid_token(3600)),
         "https://api.systemprompt.io".to_string(),
-        Email::new("user@example.com".to_string()),
+        Email::try_new("user@example.com".to_string()).expect("valid Email"),
     );
     good.save_to_path(&creds_path).unwrap();
     let stored = std::fs::read_to_string(&creds_path).unwrap();
