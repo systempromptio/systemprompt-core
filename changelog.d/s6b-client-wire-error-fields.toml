@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-client"
+section = "Breaking"
+text = "`ClientError::ServerUnavailable(String)` is replaced by `ClientError::StreamEndedWithoutExitCode`, and `OutboundUrlError::ProxyHost` carries a named `host` field."
+
+[[crate]]
+name = "systemprompt-wire"
+section = "Breaking"
+text = "`WireParseError::EmptyTerminal` carries `finish` and `detail` fields, and a blocked prompt is the new `WireParseError::PromptBlocked`; both are built with `WireParseError::empty_terminal` and `WireParseError::prompt_blocked`."
