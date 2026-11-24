@@ -39,9 +39,11 @@ impl UserRepository {
         target_id: &UserId,
         reassignments: &AdmittedOwnerReassignments,
     ) -> Result<MergeResult> {
-        if let Some(owned) = reassignments.entries().iter().find(|owned| {
-            MERGE_EXCLUDED_SECURITY_TABLES.contains(&owned.reassignment.table)
-        }) {
+        if let Some(owned) = reassignments
+            .entries()
+            .iter()
+            .find(|owned| MERGE_EXCLUDED_SECURITY_TABLES.contains(&owned.reassignment.table))
+        {
             return Err(UserError::SecurityTableReassignment {
                 owner: owned.owner.clone(),
                 table: owned.reassignment.table,

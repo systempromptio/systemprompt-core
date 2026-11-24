@@ -15,12 +15,13 @@
 //!
 //! Both entry points refuse under the bootstrap lock when a newer release
 //! installed the database (`LoaderError::SchemaInstallSuperseded`), and act
-//! only on the drift they read *under* that lock, so two concurrent repairs never act on the same drift set; a read
-//! before the lock only refuses early or skips taking it when there is none.
-//! Both refuse outright when the recorded row for a slot names a different
-//! migration than the file now occupying it. That is a reused slot, not drift,
-//! and reconciling it would stamp one migration's checksum onto a row
-//! describing another — silencing that row's drift detector for good.
+//! only on the drift they read *under* that lock, so two concurrent repairs
+//! never act on the same drift set; a read before the lock only refuses early
+//! or skips taking it when there is none. Both refuse outright when the
+//! recorded row for a slot names a different migration than the file now
+//! occupying it. That is a reused slot, not drift, and reconciling it would
+//! stamp one migration's checksum onto a row describing another — silencing
+//! that row's drift detector for good.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

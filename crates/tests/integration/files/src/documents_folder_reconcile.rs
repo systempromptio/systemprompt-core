@@ -84,7 +84,10 @@ async fn reconcile_registers_every_reachable_live_folder_of_a_large_tree() {
             "live folder {id} is registered"
         );
     }
-    assert!(registered.contains(&Uuid::nil().to_string()), "root is registered");
+    assert!(
+        registered.contains(&Uuid::nil().to_string()),
+        "root is registered"
+    );
     assert!(
         !registered.contains(&trashed.to_string()),
         "a trashed folder is not registered"
@@ -99,6 +102,9 @@ async fn reconcile_registers_every_reachable_live_folder_of_a_large_tree() {
         .await
         .expect("preset entity")
         .expect("present");
-    assert!(!kept.default_included, "an operator-set row is left untouched");
+    assert!(
+        !kept.default_included,
+        "an operator-set row is left untouched"
+    );
     assert_eq!(kept.source, "operator");
 }

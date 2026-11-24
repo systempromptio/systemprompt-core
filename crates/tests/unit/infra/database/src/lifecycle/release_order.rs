@@ -59,7 +59,9 @@ async fn an_install_records_its_release() {
 
     install(&pool).await.expect("install");
 
-    let release = recorded(&raw).await.expect("the install recorded its release");
+    let release = recorded(&raw)
+        .await
+        .expect("the install recorded its release");
     assert!(!release.is_empty());
     assert_ne!(release, NEWER);
     drop(pool);
@@ -162,7 +164,11 @@ async fn an_older_release_refuses_when_the_schema_it_reads_is_absent() {
         error.to_string().contains("Schema install refused"),
         "typed refusal, got: {error}"
     );
-    assert_eq!(scalar(&raw, ledger).await, rows, "the refused install ran nothing");
+    assert_eq!(
+        scalar(&raw, ledger).await,
+        rows,
+        "the refused install ran nothing"
+    );
     drop(pool);
     database.drop_now().await;
 }

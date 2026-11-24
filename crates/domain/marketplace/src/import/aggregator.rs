@@ -63,7 +63,12 @@ pub(super) fn write_aggregator(
             entries_within(from, &src).map_err(|e| MarketplaceError::import(&src, "read", e))?;
         let mut files: Vec<String> = entries
             .into_iter()
-            .filter(|e| !e.is_dir && e.path.extension().is_some_and(|x| x == "yaml" || x == "yml"))
+            .filter(|e| {
+                !e.is_dir
+                    && e.path
+                        .extension()
+                        .is_some_and(|x| x == "yaml" || x == "yml")
+            })
             .filter_map(|e| Some(format!("../{dir}/{}", e.name.to_str()?)))
             .collect();
         files.sort();

@@ -21,12 +21,12 @@ pub use installation::{
     MigrationOwnershipError, ObjectKind, OrphanMigrationLedger, PROJECTION_BACKLOG,
     RETRYABLE_SQLSTATES, Recorded, RecordedObject, RecordedTable, SCHEMA_INSTALL_RELEASE,
     SCHEMA_INSTALL_STAMP, SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaResidue,
-    SplitCreateTable, SupersededInstall, TableMutation, UndeclaredTable,
-    audit_migration_cost, audit_one, audit_schema_residue, backfill_statements,
-    check_migration_ownership, check_migration_references, check_trigger_routines,
-    install_admitted_schemas, install_schema_members, is_retryable_lock_conflict,
-    is_retryable_sqlstate, migration_ownership_findings, projection_tables, schema_catalog_digest,
-    schema_currency, split_create_table_foreign_keys,
+    SplitCreateTable, SupersededInstall, TableMutation, UndeclaredTable, audit_migration_cost,
+    audit_one, audit_schema_residue, backfill_statements, check_migration_ownership,
+    check_migration_references, check_trigger_routines, install_admitted_schemas,
+    install_schema_members, is_retryable_lock_conflict, is_retryable_sqlstate,
+    migration_ownership_findings, projection_tables, schema_catalog_digest, schema_currency,
+    split_create_table_foreign_keys,
 };
 pub use migrations::{
     AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,

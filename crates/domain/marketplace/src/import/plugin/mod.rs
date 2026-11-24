@@ -288,7 +288,8 @@ fn count_agent_files(root: &Path, dir: &Path) -> Result<usize, MarketplaceError>
     if !dir.is_dir() {
         return Ok(0);
     }
-    let entries = entries_within(root, dir).map_err(|e| MarketplaceError::import(dir, "read", e))?;
+    let entries =
+        entries_within(root, dir).map_err(|e| MarketplaceError::import(dir, "read", e))?;
     Ok(entries
         .iter()
         .filter(|e| !e.is_dir && e.path.extension().is_some_and(|x| x == "md"))

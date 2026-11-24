@@ -109,10 +109,17 @@ pub(super) fn judge_superseded(
 }
 
 pub(super) async fn record(db: &dyn DatabaseProvider) -> Result<(), LoaderError> {
-    match stamp_release(&db.get_postgres_pool(), &stamp_name(), SCHEMA_INSTALL_RELEASE).await {
-        Err(e) if e.sqlstate() != Some(UNDEFINED_TABLE) => {
-            Err(step_failed("Failed to record the schema install release", e))
-        },
+    match stamp_release(
+        &db.get_postgres_pool(),
+        &stamp_name(),
+        SCHEMA_INSTALL_RELEASE,
+    )
+    .await
+    {
+        Err(e) if e.sqlstate() != Some(UNDEFINED_TABLE) => Err(step_failed(
+            "Failed to record the schema install release",
+            e,
+        )),
         _ => Ok(()),
     }
 }

@@ -58,13 +58,15 @@ pub(super) fn skill_body_warnings(
         .collect())
 }
 
-pub(super) fn skill_dirs_without_manifest(plugin_dir: &Path) -> Result<Vec<String>, MarketplaceError> {
+pub(super) fn skill_dirs_without_manifest(
+    plugin_dir: &Path,
+) -> Result<Vec<String>, MarketplaceError> {
     let skills = plugin_dir.join("skills");
     if !skills.is_dir() {
         return Ok(Vec::new());
     }
-    let entries =
-        entries_within(plugin_dir, &skills).map_err(|e| MarketplaceError::import(&skills, "read", e))?;
+    let entries = entries_within(plugin_dir, &skills)
+        .map_err(|e| MarketplaceError::import(&skills, "read", e))?;
     let mut out: Vec<String> = entries
         .into_iter()
         .filter(|e| e.is_dir && !e.path.join(SKILL_FILE).is_file())

@@ -100,8 +100,8 @@ pub(super) fn discover_skill_dirs(
         if !root.is_dir() {
             continue;
         }
-        let entries =
-            entries_within(plugin_dir, &root).map_err(|e| MarketplaceError::import(&root, "read", e))?;
+        let entries = entries_within(plugin_dir, &root)
+            .map_err(|e| MarketplaceError::import(&root, "read", e))?;
         for entry in entries {
             let path = root.join(&entry.name);
             if entry.is_dir && path.join(SKILL_FILE).is_file() {

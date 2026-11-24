@@ -99,7 +99,10 @@ async fn a_scan_waits_for_an_install_dropping_objects_then_succeeds() {
     let scanner = pool.clone();
     let scan = tokio::spawn(async move { schema_catalog_digest(scanner.write()).await });
     tokio::time::sleep(Duration::from_millis(300)).await;
-    assert!(!scan.is_finished(), "the scan waits for the install holding the lock");
+    assert!(
+        !scan.is_finished(),
+        "the scan waits for the install holding the lock"
+    );
 
     for sql in ["DROP FUNCTION churn.f()", "DROP TABLE churn.t CASCADE"] {
         sqlx::query(sql).execute(&raw).await.expect(sql);

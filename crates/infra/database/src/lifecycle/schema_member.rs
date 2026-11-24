@@ -2,9 +2,10 @@
 //!
 //! The installer works over [`SchemaMember`]s: each admitted member's
 //! metadata, standing, schemas, migrations, seeds, retirements, cross-member
-//! tables, user-purge declarations and owner reassignments, snapshotted from the admitted
-//! composition by [`schema_members`] in composition order. A disabled member is
-//! absent from the admitted composition, so its schema is never installed.
+//! tables, user-purge declarations and owner reassignments, snapshotted from
+//! the admitted composition by [`schema_members`] in composition order. A
+//! disabled member is absent from the admitted composition, so its schema is
+//! never installed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

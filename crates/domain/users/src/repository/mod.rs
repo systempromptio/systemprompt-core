@@ -35,8 +35,8 @@ pub use session_traffic::SessionTrafficRollupRepository;
 pub use sso_login_events::{NewSsoLoginEvent, SsoLoginEvent, SsoLoginEventRepository};
 pub use user::{
     ArchiveOutcome, ArchiveParams, ArchiveState, DeclaredUserRow, DeclaredUserWrite,
-    EnsuredServiceAccount, MergeResult, NewServiceAccount,
-    PurgeCount, PurgeOutcome, SkippedPurge, UpdateUserParams,
+    EnsuredServiceAccount, MergeResult, NewServiceAccount, PurgeCount, PurgeOutcome, SkippedPurge,
+    UpdateUserParams,
 };
 
 use sqlx::PgPool;

@@ -8,8 +8,8 @@
 //! against `pg_attribute` and the ownership records:
 //!
 //! - before any DDL, a reassignment over a table in
-//!   [`MERGE_EXCLUDED_SECURITY_TABLES`] is refused whatever the member
-//!   declares ([`refuse_security_tables`]);
+//!   [`MERGE_EXCLUDED_SECURITY_TABLES`] is refused whatever the member declares
+//!   ([`refuse_security_tables`]);
 //! - after the ownership records are written, a reassignment target must be a
 //!   live table, carry every column the declaration names, and not be recorded
 //!   to another member; a purge target present in the catalog must not be

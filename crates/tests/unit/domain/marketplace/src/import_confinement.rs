@@ -8,7 +8,8 @@ use std::path::Path;
 use systemprompt_marketplace::{ImportOptions, import_anthropic_tree};
 use tempfile::TempDir;
 
-const MARKETPLACE: &str = r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[{"name":"p","source":"./plugins/p"}]}"#;
+const MARKETPLACE: &str =
+    r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[{"name":"p","source":"./plugins/p"}]}"#;
 const PLUGIN: &str = r#"{"name":"p","description":"A plugin."}"#;
 const SKILL: &str = "---\nname: a-skill\ndescription: What it does.\n---\n\nBody.\n";
 const SIDECAR: &str = "schema: 1\n";
@@ -101,14 +102,23 @@ fn every_reader_refuses_a_path_that_escapes_the_tree() {
             f.link("plugins/p/.claude-plugin/plugin.json", "plugin.json");
         }),
         ("plugin sidecar", |f| {
-            f.link("plugins/p/.claude-plugin/systemprompt.yaml", "systemprompt.yaml");
+            f.link(
+                "plugins/p/.claude-plugin/systemprompt.yaml",
+                "systemprompt.yaml",
+            );
         }),
         ("skills directory entry", |f| {
             f.link("plugins/p/skills/escaped", "skill");
         }),
-        ("plugin rules entry", |f| f.link("plugins/p/rules/escaped.md", "rule.md")),
-        ("plugin agents entry", |f| f.link("plugins/p/agents/escaped.md", "agent.md")),
-        ("root rules entry", |f| f.link("rules/escaped.md", "rule.md")),
+        ("plugin rules entry", |f| {
+            f.link("plugins/p/rules/escaped.md", "rule.md")
+        }),
+        ("plugin agents entry", |f| {
+            f.link("plugins/p/agents/escaped.md", "agent.md")
+        }),
+        ("root rules entry", |f| {
+            f.link("rules/escaped.md", "rule.md")
+        }),
         ("base tree entry", |f| {
             f.link("systemprompt/agents/escaped.yaml", "config.yaml");
         }),
@@ -116,8 +126,9 @@ fn every_reader_refuses_a_path_that_escapes_the_tree() {
     for (reader, plant) in cases {
         let fixture = Fixture::new();
         plant(&fixture);
-        let error = import(&fixture)
-            .expect_err(&format!("{reader}: an escaping symlink must refuse the import"));
+        let error = import(&fixture).expect_err(&format!(
+            "{reader}: an escaping symlink must refuse the import"
+        ));
         assert!(
             error.contains("resolves outside"),
             "{reader}: refused with a confinement cause, got: {error}"

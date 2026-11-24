@@ -4,7 +4,6 @@
 //! column the live table lacks is refused, and one over a table recorded to
 //! another member is refused.
 
-use systemprompt_database::DatabaseProvider;
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, OwnerReassignment,
     ReassignAction, SchemaDefinition,

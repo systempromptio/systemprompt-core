@@ -46,8 +46,8 @@ pub(super) fn import_rules_dir(
         return Ok(without_opencode);
     }
 
-    let entries =
-        entries_within(root, rules_dir).map_err(|e| MarketplaceError::import(rules_dir, "read", e))?;
+    let entries = entries_within(root, rules_dir)
+        .map_err(|e| MarketplaceError::import(rules_dir, "read", e))?;
     let mut files: Vec<std::path::PathBuf> = entries
         .into_iter()
         .map(|e| (rules_dir.join(&e.name), e.is_dir))
