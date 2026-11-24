@@ -1,6 +1,7 @@
 //! The users member's composed provides: the sealed gateway session mint
 //! conferred on `gateway-http`, the sealed sign-in session view conferred on
-//! `identity-http`, and the open request authenticator.
+//! `identity-http`, the open request authenticator and the open per-user
+//! rate-limit windows the API's global limiter charges.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +16,9 @@ use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_security::{
     JwtRequestAuthenticator, JwtRequestAuthenticatorParts, UnavailableRevocations,
 };
-use systemprompt_traits::{DynGatewaySessionMint, DynSignInSessions};
+use systemprompt_traits::{DynGatewaySessionMint, DynRateLimitBuckets, DynSignInSessions};
 
-use crate::repository::{SessionRepository, UserRepository};
+use crate::repository::{SessionRepository, UserRateLimitBucketRepository, UserRepository};
 use crate::{ApiKeyLifetime, UserService, UsersGatewaySessionMint};
 
 pub(crate) fn gateway_session_mint(
@@ -55,4 +56,9 @@ pub(crate) fn request_authenticator(
             keyring: r.get::<VerificationKeyring>()?,
         },
     )))
+}
+
+pub(crate) fn rate_limit_buckets(r: &Resolved<'_>) -> Result<DynRateLimitBuckets, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(UserRateLimitBucketRepository::new(&db)))
 }

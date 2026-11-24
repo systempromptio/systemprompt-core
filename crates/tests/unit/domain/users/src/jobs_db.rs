@@ -7,7 +7,7 @@ use chrono::{Duration, Utc};
 
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::{Dependencies, Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext, RateLimitBuckets};
 use systemprompt_users::UserRateLimitBucketRepository;
 use systemprompt_users::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
 use uuid::Uuid;

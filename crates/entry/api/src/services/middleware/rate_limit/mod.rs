@@ -8,6 +8,9 @@
 //! keyed by verified identity or trusted client IP, which smooths bursts per
 //! replica, and a database-backed window keyed by verified identity only,
 //! which bounds a caller's budget across every replica of the deployment.
+//! The window is the users member's `DynRateLimitBuckets`, accepted only when
+//! `users` provided it; without it the same window is counted per replica by
+//! [`MemoryRateLimitBuckets`], so the budget still holds on each replica.
 //!
 //! [`with_pre_auth_ip_limit`] mounts a third, cheaper throttle on the whole
 //! server, outside every authenticating layer: an in-process limiter keyed by
@@ -40,6 +43,7 @@ mod bearer;
 mod global;
 mod key;
 pub mod keyed;
+mod memory;
 mod router_ext;
 mod throttle;
 
@@ -56,14 +60,16 @@ use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_provider_contracts::{Dependencies, DependencyProvider};
 use systemprompt_runtime::AppContext;
-use systemprompt_users::UserRateLimitBucketRepository;
+use systemprompt_traits::DynRateLimitBuckets;
 
 use self::global::{GLOBAL_WINDOW_SECS, GlobalUserLimit};
 
 pub use self::bearer::bearer_jwt;
 pub use self::key::{IdentityOrTrustedIpKey, TrustedIpKey, client_bucket};
 pub use self::keyed::KeyedLimiter;
+pub use self::memory::MemoryRateLimitBuckets;
 pub use self::router_ext::{LayerReach, RateWindow, RouterExt, layer_with};
 use self::throttle::{Keying, Throttle, throttle};
 pub use self::throttle::{SubjectThrottle, Throttled};
@@ -72,12 +78,12 @@ pub use self::throttle::{SubjectThrottle, Throttled};
 pub struct RateLimitState {
     config: RateLimitsConfig,
     trusted_proxies: Arc<Vec<IpNet>>,
-    buckets: Arc<UserRateLimitBucketRepository>,
+    buckets: DynRateLimitBuckets,
 }
 
 impl RateLimitState {
     #[must_use]
-    pub fn new(config: &Config, buckets: Arc<UserRateLimitBucketRepository>) -> Self {
+    pub fn new(config: &Config, buckets: DynRateLimitBuckets) -> Self {
         Self {
             config: config.rate_limits,
             trusted_proxies: Arc::new(config.trusted_proxies.clone()),
@@ -86,8 +92,12 @@ impl RateLimitState {
     }
 
     pub fn from_context(ctx: &AppContext) -> Self {
-        let buckets = crate::repository::user_rate_limit_buckets(ctx.db_pool());
-        Self::new(ctx.config(), buckets)
+        Self::from_kernel(ctx.config(), ctx.kernel().state())
+    }
+
+    #[must_use]
+    pub fn from_kernel(config: &Config, state: &Dependencies) -> Self {
+        Self::new(config, replica_shared_buckets(state))
     }
 
     #[must_use]
@@ -135,6 +145,20 @@ impl RateLimitState {
             budget: i64::try_from(budget).unwrap_or(i64::MAX),
         }
     }
+}
+
+const USERS_EXTENSION: &str = "users";
+
+fn replica_shared_buckets(state: &Dependencies) -> DynRateLimitBuckets {
+    let from_users = matches!(
+        state.provider_of::<DynRateLimitBuckets>(),
+        Some(DependencyProvider::Extension(id)) if id.as_str() == USERS_EXTENSION
+    );
+    state
+        .find::<DynRateLimitBuckets>()
+        .filter(|_| from_users)
+        .cloned()
+        .unwrap_or_else(|| Arc::new(MemoryRateLimitBuckets::default()))
 }
 
 pub trait ContextLayer: Clone + Send + Sync + 'static {

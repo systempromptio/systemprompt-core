@@ -10,6 +10,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
+use systemprompt_traits::{RateLimitBuckets, RepositoryError};
 
 use crate::error::Result;
 
@@ -24,12 +25,25 @@ impl UserRateLimitBucketRepository {
         Self { write_pool }
     }
 
-    pub async fn hit(
+    pub async fn prune(&self, before: DateTime<Utc>) -> Result<u64> {
+        let result = sqlx::query!(
+            r#"DELETE FROM user_rate_limit_buckets WHERE window_start < $1"#,
+            before,
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+}
+
+#[async_trait::async_trait]
+impl RateLimitBuckets for UserRateLimitBucketRepository {
+    async fn hit(
         &self,
         user_id: &UserId,
         scope: &str,
         window_start: DateTime<Utc>,
-    ) -> Result<i64> {
+    ) -> std::result::Result<i64, RepositoryError> {
         let row = sqlx::query!(
             r#"
             INSERT INTO user_rate_limit_buckets (user_id, scope, window_start, hits)
@@ -45,15 +59,5 @@ impl UserRateLimitBucketRepository {
         .fetch_one(&*self.write_pool)
         .await?;
         Ok(row.hits)
-    }
-
-    pub async fn prune(&self, before: DateTime<Utc>) -> Result<u64> {
-        let result = sqlx::query!(
-            r#"DELETE FROM user_rate_limit_buckets WHERE window_start < $1"#,
-            before,
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(result.rows_affected())
     }
 }

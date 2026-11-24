@@ -31,6 +31,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_test_fixtures::{closed_db_pool, fixture_config, test_db_pool};
+use systemprompt_traits::RateLimitBuckets;
 use systemprompt_users::UserRateLimitBucketRepository;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -317,7 +318,7 @@ async fn two_authenticated_callers_get_independent_buckets() {
 #[tokio::test]
 async fn a_spent_replica_shared_window_refuses_a_verified_identity_this_replica_never_saw() {
     let buckets = buckets().await;
-    let limits = RateLimitState::new(&config_with(limited()), Arc::clone(&buckets));
+    let limits = RateLimitState::new(&config_with(limited()), buckets.clone());
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
@@ -379,7 +380,7 @@ async fn a_spent_replica_shared_window_refuses_a_verified_identity_this_replica_
 #[tokio::test]
 async fn an_anonymous_caller_never_touches_the_replica_shared_window() {
     let buckets = buckets().await;
-    let limits = RateLimitState::new(&config_with(limited()), Arc::clone(&buckets));
+    let limits = RateLimitState::new(&config_with(limited()), buckets.clone());
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");

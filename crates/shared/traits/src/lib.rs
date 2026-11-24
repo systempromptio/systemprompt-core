@@ -92,6 +92,8 @@ pub use messaging::{
 };
 pub mod ownership;
 pub mod process_liveness;
+pub mod rate_limit_buckets;
+pub use rate_limit_buckets::{DynRateLimitBuckets, RateLimitBuckets};
 pub mod registry;
 pub mod repository;
 pub mod retention_purge;

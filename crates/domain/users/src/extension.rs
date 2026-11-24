@@ -20,7 +20,9 @@
 //! open: it verifies a request against the kernel's verification keyring, the
 //! issuer, the user and session rows and the kernel's token revocation check,
 //! and exposes no create, revoke or mint; a kernel that seeds no revocation
-//! check gets `UnavailableRevocations`, which refuses every token id.
+//! check gets `UnavailableRevocations`, which refuses every token id. The
+//! per-user rate-limit windows (`DynRateLimitBuckets`) are open: they charge
+//! one hit and read back the window's count, with no reset or prune.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -105,6 +107,7 @@ impl Extension for UsersExtension {
             crate::provides::sign_in_sessions,
         )
         .provide(crate::provides::request_authenticator)
+        .provide(crate::provides::rate_limit_buckets)
         .provide(|r: &Resolved<'_>| {
             let db = r.get::<DbPool>()?;
             let usage: DynSessionUsageCounters = Arc::new(SessionRepository::new(&db));
