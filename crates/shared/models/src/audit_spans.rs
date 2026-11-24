@@ -95,9 +95,9 @@ pub struct GovernanceSpanRecord {
 
 /// Where producers hand the audit spans they record.
 ///
-/// Implemented by the logging crate's sink, which offers them to the OTLP exporter when one is
-/// running and discards them otherwise. Every method is synchronous and
-/// non-blocking.
+/// Implemented by the logging crate's sink, which offers them to the OTLP
+/// exporter when one is running and discards them otherwise. Every method is
+/// synchronous and non-blocking.
 pub trait AuditSpanSink: Send + Sync + std::fmt::Debug {
     fn request(&self, span: RequestSpanRecord);
     fn tool_call(&self, span: ToolCallSpanRecord);
