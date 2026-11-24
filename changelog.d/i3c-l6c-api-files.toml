@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "API"
+text = "The API no longer depends on `systemprompt-files`: the documents discovery block is `systemprompt_documents::discovery::DocumentsDiscovery` and the `/files/*` fallback reads its root and cache policy as plain values."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "`discovery::DocumentsDiscovery`, the `endpoints.documents` block of the root discovery document."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The crate no longer depends on `systemprompt-files`."

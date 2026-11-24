@@ -16,10 +16,10 @@ use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
-use super::discovery_documents::DocumentsDiscovery;
 use super::health::handle_health;
 use super::health_detail::{diagnostics_layer, handle_health_detail};
 use super::probes::{handle_livez, handle_readyz, readiness_layer};
+use systemprompt_documents::discovery::DocumentsDiscovery;
 use systemprompt_manifest::profile::UiSessionDiscovery;
 
 pub async fn handle_root_discovery(

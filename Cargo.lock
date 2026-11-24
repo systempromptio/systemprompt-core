@@ -6600,7 +6600,6 @@ dependencies = [
  "systemprompt-documents",
  "systemprompt-events",
  "systemprompt-extension",
- "systemprompt-files",
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",

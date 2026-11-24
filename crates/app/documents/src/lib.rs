@@ -16,6 +16,8 @@ pub mod actor;
 /// The conversation a write is attributed to, checked against the caller's own.
 pub mod attribution;
 mod directory;
+/// The `endpoints.documents` block of the root discovery document.
+pub mod discovery;
 /// Signed, short-lived document download links.
 pub mod download;
 /// The documents member.

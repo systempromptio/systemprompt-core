@@ -15,7 +15,7 @@ use systemprompt_models::modules::ApiPaths;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct DocumentsDiscovery {
+pub struct DocumentsDiscovery {
     enabled: bool,
     #[serde(flatten)]
     surface: Option<DocumentsSurface>,
@@ -44,7 +44,7 @@ struct DocumentsLimits {
 }
 
 impl DocumentsDiscovery {
-    pub(super) fn new(config: &DocumentsConfig, base: &str) -> Self {
+    pub fn new(config: &DocumentsConfig, base: &str) -> Self {
         if !config.is_enabled() {
             return Self {
                 enabled: false,
