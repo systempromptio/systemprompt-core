@@ -13,12 +13,12 @@ use systemprompt_logging::CliService;
 use systemprompt_scheduler::{port_holders, wait_for_port_free};
 use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 
-const CONFIRMED_HOLDER_GRACE: Duration = Duration::from_secs(2);
 const PORT_RELEASE: Duration = Duration::from_secs(5);
 
 pub(super) async fn ensure_port_free(
     prompter: &dyn Prompter,
     port: u16,
+    holder_grace: Duration,
     kill_port_process: bool,
     config: &CliConfig,
     events: Option<&StartupEventSender>,
@@ -31,7 +31,11 @@ pub(super) async fn ensure_port_free(
         }
         handle_port_conflict(
             prompter,
-            PortConflict { port, pid },
+            PortConflict {
+                port,
+                pid,
+                holder_grace,
+            },
             kill_port_process,
             config,
             events,
@@ -54,15 +58,21 @@ pub(super) async fn ensure_port_free(
 struct PortConflict {
     port: u16,
     pid: u32,
+    holder_grace: Duration,
 }
 
 async fn port_holder(port: u16) -> Result<Option<u32>> {
     Ok(port_holders(port).await?.first().copied())
 }
 
-async fn stop_confirmed_holder(port: u16, pid: u32) -> Result<()> {
+async fn stop_confirmed_holder(conflict: PortConflict) -> Result<()> {
+    let PortConflict {
+        port,
+        pid,
+        holder_grace,
+    } = conflict;
     if port_holders(port).await?.contains(&pid) {
-        subprocess::terminate_gracefully(pid, CONFIRMED_HOLDER_GRACE)
+        subprocess::terminate_gracefully(pid, holder_grace)
             .await
             .with_context(|| format!("Failed to stop PID {pid} holding port {port}"))?;
     }
@@ -79,7 +89,7 @@ async fn handle_port_conflict(
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
-    let PortConflict { port, pid } = conflict;
+    let PortConflict { port, pid, .. } = conflict;
     if events.is_none() {
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }
@@ -111,7 +121,7 @@ async fn handle_port_conflict(
         if events.is_none() {
             CliService::info(&format!("Stopping process {}...", pid));
         }
-        stop_confirmed_holder(port, pid).await?;
+        stop_confirmed_holder(conflict).await?;
         if events.is_none() {
             CliService::success(&format!("Port {} is now available", port));
         }

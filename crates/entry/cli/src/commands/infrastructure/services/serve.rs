@@ -40,7 +40,15 @@ pub async fn execute_with_events(
         CliService::startup_banner(Some("Starting services..."));
     }
 
-    ensure_port_free(prompter, port, kill_port_process, host.output(), events).await?;
+    ensure_port_free(
+        prompter,
+        port,
+        profile.server.shutdown.child_grace(),
+        kill_port_process,
+        host.output(),
+        events,
+    )
+    .await?;
 
     let shutdown = ShutdownRequest::default();
     let early = bind_early(profile, foreground, events, shutdown.clone()).await?;
