@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "database"
+text = "The status CHECK constraints on `config_plane_state`, `task_execution_steps` and `bridge_sessions` are added NOT VALID and validated outside a transaction, so their migrations do not hold an exclusive lock while the rows are scanned."
