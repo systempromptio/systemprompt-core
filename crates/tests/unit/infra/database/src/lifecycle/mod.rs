@@ -29,6 +29,7 @@ mod migration_statement_kinds;
 mod migration_triggers;
 mod migrations;
 mod purge_records;
+mod release_order;
 mod repair_concurrency;
 mod repair_db;
 mod retirements;
