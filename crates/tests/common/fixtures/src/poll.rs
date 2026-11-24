@@ -58,7 +58,10 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
 // test starts at least `headroom` before the next boundary.
 pub async fn await_window_headroom(window_seconds: u64, headroom: Duration) {
     let window = Duration::from_secs(window_seconds);
-    assert!(headroom < window, "headroom must be shorter than the window");
+    assert!(
+        headroom < window,
+        "headroom must be shorter than the window"
+    );
     let since_epoch = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("the clock is after the Unix epoch");
