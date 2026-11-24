@@ -18,7 +18,9 @@ pub fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError
             ApiError::unauthorized("Invalid or expired JWT token")
         },
         ContextExtractionError::Revoked => ApiError::unauthorized("Token revoked"),
-        ContextExtractionError::UserNotFound(_) => ApiError::unauthorized("User no longer exists"),
+        ContextExtractionError::UserNotFound { .. } => {
+            ApiError::unauthorized("User no longer exists")
+        },
         ContextExtractionError::MissingSessionId => {
             ApiError::bad_request("JWT missing required 'session_id' claim")
         },
@@ -29,14 +31,11 @@ pub fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError
             "Missing required 'x-context-id' header (for MCP routes) or contextId in body (for \
              A2A routes)",
         ),
-        ContextExtractionError::MissingHeader(header) => {
+        ContextExtractionError::MissingHeader { header } => {
             ApiError::bad_request(format!("Missing required header: {header}"))
         },
         ContextExtractionError::InvalidHeaderValue { header, reason } => {
             ApiError::bad_request(format!("Invalid header {header}: {reason}"))
-        },
-        ContextExtractionError::InvalidUserId(reason) => {
-            ApiError::bad_request(format!("Invalid user_id: {reason}"))
         },
         ContextExtractionError::DatabaseError { source, .. } => {
             ApiError::internal("Internal server error", source.to_string())
@@ -80,7 +79,7 @@ pub(super) fn log_error_response(
                 "Context extraction failed: invalid token"
             );
         },
-        ContextExtractionError::UserNotFound(user_id) => {
+        ContextExtractionError::UserNotFound { user_id, .. } => {
             tracing::warn!(
                 user_id = %user_id,
                 error_type = "user_not_found",

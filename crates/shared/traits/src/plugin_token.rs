@@ -13,6 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::fmt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -26,6 +27,15 @@ pub const PLUGIN_TOKEN_MAX_DAYS: u32 = 365;
 pub enum PluginTokenHolder {
     Email(String),
     User(UserId),
+}
+
+impl fmt::Display for PluginTokenHolder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Email(email) => f.write_str(email),
+            Self::User(id) => f.write_str(id.as_str()),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -47,10 +57,10 @@ pub struct MintedPluginToken {
 pub enum PluginTokenMintError {
     #[error("--duration-days must be between 1 and {PLUGIN_TOKEN_MAX_DAYS} (got {0})")]
     Duration(u32),
-    #[error("user '{0}' not found")]
-    UserNotFound(String),
-    #[error("user '{0}' is not an active admin — refusing to mint")]
-    NotAdmin(String),
+    #[error("user '{holder}' not found")]
+    UserNotFound { holder: PluginTokenHolder },
+    #[error("user '{email}' is not an active admin — refusing to mint")]
+    NotAdmin { email: String },
     #[error("no token authority is available on this host")]
     Unavailable,
     #[error("the plugin token could not be minted")]

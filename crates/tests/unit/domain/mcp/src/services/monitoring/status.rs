@@ -21,11 +21,11 @@ async fn test_get_all_service_status_unreachable() {
     use systemprompt_models::auth::JwtAudience;
     use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
     use systemprompt_models::mcp::server::McpServerConfig;
-    use systemprompt_test_fixtures::fixture_user_id;
+    use systemprompt_test_fixtures::unique_user_id;
 
     let config = McpServerConfig {
         name: "unreach".to_owned(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("status"),
         server_type: McpServerType::Internal,
         binary: Some("x".to_owned()),
         enabled: true,

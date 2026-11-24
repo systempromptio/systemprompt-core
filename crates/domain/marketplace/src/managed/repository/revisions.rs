@@ -32,25 +32,25 @@ impl ManagedRepository {
         let source = validate_lineage(&mut tx, owner, input, &manifest).await?;
         let id = ResourceRevisionId::generate();
         sqlx::query!("INSERT INTO managed_revisions(id,owner_id,resource_id,source_id,snapshot_id,parent_id,digest,manifest,rationale) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(resource_id,digest) DO NOTHING",
-            id.as_str(), owner.as_str(), input.resource_id.as_str(), source, input.snapshot_id.as_str(), input.parent_id.as_ref().map(ResourceRevisionId::as_str), digest.as_str(), Json(&manifest) as _, input.rationale).execute(&mut *tx).await?;
+            id as _, owner as _, input.resource_id as _, source, input.snapshot_id as _, input.parent_id as _, digest as _, Json(&manifest) as _, input.rationale).execute(&mut *tx).await?;
         let stored_id = sqlx::query_scalar!(
             "SELECT id FROM managed_revisions WHERE resource_id=$1 AND owner_id=$2 AND digest=$3",
-            input.resource_id.as_str(),
-            owner.as_str(),
-            digest.as_str()
+            input.resource_id as _,
+            owner as _,
+            digest as _
         )
         .fetch_one(&mut *tx)
         .await?;
         for (path, file) in &input.files.0 {
             let hash = AssetDigest::of(&file.bytes);
             sqlx::query!("INSERT INTO managed_assets(owner_id,digest,content) VALUES($1,$2,$3) ON CONFLICT(owner_id,digest) DO NOTHING",
-                owner.as_str(), hash.as_str(), &file.bytes).execute(&mut *tx).await?;
+                owner as _, hash as _, &file.bytes).execute(&mut *tx).await?;
             sqlx::query!("INSERT INTO managed_revision_assets(owner_id,revision_id,path,digest) VALUES($1,$2,$3,$4) ON CONFLICT(revision_id,path) DO NOTHING",
-                owner.as_str(), stored_id, path, hash.as_str()).execute(&mut *tx).await?;
+                owner as _, stored_id, path, hash as _).execute(&mut *tx).await?;
         }
         for dependency in manifest.dependencies.values() {
             sqlx::query!("INSERT INTO managed_revision_dependencies(owner_id,revision_id,dependency_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
-                owner.as_str(), stored_id, dependency.revision_id.as_str()).execute(&mut *tx).await?;
+                owner as _, stored_id, dependency.revision_id as _).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         Ok(ResourceRevisionId::new(stored_id))
@@ -62,7 +62,7 @@ impl ManagedRepository {
         id: &ResourceRevisionId,
     ) -> Result<RevisionManifest> {
         let row = sqlx::query!(r#"SELECT digest, manifest AS "manifest!: Json<RevisionManifest>" FROM managed_revisions WHERE id=$1 AND owner_id=$2"#,
-            id.as_str(), owner.as_str()).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
+            id as _, owner as _).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
         if row.manifest.0.digest()?.as_str() != row.digest {
             return Err(ManagedError::Integrity);
         }
@@ -76,7 +76,7 @@ impl ManagedRepository {
     ) -> Result<RevisionFiles> {
         let manifest = self.get_revision(owner, id).await?;
         let rows = sqlx::query!("SELECT r.path,r.digest,a.content FROM managed_revision_assets r JOIN managed_assets a ON a.owner_id=r.owner_id AND a.digest=r.digest WHERE r.owner_id=$1 AND r.revision_id=$2 ORDER BY r.path",
-            owner.as_str(), id.as_str()).fetch_all(&self.pool).await?;
+            owner as _, id as _).fetch_all(&self.pool).await?;
         if rows.len() != manifest.files.len() {
             return Err(ManagedError::Integrity);
         }
@@ -114,16 +114,16 @@ async fn validate_lineage(
 ) -> Result<String> {
     let source = sqlx::query_scalar!(
         "SELECT source_id FROM managed_resources WHERE id=$1 AND owner_id=$2",
-        input.resource_id.as_str(),
-        owner.as_str()
+        input.resource_id as _,
+        owner as _
     )
     .fetch_optional(&mut **tx)
     .await?
     .ok_or(ManagedError::Unavailable)?;
     let valid = sqlx::query_scalar!(
         "SELECT id FROM managed_source_snapshots WHERE id=$1 AND owner_id=$2 AND source_id=$3",
-        input.snapshot_id.as_str(),
-        owner.as_str(),
+        input.snapshot_id as _,
+        owner as _,
         source
     )
     .fetch_optional(&mut **tx)
@@ -134,9 +134,9 @@ async fn validate_lineage(
     if let Some(parent) = &input.parent_id {
         let valid = sqlx::query_scalar!(
             "SELECT id FROM managed_revisions WHERE id=$1 AND owner_id=$2 AND resource_id=$3",
-            parent.as_str(),
-            owner.as_str(),
-            input.resource_id.as_str()
+            parent as _,
+            owner as _,
+            input.resource_id as _
         )
         .fetch_optional(&mut **tx)
         .await?;
@@ -147,8 +147,8 @@ async fn validate_lineage(
     for dependency in manifest.dependencies.values() {
         let stored = sqlx::query_scalar!(
             "SELECT digest FROM managed_revisions WHERE id=$1 AND owner_id=$2",
-            dependency.revision_id.as_str(),
-            owner.as_str()
+            dependency.revision_id as _,
+            owner as _
         )
         .fetch_optional(&mut **tx)
         .await?

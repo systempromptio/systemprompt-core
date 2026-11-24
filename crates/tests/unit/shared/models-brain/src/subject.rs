@@ -57,7 +57,9 @@ fn a_string_without_both_halves_is_a_shape_error() {
     for bad in ["client", ":acme", "client:", ""] {
         assert_eq!(
             bad.parse::<SubjectKey>(),
-            Err(SubjectKeyError::Shape(bad.to_owned())),
+            Err(SubjectKeyError::Shape {
+                input: bad.to_owned()
+            }),
             "{bad:?}"
         );
     }

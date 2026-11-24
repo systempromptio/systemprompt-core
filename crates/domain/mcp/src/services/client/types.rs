@@ -25,6 +25,18 @@ pub struct McpProtocolInfo {
     pub protocol_version: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum McpHealthStatus {
+    Healthy,
+    Slow,
+    AuthRequired,
+    Unhealthy,
+    Stopped,
+    NotFound,
+    Unknown,
+}
+
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
     pub success: bool,
@@ -38,20 +50,20 @@ impl McpConnectionResult {
         self.success && self.connection_time_ms < 2000
     }
 
-    pub fn health_status(&self) -> &'static str {
+    pub fn health_status(&self) -> McpHealthStatus {
         match self.validation_type.as_str() {
             "mcp_validated" => {
                 if self.connection_time_ms < 1000 {
-                    "healthy"
+                    McpHealthStatus::Healthy
                 } else {
-                    "slow"
+                    McpHealthStatus::Slow
                 }
             },
-            "auth_required" | "no_tools" => "auth_required",
+            "auth_required" | "no_tools" => McpHealthStatus::AuthRequired,
             "tools_request_failed" | "connection_failed" | "port_unavailable" | "timeout" => {
-                "unhealthy"
+                McpHealthStatus::Unhealthy
             },
-            _ => "unknown",
+            _ => McpHealthStatus::Unknown,
         }
     }
 

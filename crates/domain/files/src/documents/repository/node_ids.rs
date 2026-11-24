@@ -44,7 +44,7 @@ impl DocumentNodeIdRepository {
                FROM document_node_ids
                WHERE revision_id = $1::text::uuid
                ORDER BY ordinal"#,
-            revision.as_str(),
+            revision as _,
         )
         .fetch_all(&*self.pools.write)
         .await?)
@@ -67,8 +67,8 @@ impl DocumentNodeIdRepository {
                    (document_id, revision_id, node_id, path, hash8, ordinal)
                SELECT $1::text::uuid, $2::text::uuid, n, p, h, o
                FROM UNNEST($3::text[], $4::text[], $5::text[], $6::int4[]) AS t(n, p, h, o)"#,
-            document.as_str(),
-            revision.as_str(),
+            document as _,
+            revision as _,
             &node_ids,
             &paths,
             &hashes,
@@ -90,7 +90,7 @@ impl DocumentNodeIdRepository {
             r#"UPDATE document_node_counters SET next = next + $3
                WHERE document_id = $1::text::uuid AND writer = $2
                RETURNING next - $3 AS "first!""#,
-            document.as_str(),
+            document as _,
             writer,
             count,
         )
@@ -110,7 +110,7 @@ impl DocumentNodeIdRepository {
                ON CONFLICT (document_id, writer)
                    DO UPDATE SET next = document_node_counters.next + $3
                RETURNING next - $3 AS "first!""#,
-            document.as_str(),
+            document as _,
             writer,
             count,
         )
@@ -126,7 +126,7 @@ impl DocumentNodeIdRepository {
             r#"SELECT EXISTS (SELECT 1 FROM document_node_ids
                               WHERE revision_id = $1::text::uuid) AS "stored!"
                FROM document_revisions WHERE id = $1::text::uuid FOR UPDATE"#,
-            revision.as_str(),
+            revision as _,
         )
         .fetch_optional(conn)
         .await?

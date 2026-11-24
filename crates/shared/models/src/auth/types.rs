@@ -168,9 +168,6 @@ pub enum AuthRequestError {
 
     #[error("Client registration validation failed: {reason}")]
     RegistrationFailed { reason: String },
-
-    #[error("Internal error: {0}")]
-    Internal(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

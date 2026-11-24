@@ -126,7 +126,7 @@ impl LeaseRepository for InstanceLeaseRepository {
                       acquired_at AS "acquired_at!", expires_at AS "expires_at!"
             "#,
             key.as_str(),
-            self.instance_id.as_str(),
+            &self.instance_id as _,
             ttl,
             INSTANCE_CLAIM_CLASS,
             INSTANCE_DEAD_AFTER_SECS as f64
@@ -149,7 +149,7 @@ impl LeaseRepository for InstanceLeaseRepository {
                       acquired_at, expires_at
             "#,
             lease.key.as_str(),
-            self.instance_id.as_str(),
+            &self.instance_id as _,
             lease.fencing_token.get(),
             secs
         )
@@ -167,7 +167,7 @@ impl LeaseRepository for InstanceLeaseRepository {
         let result = sqlx::query!(
             "DELETE FROM instance_leases WHERE lease_key = $1 AND owner_instance_id = $2",
             key.as_str(),
-            self.instance_id.as_str()
+            &self.instance_id as _
         )
         .execute(&*self.write_pool)
         .await

@@ -51,12 +51,16 @@ fn the_pepper_seed_signing_keys_and_licence_secret_are_never_grantable() {
     ] {
         assert_eq!(
             name.parse::<SecretGrant>(),
-            Err(SecretGrantError::ApiHeld(name.to_owned())),
+            Err(SecretGrantError::ApiHeld {
+                name: name.to_owned()
+            }),
             "{name}"
         );
         assert_eq!(
             format!("custom:{name}").parse::<SecretGrant>(),
-            Err(SecretGrantError::ApiHeld(name.to_owned())),
+            Err(SecretGrantError::ApiHeld {
+                name: name.to_owned()
+            }),
             "custom:{name}"
         );
         let err = internal(&format!("secrets: [{name}]\n")).expect_err(name);
@@ -80,7 +84,7 @@ fn a_custom_grant_naming_a_reserved_secret_resolves_to_that_secret() {
 fn the_database_urls_are_not_grants() {
     assert!(matches!(
         "database_url".parse::<SecretGrant>(),
-        Err(SecretGrantError::AlwaysGranted(_))
+        Err(SecretGrantError::AlwaysGranted { .. })
     ));
 }
 
@@ -88,11 +92,11 @@ fn the_database_urls_are_not_grants() {
 fn a_custom_name_outside_the_charset_is_refused() {
     assert!(matches!(
         "custom:bad-name".parse::<SecretGrant>(),
-        Err(SecretGrantError::InvalidCustomName(_))
+        Err(SecretGrantError::InvalidCustomName { .. })
     ));
     assert!(matches!(
         "custom:".parse::<SecretGrant>(),
-        Err(SecretGrantError::InvalidCustomName(_))
+        Err(SecretGrantError::InvalidCustomName { .. })
     ));
 }
 

@@ -58,7 +58,7 @@ impl QuotaUsageRepository {
               AND window_seconds = $3 AND window_start = $4
             "#,
             window.subject_kind,
-            subject_id.as_str(),
+            subject_id as _,
             window.window_seconds,
             window.window_start
         )

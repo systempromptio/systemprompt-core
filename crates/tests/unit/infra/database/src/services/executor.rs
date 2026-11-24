@@ -1,5 +1,7 @@
 use super::db_helper::{scratch_pool, test_pool};
-use systemprompt_database::{SqlExecutor, validate_column_exists, validate_table_exists};
+use systemprompt_database::{
+    SchemaName, SqlExecutor, validate_column_exists, validate_table_exists,
+};
 use systemprompt_test_fixtures::DisposableDb;
 use systemprompt_traits::RepositoryError;
 
@@ -170,7 +172,7 @@ async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
     let table = unique_table();
 
     assert!(
-        !validate_table_exists(db.read(), &table)
+        !validate_table_exists(db.read(), &SchemaName::public(), &table)
             .await
             .expect("table_exists before"),
         "table must not exist before creation"
@@ -182,20 +184,20 @@ async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
         .expect("execute_statements");
 
     assert!(
-        validate_table_exists(db.read(), &table)
+        validate_table_exists(db.read(), &SchemaName::public(), &table)
             .await
             .expect("table_exists after"),
         "table must exist after CREATE"
     );
 
     assert!(
-        validate_column_exists(db.read(), &table, "label")
+        validate_column_exists(db.read(), &SchemaName::public(), &table, "label")
             .await
             .expect("column_exists label"),
         "label column must exist"
     );
     assert!(
-        !validate_column_exists(db.read(), &table, "missing")
+        !validate_column_exists(db.read(), &SchemaName::public(), &table, "missing")
             .await
             .expect("column_exists missing"),
         "absent column must report false"
@@ -264,7 +266,7 @@ async fn execute_file_reads_and_runs_sql() {
         .await
         .expect("execute_file");
     assert!(
-        validate_table_exists(db.read(), &table)
+        validate_table_exists(db.read(), &SchemaName::public(), &table)
             .await
             .expect("table_exists")
     );

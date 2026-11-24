@@ -1,7 +1,7 @@
 //! Unit tests for McpConnectionResult health checks
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
+use systemprompt_mcp::services::client::{McpConnectionResult, McpHealthStatus, McpProtocolInfo};
 
 #[test]
 fn test_mcp_connection_result_healthy() {
@@ -64,7 +64,7 @@ fn test_mcp_connection_result_health_status_healthy() {
         validation_type: "mcp_validated".to_string(),
     };
 
-    assert_eq!(result.health_status(), "healthy");
+    assert_eq!(result.health_status(), McpHealthStatus::Healthy);
 }
 
 #[test]
@@ -79,7 +79,7 @@ fn test_mcp_connection_result_health_status_slow() {
         validation_type: "mcp_validated".to_string(),
     };
 
-    assert_eq!(result.health_status(), "slow");
+    assert_eq!(result.health_status(), McpHealthStatus::Slow);
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_mcp_connection_result_health_status_auth_required() {
         validation_type: "auth_required".to_string(),
     };
 
-    assert_eq!(result.health_status(), "auth_required");
+    assert_eq!(result.health_status(), McpHealthStatus::AuthRequired);
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn test_mcp_connection_result_health_status_no_tools() {
         validation_type: "no_tools".to_string(),
     };
 
-    assert_eq!(result.health_status(), "auth_required");
+    assert_eq!(result.health_status(), McpHealthStatus::AuthRequired);
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn test_mcp_connection_result_health_status_unhealthy_variants() {
             validation_type: variant.to_string(),
         };
 
-        assert_eq!(result.health_status(), "unhealthy");
+        assert_eq!(result.health_status(), McpHealthStatus::Unhealthy);
     }
 }
 
@@ -148,7 +148,7 @@ fn test_mcp_connection_result_health_status_unknown() {
         validation_type: "some_unknown_type".to_string(),
     };
 
-    assert_eq!(result.health_status(), "unknown");
+    assert_eq!(result.health_status(), McpHealthStatus::Unknown);
 }
 
 #[test]

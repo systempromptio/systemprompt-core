@@ -32,8 +32,8 @@ impl OutcomeRepository {
              VALUES ($1, $2, $3, $4, $5, $6)
              ON CONFLICT (recall_id, fact_id, signal) DO NOTHING",
             uuid::Uuid::new_v4().to_string(),
-            outcome.recall_id.as_str(),
-            outcome.fact_id.as_str(),
+            outcome.recall_id as _,
+            outcome.fact_id as _,
             outcome.signal,
             outcome.value,
             outcome.observed_at,
@@ -61,7 +61,7 @@ impl OutcomeRepository {
                AND r.skipped IS NULL
                AND r.injected @> jsonb_build_array(jsonb_build_object('id', $1::text))
              ON CONFLICT (recall_id, fact_id, signal) DO NOTHING",
-            fact_id.as_str(),
+            fact_id as _,
             USER_CORRECTED_FACT,
             since,
             observed_at,
@@ -79,7 +79,7 @@ impl OutcomeRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT COALESCE(SUM(value), 0)::float8 AS "sum!" FROM brain_outcomes
                WHERE fact_id = $1 AND signal = $2"#,
-            fact_id.as_str(),
+            fact_id as _,
             signal,
         )
         .fetch_one(&*self.pools.read)

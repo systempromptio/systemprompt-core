@@ -19,7 +19,7 @@ use systemprompt_test_fixtures::{
     fixture_config, test_database_url,
 };
 
-use super::db_plane::{ApplyLog, DbPlane, ensure_table, seed_rows, stored_rows};
+use super::db_plane::{ApplyLog, DbPlane, PlaneRows, ensure_table, seed_rows, stored_rows};
 use super::fake_plane::unique_plane_name;
 
 struct PlanesExtension {
@@ -79,7 +79,7 @@ async fn harness_with(
 ) -> Harness {
     let database = DisposableDb::with_schema("config_planes_e2e").await;
     let pool = database.test_pool().await;
-    ensure_table(&pool).await;
+    ensure_table(&pool, &PlaneRows::in_database()).await;
     let mut config = fixture_config(database.url());
     config.services_path = root.display().to_string();
     for (name, value) in authority {
@@ -104,6 +104,18 @@ async fn harness_with(
     }
 }
 
+fn plane(name: &'static str, log: &ApplyLog) -> DbPlane {
+    DbPlane::new(name, log, PlaneRows::in_database())
+}
+
+async fn seed(pool: &DbPool, plane: &str, rows: &[(&str, &str)]) {
+    seed_rows(pool, &PlaneRows::in_database(), plane, rows).await;
+}
+
+async fn stored(pool: &DbPool, plane: &str) -> systemprompt_provider_contracts::PlaneSnapshot {
+    stored_rows(pool, &PlaneRows::in_database(), plane).await
+}
+
 fn new_log() -> ApplyLog {
     Arc::new(Mutex::new(Vec::new()))
 }
@@ -119,8 +131,8 @@ fn snapshot(pairs: &[(&str, &str)]) -> systemprompt_provider_contracts::PlaneSna
 async fn boot_reports_planes_in_dependency_order_and_config_apply_writes_them() {
     let root = tempfile::tempdir().expect("tempdir");
     let log = new_log();
-    let parent = DbPlane::new(unique_plane_name("e2e_parent"), &log);
-    let mut child = DbPlane::new(unique_plane_name("e2e_child"), &log);
+    let parent = plane(unique_plane_name("e2e_parent"), &log);
+    let mut child = plane(unique_plane_name("e2e_child"), &log);
     child.deps = Box::leak(vec![parent.name].into_boxed_slice());
     parent.write_declaration(root.path(), &[("g", "1")]);
     child.write_declaration(root.path(), &[("rule", "g")]);
@@ -142,7 +154,7 @@ async fn boot_reports_planes_in_dependency_order_and_config_apply_writes_them() 
         .collect();
     assert_eq!(order, vec![parent_name, child_name]);
     assert!(log.lock().expect("lock").is_empty(), "boot writes nothing");
-    assert!(stored_rows(&h.pool, parent_name).await.is_empty());
+    assert!(stored(&h.pool, parent_name).await.is_empty());
 
     let apply = ConfigApplyService::new(h.service.clone());
     let planes = vec![parent_name.to_owned(), child_name.to_owned()];
@@ -160,7 +172,7 @@ async fn boot_reports_planes_in_dependency_order_and_config_apply_writes_them() 
     assert_eq!(merged.applied(), 2);
     assert_eq!(*log.lock().expect("lock"), vec![parent_name, child_name]);
     assert_eq!(
-        stored_rows(&h.pool, child_name).await,
+        stored(&h.pool, child_name).await,
         snapshot(&[("rule", "g")])
     );
     let audit = h
@@ -180,8 +192,8 @@ async fn boot_reports_planes_in_dependency_order_and_config_apply_writes_them() 
 async fn the_extension_context_writer_refuses_a_file_managed_plane_with_409() {
     let root = tempfile::tempdir().expect("tempdir");
     let log = new_log();
-    let file_plane = DbPlane::new(unique_plane_name("e2e_wfile"), &log);
-    let db_plane = DbPlane::new(unique_plane_name("e2e_wdb"), &log);
+    let file_plane = plane(unique_plane_name("e2e_wfile"), &log);
+    let db_plane = plane(unique_plane_name("e2e_wdb"), &log);
     file_plane.write_declaration(root.path(), &[("a", "1")]);
     db_plane.write_declaration(root.path(), &[("a", "1")]);
     let (file_name, db_name) = (file_plane.name, db_plane.name);
@@ -203,10 +215,10 @@ async fn the_extension_context_writer_refuses_a_file_managed_plane_with_409() {
 async fn export_round_trips_console_rows_into_a_clean_declaration() {
     let root = tempfile::tempdir().expect("tempdir");
     let log = new_log();
-    let plane = DbPlane::new(unique_plane_name("e2e_export"), &log);
+    let plane = plane(unique_plane_name("e2e_export"), &log);
     let (name, path) = (plane.name, plane.path);
     let h = harness(root.path(), vec![Arc::new(plane)], &[name]).await;
-    seed_rows(&h.pool, name, &[("console_a", "x"), ("console_b", "y")]).await;
+    seed(&h.pool, name, &[("console_a", "x"), ("console_b", "y")]).await;
 
     let text = h
         .service
@@ -225,7 +237,7 @@ async fn export_round_trips_console_rows_into_a_clean_declaration() {
         .load_declared(root.path())
         .expect("load")
         .expect("declared");
-    assert_eq!(declared.entries, stored_rows(&h.pool, name).await);
+    assert_eq!(declared.entries, stored(&h.pool, name).await);
     let diff = h.service.diff(name).await.expect("diff");
     assert!(diff.rows.is_empty(), "{:?}", diff.rows);
     h.database.drop_now().await;
@@ -234,7 +246,7 @@ async fn export_round_trips_console_rows_into_a_clean_declaration() {
 #[tokio::test]
 async fn export_of_an_empty_plane_is_none() {
     let root = tempfile::tempdir().expect("tempdir");
-    let plane = DbPlane::new(unique_plane_name("e2e_export_empty"), &new_log());
+    let plane = plane(unique_plane_name("e2e_export_empty"), &new_log());
     let name = plane.name;
     let h = harness(root.path(), vec![Arc::new(plane)], &[name]).await;
 
@@ -245,7 +257,7 @@ async fn export_of_an_empty_plane_is_none() {
 #[tokio::test]
 async fn console_edits_survive_boot_passes_and_later_applies() {
     let root = tempfile::tempdir().expect("tempdir");
-    let mut plane = DbPlane::new(unique_plane_name("e2e_seed"), &new_log());
+    let mut plane = plane(unique_plane_name("e2e_seed"), &new_log());
     plane.effect = PlaneEffect::OnRestart;
     plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
     let name = plane.name;
@@ -263,7 +275,7 @@ async fn console_edits_survive_boot_passes_and_later_applies() {
     let first = apply.apply(&options).await.expect("first apply");
     assert_eq!(first.applied(), 2);
 
-    sqlx::query("UPDATE plane_e2e.rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
+    sqlx::query("UPDATE plane_rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
         .bind(name)
         .execute(&*h.pool.write_pool())
         .await
@@ -278,10 +290,7 @@ async fn console_edits_survive_boot_passes_and_later_applies() {
     let again = apply.apply(&options).await.expect("second apply");
     assert_eq!(again.planes[0].drift, vec!["a"]);
     assert_eq!(
-        stored_rows(&h.pool, name)
-            .await
-            .get("a")
-            .map(String::as_str),
+        stored(&h.pool, name).await.get("a").map(String::as_str),
         Some("console")
     );
     assert_eq!(
@@ -294,12 +303,12 @@ async fn console_edits_survive_boot_passes_and_later_applies() {
 #[tokio::test]
 async fn an_apply_that_does_not_converge_rolls_back_rows_and_audit() {
     let root = tempfile::tempdir().expect("tempdir");
-    let mut plane = DbPlane::new(unique_plane_name("e2e_stuck"), &new_log());
+    let mut plane = plane(unique_plane_name("e2e_stuck"), &new_log());
     plane.corrupt = true;
     plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
     let name = plane.name;
     let h = harness(root.path(), vec![Arc::new(plane)], &[]).await;
-    seed_rows(&h.pool, name, &[("a", "live")]).await;
+    seed(&h.pool, name, &[("a", "live")]).await;
     let change = ChangeRequest {
         actor: ChangeActor::Cli,
         reason: "overwrite",
@@ -310,7 +319,7 @@ async fn an_apply_that_does_not_converge_rolls_back_rows_and_audit() {
         .await
         .expect_err("not converged");
 
-    assert_eq!(stored_rows(&h.pool, name).await, snapshot(&[("a", "live")]));
+    assert_eq!(stored(&h.pool, name).await, snapshot(&[("a", "live")]));
     assert!(
         h.service
             .repository()
@@ -325,11 +334,11 @@ async fn an_apply_that_does_not_converge_rolls_back_rows_and_audit() {
 #[tokio::test]
 async fn a_scoped_apply_writes_and_audits_only_the_named_entities() {
     let root = tempfile::tempdir().expect("tempdir");
-    let plane = DbPlane::new(unique_plane_name("e2e_scope"), &new_log());
+    let plane = plane(unique_plane_name("e2e_scope"), &new_log());
     plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
     let name = plane.name;
     let h = harness(root.path(), vec![Arc::new(plane)], &[name]).await;
-    seed_rows(&h.pool, name, &[("stray", "x")]).await;
+    seed(&h.pool, name, &[("stray", "x")]).await;
     let change = ChangeRequest {
         actor: ChangeActor::Cli,
         reason: "only a",
@@ -349,7 +358,7 @@ async fn a_scoped_apply_writes_and_audits_only_the_named_entities() {
 
     assert_eq!((applied.changes, applied.remaining_drift), (1, 0));
     assert_eq!(
-        stored_rows(&h.pool, name).await,
+        stored(&h.pool, name).await,
         snapshot(&[("a", "1"), ("stray", "x")])
     );
     let audit = h
@@ -366,7 +375,7 @@ async fn a_scoped_apply_writes_and_audits_only_the_named_entities() {
 #[tokio::test]
 async fn an_extension_plane_depending_on_an_unregistered_plane_fails_assembly() {
     let root = tempfile::tempdir().expect("tempdir");
-    let mut plane = DbPlane::new(unique_plane_name("e2e_orphan"), &new_log());
+    let mut plane = plane(unique_plane_name("e2e_orphan"), &new_log());
     plane.deps = &["no_such_plane"];
     let mut config = fixture_config(&test_database_url());
     config.services_path = root.path().display().to_string();
@@ -389,11 +398,11 @@ async fn an_extension_plane_depending_on_an_unregistered_plane_fails_assembly() 
 #[tokio::test]
 async fn a_preview_apply_reports_the_changes_and_writes_nothing() {
     let root = tempfile::tempdir().expect("tempdir");
-    let plane = DbPlane::new(unique_plane_name("e2e_preview"), &new_log());
+    let plane = plane(unique_plane_name("e2e_preview"), &new_log());
     plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
     let name = plane.name;
     let h = harness(root.path(), vec![Arc::new(plane)], &[name]).await;
-    seed_rows(&h.pool, name, &[("a", "live")]).await;
+    seed(&h.pool, name, &[("a", "live")]).await;
     let change = ChangeRequest {
         actor: ChangeActor::Cli,
         reason: "preview",
@@ -406,7 +415,7 @@ async fn a_preview_apply_reports_the_changes_and_writes_nothing() {
         .expect("preview");
 
     assert_eq!((preview.changes, preview.remaining_drift), (2, 0));
-    assert_eq!(stored_rows(&h.pool, name).await, snapshot(&[("a", "live")]));
+    assert_eq!(stored(&h.pool, name).await, snapshot(&[("a", "live")]));
     assert!(
         h.service
             .repository()
@@ -431,7 +440,7 @@ fn options<'a>(planes: &'a [String], reason: &'a str) -> ApplyOptions<'a> {
 #[tokio::test]
 async fn a_file_authority_apply_overwrites_console_rows_and_audits_overwrite() {
     let root = tempfile::tempdir().expect("tempdir");
-    let plane = DbPlane::new(unique_plane_name("e2e_fwins"), &new_log());
+    let plane = plane(unique_plane_name("e2e_fwins"), &new_log());
     plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
     let name = plane.name;
     let h = harness_with(
@@ -440,7 +449,7 @@ async fn a_file_authority_apply_overwrites_console_rows_and_audits_overwrite() {
         &[(name, PlaneAuthority::File)],
     )
     .await;
-    seed_rows(&h.pool, name, &[("a", "console"), ("extra", "x")]).await;
+    seed(&h.pool, name, &[("a", "console"), ("extra", "x")]).await;
     let planes = vec![name.to_owned()];
 
     let report = ConfigApplyService::new(h.service.clone())
@@ -454,7 +463,7 @@ async fn a_file_authority_apply_overwrites_console_rows_and_audits_overwrite() {
     assert_eq!(merged.applied, vec!["a", "b", "extra"]);
     assert!(merged.drift.is_empty() && merged.conflicts.is_empty());
     assert_eq!(
-        stored_rows(&h.pool, name).await,
+        stored(&h.pool, name).await,
         snapshot(&[("a", "1"), ("b", "2")])
     );
     let audit = h
@@ -472,7 +481,7 @@ async fn a_file_authority_apply_overwrites_console_rows_and_audits_overwrite() {
 async fn switching_a_conflicted_plane_to_file_authority_resolves_its_conflicts_to_the_file() {
     let root = tempfile::tempdir().expect("tempdir");
     let name = unique_plane_name("e2e_fresolve");
-    let first = DbPlane::new(name, &new_log());
+    let first = plane(name, &new_log());
     first.write_declaration(root.path(), &[("a", "1")]);
     let planes = vec![name.to_owned()];
 
@@ -482,12 +491,12 @@ async fn switching_a_conflicted_plane_to_file_authority_resolves_its_conflicts_t
         .apply(&options(&planes, "seed"))
         .await
         .expect("first apply");
-    sqlx::query("UPDATE plane_e2e.rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
+    sqlx::query("UPDATE plane_rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
         .bind(name)
         .execute(&*db.pool.write_pool())
         .await
         .expect("console edit");
-    DbPlane::new(name, &new_log()).write_declaration(root.path(), &[("a", "2")]);
+    plane(name, &new_log()).write_declaration(root.path(), &[("a", "2")]);
     let conflicted = db_apply
         .apply(&options(&planes, "both moved"))
         .await
@@ -496,7 +505,7 @@ async fn switching_a_conflicted_plane_to_file_authority_resolves_its_conflicts_t
 
     let file = harness_with(
         root.path(),
-        vec![Arc::new(DbPlane::new(name, &new_log()))],
+        vec![Arc::new(plane(name, &new_log()))],
         &[(name, PlaneAuthority::File)],
     )
     .await;
@@ -507,7 +516,7 @@ async fn switching_a_conflicted_plane_to_file_authority_resolves_its_conflicts_t
 
     assert_eq!(resolved.conflicts(), 0);
     assert_eq!(resolved.planes[0].applied, vec!["a"]);
-    assert_eq!(stored_rows(&file.pool, name).await, snapshot(&[("a", "2")]));
+    assert_eq!(stored(&file.pool, name).await, snapshot(&[("a", "2")]));
     assert!(
         file.service
             .repository()
@@ -521,11 +530,11 @@ async fn switching_a_conflicted_plane_to_file_authority_resolves_its_conflicts_t
 #[tokio::test]
 async fn apply_file_managed_leaves_db_authority_planes_alone() {
     let root = tempfile::tempdir().expect("tempdir");
-    let plane = DbPlane::new(unique_plane_name("e2e_fdbonly"), &new_log());
+    let plane = plane(unique_plane_name("e2e_fdbonly"), &new_log());
     plane.write_declaration(root.path(), &[("a", "1")]);
     let name = plane.name;
     let h = harness(root.path(), vec![Arc::new(plane)], &[]).await;
-    seed_rows(&h.pool, name, &[("a", "console")]).await;
+    seed(&h.pool, name, &[("a", "console")]).await;
 
     let report = ConfigApplyService::new(h.service.clone())
         .apply_file_managed(ChangeActor::Boot, "boot", RECONCILE_LOCK_WAIT)
@@ -533,9 +542,6 @@ async fn apply_file_managed_leaves_db_authority_planes_alone() {
         .expect("no-op");
 
     assert!(report.planes.is_empty());
-    assert_eq!(
-        stored_rows(&h.pool, name).await,
-        snapshot(&[("a", "console")])
-    );
+    assert_eq!(stored(&h.pool, name).await, snapshot(&[("a", "console")]));
     h.database.drop_now().await;
 }

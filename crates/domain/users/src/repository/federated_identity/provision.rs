@@ -28,10 +28,10 @@ pub(super) async fn insert_federated_user(
             created_at, updated_at
         )
         VALUES ($1, $2, $3, $4, $5, $6, $9, $7::TEXT[], false, $8, $8)
-        RETURNING id, name, email, full_name, display_name, status, email_verified,
+        RETURNING id, name, email, full_name, display_name, status AS "status: crate::models::UserStatus", email_verified,
                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
         "#,
-        fields.id.as_str(),
+        fields.id as _,
         fields.name,
         fields.email,
         fields.display_name.as_deref(),

@@ -10,14 +10,13 @@ use systemprompt_identifiers::{ClientId, UserId};
 
 impl ClientRepository {
     pub async fn find_by_client_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
-        let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id as \"client_id: ClientId\", client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
              FROM oauth_clients WHERE client_id = $1 AND is_active = true",
-            client_id_str
+            client_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -32,14 +31,13 @@ impl ClientRepository {
     }
 
     pub async fn find_by_client_id_any(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
-        let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id as \"client_id: ClientId\", client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
              FROM oauth_clients WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -111,10 +109,9 @@ impl ClientRepository {
         &self,
         client_id: &ClientId,
     ) -> Result<Option<String>> {
-        let client_id_str = client_id.as_str();
         let hash = sqlx::query_scalar!(
             "SELECT registration_token_hash FROM oauth_clients WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;

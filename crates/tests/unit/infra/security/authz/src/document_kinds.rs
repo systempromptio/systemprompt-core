@@ -11,7 +11,7 @@ use systemprompt_governance::authz::types::{
 };
 use systemprompt_governance::authz::{AccessControlRepository, UpsertRuleParams};
 use systemprompt_identifiers::{DocumentFolderId, RuleId};
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 
 const FOLDER: &str = "6f1c2a4e-8b3d-4e5f-9a7b-1c2d3e4f5a6b";
 
@@ -70,7 +70,7 @@ fn closed_folder_decision(user_roles: &[String]) -> Decision {
         access: Access::Allow,
         justification: None,
     }];
-    let user = fixture_user_id();
+    let user = unique_user_id("document-kinds");
     resolve(ResolveInput {
         entity: &entity,
         rules: &rules,

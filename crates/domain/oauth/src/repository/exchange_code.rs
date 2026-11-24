@@ -63,9 +63,9 @@ impl OAuthRepository {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
             params.code_hash,
-            params.user_id.as_str(),
+            params.user_id as _,
             params.expires_at,
-            grant.client_id.as_str(),
+            grant.client_id as _,
             grant.redirect_uri,
             grant.scope,
             grant.code_challenge,
@@ -134,7 +134,7 @@ impl OAuthRepository {
             VALUES ($1, $2, $3)
             "#,
             params.code_hash,
-            params.user_id.as_str(),
+            params.user_id as _,
             params.expires_at,
         )
         .execute(self.write_pool_ref())

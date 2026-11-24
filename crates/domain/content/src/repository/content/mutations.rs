@@ -54,19 +54,19 @@ pub(super) async fn create(
                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                   updated_at
         "#,
-        id.as_str(),
+        id as _,
         params.slug,
-        params.locale.as_str(),
+        params.locale as _,
         params.title,
         params.description,
         params.body,
         params.author,
         params.published_at,
         params.keywords,
-        params.kind.as_str(),
+        params.kind,
         params.image,
-        params.category_id.as_ref().map(CategoryId::as_str),
-        params.source_id.as_str(),
+        params.category_id as _,
+        params.source_id as _,
         params.version_hash,
         Json(&params.links) as _,
         now,
@@ -110,13 +110,13 @@ pub(super) async fn update(
         params.image,
         params.version_hash,
         now,
-        resolved.category_id.as_ref().map(CategoryId::as_str),
+        resolved.category_id as _,
         resolved.kind,
         resolved.public,
         resolved.author,
         resolved.published_at,
         Json(&resolved.links) as _,
-        params.id.as_str()
+        params.id as _
     )
     .fetch_one(&**pool)
     .await
@@ -176,7 +176,7 @@ impl ResolvedUpdate {
 }
 
 pub(super) async fn delete(pool: &Arc<PgPool>, id: &ContentId) -> Result<(), sqlx::Error> {
-    sqlx::query!("DELETE FROM markdown_content WHERE id = $1", id.as_str())
+    sqlx::query!("DELETE FROM markdown_content WHERE id = $1", id as _)
         .execute(&**pool)
         .await?;
     Ok(())
@@ -188,7 +188,7 @@ pub(super) async fn delete_by_source(
 ) -> Result<u64, sqlx::Error> {
     let result = sqlx::query!(
         "DELETE FROM markdown_content WHERE source_id = $1",
-        source_id.as_str()
+        source_id as _
     )
     .execute(&**pool)
     .await?;

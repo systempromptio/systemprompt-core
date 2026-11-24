@@ -35,8 +35,45 @@ pub enum WireParseError {
     // turn, and it must reach the client as an error rather than an empty
     // success — the message names the raw reason and whatever the provider
     // said about it.
-    #[error("{0}")]
-    EmptyTerminal(String),
+    #[error("upstream finished with {finish}{}", detail_suffix(.detail.as_deref()))]
+    EmptyTerminal {
+        finish: String,
+        detail: Option<String>,
+    },
+    #[error("upstream blocked the prompt: {reason}{}", detail_suffix(.detail.as_deref()))]
+    PromptBlocked {
+        reason: String,
+        detail: Option<String>,
+    },
+}
+
+impl WireParseError {
+    #[must_use]
+    pub fn empty_terminal(finish: &str, detail: Option<&str>) -> Self {
+        Self::EmptyTerminal {
+            finish: finish.to_owned(),
+            detail: provider_detail(detail),
+        }
+    }
+
+    #[must_use]
+    pub fn prompt_blocked(reason: &str, detail: Option<&str>) -> Self {
+        Self::PromptBlocked {
+            reason: reason.to_owned(),
+            detail: provider_detail(detail),
+        }
+    }
+}
+
+fn provider_detail(detail: Option<&str>) -> Option<String> {
+    detail
+        .map(str::trim)
+        .filter(|m| !m.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn detail_suffix(detail: Option<&str>) -> String {
+    detail.map_or_else(String::new, |detail| format!(": {detail}"))
 }
 
 /// Failure of an upstream SSE stream while translating it to canonical events.

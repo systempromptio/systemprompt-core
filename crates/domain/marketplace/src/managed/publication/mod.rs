@@ -255,9 +255,16 @@ fn decision_from_row(
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
+#[sqlx(type_name = "text", rename_all = "snake_case")]
+pub(super) enum SelectionState {
+    Published,
+    Withdrawn,
+}
+
 pub(super) struct SelectionRow {
     pub generation: i64,
-    pub state: String,
+    pub state: SelectionState,
     pub publication_id: PublicationId,
     pub revision_id: Option<ResourceRevisionId>,
     pub bundle_digest: Option<String>,
@@ -274,19 +281,18 @@ fn resolution_from_row(
         revision_id,
         bundle_digest,
     } = row;
-    match state.as_str() {
-        "withdrawn" => Ok(ManagedResolution::Withdrawn {
+    match state {
+        SelectionState::Withdrawn => Ok(ManagedResolution::Withdrawn {
             publication_id,
             resource_id,
             generation,
         }),
-        "published" => Ok(ManagedResolution::Published {
+        SelectionState::Published => Ok(ManagedResolution::Published {
             publication_id,
             resource_id,
             generation,
             revision_id: revision_id.ok_or(ManagedError::Integrity)?,
             bundle_digest: AssetDigest::try_from(bundle_digest.ok_or(ManagedError::Integrity)?)?,
         }),
-        _ => Err(ManagedError::Integrity),
     }
 }

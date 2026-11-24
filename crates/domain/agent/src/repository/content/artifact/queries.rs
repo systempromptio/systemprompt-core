@@ -20,7 +20,6 @@ impl ArtifactRepository {
         task_id: &TaskId,
     ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
-        let task_id_str = task_id.as_str();
 
         let rows = sqlx::query_as!(
             ArtifactRow,
@@ -42,7 +41,7 @@ impl ArtifactRepository {
             FROM task_artifacts
             WHERE task_id = $1
             ORDER BY created_at DESC"#,
-            task_id_str
+            task_id as _
         )
         .fetch_all(pool.as_ref())
         .await?;
@@ -55,7 +54,6 @@ impl ArtifactRepository {
         owned: &OwnedContext,
     ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
-        let context_id_str = owned.context_id().as_str();
 
         let rows = sqlx::query_as!(
             ArtifactRow,
@@ -77,7 +75,7 @@ impl ArtifactRepository {
             FROM task_artifacts
             WHERE context_id = $1
             ORDER BY created_at DESC"#,
-            context_id_str
+            owned.context_id() as _
         )
         .fetch_all(pool.as_ref())
         .await?;
@@ -92,7 +90,6 @@ impl ArtifactRepository {
     ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
         let limit = i64::from(limit.unwrap_or(100));
-        let user_id_str = user_id.as_str();
 
         let rows = sqlx::query_as!(
             ArtifactRow,
@@ -116,7 +113,7 @@ impl ArtifactRepository {
             WHERE t.user_id = $1
             ORDER BY a.created_at DESC
             LIMIT $2"#,
-            user_id_str,
+            user_id as _,
             limit
         )
         .fetch_all(pool.as_ref())
@@ -130,7 +127,6 @@ impl ArtifactRepository {
         artifact_id: &ArtifactId,
     ) -> Result<Option<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
-        let artifact_id_str = artifact_id.as_str();
 
         let row = sqlx::query_as!(
             ArtifactRow,
@@ -151,7 +147,7 @@ impl ArtifactRepository {
                 created_at as "created_at!"
             FROM task_artifacts
             WHERE artifact_id = $1"#,
-            artifact_id_str
+            artifact_id as _
         )
         .fetch_optional(pool.as_ref())
         .await?;

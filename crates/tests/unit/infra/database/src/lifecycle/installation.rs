@@ -12,9 +12,9 @@ use systemprompt_extension::{
     Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, LoaderError,
     Migration, SchemaDefinition, SchemaFault, Seed,
 };
-use systemprompt_test_fixtures::error_chain;
+use systemprompt_test_fixtures::{ScratchSchema, error_chain};
 
-use crate::services::db_helper::test_pool;
+use crate::services::db_helper::scratch_pool;
 
 pub(super) fn leak(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -70,23 +70,17 @@ pub(super) fn registry_with(ext: StubExtension) -> Arc<Admitted> {
     admitted_of(vec![Box::new(ext)])
 }
 
-pub(super) async fn provider_and_db() -> (PostgresProvider, DbPool) {
-    let db = test_pool().await;
-    let pg = db.write_pool();
-    (PostgresProvider::from_pool(pg), db)
-}
-
-pub(super) async fn drop_table(db: &DbPool, table: &str) {
-    let pg = db.write_pool();
-    let ddl = format!("DROP TABLE IF EXISTS \"{table}\"");
-    let _ = sqlx::query(sqlx::AssertSqlSafe(ddl)).execute(&*pg).await;
+pub(super) async fn provider_and_db(prefix: &str) -> (ScratchSchema, PostgresProvider, DbPool) {
+    let (scratch, db) = scratch_pool(prefix).await;
+    let provider = PostgresProvider::from_pool(db.write_pool());
+    (scratch, provider, db)
 }
 
 pub(super) async fn table_exists(db: &DbPool, table: &str) -> bool {
     let pg = db.write_pool();
     sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND \
-         table_name = $1)",
+        "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() \
+         AND table_name = $1)",
     )
     .bind(table)
     .fetch_one(&*pg)
@@ -96,7 +90,7 @@ pub(super) async fn table_exists(db: &DbPool, table: &str) -> bool {
 
 #[tokio::test]
 async fn install_creates_schema_index_and_applies_seed_idempotently() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("install_ok");
     let ext_id = unique_id("ext_ok");
     let sql = format!(
@@ -118,7 +112,7 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
     };
 
     for _ in 0..2 {
-        install(&registry_with(build()), &provider)
+        install(&registry_with(build()), &provider, &scratch.schema_name())
             .await
             .expect("install");
     }
@@ -132,12 +126,12 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
     .expect("seed count");
     assert_eq!(seeded, 1);
 
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn install_rejects_seed_with_delete_statement() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("install").await;
     let table = unique_id("install_seed_delete");
     let ext = StubExtension {
         id: unique_id("ext_seed_delete"),
@@ -152,19 +146,19 @@ async fn install_rejects_seed_with_delete_statement() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("delete seed rejected");
     assert!(
         matches!(err, LoaderError::InvalidSeedStatement { statement, .. } if statement == "DELETE")
     );
 
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn install_rejects_non_idempotent_insert_seed() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("install").await;
     let table = unique_id("install_seed_plain");
     let ext = StubExtension {
         id: unique_id("ext_seed_plain"),
@@ -179,17 +173,17 @@ async fn install_rejects_non_idempotent_insert_seed() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("plain insert seed rejected");
     assert!(matches!(err, LoaderError::SeedInsertNotIdempotent { .. }));
 
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn install_fails_when_required_column_is_missing() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("install").await;
     let table = unique_id("install_missing_col");
     let ext = StubExtension {
         id: unique_id("ext_missing_col"),
@@ -204,7 +198,7 @@ async fn install_fails_when_required_column_is_missing() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("missing required column rejected");
     assert!(matches!(
@@ -213,12 +207,12 @@ async fn install_fails_when_required_column_is_missing() {
             if matches!(source.downcast_ref::<SchemaFault>(), Some(SchemaFault::MissingColumn { column, .. }) if column == "phantom_column")
     ));
 
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn install_rejects_duplicate_table_ownership() {
-    let (provider, _db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("install").await;
     let table = unique_id("install_shared");
     let sql = format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);");
     let registry = admitted_of(
@@ -235,15 +229,16 @@ async fn install_rejects_duplicate_table_ownership() {
             .collect(),
     );
 
-    let err = install(&registry, &provider)
+    let err = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect_err("duplicate ownership rejected");
     assert!(matches!(err, LoaderError::DuplicateTableOwner { .. }));
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn install_rejects_imperative_sql_in_declarative_schema() {
-    let (provider, _db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("install").await;
     let table = unique_id("install_imperative");
     let ext = StubExtension {
         id: unique_id("ext_imperative"),
@@ -258,7 +253,7 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("imperative DDL rejected");
     assert!(matches!(
@@ -266,10 +261,11 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
         LoaderError::SchemaInstallationStepFailed { source, .. }
             if matches!(source.downcast_ref::<SchemaFault>(), Some(SchemaFault::ImperativeSql { .. }))
     ));
+    scratch.drop_now().await;
 }
 
 async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
-    let (provider, _db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("install").await;
     let table = unique_id("install_seed_kind");
     let ext = StubExtension {
         id: unique_id("ext_seed_kind"),
@@ -280,9 +276,11 @@ async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
         seeds: vec![Seed::new(unique_id("seed"), seed_sql)],
         migrations: vec![],
     };
-    install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
-        .expect_err("disallowed seed statement rejected")
+        .expect_err("disallowed seed statement rejected");
+    scratch.drop_now().await;
+    err
 }
 
 #[tokio::test]
@@ -328,7 +326,7 @@ async fn install_rejects_unparseable_seed_sql() {
 
 #[tokio::test]
 async fn install_surfaces_seed_execution_failure_and_rolls_back() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("install_seed_exec_fail");
     let missing = unique_id("no_such_table");
     let ext = StubExtension {
@@ -347,7 +345,7 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
         migrations: vec![],
     };
 
-    let err = install(&registry_with(ext), &provider)
+    let err = install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect_err("seed hitting a missing table must fail");
     match err {
@@ -366,12 +364,12 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
     .expect("count");
     assert_eq!(rows, 0, "failed seed transaction must roll back");
 
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn install_applies_update_and_multi_statement_seed() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("install_seed_update");
     let ext = StubExtension {
         id: unique_id("ext_seed_update"),
@@ -389,7 +387,7 @@ async fn install_applies_update_and_multi_statement_seed() {
         migrations: vec![],
     };
 
-    install(&registry_with(ext), &provider)
+    install(&registry_with(ext), &provider, &scratch.schema_name())
         .await
         .expect("multi-statement seed applies");
 
@@ -402,12 +400,12 @@ async fn install_applies_update_and_multi_statement_seed() {
     .expect("label");
     assert_eq!(label, "updated");
 
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("dep_rollback");
     let ext_id = unique_id("dep_rollback_ext");
 
@@ -428,7 +426,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
         migrations: vec![],
     });
 
-    let err = install(&registry, &provider)
+    let err = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect_err("an index over a missing column must fail installation");
     let message = systemprompt_test_fixtures::error_chain(&err);
@@ -438,7 +436,8 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
     );
 
     let index_exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = $1)",
+        "SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname \
+         = $1)",
     )
     .bind(format!("{table}_body_idx"))
     .fetch_one(&*db.write_pool())
@@ -449,12 +448,12 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
         "the earlier index in the same phase must be rolled back, not left behind"
     );
 
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn an_extension_declaring_no_schema_installs_cleanly() {
-    let (provider, _db) = provider_and_db().await;
+    let (scratch, provider, _db) = provider_and_db("install").await;
     let registry = registry_with(StubExtension {
         id: unique_id("no_schema_ext"),
         schemas: vec![],
@@ -462,14 +461,15 @@ async fn an_extension_declaring_no_schema_installs_cleanly() {
         migrations: vec![],
     });
 
-    install(&registry, &provider)
+    install(&registry, &provider, &scratch.schema_name())
         .await
         .expect("an extension with nothing to install is not an error");
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("unparseable");
     let registry = registry_with(StubExtension {
         id: unique_id("unparseable_ext"),
@@ -478,7 +478,7 @@ async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
         migrations: vec![],
     });
 
-    let err = install(&registry, &provider)
+    let err = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect_err("unparseable schema SQL must be refused");
     assert!(!err.to_string().is_empty());
@@ -487,6 +487,7 @@ async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
         !table_exists(&db, table).await,
         "nothing may be created from a schema that never parsed"
     );
+    scratch.drop_now().await;
 }
 
 // --- transaction-failure arms ---
@@ -684,14 +685,16 @@ mod transaction_failures {
     // Why: the bootstrap advisory lock needs a live session even when every
     // statement is faked, so the provider borrows the fixture pool for it.
     async fn install_against(fail_at: FailAt) -> LoaderError {
-        let db = test_pool().await;
+        let (scratch, db) = scratch_pool("install_txfail").await;
         let provider = FailingProvider {
             fail_at,
             pool: db.pool(),
         };
-        install(&seeded_registry(), &provider)
+        let err = install(&seeded_registry(), &provider, &scratch.schema_name())
             .await
-            .expect_err("a provider that fails must fail the install")
+            .expect_err("a provider that fails must fail the install");
+        scratch.drop_now().await;
+        err
     }
 
     #[tokio::test]
@@ -727,7 +730,7 @@ mod transaction_failures {
 
 #[tokio::test]
 async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("unclassified");
 
     // `SET` carries no imperative_reason, so it clears the declarative linter,
@@ -745,7 +748,7 @@ async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance(
         migrations: vec![],
     });
 
-    let err = install(&registry, &provider)
+    let err = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect_err("an unclassified statement type must not install");
     let message = systemprompt_test_fixtures::error_chain(&err);
@@ -762,11 +765,12 @@ async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance(
         !table_exists(&db, table).await,
         "classification happens before execution, so nothing may be created"
     );
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("safe_drop");
     let view = format!("{table}_v");
 
@@ -786,14 +790,14 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
         migrations: vec![],
     });
 
-    install(&registry, &provider)
+    install(&registry, &provider, &scratch.schema_name())
         .await
         .expect("a guarded view drop is declarative and must install");
 
     let pg = db.write_pool();
     let view_exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM information_schema.views WHERE table_schema = 'public' AND \
-         table_name = $1)",
+        "SELECT EXISTS(SELECT 1 FROM information_schema.views WHERE table_schema = \
+         current_schema() AND table_name = $1)",
     )
     .bind(&view)
     .fetch_one(&*pg)
@@ -809,12 +813,12 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
     )))
     .execute(&*pg)
     .await;
-    drop_table(&db, table).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn an_unguarded_drop_is_rejected_as_imperative() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("unguarded_drop");
 
     let sql = leak(format!(
@@ -828,7 +832,7 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
         migrations: vec![],
     });
 
-    let err = install(&registry, &provider)
+    let err = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect_err("an unguarded DROP belongs in a migration, not a schema");
     assert!(
@@ -840,6 +844,7 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
         !table_exists(&db, table).await,
         "linting happens before execution"
     );
+    scratch.drop_now().await;
 }
 
 async fn bootstrap_lock_is_free(db: &DbPool) -> bool {
@@ -862,7 +867,7 @@ async fn bootstrap_lock_is_free(db: &DbPool) -> bool {
 
 #[tokio::test]
 async fn a_dropped_bootstrap_lock_guard_releases_the_advisory_lock() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
 
     let guard = BootstrapLockGuard::acquire(&provider)
         .await
@@ -888,11 +893,12 @@ async fn a_dropped_bootstrap_lock_guard_releases_the_advisory_lock() {
         free,
         "dropping the guard must close its session and free the lock"
     );
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_declarative_function_without_or_replace_is_refused() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install").await;
     let table = unique_id("install_fn");
     let sql = format!(
         "CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);\n\
@@ -906,7 +912,7 @@ async fn a_declarative_function_without_or_replace_is_refused() {
         migrations: vec![],
     });
 
-    let err = install(&registry, &provider)
+    let err = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect_err("a routine the installer applies twice must be CREATE OR REPLACE");
     assert!(
@@ -915,4 +921,5 @@ async fn a_declarative_function_without_or_replace_is_refused() {
     );
     assert!(error_chain(&err).contains("CREATE OR REPLACE"), "{err}");
     assert!(!table_exists(&db, table).await);
+    scratch.drop_now().await;
 }

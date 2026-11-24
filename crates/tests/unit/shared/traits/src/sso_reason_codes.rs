@@ -4,7 +4,9 @@ use systemprompt_traits::sso::{SsoError, SsoRefusal};
 fn reason_codes_are_pinned() {
     let table: Vec<(SsoError, &str, &str)> = vec![
         (
-            SsoError::Unavailable("x".into()),
+            SsoError::Unavailable {
+                provider: systemprompt_identifiers::SsoProviderId::new("x"),
+            },
             "unavailable",
             "unavailable",
         ),
@@ -17,7 +19,7 @@ fn reason_codes_are_pinned() {
             "unsolicited",
         ),
         (
-            SsoError::InvalidAssertion("sig".into()),
+            SsoError::InvalidAssertion { reason: "sig" },
             "invalid_assertion",
             "invalid_assertion",
         ),

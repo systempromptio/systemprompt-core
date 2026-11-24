@@ -10,7 +10,6 @@ use super::parts::persist_artifact_part;
 use crate::models::a2a::Artifact;
 use crate::repository::RuntimeTask;
 use chrono::Utc;
-use systemprompt_identifiers::McpExecutionId;
 use systemprompt_traits::RepositoryError;
 
 impl ArtifactRepository {
@@ -53,25 +52,17 @@ impl ArtifactRepository {
                 metadata = EXCLUDED.metadata,
                 updated_at = EXCLUDED.updated_at
             "#,
-            task_id.as_str(),
-            context_id.as_str(),
-            artifact.id.as_str(),
+            task_id as _,
+            context_id as _,
+            artifact.id as _,
             artifact.title.as_deref(),
             artifact.description.as_deref(),
             &artifact.metadata.artifact_type,
             artifact.metadata.source.as_deref(),
             artifact.metadata.tool_name.as_deref(),
-            artifact
-                .metadata
-                .mcp_execution_id
-                .as_ref()
-                .map(McpExecutionId::as_str),
+            artifact.metadata.mcp_execution_id as _,
             artifact.metadata.fingerprint.as_deref(),
-            artifact
-                .metadata
-                .skill_id
-                .as_ref()
-                .map(systemprompt_identifiers::SkillId::as_str),
+            artifact.metadata.skill_id as _,
             artifact.metadata.skill_name.as_deref(),
             metadata_json,
             now
@@ -81,8 +72,8 @@ impl ArtifactRepository {
 
         sqlx::query!(
             "DELETE FROM artifact_parts WHERE artifact_id = $1 AND context_id = $2",
-            artifact.id.as_str(),
-            context_id.as_str()
+            artifact.id as _,
+            context_id as _
         )
         .execute(pool.as_ref())
         .await?;

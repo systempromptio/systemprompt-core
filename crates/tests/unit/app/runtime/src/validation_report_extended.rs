@@ -197,7 +197,7 @@ fn test_domain_config_error_load_error() {
 
 #[test]
 fn test_domain_config_error_not_found() {
-    let error = DomainConfigError::NotFound("/path/to/config.yaml".to_string());
+    let error = DomainConfigError::SkillsPathNotConfigured;
     let display = format!("{}", error);
     assert!(display.contains("Config file not found"));
 }

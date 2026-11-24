@@ -15,7 +15,7 @@ use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 pub(crate) struct Sandbox {
     pub(crate) config: PathBuf,
@@ -78,7 +78,7 @@ pub(crate) fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>)
         not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("opencode-managed-resources"),
         tenant_id: None,
         user: None,
         plugins: vec![],

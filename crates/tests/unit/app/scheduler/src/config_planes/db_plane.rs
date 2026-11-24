@@ -8,8 +8,30 @@ use systemprompt_provider_contracts::{
     DeclaredState, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx, ResolvedEntities,
 };
 use systemprompt_scheduler::repository::PlaneTransaction;
+use systemprompt_test_fixtures::ScratchSchema;
 
 pub type ApplyLog = Arc<Mutex<Vec<&'static str>>>;
+
+#[derive(Debug, Clone)]
+pub struct PlaneRows(String);
+
+impl PlaneRows {
+    pub fn in_scratch(scratch: &ScratchSchema) -> Self {
+        Self(format!("\"{}\".plane_rows", scratch.name()))
+    }
+
+    pub fn in_database() -> Self {
+        Self("plane_rows".to_owned())
+    }
+
+    pub fn qualified(&self) -> &str {
+        &self.0
+    }
+
+    fn sql(&self, template: &str) -> sqlx::AssertSqlSafe<String> {
+        sqlx::AssertSqlSafe(template.replace("{rows}", &self.0))
+    }
+}
 
 pub struct DbPlane {
     pub name: &'static str,
@@ -18,10 +40,11 @@ pub struct DbPlane {
     pub effect: PlaneEffect,
     pub corrupt: bool,
     pub log: ApplyLog,
+    pub rows: PlaneRows,
 }
 
 impl DbPlane {
-    pub fn new(name: &'static str, log: &ApplyLog) -> Self {
+    pub fn new(name: &'static str, log: &ApplyLog, rows: PlaneRows) -> Self {
         Self {
             name,
             path: Box::leak(format!("planes/{name}.txt").into_boxed_str()),
@@ -29,6 +52,7 @@ impl DbPlane {
             effect: PlaneEffect::Live,
             corrupt: false,
             log: Arc::clone(log),
+            rows,
         }
     }
 
@@ -47,31 +71,20 @@ impl DbPlane {
     }
 }
 
-pub async fn ensure_table(pool: &DbPool) {
-    let pg = pool.write_pool();
-    let mut tx = pg.begin().await.expect("begin");
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext('plane_e2e.rows'))")
-        .execute(&mut *tx)
-        .await
-        .expect("ddl lock");
-    sqlx::query("CREATE SCHEMA IF NOT EXISTS plane_e2e")
-        .execute(&mut *tx)
-        .await
-        .expect("create plane_e2e schema");
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS plane_e2e.rows (plane TEXT NOT NULL, entity TEXT NOT NULL, \
-         value TEXT NOT NULL, PRIMARY KEY (plane, entity))",
-    )
-    .execute(&mut *tx)
+pub async fn ensure_table(pool: &DbPool, rows: &PlaneRows) {
+    sqlx::query(rows.sql(
+        "CREATE TABLE IF NOT EXISTS {rows} (plane TEXT NOT NULL, entity TEXT NOT NULL, value \
+         TEXT NOT NULL, PRIMARY KEY (plane, entity))",
+    ))
+    .execute(&*pool.write_pool())
     .await
-    .expect("create plane_e2e.rows");
-    tx.commit().await.expect("commit");
+    .expect("create the plane rows table");
 }
 
-pub async fn seed_rows(pool: &DbPool, plane: &str, rows: &[(&str, &str)]) {
+pub async fn seed_rows(pool: &DbPool, table: &PlaneRows, plane: &str, rows: &[(&str, &str)]) {
     let pg = pool.write_pool();
     for (entity, value) in rows {
-        sqlx::query("INSERT INTO plane_e2e.rows (plane, entity, value) VALUES ($1, $2, $3)")
+        sqlx::query(table.sql("INSERT INTO {rows} (plane, entity, value) VALUES ($1, $2, $3)"))
             .bind(plane)
             .bind(entity)
             .bind(value)
@@ -81,10 +94,10 @@ pub async fn seed_rows(pool: &DbPool, plane: &str, rows: &[(&str, &str)]) {
     }
 }
 
-pub async fn stored_rows(pool: &DbPool, plane: &str) -> PlaneSnapshot {
+pub async fn stored_rows(pool: &DbPool, table: &PlaneRows, plane: &str) -> PlaneSnapshot {
     let pg = pool.pool();
     sqlx::query_as::<_, (String, String)>(
-        "SELECT entity, value FROM plane_e2e.rows WHERE plane = $1",
+        table.sql("SELECT entity, value FROM {rows} WHERE plane = $1"),
     )
     .bind(plane)
     .fetch_all(&*pg)
@@ -102,6 +115,10 @@ impl ConfigPlane for DbPlane {
 
     fn declared_path(&self) -> &'static str {
         self.path
+    }
+
+    fn requires(&self) -> Vec<systemprompt_provider_contracts::StateRequirement> {
+        Vec::new()
     }
 
     fn depends_on(&self) -> &'static [&'static str] {
@@ -142,7 +159,8 @@ impl ConfigPlane for DbPlane {
     ) -> ConfigPlaneResult<PlaneSnapshot> {
         let tx = tx.get::<PlaneTransaction>()?;
         let rows = sqlx::query_as::<_, (String, String)>(
-            "SELECT entity, value FROM plane_e2e.rows WHERE plane = $1",
+            self.rows
+                .sql("SELECT entity, value FROM {rows} WHERE plane = $1"),
         )
         .bind(self.name)
         .fetch_all(&mut **tx)
@@ -175,10 +193,10 @@ impl ConfigPlane for DbPlane {
                 Some(_) => outcome.updated += 1,
                 None => outcome.inserted += 1,
             }
-            sqlx::query(
-                "INSERT INTO plane_e2e.rows (plane, entity, value) VALUES ($1, $2, $3) ON \
-                 CONFLICT (plane, entity) DO UPDATE SET value = EXCLUDED.value",
-            )
+            sqlx::query(self.rows.sql(
+                "INSERT INTO {rows} (plane, entity, value) VALUES ($1, $2, $3) ON CONFLICT \
+                 (plane, entity) DO UPDATE SET value = EXCLUDED.value",
+            ))
             .bind(self.name)
             .bind(entity)
             .bind(value)
@@ -189,12 +207,15 @@ impl ConfigPlane for DbPlane {
         if request.mode != ApplyMode::InsertOnly {
             for entity in current.keys() {
                 if request.scope.admits(entity) && !request.declared.entries.contains_key(entity) {
-                    sqlx::query("DELETE FROM plane_e2e.rows WHERE plane = $1 AND entity = $2")
-                        .bind(self.name)
-                        .bind(entity)
-                        .execute(&mut **tx)
-                        .await
-                        .map_err(|e| self.backend(e))?;
+                    sqlx::query(
+                        self.rows
+                            .sql("DELETE FROM {rows} WHERE plane = $1 AND entity = $2"),
+                    )
+                    .bind(self.name)
+                    .bind(entity)
+                    .execute(&mut **tx)
+                    .await
+                    .map_err(|e| self.backend(e))?;
                     outcome.deleted += 1;
                 }
             }
@@ -233,10 +254,10 @@ impl ConfigPlane for DbPlane {
                     } else {
                         value.as_str()
                     };
-                    sqlx::query(
-                        "INSERT INTO plane_e2e.rows (plane, entity, value) VALUES ($1, $2, $3) \
-                         ON CONFLICT (plane, entity) DO UPDATE SET value = EXCLUDED.value",
-                    )
+                    sqlx::query(self.rows.sql(
+                        "INSERT INTO {rows} (plane, entity, value) VALUES ($1, $2, $3) ON \
+                         CONFLICT (plane, entity) DO UPDATE SET value = EXCLUDED.value",
+                    ))
                     .bind(self.name)
                     .bind(entity)
                     .bind(value)
@@ -246,12 +267,15 @@ impl ConfigPlane for DbPlane {
                     outcome.updated += 1;
                 },
                 None => {
-                    sqlx::query("DELETE FROM plane_e2e.rows WHERE plane = $1 AND entity = $2")
-                        .bind(self.name)
-                        .bind(entity)
-                        .execute(&mut **tx)
-                        .await
-                        .map_err(|e| self.backend(e))?;
+                    sqlx::query(
+                        self.rows
+                            .sql("DELETE FROM {rows} WHERE plane = $1 AND entity = $2"),
+                    )
+                    .bind(self.name)
+                    .bind(entity)
+                    .execute(&mut **tx)
+                    .await
+                    .map_err(|e| self.backend(e))?;
                     outcome.deleted += 1;
                 },
             }

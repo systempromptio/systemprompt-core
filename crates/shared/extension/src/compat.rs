@@ -22,8 +22,8 @@
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CompatDirectiveError {
-    #[error("`@compat` takes only `breaking`, got `{0}`")]
-    Value(String),
+    #[error("`@compat` takes only `breaking`, got `{value}`")]
+    Value { value: String },
     #[error("`@compat` is declared {0} times; one migration states its compatibility once")]
     Repeated(usize),
 }
@@ -41,7 +41,9 @@ pub fn parse(sql: &str) -> Result<bool, CompatDirectiveError> {
     match values.as_slice() {
         [] => Ok(false),
         ["breaking"] => Ok(true),
-        [other] => Err(CompatDirectiveError::Value((*other).to_owned())),
+        [other] => Err(CompatDirectiveError::Value {
+            value: (*other).to_owned(),
+        }),
         many => Err(CompatDirectiveError::Repeated(many.len())),
     }
 }

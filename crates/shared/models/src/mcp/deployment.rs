@@ -15,7 +15,7 @@ use super::external_auth::validate_external_auth;
 pub use super::toolset::{ResolvedAccess, ToolAccess, ToolsetRef};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
-use crate::errors::ServicesValidationError;
+use crate::errors::{ServicesValidationError, ValidationSubject};
 use crate::mcp::capabilities::ToolVisibility;
 use crate::subprocess::{SecretGrant, is_api_held_env_name};
 use serde::{Deserialize, Serialize};
@@ -171,26 +171,31 @@ impl Deployment {
         let blank_binary = self.binary.as_deref().is_some_and(|b| b.trim().is_empty());
         let unhosted = self.binary.is_none() && self.enabled_toolsets().next().is_none();
         if self.port.is_none() || blank_binary || unhosted {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': internal servers require a port and either a binary or \
-                 toolsets hosted by this binary."
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "internal servers require a port and either a binary or \
+                 toolsets hosted by this binary.",
+            ));
         }
         if let Some(ep) = self.endpoint.as_deref()
             && (ep.starts_with("http://") || ep.starts_with("https://"))
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': endpoint must be a relative path (e.g. \
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                format!(
+                    "endpoint must be a relative path (e.g. \
                      /api/v1/mcp/{name}/mcp) or omitted; the host is derived from \
                      server.api_external_url. Remove the scheme+host prefix."
-            )));
+                ),
+            ));
         }
         if self.external_auth.is_some() || self.connector.is_some() || !self.headers.is_empty() {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': external_auth and headers are only valid on \
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "external_auth and headers are only valid on \
                      external servers; internal servers are reached through the gateway \
-                     with the systemprompt credential."
-            )));
+                     with the systemprompt credential.",
+            ));
         }
         Ok(())
     }
@@ -201,22 +206,25 @@ impl Deployment {
             .as_deref()
             .is_none_or(|ep| ep.trim().is_empty())
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': external servers require an endpoint."
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "external servers require an endpoint.",
+            ));
         }
         if !self.secrets.is_empty() {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': secrets are only valid on internal servers; an external \
-                     server is never spawned. Remove them."
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "secrets are only valid on internal servers; an external \
+                     server is never spawned. Remove them.",
+            ));
         }
         if self.binary.is_some() || self.package.is_some() || self.port.is_some() {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': binary, package and port are only valid on internal \
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "binary, package and port are only valid on internal \
                      servers; an external server is reached at its endpoint and is never \
-                     bound locally. Remove them."
-            )));
+                     bound locally. Remove them.",
+            ));
         }
         Ok(())
     }
@@ -232,14 +240,16 @@ impl Deployment {
                 .as_deref()
                 .is_some_and(|endpoint| endpoint.starts_with("https://"))
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': generic connector requires an HTTPS resource"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "generic connector requires an HTTPS resource",
+            ));
         }
         if connector.client_secret.is_some() && connector.client_id_secret.is_none() {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': connector client secret requires a client ID"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "connector client secret requires a client ID",
+            ));
         }
         connector.validate(name)
     }
@@ -250,10 +260,13 @@ pub fn validate_child_env(owner: &str, env_vars: &[String]) -> Result<(), Servic
         .iter()
         .find(|name| is_api_held_env_name(name))
         .map_or(Ok(()), |name| {
-            Err(ServicesValidationError::invalid_field(format!(
-                "{owner}: env_vars names '{name}', which carries a secret; grant it under \
+            Err(ServicesValidationError::invalid_field(
+                ValidationSubject::scope(owner),
+                format!(
+                    "env_vars names '{name}', which carries a secret; grant it under \
                  `secrets:` instead, or drop it if it is held by the API only"
-            )))
+                ),
+            ))
         })
 }
 

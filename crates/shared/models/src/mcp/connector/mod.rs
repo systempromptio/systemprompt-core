@@ -5,7 +5,7 @@
 
 mod grant;
 
-use crate::errors::ServicesValidationError;
+use crate::errors::{ServicesValidationError, ValidationSubject};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ConnectorAppId, ConnectorInstallationId};
@@ -101,29 +101,36 @@ impl ConnectorConfig {
         self.validate_grant(name)?;
         for (key, value) in &self.authorization_params {
             if !Self::ALLOWED_AUTHORIZATION_PARAMS.contains(&key.as_str()) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': connector authorization_params.{key} is not an \
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("MCP server", name),
+                    format!(
+                        "connector authorization_params.{key} is not an \
                      allowed parameter (allowed: {})",
-                    Self::ALLOWED_AUTHORIZATION_PARAMS.join(", ")
-                )));
+                        Self::ALLOWED_AUTHORIZATION_PARAMS.join(", ")
+                    ),
+                ));
             }
             if value.is_empty()
                 || value
                     .chars()
                     .any(|c| c.is_whitespace() || "&=#".contains(c))
             {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': connector authorization_params.{key} must be a \
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("MCP server", name),
+                    format!(
+                        "connector authorization_params.{key} must be a \
                      single non-empty token"
-                )));
+                    ),
+                ));
             }
         }
         if self.identity == Some(ConnectorIdentity::Userinfo)
             && !self.scopes.iter().any(|scope| scope == "openid")
         {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': connector identity: userinfo requires the openid scope"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("MCP server", name),
+                "connector identity: userinfo requires the openid scope",
+            ));
         }
         Ok(())
     }

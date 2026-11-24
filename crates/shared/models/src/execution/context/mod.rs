@@ -11,7 +11,9 @@ mod credential;
 mod propagation;
 
 pub use call_source::CallSource;
-pub use context_error::{ContextExtractionError, ContextIdSource, RequestContextValidationError};
+pub use context_error::{
+    ContextExtractionError, ContextIdSource, RequestContextValidationError, UserUnavailable,
+};
 pub use context_types::{
     AuthContext, ExecutionContext, ExecutionSettings, RequestMetadata, UserInteractionMode,
 };

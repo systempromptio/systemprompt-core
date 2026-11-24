@@ -15,7 +15,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::NotificationId;
-use systemprompt_models::notifications::{KeysetCursor, NotificationPage};
+use systemprompt_models::api::KeysetCursor;
+use systemprompt_models::notifications::NotificationPage;
 
 use super::handle::InboxHandle;
 use super::state::MAX_ITEMS;

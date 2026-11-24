@@ -24,6 +24,10 @@ impl ConfigPlane for StubPlane {
         self.path
     }
 
+    fn requires(&self) -> Vec<systemprompt_provider_contracts::StateRequirement> {
+        Vec::new()
+    }
+
     fn depends_on(&self) -> &'static [&'static str] {
         self.deps
     }
@@ -95,15 +99,15 @@ fn a_dependency_cycle_is_refused() {
         plane("c", &[]),
     ])
     .expect_err("refused");
-    assert!(matches!(err, ConfigPlaneError::DependencyCycle(ref p) if p == "a"));
+    assert!(matches!(err, ConfigPlaneError::DependencyCycle { plane } if plane == "a"));
     let err = set_of(vec![plane("self_ref", &["self_ref"])]).expect_err("refused");
-    assert!(matches!(err, ConfigPlaneError::DependencyCycle(ref p) if p == "self_ref"));
+    assert!(matches!(err, ConfigPlaneError::DependencyCycle { plane } if plane == "self_ref"));
 }
 
 #[test]
 fn duplicate_names_are_refused_before_ordering() {
     let err = set_of(vec![plane("dup", &[]), plane("dup", &[])]).expect_err("refused");
-    assert!(matches!(err, ConfigPlaneError::DuplicatePlane(ref p) if p == "dup"));
+    assert!(matches!(err, ConfigPlaneError::DuplicatePlane { plane } if plane == "dup"));
 }
 
 #[test]
@@ -132,7 +136,7 @@ fn the_writer_is_refused_for_a_file_managed_plane_and_minted_otherwise() {
     assert_eq!(writer.authority(), EffectiveAuthority::Db);
     assert!(matches!(
         set.writer("missing"),
-        Err(ConfigPlaneError::UnknownPlane(ref p)) if p == "missing"
+        Err(ConfigPlaneError::UnknownPlane { ref plane }) if plane == "missing"
     ));
 }
 

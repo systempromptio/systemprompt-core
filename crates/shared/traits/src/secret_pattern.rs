@@ -55,8 +55,8 @@ pub enum SecretPatternError {
     Empty,
     #[error("a bare `*` grants every secret; name the secret or a prefix such as `acme_*`")]
     BareWildcard,
-    #[error("secret pattern '{0}' places `*` other than once at its end")]
-    MisplacedWildcard(String),
+    #[error("secret pattern '{pattern}' places `*` other than once at its end")]
+    MisplacedWildcard { pattern: String },
 }
 
 impl SecretPattern {
@@ -65,12 +65,14 @@ impl SecretPattern {
             _ if text.is_empty() => Err(SecretPatternError::Empty),
             Some("") => Err(SecretPatternError::BareWildcard),
             Some(prefix) if prefix.contains(WILDCARD) => {
-                Err(SecretPatternError::MisplacedWildcard(text.to_owned()))
+                Err(SecretPatternError::MisplacedWildcard {
+                    pattern: text.to_owned(),
+                })
             },
             Some(prefix) => Ok(Self::Prefix(prefix.to_owned())),
-            None if text.contains(WILDCARD) => {
-                Err(SecretPatternError::MisplacedWildcard(text.to_owned()))
-            },
+            None if text.contains(WILDCARD) => Err(SecretPatternError::MisplacedWildcard {
+                pattern: text.to_owned(),
+            }),
             None => Ok(Self::Exact(SecretName::new(text))),
         }
     }

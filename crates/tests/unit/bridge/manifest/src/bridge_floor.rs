@@ -4,7 +4,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn envelope_requiring(floor: Option<&str>) -> SignedManifestEnvelope {
     let manifest = SignedManifestBuilder::new(
@@ -15,7 +15,7 @@ fn envelope_requiring(floor: Option<&str>) -> SignedManifestEnvelope {
         chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        fixture_user_id(),
+        unique_user_id("bridge-floor"),
     )
     .build();
     let mut value = serde_json::to_value(&manifest).expect("serializes");

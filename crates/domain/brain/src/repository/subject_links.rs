@@ -94,8 +94,8 @@ impl SubjectLinkRepository {
             "SELECT other_kind, other_id, via_kind, fact_id FROM brain_subject_links
              WHERE subject_kind = $1 AND subject_id = $2
              ORDER BY other_kind, other_id, fact_id",
-            subject.kind.as_str(),
-            subject.id.as_str()
+            subject.kind,
+            subject.id
         )
         .fetch_all(executor)
         .await?;

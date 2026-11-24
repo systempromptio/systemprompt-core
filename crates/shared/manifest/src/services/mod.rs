@@ -121,7 +121,7 @@ pub use teams::{TeamsAppConfig, TeamsAuthzConfig, TeamsEndpoints};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use systemprompt_identifiers::{ExternalAgentId, MarketplaceId};
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::mcp::{Deployment, McpServerType};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -175,16 +175,17 @@ impl ServicesConfig {
             return Ok(());
         }
 
-        let shift = |port: u16, what: &str| {
+        let shift = |port: u16, subject: ValidationSubject| {
             port.checked_add(offset).ok_or_else(|| {
-                ServicesValidationError::invalid_field(format!(
-                    "{what} port {port} shifted by services.port_offset {offset} exceeds 65535"
-                ))
+                ServicesValidationError::invalid_field(
+                    subject,
+                    format!("port {port} shifted by services.port_offset {offset} exceeds 65535"),
+                )
             })
         };
 
         for (name, agent) in &mut self.agents {
-            agent.port = shift(agent.port, &format!("Agent '{name}'"))?;
+            agent.port = shift(agent.port, ValidationSubject::clause("Agent", name))?;
         }
 
         for (name, mcp) in &mut self.mcp_servers {
@@ -192,17 +193,29 @@ impl ServicesConfig {
                 continue;
             }
             if let Some(port) = mcp.port {
-                mcp.port = Some(shift(port, &format!("MCP server '{name}'"))?);
+                mcp.port = Some(shift(port, ValidationSubject::clause("MCP server", name))?);
             }
         }
 
         self.settings.agent_port_range = (
-            shift(self.settings.agent_port_range.0, "agent_port_range lower")?,
-            shift(self.settings.agent_port_range.1, "agent_port_range upper")?,
+            shift(
+                self.settings.agent_port_range.0,
+                ValidationSubject::label("agent_port_range lower"),
+            )?,
+            shift(
+                self.settings.agent_port_range.1,
+                ValidationSubject::label("agent_port_range upper"),
+            )?,
         );
         self.settings.mcp_port_range = (
-            shift(self.settings.mcp_port_range.0, "mcp_port_range lower")?,
-            shift(self.settings.mcp_port_range.1, "mcp_port_range upper")?,
+            shift(
+                self.settings.mcp_port_range.0,
+                ValidationSubject::label("mcp_port_range lower"),
+            )?,
+            shift(
+                self.settings.mcp_port_range.1,
+                ValidationSubject::label("mcp_port_range upper"),
+            )?,
         );
 
         Ok(())

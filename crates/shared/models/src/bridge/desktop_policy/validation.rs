@@ -18,7 +18,9 @@ pub(super) fn validate(policy: &DesktopPolicy) -> Result<(), DesktopPolicyError>
             .settings
             .iter()
             .find(|setting| setting.key == *key)
-            .ok_or_else(|| DesktopPolicyError::Unsupported(key.clone()))?;
+            .ok_or_else(|| DesktopPolicyError::Unsupported {
+                setting: key.clone(),
+            })?;
         if matches!(
             setting.disposition.as_str(),
             "bridge-owned" | "inapplicable"
@@ -30,7 +32,9 @@ pub(super) fn validate(policy: &DesktopPolicy) -> Result<(), DesktopPolicyError>
                 | "otlpHeadersHelper"
                 | "otlpResourceAttributes"
         ) {
-            return Err(DesktopPolicyError::Reserved(key.clone()));
+            return Err(DesktopPolicyError::Reserved {
+                setting: key.clone(),
+            });
         }
         validate_value(setting, value)?;
         validate_fields(setting, value)?;
@@ -84,10 +88,14 @@ fn validate_value(setting: &DesktopSetting, value: &Value) -> Result<(), Desktop
         && (setting.min.is_some_and(|min| number < min)
             || setting.max.is_some_and(|max| number > max))
     {
-        return Err(DesktopPolicyError::Range(setting.key.clone()));
+        return Err(DesktopPolicyError::Range {
+            setting: setting.key.clone(),
+        });
     }
     if !allowed_enum(&setting.values, value) {
-        return Err(DesktopPolicyError::EnumValue(setting.key.clone()));
+        return Err(DesktopPolicyError::EnumValue {
+            setting: setting.key.clone(),
+        });
     }
     Ok(())
 }
@@ -149,7 +157,9 @@ fn validate_object(
         "allowedPluginMcpServers" | "deniedPluginMcpServers"
     ) && !object.contains_key("serverUrl")
     {
-        return Err(DesktopPolicyError::ServerUrl(setting.key.clone()));
+        return Err(DesktopPolicyError::ServerUrl {
+            setting: setting.key.clone(),
+        });
     }
     Ok(())
 }

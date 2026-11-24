@@ -47,9 +47,9 @@ impl McpProxySessionRepository {
                ON CONFLICT (session_id) DO UPDATE
                SET mcp_server_id = COALESCE(mcp_sessions.mcp_server_id, EXCLUDED.mcp_server_id),
                    user_id = COALESCE(mcp_sessions.user_id, EXCLUDED.user_id)"#,
-            session_id.as_str(),
-            server.as_str(),
-            principal.map(UserId::as_str),
+            session_id as _,
+            server as _,
+            principal as _,
         )
         .execute(&*self.write_pool)
         .await?;
@@ -70,9 +70,9 @@ impl McpProxySessionRepository {
                      AND user_id IS NOT DISTINCT FROM $3
                      AND expires_at > NOW()
                ) AS "bound!""#,
-            session_id.as_str(),
-            server.as_str(),
-            principal.map(UserId::as_str),
+            session_id as _,
+            server as _,
+            principal as _,
         )
         .fetch_one(&*self.write_pool)
         .await?;

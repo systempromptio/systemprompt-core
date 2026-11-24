@@ -98,7 +98,7 @@ impl IngestionRepository {
                 updated_at = NOW()
             WHERE id = $1
             "#,
-            id.as_str(),
+            id as _,
             rule.access,
             rule.justification,
             rule.source,
@@ -119,7 +119,7 @@ impl IngestionRepository {
                 (id, entity_type, entity_id, rule_type, rule_value, access, justification, source)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
-            id.as_str(),
+            id as _,
             rule.entity_kind.as_str(),
             rule.entity_id,
             rule.rule_type.to_string(),

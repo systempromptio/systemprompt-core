@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::ThemeMode;
 use systemprompt_models::bridge::opencode::MIN_CLIENT_VERSION;
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 
 /// `OpenCode` settings the bridge applies for a marketplace's subscribers.
 ///
@@ -99,7 +99,10 @@ fn is_file_stem(name: &str) -> bool {
 impl OpenCodeMarketplaceConfig {
     pub(super) fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         let invalid = |what: String| {
-            ServicesValidationError::invalid_field(format!("Marketplace '{key}': {what}"))
+            ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                what,
+            )
         };
         if let Some(version) = &self.min_client_version
             && *version < MIN_CLIENT_VERSION

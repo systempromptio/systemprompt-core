@@ -14,7 +14,7 @@ use systemprompt_identifiers::{
     AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, MessageId,
 };
 use systemprompt_models::UserContext;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -81,7 +81,7 @@ fn test_context_detail_serialize() {
             kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("context"),
         },
         messages: vec![],
     };
@@ -100,7 +100,7 @@ fn test_context_detail_with_messages() {
             kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("context"),
         },
         messages: vec![
             ContextMessage {
@@ -162,7 +162,7 @@ fn test_context_state_event_context_created() {
             kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("context"),
         },
         timestamp: Utc::now(),
     };

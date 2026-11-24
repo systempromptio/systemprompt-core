@@ -106,10 +106,10 @@ impl JobRunRepository {
             ON CONFLICT (job_name, scheduled_at, instance_key) DO NOTHING
             RETURNING fencing_token
             "#,
-            job_name.as_str(),
+            job_name as _,
             scheduled_at,
             key.as_key(),
-            claimed_by.as_str()
+            claimed_by as _
         )
         .fetch_optional(&*self.write_pool)
         .await?;
@@ -129,7 +129,7 @@ impl JobRunRepository {
             WHERE job_name = $1 AND scheduled_at = $2 AND instance_key = $3
               AND fencing_token = $4 AND finished_at IS NULL
             "#,
-            claim.job_name.as_str(),
+            claim.job_name as _,
             claim.scheduled_at,
             claim.key.as_key(),
             claim.token.get(),
@@ -151,7 +151,7 @@ impl JobRunRepository {
             FROM scheduled_job_runs
             WHERE job_name = $1 AND instance_key = $2
             "#,
-            job_name.as_str(),
+            job_name as _,
             key.as_key()
         )
         .fetch_one(&*self.write_pool)
@@ -161,7 +161,7 @@ impl JobRunRepository {
     pub async fn count_runs(&self, job_name: &JobName) -> SchedulerResult<i64> {
         Ok(sqlx::query_scalar!(
             r#"SELECT count(*) AS "count!" FROM scheduled_job_runs WHERE job_name = $1"#,
-            job_name.as_str()
+            job_name as _
         )
         .fetch_one(&*self.write_pool)
         .await?)

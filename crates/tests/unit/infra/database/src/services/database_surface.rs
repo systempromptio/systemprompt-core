@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{
-    Database, PoolConfig, validate_column_exists, validate_database_connection,
+    Database, PoolConfig, SchemaName, validate_column_exists, validate_database_connection,
     validate_table_exists,
 };
 use systemprompt_test_fixtures::{ScratchSchema, test_database_url};
@@ -183,20 +183,24 @@ async fn validation_helpers_detect_tables_and_columns() {
         .await
         .expect("connection valid");
 
-    assert!(validate_table_exists(&db, "users").await.expect("query"));
     assert!(
-        !validate_table_exists(&db, "definitely_not_a_table_xyz")
+        validate_table_exists(&db, &SchemaName::public(), "users")
+            .await
+            .expect("query")
+    );
+    assert!(
+        !validate_table_exists(&db, &SchemaName::public(), "definitely_not_a_table_xyz")
             .await
             .expect("query")
     );
 
     assert!(
-        validate_column_exists(&db, "users", "id")
+        validate_column_exists(&db, &SchemaName::public(), "users", "id")
             .await
             .expect("query")
     );
     assert!(
-        !validate_column_exists(&db, "users", "no_such_column_xyz")
+        !validate_column_exists(&db, &SchemaName::public(), "users", "no_such_column_xyz")
             .await
             .expect("query")
     );

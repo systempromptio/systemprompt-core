@@ -23,7 +23,6 @@ impl FileRepository {
     ) -> FilesResult<ContentFile> {
         let file_id_uuid = parse_file_uuid(file_id)?;
         let now = Utc::now();
-        let content_id_str = content_id.as_str();
 
         let result = sqlx::query_as!(
             ContentFileRow,
@@ -34,7 +33,7 @@ impl FileRepository {
             SET display_order = $4
             RETURNING id, content_id as "content_id: ContentId", file_id, role as "role: FileRole", display_order, created_at
             "#,
-            content_id_str,
+            content_id as _,
             file_id_uuid,
             role.as_str(),
             display_order,
@@ -52,14 +51,13 @@ impl FileRepository {
         file_id: &FileId,
     ) -> FilesResult<()> {
         let file_id_uuid = parse_file_uuid(file_id)?;
-        let content_id_str = content_id.as_str();
 
         sqlx::query!(
             r#"
             DELETE FROM content_files
             WHERE content_id = $1 AND file_id = $2
             "#,
-            content_id_str,
+            content_id as _,
             file_id_uuid
         )
         .execute(self.pool.as_ref())
@@ -72,7 +70,6 @@ impl FileRepository {
         &self,
         content_id: &ContentId,
     ) -> FilesResult<Vec<(File, ContentFile)>> {
-        let content_id_str = content_id.as_str();
         let rows = sqlx::query!(
             r#"
             SELECT
@@ -84,7 +81,7 @@ impl FileRepository {
             WHERE cf.content_id = $1 AND f.deleted_at IS NULL
             ORDER BY cf.display_order ASC, cf.created_at ASC
             "#,
-            content_id_str
+            content_id as _
         )
         .fetch_all(self.pool.as_ref())
         .await?;
@@ -130,7 +127,6 @@ impl FileRepository {
     }
 
     pub async fn find_featured_image(&self, content_id: &ContentId) -> FilesResult<Option<File>> {
-        let content_id_str = content_id.as_str();
         let featured_role = FileRole::Featured.as_str();
         let result = sqlx::query_as!(
             FileRow,
@@ -144,7 +140,7 @@ impl FileRepository {
               AND f.deleted_at IS NULL
             LIMIT 1
             "#,
-            content_id_str,
+            content_id as _,
             featured_role
         )
         .fetch_optional(self.pool.as_ref())
@@ -155,7 +151,6 @@ impl FileRepository {
 
     pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> FilesResult<()> {
         let file_id_uuid = parse_file_uuid(file_id)?;
-        let content_id_str = content_id.as_str();
         let featured_role = FileRole::Featured.as_str();
         let attachment_role = FileRole::Attachment.as_str();
 
@@ -168,7 +163,7 @@ impl FileRepository {
             WHERE content_id = $2 AND role = $3
             "#,
             attachment_role,
-            content_id_str,
+            content_id as _,
             featured_role
         )
         .execute(&mut *tx)
@@ -182,7 +177,7 @@ impl FileRepository {
             "#,
             featured_role,
             file_id_uuid,
-            content_id_str
+            content_id as _
         )
         .execute(&mut *tx)
         .await?;

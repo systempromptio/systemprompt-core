@@ -44,7 +44,7 @@ pub(super) async fn pinned(
            ORDER BY f.importance_base DESC, f.id
            LIMIT $5"#,
         &f.keys,
-        f.user.as_str(),
+        f.user as _,
         f.include_stale,
         f.as_of,
         f.limit,
@@ -78,7 +78,7 @@ pub(super) async fn by_context(
            ORDER BY (f.kind = ANY($8::text[])) DESC, w.importance_base DESC, w.fact_id
            LIMIT $5"#,
         &f.keys,
-        f.user.as_str(),
+        f.user as _,
         f.include_stale,
         f.as_of,
         f.limit,
@@ -112,7 +112,7 @@ pub(super) async fn withheld_counts(
              AND (f.valid_to IS NULL OR f.valid_to > $4)
              AND f.observed_at <= $4"#,
         &f.keys,
-        f.user.as_str(),
+        f.user as _,
         f.include_stale,
         f.as_of,
         &f.scopes,

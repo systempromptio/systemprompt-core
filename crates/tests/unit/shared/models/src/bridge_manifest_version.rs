@@ -17,7 +17,7 @@ fn manifest_version_accepts_valid_form() {
 #[test]
 fn manifest_version_rejects_missing_separator() {
     let err = ManifestVersion::try_new("nodash").unwrap_err();
-    assert!(matches!(err, ManifestVersionParseError::NoSeparator(_)));
+    assert!(matches!(err, ManifestVersionParseError::NoSeparator { .. }));
     assert!(err.to_string().contains("missing"));
 }
 
@@ -33,13 +33,13 @@ fn manifest_version_rejects_bad_timestamp() {
 #[test]
 fn manifest_version_rejects_short_hex_suffix() {
     let err = ManifestVersion::try_new("2026-01-01T00:00:00Z-abc").unwrap_err();
-    assert!(matches!(err, ManifestVersionParseError::BadSuffix(_)));
+    assert!(matches!(err, ManifestVersionParseError::BadSuffix { .. }));
 }
 
 #[test]
 fn manifest_version_rejects_non_hex_suffix() {
     let err = ManifestVersion::try_new("2026-01-01T00:00:00Z-zzzzzzzz").unwrap_err();
-    assert!(matches!(err, ManifestVersionParseError::BadSuffix(_)));
+    assert!(matches!(err, ManifestVersionParseError::BadSuffix { .. }));
 }
 
 #[test]

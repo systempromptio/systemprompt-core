@@ -68,7 +68,7 @@ fn schema_version_must_be_one_unless_empty_and_zero() {
 #[test]
 fn unknown_and_reserved_keys_are_refused() {
     assert!(
-        matches!(err(json!({"noSuchSetting": 1})), DesktopPolicyError::Unsupported(k) if k == "noSuchSetting")
+        matches!(err(json!({"noSuchSetting": 1})), DesktopPolicyError::Unsupported { setting } if setting == "noSuchSetting")
     );
     for key in [
         "inferenceGatewayBaseUrl",
@@ -84,7 +84,7 @@ fn unknown_and_reserved_keys_are_refused() {
         let mut settings = serde_json::Map::new();
         settings.insert(key.to_owned(), value);
         assert!(
-            matches!(err(Value::Object(settings)), DesktopPolicyError::Reserved(ref k) if k == key),
+            matches!(err(Value::Object(settings)), DesktopPolicyError::Reserved { ref setting } if setting == key),
             "{key}"
         );
     }
@@ -110,19 +110,19 @@ fn values_are_type_range_and_enum_checked() {
     ));
     assert!(matches!(
         err(json!({"mcpToolTimeoutSec": 10})),
-        DesktopPolicyError::Range(_)
+        DesktopPolicyError::Range { .. }
     ));
     assert!(matches!(
         err(json!({"mcpToolTimeoutSec": 99999})),
-        DesktopPolicyError::Range(_)
+        DesktopPolicyError::Range { .. }
     ));
     assert!(matches!(
         err(json!({"defaultModelEffort": "extreme"})),
-        DesktopPolicyError::EnumValue(_)
+        DesktopPolicyError::EnumValue { .. }
     ));
     assert!(matches!(
         err(json!({"otlpContentCapture": ["everything"]})),
-        DesktopPolicyError::EnumValue(_)
+        DesktopPolicyError::EnumValue { .. }
     ));
 }
 
@@ -149,7 +149,7 @@ fn nested_fields_are_checked_against_the_catalog() {
     ));
     assert!(matches!(
         err(json!({"deniedPluginMcpServers": [{}]})),
-        DesktopPolicyError::ServerUrl(k) if k == "deniedPluginMcpServers"
+        DesktopPolicyError::ServerUrl { setting } if setting == "deniedPluginMcpServers"
     ));
 }
 

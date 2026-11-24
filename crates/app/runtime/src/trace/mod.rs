@@ -40,4 +40,7 @@ pub enum TraceError {
 
     #[error("Stored log level is malformed")]
     MalformedLevel(#[from] systemprompt_logging::models::LoggingError),
+
+    #[error("Stored {column} value `{value}` is outside its vocabulary")]
+    MalformedState { column: &'static str, value: String },
 }

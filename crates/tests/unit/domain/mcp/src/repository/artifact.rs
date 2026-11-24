@@ -51,7 +51,7 @@ pub async fn seed_execution(db: &systemprompt_database::DbPool, server: &str) ->
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: McpToolExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at,
         completed_at: Some(Utc::now()),

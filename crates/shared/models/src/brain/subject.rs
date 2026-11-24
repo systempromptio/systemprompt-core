@@ -35,8 +35,8 @@ pub struct SubjectKey {
 /// Why a subject key is not one the store admits.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SubjectKeyError {
-    #[error("invalid subject key {0:?}: expected `<kind>:<id>`")]
-    Shape(String),
+    #[error("invalid subject key {input:?}: expected `<kind>:<id>`")]
+    Shape { input: String },
     #[error(
         "subject kind is {len} characters; between 1 and {} are allowed",
         MAX_SUBJECT_KIND_LEN
@@ -91,7 +91,9 @@ impl FromStr for SubjectKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.split_once(':') {
             Some((kind, id)) if !kind.is_empty() && !id.is_empty() => Self::try_new(kind, id),
-            _ => Err(SubjectKeyError::Shape(s.to_owned())),
+            _ => Err(SubjectKeyError::Shape {
+                input: s.to_owned(),
+            }),
         }
     }
 }

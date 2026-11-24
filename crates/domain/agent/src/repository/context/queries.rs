@@ -61,8 +61,8 @@ impl ContextRepository {
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM user_contexts WHERE context_id = $1 AND user_id = $2"#,
-            context_id.as_str(),
-            user_id.as_str()
+            context_id as _,
+            user_id as _
         )
         .fetch_one(&*self.pool)
         .await
@@ -94,8 +94,8 @@ impl ContextRepository {
     ) -> Result<Option<String>, RepositoryError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT name AS "name!" FROM user_contexts WHERE context_id = $1 AND user_id = $2"#,
-            context_id.as_str(),
-            user_id.as_str()
+            context_id as _,
+            user_id as _
         )
         .fetch_optional(&*self.write_pool)
         .await?)
@@ -106,16 +106,12 @@ impl ContextRepository {
         user_id: &UserId,
         context_ids: &[ContextId],
     ) -> Result<Vec<(ContextId, String)>, RepositoryError> {
-        let ids: Vec<String> = context_ids
-            .iter()
-            .map(|id| id.as_str().to_owned())
-            .collect();
         let rows = sqlx::query!(
             r#"SELECT context_id AS "context_id!", name AS "name!"
                FROM user_contexts
                WHERE user_id = $1 AND context_id = ANY($2::text[])"#,
-            user_id.as_str(),
-            &ids,
+            user_id as _,
+            context_ids as _,
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -137,7 +133,7 @@ impl ContextRepository {
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM user_contexts WHERE user_id = $1 ORDER BY updated_at DESC"#,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -169,7 +165,7 @@ impl ContextRepository {
             FROM user_contexts
             WHERE user_id = $1
             ORDER BY updated_at DESC"#,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -190,8 +186,8 @@ impl ContextRepository {
                 COALESCE(message_count, 0) as "message_count!", last_message_at
             FROM user_contexts
             WHERE context_id = $1 AND user_id = $2"#,
-            context_id.as_str(),
-            user_id.as_str()
+            context_id as _,
+            user_id as _
         )
         .fetch_optional(&*self.pool)
         .await?
@@ -216,7 +212,7 @@ impl ContextRepository {
                 updated_at as "updated_at!"
             FROM user_contexts WHERE session_id = $1
             ORDER BY created_at DESC LIMIT 1"#,
-            session_id.as_str()
+            session_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -246,7 +242,7 @@ impl ContextRepository {
             r#"SELECT t.task_id as "task_id!" FROM agent_tasks t
              WHERE t.context_id = $1 AND t.updated_at > $2
              ORDER BY t.updated_at ASC"#,
-            context_id.as_str(),
+            context_id as _,
             last_seen
         )
         .fetch_all(&*self.pool)
@@ -274,7 +270,7 @@ impl ContextRepository {
             FROM user_contexts
             WHERE context_id = $1 AND updated_at > $2
             ORDER BY updated_at ASC"#,
-            context_id.as_str(),
+            context_id as _,
             last_seen
         )
         .fetch_all(&*self.pool)

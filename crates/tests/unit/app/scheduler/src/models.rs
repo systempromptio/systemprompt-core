@@ -81,7 +81,7 @@ mod scheduler_error_tests {
     fn job_execution_failed_contains_job_name_and_error() {
         let error = SchedulerError::job_execution_failed(
             JobName::new("my_job"),
-            ProviderError::InvalidInput("timeout".to_owned()),
+            ProviderError::Internal("timeout".into()),
         );
         let message = error.to_string();
         assert!(message.contains("my_job"));
@@ -104,7 +104,7 @@ mod scheduler_error_tests {
     fn job_execution_failed_accepts_strings() {
         let error = SchedulerError::job_execution_failed(
             JobName::new("job1"),
-            ProviderError::InvalidInput(String::from("error msg")),
+            ProviderError::Internal(String::from("error msg").into()),
         );
         let message = error.to_string();
         assert!(message.contains("job1"));

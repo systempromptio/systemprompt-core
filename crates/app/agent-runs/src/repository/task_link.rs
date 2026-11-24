@@ -55,7 +55,7 @@ pub async fn run_task_in_tx(
           AND task_id IS NOT NULL
           AND (($2::text IS NULL AND claimed_by IS NULL)
             OR (claimed_by = $2 AND attempt = $3 AND claimed_at = $4))"#,
-        run_id.as_str(),
+        run_id as _,
         claimed_by,
         attempt,
         claimed_at
@@ -98,7 +98,7 @@ impl AgentRunRepository {
             WHERE id = $1 AND status = 'queued'
             RETURNING task_id AS "task_id: TaskId"
             "#,
-            id.as_str(),
+            id as _,
         )
         .fetch_optional(&mut *tx)
         .await?;
@@ -120,7 +120,7 @@ impl AgentRunRepository {
             ORDER BY created_at DESC
             LIMIT 1
             "#,
-            task_id.as_str(),
+            task_id as _,
         )
         .fetch_optional(self.write_pool())
         .await?;

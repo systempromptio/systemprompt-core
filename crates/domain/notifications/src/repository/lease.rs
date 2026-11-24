@@ -60,7 +60,6 @@ impl NotificationRepository {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         let secs = lease_for.as_secs_f64();
         let rows = sqlx::query!(
             r#"UPDATE notifications n
@@ -73,7 +72,7 @@ impl NotificationRepository {
                WHERE n.id = c.id
                RETURNING n.id::text AS "id!: NotificationId",
                          n.delivery_lease_token::text AS "token!", n.delivery_seq"#,
-            &ids,
+            ids as _,
             DeliveryState::Pending.as_str(),
             secs,
         )
@@ -101,7 +100,7 @@ impl NotificationRepository {
                                        ELSE delivery_state END
              WHERE id = $1::text::uuid AND delivery_lease_token = $2::text::uuid
                AND delivery_state = $6",
-            lease.id.as_str(),
+            lease.id as _,
             lease.token,
             close,
             lease.seq,

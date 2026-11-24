@@ -128,7 +128,9 @@ fn client_attestation_strings_labels_and_parse() {
     assert!(!ClientAttestation::Declared.is_bridge_channel());
     assert_eq!(
         ClientAttestation::parse("forged"),
-        Err(OriginParseError::Attestation("forged".to_owned()))
+        Err(OriginParseError::Attestation {
+            value: "forged".to_owned()
+        })
     );
 }
 
@@ -152,7 +154,9 @@ fn client_kind_labels_hosts_and_products() {
     );
     assert_eq!(
         ClientKind::parse("nope"),
-        Err(OriginParseError::ClientKind("nope".to_owned()))
+        Err(OriginParseError::ClientKind {
+            value: "nope".to_owned()
+        })
     );
 }
 

@@ -11,7 +11,7 @@ mod bindings;
 
 use std::collections::HashMap;
 
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 use systemprompt_models::mcp::McpServerType;
 
 use super::ServicesConfig;
@@ -26,41 +26,49 @@ impl ServicesConfig {
     pub(crate) fn validate_skills(&self) -> Result<(), ServicesValidationError> {
         for (key, skill) in &self.skills.skills {
             if !skill.id.as_str().is_empty() && skill.id.as_str() != key.as_str() {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Skill map key '{}' does not match skill id '{}'",
-                    key, skill.id
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::clause("Skill map key", key),
+                    format!("does not match skill id '{}'", skill.id),
+                ));
             }
 
             let id = key.as_str();
             if id.len() < 3 || id.len() > 64 {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Skill '{key}': id must be between 3 and 64 characters"
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Skill", key),
+                    "id must be between 3 and 64 characters",
+                ));
             }
             if !id
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
             {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Skill '{key}': id must be lowercase alphanumeric with underscores only \
-                     (snake_case)"
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Skill", key),
+                    "id must be lowercase alphanumeric with underscores only \
+                     (snake_case)",
+                ));
             }
 
             for mcp_ref in &skill.mcp_servers.include {
                 match self.mcp_servers.get(mcp_ref) {
                     None => {
-                        return Err(ServicesValidationError::unknown_reference(format!(
-                            "Skill '{key}': mcp_servers.include references unknown mcp_server \
+                        return Err(ServicesValidationError::unknown_reference(
+                            ValidationSubject::named("Skill", key),
+                            format!(
+                                "mcp_servers.include references unknown mcp_server \
                              '{mcp_ref}'"
-                        )));
+                            ),
+                        ));
                     },
                     Some(deployment) if skill.enabled && !deployment.enabled => {
-                        return Err(ServicesValidationError::business_rule(format!(
-                            "Skill '{key}' is enabled but depends on disabled mcp_server \
+                        return Err(ServicesValidationError::business_rule(
+                            ValidationSubject::clause("Skill", key),
+                            format!(
+                                "is enabled but depends on disabled mcp_server \
                              '{mcp_ref}' — enable the server or disable the skill"
-                        )));
+                            ),
+                        ));
                     },
                     Some(_) => {},
                 }
@@ -85,10 +93,11 @@ impl ServicesConfig {
 
         for (name, agent) in &self.agents {
             if let Some(existing) = seen_ports.insert(agent.port, ("agent", name.as_str())) {
-                return Err(ServicesValidationError::port_conflict(format!(
-                    "Port conflict: {} used by both {} '{}' and agent '{}'",
-                    agent.port, existing.0, existing.1, name
-                )));
+                return Err(ServicesValidationError::port_conflict(
+                    agent.port,
+                    existing,
+                    ("agent", name),
+                ));
             }
         }
 
@@ -100,10 +109,11 @@ impl ServicesConfig {
                 continue;
             };
             if let Some(existing) = seen_ports.insert(port, ("mcp_server", name.as_str())) {
-                return Err(ServicesValidationError::port_conflict(format!(
-                    "Port conflict: {} used by both {} '{}' and mcp_server '{}'",
-                    port, existing.0, existing.1, name
-                )));
+                return Err(ServicesValidationError::port_conflict(
+                    port,
+                    existing,
+                    ("mcp_server", name),
+                ));
             }
         }
 
@@ -115,10 +125,13 @@ impl ServicesConfig {
 
         for (name, agent) in &self.agents {
             if agent.port < min || agent.port > max {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Agent '{}' port {} is outside allowed range {}-{}",
-                    name, agent.port, min, max
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::clause("Agent", name),
+                    format!(
+                        "port {} is outside allowed range {}-{}",
+                        agent.port, min, max
+                    ),
+                ));
             }
         }
 
@@ -136,10 +149,10 @@ impl ServicesConfig {
                 continue;
             };
             if port < min || port > max {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{}' port {} is outside allowed range {}-{}",
-                    name, port, min, max
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::clause("MCP server", name),
+                    format!("port {} is outside allowed range {}-{}", port, min, max),
+                ));
             }
         }
 

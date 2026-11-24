@@ -175,7 +175,7 @@ impl FileStorage for GcsFileStorage {
         let name = self.object_name(id)?;
         let object = match self.resource(&name).await.map_err(|e| e.into_storage(id))? {
             Lookup::Found(object) => object,
-            Lookup::Missing => return Err(FileStorageError::NotFound(id.as_str().to_owned())),
+            Lookup::Missing => return Err(FileStorageError::NotFound(id.clone())),
         };
         let size_bytes = object
             .size

@@ -40,14 +40,14 @@ impl ApprovalRepository {
                  requested_by, session_id, trace_id, rule, expires_at
              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              ON CONFLICT (call_id) DO NOTHING",
-            req.call_id.as_str(),
-            req.tool_name.as_str(),
-            req.server_name.as_str(),
+            req.call_id as _,
+            req.tool_name as _,
+            req.server_name as _,
             req.arguments,
             digest,
-            req.requested_by.as_str(),
-            req.session_id.map(SessionId::as_str),
-            req.trace_id.map(TraceId::as_str),
+            req.requested_by as _,
+            req.session_id as _,
+            req.trace_id as _,
             req.rule,
             expires_at,
         )
@@ -65,7 +65,7 @@ impl ApprovalRepository {
                     session_id, trace_id, rule, status, approver_id, approver_username,
                     decided_at, decision_note, expires_at, created_at
              FROM approval_requests WHERE call_id = $1",
-            call_id.as_str()
+            call_id as _
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -186,9 +186,9 @@ impl ApprovalRepository {
                  decision_note = $5, decided_at = NOW()
              WHERE call_id = $1 AND status = 'pending' AND expires_at > NOW()
              RETURNING call_id",
-            call_id.as_str(),
-            status.as_str(),
-            approver_id.as_str(),
+            call_id as _,
+            status as _,
+            approver_id as _,
             approver_username,
             note,
         )

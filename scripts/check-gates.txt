@@ -62,3 +62,6 @@ changelog-check
 check-removed-config-names
 check-release-tag
 check-crate-changelogs
+lint-state-compare
+lint-owner-witness
+lint-typed-binds

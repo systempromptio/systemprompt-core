@@ -123,7 +123,7 @@ impl McpAudit {
             source: ExecutionSource::Proxy,
         };
         let result_row = ToolExecutionResult {
-            status: McpToolExecutionStatus::from_error(error_message.is_some()).to_string(),
+            status: McpToolExecutionStatus::from_error(error_message.is_some()),
             error_message,
             output,
             output_schema: None,

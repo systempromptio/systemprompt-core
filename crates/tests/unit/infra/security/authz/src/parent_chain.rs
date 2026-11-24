@@ -8,7 +8,7 @@ use systemprompt_governance::authz::{
 use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
 use systemprompt_manifest::services::{PluginAuthor, PluginConfig};
 use systemprompt_models::plugin::PluginComponentRef;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn rule(value: &str, access: Access) -> AccessRule {
     AccessRule {
@@ -114,7 +114,7 @@ fn index_with(
 }
 
 fn decide(index: &ParentChainIndex, kind: EntityKind, id: &str, roles: &[&str]) -> Decision {
-    let user = fixture_user_id();
+    let user = unique_user_id("parent-chain");
     let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
     index.resolve(
         kind,
@@ -424,7 +424,7 @@ fn entity_level_deny_beats_every_owning_marketplace() {
         vec![rule("user", Access::Allow)],
     );
 
-    let user = fixture_user_id();
+    let user = unique_user_id("parent-chain");
     let roles = vec!["user".to_owned()];
     let decision = index.resolve(
         EntityKind::Plugin,

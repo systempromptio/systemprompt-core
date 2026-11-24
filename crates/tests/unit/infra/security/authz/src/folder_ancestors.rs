@@ -8,7 +8,7 @@ use systemprompt_governance::authz::{
     ResolveBase,
 };
 use systemprompt_identifiers::{DocumentFolderId, RuleId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn role(value: &str, access: Access) -> AccessRule {
     AccessRule {
@@ -34,7 +34,7 @@ fn decide(
     ancestors: &[ResolveParent<'_>],
     roles: &[&str],
 ) -> Decision {
-    let user = fixture_user_id();
+    let user = unique_user_id("folder-ancestors");
     let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
     index().resolve(
         EntityKind::Folder,

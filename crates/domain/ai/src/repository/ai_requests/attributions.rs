@@ -39,7 +39,7 @@ pub(super) async fn insert_attributions(
         SELECT $1, t.dimension, t.value, t.source
         FROM UNNEST($2::text[], $3::text[], $4::text[]) AS t(dimension, value, source)
         "#,
-        id.as_str(),
+        id as _,
         &dimensions,
         &values,
         &sources
@@ -57,7 +57,6 @@ impl AiRequestRepository {
         if ids.is_empty() {
             return Ok(HashMap::new());
         }
-        let keys: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"
             SELECT request_id, dimension, value, source
@@ -65,7 +64,7 @@ impl AiRequestRepository {
             WHERE request_id = ANY($1)
             ORDER BY request_id, dimension
             "#,
-            &keys
+            ids as _
         )
         .fetch_all(self.pool())
         .await?;

@@ -62,13 +62,13 @@ pub(super) enum ItemDetails {
         #[serde(default)]
         exit_code: Option<i32>,
         #[serde(default)]
-        status: String,
+        status: ItemStatus,
     },
     FileChange {
         #[serde(default)]
         changes: Vec<FileChange>,
         #[serde(default)]
-        status: String,
+        status: ItemStatus,
     },
     McpToolCall {
         server: String,
@@ -89,6 +89,18 @@ pub(super) enum ItemDetails {
     Error {
         message: String,
     },
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum ItemStatus {
+    InProgress,
+    Completed,
+    Failed,
+    Declined,
+    #[default]
     #[serde(other)]
     Other,
 }

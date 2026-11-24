@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 
 /// The `marketplace:` block of the services manifest.
 ///
@@ -65,19 +65,21 @@ impl ManagedMarketplaceConfig {
         for ring in &self.rings {
             if ring.dimension.trim().is_empty() || ring.value.trim().is_empty() {
                 return Err(ServicesValidationError::invalid_field(
-                    "marketplace.rings: dimension and value must be non-empty",
+                    ValidationSubject::scope("marketplace.rings"),
+                    "dimension and value must be non-empty",
                 ));
             }
             if ring.dimension == "user" {
                 return Err(ServicesValidationError::invalid_field(
-                    "marketplace.rings: 'user' is not a cohort dimension",
+                    ValidationSubject::scope("marketplace.rings"),
+                    "'user' is not a cohort dimension",
                 ));
             }
             if !seen.insert((ring.dimension.as_str(), ring.value.as_str())) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "marketplace.rings: ring {}={} is declared twice",
-                    ring.dimension, ring.value
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::scope("marketplace.rings"),
+                    format!("ring {}={} is declared twice", ring.dimension, ring.value),
+                ));
             }
         }
         Ok(())

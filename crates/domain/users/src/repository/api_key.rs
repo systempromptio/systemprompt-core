@@ -62,7 +62,7 @@ impl UserRepository {
             SELECT k.id, k.user_id as "user_id: UserId", k.name, k.key_prefix, k.key_hash,
                    k.created_at, k.last_used_at, k.expires_at, k.revoked_at,
                    k.model_allowlist, k.budget_microdollars, k.max_requests,
-                   k.request_window_seconds, k.purpose, k.kind,
+                   k.request_window_seconds, k.purpose, k.kind AS "kind: crate::models::ApiKeyKind",
                    ARRAY(SELECT s.dimension FROM user_api_key_scopes s
                          WHERE s.key_id = k.id ORDER BY s.dimension) AS "scope_dimensions!",
                    ARRAY(SELECT s.value FROM user_api_key_scopes s
@@ -71,7 +71,7 @@ impl UserRepository {
             WHERE k.user_id = $1 AND k.name = $2
             ORDER BY k.created_at DESC
             "#,
-            params.user_id.as_str(),
+            params.user_id as _,
             params.name,
         )
         .fetch_all(&mut *tx)
@@ -97,7 +97,7 @@ impl UserRepository {
             SELECT k.id, k.user_id as "user_id: UserId", k.name, k.key_prefix, k.key_hash,
                    k.created_at, k.last_used_at, k.expires_at, k.revoked_at,
                    k.model_allowlist, k.budget_microdollars, k.max_requests,
-                   k.request_window_seconds, k.purpose, k.kind,
+                   k.request_window_seconds, k.purpose, k.kind AS "kind: crate::models::ApiKeyKind",
                    ARRAY(SELECT s.dimension FROM user_api_key_scopes s
                          WHERE s.key_id = k.id ORDER BY s.dimension) AS "scope_dimensions!",
                    ARRAY(SELECT s.value FROM user_api_key_scopes s
@@ -121,7 +121,7 @@ impl UserRepository {
             SELECT k.id, k.user_id as "user_id: UserId", k.name, k.key_prefix, k.key_hash,
                    k.created_at, k.last_used_at, k.expires_at, k.revoked_at,
                    k.model_allowlist, k.budget_microdollars, k.max_requests,
-                   k.request_window_seconds, k.purpose, k.kind,
+                   k.request_window_seconds, k.purpose, k.kind AS "kind: crate::models::ApiKeyKind",
                    ARRAY(SELECT s.dimension FROM user_api_key_scopes s
                          WHERE s.key_id = k.id ORDER BY s.dimension) AS "scope_dimensions!",
                    ARRAY(SELECT s.value FROM user_api_key_scopes s
@@ -130,7 +130,7 @@ impl UserRepository {
             WHERE k.user_id = $1
             ORDER BY k.created_at DESC
             "#,
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(&*self.pool)
         .await
@@ -145,8 +145,8 @@ impl UserRepository {
             SET revoked_at = CURRENT_TIMESTAMP
             WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL
             "#,
-            id.as_str(),
-            user_id.as_str(),
+            id as _,
+            user_id as _,
         )
         .execute(&*self.write_pool)
         .await?;
@@ -162,7 +162,7 @@ impl UserRepository {
                   AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
             ) AS "active!"
             "#,
-            id.as_str(),
+            id as _,
         )
         .fetch_one(&*self.write_pool)
         .await?;
@@ -177,7 +177,7 @@ impl UserRepository {
             WHERE user_id = $1 AND revoked_at IS NOT NULL
             ORDER BY revoked_at DESC
             "#,
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(&*self.write_pool)
         .await?;
@@ -191,7 +191,7 @@ impl UserRepository {
             SET last_used_at = CURRENT_TIMESTAMP
             WHERE id = $1
             "#,
-            id.as_str(),
+            id as _,
         )
         .execute(&*self.write_pool)
         .await?;
@@ -214,11 +214,11 @@ async fn insert_api_key(
         RETURNING id, user_id as "user_id: UserId", name, key_prefix, key_hash,
                   created_at, last_used_at, expires_at, revoked_at,
                   model_allowlist, budget_microdollars, max_requests, request_window_seconds,
-                  purpose, kind,
+                  purpose, kind AS "kind: crate::models::ApiKeyKind",
                   ARRAY[]::TEXT[] AS "scope_dimensions!", ARRAY[]::TEXT[] AS "scope_values!"
         "#,
-        params.id.as_str(),
-        params.user_id.as_str(),
+        params.id as _,
+        params.user_id as _,
         params.name,
         params.key_prefix,
         params.key_hash,
@@ -245,7 +245,7 @@ async fn insert_api_key(
             SELECT $1, t.dimension, t.value
             FROM UNNEST($2::text[], $3::text[]) AS t(dimension, value)
             "#,
-            params.id.as_str(),
+            params.id as _,
             &dimensions,
             &values,
         )

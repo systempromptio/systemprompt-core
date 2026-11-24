@@ -35,8 +35,6 @@ pub(super) async fn get_session_for_behavioral_analysis(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<SessionBehavioralData>> {
-    let id = session_id.as_str();
-
     sqlx::query_as!(
         SessionBehavioralData,
         r#"
@@ -52,7 +50,7 @@ pub(super) async fn get_session_for_behavioral_analysis(
         FROM user_sessions
         WHERE session_id = $1
         "#,
-        id
+        session_id as _
     )
     .fetch_optional(pool)
     .await
@@ -107,8 +105,6 @@ pub(super) async fn get_session_velocity(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<(Option<i64>, Option<i64>)> {
-    let id = session_id.as_str();
-
     let row = sqlx::query!(
         r#"
         SELECT
@@ -117,7 +113,7 @@ pub(super) async fn get_session_velocity(
         FROM user_sessions
         WHERE session_id = $1
         "#,
-        id
+        session_id as _
     )
     .fetch_optional(pool)
     .await?;

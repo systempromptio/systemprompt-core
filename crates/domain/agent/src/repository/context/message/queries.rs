@@ -24,7 +24,7 @@ pub(crate) async fn get_messages_by_task(
             task_id as "task_id!: TaskId",
             message_id as "message_id!: MessageId",
             client_message_id as "client_message_id?: MessageId",
-            role as "role!",
+            role as "role!: MessageRole",
             context_id as "context_id!: ContextId",
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
@@ -35,7 +35,7 @@ pub(crate) async fn get_messages_by_task(
             metadata,
             reference_task_ids
         FROM task_messages WHERE task_id = $1 ORDER BY sequence_number ASC"#,
-        task_id.as_str()
+        task_id as _
     )
     .fetch_all(pool.as_ref())
     .await?;
@@ -55,13 +55,8 @@ pub(crate) async fn get_messages_by_task(
             .reference_task_ids
             .map(|ids| ids.into_iter().map(TaskId::new).collect());
 
-        let role = match row.role.as_str() {
-            "user" | "ROLE_USER" => MessageRole::User,
-            _ => MessageRole::Agent,
-        };
-
         messages.push(Message {
-            role,
+            role: row.role,
             message_id: row.message_id,
             task_id: Some(row.task_id),
             context_id: row.context_id,
@@ -86,7 +81,7 @@ pub(crate) async fn get_messages_by_context(
             m.task_id as "task_id!: TaskId",
             m.message_id as "message_id!: MessageId",
             m.client_message_id as "client_message_id?: MessageId",
-            m.role as "role!",
+            m.role as "role!: MessageRole",
             m.context_id as "context_id!: ContextId",
             m.user_id as "user_id?: UserId",
             m.session_id as "session_id?: SessionId",
@@ -100,7 +95,7 @@ pub(crate) async fn get_messages_by_context(
         JOIN agent_tasks t ON m.task_id = t.task_id
         WHERE t.context_id = $1
         ORDER BY m.created_at ASC"#,
-        context_id.as_str()
+        context_id as _
     )
     .fetch_all(pool.as_ref())
     .await?;
@@ -116,13 +111,8 @@ pub(crate) async fn get_messages_by_context(
             .get(&row.message_id)
             .map_or_else(Vec::new, Clone::clone);
 
-        let role = match row.role.as_str() {
-            "user" | "ROLE_USER" => MessageRole::User,
-            _ => MessageRole::Agent,
-        };
-
         messages.push(Message {
-            role,
+            role: row.role,
             message_id: row.message_id,
             task_id: Some(row.task_id),
             context_id: row.context_id,
@@ -148,9 +138,9 @@ pub async fn message_in_owned_context(
             JOIN user_contexts c ON m.context_id = c.context_id
             WHERE m.message_id = $1 AND m.context_id = $2 AND c.user_id = $3
         )"#,
-        message_id.as_str(),
-        context_id.as_str(),
-        user_id.as_str(),
+        message_id as _,
+        context_id as _,
+        user_id as _,
     )
     .fetch_one(pool.as_ref())
     .await?;
@@ -163,13 +153,13 @@ pub async fn get_next_sequence_number_sqlx(
 ) -> Result<i32, RepositoryError> {
     sqlx::query!(
         "SELECT task_id FROM agent_tasks WHERE task_id = $1 FOR UPDATE",
-        task_id.as_str()
+        task_id as _
     )
     .fetch_optional(&mut **tx)
     .await?;
     let row = sqlx::query!(
         r#"SELECT MAX(sequence_number) as "max_seq" FROM task_messages WHERE task_id = $1"#,
-        task_id.as_str()
+        task_id as _
     )
     .fetch_optional(&mut **tx)
     .await?;

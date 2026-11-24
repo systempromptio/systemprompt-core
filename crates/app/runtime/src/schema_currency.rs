@@ -29,7 +29,7 @@
 use std::sync::{PoisonError, RwLock};
 
 use systemprompt_database::{
-    DatabaseProvider, SchemaAhead, SchemaCurrency, SchemaInstallReport, schema_currency,
+    DatabaseProvider, SchemaAhead, SchemaCurrency, SchemaInstallReport, SchemaName, schema_currency,
 };
 use systemprompt_extension::BuiltState;
 use systemprompt_manifest::Profile;
@@ -39,9 +39,10 @@ use crate::error::{RuntimeError, RuntimeResult};
 pub async fn assert_schema_current(
     built: &BuiltState,
     db: &dyn DatabaseProvider,
+    target: &SchemaName,
     profile: &Profile,
 ) -> RuntimeResult<Vec<SchemaAhead>> {
-    let currency = schema_currency(db, built).await?;
+    let currency = schema_currency(db, built, target).await?;
     if currency.is_current() {
         let ahead = report_ahead(&currency);
         refuse_breaking(&ahead, profile)?;
@@ -162,9 +163,10 @@ impl SchemaState {
 pub async fn recheck(
     built: &BuiltState,
     db: &dyn DatabaseProvider,
+    target: &SchemaName,
     state: &SchemaState,
 ) -> RuntimeResult<()> {
-    let currency = schema_currency(db, built).await?;
+    let currency = schema_currency(db, built, target).await?;
     let ahead = SchemaAhead::from_currency(&currency);
     let previous = state.replace(ahead.clone());
     let newly: Vec<&SchemaAhead> = ahead.iter().filter(|m| !previous.contains(m)).collect();

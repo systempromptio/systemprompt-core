@@ -8,7 +8,9 @@ pub mod context;
 pub mod shared_context;
 pub mod step;
 
-pub use context::{CallSource, ContextExtractionError, ContextIdSource, RequestContext};
+pub use context::{
+    CallSource, ContextExtractionError, ContextIdSource, RequestContext, UserUnavailable,
+};
 pub use shared_context::SharedRequestContext;
 pub use step::{
     ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType, TrackedStep,

@@ -20,6 +20,10 @@ impl ConfigPlane for NamedPlane {
         "planes/named.yaml"
     }
 
+    fn requires(&self) -> Vec<systemprompt_provider_contracts::StateRequirement> {
+        Vec::new()
+    }
+
     fn load_declared(&self, _root: &Path) -> ConfigPlaneResult<Option<DeclaredState>> {
         Ok(None)
     }

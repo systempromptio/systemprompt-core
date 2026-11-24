@@ -28,7 +28,6 @@ impl NotificationSubscriptionRepository {
             .map(serde_json::to_value)
             .transpose()?;
         let digest = decl.digest.as_ref().map(serde_json::to_value).transpose()?;
-        let created_by = created_by.map(UserId::as_str);
         let source = source.to_string();
         let id = match &decl.target {
             SubscriptionTarget::Stream(stream) => {
@@ -45,12 +44,12 @@ impl NotificationSubscriptionRepository {
                            = (EXCLUDED.source LIKE 'code:%')
                        RETURNING id::text AS "id!: NotificationSubscriptionId""#,
                     subject,
-                    stream.as_str(),
+                    stream as _,
                     ceiling,
                     quiet,
                     digest,
                     source,
-                    created_by,
+                    created_by as _,
                 )
                 .fetch_optional(executor)
                 .await?
@@ -75,7 +74,7 @@ impl NotificationSubscriptionRepository {
                     quiet,
                     digest,
                     source,
-                    created_by,
+                    created_by as _,
                 )
                 .fetch_optional(executor)
                 .await?
@@ -101,8 +100,8 @@ impl NotificationSubscriptionRepository {
         let result = sqlx::query!(
             "DELETE FROM notification_subscriptions
              WHERE id = $1::text::uuid AND subject_user_id = $2",
-            id.as_str(),
-            owner.as_str(),
+            id as _,
+            owner as _,
         )
         .execute(&*self.pools.write)
         .await?;

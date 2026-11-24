@@ -4,6 +4,7 @@
 //! column the live table lacks is refused, and one over a table recorded to
 //! another member is refused.
 
+use systemprompt_database::SchemaName;
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, OwnerReassignment,
     ReassignAction, SchemaDefinition,
@@ -50,7 +51,7 @@ async fn a_reassignment_over_a_security_table_is_refused_at_install() {
         column: "user_id",
     })]);
 
-    let error = install(&admitted, pool.write())
+    let error = install(&admitted, pool.write(), &SchemaName::public())
         .await
         .expect_err("a security table is never a reassignment target");
 
@@ -77,7 +78,7 @@ async fn a_declared_column_the_catalog_lacks_is_refused() {
         column: "owner_id",
     })]);
 
-    let error = install(&admitted, pool.write())
+    let error = install(&admitted, pool.write(), &SchemaName::public())
         .await
         .expect_err("a reassignment column absent from the live table is refused");
 
@@ -111,7 +112,7 @@ async fn a_reassignment_over_a_peer_recorded_table_is_refused() {
         column: "user_id",
     })]);
 
-    let error = install(&admitted, pool.write())
+    let error = install(&admitted, pool.write(), &SchemaName::public())
         .await
         .expect_err("a peer's table is never this member's reassignment target");
 

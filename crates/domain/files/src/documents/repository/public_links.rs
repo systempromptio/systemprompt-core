@@ -49,12 +49,12 @@ impl DocumentPublicLinkRepository {
                          created_by AS "created_by: UserId", created_at, open_count,
                          last_opened_at
                FROM l"#,
-            link.document_id.as_str(),
+            link.document_id as _,
             link.token_hash,
             link.password_hash,
             link.expires_at,
-            link.actor.user.as_str(),
-            link.actor.trace.as_str(),
+            link.actor.user as _,
+            link.actor.trace as _,
         )
         .fetch_one(&*self.pools.write)
         .await?)
@@ -71,7 +71,7 @@ impl DocumentPublicLinkRepository {
                FROM document_public_links
                WHERE document_id = $1::text::uuid
                ORDER BY created_at DESC, id"#,
-            document.as_str(),
+            document as _,
         )
         .fetch_all(&*self.pools.write)
         .await?)
@@ -97,10 +97,10 @@ impl DocumentPublicLinkRepository {
                           l.id::text, 'view', $3, $4
                    FROM l)
                SELECT COUNT(*) AS "revoked!" FROM l"#,
-            id.as_str(),
-            document.as_str(),
-            actor.user.as_str(),
-            actor.trace.as_str(),
+            id as _,
+            document as _,
+            actor.user as _,
+            actor.trace as _,
         )
         .fetch_one(&*self.pools.write)
         .await?;
@@ -129,7 +129,7 @@ impl DocumentPublicLinkRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM document_link_attempts
                WHERE link_id = $1::text::uuid AND client_ip = $2 AND attempted_at > $3"#,
-            link.as_str(),
+            link as _,
             client_ip,
             since,
         )
@@ -149,7 +149,7 @@ impl DocumentPublicLinkRepository {
                    WHERE link_id = $1::text::uuid AND attempted_at <= $3)
                INSERT INTO document_link_attempts (link_id, client_ip)
                VALUES ($1::text::uuid, $2)"#,
-            link.as_str(),
+            link as _,
             client_ip,
             prune_before,
         )
@@ -170,7 +170,7 @@ impl DocumentPublicLinkRepository {
                SELECT 'public_link.opened', 'document', l.document_id, 'public_link',
                       l.id::text, 'view'
                FROM l"#,
-            link.as_str(),
+            link as _,
         )
         .execute(&*self.pools.write)
         .await?;

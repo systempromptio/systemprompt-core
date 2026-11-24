@@ -56,11 +56,11 @@ impl AiThoughtSignatureRepository {
                 signature = EXCLUDED.signature,
                 expires_at = EXCLUDED.expires_at
             "#,
-            write.conversation.as_str(),
-            write.tool_use_id.as_str(),
+            write.conversation as _,
+            write.tool_use_id as _,
             write.signature,
             write.ttl.as_secs_f64(),
-            write.user_id.as_str(),
+            write.user_id as _,
         )
         .execute(&*self.write_pool)
         .await?;
@@ -84,10 +84,10 @@ impl AiThoughtSignatureRepository {
               AND expires_at > NOW()
             RETURNING signature
             "#,
-            conversation.as_str(),
-            tool_use_id.as_str(),
+            conversation as _,
+            tool_use_id as _,
             ttl.as_secs_f64(),
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_optional(&*self.write_pool)
         .await?;
@@ -114,10 +114,10 @@ impl AiThoughtSignatureRepository {
               AND expires_at > NOW()
             RETURNING tool_use_id, signature
             "#,
-            conversation.as_str(),
+            conversation as _,
             tool_use_ids,
             ttl.as_secs_f64(),
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(&*self.write_pool)
         .await?;

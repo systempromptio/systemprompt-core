@@ -7,7 +7,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::UserContext;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 const CONTEXT_ID_1: &str = "10000000-0000-4000-8000-000000000001";
 const CONTEXT_ID_2: &str = "20000000-0000-4000-8000-000000000002";
@@ -134,7 +134,7 @@ fn context_state_event_context_created_serialize() {
             kind: ContextKind::User,
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("context-events-extended"),
         },
         timestamp: Utc::now(),
     };

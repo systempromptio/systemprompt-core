@@ -50,7 +50,7 @@ impl LinkAnalyticsRepository {
             FROM campaign_links l
             WHERE l.id = $1
             "#,
-            link_id.as_str()
+            link_id as _
         )
         .fetch_optional(&*self.pool)
         .await
@@ -63,8 +63,8 @@ impl LinkAnalyticsRepository {
     ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!(
             r#"SELECT COALESCE(COUNT(*), 0)::bigint as "count!" FROM link_clicks WHERE link_id = $1 AND session_id = $2"#,
-            link_id.as_str(),
-            session_id.as_str()
+            link_id as _,
+            session_id as _
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -81,14 +81,14 @@ impl LinkAnalyticsRepository {
             sqlx::query!(
                 "UPDATE campaign_links SET click_count = click_count + 1, unique_click_count = \
                  unique_click_count + 1 WHERE id = $1",
-                link_id.as_str()
+                link_id as _
             )
             .execute(&*self.write_pool)
             .await?;
         } else {
             sqlx::query!(
                 "UPDATE campaign_links SET click_count = click_count + 1 WHERE id = $1",
-                link_id.as_str()
+                link_id as _
             )
             .execute(&*self.write_pool)
             .await?;
@@ -116,7 +116,7 @@ impl LinkAnalyticsRepository {
             ORDER BY clicked_at DESC
             LIMIT $2 OFFSET $3
             "#,
-            link_id.as_str(),
+            link_id as _,
             limit,
             offset
         )
@@ -172,7 +172,7 @@ impl LinkAnalyticsRepository {
             WHERE campaign_id = $1
             GROUP BY campaign_id
             "#,
-            campaign_id.as_str()
+            campaign_id as _
         )
         .fetch_optional(&*self.pool)
         .await
@@ -188,12 +188,12 @@ impl LinkAnalyticsRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
             "#,
-            params.click_id.as_str(),
-            params.link_id.as_str(),
-            params.session_id.as_str(),
-            params.user_id.as_ref().map(UserId::as_str),
-            params.context_id.as_ref().map(ContextId::as_str),
-            params.task_id.as_ref().map(TaskId::as_str),
+            params.click_id as _,
+            params.link_id as _,
+            params.session_id as _,
+            params.user_id as _,
+            params.context_id as _,
+            params.task_id as _,
             params.referrer_page,
             params.referrer_url,
             params.clicked_at,

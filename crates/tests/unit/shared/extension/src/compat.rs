@@ -27,7 +27,9 @@ fn a_directive_after_sql_is_a_comment_not_a_declaration() {
 fn any_other_value_is_refused() {
     assert_eq!(
         compat::parse("-- @compat: breakng\nSELECT 1;"),
-        Err(CompatDirectiveError::Value("breakng".to_owned()))
+        Err(CompatDirectiveError::Value {
+            value: "breakng".to_owned()
+        })
     );
 }
 

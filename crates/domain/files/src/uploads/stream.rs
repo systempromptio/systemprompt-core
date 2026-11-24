@@ -10,7 +10,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use futures_util::{StreamExt, TryStreamExt};
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::ContentHash;
-use systemprompt_traits::{FileByteStream, FileStorage, FileStorageError, StoredFileId};
+use systemprompt_traits::{
+    FileByteStream, FileStorage, FileStorageError, StorageValidation, StoredFileId,
+};
 
 #[derive(Debug)]
 struct TallyState {
@@ -52,9 +54,9 @@ impl Tally {
                 state.overflowed
             };
             if overflowed {
-                return Err(FileStorageError::Validation(format!(
-                    "the body exceeds {limit} bytes"
-                )));
+                return Err(FileStorageError::Validation(
+                    StorageValidation::BodyTooLarge { limit },
+                ));
             }
             Ok(chunk)
         }))

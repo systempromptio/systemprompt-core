@@ -11,13 +11,13 @@ use chrono::{DateTime, Utc};
 use sqlx::types::Json;
 use sqlx::{PgConnection, PgExecutor};
 use systemprompt_identifiers::{BrainFactId, FactKindId, UserId};
-use systemprompt_models::brain::{BrainFact, FactSource, FactStatus};
+use systemprompt_models::brain::{BrainFact, FactSource, FactStatus, ScopeLevel};
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
 use super::tombstones::TombstoneRepository;
 use crate::index::release_alias_owners;
-use crate::models::{FactFilter, FactRow, FieldMap, decode_status};
+use crate::models::{FactFilter, FactRow, FieldMap};
 
 /// How many facts the store holds in each status.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -49,20 +49,20 @@ impl FactRepository {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         sqlx::query_as!(
             FactRow,
             r#"SELECT id AS "id: BrainFactId", kind AS "kind: FactKindId", subject_kind,
-                      subject_id, scope_level, scope_key, statement,
+                      subject_id, scope_level AS "scope_level: ScopeLevel", scope_key, statement,
                       fields AS "fields: Json<FieldMap>", source AS "source: Json<FactSource>",
-                      topics, status, confirmed_by AS "confirmed_by: UserId", confirmed_at,
+                      topics, status AS "status: FactStatus", confirmed_by AS "confirmed_by: UserId",
+                      confirmed_at,
                       importance_base, observed_at, valid_from, valid_to, review_after,
                       retention_until,
                       legal_hold, identity_hash, statement_hash, revision, pinned,
                       owner_user_id AS "owner_user_id: UserId", usage_cited_rate,
                       usage_ignored_rate, created_at, updated_at
                FROM brain_facts WHERE id = ANY($1) ORDER BY id"#,
-            &ids,
+            ids as _,
         )
         .fetch_all(executor)
         .await?
@@ -101,7 +101,7 @@ impl FactRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT id AS "id: BrainFactId" FROM brain_facts
                WHERE kind = $1 AND identity_hash = $2"#,
-            kind.as_str(),
+            kind as _,
             identity_hash,
         )
         .fetch_optional(executor)
@@ -128,9 +128,9 @@ impl FactRepository {
                      AND (valid_from IS NULL OR valid_from <= $6)
                      AND (valid_to IS NULL OR valid_to > $6)))
                ORDER BY updated_at DESC, id LIMIT $5"#,
-            filter.kind.as_ref().map(FactKindId::as_str),
-            filter.subject.as_ref().map(|s| s.kind.as_str()),
-            filter.subject.as_ref().map(|s| s.id.as_str()),
+            filter.kind as _,
+            filter.subject.as_ref().map(|s| &s.kind),
+            filter.subject.as_ref().map(|s| &s.id),
             &statuses,
             filter.limit,
             filter.as_of,
@@ -171,7 +171,7 @@ impl FactRepository {
         let Some(fact) = Self::find_on(&mut *conn, id).await? else {
             return Ok(None);
         };
-        sqlx::query!("DELETE FROM brain_facts WHERE id = $1", id.as_str())
+        sqlx::query!("DELETE FROM brain_facts WHERE id = $1", id as _)
             .execute(&mut *conn)
             .await?;
         TombstoneRepository::insert(&mut *conn, &fact.kind, &fact.identity_hash, erased_by).await?;
@@ -181,14 +181,15 @@ impl FactRepository {
 
     pub async fn counts(&self) -> Result<FactCounts, RepositoryError> {
         let rows = sqlx::query!(
-            r#"SELECT status, count(*) AS "count!" FROM brain_facts GROUP BY status ORDER BY status"#
+            r#"SELECT status AS "status: FactStatus", count(*) AS "count!"
+               FROM brain_facts GROUP BY status ORDER BY status"#
         )
         .fetch_all(&*self.pools.read)
         .await?;
         let by_status = rows
             .into_iter()
-            .map(|row| Ok((decode_status(&row.status)?, row.count)))
-            .collect::<Result<_, RepositoryError>>()?;
+            .map(|row| (row.status, row.count))
+            .collect();
         Ok(FactCounts { by_status })
     }
 }

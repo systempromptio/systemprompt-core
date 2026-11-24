@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::{Database, DbPool, SchemaName};
 
 use crate::db::{
     budget_exhausted, test_database_url, test_pg_pool, FIXTURE_POOL_ACQUIRE_TIMEOUT,
@@ -88,6 +88,16 @@ impl ScratchSchema {
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    #[must_use]
+    pub fn schema_name(&self) -> SchemaName {
+        SchemaName::try_new(self.name.clone()).unwrap_or_else(|e| {
+            panic!(
+                "the scratch schema name {} is an identifier: {e}",
+                self.name
+            )
+        })
     }
 
     // Why: a drop that fails silently leaks a schema per run. The failure is

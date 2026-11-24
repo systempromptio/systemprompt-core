@@ -32,12 +32,13 @@ impl AiRequestRepository {
                    provider, model, temperature, top_p, max_tokens, tokens_used,
                    input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,
                    cache_read_tokens, cache_creation_tokens, reasoning_tokens,
-                   is_streaming, status, client_kind, wire_protocol, client_attestation,
+                   is_streaming, status AS "status: systemprompt_traits::RequestStatus",
+                      client_kind, wire_protocol, client_attestation,
                    error_message, created_at, updated_at, completed_at
             FROM ai_requests
             WHERE id = $1
             "#,
-            id.as_str()
+            id as _
         )
         .fetch_optional(self.pool())
         .await
@@ -87,7 +88,7 @@ impl AiRequestRepository {
             FROM ai_requests
             WHERE user_id = $1
             "#,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_one(self.pool())
         .await

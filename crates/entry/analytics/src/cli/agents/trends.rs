@@ -16,6 +16,7 @@ use crate::cli::shared::{
     export_to_csv, format_date_range, format_period_label, parse_time_range, truncate_to_period,
 };
 use systemprompt_extension::cli::{ChartType, CliConfig, CommandOutput};
+use systemprompt_models::a2a::TaskState;
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
 
 #[derive(Debug, Args)]
@@ -73,7 +74,7 @@ async fn execute_internal(
         );
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
         entry.0 += 1;
-        if row.status.as_deref() == Some("completed") {
+        if row.status == Some(TaskState::Completed) {
             entry.1 += 1;
         }
         entry.2 += i64::from(row.execution_time_ms.unwrap_or(0));

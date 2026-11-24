@@ -284,7 +284,7 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
         info.agent_name.as_ref().map(AgentName::as_str),
         Some("auditor")
     );
-    assert_eq!(info.status, "TASK_STATE_COMPLETED");
+    assert_eq!(info.status, systemprompt_models::a2a::TaskState::Completed);
     assert_eq!(info.execution_time_ms, Some(77));
     assert_eq!(info.error_message.as_deref(), Some("boom"));
 
@@ -318,7 +318,10 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
 
     let messages = svc.get_conversation_messages(&request_id).await.unwrap();
     assert_eq!(messages.len(), 2);
-    assert_eq!(messages[0].role, "system");
+    assert_eq!(
+        messages[0].role,
+        systemprompt_models::ai::StoredMessageRole::System
+    );
     assert_eq!(messages[1].content.len(), 600);
 
     let previews = svc
@@ -422,7 +425,10 @@ async fn audit_and_request_queries_map_seeded_rows() {
         .unwrap()
         .expect("detail found");
     assert_eq!(detail.model.as_deref(), Some(seed.model.as_str()));
-    assert_eq!(detail.status, "completed");
+    assert_eq!(
+        detail.status,
+        systemprompt_ai::models::RequestStatus::Completed
+    );
     assert_eq!(detail.error_message.as_deref(), Some("partial failure"));
     assert_eq!(detail.latency_ms, Some(900));
     assert_eq!(detail.user_id.as_str(), seed.user_id);
@@ -520,7 +526,10 @@ async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_
         .expect("the rejection must be visible in the request list");
     assert_eq!(rejected.provider, None);
     assert_eq!(rejected.model, None);
-    assert_eq!(rejected.status, "rejected");
+    assert_eq!(
+        rejected.status,
+        systemprompt_ai::models::RequestStatus::Rejected
+    );
 
     let detail = svc
         .find_ai_request_detail(&rejected_id)

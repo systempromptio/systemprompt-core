@@ -12,15 +12,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{McpServerId, ServiceName};
 
 use crate::BoxedSource;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum RegistryError {
-    #[error("Not found: {0}")]
-    NotFound(String),
+    #[error("Not found: {service}")]
+    NotFound { service: ServiceName },
+
+    #[error("Not found: default agent not configured")]
+    NoDefaultAgent,
 
     #[error("Registry unavailable: {0}")]
     Unavailable(#[source] BoxedSource),
@@ -80,7 +83,7 @@ pub trait AgentRegistryProvider: Send + Sync {
     fn agent_exists(&self, name: &str) -> Result<bool, RegistryError> {
         match self.get_agent(name) {
             Ok(_) => Ok(true),
-            Err(RegistryError::NotFound(_)) => Ok(false),
+            Err(RegistryError::NotFound { .. }) => Ok(false),
             Err(e) => Err(e),
         }
     }
@@ -99,7 +102,7 @@ pub trait McpRegistryProvider: Send + Sync {
     async fn server_exists(&self, name: &str) -> Result<bool, RegistryError> {
         match self.get_server(name).await {
             Ok(_) => Ok(true),
-            Err(RegistryError::NotFound(_)) => Ok(false),
+            Err(RegistryError::NotFound { .. }) => Ok(false),
             Err(e) => Err(e),
         }
     }

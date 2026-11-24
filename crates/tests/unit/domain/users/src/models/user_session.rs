@@ -2,14 +2,14 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::SessionId;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use systemprompt_users::UserSession;
 
 #[test]
 fn user_session_creation() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
-        user_id: Some(fixture_user_id()),
+        user_id: Some(unique_user_id("user-session")),
         ip_address: Some("192.168.1.1".to_string()),
         user_agent: Some("Mozilla/5.0".to_string()),
         device_type: Some("desktop".to_string()),
@@ -40,7 +40,7 @@ fn user_session_debug() {
 fn user_session_active_when_ended_at_none() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
-        user_id: Some(fixture_user_id()),
+        user_id: Some(unique_user_id("user-session")),
         ip_address: None,
         user_agent: None,
         device_type: None,
@@ -55,7 +55,7 @@ fn user_session_active_when_ended_at_none() {
 fn user_session_ended_when_ended_at_set() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
-        user_id: Some(fixture_user_id()),
+        user_id: Some(unique_user_id("user-session")),
         ip_address: None,
         user_agent: None,
         device_type: None,

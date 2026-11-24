@@ -9,13 +9,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::JobName;
+use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_scheduler::{DatabaseCleanupJob, JobConfig, JobExecutionService, SchedulerConfig};
-use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_ctx(pool: &DbPool) -> JobContext {
-    JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
+    JobContext::new(
+        Actor::user(unique_user_id("job-execute-tests")),
+        Dependencies::new().with(Arc::clone(pool)),
+    )
 }
 
 #[tokio::test]
@@ -66,7 +69,10 @@ async fn database_cleanup_job_without_its_kernel_handles_fails() {
 
 #[tokio::test]
 async fn jobs_fail_when_dbpool_missing() {
-    let ctx = JobContext::new(fixture_actor(), Dependencies::new());
+    let ctx = JobContext::new(
+        Actor::user(unique_user_id("job-execute-tests")),
+        Dependencies::new(),
+    );
 
     assert!(DatabaseCleanupJob.execute(&ctx).await.is_err());
 }

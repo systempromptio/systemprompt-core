@@ -41,7 +41,7 @@ async fn get_agent_projects_agent_info_with_oauth() {
 async fn get_agent_unknown_maps_to_not_found() {
     let provider = provider(vec![]);
     let err = provider.get_agent("rp_ghost").expect_err("missing");
-    assert!(matches!(err, RegistryError::NotFound(_)));
+    assert!(matches!(err, RegistryError::NotFound { .. }));
 }
 
 #[tokio::test]
@@ -63,7 +63,7 @@ async fn default_agent_resolution_follows_default_flag() {
     let err = provider_without
         .get_default_agent()
         .expect_err("no default flagged");
-    assert!(matches!(err, RegistryError::NotFound(_)));
+    assert!(matches!(err, RegistryError::NoDefaultAgent));
 
     let mut flagged = agent_config("rp_default");
     flagged.default = true;

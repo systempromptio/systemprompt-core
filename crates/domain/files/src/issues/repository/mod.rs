@@ -22,8 +22,8 @@ use std::sync::Arc;
 use sqlx::{PgConnection, PgPool};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AgentName, ContentHash, ContextId, DocumentUploadId, IssueReportId, McpExecutionId, SessionId,
-    TaskId, TraceId, UserId,
+    ContentHash, ContextId, DocumentUploadId, IssueReportId, McpExecutionId, SessionId, TaskId,
+    TraceId, UserId,
 };
 use systemprompt_models::issues::{IssueAttachment, IssueReport, IssueStatus};
 
@@ -54,7 +54,7 @@ impl IssueReportRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM issue_reports
                WHERE reporter_user_id = $1 AND created_at > now() - interval '1 hour'"#,
-            reporter.as_str(),
+            reporter as _,
         )
         .fetch_one(&mut *conn)
         .await?)
@@ -86,18 +86,18 @@ impl IssueReportRepository {
                    mcp_execution_id = EXCLUDED.mcp_execution_id
                RETURNING id::text AS "id!: IssueReportId", (xmax = 0) AS "inserted!",
                          occurrences"#,
-            issue.reporter.as_str(),
-            issue.via_agent.as_ref().map(AgentName::as_str),
+            issue.reporter as _,
+            issue.via_agent as _,
             issue.kind.as_str(),
             issue.severity.as_str(),
             issue.title,
             issue.body,
             issue.fingerprint,
-            issue.context.trace.as_ref().map(TraceId::as_str),
-            issue.context.context.as_ref().map(ContextId::as_str),
-            issue.context.session.as_ref().map(SessionId::as_str),
-            issue.context.task.as_ref().map(TaskId::as_str),
-            issue.context.mcp_execution.as_ref().map(McpExecutionId::as_str),
+            issue.context.trace as _,
+            issue.context.context as _,
+            issue.context.session as _,
+            issue.context.task as _,
+            issue.context.mcp_execution as _,
             issue.client,
         )
         .fetch_one(&mut *conn)
@@ -112,6 +112,14 @@ impl IssueReportRepository {
     }
 
     pub async fn find(&self, id: &IssueReportId) -> RepoResult<Option<IssueReport>> {
+        self.find_reported_by(id, None).await
+    }
+
+    pub async fn find_reported_by(
+        &self,
+        id: &IssueReportId,
+        reporter: Option<&UserId>,
+    ) -> RepoResult<Option<IssueReport>> {
         let row = sqlx::query_as!(
             ReportRow,
             r#"SELECT id::text AS "id!: IssueReportId",
@@ -122,8 +130,10 @@ impl IssueReportRepository {
                       mcp_execution_id AS "mcp_execution_id?: McpExecutionId", client,
                       triage_note, triaged_by AS "triaged_by?: UserId",
                       created_at, last_seen_at, updated_at, closed_at
-               FROM issue_reports WHERE id = $1::text::uuid"#,
-            id.as_str(),
+               FROM issue_reports
+               WHERE id = $1::text::uuid AND ($2::text IS NULL OR reporter_user_id = $2)"#,
+            id as _,
+            reporter as _,
         )
         .fetch_optional(&*self.read)
         .await?;
@@ -143,7 +153,7 @@ impl IssueReportRepository {
                       file_name, mime_type, size_bytes, created_at
                FROM issue_report_attachments WHERE report_id = $1::text::uuid
                ORDER BY created_at, upload_id"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_all(&*self.read)
         .await?)
@@ -170,7 +180,7 @@ impl IssueReportRepository {
                  AND ($3::timestamptz IS NULL OR (last_seen_at, id) < ($3, $4::text::uuid))
                ORDER BY last_seen_at DESC, id DESC
                LIMIT $5"#,
-            query.reporter.as_ref().map(UserId::as_str),
+            query.reporter as _,
             query.status.map(IssueStatus::as_str),
             before_at,
             before_id,
@@ -200,10 +210,10 @@ impl IssueReportRepository {
                WHERE r.id = prior.id
                RETURNING r.reporter_user_id AS "reporter!: UserId", prior.status AS "from!",
                          r.title"#,
-            id.as_str(),
+            id as _,
             status.as_str(),
             note,
-            by.as_str(),
+            by as _,
         )
         .fetch_optional(&mut *conn)
         .await?;
@@ -229,8 +239,8 @@ impl IssueReportRepository {
                FROM issue_reports r
                WHERE r.id = $1::text::uuid AND r.reporter_user_id = $2
                FOR UPDATE"#,
-            id.as_str(),
-            reporter.as_str(),
+            id as _,
+            reporter as _,
         )
         .fetch_optional(&mut *conn)
         .await?;
@@ -252,9 +262,9 @@ impl IssueReportRepository {
                WHERE u.id = $2::text::uuid AND u.owner_user_id = $3 AND u.status = 'completed'
                  AND u.blob_sha256 IS NOT NULL
                ON CONFLICT DO NOTHING"#,
-            id.as_str(),
-            upload.as_str(),
-            reporter.as_str(),
+            id as _,
+            upload as _,
+            reporter as _,
         )
         .execute(&mut *conn)
         .await?;

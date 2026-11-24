@@ -11,7 +11,7 @@ use systemprompt_oauth::services::{
     generate_client_secret, hash_client_secret, verify_client_secret,
 };
 use systemprompt_oauth::{AnonymousSessionInfo, SessionCreationError, SessionCreationService};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
     ExtractSignals, FingerprintProvider, SessionAnalytics, SessionProvider, UserProvider,
@@ -99,7 +99,7 @@ impl UserProvider for MockUserProvider {
         _full_name: Option<&str>,
     ) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: fixture_user_id(),
+            id: unique_user_id("session"),
             name: "newuser".to_string(),
             email: "new@example.com".to_string(),
             roles: vec![],
@@ -110,7 +110,7 @@ impl UserProvider for MockUserProvider {
 
     async fn create_anonymous(&self, _fingerprint: &str) -> AuthResult<AuthUser> {
         Ok(AuthUser {
-            id: fixture_user_id(),
+            id: unique_user_id("session"),
             name: "anonymous".to_string(),
             email: "anon@example.com".to_string(),
             roles: vec![],
@@ -131,7 +131,7 @@ impl UserProvider for MockUserProvider {
         _policy: &systemprompt_traits::LinkPolicy,
     ) -> AuthResult<systemprompt_traits::FederatedResolution> {
         Ok(systemprompt_traits::FederatedResolution {
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("session"),
             link: systemprompt_traits::FederatedLink::Provisioned,
         })
     }
@@ -230,7 +230,7 @@ fn test_session_creation_error_internal() {
 #[test]
 fn test_session_creation_error_display() {
     let user_error = SessionCreationError::UserNotFound {
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("session"),
     };
     let internal_error = SessionCreationError::Internal("timeout".into());
 

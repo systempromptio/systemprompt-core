@@ -75,8 +75,6 @@ impl OAuthRepository {
         let now = Utc::now();
         let authenticated_at = params.authenticated_at.min(now);
         let code_hash = self.hash_at_rest(params.code.as_str())?;
-        let client_id = params.client_id.as_str();
-        let user_id = params.user_id.as_str();
 
         sqlx::query!(
             "INSERT INTO oauth_auth_codes
@@ -84,8 +82,8 @@ impl OAuthRepository {
              code_challenge_method, resource, created_at, authenticated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
             code_hash,
-            client_id,
-            user_id,
+            params.client_id as _,
+            params.user_id as _,
             params.redirect_uri,
             params.scope,
             expires_at,

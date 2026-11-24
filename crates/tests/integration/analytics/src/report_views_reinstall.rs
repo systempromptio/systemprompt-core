@@ -8,7 +8,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use systemprompt_database::{MigrationConfig, install_admitted_schemas};
+use systemprompt_database::{MigrationConfig, SchemaName, install_admitted_schemas};
 use systemprompt_test_fixtures::{DisposableDb, schema_admitted};
 
 const REPORTS: [&str; 3] = [
@@ -53,6 +53,7 @@ async fn a_full_reinstall_never_hides_the_session_reports_from_a_reader() -> any
         installed = install_admitted_schemas(
             admitted.built(),
             installer.write(),
+            &SchemaName::public(),
             MigrationConfig {
                 allow_checksum_drift: false,
                 force_full_install: true,

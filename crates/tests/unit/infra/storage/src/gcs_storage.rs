@@ -95,7 +95,7 @@ async fn delete_removes_the_object_and_a_404_is_not_found() {
         .await
         .unwrap_err();
     assert!(
-        matches!(err, FileStorageError::NotFound(ref id) if id == "missing.txt"),
+        matches!(err, FileStorageError::NotFound(ref id) if id.as_str() == "missing.txt"),
         "{err:?}"
     );
 }

@@ -42,7 +42,7 @@ impl DocumentCollabRepository {
                  WHERE document_collab_owners.lease_until < now()
                     OR document_collab_owners.owner_id = EXCLUDED.owner_id
              RETURNING owner_id",
-            document.as_str(),
+            document as _,
             owner,
             address,
             hold.as_secs_f64(),
@@ -55,7 +55,7 @@ impl DocumentCollabRepository {
         let holder = sqlx::query_scalar!(
             "SELECT address FROM document_collab_owners
              WHERE document_id = $1::text::uuid AND lease_until >= now()",
-            document.as_str(),
+            document as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?;
@@ -70,7 +70,7 @@ impl DocumentCollabRepository {
         let result = sqlx::query!(
             "DELETE FROM document_collab_owners
              WHERE document_id = $1::text::uuid AND owner_id = $2",
-            document.as_str(),
+            document as _,
             owner,
         )
         .execute(&*self.pools.write)

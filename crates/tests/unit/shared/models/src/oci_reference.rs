@@ -59,11 +59,11 @@ fn oci_scheme_prefix_is_accepted() {
 fn unqualified_reference_is_rejected() {
     assert!(matches!(
         OciReference::from_str("alpine:3"),
-        Err(OciReferenceError::MissingRegistry(_))
+        Err(OciReferenceError::MissingRegistry { .. })
     ));
     assert!(matches!(
         OciReference::from_str("org/services:v1"),
-        Err(OciReferenceError::MissingRegistry(_))
+        Err(OciReferenceError::MissingRegistry { .. })
     ));
 }
 
@@ -76,15 +76,15 @@ fn empty_reference_is_rejected() {
 fn short_or_uppercase_digest_is_rejected() {
     assert!(matches!(
         OciReference::from_str("ghcr.io/org/s@sha256:abc"),
-        Err(OciReferenceError::InvalidDigest(_))
+        Err(OciReferenceError::InvalidDigest { .. })
     ));
     assert!(matches!(
         OciReference::from_str(&format!("ghcr.io/org/s@{}", DIGEST.to_uppercase())),
-        Err(OciReferenceError::InvalidDigest(_))
+        Err(OciReferenceError::InvalidDigest { .. })
     ));
     assert!(matches!(
         OciReference::from_str("ghcr.io/org/s@md5:abc"),
-        Err(OciReferenceError::InvalidDigest(_))
+        Err(OciReferenceError::InvalidDigest { .. })
     ));
 }
 
@@ -92,7 +92,7 @@ fn short_or_uppercase_digest_is_rejected() {
 fn uppercase_repository_is_rejected() {
     assert!(matches!(
         OciReference::from_str("ghcr.io/Org/Services:v1"),
-        Err(OciReferenceError::InvalidRepository(_))
+        Err(OciReferenceError::InvalidRepository { .. })
     ));
 }
 
@@ -100,11 +100,11 @@ fn uppercase_repository_is_rejected() {
 fn empty_repository_segment_is_rejected() {
     assert!(matches!(
         OciReference::from_str("ghcr.io/org//services"),
-        Err(OciReferenceError::InvalidRepository(_))
+        Err(OciReferenceError::InvalidRepository { .. })
     ));
     assert!(matches!(
         OciReference::from_str("ghcr.io/"),
-        Err(OciReferenceError::EmptyRepository(_))
+        Err(OciReferenceError::EmptyRepository { .. })
     ));
 }
 
@@ -112,7 +112,7 @@ fn empty_repository_segment_is_rejected() {
 fn tag_starting_with_a_separator_is_rejected() {
     assert!(matches!(
         OciReference::from_str("ghcr.io/org/services:-v1"),
-        Err(OciReferenceError::InvalidTag(_))
+        Err(OciReferenceError::InvalidTag { .. })
     ));
 }
 

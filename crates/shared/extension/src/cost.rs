@@ -78,18 +78,18 @@ impl CostDirective {
 pub enum CostDirectiveError {
     #[error("`@cost` must name {0}")]
     Missing(&'static str),
-    #[error("`@cost` field `{0}` is not `key=value`")]
-    NotAPair(String),
-    #[error("`@cost` does not take `{0}`; it takes rows, measured and triggers")]
-    UnknownField(String),
+    #[error("`@cost` field `{field}` is not `key=value`")]
+    NotAPair { field: String },
+    #[error("`@cost` does not take `{field}`; it takes rows, measured and triggers")]
+    UnknownField { field: String },
     #[error("`@cost` names `{0}` twice")]
     Duplicate(&'static str),
-    #[error("`@cost` rows must be a count, got `{0}`")]
-    Rows(String),
-    #[error("`@cost` measured must be a duration like `250ms`, `2.0s` or `3m`, got `{0}`")]
-    Measured(String),
-    #[error("`@cost` triggers must be `suspended` or `live`, got `{0}`")]
-    Triggers(String),
+    #[error("`@cost` rows must be a count, got `{value}`")]
+    Rows { value: String },
+    #[error("`@cost` measured must be a duration like `250ms`, `2.0s` or `3m`, got `{value}`")]
+    Measured { value: String },
+    #[error("`@cost` triggers must be `suspended` or `live`, got `{value}`")]
+    Triggers { value: String },
     #[error("`@cost` is declared {0} times; one migration states its cost once")]
     Repeated(usize),
 }
@@ -117,18 +117,17 @@ fn parse_fields(rest: &str) -> Result<CostDirective, CostDirectiveError> {
     for field in rest.split_whitespace() {
         let (key, value) = field
             .split_once('=')
-            .ok_or_else(|| CostDirectiveError::NotAPair(field.to_owned()))?;
+            .ok_or_else(|| CostDirectiveError::NotAPair {
+                field: field.to_owned(),
+            })?;
         match key {
             "rows" => {
                 if rows.is_some() {
                     return Err(CostDirectiveError::Duplicate("rows"));
                 }
-                rows = Some(
-                    value
-                        .parse()
-                        .ok()
-                        .ok_or_else(|| CostDirectiveError::Rows(value.to_owned()))?,
-                );
+                rows = Some(value.parse().ok().ok_or_else(|| CostDirectiveError::Rows {
+                    value: value.to_owned(),
+                })?);
             },
             "measured" => {
                 if measured.is_some() {
@@ -143,10 +142,18 @@ fn parse_fields(rest: &str) -> Result<CostDirective, CostDirectiveError> {
                 triggers = Some(match value {
                     "suspended" => TriggerPolicy::Suspended,
                     "live" => TriggerPolicy::Live,
-                    other => return Err(CostDirectiveError::Triggers(other.to_owned())),
+                    other => {
+                        return Err(CostDirectiveError::Triggers {
+                            value: other.to_owned(),
+                        });
+                    },
                 });
             },
-            other => return Err(CostDirectiveError::UnknownField(other.to_owned())),
+            other => {
+                return Err(CostDirectiveError::UnknownField {
+                    field: other.to_owned(),
+                });
+            },
         }
     }
     Ok(CostDirective {
@@ -159,7 +166,9 @@ fn parse_fields(rest: &str) -> Result<CostDirective, CostDirectiveError> {
 // Why: the unit is part of the value so the number is never ambiguous in
 // review; a bare `2` could be seconds or milliseconds depending on the reader.
 fn parse_duration(value: &str) -> Result<Duration, CostDirectiveError> {
-    let malformed = || CostDirectiveError::Measured(value.to_owned());
+    let malformed = || CostDirectiveError::Measured {
+        value: value.to_owned(),
+    };
     let (number, multiplier) = if let Some(rest) = value.strip_suffix("ms") {
         (rest, 1.0)
     } else if let Some(rest) = value.strip_suffix('s') {

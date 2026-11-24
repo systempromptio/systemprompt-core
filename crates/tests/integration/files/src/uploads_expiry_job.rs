@@ -6,9 +6,9 @@ use systemprompt_files::uploads::{
     DocumentUploadExpiryJob, DocumentUploadRepository, UploadStatus,
 };
 use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml, UploadLimits};
-use systemprompt_identifiers::{DocumentUploadId, UserId};
+use systemprompt_identifiers::{Actor, DocumentUploadId, UserId};
 use systemprompt_provider_contracts::{Job, JobContext, JobScope};
-use systemprompt_test_fixtures::{DisposableDb, fixture_actor, test_app_context};
+use systemprompt_test_fixtures::{DisposableDb, test_app_context, unique_user_id};
 
 use crate::uploads_rig::{request, rig_on, trace};
 
@@ -73,7 +73,7 @@ async fn the_enabled_expiry_job_closes_an_upload_past_its_lifetime() {
     .expect("backdate");
     let app = test_app_context(disposable.url()).await;
     let ctx = JobContext::new(
-        fixture_actor(),
+        Actor::user(unique_user_id("uploads-expiry-job")),
         app.kernel()
             .state()
             .clone()

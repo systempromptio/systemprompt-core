@@ -148,7 +148,10 @@ async fn upsert_records_and_replaces_the_release_version_and_state() {
         .find(|r| r.session_id == session_id)
         .expect("present");
     assert_eq!(found.release_version.as_deref(), Some("0.75.1"));
-    assert_eq!(found.state.as_deref(), Some("disabled"));
+    assert_eq!(
+        found.state,
+        Some(systemprompt_models::bridge::instance::BridgeState::Disabled)
+    );
 
     ctx.repo
         .upsert(upsert_params(&session_id, &ctx.user_id))

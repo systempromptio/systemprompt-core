@@ -107,7 +107,7 @@ fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErr
         let mut metadata = converters::construct_metadata(row)?;
         metadata.execution_steps = execution_steps;
 
-        let task_state = converters::parse_task_state(row)?;
+        let task_state = row.status;
 
         tasks.push(Task {
             id: row.task_id.clone(),

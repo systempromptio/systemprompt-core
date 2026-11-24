@@ -10,7 +10,10 @@
 
 use systemprompt_identifiers::{AgentName, AiRequestId, ContextId, ExecutionStepId, TaskId};
 
+use systemprompt_models::ai::StoredMessageRole;
+
 use super::{Result, TraceRepository};
+use crate::trace::TraceError;
 use crate::trace::models::{AiRequestInfo, ConversationMessage, ExecutionStep, TaskInfo};
 
 impl TraceRepository {
@@ -31,7 +34,7 @@ impl TraceRepository {
             r#"SELECT task_id, context_id, agent_name, status, created_at, started_at, completed_at,
                   execution_time_ms, error_message
            FROM agent_tasks WHERE task_id = $1"#,
-            task_id.as_str()
+            task_id as _
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -40,7 +43,7 @@ impl TraceRepository {
             task_id: TaskId::new(row.task_id),
             context_id: ContextId::try_new(&row.context_id)?,
             agent_name: row.agent_name.map(AgentName::new),
-            status: row.status,
+            status: parse_state("agent_tasks.status", row.status)?,
             created_at: row.created_at,
             started_at: row.started_at,
             completed_at: row.completed_at,
@@ -56,7 +59,7 @@ impl TraceRepository {
            JOIN message_parts mp ON mp.message_id = tm.message_id AND mp.task_id = tm.task_id
            WHERE tm.task_id = $1 AND tm.role = 'user' AND mp.part_kind = 'text'
            ORDER BY tm.sequence_number DESC LIMIT 1"#,
-            task_id.as_str()
+            task_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -71,7 +74,7 @@ impl TraceRepository {
            JOIN message_parts mp ON mp.message_id = tm.message_id AND mp.task_id = tm.task_id
            WHERE tm.task_id = $1 AND tm.role = 'agent' AND mp.part_kind = 'text'
            ORDER BY tm.sequence_number DESC LIMIT 1"#,
-            task_id.as_str()
+            task_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -91,22 +94,23 @@ impl TraceRepository {
            FROM task_execution_steps
            WHERE task_id = $1
            ORDER BY started_at"#,
-            task_id.as_str()
+            task_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| ExecutionStep {
-                step_id: ExecutionStepId::new(r.id),
-                step_type: r.step_type,
-                title: r.title,
-                status: r.status,
-                duration_ms: r.duration_ms,
-                error_message: r.error_message,
+        rows.into_iter()
+            .map(|r| -> Result<ExecutionStep> {
+                Ok(ExecutionStep {
+                    step_id: ExecutionStepId::new(r.id),
+                    step_type: r.step_type,
+                    title: r.title,
+                    status: parse_state("task_execution_steps.status", r.status)?,
+                    duration_ms: r.duration_ms,
+                    error_message: r.error_message,
+                })
             })
-            .collect())
+            .collect()
     }
 
     pub async fn fetch_ai_requests(&self, task_id: &TaskId) -> Result<Vec<AiRequestInfo>> {
@@ -115,7 +119,7 @@ impl TraceRepository {
            FROM ai_requests
            WHERE task_id = $1
            ORDER BY created_at"#,
-        task_id.as_str()
+        task_id as _
     )
     .fetch_all(&*self.pool)
     .await?;
@@ -141,7 +145,7 @@ impl TraceRepository {
            FROM ai_request_messages
            WHERE request_id = $1 AND role = 'system' AND sequence_number = 0
            LIMIT 1"#,
-            request_id.as_str()
+            request_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -154,11 +158,11 @@ impl TraceRepository {
         request_id: &AiRequestId,
     ) -> Result<Vec<ConversationMessage>> {
         let rows = sqlx::query!(
-            r#"SELECT role, content, sequence_number
+            r#"SELECT role AS "role: StoredMessageRole", content, sequence_number
            FROM ai_request_messages
            WHERE request_id = $1
            ORDER BY sequence_number"#,
-            request_id.as_str()
+            request_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -182,18 +186,25 @@ impl TraceRepository {
            FROM ai_request_messages
            WHERE request_id = $1
            ORDER BY sequence_number"#,
-            request_id.as_str()
+            request_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| ConversationMessage {
-                role: r.role,
-                content: r.content_preview.unwrap_or_else(String::new),
-                sequence_number: r.sequence_number,
+        rows.into_iter()
+            .map(|r| -> Result<ConversationMessage> {
+                Ok(ConversationMessage {
+                    role: parse_state("ai_request_messages.role", r.role)?,
+                    content: r.content_preview.unwrap_or_else(String::new),
+                    sequence_number: r.sequence_number,
+                })
             })
-            .collect())
+            .collect()
     }
+}
+
+pub(super) fn parse_state<T: std::str::FromStr>(column: &'static str, value: String) -> Result<T> {
+    value
+        .parse()
+        .map_err(|_| TraceError::MalformedState { column, value })
 }

@@ -16,7 +16,7 @@ use systemprompt_test_fixtures::closed_db_pool;
 fn fixture() -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
-        user_id: systemprompt_test_fixtures::fixture_user_id(),
+        user_id: systemprompt_test_fixtures::unique_user_id("rule-based-hook"),
         actor: None,
         client_id: None,
         access_scope: None,

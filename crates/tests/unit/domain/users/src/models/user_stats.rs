@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use std::collections::HashMap;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use systemprompt_users::{User, UserCountBreakdown, UserExport, UserStats, UserStatus};
 
 #[test]
@@ -186,7 +186,7 @@ fn user_export_debug() {
 fn user_export_from_user_conversion() {
     let user = User {
         account_kind: Default::default(),
-        id: fixture_user_id(),
+        id: unique_user_id("user-stats"),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
@@ -217,7 +217,7 @@ fn user_export_from_user_conversion() {
 fn user_export_from_minimal_user() {
     let user = User {
         account_kind: Default::default(),
-        id: fixture_user_id(),
+        id: unique_user_id("user-stats"),
         name: "minimal".to_string(),
         email: "minimal@example.com".to_string(),
         full_name: None,

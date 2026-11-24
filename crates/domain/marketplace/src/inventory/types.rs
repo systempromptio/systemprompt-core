@@ -76,11 +76,20 @@ pub struct BaselineScope<'a> {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InventoryReconciliation {
     pub id: ManagedReconciliationId,
-    pub status: String,
+    pub status: crate::managed::ReconciliationStatus,
     pub upstream_base_revision_id: ResourceRevisionId,
     pub managed_candidate_revision_id: ResourceRevisionId,
     pub incoming_revision_id: ResourceRevisionId,
     pub resolved_revision_id: Option<ResourceRevisionId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "text", rename_all = "snake_case")]
+pub enum ManagedSourceKind {
+    Git,
+    LocalTree,
+    Managed,
 }
 
 #[derive(Debug, Clone)]
@@ -89,7 +98,7 @@ pub(super) struct InventoryResource {
     pub(super) source_id: ManagedSourceId,
     pub(super) kind: String,
     pub(super) resource_key: String,
-    pub(super) source_kind: String,
+    pub(super) source_kind: ManagedSourceKind,
     pub(super) publication_state: Option<String>,
     pub(super) published_revision: Option<ResourceRevisionId>,
     pub(super) latest_revision: Option<ResourceRevisionId>,

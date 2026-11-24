@@ -5,12 +5,12 @@ use std::path::PathBuf;
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::OAuthRequirement;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn create_test_config() -> McpServerConfig {
     McpServerConfig {
         name: "test-service".to_string(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("mcp-server-config"),
         server_type: Default::default(),
         binary: Some("test-binary".to_string()),
         enabled: true,

@@ -109,14 +109,14 @@ pub struct RequestOrigin {
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum OriginParseError {
-    #[error("unknown client kind: {0}")]
-    ClientKind(String),
-    #[error("unknown inbound wire protocol: {0}")]
-    WireProtocol(String),
-    #[error("unknown client attestation: {0}")]
-    Attestation(String),
-    #[error("unknown native marker: {0}")]
-    NativeMarker(String),
+    #[error("unknown client kind: {value}")]
+    ClientKind { value: String },
+    #[error("unknown inbound wire protocol: {value}")]
+    WireProtocol { value: String },
+    #[error("unknown client attestation: {value}")]
+    Attestation { value: String },
+    #[error("unknown native marker: {value}")]
+    NativeMarker { value: String },
     #[error("client kind {0} is not an evaluator harness")]
     NotAHarness(&'static str),
 }
@@ -180,7 +180,9 @@ impl ClientKind {
         Self::ALL
             .into_iter()
             .find(|kind| kind.as_str() == value)
-            .ok_or_else(|| OriginParseError::ClientKind(value.to_owned()))
+            .ok_or_else(|| OriginParseError::ClientKind {
+                value: value.to_owned(),
+            })
     }
 
     pub fn hosts(self) -> impl Iterator<Item = HostKind> {
@@ -266,7 +268,9 @@ impl InboundWireProtocol {
         Self::ALL
             .into_iter()
             .find(|wire| wire.as_str() == value)
-            .ok_or_else(|| OriginParseError::WireProtocol(value.to_owned()))
+            .ok_or_else(|| OriginParseError::WireProtocol {
+                value: value.to_owned(),
+            })
     }
 }
 

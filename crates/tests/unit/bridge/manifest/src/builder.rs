@@ -4,10 +4,10 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{McpServerId, PluginId, Sha256Digest, SkillId, SkillName};
-use systemprompt_identifiers::{HookId, TenantId};
+use systemprompt_identifiers::{HookId, TenantId, UserId};
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::hooks::{HookCategory, HookEvent};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 const FAKE_SHA: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
@@ -16,6 +16,10 @@ fn version(s: &str) -> ManifestVersion {
 }
 
 fn builder(version_suffix: &str) -> SignedManifestBuilder {
+    builder_for(version_suffix, unique_user_id("builder"))
+}
+
+fn builder_for(version_suffix: &str, user_id: UserId) -> SignedManifestBuilder {
     SignedManifestBuilder::new(
         version(&format!("2026-04-22T00:00:00Z-{version_suffix}")),
         chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
@@ -24,7 +28,7 @@ fn builder(version_suffix: &str) -> SignedManifestBuilder {
         chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        fixture_user_id(),
+        user_id,
     )
 }
 
@@ -110,9 +114,9 @@ fn sample_mcp_server() -> ManagedMcpServer {
     }
 }
 
-fn sample_user() -> UserInfo {
+fn sample_user(id: UserId) -> UserInfo {
     UserInfo {
-        id: fixture_user_id(),
+        id,
         name: "alice".into(),
         email: "a@e.com".into(),
         display_name: Some("Alice".into()),
@@ -137,14 +141,15 @@ fn minimal_build_has_empty_collections() {
 
 #[test]
 fn minimal_build_preserves_constructor_fields() {
-    let manifest = builder("01aaaaaa").build();
+    let user_id = unique_user_id("builder");
+    let manifest = builder_for("01aaaaaa", user_id.clone()).build();
 
     assert_eq!(manifest.issued_at.to_rfc3339(), "2026-04-22T00:00:00+00:00");
     assert_eq!(
         manifest.not_before.to_rfc3339(),
         "2026-04-22T00:00:00+00:00"
     );
-    assert_eq!(manifest.user_id, fixture_user_id());
+    assert_eq!(manifest.user_id, user_id);
     assert_eq!(manifest.min_schema_version, MANIFEST_INLINE_SCHEMA_VERSION);
     assert_eq!(
         manifest.manifest_version.as_str(),
@@ -231,11 +236,14 @@ fn with_tenant_id_populates_field() {
 
 #[test]
 fn with_user_populates_field() {
-    let manifest = builder("0aaaaaaa").with_user(sample_user()).build();
+    let user_id = unique_user_id("builder");
+    let manifest = builder("0aaaaaaa")
+        .with_user(sample_user(user_id.clone()))
+        .build();
 
     let user = manifest.user.expect("user set");
     assert_eq!(user.name, "alice");
-    assert_eq!(user.id, fixture_user_id());
+    assert_eq!(user.id, user_id);
 }
 
 #[test]
@@ -249,7 +257,7 @@ fn all_setters_round_trip_together() {
         .with_revocations(vec!["rev-1".into()])
         .with_enabled_hosts(vec![HostKind::ClaudeDesktop])
         .with_tenant_id(TenantId::new("tenant-abc"))
-        .with_user(sample_user())
+        .with_user(sample_user(unique_user_id("builder")))
         .build();
 
     assert_eq!(manifest.plugins.len(), 1);

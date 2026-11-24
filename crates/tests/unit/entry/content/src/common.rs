@@ -16,6 +16,7 @@ use systemprompt_extension::router::RouteSet;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
+use systemprompt_models::auth::UserType;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_runtime::{AppContext, Kernel};
 use systemprompt_test_fixtures::{
@@ -112,6 +113,10 @@ pub fn request_context(user: &str) -> RequestContext {
         AgentName::try_new("test-agent").expect("valid AgentName"),
         systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
+}
+
+pub fn admin_request_context(user: &str) -> RequestContext {
+    request_context(user).with_user_type(UserType::Admin)
 }
 
 pub async fn body_to_string(resp: Response<Body>) -> Result<(http::StatusCode, String)> {

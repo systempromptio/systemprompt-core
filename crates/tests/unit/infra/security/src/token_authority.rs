@@ -146,7 +146,7 @@ fn verify_bearer_reports_an_unknown_kid() {
     let err = authority
         .verify_bearer(&token, &[JwtAudience::Mcp])
         .expect_err("kid");
-    assert!(matches!(err, TokenError::UnknownKid(kid) if kid == "rotated-away"));
+    assert!(matches!(err, TokenError::UnknownKid { kid } if kid == "rotated-away"));
 }
 
 #[test]

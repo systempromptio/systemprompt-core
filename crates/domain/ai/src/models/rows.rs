@@ -44,7 +44,7 @@ pub(crate) struct AiRequestRow {
     pub cache_creation_tokens: Option<i32>,
     pub reasoning_tokens: Option<i32>,
     pub is_streaming: bool,
-    pub status: String,
+    pub status: systemprompt_traits::RequestStatus,
     pub client_kind: String,
     pub wire_protocol: String,
     pub client_attestation: String,

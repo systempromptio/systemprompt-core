@@ -151,11 +151,10 @@ impl ClientRepository {
     }
 
     async fn load_redirect_uris(&self, client_id: &ClientId) -> Result<Vec<String>> {
-        let client_id_str = client_id.as_str();
         let rows = sqlx::query_scalar!(
             "SELECT redirect_uri FROM oauth_client_redirect_uris WHERE client_id = $1 ORDER BY \
              is_primary DESC",
-            client_id_str
+            client_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -163,10 +162,9 @@ impl ClientRepository {
     }
 
     async fn load_grant_types(&self, client_id: &ClientId) -> Result<Vec<String>> {
-        let client_id_str = client_id.as_str();
         let rows = sqlx::query_scalar!(
             "SELECT grant_type FROM oauth_client_grant_types WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -174,10 +172,9 @@ impl ClientRepository {
     }
 
     async fn load_response_types(&self, client_id: &ClientId) -> Result<Vec<String>> {
-        let client_id_str = client_id.as_str();
         let rows = sqlx::query_scalar!(
             "SELECT response_type FROM oauth_client_response_types WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -185,10 +182,9 @@ impl ClientRepository {
     }
 
     async fn load_scopes(&self, client_id: &ClientId) -> Result<Vec<String>> {
-        let client_id_str = client_id.as_str();
         let rows = sqlx::query_scalar!(
             "SELECT scope FROM oauth_client_scopes WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -196,10 +192,9 @@ impl ClientRepository {
     }
 
     async fn load_contacts(&self, client_id: &ClientId) -> Result<Option<Vec<String>>> {
-        let client_id_str = client_id.as_str();
         let rows = sqlx::query_scalar!(
             "SELECT contact_email FROM oauth_client_contacts WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .fetch_all(&*self.pool)
         .await?;

@@ -132,7 +132,7 @@ mod error_source_chain {
         assert!(
             SchedulerError::job_execution_failed(
                 JobName::new("j"),
-                ProviderError::InvalidInput("e".to_owned())
+                ProviderError::Internal("e".into())
             )
             .source()
             .is_some()
@@ -192,12 +192,12 @@ mod error_constructor_round_trips {
     fn job_execution_failed_constructor_matches_struct_variant() {
         let via_ctor = SchedulerError::job_execution_failed(
             JobName::new("j"),
-            ProviderError::InvalidInput("boom".into()),
+            ProviderError::Internal("boom".into()),
         )
         .to_string();
         let via_struct = SchedulerError::JobExecutionFailed {
             job_name: JobName::new("j"),
-            source: ProviderError::InvalidInput("boom".into()),
+            source: ProviderError::Internal("boom".into()),
         }
         .to_string();
         assert_eq!(via_ctor, via_struct);

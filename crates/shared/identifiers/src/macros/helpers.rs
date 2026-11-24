@@ -115,3 +115,17 @@ macro_rules! __define_id_validated_conversions {
         }
     };
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __define_id_from_str {
+    ($name:ident) => {
+        impl std::str::FromStr for $name {
+            type Err = $crate::error::IdValidationError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Self::try_new(s)
+            }
+        }
+    };
+}

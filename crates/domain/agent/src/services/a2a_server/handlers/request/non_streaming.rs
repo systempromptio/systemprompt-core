@@ -33,7 +33,7 @@ use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageHandler;
 use crate::services::shared::AgentServiceError;
 
-use super::list_tasks::{ListTasksError, PageTokenError, list_caller_tasks, trim_history};
+use super::list_tasks::{ListTasksError, list_caller_tasks, trim_history};
 use super::validation::{ContextValidationError, owned_task_for, validate_message_context};
 
 const CANCEL_SETTLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
@@ -41,7 +41,7 @@ const CANCEL_SETTLE_TIMEOUT: std::time::Duration = std::time::Duration::from_sec
 #[derive(Debug)]
 pub(super) enum RequestFailure {
     InvalidContext(ContextValidationError),
-    InvalidPageToken(PageTokenError),
+    InvalidPageToken(systemprompt_models::api::KeysetCursorError),
     AgentRunNotObject(AgentName),
     AgentRunTaskExists(TaskId),
     TaskNotFound(TaskId),

@@ -38,7 +38,6 @@ impl FileRepository {
         limit: i64,
         offset: i64,
     ) -> FilesResult<Vec<File>> {
-        let user_id_str = user_id.as_str();
         let result = sqlx::query_as!(
             FileRow,
             r#"
@@ -48,7 +47,7 @@ impl FileRepository {
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
             "#,
-            user_id_str,
+            user_id as _,
             limit,
             offset
         )
@@ -59,14 +58,13 @@ impl FileRepository {
     }
 
     pub async fn count_ai_images_by_user(&self, user_id: &UserId) -> FilesResult<i64> {
-        let user_id_str = user_id.as_str();
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) as "count!"
             FROM files
             WHERE user_id = $1 AND ai_content = true AND deleted_at IS NULL
             "#,
-            user_id_str
+            user_id as _
         )
         .fetch_one(self.pool.as_ref())
         .await?;

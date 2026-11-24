@@ -3,8 +3,8 @@
 use chrono::Utc;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName};
 use systemprompt_mcp::models::ToolExecution;
-use systemprompt_models::mcp::{Correlation, ExecutionSource};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_models::mcp::{Correlation, ExecutionSource, McpToolExecutionStatus};
+use systemprompt_test_fixtures::unique_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -17,8 +17,8 @@ fn create_test_execution() -> ToolExecution {
             ContextId::try_new(TEST_CONTEXT_ID_A.to_string()).expect("valid ContextId"),
         ),
         ai_tool_call_id: Some(AiToolCallId::new("call-789".to_string())),
-        user_id: fixture_user_id(),
-        status: "success".to_string(),
+        user_id: unique_user_id("tool-execution"),
+        status: McpToolExecutionStatus::Success,
         input: r#"{"query": "test"}"#.to_string(),
         output: Some(r#"{"result": "ok"}"#.to_string()),
         error_message: None,
@@ -36,7 +36,7 @@ fn test_tool_execution_fields() {
 
     assert_eq!(exec.tool_name, "test-tool");
     assert_eq!(exec.server_name, "test-server");
-    assert_eq!(exec.status, "success");
+    assert_eq!(exec.status, McpToolExecutionStatus::Success);
     exec.context_id.expect("expected Some value");
     exec.ai_tool_call_id.expect("expected Some value");
     assert_eq!(exec.execution_time_ms, Some(150));
@@ -45,12 +45,12 @@ fn test_tool_execution_fields() {
 #[test]
 fn test_tool_execution_with_error() {
     let mut exec = create_test_execution();
-    exec.status = "failed".to_string();
+    exec.status = McpToolExecutionStatus::Failed;
     exec.error_message = Some("Connection timeout".to_string());
     exec.output = None;
     exec.completed_at = None;
 
-    assert_eq!(exec.status, "failed");
+    assert_eq!(exec.status, McpToolExecutionStatus::Failed);
     assert_eq!(exec.error_message, Some("Connection timeout".to_string()));
     assert!(exec.output.is_none());
     assert!(exec.completed_at.is_none());
@@ -59,12 +59,12 @@ fn test_tool_execution_with_error() {
 #[test]
 fn test_tool_execution_pending() {
     let mut exec = create_test_execution();
-    exec.status = "pending".to_string();
+    exec.status = McpToolExecutionStatus::Pending;
     exec.output = None;
     exec.execution_time_ms = None;
     exec.completed_at = None;
 
-    assert_eq!(exec.status, "pending");
+    assert_eq!(exec.status, McpToolExecutionStatus::Pending);
     assert!(exec.output.is_none());
     assert!(exec.execution_time_ms.is_none());
     assert!(exec.completed_at.is_none());

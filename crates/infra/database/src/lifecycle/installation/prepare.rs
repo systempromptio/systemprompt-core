@@ -34,7 +34,7 @@ pub(super) struct PreparedSchema {
 }
 
 pub(super) struct ColumnsToValidate {
-    pub(super) schema: String,
+    pub(super) schema: Option<String>,
     pub(super) table: String,
     pub(super) columns: Vec<String>,
 }
@@ -57,7 +57,7 @@ pub(super) fn prepare_extension_schema(
             && !schema.required_columns.is_empty()
         {
             columns_to_validate.push(ColumnsToValidate {
-                schema: schema.schema_name().to_owned(),
+                schema: schema.schema.clone(),
                 table: table.clone(),
                 columns: schema.required_columns.clone(),
             });

@@ -135,7 +135,9 @@ impl FromStr for AccessScope {
             "admin" => Ok(Self::Admin),
             "user" => Ok(Self::User),
             "unknown" | "" => Ok(Self::Unknown),
-            other => Err(GovernanceParseError::UnknownAccessScope(other.to_owned())),
+            other => Err(GovernanceParseError::UnknownAccessScope {
+                value: other.to_owned(),
+            }),
         }
     }
 }

@@ -7,6 +7,7 @@ use crate::models::TaskRow;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_models::api::{KeysetCursor, KeysetPage};
 use systemprompt_traits::RepositoryError;
 
 use super::constructor::TaskConstructor;
@@ -24,13 +25,12 @@ pub(super) async fn list_tasks_by_context(
     constructor: &TaskConstructor,
     context_id: &ContextId,
 ) -> Result<Vec<Task>, RepositoryError> {
-    let context_id_str = context_id.as_str();
     let rows = sqlx::query_as!(
         TaskRow,
         r#"SELECT
             task_id as "task_id!: TaskId",
             context_id as "context_id!: ContextId",
-            status as "status!",
+            status as "status!: crate::models::a2a::TaskState",
             status_timestamp,
             user_id as "user_id?: UserId",
             session_id as "session_id?: SessionId",
@@ -44,50 +44,7 @@ pub(super) async fn list_tasks_by_context(
             created_at as "created_at!",
             updated_at as "updated_at!"
         FROM agent_tasks WHERE context_id = $1 ORDER BY created_at ASC"#,
-        context_id_str
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
-    let tasks = constructor.construct_tasks_batch(&task_ids).await?;
-
-    Ok(tasks)
-}
-
-pub async fn get_tasks_by_user_id(
-    pool: &Arc<PgPool>,
-    constructor: &TaskConstructor,
-    user_id: &UserId,
-    limit: Option<i32>,
-    offset: Option<i32>,
-) -> Result<Vec<Task>, RepositoryError> {
-    let lim = limit.map_or(1000, i64::from);
-    let off = offset.map_or(0, i64::from);
-    let user_id_str = user_id.as_str();
-
-    let rows = sqlx::query_as!(
-        TaskRow,
-        r#"SELECT
-            task_id as "task_id!: TaskId",
-            context_id as "context_id!: ContextId",
-            status as "status!",
-            status_timestamp,
-            user_id as "user_id?: UserId",
-            session_id as "session_id?: SessionId",
-            trace_id as "trace_id?: TraceId",
-            agent_name as "agent_name?: AgentName",
-            started_at,
-            completed_at,
-            execution_time_ms,
-            error_message,
-            metadata,
-            created_at as "created_at!",
-            updated_at as "updated_at!"
-        FROM agent_tasks WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3"#,
-        user_id_str,
-        lim,
-        off
+        context_id as _
     )
     .fetch_all(pool.as_ref())
     .await?;
@@ -110,28 +67,35 @@ pub async fn list_tasks(
     pool: &Arc<PgPool>,
     constructor: &TaskConstructor,
     filter: ListTasksFilter<'_>,
-    limit: i64,
-    offset: i64,
-) -> Result<Vec<Task>, RepositoryError> {
-    let task_ids = sqlx::query_scalar!(
-        r#"SELECT task_id as "task_id!: TaskId"
+    after: Option<&KeysetCursor<TaskId>>,
+    limit: usize,
+) -> Result<KeysetPage<Task, TaskId>, RepositoryError> {
+    let lookahead = i64::try_from(limit).unwrap_or(i64::MAX).saturating_add(1);
+    let keys = sqlx::query!(
+        r#"SELECT task_id as "task_id!: TaskId", created_at as "created_at!"
         FROM agent_tasks
         WHERE user_id = $1
           AND ($2::text IS NULL OR context_id = $2)
           AND ($3::text IS NULL OR status = $3)
           AND ($4::timestamptz IS NULL OR COALESCE(status_timestamp, updated_at) >= $4)
+          AND ($5::timestamptz IS NULL OR (created_at, task_id) < ($5, $6::text))
         ORDER BY created_at DESC, task_id DESC
-        LIMIT $5 OFFSET $6"#,
-        filter.user_id.as_str(),
-        filter.context_id.map(ContextId::as_str),
+        LIMIT $7"#,
+        filter.user_id as _,
+        filter.context_id as _,
         filter.status.map(crate::models::a2a::TaskState::as_str),
         filter.status_timestamp_after,
-        limit,
-        offset
+        after.map(|cursor| cursor.at),
+        after.map(|cursor| &cursor.id) as _,
+        lookahead
     )
     .fetch_all(pool.as_ref())
     .await?;
 
+    let page = KeysetPage::from_lookahead(keys, limit, |key| {
+        KeysetCursor::new(key.created_at, key.task_id.clone())
+    });
+    let task_ids: Vec<TaskId> = page.items.iter().map(|key| key.task_id.clone()).collect();
     let mut tasks = constructor.construct_tasks_batch(&task_ids).await?;
     tasks.sort_by_key(|task| {
         task_ids
@@ -139,5 +103,8 @@ pub async fn list_tasks(
             .position(|id| *id == task.id)
             .unwrap_or(usize::MAX)
     });
-    Ok(tasks)
+    Ok(KeysetPage {
+        items: tasks,
+        next_cursor: page.next_cursor,
+    })
 }

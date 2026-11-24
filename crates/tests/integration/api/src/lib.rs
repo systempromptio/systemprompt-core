@@ -568,3 +568,6 @@ mod documents_import_export;
 
 #[cfg(test)]
 mod ownership_sweep;
+
+#[cfg(test)]
+mod content_link_analytics_admin;

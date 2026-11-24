@@ -161,12 +161,12 @@ impl DocumentGrantEventRepository {
                           (SELECT access_level FROM prev), 'edit', $5, $6
                    FROM g)
                SELECT COUNT(*) AS "moved!" FROM d"#,
-                transfer.document_id.as_str(),
-                transfer.from.as_str(),
-                transfer.to.as_str(),
+                transfer.document_id as _,
+                transfer.from as _,
+                transfer.to as _,
                 transfer.from_display,
-                transfer.actor.user.as_str(),
-                transfer.actor.trace.as_str(),
+                transfer.actor.user as _,
+                transfer.actor.trace as _,
             )
             .fetch_one(&*self.pools.write)
             .await

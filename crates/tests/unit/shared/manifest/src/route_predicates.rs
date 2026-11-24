@@ -192,7 +192,7 @@ fn validate_refuses_each_malformed_shape() {
             "zero" => matches!(error, GatewayProfileError::RouteMatchZeroMinTools),
             "contradictory" => matches!(error, GatewayProfileError::RouteMatchContradictoryTools),
             _ => {
-                matches!(error, GatewayProfileError::RouteMatchBadToolType(ref t) if t == "web search")
+                matches!(error, GatewayProfileError::RouteMatchBadToolType { tool_type: ref t } if t == "web search")
             },
         };
         assert!(ok, "{label}: {error:?}");

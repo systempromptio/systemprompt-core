@@ -14,7 +14,7 @@ use systemprompt_models::mcp::{Deployment, McpServerType};
 use crate::error::{McpDomainError, McpDomainResult};
 use crate::services::deployment::DeploymentService;
 use std::future::ready;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::{McpDeploymentProvider, ServicesView};
 use systemprompt_models::errors::{McpRegistryError, McpRegistryResult};
@@ -192,7 +192,7 @@ fn crate_path(
 impl From<McpDomainError> for McpRegistryError {
     fn from(err: McpDomainError) -> Self {
         match err {
-            McpDomainError::ServerNotFound { server } => Self::NotFound(server),
+            McpDomainError::ServerNotFound { server } => Self::NotFound { server },
             other => Self::Configuration(Box::new(other)),
         }
     }
@@ -200,7 +200,9 @@ impl From<McpDomainError> for McpRegistryError {
 
 pub(super) fn registry_error(err: McpDomainError) -> RegistryError {
     match err {
-        McpDomainError::ServerNotFound { server } => RegistryError::NotFound(server),
+        McpDomainError::ServerNotFound { server } => RegistryError::NotFound {
+            service: ServiceName::new(server),
+        },
         other => RegistryError::Unavailable(Box::new(other)),
     }
 }

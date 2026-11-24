@@ -38,8 +38,8 @@ pub enum NodeRoleParseError {
          scales horizontally) and 'worker' (scheduler, MCP and agent processes); set one of them"
     )]
     AdminSplit,
-    #[error("unknown server.role '{0}'; expected one of all, gateway, api, worker, runner")]
-    Unknown(String),
+    #[error("unknown server.role '{value}'; expected one of all, gateway, api, worker, runner")]
+    Unknown { value: String },
 }
 
 impl std::str::FromStr for NodeRole {
@@ -53,7 +53,9 @@ impl std::str::FromStr for NodeRole {
             "worker" => Ok(Self::Worker),
             "runner" => Ok(Self::Runner),
             "admin" => Err(NodeRoleParseError::AdminSplit),
-            other => Err(NodeRoleParseError::Unknown(other.to_owned())),
+            other => Err(NodeRoleParseError::Unknown {
+                value: other.to_owned(),
+            }),
         }
     }
 }

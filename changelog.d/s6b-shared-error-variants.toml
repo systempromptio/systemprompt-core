@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Shared error types"
+text = "Error enums in the shared crates carry typed fields or a `#[source]` instead of a bare `String`: `ServicesValidationError` variants carry a `ValidationSubject` and a reason (`PortConflict` its port and the two claimants), `FileStorageError::Validation` a `StorageValidation`, `ToolProviderError` gains `CircuitOpen`, `ConcurrencyLimit` and `TimedOut`, and identifier-bearing variants carry typed ids. Variants no production code built are removed (`ProviderError::{Configuration, InvalidInput, RenderFailed}`, `ExtensionConfigError::NotFound`, `ContextProviderError::AccessDenied`, `ToolProviderError::{ToolNotFound, ServiceNotFound}`, `ContextExtractionError::InvalidUserId`, `AuthRequestError::Internal`). Migrate by updating constructions and exhaustive matches; Display texts are unchanged."

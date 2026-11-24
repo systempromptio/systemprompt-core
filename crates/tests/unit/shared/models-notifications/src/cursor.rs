@@ -1,7 +1,7 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{TimeZone, Utc};
-use systemprompt_models::notifications::{KeysetCursor, KeysetCursorError};
+use systemprompt_models::api::{KeysetCursor, KeysetCursorError};
 use uuid::Uuid;
 
 fn cursor() -> KeysetCursor {

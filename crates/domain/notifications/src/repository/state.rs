@@ -25,15 +25,14 @@ impl NotificationRepository {
         recipient: &UserId,
         ids: &[NotificationId],
     ) -> Result<Vec<NotificationId>, RepositoryError> {
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         Ok(sqlx::query_scalar!(
             r#"UPDATE notifications SET read_at = now(), held_until = NULL,
                    delivery_state = CASE WHEN delivery_state = 'held' THEN 'delivered'
                                          ELSE delivery_state END
                WHERE recipient_user_id = $1 AND id = ANY($2::text[]::uuid[]) AND read_at IS NULL
                RETURNING id::text AS "id!: NotificationId""#,
-            recipient.as_str(),
-            &ids,
+            recipient as _,
+            ids as _,
         )
         .fetch_all(&*self.pools.write)
         .await?)
@@ -49,7 +48,7 @@ impl NotificationRepository {
                                          ELSE delivery_state END
                WHERE recipient_user_id = $1 AND read_at IS NULL
                RETURNING id::text AS "id!: NotificationId""#,
-            recipient.as_str(),
+            recipient as _,
         )
         .fetch_all(&*self.pools.write)
         .await?)
@@ -70,8 +69,8 @@ impl NotificationRepository {
                    delivery_seq = delivery_seq + 1, pending_since = now()
                WHERE recipient_user_id = $1 AND id = $2::text::uuid AND attention = 'agent'
                RETURNING id::text AS "id!: NotificationId""#,
-            recipient.as_str(),
-            id.as_str(),
+            recipient as _,
+            id as _,
             note,
             DeliveryState::Pending.as_str(),
         )

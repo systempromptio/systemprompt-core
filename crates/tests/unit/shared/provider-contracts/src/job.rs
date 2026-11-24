@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::Actor;
 use systemprompt_provider_contracts::{JobContext, JobResult};
-use systemprompt_test_fixtures::fixture_actor;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn test_actor() -> Actor {
-    fixture_actor()
+    Actor::user(unique_user_id("job"))
 }
 
 mod job_result_tests {
@@ -217,8 +217,12 @@ mod job_context_tests {
 
     #[test]
     fn actor_and_dependencies_expose_the_constructed_values() {
-        let ctx = create_context();
-        assert_eq!(ctx.actor().user_id, test_actor().user_id);
+        let user_id = unique_user_id("job");
+        let ctx = JobContext::new(
+            Actor::user(user_id.clone()),
+            Dependencies::new().with(42i32).with("app".to_string()),
+        );
+        assert_eq!(ctx.actor().user_id, user_id);
         assert_eq!(ctx.dependencies().get::<i32>().copied(), Ok(42));
     }
 }

@@ -21,11 +21,8 @@ use crate::BoxedSource;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ContextProviderError {
-    #[error("Context not found: {0}")]
-    NotFound(String),
-
-    #[error("Access denied: {0}")]
-    AccessDenied(String),
+    #[error("Context not found: Context {context_id} not found")]
+    NotFound { context_id: ContextId },
 
     #[error("Database error: {0}")]
     Database(#[source] BoxedSource),

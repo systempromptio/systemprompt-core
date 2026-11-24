@@ -33,8 +33,8 @@ pub enum ReassignmentRefusal {
     AbsentTable,
     #[error("the catalog records the table to member '{0}'")]
     RecordedToPeer(ExtensionId),
-    #[error("column '{0}' is not a column of the live table")]
-    AbsentColumn(String),
+    #[error("column '{column}' is not a column of the live table")]
+    AbsentColumn { column: String },
 }
 
 #[derive(Debug, Error)]

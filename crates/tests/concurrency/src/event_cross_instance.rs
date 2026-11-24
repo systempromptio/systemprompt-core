@@ -13,7 +13,7 @@ use std::sync::Arc;
 use systemprompt_events::{Broadcaster, GenericBroadcaster};
 use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::A2AEvent;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use tokio::sync::mpsc;
 
 fn test_event() -> A2AEvent {
@@ -36,7 +36,7 @@ async fn event_does_not_cross_independent_broadcaster_instances() {
     let replica_a: Arc<GenericBroadcaster<A2AEvent>> = Arc::new(GenericBroadcaster::new());
     let replica_b: Arc<GenericBroadcaster<A2AEvent>> = Arc::new(GenericBroadcaster::new());
 
-    let user = fixture_user_id();
+    let user = unique_user_id("event-cross-instance");
     let conn = ConnectionId::new("conn-b");
 
     let (tx, mut rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
@@ -65,7 +65,7 @@ async fn event_reaches_only_subscribers_on_the_same_instance() {
     let replica_a: Arc<GenericBroadcaster<A2AEvent>> = Arc::new(GenericBroadcaster::new());
     let replica_b: Arc<GenericBroadcaster<A2AEvent>> = Arc::new(GenericBroadcaster::new());
 
-    let user = fixture_user_id();
+    let user = unique_user_id("event-cross-instance");
 
     let (tx_a, mut rx_a) = mpsc::channel(systemprompt_events::SSE_BUFFER);
     replica_a

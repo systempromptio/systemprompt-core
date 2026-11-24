@@ -92,7 +92,7 @@ impl ComponentRenderer for GenComponent {
 
     async fn render(&self, _ctx: &ComponentContext<'_>) -> ProviderResult<RenderedComponent> {
         if self.fails {
-            return Err(ProviderError::RenderFailed("component fixture boom".into()));
+            return Err(ProviderError::Internal("component fixture boom".into()));
         }
         Ok(RenderedComponent::new(
             self.variable,
@@ -122,7 +122,7 @@ impl TemplateDataExtender for GenExtender {
         data: &mut serde_json::Value,
     ) -> ProviderResult<()> {
         if self.fails {
-            return Err(ProviderError::RenderFailed("extender fixture boom".into()));
+            return Err(ProviderError::Internal("extender fixture boom".into()));
         }
         let enriched = ctx
             .item
@@ -166,9 +166,7 @@ impl ContentDataProvider for GenContentData {
         item: &mut serde_json::Value,
     ) -> ProviderResult<()> {
         if self.fails {
-            return Err(ProviderError::RenderFailed(
-                "content data fixture boom".into(),
-            ));
+            return Err(ProviderError::Internal("content data fixture boom".into()));
         }
         if let Some(obj) = item.as_object_mut() {
             obj.insert(

@@ -7,8 +7,8 @@
 //! the sink and surfaces as exit code `1`, matching an interactive terminal
 //! session. A stream that ends before the server has sent an `ExitCode`
 //! event — a server or proxy that died mid-command — is
-//! [`ClientError::ServerUnavailable`], never a success; a `cli` event the
-//! client cannot decode is [`ClientError::UndecodableEvent`], since it may
+//! [`ClientError::StreamEndedWithoutExitCode`], never a success; a `cli` event
+//! the client cannot decode is [`ClientError::UndecodableEvent`], since it may
 //! have been the exit code.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -115,9 +115,7 @@ async fn stream_response(
         }
     }
 
-    exit_code.ok_or_else(|| {
-        ClientError::ServerUnavailable("stream ended before the remote exit code".to_owned())
-    })
+    exit_code.ok_or(ClientError::StreamEndedWithoutExitCode)
 }
 
 fn handle_event(sse: Sse, sink: &mut dyn OutputSink) -> ClientResult<Option<i32>> {

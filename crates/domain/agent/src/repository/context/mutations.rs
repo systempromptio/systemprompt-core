@@ -23,17 +23,16 @@ impl ContextRepository {
     ) -> Result<ContextId, RepositoryError> {
         let context_id = ContextId::generate();
         let now = Utc::now();
-        let session_id_str = session_id.map(SessionId::as_str);
 
         sqlx::query!(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
              updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $6)",
-            context_id.as_str(),
-            user_id.as_str(),
-            session_id_str,
+            context_id as _,
+            user_id as _,
+            session_id as _,
             name,
-            kind.as_str(),
+            kind as _,
             now
         )
         .execute(&*self.write_pool)
@@ -79,11 +78,11 @@ impl ContextRepository {
                     OR EXISTS (SELECT 1 FROM touched)
                     OR EXISTS (SELECT 1 FROM user_contexts
                                WHERE context_id = $1 AND user_id = $2)) AS "owned!""#,
-            context_id.as_str(),
-            user_id.as_str(),
-            params.session_id.map(SessionId::as_str),
+            context_id as _,
+            user_id as _,
+            params.session_id as _,
             params.name,
-            kind.as_str(),
+            kind as _,
             now,
             CONTEXT_TOUCH_INTERVAL_SECS,
         )
@@ -110,8 +109,8 @@ impl ContextRepository {
         let owned = sqlx::query_scalar!(
             r#"SELECT EXISTS (SELECT 1 FROM user_contexts
                               WHERE context_id = $1 AND user_id = $2) AS "owned!""#,
-            context_id.as_str(),
-            user_id.as_str(),
+            context_id as _,
+            user_id as _,
         )
         .fetch_one(&*self.write_pool)
         .await?;
@@ -135,10 +134,10 @@ impl ContextRepository {
              ON CONFLICT (context_id) DO UPDATE
              SET user_id = EXCLUDED.user_id,
                  updated_at = EXCLUDED.updated_at",
-            legacy.as_str(),
-            system_admin.as_str(),
+            legacy as _,
+            system_admin as _,
             "Legacy (pre-context)",
-            ContextKind::Legacy.as_str(),
+            ContextKind::Legacy as _,
             now
         )
         .execute(&*self.write_pool)
@@ -162,10 +161,10 @@ impl ContextRepository {
                  ORDER BY updated_at DESC LIMIT 1
              )
              RETURNING context_id"#,
-            session_id.as_str(),
+            session_id as _,
             now,
-            user_id.as_str(),
-            ContextKind::CliSession.as_str(),
+            user_id as _,
+            ContextKind::CliSession as _,
             name
         )
         .fetch_optional(&*self.write_pool)
@@ -198,8 +197,8 @@ impl ContextRepository {
         let result = sqlx::query_scalar!(
             r#"SELECT context_id as "context_id!: ContextId" FROM user_contexts
             WHERE context_id = $1 AND user_id = $2"#,
-            context_id.as_str(),
-            user_id.as_str()
+            context_id as _,
+            user_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -224,8 +223,8 @@ impl ContextRepository {
              WHERE context_id = $3 AND user_id = $4",
             name,
             now,
-            context_id.as_str(),
-            user_id.as_str()
+            context_id as _,
+            user_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -247,8 +246,8 @@ impl ContextRepository {
     ) -> Result<(), RepositoryError> {
         let result = sqlx::query!(
             "DELETE FROM user_contexts WHERE context_id = $1 AND user_id = $2",
-            context_id.as_str(),
-            user_id.as_str()
+            context_id as _,
+            user_id as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -275,7 +274,6 @@ impl ContextRepository {
         if context_ids.is_empty() {
             return Ok(0);
         }
-        let ids: Vec<String> = context_ids.iter().map(ToString::to_string).collect();
         let result = sqlx::query!(
             r#"
             DELETE FROM user_contexts uc
@@ -286,9 +284,9 @@ impl ContextRepository {
               AND uc.created_at < NOW() - make_interval(hours => $2::int)
               AND (uc.kind != $3 OR uc.session_id IS NULL)
             "#,
-            &ids,
+            context_ids as _,
             i32::try_from(older_than_hours).unwrap_or(i32::MAX),
-            excluded_kind.as_str()
+            excluded_kind as _
         )
         .execute(&*self.write_pool)
         .await?;

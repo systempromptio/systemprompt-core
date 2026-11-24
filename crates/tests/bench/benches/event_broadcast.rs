@@ -3,9 +3,9 @@ use systemprompt_events::{Broadcaster, GenericBroadcaster};
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId};
 use systemprompt_models::A2AEvent;
 use systemprompt_models::events::payloads::a2a::TaskStatusUpdatePayload;
+use systemprompt_test_fixtures::unique_user_id;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
-use systemprompt_test_fixtures::fixture_user_id;
 
 fn test_event() -> A2AEvent {
     A2AEvent::TaskStatusUpdate {
@@ -29,7 +29,7 @@ fn bench_broadcast(c: &mut Criterion) {
             &conn_count,
             |b, &count| {
                 let broadcaster: GenericBroadcaster<A2AEvent> = GenericBroadcaster::new();
-                let user = fixture_user_id();
+                let user = unique_user_id("event-broadcast");
                 let mut receivers = Vec::new();
 
                 rt.block_on(async {
@@ -41,11 +41,7 @@ fn bench_broadcast(c: &mut Criterion) {
                     }
                 });
 
-                b.iter(|| {
-                    rt.block_on(async {
-                        broadcaster.broadcast(&user, test_event()).await
-                    })
-                });
+                b.iter(|| rt.block_on(async { broadcaster.broadcast(&user, test_event()).await }));
             },
         );
     }
@@ -58,7 +54,7 @@ fn bench_register_unregister(c: &mut Criterion) {
 
     c.bench_function("register_unregister", |b| {
         let broadcaster: GenericBroadcaster<A2AEvent> = GenericBroadcaster::new();
-        let user = fixture_user_id();
+        let user = unique_user_id("event-broadcast");
 
         b.iter(|| {
             rt.block_on(async {

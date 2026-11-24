@@ -4,10 +4,12 @@
 use chrono::Utc;
 use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_logging::LogLevel;
+use systemprompt_models::mcp::McpToolExecutionStatus;
 use systemprompt_runtime::trace::{
     AuditLookupResult, AuditToolCallRow, LevelCount, LinkedMcpCall, LogSearchItem, LogTimeRange,
     ModuleCount, ToolExecutionItem,
 };
+use systemprompt_traits::RequestStatus;
 
 #[test]
 fn level_count_construction() {
@@ -170,7 +172,7 @@ fn audit_lookup_result_construction() {
         cache_creation_tokens: None,
         cost_microdollars: 5,
         latency_ms: Some(300),
-        status: "completed".to_owned(),
+        status: RequestStatus::Completed,
         finish_reason: None,
         error_message: None,
         task_id: None,
@@ -196,7 +198,7 @@ fn audit_lookup_result_with_ids() {
         cache_creation_tokens: None,
         cost_microdollars: 0,
         latency_ms: None,
-        status: "failed".to_owned(),
+        status: RequestStatus::Failed,
         finish_reason: None,
         error_message: Some("stream ended without stop event".to_owned()),
         task_id: Some("task-abc".to_owned().into()),
@@ -226,7 +228,7 @@ fn audit_lookup_result_serialize() {
         cache_creation_tokens: None,
         cost_microdollars: 1,
         latency_ms: None,
-        status: "completed".to_owned(),
+        status: RequestStatus::Completed,
         finish_reason: None,
         error_message: None,
         task_id: None,
@@ -266,11 +268,11 @@ fn linked_mcp_call_construction() {
     let call = LinkedMcpCall {
         tool_name: McpToolName::new("search"),
         server_name: McpServerId::new("brave-search"),
-        status: "success".to_owned(),
+        status: McpToolExecutionStatus::Success,
         execution_time_ms: Some(120),
     };
     assert_eq!(call.tool_name, "search");
-    assert_eq!(call.status, "success");
+    assert_eq!(call.status, McpToolExecutionStatus::Success);
     assert_eq!(call.execution_time_ms, Some(120));
 }
 
@@ -279,7 +281,7 @@ fn linked_mcp_call_no_execution_time() {
     let call = LinkedMcpCall {
         tool_name: McpToolName::new("tool"),
         server_name: McpServerId::new("srv"),
-        status: "pending".to_owned(),
+        status: McpToolExecutionStatus::Pending,
         execution_time_ms: None,
     };
     assert!(call.execution_time_ms.is_none());
@@ -290,7 +292,7 @@ fn linked_mcp_call_clone_and_serialize() {
     let call = LinkedMcpCall {
         tool_name: McpToolName::new("t"),
         server_name: McpServerId::new("s"),
-        status: "ok".to_owned(),
+        status: McpToolExecutionStatus::Success,
         execution_time_ms: Some(50),
     };
     let cloned = call.clone();
@@ -306,11 +308,11 @@ fn tool_execution_item_construction() {
         trace_id: systemprompt_identifiers::TraceId::new("t-trace"),
         tool_name: McpToolName::new("bash"),
         server_name: Some(McpServerId::new("docker-mcp")),
-        status: "success".to_owned(),
+        status: McpToolExecutionStatus::Success,
         execution_time_ms: Some(500),
     };
     assert_eq!(item.tool_name, "bash");
-    assert_eq!(item.status, "success");
+    assert_eq!(item.status, McpToolExecutionStatus::Success);
     assert_eq!(
         item.server_name.as_ref().map(McpServerId::as_str),
         Some("docker-mcp")
@@ -324,7 +326,7 @@ fn tool_execution_item_no_server() {
         trace_id: systemprompt_identifiers::TraceId::new("t2"),
         tool_name: McpToolName::new("read"),
         server_name: None,
-        status: "pending".to_owned(),
+        status: McpToolExecutionStatus::Pending,
         execution_time_ms: None,
     };
     assert!(item.server_name.is_none());
@@ -338,7 +340,7 @@ fn tool_execution_item_clone_and_serialize() {
         trace_id: systemprompt_identifiers::TraceId::new("t3"),
         tool_name: McpToolName::new("list"),
         server_name: None,
-        status: "done".to_owned(),
+        status: McpToolExecutionStatus::Success,
         execution_time_ms: Some(10),
     };
     let cloned = item.clone();

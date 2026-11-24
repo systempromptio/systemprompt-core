@@ -12,7 +12,7 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{TestBootstrap, test_db_pool, unique_user_id};
 
 use crate::harness::{
     bootstrap_with_services, config_with_servers, install_stub_binary, internal_server_block,
@@ -78,7 +78,7 @@ async fn live_server(prefix: &str) -> LiveServer {
         repo.clone(),
         app_paths,
         RegistryService::new(
-            fixture_user_id(),
+            unique_user_id("orchestrator-start-live"),
             crate::harness::services_state().view(),
             crate::harness::config(),
         ),

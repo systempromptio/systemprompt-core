@@ -50,7 +50,9 @@ fn text_outside_the_vocabulary_is_refused() {
     ] {
         assert_eq!(
             text.parse::<ChangeSource>(),
-            Err(ChangeSourceError::Unknown(text.to_owned())),
+            Err(ChangeSourceError::Unknown {
+                text: text.to_owned()
+            }),
             "{text}"
         );
     }
@@ -91,11 +93,17 @@ impl ConfigPlane for FilePlane {
         "services/file_plane.yaml"
     }
 
+    fn requires(&self) -> Vec<systemprompt_provider_contracts::StateRequirement> {
+        Vec::new()
+    }
+
     fn load_declared(&self, _root: &Path) -> ConfigPlaneResult<Option<DeclaredState>> {
-        Ok(Some(DeclaredState::from_entries(BTreeMap::from([
-            ("a".to_owned(), "one".to_owned()),
-            ("b".to_owned(), "two".to_owned()),
-        ]))))
+        Ok(Some(DeclaredState::from_entries(PlaneSnapshot::from(
+            BTreeMap::from([
+                ("a".to_owned(), "one".to_owned()),
+                ("b".to_owned(), "two".to_owned()),
+            ]),
+        ))))
     }
 
     async fn read_current(
@@ -103,7 +111,10 @@ impl ConfigPlane for FilePlane {
         _ctx: &PlaneContext<'_>,
         _tx: &mut PlaneTx<'_>,
     ) -> ConfigPlaneResult<PlaneSnapshot> {
-        Ok(PlaneSnapshot::from([("a".to_owned(), "db".to_owned())]))
+        Ok(PlaneSnapshot::from(BTreeMap::from([(
+            "a".to_owned(),
+            "db".to_owned(),
+        )])))
     }
 
     async fn apply(

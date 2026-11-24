@@ -38,7 +38,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_one(&*self.pool)
         .await
@@ -61,7 +61,7 @@ impl CostAnalyticsRepository {
             "#,
             start,
             end,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_one(&*self.pool)
         .await
@@ -94,7 +94,7 @@ impl CostAnalyticsRepository {
             start,
             end,
             limit,
-            user_id.as_str()
+            user_id as _
         )
         .fetch_all(&*self.pool)
         .await

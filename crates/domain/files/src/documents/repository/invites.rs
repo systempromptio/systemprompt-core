@@ -82,13 +82,13 @@ impl DocumentInviteRepository {
                       expires_at, revoked_at,
                       claimed_by_user_id AS "claimed_by_user_id: UserId", claimed_at
                FROM i"#,
-            invite.document_id.as_str(),
-            invite.email.as_str(),
+            invite.document_id as _,
+            invite.email as _,
             invite.level.as_str(),
             invite.token_hash,
-            invite.actor.user.as_str(),
+            invite.actor.user as _,
             invite.expires_at,
-            invite.actor.trace.as_str(),
+            invite.actor.trace as _,
         )
         .fetch_one(&*self.pools.write)
         .await?
@@ -106,7 +106,7 @@ impl DocumentInviteRepository {
                FROM document_invites
                WHERE document_id = $1::text::uuid
                ORDER BY created_at DESC, id"#,
-            document.as_str(),
+            document as _,
         )
         .fetch_all(&*self.pools.write)
         .await?
@@ -152,10 +152,10 @@ impl DocumentInviteRepository {
                           i.access_level, $3, $4
                    FROM i)
                SELECT COUNT(*) AS "revoked!" FROM i"#,
-            id.as_str(),
-            document.as_str(),
-            actor.user.as_str(),
-            actor.trace.as_str(),
+            id as _,
+            document as _,
+            actor.user as _,
+            actor.trace as _,
         )
         .fetch_one(&*self.pools.write)
         .await?;
@@ -183,9 +183,9 @@ impl DocumentInviteRepository {
                           i.access_level, $2, $3
                    FROM i)
                SELECT COUNT(*) AS "claimed!" FROM i"#,
-            id.as_str(),
-            actor.user.as_str(),
-            actor.trace.as_str(),
+            id as _,
+            actor.user as _,
+            actor.trace as _,
         )
         .fetch_one(&mut *conn)
         .await?;

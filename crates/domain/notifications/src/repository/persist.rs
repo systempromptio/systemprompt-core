@@ -16,9 +16,7 @@
 use std::collections::HashSet;
 
 use sqlx::PgConnection;
-use systemprompt_identifiers::{
-    AgentName, EventOutboxId, NotificationId, NotificationStreamId, UserId,
-};
+use systemprompt_identifiers::{EventOutboxId, NotificationId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use super::NotificationRepository;
@@ -30,12 +28,11 @@ impl NotificationRepository {
         outbox_id: &EventOutboxId,
         recipients: &[UserId],
     ) -> Result<HashSet<UserId>, RepositoryError> {
-        let recipients: Vec<String> = recipients.iter().map(|u| u.as_str().to_owned()).collect();
         Ok(sqlx::query_scalar!(
             r#"SELECT recipient_user_id AS "recipient!: UserId" FROM notification_facts
                WHERE outbox_id = $1 AND recipient_user_id = ANY($2::text[])"#,
-            outbox_id.as_str(),
-            &recipients,
+            outbox_id as _,
+            recipients as _,
         )
         .fetch_all(&mut *conn)
         .await?
@@ -101,17 +98,17 @@ impl NotificationRepository {
                        ELSE notifications.pending_since END
                RETURNING id::text AS "id!: NotificationId", recipient_user_id AS "recipient!: UserId",
                          (xmax = 0) AS "inserted!", delivery_state"#,
-            batch.kind.as_str(),
-            batch.stream.as_ref().map(NotificationStreamId::as_str),
-            batch.actor.as_str(),
+            batch.kind as _,
+            batch.stream as _,
+            batch.actor as _,
             batch.actor_is_agent,
-            batch.via_agent.as_ref().map(AgentName::as_str),
+            batch.via_agent as _,
             serde_json::to_value(&batch.subjects)?,
-            batch.subjects.first().map(|s| s.kind.as_str()),
-            batch.subjects.first().map(|s| s.id.as_str()),
+            batch.subjects.first().map(|s| &s.kind),
+            batch.subjects.first().map(|s| &s.id),
             serde_json::to_value(&batch.action)?,
             batch.event_at,
-            batch.outbox_id.as_str(),
+            batch.outbox_id as _,
             &cols.users,
             &cols.attentions,
             &cols.reasons,
@@ -147,7 +144,7 @@ impl NotificationRepository {
             "INSERT INTO notification_facts (notification_id, outbox_id, recipient_user_id)
              SELECT f.id::uuid, $1, f.recipient FROM UNNEST($2::text[], $3::text[]) AS f(id, recipient)
              ON CONFLICT DO NOTHING",
-            outbox_id.as_str(),
+            outbox_id as _,
             &ids,
             &owners,
         )

@@ -68,7 +68,7 @@ fn unsupported_assembler_version_is_invalid() {
     bundle.assembler_version = "managed-bundle-v0".to_owned();
     assert!(matches!(
         bundle.verify(),
-        Err(RevisionBundleError::Invalid(_))
+        Err(RevisionBundleError::Invalid { .. })
     ));
 }
 
@@ -267,7 +267,7 @@ fn unsupported_revision_schema_is_rejected_until_the_manifest_is_repaired() {
         .verify()
         .expect_err("unknown revision schema must fail closed");
     assert!(
-        matches!(&error, RevisionBundleError::Invalid(message) if message.contains("Unsupported revision manifest")),
+        matches!(&error, RevisionBundleError::Invalid { reason } if reason.contains("Unsupported revision manifest")),
         "{error}"
     );
 
@@ -296,7 +296,7 @@ fn bundle_rejects_the_two_hundred_fifty_seventh_file_before_exposing_any_files()
         .verify()
         .expect_err("257 expanded files exceed the closure bound");
     assert!(
-        matches!(&error, RevisionBundleError::Invalid(message) if message.contains("Bundle exceeds 256 files")),
+        matches!(&error, RevisionBundleError::Invalid { reason } if reason.contains("Bundle exceeds 256 files")),
         "{error}"
     );
     assert!(candidate.revision_files(&candidate.root).is_err());
@@ -381,7 +381,7 @@ fn expanded_content_counts_repeated_assets_per_path_and_enforces_the_eight_mib_b
         .verify()
         .expect_err("8 MiB plus one expanded byte must be rejected");
     assert!(
-        matches!(&error, RevisionBundleError::Invalid(message) if message.contains("Bundle exceeds 8 MiB expanded content")),
+        matches!(&error, RevisionBundleError::Invalid { reason } if reason.contains("Bundle exceeds 8 MiB expanded content")),
         "{error}"
     );
     assert!(candidate.revision_files(&candidate.root).is_err());

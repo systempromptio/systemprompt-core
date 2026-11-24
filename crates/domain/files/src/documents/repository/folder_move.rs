@@ -49,7 +49,7 @@ pub(super) async fn rename_in(
     let renamed = sqlx::query!(
         "UPDATE document_folders SET name = $2, updated_at = now()
              WHERE id = $1::text::uuid AND deleted_at IS NULL",
-        id.as_str(),
+        id as _,
         name,
     )
     .execute(&mut **tx)
@@ -112,7 +112,7 @@ pub(super) async fn relocate_in(
         let chain: Option<Vec<String>> = sqlx::query_scalar!(
             r#"SELECT ancestor_ids::text[] AS "chain!" FROM document_folders
                    WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
-            parent.as_str(),
+            parent as _,
         )
         .fetch_optional(&mut **tx)
         .await?;
@@ -147,8 +147,8 @@ pub(super) async fn relocate_in(
                      SELECT 1 FROM document_folders p
                      WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL
                        AND p.id <> t.id AND NOT (t.id = ANY(p.ancestor_ids))))"#,
-        folder.as_str(),
-        parent.map(DocumentFolderId::as_str),
+        folder as _,
+        parent as _,
     )
     .execute(&mut **tx)
     .await?

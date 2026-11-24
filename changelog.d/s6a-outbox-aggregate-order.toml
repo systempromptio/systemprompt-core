@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Event outbox"
+text = "A durable fact may name the aggregate it belongs to (`DurableOutbox::append_in_order_on`); the claim hands out an aggregate's rows one at a time in append order, under `SKIP LOCKED`. Rows without an aggregate keep `created_at, id` order. Notification facts are keyed by their first subject. Events migration 012 adds `event_outbox.aggregate_key` and `aggregate_seq` (defaulted, metadata-only) and a concurrently built pending index."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Added"
+text = "`DurableOutbox::append_in_order_on` appends a fact in per-aggregate order; claims never hand out a later row of an aggregate while an earlier one is pending or claimed."
+
+[[crate]]
+name = "systemprompt-identifiers"
+section = "Added"
+text = "`OutboxAggregateKey`, and `SessionId::{bot, untracked, is_bot}`."

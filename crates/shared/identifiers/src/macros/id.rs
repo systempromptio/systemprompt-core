@@ -14,9 +14,10 @@
 //! and `Deserialize` and `FromStr` validate.
 //!
 //! The plain and `schema` arms are unvalidated: `new` and `From<String>`
-//! accept anything. They also carry a non-empty `try_new` so edge code can
-//! parse fallibly today; each type moves to the arm its storage shape calls
-//! for (`uuid`, `checked`, `non_empty`) as its call sites are converted.
+//! accept anything. They also carry a non-empty `try_new`, which `FromStr`
+//! runs, so edge code can parse fallibly today; each type moves to the arm its
+//! storage shape calls for (`uuid`, `checked`, `non_empty`) as its call sites
+//! are converted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -58,6 +59,7 @@ macro_rules! define_id {
             }
         }
 
+        $crate::__define_id_from_str!($name);
         $crate::__define_id_common!($name);
     };
 
@@ -211,6 +213,7 @@ macro_rules! define_id {
             }
         }
 
+        $crate::__define_id_from_str!($name);
         $crate::__define_id_common!($name);
     };
 
@@ -259,6 +262,7 @@ macro_rules! define_id {
             }
         }
 
+        $crate::__define_id_from_str!($name);
         $crate::__define_id_common!($name);
     };
 }

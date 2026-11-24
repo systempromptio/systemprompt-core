@@ -560,6 +560,6 @@ async fn provider_refuses_idp_error_and_lost_state() {
         provider
             .finish(denied, Some(SsoStateContext::default()))
             .await,
-        Err(SsoError::InvalidAssertion(_))
+        Err(SsoError::InvalidAssertion { .. })
     ));
 }

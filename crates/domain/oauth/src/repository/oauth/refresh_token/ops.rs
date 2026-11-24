@@ -20,8 +20,6 @@ impl OAuthRepository {
             })?;
         let now = Utc::now();
         let token_id_hash = self.hash_at_rest(params.token_id.as_str())?;
-        let client_id = params.client_id.as_str();
-        let user_id = params.user_id.as_str();
 
         match params.lineage {
             RefreshTokenLineage::Family(family_id) => {
@@ -33,12 +31,12 @@ impl OAuthRepository {
                              (SELECT device_key_id FROM oauth_refresh_tokens
                               WHERE family_id = $7 AND device_key_id IS NOT NULL LIMIT 1))",
                     token_id_hash,
-                    client_id,
-                    user_id,
+                    params.client_id as _,
+                    params.user_id as _,
                     params.scope,
                     expires_at_dt,
                     now,
-                    family_id.as_str(),
+                    family_id as _,
                     params.resource,
                     params.authenticated_at,
                     params.session_started_at
@@ -57,8 +55,8 @@ impl OAuthRepository {
                      WHERE code = $8 AND refresh_token_id = $1
                      FOR UPDATE",
                     token_id_hash,
-                    client_id,
-                    user_id,
+                    params.client_id as _,
+                    params.user_id as _,
                     params.scope,
                     expires_at_dt,
                     now,
@@ -88,7 +86,7 @@ impl OAuthRepository {
         let resource = sqlx::query_scalar!(
             "SELECT resource FROM oauth_refresh_tokens WHERE token_id = $1 AND client_id = $2",
             token_id_hash,
-            client_id.as_str()
+            client_id as _
         )
         .fetch_optional(self.write_pool_ref())
         .await?;
@@ -104,7 +102,7 @@ impl OAuthRepository {
         let device_key = sqlx::query_scalar!(
             "SELECT device_key_id FROM oauth_refresh_tokens WHERE token_id = $1 AND client_id = $2",
             token_id_hash,
-            client_id.as_str()
+            client_id as _
         )
         .fetch_optional(self.write_pool_ref())
         .await?;
@@ -133,7 +131,6 @@ impl OAuthRepository {
     ) -> OauthResult<ConsumedRefreshToken> {
         let now = Utc::now();
         let token_id_hash = self.hash_at_rest(token_id.as_str())?;
-        let client_id_str = client_id.as_str();
 
         let claimed = sqlx::query!(
             "UPDATE oauth_refresh_tokens
@@ -144,7 +141,7 @@ impl OAuthRepository {
              RETURNING user_id, scope, family_id, authenticated_at, session_started_at",
             now,
             token_id_hash,
-            client_id_str
+            client_id as _
         )
         .fetch_optional(self.write_pool_ref())
         .await?;

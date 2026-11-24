@@ -9,7 +9,7 @@ use systemprompt_agent::repository::context::message::{
 };
 use systemprompt_agent::repository::context::{ContextNotificationRepository, ContextRepository};
 use systemprompt_agent::repository::task::{
-    RepoCreateTaskParams, TaskRepository, UpdateTaskAndSaveMessagesParams,
+    ListTasksFilter, RepoCreateTaskParams, TaskRepository, UpdateTaskAndSaveMessagesParams,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
@@ -178,8 +178,18 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
 
     let by_user = repos
         .tasks
-        .get_tasks_by_user_id(&fx.user_id, Some(10), Some(0))
-        .await?;
+        .list_tasks(
+            ListTasksFilter {
+                user_id: &fx.user_id,
+                context_id: None,
+                status: None,
+                status_timestamp_after: None,
+            },
+            None,
+            10,
+        )
+        .await?
+        .items;
     assert!(by_user.iter().any(|t| t.id == t1));
     assert!(by_user.iter().any(|t| t.id == t2));
 

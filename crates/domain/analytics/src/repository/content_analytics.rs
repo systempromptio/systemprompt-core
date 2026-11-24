@@ -97,7 +97,7 @@ impl ContentAnalyticsRepository {
             END) DESC, mc.published_at DESC
             LIMIT $3
             "#,
-            source_id.as_str(),
+            source_id as _,
             days.to_string(),
             limit
         )
@@ -114,7 +114,6 @@ impl ContentAnalyticsRepository {
         limit: i64,
     ) -> std::result::Result<Vec<PopularContentRow>, RepositoryError> {
         let ranked = self.popular_content_ids(source_id, days, limit).await?;
-        let ids: Vec<String> = ranked.iter().map(|id| id.as_str().to_owned()).collect();
         let mut rows = sqlx::query_as!(
             PopularContentRow,
             r#"
@@ -129,7 +128,7 @@ impl ContentAnalyticsRepository {
             FROM report_markdown_content mc
             WHERE mc.id = ANY($1)
             "#,
-            &ids
+            &ranked as _
         )
         .fetch_all(&*self.pool)
         .await?;

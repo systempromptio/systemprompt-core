@@ -79,7 +79,7 @@ async fn shutdown_releases_an_in_flight_run_and_the_next_loop_resumes_it() {
 
     let session = HostSessionId::try_new("session-interrupted").expect("session");
     let row = r.f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "queued");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Queued);
     assert_eq!(row.attempt, 1);
     assert!(row.claimed_by.is_none());
     assert!(row.finished_at.is_none());
@@ -93,7 +93,7 @@ async fn shutdown_releases_an_in_flight_run_and_the_next_loop_resumes_it() {
     let row = wait_for(&r, &id, |row| row.finished_at.is_some()).await;
     shutdown.cancel();
     looping.await.expect("loop joined");
-    assert_eq!(row.status, "succeeded");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Succeeded);
     assert_eq!(row.claimed_by.as_deref(), Some("worker-2"));
     let request: RunRequest = serde_json::from_value(row.request).expect("request");
     assert_eq!(request.resume_session_id, Some(session));
@@ -109,15 +109,21 @@ async fn a_cancel_request_during_a_run_finishes_it_cancelled_even_at_shutdown() 
     claimed.shutdown = shutdown.clone();
     let running = handler(&r, "sleep 30", None).await;
     let task = tokio::spawn(async move { running.run(claimed).await });
-    wait_for(&r, &id, |row| row.status == "running").await;
+    wait_for(&r, &id, |row| {
+        row.status == systemprompt_agent_runs::RunStatus::Running
+    })
+    .await;
 
     r.f.repo.update_cancel_requested(&id).await.expect("cancel");
     shutdown.cancel();
     task.await.expect("join").expect("run");
 
     let row = r.f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "cancelled");
-    assert_eq!(row.error_class.as_deref(), Some("ok"));
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Cancelled);
+    assert_eq!(
+        row.error_class,
+        Some(systemprompt_agent_runs::ErrorClass::Ok)
+    );
     assert!(row.finished_at.is_some());
 }
 
@@ -128,7 +134,10 @@ async fn a_cancel_request_alone_stops_the_host_and_finishes_cancelled() {
     let id = claimed.row.id.clone();
     let running = handler(&r, "sleep 30", None).await;
     let task = tokio::spawn(async move { running.run(claimed).await });
-    wait_for(&r, &id, |row| row.status == "running").await;
+    wait_for(&r, &id, |row| {
+        row.status == systemprompt_agent_runs::RunStatus::Running
+    })
+    .await;
 
     r.f.repo.update_cancel_requested(&id).await.expect("cancel");
     tokio::time::timeout(Duration::from_secs(20), task)
@@ -138,7 +147,7 @@ async fn a_cancel_request_alone_stops_the_host_and_finishes_cancelled() {
         .expect("run");
 
     let row = r.f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "cancelled");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Cancelled);
     assert!(row.finished_at.is_some());
 }
 
@@ -149,7 +158,10 @@ async fn a_handler_whose_lease_was_taken_stops_without_writing() {
     let id = claimed.row.id.clone();
     let running = handler(&r, "sleep 1; echo late; exit 3", None).await;
     let task = tokio::spawn(async move { running.run(claimed).await });
-    wait_for(&r, &id, |row| row.status == "running").await;
+    wait_for(&r, &id, |row| {
+        row.status == systemprompt_agent_runs::RunStatus::Running
+    })
+    .await;
 
     expire_lease(&r.f, &id).await;
     r.f.repo
@@ -170,7 +182,7 @@ async fn a_handler_whose_lease_was_taken_stops_without_writing() {
         "{result:?}"
     );
     let row = r.f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "preparing");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Preparing);
     assert_eq!(row.claimed_by.as_deref(), Some("worker-b"));
     assert_eq!(row.attempt, 2);
     assert!(row.finished_at.is_none());

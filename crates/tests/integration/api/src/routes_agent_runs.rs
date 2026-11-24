@@ -375,6 +375,6 @@ async fn cancelling_a_claimed_run_records_the_request() -> Result<()> {
     assert_eq!(status, StatusCode::ACCEPTED);
     let row = state.runs().find_run(&id).await?.expect("row");
     assert!(row.cancel_requested_at.is_some(), "{row:?}");
-    assert_eq!(row.status, "preparing");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Preparing);
     Ok(())
 }

@@ -15,7 +15,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
-use systemprompt_models::{ExecutionStep, StepId};
+use systemprompt_models::{ExecutionStep, StepId, StepStatus};
 use systemprompt_traits::RepositoryError;
 
 use parse::{ParseStepParams, parse_step};
@@ -34,12 +34,11 @@ impl ExecutionStepRepository {
     }
 
     pub async fn get(&self, step_id: &StepId) -> Result<Option<ExecutionStep>, RepositoryError> {
-        let step_id_str = step_id.as_str();
         let row = sqlx::query!(
-            r#"SELECT step_id, task_id as "task_id!: TaskId", status, content,
+            r#"SELECT step_id, task_id as "task_id!: TaskId", status as "status: StepStatus", content,
                     started_at as "started_at!", completed_at, duration_ms, error_message
                 FROM task_execution_steps WHERE step_id = $1"#,
-            step_id_str
+            step_id as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -70,10 +69,10 @@ impl ExecutionStepRepository {
         task_id: &TaskId,
     ) -> Result<Vec<ExecutionStep>, RepositoryError> {
         let rows = sqlx::query!(
-            r#"SELECT step_id, task_id as "task_id!: TaskId", status, content,
+            r#"SELECT step_id, task_id as "task_id!: TaskId", status as "status: StepStatus", content,
                     started_at as "started_at!", completed_at, duration_ms, error_message
                 FROM task_execution_steps WHERE task_id = $1 ORDER BY started_at ASC"#,
-            task_id.as_str()
+            task_id as _
         )
         .fetch_all(&*self.pool)
         .await?;

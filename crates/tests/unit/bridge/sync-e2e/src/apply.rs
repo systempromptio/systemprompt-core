@@ -34,7 +34,7 @@ use systemprompt_identifiers::HookId;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::hooks::{HookCategory, HookEvent};
 use systemprompt_models::plugin::PluginHooksRef;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use wiremock::matchers::{header, method, path, path_regex};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
@@ -310,6 +310,7 @@ fn run_once_applies_full_manifest_end_to_end() {
         let server = MockServer::start().await;
         crate::mount_profile(&server).await;
 
+        let user_id = unique_user_id("apply");
         let m = SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
             min_bridge_version: None,
@@ -320,10 +321,10 @@ fn run_once_applies_full_manifest_end_to_end() {
             not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
                 .expect("rfc3339")
                 .with_timezone(&chrono::Utc),
-            user_id: fixture_user_id(),
+            user_id: user_id.clone(),
             tenant_id: None,
             user: Some(UserInfo {
-                id: fixture_user_id(),
+                id: user_id,
                 name: "alice".into(),
                 email: "alice@example.com".into(),
                 display_name: Some("Alice".into()),
@@ -505,7 +506,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
             not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
                 .expect("rfc3339")
                 .with_timezone(&chrono::Utc),
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("apply"),
             tenant_id: None,
             user: None,
             plugins: vec![],
@@ -573,7 +574,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
                 .expect("rfc3339")
                 .with_timezone(&chrono::Utc),
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("apply"),
             tenant_id: None,
             user: None,
             plugins: vec![plugin("ghost", vec![("missing.json", PLUGIN_FILE_BODY)])],
@@ -637,7 +638,7 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<HostKind>) -
         not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("apply"),
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -865,7 +866,7 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("apply"),
         tenant_id: None,
         user: None,
         plugins,
@@ -1418,7 +1419,7 @@ fn empty_manifest() -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("apply"),
         tenant_id: None,
         user: None,
         plugins: vec![],

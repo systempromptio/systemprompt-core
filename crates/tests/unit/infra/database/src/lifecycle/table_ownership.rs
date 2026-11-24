@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use systemprompt_database::{
-    DbPool, MigrationConfig, SchemaInstallReport, SchemaMember, SchemaUnit, install_schema_members,
+    DbPool, MigrationConfig, SchemaInstallReport, SchemaMember, SchemaName, SchemaUnit,
+    install_schema_members,
 };
 use systemprompt_extension::{
     ExtensionMetadata, LoaderError, Migration, SchemaDefinition, StandingTag,
@@ -66,7 +67,13 @@ async fn install(
     pool: &DbPool,
     members: Vec<Arc<dyn SchemaMember>>,
 ) -> Result<SchemaInstallReport, LoaderError> {
-    install_schema_members(&members, pool.write(), MigrationConfig::default()).await
+    install_schema_members(
+        &members,
+        pool.write(),
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await
 }
 
 async fn recorded_owner(pool: &DbPool, table: &str) -> Option<String> {

@@ -112,10 +112,13 @@ fn config_load_error_duplicate_external_agent_display() {
 
 #[test]
 fn config_load_error_validation_display() {
-    let err =
-        ConfigLoadError::Validation(ServicesValidationError::port_conflict("port out of range"));
+    let err = ConfigLoadError::Validation(ServicesValidationError::port_conflict(
+        8080,
+        ("agent", "a"),
+        ("agent", "b"),
+    ));
     let msg = err.to_string();
-    assert!(msg.contains("port out of range"));
+    assert!(msg.contains("Port conflict: 8080 used by both agent 'a' and agent 'b'"));
 }
 
 #[test]

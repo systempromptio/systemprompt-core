@@ -21,7 +21,6 @@ pub(super) async fn find_by_id(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<AnalyticsSession>> {
-    let id = session_id.as_str();
     sqlx::query_as!(
         SessionSnapshotRow,
         r#"
@@ -36,7 +35,7 @@ pub(super) async fn find_by_id(
         FROM user_sessions
         WHERE session_id = $1
         "#,
-        id
+        session_id as _
     )
     .fetch_optional(pool)
     .await
@@ -49,7 +48,6 @@ pub(super) async fn find_by_fingerprint(
     fingerprint_hash: &str,
     user_id: &UserId,
 ) -> Result<Option<AnalyticsSession>> {
-    let uid = user_id.as_str();
     sqlx::query_as!(
         SessionSnapshotRow,
         r#"
@@ -67,7 +65,7 @@ pub(super) async fn find_by_fingerprint(
         LIMIT 1
         "#,
         fingerprint_hash,
-        uid
+        user_id as _
     )
     .fetch_optional(pool)
     .await
@@ -79,7 +77,6 @@ pub(super) async fn list_active_by_user(
     pool: &PgPool,
     user_id: &UserId,
 ) -> Result<Vec<AnalyticsSession>> {
-    let uid = user_id.as_str();
     sqlx::query_as!(
         SessionSnapshotRow,
         r#"
@@ -95,7 +92,7 @@ pub(super) async fn list_active_by_user(
         WHERE user_id = $1 AND ended_at IS NULL
         ORDER BY last_activity_at DESC
         "#,
-        uid
+        user_id as _
     )
     .fetch_all(pool)
     .await
@@ -140,7 +137,6 @@ pub(super) async fn find_active_by_id(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<ActiveSessionLookup>> {
-    let id = session_id.as_str();
     sqlx::query_as!(
         ActiveSessionLookup,
         r#"
@@ -148,7 +144,7 @@ pub(super) async fn find_active_by_id(
         FROM user_sessions
         WHERE session_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
         "#,
-        id
+        session_id as _
     )
     .fetch_optional(pool)
     .await

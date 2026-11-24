@@ -113,7 +113,7 @@ impl crate::repository::OAuthRepository {
              created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
             params.id,
-            params.user_id.as_str(),
+            params.user_id as _,
             params.credential_id,
             params.public_key,
             params.display_name,
@@ -131,12 +131,11 @@ impl crate::repository::OAuthRepository {
         &self,
         user_id: &UserId,
     ) -> Result<Vec<WebAuthnCredential>> {
-        let user_id_str = user_id.as_str();
         let rows = sqlx::query!(
             "SELECT id, user_id, credential_id, public_key, display_name, device_type,
                     transports, created_at, last_used_at
              FROM webauthn_credentials WHERE user_id = $1 ORDER BY created_at DESC",
-            user_id_str
+            user_id as _
         )
         .fetch_all(self.write_pool_ref())
         .await?;

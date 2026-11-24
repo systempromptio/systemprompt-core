@@ -12,15 +12,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::SourceId;
 use thiserror::Error;
 
 use crate::dependency_error::MissingDependency;
 
 #[derive(Debug, Error)]
 pub enum ProviderError {
-    #[error("Provider configuration error: {0}")]
-    Configuration(String),
-
     #[error("Provider configuration error: {context}: {source}")]
     ConfigurationLoad {
         context: String,
@@ -39,14 +37,8 @@ pub enum ProviderError {
     #[error(transparent)]
     MissingDependency(#[from] MissingDependency),
 
-    #[error("Resource not found: {0}")]
-    NotFound(String),
-
-    #[error("Invalid input: {0}")]
-    InvalidInput(String),
-
-    #[error("Render failed: {0}")]
-    RenderFailed(String),
+    #[error("Resource not found: Source not found: {source_id}")]
+    SourceNotFound { source_id: SourceId },
 
     #[error("Render failed: {context}: {source}")]
     Rendering {

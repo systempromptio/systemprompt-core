@@ -5,7 +5,7 @@ use systemprompt_ai::models::image_generation::{
     ImageResolution, NewImageGenerationResponse, ReferenceImage,
 };
 use systemprompt_identifiers::{AiRequestId, SessionId, TraceId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 mod image_resolution_tests {
     use super::*;
@@ -84,7 +84,7 @@ mod image_generation_request_tests {
             aspect_ratio: AspectRatio::default(),
             reference_images: Vec::new(),
             enable_search_grounding: false,
-            user_id: fixture_user_id(),
+            user_id: unique_user_id("image-generation"),
             session_id: None,
             trace_id: None,
             mcp_execution_id: None,
@@ -106,6 +106,7 @@ mod image_generation_request_tests {
             description: Some("Reference image".to_string()),
         };
 
+        let user_id = unique_user_id("image-generation");
         let request = ImageGenerationRequest {
             prompt: "Generate like the reference".to_string(),
             model: Some("gemini-pro".to_string()),
@@ -113,7 +114,7 @@ mod image_generation_request_tests {
             aspect_ratio: AspectRatio::Landscape169,
             reference_images: vec![reference],
             enable_search_grounding: true,
-            user_id: fixture_user_id(),
+            user_id: user_id.clone(),
             session_id: Some(SessionId::new("session-456")),
             trace_id: Some(TraceId::new("trace-789")),
             mcp_execution_id: None,
@@ -125,7 +126,7 @@ mod image_generation_request_tests {
         assert_eq!(request.aspect_ratio, AspectRatio::Landscape169);
         assert_eq!(request.reference_images.len(), 1);
         assert!(request.enable_search_grounding);
-        assert_eq!(request.user_id, fixture_user_id());
+        assert_eq!(request.user_id, user_id);
     }
 }
 
@@ -262,7 +263,7 @@ mod generated_image_record_tests {
             aspect_ratio: Some("1:1".to_string()),
             generation_time_ms: Some(500),
             cost_estimate: Some(0.05),
-            user_id: Some(fixture_user_id()),
+            user_id: Some(unique_user_id("image-generation")),
             session_id: Some(SessionId::new("session-456")),
             trace_id: None,
             created_at: chrono::Utc::now(),

@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS logs (
     provider_request_id VARCHAR(255),
     client_id VARCHAR(255),
     instance_id VARCHAR(255),
-    CONSTRAINT log_level_check CHECK (level IN ('ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'))
+    CONSTRAINT log_level_check CHECK (level IN ('ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE')),
+    CONSTRAINT logs_user_id_not_null CHECK (num_nulls(user_id) = 0)
 );
 -- Single-column level/user_id/session_id/context_id/client_id indexes omitted:
 -- each is covered by a (col, timestamp DESC) composite below. See migration 003.

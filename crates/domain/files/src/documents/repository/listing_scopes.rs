@@ -105,7 +105,7 @@ impl DocumentRepository {
                              THEN COALESCE(p.sort_touched, 'epoch'::timestamptz) END DESC,
                         CASE WHEN $3 = 'updated' THEN d.updated_at END DESC,
                         d.id DESC"#,
-            args.caller.as_str(),
+            args.caller as _,
             args.pattern.as_deref(),
             args.sort,
             args.key.at,
@@ -114,7 +114,7 @@ impl DocumentRepository {
             args.limit,
             &args.subjects.kinds,
             &args.subjects.values,
-            folder.as_str(),
+            folder as _,
         )
         .fetch_all(self.pools.authz())
         .await?)

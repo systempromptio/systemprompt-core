@@ -118,7 +118,7 @@ impl NotificationSubscriptionRepository {
                           digest AS "digest: Json<DigestWindow>", source
                    FROM notification_subscriptions WHERE target_stream = $1
                    ORDER BY created_at, id"#,
-                stream.as_str()
+                stream as _
             )
             .fetch_all(executor)
             .await?,

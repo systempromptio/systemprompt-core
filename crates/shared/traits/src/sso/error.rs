@@ -5,6 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::SsoProviderId;
+
 use crate::BoxedSource;
 
 use super::SsoRefusal;
@@ -12,14 +14,14 @@ use super::SsoRefusal;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum SsoError {
-    #[error("SSO provider unavailable: {0}")]
-    Unavailable(String),
+    #[error("SSO provider unavailable: no SSO provider '{provider}'")]
+    Unavailable { provider: SsoProviderId },
     #[error("SSO state missing, expired or already used")]
     StateLost,
     #[error("Unsolicited SSO response not allowed")]
     UnsolicitedNotAllowed,
-    #[error("Invalid SSO assertion: {0}")]
-    InvalidAssertion(String),
+    #[error("Invalid SSO assertion: {reason}")]
+    InvalidAssertion { reason: &'static str },
     #[error("SSO assertion replayed")]
     Replayed,
     #[error("SSO assertion carries no subject")]
@@ -40,11 +42,11 @@ impl SsoError {
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
-            Self::Unavailable(_) => "unavailable",
+            Self::Unavailable { .. } => "unavailable",
             Self::Internal(_) => "error",
             Self::NoSubject => "no_subject",
             Self::StateLost | Self::UnsolicitedNotAllowed => "correlation_lost",
-            Self::InvalidAssertion(_) | Self::Replayed => "invalid_assertion",
+            Self::InvalidAssertion { .. } | Self::Replayed => "invalid_assertion",
             Self::NoEmail => "no_email",
             Self::Refused(SsoRefusal::DomainNotAllowed) => "forbidden",
             Self::Refused(SsoRefusal::GroupOverage) => "group_overage",

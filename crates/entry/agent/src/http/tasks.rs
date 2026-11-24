@@ -94,8 +94,9 @@ pub async fn list_tasks_by_user(
         status_timestamp_after: None,
     };
     let tasks = task_repo
-        .list_tasks(filter, i64::from(clamp_page_limit(params.limit)), 0)
-        .await?;
+        .list_tasks(filter, None, usize::from(clamp_page_limit(params.limit)))
+        .await?
+        .items;
 
     tracing::debug!(user_id = %user_id, count = %tasks.len(), "Tasks listed");
     Ok((StatusCode::OK, Json(tasks)))

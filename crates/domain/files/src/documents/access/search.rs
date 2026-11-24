@@ -32,6 +32,13 @@ pub struct SubjectSearch {
     pub matches: Vec<SubjectMatch>,
 }
 
+impl SubjectSearch {
+    #[must_use]
+    pub fn is_user(&self) -> bool {
+        self.kind == USER_KIND
+    }
+}
+
 /// The outcome of checking a subject value against its kind.
 ///
 /// `Unenumerable` is a dimension whose provider cannot list its values, so the

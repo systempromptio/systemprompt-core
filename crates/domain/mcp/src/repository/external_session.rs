@@ -28,8 +28,8 @@ impl McpProxySessionRepository {
                WHERE server_name = $1 AND session_id = $2 AND user_id = $3
                  AND credential_hash = $4 AND expires_at > NOW()"#,
             binding.server,
-            binding.session_id.as_str(),
-            binding.user_id.as_str(),
+            binding.session_id as _,
+            binding.user_id as _,
             binding.credential_hash,
         )
         .execute(&*self.write_pool)
@@ -51,8 +51,8 @@ impl McpProxySessionRepository {
                   OR (mcp_external_sessions.user_id = EXCLUDED.user_id
                       AND mcp_external_sessions.credential_hash = EXCLUDED.credential_hash)"#,
             binding.server,
-            binding.session_id.as_str(),
-            binding.user_id.as_str(),
+            binding.session_id as _,
+            binding.user_id as _,
             binding.credential_hash,
         )
         .execute(&*self.write_pool)
@@ -67,7 +67,7 @@ impl McpProxySessionRepository {
         sqlx::query!(
             r#"DELETE FROM mcp_external_sessions
                WHERE server_name = $1 AND session_id = $2 AND user_id = $3 AND credential_hash = $4"#,
-            binding.server, binding.session_id.as_str(), binding.user_id.as_str(), binding.credential_hash,
+            binding.server, binding.session_id as _, binding.user_id as _, binding.credential_hash,
         ).execute(&*self.write_pool).await?;
         Ok(())
     }

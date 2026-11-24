@@ -24,8 +24,8 @@ use super::{
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum TokenError {
-    #[error("token `kid` `{0}` does not match any known signing key")]
-    UnknownKid(String),
+    #[error("token `kid` `{kid}` does not match any known signing key")]
+    UnknownKid { kid: String },
 
     #[error("token signed with `{got}`; only RS256 is accepted")]
     UnsupportedAlgorithm { got: String },

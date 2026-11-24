@@ -67,7 +67,9 @@ impl ContextProvider for ContextProviderService {
             .await
             .map_err(|e| match e {
                 systemprompt_traits::RepositoryError::NotFound { .. } => {
-                    ContextProviderError::NotFound(format!("Context {context_id} not found"))
+                    ContextProviderError::NotFound {
+                        context_id: context_id.clone(),
+                    }
                 },
                 other => ContextProviderError::Database(other.into()),
             })?;
@@ -107,7 +109,9 @@ impl ContextProvider for ContextProviderService {
             .await
             .map_err(|e| match e {
                 systemprompt_traits::RepositoryError::NotFound { .. } => {
-                    ContextProviderError::NotFound(format!("Context {context_id} not found"))
+                    ContextProviderError::NotFound {
+                        context_id: context_id.clone(),
+                    }
                 },
                 other => ContextProviderError::Database(other.into()),
             })
@@ -123,7 +127,9 @@ impl ContextProvider for ContextProviderService {
             .await
             .map_err(|e| match e {
                 systemprompt_traits::RepositoryError::NotFound { .. } => {
-                    ContextProviderError::NotFound(format!("Context {context_id} not found"))
+                    ContextProviderError::NotFound {
+                        context_id: context_id.clone(),
+                    }
                 },
                 other => ContextProviderError::Database(other.into()),
             })

@@ -16,7 +16,9 @@ impl HeaderSource {
     ) -> Result<String, ContextExtractionError> {
         headers
             .get(name)
-            .ok_or_else(|| ContextExtractionError::MissingHeader(name.to_owned()))?
+            .ok_or_else(|| ContextExtractionError::MissingHeader {
+                header: name.to_owned(),
+            })?
             .to_str()
             .map(str::to_owned)
             .map_err(

@@ -27,9 +27,6 @@ pub enum ExtensionStateError {
 
 #[derive(Debug, Error)]
 pub enum ExtensionConfigError {
-    #[error("Configuration key '{0}' not found")]
-    NotFound(String),
-
     #[error("Invalid configuration value for '{key}': {message}")]
     InvalidValue { key: String, message: String },
 

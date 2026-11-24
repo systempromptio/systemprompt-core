@@ -20,10 +20,6 @@ impl DocumentGrantRepository {
         folder_ancestors: &[DocumentFolderId],
         subjects: &[SubjectPairs],
     ) -> RepoResult<Vec<Option<AccessLevel>>> {
-        let folders: Vec<String> = folder_ancestors
-            .iter()
-            .map(|id| id.as_str().to_owned())
-            .collect();
         let mut owners: Vec<i32> = Vec::new();
         let mut kinds: Vec<String> = Vec::new();
         let mut values: Vec<String> = Vec::new();
@@ -46,8 +42,8 @@ impl DocumentGrantRepository {
                WHERE (g.document_id = $1::text::uuid OR g.folder_id = ANY($2::text[]::uuid[]))
                  AND (g.valid_until IS NULL OR g.valid_until > now())
                GROUP BY p.owner"#,
-            document_id.as_str(),
-            &folders,
+            document_id as _,
+            folder_ancestors as _,
             &owners,
             &kinds,
             &values,

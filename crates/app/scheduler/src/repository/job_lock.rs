@@ -132,10 +132,9 @@ impl JobLockRepository {
         &self,
         names: &[JobName],
     ) -> SchedulerResult<Vec<(JobName, i64)>> {
-        let raw: Vec<String> = names.iter().map(|n| n.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT name AS "name!", hashtext(name)::bigint AS "key!" FROM unnest($1::text[]) AS name"#,
-            &raw
+            names as _
         )
         .fetch_all(&*self.session_pool)
         .await
@@ -166,13 +165,10 @@ impl JobLockRepository {
 }
 
 async fn derive_key(conn: &mut sqlx::PgConnection, job_name: &JobName) -> SchedulerResult<i64> {
-    sqlx::query_scalar!(
-        r#"SELECT hashtext($1)::bigint AS "key!""#,
-        job_name.as_str()
-    )
-    .fetch_one(conn)
-    .await
-    .map_err(lock_error)
+    sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, job_name as _)
+        .fetch_one(conn)
+        .await
+        .map_err(lock_error)
 }
 
 fn lock_error(err: sqlx::Error) -> SchedulerError {

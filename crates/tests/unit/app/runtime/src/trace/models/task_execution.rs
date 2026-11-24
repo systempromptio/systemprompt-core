@@ -2,6 +2,8 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::{AgentName, ContextId, ExecutionStepId, McpServerId, McpToolName};
+use systemprompt_models::mcp::McpToolExecutionStatus;
+use systemprompt_models::{StepStatus, TaskState};
 use systemprompt_runtime::{AiRequestInfo, ExecutionStep, McpToolExecution, TaskInfo};
 
 const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
@@ -12,7 +14,7 @@ fn test_task_info_creation() {
         task_id: "task-123".to_string().into(),
         context_id: ContextId::try_new(TEST_CTX).expect("valid ContextId"),
         agent_name: Some(AgentName::new("test-agent")),
-        status: "completed".to_string(),
+        status: TaskState::Completed,
         created_at: Utc::now(),
         started_at: Some(Utc::now()),
         completed_at: Some(Utc::now()),
@@ -23,7 +25,7 @@ fn test_task_info_creation() {
     assert_eq!(task.task_id, "task-123");
     assert_eq!(task.context_id.as_str(), TEST_CTX);
     assert_eq!(task.agent_name, Some(AgentName::new("test-agent")));
-    assert_eq!(task.status, "completed");
+    assert_eq!(task.status, TaskState::Completed);
     task.execution_time_ms
         .expect("task.execution_time_ms should be present");
 }
@@ -34,7 +36,7 @@ fn test_task_info_minimal() {
         task_id: "task-min".to_string().into(),
         context_id: ContextId::try_new(TEST_CTX).expect("valid ContextId"),
         agent_name: None,
-        status: "pending".to_string(),
+        status: TaskState::Submitted,
         created_at: Utc::now(),
         started_at: None,
         completed_at: None,
@@ -53,7 +55,7 @@ fn test_task_info_with_error() {
         task_id: "task-err".to_string().into(),
         context_id: ContextId::try_new(TEST_CTX).expect("valid ContextId"),
         agent_name: Some(AgentName::new("error-agent")),
-        status: "failed".to_string(),
+        status: TaskState::Failed,
         created_at: Utc::now(),
         started_at: Some(Utc::now()),
         completed_at: Some(Utc::now()),
@@ -61,7 +63,7 @@ fn test_task_info_with_error() {
         error_message: Some("Task failed due to timeout".to_string()),
     };
 
-    assert_eq!(task.status, "failed");
+    assert_eq!(task.status, TaskState::Failed);
     task.error_message
         .as_ref()
         .expect("task.error_message should be present");
@@ -74,7 +76,7 @@ fn test_task_info_serialize() {
         task_id: "ser".to_string().into(),
         context_id: ContextId::try_new(TEST_CTX).expect("valid ContextId"),
         agent_name: None,
-        status: "pending".to_string(),
+        status: TaskState::Submitted,
         created_at: Utc::now(),
         started_at: None,
         completed_at: None,
@@ -84,7 +86,7 @@ fn test_task_info_serialize() {
 
     let json = serde_json::to_string(&task).unwrap();
     assert!(json.contains("task_id"));
-    assert!(json.contains("pending"));
+    assert!(json.contains("TASK_STATE_SUBMITTED"));
 }
 
 #[test]
@@ -93,7 +95,7 @@ fn test_execution_step_creation() {
         step_id: ExecutionStepId::new("step-123"),
         step_type: Some("analysis".to_string()),
         title: Some("Analyze input".to_string()),
-        status: "completed".to_string(),
+        status: StepStatus::Completed,
         duration_ms: Some(1500),
         error_message: None,
     };
@@ -101,7 +103,7 @@ fn test_execution_step_creation() {
     assert_eq!(step.step_id.as_str(), "step-123");
     assert_eq!(step.step_type, Some("analysis".to_string()));
     assert_eq!(step.title, Some("Analyze input".to_string()));
-    assert_eq!(step.status, "completed");
+    assert_eq!(step.status, StepStatus::Completed);
     assert_eq!(step.duration_ms, Some(1500));
 }
 
@@ -111,7 +113,7 @@ fn test_execution_step_minimal() {
         step_id: ExecutionStepId::new("step-min"),
         step_type: None,
         title: None,
-        status: "pending".to_string(),
+        status: StepStatus::Pending,
         duration_ms: None,
         error_message: None,
     };
@@ -127,12 +129,12 @@ fn test_execution_step_with_error() {
         step_id: ExecutionStepId::new("step-err"),
         step_type: Some("processing".to_string()),
         title: Some("Process data".to_string()),
-        status: "failed".to_string(),
+        status: StepStatus::Failed,
         duration_ms: Some(500),
         error_message: Some("Processing error occurred".to_string()),
     };
 
-    assert_eq!(step.status, "failed");
+    assert_eq!(step.status, StepStatus::Failed);
     step.error_message
         .expect("step.error_message should be present");
 }
@@ -143,7 +145,7 @@ fn test_execution_step_serialize() {
         step_id: ExecutionStepId::new("ser"),
         step_type: None,
         title: None,
-        status: "pending".to_string(),
+        status: StepStatus::Pending,
         duration_ms: None,
         error_message: None,
     };
@@ -215,7 +217,7 @@ fn test_mcp_tool_execution_creation() {
         mcp_execution_id: "exec-123".to_string().into(),
         tool_name: McpToolName::new("file_reader"),
         server_name: McpServerId::new("filesystem"),
-        status: "success".to_string(),
+        status: McpToolExecutionStatus::Success,
         execution_time_ms: Some(250),
         error_message: None,
         input: r#"{"path": "/tmp/test.txt"}"#.to_string(),
@@ -225,7 +227,7 @@ fn test_mcp_tool_execution_creation() {
     assert_eq!(exec.mcp_execution_id, "exec-123");
     assert_eq!(exec.tool_name, "file_reader");
     assert_eq!(exec.server_name, "filesystem");
-    assert_eq!(exec.status, "success");
+    assert_eq!(exec.status, McpToolExecutionStatus::Success);
     exec.output.expect("exec.output should be present");
 }
 
@@ -235,14 +237,14 @@ fn test_mcp_tool_execution_with_error() {
         mcp_execution_id: "exec-err".to_string().into(),
         tool_name: McpToolName::new("database_query"),
         server_name: McpServerId::new("postgres"),
-        status: "error".to_string(),
+        status: McpToolExecutionStatus::Failed,
         execution_time_ms: Some(100),
         error_message: Some("Connection refused".to_string()),
         input: r#"{"query": "SELECT *"}"#.to_string(),
         output: None,
     };
 
-    assert_eq!(exec.status, "error");
+    assert_eq!(exec.status, McpToolExecutionStatus::Failed);
     exec.error_message
         .expect("exec.error_message should be present");
     assert!(exec.output.is_none());
@@ -254,7 +256,7 @@ fn test_mcp_tool_execution_serialize() {
         mcp_execution_id: "ser".to_string().into(),
         tool_name: McpToolName::new("tool"),
         server_name: McpServerId::new("server"),
-        status: "pending".to_string(),
+        status: McpToolExecutionStatus::Pending,
         execution_time_ms: None,
         error_message: None,
         input: "{}".to_string(),

@@ -5,7 +5,7 @@
 
 use systemprompt_files::{FileMetadata, InsertFileRequest};
 use systemprompt_identifiers::{FileId, SessionId, TraceId};
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 #[test]
 fn test_insert_file_request_new() {
@@ -101,12 +101,12 @@ fn test_insert_file_request_with_metadata() {
 #[test]
 fn test_insert_file_request_with_user_id() {
     let file_id = FileId::generate();
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("file");
     let request =
-        InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_user_id(user_id);
+        InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_user_id(user_id.clone());
 
     request.user_id.as_ref().expect("user_id should be present");
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
+    assert_eq!(request.user_id.as_ref(), Some(&user_id));
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn test_insert_file_request_with_trace_id() {
 #[test]
 fn test_insert_file_request_builder_chain() {
     let file_id = FileId::generate();
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("file");
     let session_id = SessionId::new("sess_456");
     let trace_id = TraceId::new("trace_789");
     let metadata: FileMetadata =
@@ -183,7 +183,7 @@ fn test_insert_file_request_partial_builder() {
 
     let request = InsertFileRequest::new(file_id, "/path", "/url", "application/pdf")
         .with_size(1024)
-        .with_user_id(fixture_user_id());
+        .with_user_id(unique_user_id("file"));
 
     assert_eq!(request.size_bytes, Some(1024));
     request.user_id.as_ref().expect("user_id should be present");

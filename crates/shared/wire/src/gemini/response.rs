@@ -39,25 +39,6 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     }
 }
 
-#[must_use]
-pub(super) fn empty_terminal_message(finish: &str, finish_message: Option<&str>) -> String {
-    finish_message
-        .map(str::trim)
-        .filter(|m| !m.is_empty())
-        .map_or_else(
-            || format!("upstream finished with {finish}"),
-            |detail| format!("upstream finished with {finish}: {detail}"),
-        )
-}
-
-#[must_use]
-pub(super) fn blocked_prompt_message(reason: &str, detail: Option<&str>) -> String {
-    detail.map(str::trim).filter(|m| !m.is_empty()).map_or_else(
-        || format!("upstream blocked the prompt: {reason}"),
-        |detail| format!("upstream blocked the prompt: {reason}: {detail}"),
-    )
-}
-
 pub fn parse_response(
     // JSON: Gemini `generateContent` response body; upstream JSON is the contract.
     value: &Value,
@@ -83,9 +64,7 @@ pub fn parse_response(
             .prompt_feedback
             .as_ref()
             .and_then(|f| f.block_reason_message.as_deref());
-        return Err(WireParseError::EmptyTerminal(blocked_prompt_message(
-            reason, detail,
-        )));
+        return Err(WireParseError::prompt_blocked(reason, detail));
     }
     let candidate = parsed.candidates.into_iter().next();
     let raw_finish_reason = candidate.as_ref().and_then(|c| c.finish_reason.clone());
@@ -103,10 +82,10 @@ pub fn parse_response(
         && reason.empty_terminal_is_error()
         && content.is_empty()
     {
-        return Err(WireParseError::EmptyTerminal(empty_terminal_message(
+        return Err(WireParseError::empty_terminal(
             finish,
             finish_message.as_deref(),
-        )));
+        ));
     }
 
     // Why: Gemini reports `finishReason: STOP` even for a `functionCall` candidate.

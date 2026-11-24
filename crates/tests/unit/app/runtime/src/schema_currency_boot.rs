@@ -6,7 +6,9 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::{Database, MigrationService, SchemaInstallReport, schema_members};
+use systemprompt_database::{
+    Database, MigrationService, SchemaInstallReport, SchemaName, schema_members,
+};
 use systemprompt_extension::{
     Admitted, ContributionError, Contributions, Extension, ExtensionMetadata, Migration,
     SchemaDefinition,
@@ -14,7 +16,7 @@ use systemprompt_extension::{
 use systemprompt_manifest::Profile;
 use systemprompt_runtime::schema_currency::{recheck, refuse_breaking};
 use systemprompt_runtime::{RuntimeError, SchemaState, assert_schema_current};
-use systemprompt_test_fixtures::fixture_admitted_of;
+use systemprompt_test_fixtures::{ScratchSchema, fixture_admitted_of};
 
 use crate::boot::{BootOptions, boot};
 
@@ -52,6 +54,8 @@ impl Extension for CurrencyExt {
 }
 
 struct Fixture {
+    scratch: ScratchSchema,
+    target: SchemaName,
     db: Arc<Database>,
     id: &'static str,
     table: &'static str,
@@ -120,33 +124,21 @@ impl Fixture {
         self._boot.boot.profile()
     }
 
-    async fn cleanup(&self) {
-        let pool = self.db.pool();
-        let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-            .bind(self.id)
-            .execute(pool.as_ref())
-            .await;
-        let _ = sqlx::query("DELETE FROM extension_migration_compat WHERE extension_id = $1")
-            .bind(self.id)
-            .execute(pool.as_ref())
-            .await;
-        let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-            "DROP TABLE IF EXISTS {}",
-            self.table
-        )))
-        .execute(pool.as_ref())
-        .await;
+    async fn cleanup(self) {
+        self.scratch.drop_now().await;
     }
 }
 
 async fn fixture() -> Fixture {
     let boot = boot(&BootOptions::default());
-    let db = Database::new_postgres(&boot.database_url)
-        .await
-        .expect("connect to test postgres");
+    let scratch = ScratchSchema::create("currency_boot").await;
+    let target = scratch.schema_name();
+    let db = scratch.db_pool().await;
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     Fixture {
-        db: Arc::new(db),
+        scratch,
+        target,
+        db,
         id: leak(format!("currency-boot-{suffix}")),
         table: leak(format!("currency_boot_{suffix}")),
         _boot: boot,
@@ -158,7 +150,7 @@ async fn an_uninstalled_extension_refuses_the_boot_as_fresh() {
     let f = fixture().await;
     let admitted = f.admitted(vec![f.create()]);
 
-    let err = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let err = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect_err("a never-installed extension is behind");
     match err {
@@ -175,6 +167,7 @@ async fn an_uninstalled_extension_refuses_the_boot_as_fresh() {
         },
         other => panic!("expected SchemaBehind, got {other:?}"),
     }
+    f.cleanup().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -183,7 +176,7 @@ async fn a_pending_migration_refuses_the_boot_and_names_it() {
     f.migrate(vec![f.create()]).await;
     let admitted = f.admitted(vec![f.create(), f.expand()]);
 
-    let err = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let err = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect_err("an unapplied migration is behind");
     match err {
@@ -203,7 +196,7 @@ async fn an_edited_applied_migration_refuses_the_boot_as_drift() {
     let edited = Migration::new(1, "create", "SELECT 1;");
     let admitted = f.admitted(vec![edited]);
 
-    let err = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let err = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect_err("a changed checksum is drift");
     match err {
@@ -222,7 +215,7 @@ async fn a_current_schema_boots_with_nothing_ahead() {
     f.migrate(vec![f.create()]).await;
     let admitted = f.admitted(vec![f.create()]);
 
-    let ahead = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let ahead = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect("an up-to-date schema is current");
     assert!(ahead.is_empty());
@@ -235,7 +228,7 @@ async fn an_ahead_additive_migration_is_served_and_reported() {
     f.migrate(vec![f.create(), f.expand()]).await;
     let admitted = f.admitted(vec![f.create()]);
 
-    let ahead = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let ahead = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect("an ahead additive schema is serviceable");
     assert_eq!(ahead.len(), 1);
@@ -252,7 +245,7 @@ async fn drift_under_an_ahead_extension_is_left_to_the_newer_release() {
     f.migrate(vec![f.create(), f.expand()]).await;
     let admitted = f.admitted(vec![Migration::new(1, "create", "SELECT 1;")]);
 
-    let ahead = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let ahead = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect("superseded drift does not fail the boot");
     assert_eq!(ahead.len(), 1);
@@ -265,7 +258,7 @@ async fn an_ahead_breaking_migration_refuses_the_boot() {
     f.migrate(vec![f.create(), f.contract()]).await;
     let admitted = f.admitted(vec![f.create()]);
 
-    let err = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let err = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect_err("a contracted schema cannot be served by the older binary");
     match err {
@@ -286,7 +279,7 @@ async fn refuse_breaking_passes_an_additive_ahead_set() {
     let f = fixture().await;
     f.migrate(vec![f.create(), f.expand()]).await;
     let admitted = f.admitted(vec![f.create()]);
-    let ahead = assert_schema_current(admitted.built(), f.db.write(), f.profile())
+    let ahead = assert_schema_current(admitted.built(), f.db.write(), &f.target, f.profile())
         .await
         .expect("additive ahead");
 
@@ -302,13 +295,13 @@ async fn recheck_picks_up_a_migration_applied_after_boot() {
     let admitted = f.admitted(vec![f.create()]);
     let state = SchemaState::from(SchemaInstallReport::default());
 
-    recheck(admitted.built(), f.db.write(), &state)
+    recheck(admitted.built(), f.db.write(), &f.target, &state)
         .await
         .expect("recheck of a current schema");
     assert!(state.ahead().is_empty());
 
     f.migrate(vec![f.create(), f.expand()]).await;
-    recheck(admitted.built(), f.db.write(), &state)
+    recheck(admitted.built(), f.db.write(), &f.target, &state)
         .await
         .expect("recheck sees the newer migration");
     let ahead = state.ahead();
@@ -316,7 +309,7 @@ async fn recheck_picks_up_a_migration_applied_after_boot() {
     assert_eq!(ahead[0].version, 2);
     assert!(!state.breaks_this_release());
 
-    recheck(admitted.built(), f.db.write(), &state)
+    recheck(admitted.built(), f.db.write(), &f.target, &state)
         .await
         .expect("an unchanged ahead set rechecks quietly");
     assert_eq!(state.ahead(), ahead);
@@ -331,7 +324,7 @@ async fn recheck_marks_the_node_unready_on_a_contract_migration() {
     let state = SchemaState::from(SchemaInstallReport::default());
 
     f.migrate(vec![f.create(), f.contract()]).await;
-    recheck(admitted.built(), f.db.write(), &state)
+    recheck(admitted.built(), f.db.write(), &f.target, &state)
         .await
         .expect("recheck sees the contract migration");
     assert!(state.breaks_this_release());

@@ -10,6 +10,8 @@ use systemprompt_identifiers::{
     AiRequestId, ArtifactId, McpExecutionId, McpServerId, McpToolName, TaskId, TraceId,
 };
 use systemprompt_logging::LogLevel;
+use systemprompt_models::mcp::McpToolExecutionStatus;
+use systemprompt_traits::RequestStatus;
 
 #[derive(Debug, Clone)]
 pub struct ToolExecutionFilter {
@@ -49,7 +51,7 @@ pub struct ToolExecutionItem {
     pub trace_id: TraceId,
     pub tool_name: McpToolName,
     pub server_name: Option<McpServerId>,
-    pub status: String,
+    pub status: McpToolExecutionStatus,
     pub execution_time_ms: Option<i32>,
 }
 
@@ -66,7 +68,7 @@ pub struct AuditLookupResult {
     pub reasoning_tokens: Option<i32>,
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
-    pub status: String,
+    pub status: RequestStatus,
     pub finish_reason: Option<String>,
     pub error_message: Option<String>,
     pub task_id: Option<TaskId>,
@@ -84,7 +86,7 @@ pub struct AuditToolCallRow {
 pub struct LinkedMcpCall {
     pub tool_name: McpToolName,
     pub server_name: McpServerId,
-    pub status: String,
+    pub status: McpToolExecutionStatus,
     pub execution_time_ms: Option<i32>,
 }
 
@@ -93,7 +95,7 @@ pub struct McpToolExecution {
     pub mcp_execution_id: McpExecutionId,
     pub tool_name: McpToolName,
     pub server_name: McpServerId,
-    pub status: String,
+    pub status: McpToolExecutionStatus,
     pub execution_time_ms: Option<i32>,
     pub error_message: Option<String>,
     pub input: String,

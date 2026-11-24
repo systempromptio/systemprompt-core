@@ -3,9 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::Serialize;
+use std::fmt;
+use std::sync::Arc;
+
+use serde::{Serialize, Serializer};
 use systemprompt_provider_contracts::{ApplyOutcome, DriftRow, PlaneEffect};
 use systemprompt_runtime::EffectiveAuthority;
+
+use crate::error::SchedulerError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReconcileTrigger {
@@ -19,6 +24,7 @@ pub enum PlaneOutcome {
     InSync,
     DriftReported,
     Undeclared,
+    Unavailable,
     Failed,
 }
 
@@ -29,9 +35,54 @@ impl PlaneOutcome {
             Self::InSync => "in_sync",
             Self::DriftReported => "drift_reported",
             Self::Undeclared => "undeclared",
+            Self::Unavailable => "unavailable",
             Self::Failed => "failed",
         }
     }
+}
+
+/// Why a plane was not reconciled: a requirement the host does not provide
+/// (the plane is [`PlaneOutcome::Unavailable`]) or the error its read failed
+/// with ([`PlaneOutcome::Failed`]). It is rendered only where it leaves the
+/// process: the CLI, the HTTP probe and `config_plane_state.last_error`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "reason", rename_all = "snake_case")]
+pub enum PlaneFailure {
+    UnmetRequirement {
+        requirement: &'static str,
+    },
+    Failed {
+        #[serde(serialize_with = "display")]
+        error: Arc<SchedulerError>,
+    },
+}
+
+impl PlaneFailure {
+    #[must_use]
+    pub const fn outcome(&self) -> PlaneOutcome {
+        match self {
+            Self::UnmetRequirement { .. } => PlaneOutcome::Unavailable,
+            Self::Failed { .. } => PlaneOutcome::Failed,
+        }
+    }
+}
+
+impl fmt::Display for PlaneFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnmetRequirement { requirement } => {
+                write!(
+                    f,
+                    "requires {requirement}, which this host does not provide"
+                )
+            },
+            Self::Failed { error } => error.fmt(f),
+        }
+    }
+}
+
+fn display<S: Serializer>(error: &Arc<SchedulerError>, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.collect_str(error)
 }
 
 /// One plane's result in a reconcile pass.
@@ -45,7 +96,7 @@ pub struct PlaneReport {
     pub declared_hash: Option<String>,
     pub drift_rows: usize,
     pub outcome: PlaneOutcome,
-    pub error: Option<String>,
+    pub failure: Option<PlaneFailure>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]

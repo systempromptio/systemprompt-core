@@ -206,7 +206,9 @@ async fn a_source_error_mid_stream_cancels_and_surfaces_it() {
     let body = stream_of(vec![
         Ok(Bytes::from(vec![b'a'; CHUNK])),
         Ok(Bytes::from(vec![b'b'; CHUNK])),
-        Err(FileStorageError::Validation("broken source".to_owned())),
+        Err(FileStorageError::Validation(
+            systemprompt_traits::StorageValidation::EmptyPath,
+        )),
     ]);
     let error = storage(&server)
         .store_stream(Path::new("big.bin"), body)

@@ -25,6 +25,7 @@ use systemprompt_identifiers::ExtensionId;
 use super::extension::ownership::recorded_table_owners;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use crate::lifecycle::schema_member::SchemaMember;
+use crate::lifecycle::schema_name::SchemaName;
 use crate::services::DatabaseProvider;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -73,8 +74,9 @@ pub async fn audit_schema_residue(
     db: &dyn DatabaseProvider,
     owned: &[String],
     extension_ids: &[ExtensionId],
+    target: &SchemaName,
 ) -> Result<SchemaResidue, LoaderError> {
-    let declared: BTreeSet<String> = owned.iter().map(|t| qualify(t)).collect();
+    let declared: BTreeSet<String> = owned.iter().map(|t| target.qualify(t)).collect();
     let namespaces: BTreeSet<String> = declared
         .iter()
         .filter_map(|t| t.split_once('.').map(|(schema, _)| schema.to_owned()))
@@ -87,7 +89,12 @@ pub async fn audit_schema_residue(
         if !namespaces.contains(&schema) || declared.contains(&qualified) {
             continue;
         }
-        match table_owners.owner_of(&qualified) {
+        let recorded_name = if schema == target.as_str() {
+            table.as_str()
+        } else {
+            qualified.as_str()
+        };
+        match table_owners.owner_of(recorded_name) {
             Some(table_owner) if !registered.contains(table_owner) => {
                 residue.absent_member_tables.push(AbsentMemberTable {
                     owner: table_owner.clone(),
@@ -177,6 +184,7 @@ pub(super) async fn residue_including(
     db: &dyn DatabaseProvider,
     prepared: &[PreparedSchema],
     held_back: &[std::sync::Arc<dyn SchemaMember>],
+    target: &SchemaName,
 ) -> Result<SchemaResidue, LoaderError> {
     let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
     for ext in held_back {
@@ -185,7 +193,7 @@ pub(super) async fn residue_including(
     let all = || prepared.iter().chain(&held);
     let owned: Vec<String> = all().flat_map(|p| p.owned_tables.clone()).collect();
     let ids: Vec<ExtensionId> = all().map(|p| p.extension_id.clone()).collect();
-    audit_schema_residue(db, &owned, &ids).await
+    audit_schema_residue(db, &owned, &ids, target).await
 }
 
 async fn migration_ledgers(

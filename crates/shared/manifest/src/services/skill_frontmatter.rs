@@ -36,14 +36,14 @@ pub enum SkillFrontmatterError {
     #[error("frontmatter key {0:?} is not a string")]
     NonStringKey(Box<Value>),
 
-    #[error("frontmatter '{0}' is not a finite number")]
-    NonFiniteNumber(String),
+    #[error("frontmatter '{path}' is not a finite number")]
+    NonFiniteNumber { path: String },
 
-    #[error("frontmatter '{0}' has a key that is not a string")]
-    NonStringNestedKey(String),
+    #[error("frontmatter '{path}' has a key that is not a string")]
+    NonStringNestedKey { path: String },
 
-    #[error("frontmatter '{0}' carries a YAML tag")]
-    Tagged(String),
+    #[error("frontmatter '{path}' carries a YAML tag")]
+    Tagged { path: String },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -94,17 +94,25 @@ fn check_value(path: &str, value: &Value) -> Result<(), SkillFrontmatterError> {
         Value::Null | Value::Bool(_) | Value::String(_) => Ok(()),
         Value::Number(number) => {
             if number.as_f64().is_some_and(|n| !n.is_finite()) {
-                return Err(SkillFrontmatterError::NonFiniteNumber(path.to_owned()));
+                return Err(SkillFrontmatterError::NonFiniteNumber {
+                    path: path.to_owned(),
+                });
             }
             Ok(())
         },
         Value::Sequence(items) => items.iter().try_for_each(|item| check_value(path, item)),
         Value::Mapping(map) => map.iter().try_for_each(|(key, item)| {
             key.as_str().map_or_else(
-                || Err(SkillFrontmatterError::NonStringNestedKey(path.to_owned())),
+                || {
+                    Err(SkillFrontmatterError::NonStringNestedKey {
+                        path: path.to_owned(),
+                    })
+                },
                 |key| check_value(&format!("{path}.{key}"), item),
             )
         }),
-        Value::Tagged(_) => Err(SkillFrontmatterError::Tagged(path.to_owned())),
+        Value::Tagged(_) => Err(SkillFrontmatterError::Tagged {
+            path: path.to_owned(),
+        }),
     }
 }

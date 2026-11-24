@@ -58,8 +58,8 @@ impl ServiceRepository {
             FROM services
             WHERE instance_id = $1 AND name = $2
             "#,
-            self.instance_id.as_str(),
-            name.as_str()
+            self.instance_id as _,
+            name as _
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -80,8 +80,8 @@ impl ServiceRepository {
               heartbeat_at = CURRENT_TIMESTAMP,
               updated_at = CURRENT_TIMESTAMP
             "#,
-            self.instance_id.as_str(),
-            input.name.as_str(),
+            self.instance_id as _,
+            input.name as _,
             input.module_name.as_str(),
             input.status.as_str(),
             port_i32,
@@ -109,13 +109,13 @@ impl ServiceRepository {
               heartbeat_at = CURRENT_TIMESTAMP,
               updated_at = CURRENT_TIMESTAMP
             "#,
-            self.instance_id.as_str(),
-            input.name.as_str(),
+            self.instance_id as _,
+            input.name as _,
             input.module_name.as_str(),
             input.pid,
             port_i32,
             input.status.as_str(),
-            input.spawn_nonce.as_str()
+            input.spawn_nonce as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -131,8 +131,8 @@ impl ServiceRepository {
             r#"UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $2 AND name = $3"#,
             status.as_str(),
-            self.instance_id.as_str(),
-            service_name.as_str()
+            self.instance_id as _,
+            service_name as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -142,8 +142,8 @@ impl ServiceRepository {
     pub async fn delete_service(&self, service_name: &ServiceName) -> DatabaseResult<()> {
         sqlx::query!(
             r#"DELETE FROM services WHERE instance_id = $1 AND name = $2"#,
-            self.instance_id.as_str(),
-            service_name.as_str()
+            self.instance_id as _,
+            service_name as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -160,9 +160,9 @@ impl ServiceRepository {
             r#"UPDATE services SET pid = $1, spawn_nonce = $4, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $2 AND name = $3"#,
             pid,
-            self.instance_id.as_str(),
-            service_name.as_str(),
-            spawn_nonce.as_str()
+            self.instance_id as _,
+            service_name as _,
+            spawn_nonce as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -179,8 +179,8 @@ impl ServiceRepository {
             r#"UPDATE services SET port = $1, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $2 AND name = $3"#,
             port_i32,
-            self.instance_id.as_str(),
-            service_name.as_str()
+            self.instance_id as _,
+            service_name as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -191,8 +191,8 @@ impl ServiceRepository {
         sqlx::query!(
             r#"UPDATE services SET pid = NULL, spawn_nonce = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
-            self.instance_id.as_str(),
-            service_name.as_str()
+            self.instance_id as _,
+            service_name as _
         )
         .execute(&*self.write_pool)
         .await?;
@@ -203,8 +203,8 @@ impl ServiceRepository {
         sqlx::query!(
             r#"UPDATE services SET status = $3, pid = NULL, spawn_nonce = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
-            self.instance_id.as_str(),
-            service_name.as_str(),
+            self.instance_id as _,
+            service_name as _,
             ServiceStatus::Error.as_str()
         )
         .execute(&*self.write_pool)
@@ -216,8 +216,8 @@ impl ServiceRepository {
         sqlx::query!(
             r#"UPDATE services SET status = $3, pid = NULL, spawn_nonce = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
-            self.instance_id.as_str(),
-            service_name.as_str(),
+            self.instance_id as _,
+            service_name as _,
             ServiceStatus::Stopped.as_str()
         )
         .execute(&*self.write_pool)

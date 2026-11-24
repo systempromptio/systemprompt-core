@@ -5,12 +5,12 @@ use std::time::Duration;
 use systemprompt_events::{Broadcaster, ConnectionGuard, GenericBroadcaster};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id, unique_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 type TestBroadcaster = GenericBroadcaster<SystemEvent>;
 
 fn test_user_id() -> UserId {
-    fixture_user_id()
+    unique_user_id("guards-and-stress")
 }
 
 fn test_event() -> SystemEvent {
@@ -21,15 +21,16 @@ fn test_event() -> SystemEvent {
 async fn test_connection_guard_debug() {
     let broadcaster: Arc<GenericBroadcaster<SystemEvent>> = Arc::new(GenericBroadcaster::new());
 
+    let user_id = unique_user_id("guards-and-stress");
     let guard = ConnectionGuard::new(
         Arc::clone(&broadcaster),
-        fixture_user_id(),
+        user_id.clone(),
         ConnectionId::new("test-conn"),
     );
 
     let debug_str = format!("{:?}", guard);
     assert!(debug_str.contains("ConnectionGuard"));
-    assert!(debug_str.contains(FIXTURE_USER_ID));
+    assert!(debug_str.contains(user_id.as_str()));
     assert!(debug_str.contains("test-conn"));
 
     assert_eq!(broadcaster.total_connections().await, 0);
@@ -40,7 +41,7 @@ async fn test_connection_guard_drop_unregisters() {
     let drop_test_broadcaster: Arc<GenericBroadcaster<SystemEvent>> =
         Arc::new(GenericBroadcaster::new());
 
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("guards-and-stress");
     let conn_id = ConnectionId::new("drop-test-conn");
     let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -68,7 +69,7 @@ async fn test_connection_guard_multiple_guards_same_user() {
     let multi_guard_broadcaster: Arc<GenericBroadcaster<SystemEvent>> =
         Arc::new(GenericBroadcaster::new());
 
-    let user_id = fixture_user_id();
+    let user_id = unique_user_id("guards-and-stress");
     let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 

@@ -19,7 +19,7 @@ impl ManagedRepository {
         host: EvaluatorClient,
     ) -> Result<ConsumerInstallationPlan> {
         self.authenticate_consumer_device(credential).await?;
-        let row = sqlx::query!("SELECT owner_id,revision_id,generation,bundle_digest FROM managed_publications WHERE id=$1 AND resource_id=$2 AND revision_id IS NOT NULL", publication.as_str(), resource.as_str()).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
+        let row = sqlx::query!("SELECT owner_id,revision_id,generation,bundle_digest FROM managed_publications WHERE id=$1 AND resource_id=$2 AND revision_id IS NOT NULL", publication as _, resource as _).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
         let owner = UserId::new(row.owner_id);
         let revision = systemprompt_identifiers::ResourceRevisionId::new(
             row.revision_id.ok_or(ManagedError::Integrity)?,
@@ -27,7 +27,7 @@ impl ManagedRepository {
         let bundle = self.get_revision_bundle(&owner, &revision).await?;
         let key = sqlx::query_scalar!(
             "SELECT resource_key FROM managed_resources WHERE id=$1",
-            resource.as_str()
+            resource as _
         )
         .fetch_one(&self.pool)
         .await?;

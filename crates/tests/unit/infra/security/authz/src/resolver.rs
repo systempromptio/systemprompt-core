@@ -4,7 +4,7 @@ use systemprompt_governance::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
 use systemprompt_identifiers::RouteId;
-use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
+use systemprompt_test_fixtures::unique_user_id;
 
 fn rule(rule_type: RuleType, value: &str, access: Access) -> AccessRule {
     AccessRule {
@@ -42,7 +42,7 @@ fn input<'a>(
 #[test]
 fn unknown_entity_denies() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let d = resolve(input(&e, &[], &u, &roles, None));
     assert!(matches!(
@@ -56,7 +56,7 @@ fn unknown_entity_denies() {
 #[test]
 fn no_rules_no_default_denies() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let d = resolve(input(&e, &[], &u, &roles, Some(false)));
     assert!(matches!(
@@ -70,7 +70,7 @@ fn no_rules_no_default_denies() {
 #[test]
 fn no_rules_default_allows() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let d = resolve(input(&e, &[], &u, &roles, Some(true)));
     assert_eq!(
@@ -84,10 +84,10 @@ fn no_rules_default_allows() {
 #[test]
 fn user_deny_overrides_role_allow() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
-        rule(RuleType::USER, FIXTURE_USER_ID, Access::Deny),
+        rule(RuleType::USER, u.as_str(), Access::Deny),
         rule(RuleType::ROLE, "eng", Access::Allow),
     ];
     let d = resolve(input(&e, &rules, &u, &roles, Some(true)));
@@ -96,7 +96,7 @@ fn user_deny_overrides_role_allow() {
             d,
             Decision::Deny {
                 reason: DenyReason::UserDeny { ref user_id, .. }
-            } if user_id.as_str() == FIXTURE_USER_ID
+            } if user_id.as_str() == u.as_str()
         ),
         "got {d:?}",
     );
@@ -105,10 +105,10 @@ fn user_deny_overrides_role_allow() {
 #[test]
 fn user_allow_beats_role_deny() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
-        rule(RuleType::USER, FIXTURE_USER_ID, Access::Allow),
+        rule(RuleType::USER, u.as_str(), Access::Allow),
         rule(RuleType::ROLE, "eng", Access::Deny),
     ];
     let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
@@ -123,7 +123,7 @@ fn user_allow_beats_role_deny() {
 #[test]
 fn role_deny_overrides_role_allow_in_multirole() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into(), "contractor".into()];
     let rules = vec![
         rule(RuleType::ROLE, "eng", Access::Allow),
@@ -144,7 +144,7 @@ fn role_deny_overrides_role_allow_in_multirole() {
 #[test]
 fn no_match_with_default_off_denies_not_assigned() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![rule(RuleType::ROLE, "ops", Access::Allow)];
     let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
@@ -159,7 +159,7 @@ fn no_match_with_default_off_denies_not_assigned() {
 #[test]
 fn no_match_with_default_on_allows() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![rule(RuleType::ROLE, "ops", Access::Allow)];
     let d = resolve(input(&e, &rules, &u, &roles, Some(true)));
@@ -174,9 +174,9 @@ fn no_match_with_default_on_allows() {
 #[test]
 fn user_allow_alone_allows() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec![];
-    let rules = vec![rule(RuleType::USER, FIXTURE_USER_ID, Access::Allow)];
+    let rules = vec![rule(RuleType::USER, u.as_str(), Access::Allow)];
     let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
     assert_eq!(
         d,
@@ -238,11 +238,11 @@ fn resolve_with<'a>(
 #[test]
 fn user_allow_outranks_department_deny() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec![];
     let rules = vec![
         rule(department(), "eng", Access::Deny),
-        rule(RuleType::USER, FIXTURE_USER_ID, Access::Allow),
+        rule(RuleType::USER, u.as_str(), Access::Allow),
     ];
     let d = resolve_with(
         &e,
@@ -263,7 +263,7 @@ fn user_allow_outranks_department_deny() {
 #[test]
 fn department_deny_outranks_role_allow() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
         rule(RuleType::ROLE, "eng", Access::Allow),
@@ -293,7 +293,7 @@ fn department_deny_outranks_role_allow() {
 #[test]
 fn department_allow_outranks_role_deny() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
         rule(RuleType::ROLE, "eng", Access::Deny),
@@ -323,7 +323,7 @@ fn department_allow_outranks_role_deny() {
 #[test]
 fn department_rule_for_another_department_does_not_match() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
         rule(department(), "finance", Access::Deny),
@@ -352,7 +352,7 @@ fn department_rule_for_another_department_does_not_match() {
 #[test]
 fn unregistered_dimension_rules_are_inert() {
     let e = entity();
-    let u = fixture_user_id();
+    let u = unique_user_id("resolver");
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![
         rule(department(), "finance", Access::Deny),

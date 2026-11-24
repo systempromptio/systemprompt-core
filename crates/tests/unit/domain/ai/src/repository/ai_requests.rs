@@ -31,7 +31,7 @@ async fn insert_then_get_by_id_round_trips() {
     assert_eq!(fetched.identity.user_id, uid);
     assert_eq!(fetched.routing.provider.as_deref(), Some("anthropic"));
     assert_eq!(fetched.routing.model.as_deref(), Some("claude-3-opus"));
-    assert_eq!(fetched.lifecycle.status, "completed");
+    assert_eq!(fetched.lifecycle.status, RequestStatus::Completed);
     assert_eq!(fetched.accounting.input_tokens, Some(100));
     assert_eq!(fetched.accounting.output_tokens, Some(50));
     assert!(fetched.accounting.cache_hit);
@@ -59,7 +59,7 @@ async fn rejection_without_a_resolved_provider_still_persists_a_row() {
     let id = repo.insert(&record).await.expect("rejection must persist");
 
     let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
-    assert_eq!(fetched.lifecycle.status, "rejected");
+    assert_eq!(fetched.lifecycle.status, RequestStatus::Rejected);
     assert_eq!(fetched.routing.provider, None);
     assert_eq!(fetched.routing.model, None);
 }
@@ -192,7 +192,7 @@ async fn update_error_sets_failed_status_and_message() {
         .update_error(&id, RequestStatus::Failed, "provider exploded")
         .await
         .expect("update error");
-    assert_eq!(updated.lifecycle.status, "failed");
+    assert_eq!(updated.lifecycle.status, RequestStatus::Failed);
     assert_eq!(
         updated.lifecycle.error_message.as_deref(),
         Some("provider exploded")
@@ -210,7 +210,7 @@ async fn update_error_can_stamp_a_pre_routing_rejection() {
         .update_error(&id, RequestStatus::Rejected, "HTTP 400: no messages")
         .await
         .expect("update error");
-    assert_eq!(updated.lifecycle.status, "rejected");
+    assert_eq!(updated.lifecycle.status, RequestStatus::Rejected);
 }
 
 #[tokio::test]
@@ -280,7 +280,10 @@ async fn insert_and_get_messages_in_sequence_order() {
         .insert_message(&id, "assistant", "hi there", 1)
         .await
         .expect("msg 1");
-    assert_eq!(m1.role, "assistant");
+    assert_eq!(
+        m1.role,
+        systemprompt_models::ai::StoredMessageRole::Assistant
+    );
     assert_eq!(m1.content, "hi there");
     assert_eq!(m1.sequence_number, 1);
 

@@ -6,7 +6,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 
 use super::marketplace::MarketplaceAccessRule;
 
@@ -70,34 +70,43 @@ impl MarketplaceAccess {
 
     pub(super) fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         if self.roles.iter().any(|role| role.trim().is_empty()) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Marketplace '{key}': access.roles must not contain blank entries"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                "access.roles must not contain blank entries",
+            ));
         }
 
         for rule in &self.rules {
             let slug = rule.rule_type.as_str();
             if slug == "role" || slug == "user" {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Marketplace '{key}': access.rules may not use rule_type '{slug}' — declare \
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Marketplace", key),
+                    format!(
+                        "access.rules may not use rule_type '{slug}' — declare \
                      roles under access.roles"
-                )));
+                    ),
+                ));
             }
             if !is_extension_slug(slug) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Marketplace '{key}': access.rules rule_type '{slug}' must be lowercase \
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Marketplace", key),
+                    format!(
+                        "access.rules rule_type '{slug}' must be lowercase \
                      alphanumeric with underscores, and may not start or end with '_'"
-                )));
+                    ),
+                ));
             }
             if rule.values.is_empty() {
-                return Err(ServicesValidationError::required(format!(
-                    "Marketplace '{key}': access.rules entry '{slug}' must name at least one value"
-                )));
+                return Err(ServicesValidationError::required(
+                    ValidationSubject::named("Marketplace", key),
+                    format!("access.rules entry '{slug}' must name at least one value"),
+                ));
             }
             if rule.values.iter().any(|value| value.trim().is_empty()) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "Marketplace '{key}': access.rules entry '{slug}' must not contain blank values"
-                )));
+                return Err(ServicesValidationError::invalid_field(
+                    ValidationSubject::named("Marketplace", key),
+                    format!("access.rules entry '{slug}' must not contain blank values"),
+                ));
             }
         }
 

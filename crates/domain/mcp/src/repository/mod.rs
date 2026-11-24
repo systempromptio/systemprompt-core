@@ -25,7 +25,7 @@ pub use artifact_payload::{ArtifactPayloadRecord, ArtifactPayloadRepository};
 pub use external_session::ExternalSessionBinding;
 pub use ingest_mark::{IngestMark, IngestMarkKey, ToolResultIngestMarkRepository};
 pub use proxy_session::McpProxySessionRepository;
-pub use session::{McpSessionRecord, McpSessionRepository};
+pub use session::{McpSessionRecord, McpSessionRepository, McpSessionStatus};
 pub use tool_usage::{IntentStamp, ProximityProbe, ToolCallSubject, ToolUsageRepository};
 
 pub mod prelude {

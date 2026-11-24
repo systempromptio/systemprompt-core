@@ -8,9 +8,9 @@ use std::time::Instant;
 
 use systemprompt_identifiers::NotificationId;
 use systemprompt_models::ApiPaths;
+use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::notifications::{
-    Escalate, KeysetCursor, MarkRead, MarkSeen, Notification, NotificationPage,
-    NotificationReadPayload,
+    Escalate, MarkRead, MarkSeen, Notification, NotificationPage, NotificationReadPayload,
 };
 
 use crate::gateway::errors::GatewayError;

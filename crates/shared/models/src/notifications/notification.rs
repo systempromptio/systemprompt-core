@@ -13,9 +13,9 @@ use systemprompt_identifiers::{AgentName, NotificationId, NotificationStreamId, 
 
 use super::action::ActionPrompt;
 use super::attention::{Attention, AttentionReason, UnknownNotificationValue};
-use super::cursor::KeysetCursor;
 use super::kind::NotificationKind;
 use super::subject::SubjectRef;
+use crate::api::KeysetCursor;
 
 /// Where a notification stands on its way to its delivery channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

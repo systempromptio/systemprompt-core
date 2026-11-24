@@ -12,6 +12,8 @@ use systemprompt_identifiers::{
     AgentName, AiRequestId, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, McpServerId,
     McpToolName, TaskId,
 };
+use systemprompt_models::mcp::McpToolExecutionStatus;
+use systemprompt_models::{StepStatus, TaskState};
 use systemprompt_runtime::{
     AiRequestInfo, ExecutionStep, McpToolExecution, TaskArtifact, TaskInfo, TraceEvent,
 };
@@ -41,7 +43,7 @@ fn task_info_table_shows_duration_and_truncated_id() {
         task_id: TaskId::new("task-1234567890"),
         context_id: ContextId::generate(),
         agent_name: Some(AgentName::new("agent")),
-        status: "completed".to_owned(),
+        status: TaskState::Completed,
         created_at: ts(0),
         started_at: Some(ts(1)),
         completed_at: Some(ts(2)),
@@ -52,7 +54,7 @@ fn task_info_table_shows_duration_and_truncated_id() {
     assert!(table.contains("task-123"));
     assert!(!table.contains("task-1234567890"));
     assert!(table.contains("1500ms"));
-    assert!(table.contains("completed"));
+    assert!(table.contains("TASK_STATE_COMPLETED"));
 }
 
 #[test]
@@ -61,7 +63,7 @@ fn task_info_table_dashes_missing_fields() {
         task_id: TaskId::new("t1"),
         context_id: ContextId::generate(),
         agent_name: None,
-        status: "pending".to_owned(),
+        status: TaskState::Submitted,
         created_at: ts(0),
         started_at: None,
         completed_at: None,
@@ -70,7 +72,7 @@ fn task_info_table_dashes_missing_fields() {
     };
     let table = task_info_table(&info);
     assert!(table.contains('-'));
-    assert!(table.contains("pending"));
+    assert!(table.contains("TASK_STATE_SUBMITTED"));
 }
 
 #[test]
@@ -80,7 +82,7 @@ fn execution_steps_table_numbers_rows_and_defaults_type() {
             step_id: ExecutionStepId::new("s1"),
             step_type: None,
             title: Some("first step".to_owned()),
-            status: "completed".to_owned(),
+            status: StepStatus::Completed,
             duration_ms: Some(10),
             error_message: None,
         },
@@ -88,7 +90,7 @@ fn execution_steps_table_numbers_rows_and_defaults_type() {
             step_id: ExecutionStepId::new("s2"),
             step_type: Some("tool_call".to_owned()),
             title: None,
-            status: "failed".to_owned(),
+            status: StepStatus::Failed,
             duration_ms: None,
             error_message: Some("boom".to_owned()),
         },
@@ -145,7 +147,7 @@ fn mcp_tool_calls_table_renders_status_and_duration() {
         mcp_execution_id: McpExecutionId::new("m1"),
         tool_name: McpToolName::new("search"),
         server_name: McpServerId::new("content"),
-        status: "completed".to_owned(),
+        status: McpToolExecutionStatus::Success,
         execution_time_ms: Some(88),
         error_message: None,
         input: String::new(),

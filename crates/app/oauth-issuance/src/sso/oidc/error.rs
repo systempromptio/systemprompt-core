@@ -100,7 +100,9 @@ impl From<OidcProviderError> for SsoError {
             | OidcProviderError::TokenEndpoint(_) => Self::internal(err),
             other => {
                 tracing::warn!(error = %other, "OIDC sign-in rejected");
-                Self::InvalidAssertion(other.reason().to_owned())
+                Self::InvalidAssertion {
+                    reason: other.reason(),
+                }
             },
         }
     }

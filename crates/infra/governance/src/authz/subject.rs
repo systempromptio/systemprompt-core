@@ -253,7 +253,9 @@ impl SubjectAttributeSource for SubjectProviderSet {
         dimension: &SubjectDimension,
     ) -> Result<Vec<String>, SubjectSourceError> {
         let provider = self.find(dimension.rule_type.as_str()).ok_or_else(|| {
-            SubjectSourceError::UnknownDimension(dimension.rule_type.as_str().to_owned())
+            SubjectSourceError::UnknownDimension {
+                dimension: dimension.rule_type.clone(),
+            }
         })?;
         provider
             .values_for(user)
@@ -279,7 +281,9 @@ impl SubjectAttributeSource for SubjectProviderSet {
         dimension: &SubjectDimension,
     ) -> Result<Option<Vec<String>>, SubjectSourceError> {
         let provider = self.find(dimension.rule_type.as_str()).ok_or_else(|| {
-            SubjectSourceError::UnknownDimension(dimension.rule_type.as_str().to_owned())
+            SubjectSourceError::UnknownDimension {
+                dimension: dimension.rule_type.clone(),
+            }
         })?;
         provider
             .known_values()

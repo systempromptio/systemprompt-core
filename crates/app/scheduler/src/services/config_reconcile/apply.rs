@@ -57,6 +57,7 @@ impl ConfigReconcileService {
 
     pub async fn diff(&self, name: &str) -> SchedulerResult<PlaneDiff> {
         let plane = self.planes.find(name)?;
+        self.require(plane.as_ref())?;
         let declared = plane.load_declared(self.planes.services_root())?;
         let rows = match &declared {
             Some(declared) => {
@@ -78,6 +79,7 @@ impl ConfigReconcileService {
 
     pub async fn export(&self, name: &str) -> SchedulerResult<Option<String>> {
         let plane = self.planes.find(name)?;
+        self.require(plane.as_ref())?;
         let mut tx = self.repository.begin().await?;
         let ctx = self.plane_context();
         let mut plane_tx = PlaneTx::new(&mut tx);
@@ -181,6 +183,7 @@ impl ConfigReconcileService {
             change,
             scope,
         } = planned;
+        self.require(plane)?;
         if !scope.is_all() && !plane.supports_scoped_apply() {
             return Err(ConfigPlaneError::Unsupported {
                 plane: plane.name().to_owned(),

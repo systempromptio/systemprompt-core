@@ -147,6 +147,8 @@ impl BridgeVersionWindow {
 /// Whether a bridge is carrying its user's traffic or has been switched off
 /// by its user, as reported on the heartbeat.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "text", rename_all = "snake_case"))]
 #[serde(rename_all = "snake_case")]
 pub enum BridgeState {
     Active,

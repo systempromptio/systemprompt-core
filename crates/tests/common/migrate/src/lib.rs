@@ -9,7 +9,7 @@
 //! purge records.
 
 use systemprompt_database::{
-    DatabaseProvider, MigrationConfig, SchemaInstallReport, install_admitted_schemas,
+    DatabaseProvider, MigrationConfig, SchemaInstallReport, SchemaName, install_admitted_schemas,
 };
 use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts};
 use systemprompt_extension::contribute::ContributionSink;
@@ -83,5 +83,11 @@ pub async fn install_core_schemas(
     db: &dyn DatabaseProvider,
 ) -> Result<SchemaInstallReport, InstallError> {
     let admitted = schema_admitted()?;
-    Ok(install_admitted_schemas(admitted.built(), db, MigrationConfig::default()).await?)
+    Ok(install_admitted_schemas(
+        admitted.built(),
+        db,
+        &SchemaName::public(),
+        MigrationConfig::default(),
+    )
+    .await?)
 }

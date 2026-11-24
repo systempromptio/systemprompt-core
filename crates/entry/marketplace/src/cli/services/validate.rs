@@ -39,30 +39,48 @@ pub struct ValidateArgs {
     pub strict: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FindingStatus {
+    Pass,
+    Warn,
+    Fail,
+}
+
+impl std::fmt::Display for FindingStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Pass => "pass",
+            Self::Warn => "warn",
+            Self::Fail => "fail",
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Finding {
     pub check: String,
-    pub status: String,
+    pub status: FindingStatus,
     pub detail: String,
 }
 
 impl Finding {
     fn pass(check: &str, detail: impl Into<String>) -> Self {
-        Self::new(check, "pass", detail)
+        Self::new(check, FindingStatus::Pass, detail)
     }
 
     fn warn(check: &str, detail: impl Into<String>) -> Self {
-        Self::new(check, "warn", detail)
+        Self::new(check, FindingStatus::Warn, detail)
     }
 
     fn fail(check: &str, detail: impl Into<String>) -> Self {
-        Self::new(check, "fail", detail)
+        Self::new(check, FindingStatus::Fail, detail)
     }
 
-    fn new(check: &str, status: &str, detail: impl Into<String>) -> Self {
+    fn new(check: &str, status: FindingStatus, detail: impl Into<String>) -> Self {
         Self {
             check: check.to_owned(),
-            status: status.to_owned(),
+            status,
             detail: detail.into(),
         }
     }
@@ -97,8 +115,8 @@ impl CliCommandLeaf for ValidateArgs {
 
 pub fn execute(args: &ValidateArgs) -> Result<(CommandOutput, bool)> {
     let findings = run(args)?;
-    let blocking = findings.iter().any(|f| f.status == "fail")
-        || (args.strict && findings.iter().any(|f| f.status == "warn"));
+    let blocking = findings.iter().any(|f| f.status == FindingStatus::Fail)
+        || (args.strict && findings.iter().any(|f| f.status == FindingStatus::Warn));
     let output = CommandOutput::table_of(vec!["check", "status", "detail"], &findings)
         .with_title("Services Validation");
     Ok((output, !blocking))

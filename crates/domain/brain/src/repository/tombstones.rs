@@ -28,7 +28,7 @@ impl TombstoneRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT EXISTS (SELECT 1 FROM brain_tombstones
                               WHERE kind = $1 AND identity_hash = $2) AS "exists!""#,
-            kind.as_str(),
+            kind as _,
             identity_hash,
         )
         .fetch_one(executor)
@@ -65,9 +65,9 @@ impl TombstoneRepository {
         sqlx::query!(
             "INSERT INTO brain_tombstones (kind, identity_hash, erased_by) VALUES ($1, $2, $3)
              ON CONFLICT (kind, identity_hash) DO NOTHING",
-            kind.as_str(),
+            kind as _,
             identity_hash,
-            erased_by.map(UserId::as_str),
+            erased_by as _,
         )
         .execute(conn)
         .await?;

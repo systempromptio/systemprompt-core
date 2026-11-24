@@ -12,7 +12,7 @@ use systemprompt_identifiers::{
     CloudAppId, CloudAuthToken, ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
 };
 use systemprompt_models::auth::UserType;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 use tempfile::TempDir;
 
 const CONTEXT_A: &str = "00000000-0000-4000-8000-00000000000a";
@@ -98,7 +98,7 @@ pub fn build_session_for(
         SessionId::new(format!("sid-{profile}")),
         ContextId::try_new(context).expect("valid ContextId"),
         SessionIdentity::new(
-            fixture_user_id(),
+            unique_user_id("support"),
             Email::try_new(format!("{profile}@example.com")).expect("valid Email"),
             UserType::User,
         ),

@@ -72,7 +72,7 @@ impl InstanceClaim {
             if let Err(e) = sqlx::query_scalar!(
                 "SELECT pg_advisory_unlock($1, hashtext($2))",
                 INSTANCE_CLAIM_CLASS,
-                self.instance_id.as_str()
+                self.instance_id as _
             )
             .fetch_one(&mut session)
             .await
@@ -119,7 +119,7 @@ impl ServiceRepository {
         let acquired = sqlx::query_scalar!(
             r#"SELECT pg_try_advisory_lock($1, hashtext($2)) AS "acquired!""#,
             INSTANCE_CLAIM_CLASS,
-            self.instance_id.as_str()
+            self.instance_id as _
         )
         .fetch_one(&mut session)
         .await?;

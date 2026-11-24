@@ -5,17 +5,75 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::error::Error;
+use std::fmt;
+use std::sync::Arc;
 
 use crate::auth::{Permission, permissions_to_string};
-use std::sync::Arc;
+
+/// The configuration entry a validation message is about, rendered as the
+/// lead-in of that message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ValidationSubject {
+    Named { kind: &'static str, name: String },
+    Clause { kind: &'static str, name: String },
+    Scope(String),
+    Label(String),
+    Global,
+}
+
+impl ValidationSubject {
+    #[must_use]
+    pub fn named(kind: &'static str, name: impl fmt::Display) -> Self {
+        Self::Named {
+            kind,
+            name: name.to_string(),
+        }
+    }
+
+    #[must_use]
+    pub fn clause(kind: &'static str, name: impl fmt::Display) -> Self {
+        Self::Clause {
+            kind,
+            name: name.to_string(),
+        }
+    }
+
+    #[must_use]
+    pub fn scope(scope: impl Into<String>) -> Self {
+        Self::Scope(scope.into())
+    }
+
+    #[must_use]
+    pub fn label(label: impl Into<String>) -> Self {
+        Self::Label(label.into())
+    }
+}
+
+impl fmt::Display for ValidationSubject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Named { kind, name } => write!(f, "{kind} '{name}': "),
+            Self::Clause { kind, name } => write!(f, "{kind} '{name}' "),
+            Self::Scope(scope) => write!(f, "{scope}: "),
+            Self::Label(label) => write!(f, "{label} "),
+            Self::Global => Ok(()),
+        }
+    }
+}
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ServicesValidationError {
-    #[error("{0}")]
-    Required(String),
+    #[error("{subject}{reason}")]
+    Required {
+        subject: ValidationSubject,
+        reason: String,
+    },
 
-    #[error("{0}")]
-    InvalidField(String),
+    #[error("{subject}{reason}")]
+    InvalidField {
+        subject: ValidationSubject,
+        reason: String,
+    },
 
     #[error("{context}: {source}")]
     InvalidFieldCause {
@@ -24,17 +82,32 @@ pub enum ServicesValidationError {
         source: Arc<dyn Error + Send + Sync>,
     },
 
-    #[error("{0}")]
-    PortConflict(String),
+    #[error(
+        "Port conflict: {port} used by both {first_kind} '{first_name}' and {second_kind} \
+         '{second_name}'"
+    )]
+    PortConflict {
+        port: u16,
+        first_kind: &'static str,
+        first_name: String,
+        second_kind: &'static str,
+        second_name: String,
+    },
 
-    #[error("{0}")]
-    UnknownReference(String),
+    #[error("{subject}{reason}")]
+    UnknownReference {
+        subject: ValidationSubject,
+        reason: String,
+    },
 
-    #[error("{0}")]
-    CircularDependency(String),
+    #[error("{}", chain.join(" → "))]
+    CircularDependency { chain: Vec<String> },
 
-    #[error("{0}")]
-    BusinessRule(String),
+    #[error("{subject}{reason}")]
+    BusinessRule {
+        subject: ValidationSubject,
+        reason: String,
+    },
 
     #[error("{owner}: {field} names the built-in secret `{secret}`; it must name a custom secret")]
     BuiltInSecretRef {
@@ -70,13 +143,19 @@ pub enum ServicesValidationError {
 
 impl ServicesValidationError {
     #[must_use]
-    pub fn required(msg: impl Into<String>) -> Self {
-        Self::Required(msg.into())
+    pub fn required(subject: ValidationSubject, reason: impl Into<String>) -> Self {
+        Self::Required {
+            subject,
+            reason: reason.into(),
+        }
     }
 
     #[must_use]
-    pub fn invalid_field(msg: impl Into<String>) -> Self {
-        Self::InvalidField(msg.into())
+    pub fn invalid_field(subject: ValidationSubject, reason: impl Into<String>) -> Self {
+        Self::InvalidField {
+            subject,
+            reason: reason.into(),
+        }
     }
 
     #[must_use]
@@ -91,22 +170,38 @@ impl ServicesValidationError {
     }
 
     #[must_use]
-    pub fn port_conflict(msg: impl Into<String>) -> Self {
-        Self::PortConflict(msg.into())
+    pub fn port_conflict(
+        port: u16,
+        first: (&'static str, &str),
+        second: (&'static str, &str),
+    ) -> Self {
+        Self::PortConflict {
+            port,
+            first_kind: first.0,
+            first_name: first.1.to_owned(),
+            second_kind: second.0,
+            second_name: second.1.to_owned(),
+        }
     }
 
     #[must_use]
-    pub fn unknown_reference(msg: impl Into<String>) -> Self {
-        Self::UnknownReference(msg.into())
+    pub fn unknown_reference(subject: ValidationSubject, reason: impl Into<String>) -> Self {
+        Self::UnknownReference {
+            subject,
+            reason: reason.into(),
+        }
     }
 
     #[must_use]
-    pub fn circular_dependency(msg: impl Into<String>) -> Self {
-        Self::CircularDependency(msg.into())
+    pub fn circular_dependency(chain: Vec<String>) -> Self {
+        Self::CircularDependency { chain }
     }
 
     #[must_use]
-    pub fn business_rule(msg: impl Into<String>) -> Self {
-        Self::BusinessRule(msg.into())
+    pub fn business_rule(subject: ValidationSubject, reason: impl Into<String>) -> Self {
+        Self::BusinessRule {
+            subject,
+            reason: reason.into(),
+        }
     }
 }

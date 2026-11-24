@@ -8,6 +8,7 @@ mod identity_plane_db;
 mod merge;
 mod reconcile_db;
 mod reconcile_ops_db;
+mod unmet_requirement_db;
 
 use std::collections::BTreeMap;
 use std::path::Path;

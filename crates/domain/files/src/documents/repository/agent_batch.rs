@@ -27,13 +27,12 @@ impl DocumentRepository {
         &self,
         documents: &[DocumentId],
     ) -> RepoResult<HashMap<DocumentId, AgentFacts>> {
-        let ids: Vec<String> = documents.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT id::text AS "id!: DocumentId", agent_cap, created_by_agent
                FROM documents
                WHERE id = ANY($1::text[]::uuid[])
                  AND (agent_cap IS NOT NULL OR created_by_agent IS NOT NULL)"#,
-            &ids,
+            documents as _,
         )
         .fetch_all(self.pools.authz())
         .await?;
@@ -58,7 +57,6 @@ impl DocumentRepository {
         &self,
         folders: &[DocumentFolderId],
     ) -> RepoResult<HashMap<DocumentFolderId, FolderChain>> {
-        let ids: Vec<String> = folders.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT f.id::text AS "id!: DocumentFolderId",
                       f.ancestor_ids::text[] AS "ancestor_ids!: Vec<DocumentFolderId>",
@@ -68,7 +66,7 @@ impl DocumentRepository {
                               AND a.agent_cap IS NOT NULL) AS "caps!: Vec<String>"
                FROM document_folders f
                WHERE f.id = ANY($1::text[]::uuid[])"#,
-            &ids,
+            folders as _,
         )
         .fetch_all(self.pools.authz())
         .await?;

@@ -24,34 +24,33 @@ impl ClientRepository {
         tx: &mut Transaction<'_, Postgres>,
         client_id: &ClientId,
     ) -> Result<()> {
-        let client_id_str = client_id.as_str();
         sqlx::query!(
             "DELETE FROM oauth_client_redirect_uris WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .execute(&mut **tx)
         .await?;
         sqlx::query!(
             "DELETE FROM oauth_client_grant_types WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .execute(&mut **tx)
         .await?;
         sqlx::query!(
             "DELETE FROM oauth_client_response_types WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .execute(&mut **tx)
         .await?;
         sqlx::query!(
             "DELETE FROM oauth_client_scopes WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .execute(&mut **tx)
         .await?;
         sqlx::query!(
             "DELETE FROM oauth_client_contacts WHERE client_id = $1",
-            client_id_str
+            client_id as _
         )
         .execute(&mut **tx)
         .await?;
@@ -80,12 +79,11 @@ impl ClientRepository {
         if redirect_uris.is_empty() {
             return Ok(());
         }
-        let client_id_str = client_id.as_str();
         sqlx::query!(
             "INSERT INTO oauth_client_redirect_uris (client_id, redirect_uri, is_primary)
              SELECT $1, u.uri, u.ord = 1
              FROM unnest($2::text[]) WITH ORDINALITY AS u(uri, ord)",
-            client_id_str,
+            client_id as _,
             redirect_uris
         )
         .execute(&mut *conn)
@@ -107,11 +105,10 @@ impl ClientRepository {
         if grant_types_list.is_empty() {
             return Ok(());
         }
-        let client_id_str = client_id.as_str();
         sqlx::query!(
             "INSERT INTO oauth_client_grant_types (client_id, grant_type)
              SELECT $1, unnest($2::text[])",
-            client_id_str,
+            client_id as _,
             grant_types_list
         )
         .execute(&mut *conn)
@@ -130,11 +127,10 @@ impl ClientRepository {
         if response_types_list.is_empty() {
             return Ok(());
         }
-        let client_id_str = client_id.as_str();
         sqlx::query!(
             "INSERT INTO oauth_client_response_types (client_id, response_type)
              SELECT $1, unnest($2::text[])",
-            client_id_str,
+            client_id as _,
             response_types_list
         )
         .execute(&mut *conn)
@@ -151,11 +147,10 @@ impl ClientRepository {
         if scopes.is_empty() {
             return Ok(());
         }
-        let client_id_str = client_id.as_str();
         sqlx::query!(
             "INSERT INTO oauth_client_scopes (client_id, scope)
              SELECT $1, unnest($2::text[])",
-            client_id_str,
+            client_id as _,
             scopes
         )
         .execute(&mut *conn)
@@ -175,11 +170,10 @@ impl ClientRepository {
         if contact_list.is_empty() {
             return Ok(());
         }
-        let client_id_str = client_id.as_str();
         sqlx::query!(
             "INSERT INTO oauth_client_contacts (client_id, contact_email)
              SELECT $1, unnest($2::text[])",
-            client_id_str,
+            client_id as _,
             contact_list
         )
         .execute(&mut *conn)

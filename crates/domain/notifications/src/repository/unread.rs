@@ -28,7 +28,6 @@ impl NotificationRepository {
         if recipients.is_empty() {
             return Ok(Vec::new());
         }
-        let users: Vec<String> = recipients.iter().map(|u| u.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT u.id AS "user!: UserId",
                       (SELECT COUNT(*) FROM (SELECT 1 FROM notifications n
@@ -36,7 +35,7 @@ impl NotificationRepository {
                                                AND n.read_at IS NULL
                                              LIMIT $2) capped) AS "count!"
                FROM UNNEST($1::text[]) AS u(id)"#,
-            &users,
+            recipients as _,
             UNREAD_CAP + 1,
         )
         .fetch_all(&mut *conn)

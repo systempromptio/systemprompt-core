@@ -82,3 +82,6 @@ changelog-check             global  cheap    release 0.1s; every changelog.d fra
 check-removed-config-names  unit    cheap    bridge  1.3s
 check-release-tag           global  cheap    release the newest release tag is an ancestor and matches the workspace version
 check-crate-changelogs      global  cheap    release every crate changed since the last release is named by a changelog.d fragment
+lint-state-compare          unit    cheap    sql     0.2s; state-field string comparisons outside crates/tests and crates/shared/wire
+lint-owner-witness          global  cheap    sql     0.3s; user-policy handler modules are read from every RouteSet declaration and the entry/api user mounts
+lint-typed-binds            unit    cheap    sql     0.6s; identifier .as_str()/.to_string() inside query-macro bind arguments

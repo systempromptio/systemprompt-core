@@ -76,8 +76,8 @@ impl DocumentAccessRequestRepository {
                          requester_user_id AS "requester_user_id: UserId", access_level,
                          message, status, decided_by AS "decided_by: UserId", decided_at,
                          created_at"#,
-            request.document_id.as_str(),
-            request.requester_user_id.as_str(),
+            request.document_id as _,
+            request.requester_user_id as _,
             request.level.as_str(),
             request.message,
         )
@@ -97,7 +97,7 @@ impl DocumentAccessRequestRepository {
                FROM document_access_requests
                WHERE document_id = $1::text::uuid AND status = 'open'
                ORDER BY created_at, id"#,
-            document.as_str(),
+            document as _,
         )
         .fetch_all(&*self.pools.write)
         .await?
@@ -119,8 +119,8 @@ impl DocumentAccessRequestRepository {
                       status, decided_by AS "decided_by: UserId", decided_at, created_at
                FROM document_access_requests
                WHERE document_id = $1::text::uuid AND id = $2::text::uuid"#,
-            document.as_str(),
-            id.as_str(),
+            document as _,
+            id as _,
         )
         .fetch_optional(&*self.pools.write)
         .await?
@@ -152,9 +152,9 @@ impl DocumentAccessRequestRepository {
             "UPDATE document_access_requests
              SET status = $2, decided_by = $3, decided_at = now()
              WHERE id = $1::text::uuid AND status = 'open'",
-            id.as_str(),
+            id as _,
             status.as_str(),
-            decided_by.as_str(),
+            decided_by as _,
         )
         .execute(&mut *conn)
         .await?;

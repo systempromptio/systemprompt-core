@@ -133,7 +133,7 @@ async fn a_reclaimed_claim_cannot_write_to_the_run() {
     );
 
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "running");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Running);
     assert_eq!(row.claimed_by.as_deref(), Some("b"));
     assert_eq!(row.attempt, 2);
     assert_eq!(row.run_dir.as_deref(), Some("/tmp/b"));
@@ -174,7 +174,7 @@ async fn a_released_claim_is_fenced_when_the_same_claimer_takes_the_run_again() 
         Fenced::Applied
     );
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "succeeded");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Succeeded);
 }
 
 #[tokio::test]
@@ -203,7 +203,7 @@ async fn release_requeues_with_the_resume_session_and_the_same_attempt() {
     );
 
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
-    assert_eq!(row.status, "queued");
+    assert_eq!(row.status, systemprompt_agent_runs::RunStatus::Queued);
     assert_eq!(row.attempt, 1);
     assert!(row.claimed_by.is_none());
     assert!(row.lease_until.is_none());

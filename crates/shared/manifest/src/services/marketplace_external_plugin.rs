@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use super::marketplace_external::{is_external_name, is_github_repo, validate_git_ref};
 use super::marketplace_external_error::ExternalEntryError;
 use systemprompt_models::bridge::manifest::ExternalPluginSkills;
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 
 /// Where Claude Code fetches a pass-through plugin.
 ///
@@ -69,7 +69,7 @@ impl ExternalPluginSource {
         match self {
             Self::Github { repo, .. } => {
                 if !is_github_repo(repo) {
-                    return Err(ExternalEntryError::GithubRepo(repo.clone()));
+                    return Err(ExternalEntryError::GithubRepo { repo: repo.clone() });
                 }
             },
             Self::Url { url, .. } => validate_repository(url)?,
@@ -101,7 +101,9 @@ fn validate_repository(url: &str) -> Result<(), ExternalEntryError> {
         source,
     })?;
     if parsed.scheme() != "https" {
-        return Err(ExternalEntryError::NotHttps(url.to_owned()));
+        return Err(ExternalEntryError::NotHttps {
+            url: url.to_owned(),
+        });
     }
     Ok(())
 }
@@ -143,7 +145,9 @@ impl ExternalPluginEntry {
         }
         let sha = self.source.sha();
         if !is_commit(sha) {
-            return Err(ExternalEntryError::UnpinnedSha(sha.to_owned()));
+            return Err(ExternalEntryError::UnpinnedSha {
+                sha: sha.to_owned(),
+            });
         }
         Ok(())
     }
@@ -164,15 +168,19 @@ pub(super) fn validate_external_plugins(
             )
         })?;
         if vendored.iter().any(|plugin| plugin == name) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Marketplace '{key}': external plugin '{name}' has the name of a plugin this \
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                format!(
+                    "external plugin '{name}' has the name of a plugin this \
                  marketplace vendors"
-            )));
+                ),
+            ));
         }
         if !names.insert(name) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Marketplace '{key}': external plugin '{name}' is declared twice"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                format!("external plugin '{name}' is declared twice"),
+            ));
         }
     }
     Ok(())

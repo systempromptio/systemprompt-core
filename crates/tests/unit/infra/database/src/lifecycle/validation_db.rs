@@ -2,8 +2,8 @@
 //! connection liveness, primary-vs-standby, table presence and column presence.
 
 use systemprompt_database::{
-    PostgresProvider, validate_column_exists, validate_database_connection, validate_table_exists,
-    validate_write_pool_is_primary,
+    PostgresProvider, SchemaName, validate_column_exists, validate_database_connection,
+    validate_table_exists, validate_write_pool_is_primary,
 };
 
 use crate::services::db_helper::test_pool;
@@ -37,16 +37,20 @@ async fn table_presence_distinguishes_a_migrated_table_from_an_absent_one() {
     let provider = test_provider().await;
 
     assert!(
-        validate_table_exists(&provider, "extension_migrations")
+        validate_table_exists(&provider, &SchemaName::public(), "extension_migrations")
             .await
             .expect("the probe must not error for a table that exists"),
         "a table the migrations created must be reported present"
     );
 
     assert!(
-        !validate_table_exists(&provider, "table_that_was_never_created")
-            .await
-            .expect("an absent table is a false result, not an error"),
+        !validate_table_exists(
+            &provider,
+            &SchemaName::public(),
+            "table_that_was_never_created"
+        )
+        .await
+        .expect("an absent table is a false result, not an error"),
         "an absent table must be reported absent rather than raising"
     );
 }
@@ -56,23 +60,33 @@ async fn column_presence_is_checked_within_the_named_table_only() {
     let provider = test_provider().await;
 
     assert!(
-        validate_column_exists(&provider, "extension_migrations", "checksum")
-            .await
-            .expect("probe"),
+        validate_column_exists(
+            &provider,
+            &SchemaName::public(),
+            "extension_migrations",
+            "checksum"
+        )
+        .await
+        .expect("probe"),
         "a column the schema declares must be reported present"
     );
 
     assert!(
-        !validate_column_exists(&provider, "extension_migrations", "no_such_column")
-            .await
-            .expect("probe"),
+        !validate_column_exists(
+            &provider,
+            &SchemaName::public(),
+            "extension_migrations",
+            "no_such_column"
+        )
+        .await
+        .expect("probe"),
         "a column absent from the table must be reported absent"
     );
 
     // `checksum` exists on `extension_migrations` but not on `users`: the probe
     // must be scoped to the table it was given, not to the schema at large.
     assert!(
-        !validate_column_exists(&provider, "users", "checksum")
+        !validate_column_exists(&provider, &SchemaName::public(), "users", "checksum")
             .await
             .expect("probe"),
         "a column that exists on a different table must not count as present here"
@@ -84,9 +98,14 @@ async fn probing_a_column_on_an_absent_table_reports_absent() {
     let provider = test_provider().await;
 
     assert!(
-        !validate_column_exists(&provider, "table_that_was_never_created", "id")
-            .await
-            .expect("an absent table yields a false column probe, not an error"),
+        !validate_column_exists(
+            &provider,
+            &SchemaName::public(),
+            "table_that_was_never_created",
+            "id"
+        )
+        .await
+        .expect("an absent table yields a false column probe, not an error"),
         "the column probe must not raise just because the table is gone"
     );
 }

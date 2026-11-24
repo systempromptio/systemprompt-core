@@ -44,11 +44,11 @@ impl ToolCallIntentClaims for AiRequestRepository {
               AND c.mcp_execution_id IS NULL
             RETURNING c.ai_tool_call_id AS "ai_tool_call_id!"
             "#,
-            session_id.as_str(),
-            tool_name.as_str(),
+            session_id as _,
+            tool_name as _,
             suffix,
             window_seconds as f64,
-            execution.as_str()
+            execution as _
         )
         .fetch_optional(self.write_pool())
         .await
@@ -67,8 +67,8 @@ impl ToolCallIntentClaims for AiRequestRepository {
             SET mcp_execution_id = $2, updated_at = NOW()
             WHERE ai_tool_call_id = $1 AND mcp_execution_id IS NULL
             "#,
-            call.as_str(),
-            execution.as_str()
+            call as _,
+            execution as _
         )
         .execute(self.write_pool())
         .await
@@ -88,8 +88,8 @@ impl ToolCallIntentClaims for AiRequestRepository {
             SET mcp_execution_id = NULL, updated_at = NOW()
             WHERE ai_tool_call_id = $1 AND mcp_execution_id = $2
             "#,
-            call.as_str(),
-            execution.as_str()
+            call as _,
+            execution as _
         )
         .execute(self.write_pool())
         .await

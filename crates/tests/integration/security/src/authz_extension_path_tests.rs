@@ -17,7 +17,7 @@ use systemprompt_identifiers::{ContextId, RouteId, TaskId, TraceId};
 use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
 };
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 
 fn extension_governance() -> GovernanceConfig {
     GovernanceConfig {
@@ -38,7 +38,7 @@ fn extension_governance() -> GovernanceConfig {
 fn request_with_trace(route: &str, trace: &str) -> AuthzRequest {
     AuthzRequest {
         entity: EntityRef::GatewayRoute(RouteId::new(route)),
-        user_id: fixture_user_id(),
+        user_id: unique_user_id("authz-extension-path-tests"),
         actor: None,
         client_id: None,
         access_scope: None,

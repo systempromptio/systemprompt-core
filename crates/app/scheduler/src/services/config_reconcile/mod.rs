@@ -32,7 +32,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_provider_contracts::{ConfigPlane, Dependencies};
+use systemprompt_provider_contracts::{
+    ConfigPlane, ConfigPlaneError, Dependencies, StateRequirement,
+};
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_traits::AppContext as _;
 
@@ -41,7 +43,8 @@ use crate::repository::{ConfigReconcileRepository, PlaneStateRow, PlaneStateUpda
 
 pub use metrics::{CONFIG_DRIFT_ROWS, CONFIG_PLANE_INFO};
 pub use report::{
-    AppliedPlane, PlaneDiff, PlaneOutcome, PlaneReport, ReconcileReport, ReconcileTrigger,
+    AppliedPlane, PlaneDiff, PlaneFailure, PlaneOutcome, PlaneReport, ReconcileReport,
+    ReconcileTrigger,
 };
 
 pub const RECONCILE_LOCK_WAIT: Duration = Duration::from_secs(120);
@@ -141,8 +144,21 @@ impl ConfigReconcileService {
             declared_hash: None,
             drift_rows: 0,
             outcome: PlaneOutcome::Undeclared,
-            error: None,
+            failure: None,
         };
+        if let Some(requirement) = self.unmet_requirement(plane) {
+            tracing::warn!(
+                plane = plane.name(),
+                requirement = requirement.type_name(),
+                "config plane not reconciled: a requirement is unmet"
+            );
+            let failure = PlaneFailure::UnmetRequirement {
+                requirement: requirement.type_name(),
+            };
+            report.outcome = failure.outcome();
+            report.failure = Some(failure);
+            return report;
+        }
         if let Err(error) = self.reconcile_into(plane, &mut report).await {
             tracing::error!(
                 plane = plane.name(),
@@ -150,10 +166,31 @@ impl ConfigReconcileService {
                 error = %error,
                 "config plane reconcile failed"
             );
-            report.outcome = PlaneOutcome::Failed;
-            report.error = Some(error.to_string());
+            let failure = PlaneFailure::Failed {
+                error: Arc::new(error),
+            };
+            report.outcome = failure.outcome();
+            report.failure = Some(failure);
         }
         report
+    }
+
+    pub(crate) fn unmet_requirement(&self, plane: &dyn ConfigPlane) -> Option<StateRequirement> {
+        plane
+            .requires()
+            .into_iter()
+            .find(|requirement| !requirement.is_met_by(&self.dependencies))
+    }
+
+    pub(crate) fn require(&self, plane: &dyn ConfigPlane) -> SchedulerResult<()> {
+        match self.unmet_requirement(plane) {
+            Some(requirement) => Err(ConfigPlaneError::UnmetRequirement {
+                plane: plane.name().to_owned(),
+                requirement: requirement.type_name(),
+            }
+            .into()),
+            None => Ok(()),
+        }
     }
 
     async fn reconcile_into(
@@ -184,13 +221,14 @@ impl ConfigReconcileService {
     }
 
     async fn persist(&self, report: &PlaneReport) {
+        let last_error = report.failure.as_ref().map(ToString::to_string);
         let update = PlaneStateUpdate {
             plane: &report.plane,
             authority: report.authority.as_str(),
             declared_hash: report.declared_hash.as_deref(),
             drift_rows: i32::try_from(report.drift_rows).unwrap_or(i32::MAX),
             outcome: report.outcome.as_str(),
-            last_error: report.error.as_deref(),
+            last_error: last_error.as_deref(),
         };
         if let Err(error) = self.repository.upsert_state(&update).await {
             tracing::warn!(plane = %report.plane, error = %error, "config_plane_state not recorded");

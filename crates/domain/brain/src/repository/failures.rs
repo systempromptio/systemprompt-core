@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgExecutor;
-use systemprompt_identifiers::{EventOutboxId, PipelineVersion};
+use systemprompt_identifiers::EventOutboxId;
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
@@ -30,11 +30,8 @@ impl FailureRepository {
             "INSERT INTO brain_failures (id, outbox_id, pipeline_version, stage, reason, attempt)
              VALUES ($1, $2, $3, $4, $5, $6)",
             uuid::Uuid::new_v4().to_string(),
-            failure.outbox_id.as_str(),
-            failure
-                .pipeline_version
-                .as_ref()
-                .map(PipelineVersion::as_str),
+            failure.outbox_id as _,
+            failure.pipeline_version as _,
             failure.stage,
             failure.reason,
             saturating_i32(failure.attempt),
@@ -50,7 +47,7 @@ impl FailureRepository {
     ) -> Result<i64, RepositoryError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT count(*) AS "count!" FROM brain_failures WHERE outbox_id = $1"#,
-            outbox_id.as_str(),
+            outbox_id as _,
         )
         .fetch_one(executor)
         .await?)

@@ -15,6 +15,7 @@ use super::{ExtensionSet, FreshSet};
 use crate::lifecycle::installation::prepare::PreparedSchema;
 use crate::lifecycle::installation::report::SchemaInstallReport;
 use crate::lifecycle::migrations::MigrationService;
+use crate::lifecycle::schema_name::SchemaName;
 use crate::services::DatabaseProvider;
 
 pub(super) async fn apply_structural(
@@ -69,12 +70,13 @@ pub(super) async fn apply_dependent(
     schema_extensions: &ExtensionSet,
     prepared: &[PreparedSchema],
     fresh: &FreshSet,
+    target: &SchemaName,
     reuse: TriggerReuse,
 ) -> Result<SchemaInstallReport, LoaderError> {
     for p in prepared {
         execute_phase(db, &p.dependent, &[], &p.extension_id, reuse).await?;
         for cols in &p.columns_to_validate {
-            validate_extension_columns(db, cols, &p.extension_id).await?;
+            validate_extension_columns(db, cols, target, &p.extension_id).await?;
         }
     }
 

@@ -23,20 +23,20 @@ pub enum OutboundUrlError {
     Parse(#[from] url::ParseError),
     #[error("invalid url: missing host")]
     MissingHost,
-    #[error("unsupported url scheme: {0}")]
-    Scheme(String),
+    #[error("unsupported url scheme: {scheme}")]
+    Scheme { scheme: String },
     #[error("http url only permitted for loopback hosts")]
     NonLoopbackHttp,
-    #[error("host {0} is loopback and loopback is not permitted")]
-    Loopback(String),
-    #[error("host {0} is in a blocked private range")]
-    BlockedHost(String),
+    #[error("host {host} is loopback and loopback is not permitted")]
+    Loopback { host: String },
+    #[error("host {host} is in a blocked private range")]
+    BlockedHost { host: String },
     #[error("host {host} resolves to blocked address {addr}")]
     BlockedAddress { host: String, addr: IpAddr },
-    #[error("host {0} resolved to no address")]
-    Unresolved(String),
-    #[error("host {0} is the forward proxy and is not a permitted target")]
-    ProxyHost(String),
+    #[error("host {host} resolved to no address")]
+    Unresolved { host: String },
+    #[error("host {host} is the forward proxy and is not a permitted target")]
+    ProxyHost { host: String },
 }
 
 /// Whether a destination may be the local host.
@@ -124,14 +124,18 @@ pub fn validate_outbound_url_with_trust(
         "https" => {},
         "http" if loopback_allowed || trusted => {},
         "http" => return Err(OutboundUrlError::NonLoopbackHttp),
-        scheme => return Err(OutboundUrlError::Scheme(scheme.to_owned())),
+        scheme => {
+            return Err(OutboundUrlError::Scheme {
+                scheme: scheme.to_owned(),
+            });
+        },
     }
 
     if loopback_allowed || trusted {
         return Ok(parsed);
     }
     if is_loopback {
-        return Err(OutboundUrlError::Loopback(host_str));
+        return Err(OutboundUrlError::Loopback { host: host_str });
     }
 
     let blocked = match host {
@@ -140,7 +144,7 @@ pub fn validate_outbound_url_with_trust(
         url::Host::Ipv6(ip) => is_blocked_v6(ip),
     };
     if blocked {
-        return Err(OutboundUrlError::BlockedHost(host_str));
+        return Err(OutboundUrlError::BlockedHost { host: host_str });
     }
     Ok(parsed)
 }
@@ -155,12 +159,16 @@ pub fn pin_resolved(
     let host_str = url.host_str().unwrap_or_default().to_ascii_lowercase();
     let port = url
         .port_or_known_default()
-        .ok_or_else(|| OutboundUrlError::Scheme(url.scheme().to_owned()))?;
+        .ok_or_else(|| OutboundUrlError::Scheme {
+            scheme: url.scheme().to_owned(),
+        })?;
     let exempt = is_trusted(&host_str, trusted_http_hosts)
         || (loopback == LoopbackPolicy::Allow && is_loopback_host(&host));
     let addr = *resolved
         .first()
-        .ok_or_else(|| OutboundUrlError::Unresolved(host_str.clone()))?;
+        .ok_or_else(|| OutboundUrlError::Unresolved {
+            host: host_str.clone(),
+        })?;
     if !exempt && let Some(blocked) = resolved.iter().find(|a| is_blocked_ip(**a)) {
         return Err(OutboundUrlError::BlockedAddress {
             host: host_str,

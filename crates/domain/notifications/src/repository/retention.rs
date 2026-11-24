@@ -39,7 +39,7 @@ impl NotificationRepository {
             "DELETE FROM notifications WHERE id IN (
                  SELECT id FROM notifications
                  WHERE stream_id = $1 AND created_at < $2 LIMIT $3)",
-            stream.as_str(),
+            stream as _,
             cutoff,
             batch,
         )

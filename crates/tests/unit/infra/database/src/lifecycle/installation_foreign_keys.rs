@@ -8,7 +8,7 @@ use systemprompt_extension::{Migration, SchemaDefinition};
 use systemprompt_test_fixtures::error_chain;
 
 use super::installation::{
-    StubExtension, drop_table, leak, provider_and_db, registry_with, table_exists, unique_id,
+    StubExtension, leak, provider_and_db, registry_with, table_exists, unique_id,
 };
 
 async fn foreign_key_count(db: &systemprompt_database::DbPool, table: &str) -> i64 {
@@ -42,20 +42,12 @@ async fn run_sql(db: &systemprompt_database::DbPool, sql: String) {
         .expect("fixture sql");
 }
 
-async fn forget_migrations(db: &systemprompt_database::DbPool, ext_id: &str) {
-    let pg = db.write_pool();
-    let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
-        .bind(ext_id)
-        .execute(&*pg)
-        .await;
-}
-
 // Why: `parent` can already exist without the composite unique index that
 // migration 001 adds, so an inline key fails in the structural phase and only a
 // key deferred past 001 can succeed.
 #[tokio::test]
 async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_index() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_fk").await;
     let parent = unique_id("fk_legacy_parent");
     let child = unique_id("fk_legacy_child");
     let ext_id = unique_id("fk_legacy_ext");
@@ -83,7 +75,7 @@ async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_ind
         migrations: vec![Migration::new(1, "owner_index", migration_sql)],
     });
 
-    install(&registry, &provider)
+    install(&registry, &provider, &scratch.schema_name())
         .await
         .expect("a legacy database converges: table, migration, then the deferred key");
 
@@ -91,14 +83,12 @@ async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_ind
     assert_eq!(foreign_key_count(&db, child).await, 1);
     assert_eq!(foreign_key_validated(&db, child).await, Some(true));
 
-    drop_table(&db, child).await;
-    drop_table(&db, parent).await;
-    forget_migrations(&db, ext_id).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn installing_twice_adds_exactly_one_foreign_key() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_fk").await;
     let parent = unique_id("fk_twice_parent");
     let child = unique_id("fk_twice_child");
     let ext_id = unique_id("fk_twice_ext");
@@ -115,19 +105,18 @@ async fn installing_twice_adds_exactly_one_foreign_key() {
     };
 
     for _ in 0..2 {
-        install(&registry_with(build()), &provider)
+        install(&registry_with(build()), &provider, &scratch.schema_name())
             .await
             .expect("install");
     }
     assert_eq!(foreign_key_count(&db, child).await, 1);
 
-    drop_table(&db, child).await;
-    drop_table(&db, parent).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_migration_authored_key_under_another_name_is_not_duplicated() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_fk").await;
     let parent = unique_id("fk_named_parent");
     let child = unique_id("fk_named_child");
     let ext_id = unique_id("fk_named_ext");
@@ -153,17 +142,18 @@ async fn a_migration_authored_key_under_another_name_is_not_duplicated() {
         seeds: vec![],
         migrations: vec![],
     });
-    install(&registry, &provider).await.expect("install");
+    install(&registry, &provider, &scratch.schema_name())
+        .await
+        .expect("install");
 
     assert_eq!(foreign_key_count(&db, child).await, 1);
 
-    drop_table(&db, child).await;
-    drop_table(&db, parent).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_fk").await;
     let parent = unique_id("fk_orphan_parent");
     let child = unique_id("fk_orphan_child");
     let ext_id = unique_id("fk_orphan_ext");
@@ -189,7 +179,7 @@ async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
         seeds: vec![],
         migrations: vec![],
     });
-    install(&registry, &provider)
+    install(&registry, &provider, &scratch.schema_name())
         .await
         .expect("orphan rows must not fail installation");
 
@@ -203,13 +193,12 @@ async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
     .await;
     assert!(new_orphan.is_err(), "a NOT VALID key still guards new rows");
 
-    drop_table(&db, child).await;
-    drop_table(&db, parent).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_deferred_foreign_key_that_cannot_be_satisfied_names_the_source_table() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_fk").await;
     let parent = unique_id("fk_unsat_parent");
     let child = unique_id("fk_unsat_child");
     let ext_id = unique_id("fk_unsat_ext");
@@ -233,7 +222,7 @@ async fn a_deferred_foreign_key_that_cannot_be_satisfied_names_the_source_table(
         seeds: vec![],
         migrations: vec![],
     });
-    let err = install(&registry, &provider)
+    let err = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect_err("no unique index on the referenced columns");
     let message = err.to_string();
@@ -248,13 +237,12 @@ async fn a_deferred_foreign_key_that_cannot_be_satisfied_names_the_source_table(
     );
     assert_eq!(foreign_key_count(&db, child).await, 0);
 
-    drop_table(&db, child).await;
-    drop_table(&db, parent).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn an_established_extension_reports_an_uncreatable_key_as_typed_drift() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_fk").await;
     let parent = unique_id("fk_drift_parent");
     let child = unique_id("fk_drift_child");
     let ext_id = unique_id("fk_drift_ext");
@@ -270,7 +258,6 @@ async fn an_established_extension_reports_an_uncreatable_key_as_typed_drift() {
         ),
     )
     .await;
-    forget_migrations(&db, ext_id).await;
     let schema_sql = format!(
         "CREATE TABLE IF NOT EXISTS \"{child}\" (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, \
          parent_id TEXT NOT NULL, FOREIGN KEY (owner_id, parent_id) REFERENCES \"{parent}\" \
@@ -283,7 +270,7 @@ async fn an_established_extension_reports_an_uncreatable_key_as_typed_drift() {
         migrations: vec![Migration::new(1, "noop", "SELECT 1")],
     });
 
-    let report = install(&registry, &provider)
+    let report = install(&registry, &provider, &scratch.schema_name())
         .await
         .expect("drift on an established database does not fail the install");
 
@@ -296,14 +283,12 @@ async fn an_established_extension_reports_an_uncreatable_key_as_typed_drift() {
     assert!(!drift.cause.is_empty());
     assert_eq!(foreign_key_count(&db, child).await, 0);
 
-    forget_migrations(&db, ext_id).await;
-    drop_table(&db, child).await;
-    drop_table(&db, parent).await;
+    scratch.drop_now().await;
 }
 
 #[tokio::test]
 async fn a_failing_catalog_probe_fails_the_install_on_an_established_database() {
-    let (provider, db) = provider_and_db().await;
+    let (scratch, provider, db) = provider_and_db("install_fk").await;
     let parent = unique_id("fk_probe_parent");
     let child = unique_id("fk_probe_child");
     let ext_id = unique_id("fk_probe_ext");
@@ -316,7 +301,6 @@ async fn a_failing_catalog_probe_fails_the_install_on_an_established_database() 
         ),
     )
     .await;
-    forget_migrations(&db, ext_id).await;
     let schema_sql = format!(
         "CREATE TABLE IF NOT EXISTS \"{child}\" (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL \
          REFERENCES \"{parent}\" (id));"
@@ -329,15 +313,13 @@ async fn a_failing_catalog_probe_fails_the_install_on_an_established_database() 
     });
 
     let failing = probe_failing::ProbeFailingProvider::new(provider);
-    let err = install(&registry, &failing)
+    let err = install(&registry, &failing, &scratch.schema_name())
         .await
         .expect_err("a failing catalog probe is not drift");
     assert!(error_chain(&err).contains("could not be probed"), "{err}");
     assert_eq!(foreign_key_count(&db, child).await, 0);
 
-    forget_migrations(&db, ext_id).await;
-    drop_table(&db, child).await;
-    drop_table(&db, parent).await;
+    scratch.drop_now().await;
 }
 
 mod probe_failing {

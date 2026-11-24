@@ -24,8 +24,8 @@ impl ArtifactRepository {
             JOIN agent_tasks t ON a.task_id = t.task_id
             JOIN user_contexts c ON t.context_id = c.context_id
             WHERE a.artifact_id = $1 AND c.user_id = $2"#,
-            artifact_id.as_str(),
-            user_id.as_str()
+            artifact_id as _,
+            user_id as _
         )
         .fetch_optional(self.pool.as_ref())
         .await?

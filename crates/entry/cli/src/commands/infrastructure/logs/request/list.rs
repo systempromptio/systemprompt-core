@@ -147,7 +147,7 @@ async fn execute_with_pool_inner(
                 cost: format!("${cost_dollars:.6}"),
                 billing: r.billing_source,
                 latency_ms: r.latency_ms.map(i64::from),
-                status: r.status,
+                status: r.status.as_str().to_owned(),
                 finish: r.finish_reason.unwrap_or_else(|| "-".to_owned()),
             }
         })

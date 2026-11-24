@@ -29,7 +29,7 @@ pub(super) async fn existing_decision(
 ) -> Result<Option<PublicationDecision>> {
     let Some(existing) = sqlx::query!(
         "SELECT id,review_id,generation,action,revision_id,bundle_digest,request_digest FROM managed_publications WHERE owner_id=$1 AND operation_key=$2",
-        owner.as_str(), &request.operation_key
+        owner as _, &request.operation_key
     )
     .fetch_optional(&mut **tx)
     .await?
@@ -64,9 +64,9 @@ pub(super) async fn admit_generation(
     if let Some(revision) = &request.revision_id {
         let found = sqlx::query!(
             "SELECT id FROM managed_revisions WHERE owner_id=$1 AND resource_id=$2 AND id=$3",
-            owner.as_str(),
-            request.resource_id.as_str(),
-            revision.as_str()
+            owner as _,
+            request.resource_id as _,
+            revision as _
         )
         .fetch_optional(&mut **tx)
         .await?;
@@ -76,7 +76,7 @@ pub(super) async fn admit_generation(
     }
     let current_generation = sqlx::query_scalar!(
         r#"SELECT coalesce(max(generation), 0) AS "generation!" FROM managed_publications WHERE owner_id=$1 AND resource_id=$2"#,
-        owner.as_str(), request.resource_id.as_str()
+        owner as _, request.resource_id as _
     )
     .fetch_one(&mut **tx)
     .await?;
@@ -90,7 +90,7 @@ pub(super) async fn admit_generation(
         && request.action == PublicationAction::Withdraw
     {
         let selected = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_publication_cohort_selections WHERE owner_id=$1 AND resource_id=$2 AND cohort_dimension=$3 AND cohort_value=$4)",
-            owner.as_str(), request.resource_id.as_str(), &cohort.dimension, &cohort.value).fetch_one(&mut **tx).await?.unwrap_or(false);
+            owner as _, request.resource_id as _, &cohort.dimension, &cohort.value).fetch_one(&mut **tx).await?.unwrap_or(false);
         if !selected {
             return Err(ManagedError::Conflict {
                 reason: "Withdrawing a cohort requires a cohort selection to clear",
@@ -98,10 +98,8 @@ pub(super) async fn admit_generation(
         }
     }
     if request.action == PublicationAction::Rollback {
-        let revision = request.revision_id.as_ref().map(ResourceRevisionId::as_str);
-        let digest = bundle_digest.map(AssetDigest::as_str);
         let retained = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 AND revision_id=$3 AND bundle_digest=$4 AND generation<=$5)",
-            owner.as_str(), request.resource_id.as_str(), revision, digest, current_generation).fetch_one(&mut **tx).await?.unwrap_or(false);
+            owner as _, request.resource_id as _, request.revision_id as _, bundle_digest as _, current_generation).fetch_one(&mut **tx).await?.unwrap_or(false);
         if !retained {
             return Err(ManagedError::Conflict {
                 reason: "Rollback must reference content retained by an earlier generation",
@@ -131,8 +129,6 @@ pub(super) async fn record_publication(
     let publication_id = PublicationId::generate();
     let outbox_id = EventOutboxId::generate();
     let action = request.action.as_str();
-    let revision = request.revision_id.as_ref().map(ResourceRevisionId::as_str);
-    let digest = bundle_digest.as_ref().map(AssetDigest::as_str);
 
     let gate_id = gate.as_ref().map(|admission| admission.gate_id.as_str());
     let gate_digest = gate
@@ -141,13 +137,13 @@ pub(super) async fn record_publication(
     let cohort_dimension = request.cohort.as_ref().map(|c| c.dimension.as_str());
     let cohort_value = request.cohort.as_ref().map(|c| c.value.as_str());
     sqlx::query!("INSERT INTO managed_publication_reviews(id,owner_id,resource_id,revision_id,action,bundle_digest,comparison_evidence,limitations,reviewer_id,expected_generation,request_digest,gate_id,gate_evidence_digest,cohort_dimension,cohort_value) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)",
-        review_id.as_str(), owner.as_str(), request.resource_id.as_str(), revision, action, digest,
-        serde_json::to_value(&request.comparison_evidence)?, &request.limitations, reviewer.as_str(), request.expected_generation, request_digest,
+        review_id as _, owner as _, request.resource_id as _, request.revision_id as _, action, bundle_digest as _,
+        serde_json::to_value(&request.comparison_evidence)?, &request.limitations, reviewer as _, request.expected_generation, request_digest,
         gate_id, gate_digest, cohort_dimension, cohort_value)
         .execute(&mut **tx)
         .await?;
     sqlx::query!("INSERT INTO managed_publications(id,owner_id,resource_id,review_id,generation,action,revision_id,bundle_digest,operation_key,request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-        publication_id.as_str(), owner.as_str(), request.resource_id.as_str(), review_id.as_str(), generation, action, revision, digest, &request.operation_key, request_digest)
+        publication_id as _, owner as _, request.resource_id as _, review_id as _, generation, action, request.revision_id as _, bundle_digest as _, &request.operation_key, request_digest)
         .execute(&mut **tx)
         .await?;
     write_selection(tx, publication, &publication_id).await?;
@@ -162,7 +158,7 @@ pub(super) async fn record_publication(
     };
     let payload = serde_json::to_value(&decision)?;
     sqlx::query!("INSERT INTO managed_distribution_outbox(id,owner_id,publication_id,generation,payload) VALUES($1,$2,$3,$4,$5)",
-        outbox_id.as_str(), owner.as_str(), decision.publication_id.as_str(), generation, payload)
+        outbox_id as _, owner as _, decision.publication_id as _, generation, payload)
         .execute(&mut **tx)
         .await?;
     Ok(decision)
@@ -186,7 +182,7 @@ async fn write_selection(
     match &request.cohort {
         Some(cohort) if withdraw => {
             sqlx::query!("DELETE FROM managed_publication_cohort_selections WHERE owner_id=$1 AND resource_id=$2 AND cohort_dimension=$3 AND cohort_value=$4",
-                owner.as_str(), request.resource_id.as_str(), &cohort.dimension, &cohort.value)
+                owner as _, request.resource_id as _, &cohort.dimension, &cohort.value)
                 .execute(&mut **tx)
                 .await?;
         },
@@ -194,14 +190,14 @@ async fn write_selection(
             let revision = revision.ok_or(ManagedError::Integrity)?;
             let digest = digest.ok_or(ManagedError::Integrity)?;
             sqlx::query!("INSERT INTO managed_publication_cohort_selections(owner_id,resource_id,cohort_dimension,cohort_value,generation,publication_id,revision_id,bundle_digest,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'published') ON CONFLICT(owner_id,resource_id,cohort_dimension,cohort_value) DO UPDATE SET generation=EXCLUDED.generation,publication_id=EXCLUDED.publication_id,revision_id=EXCLUDED.revision_id,bundle_digest=EXCLUDED.bundle_digest,updated_at=now()",
-                owner.as_str(), request.resource_id.as_str(), &cohort.dimension, &cohort.value, generation, publication_id.as_str(), revision, digest)
+                owner as _, request.resource_id as _, &cohort.dimension, &cohort.value, generation, publication_id as _, revision, digest)
                 .execute(&mut **tx)
                 .await?;
         },
         None => {
             let state = if withdraw { "withdrawn" } else { "published" };
             sqlx::query!("INSERT INTO managed_publication_selections(owner_id,resource_id,generation,state,publication_id,revision_id,bundle_digest) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(owner_id,resource_id) DO UPDATE SET generation=EXCLUDED.generation,state=EXCLUDED.state,publication_id=EXCLUDED.publication_id,revision_id=EXCLUDED.revision_id,bundle_digest=EXCLUDED.bundle_digest,updated_at=now()",
-                owner.as_str(), request.resource_id.as_str(), generation, state, publication_id.as_str(), revision, digest)
+                owner as _, request.resource_id as _, generation, state, publication_id as _, revision, digest)
                 .execute(&mut **tx)
                 .await?;
         },

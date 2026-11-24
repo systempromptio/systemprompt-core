@@ -106,7 +106,7 @@ impl AiGatewayPolicyRepository {
                 source = EXCLUDED.source,
                 updated_at = CURRENT_TIMESTAMP
             "#,
-            id.as_str(),
+            id as _,
             row.name,
             row.spec,
             row.enabled,

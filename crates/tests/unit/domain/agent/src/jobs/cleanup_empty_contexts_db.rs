@@ -5,8 +5,9 @@ use std::sync::Arc;
 
 use systemprompt_agent::jobs::CleanupEmptyContextsJob;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::Actor;
 use systemprompt_mcp::repository::ToolUsageRepository;
-use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use systemprompt_traits::{Dependencies, DynToolExecutionLookup, Job, JobContext};
 
 #[test]
@@ -23,7 +24,7 @@ fn name_description_and_schedule_are_unchanged() {
 fn make_ctx(pool: &DbPool) -> JobContext {
     let executions: DynToolExecutionLookup = Arc::new(ToolUsageRepository::new(pool));
     JobContext::new(
-        fixture_actor(),
+        Actor::user(unique_user_id("cleanup-empty-contexts-db")),
         Dependencies::new().with(Arc::clone(pool)).with(executions),
     )
 }
@@ -41,7 +42,10 @@ async fn cleanup_empty_contexts_job_execute_succeeds() {
 
 #[tokio::test]
 async fn cleanup_empty_contexts_fails_when_dbpool_missing() {
-    let ctx = JobContext::new(fixture_actor(), Dependencies::new());
+    let ctx = JobContext::new(
+        Actor::user(unique_user_id("cleanup-empty-contexts-db")),
+        Dependencies::new(),
+    );
     assert!(CleanupEmptyContextsJob.execute(&ctx).await.is_err());
 }
 

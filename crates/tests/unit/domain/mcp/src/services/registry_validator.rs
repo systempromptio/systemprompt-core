@@ -10,12 +10,12 @@ use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::RegistryConfig;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn internal_server(name: &str, port: u16) -> McpServerConfig {
     McpServerConfig {
         name: name.to_owned(),
-        owner: fixture_user_id(),
+        owner: unique_user_id("registry-validator"),
         server_type: McpServerType::Internal,
         binary: Some(format!("{name}-bin")),
         enabled: true,

@@ -9,7 +9,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use chrono::{Duration, Utc};
-use systemprompt_identifiers::SsoAssertionId;
+use systemprompt_identifiers::{SsoAssertionId, SsoProviderId};
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::{
     CookieSameSite, ExternalIdentity, SsoError, SsoLoginRefused, SsoLoginSuccess, SsoProvider,
@@ -49,7 +49,10 @@ impl SsoDriver {
         let Some(provider) = self.provider(id) else {
             return FinishOutcome::Refused {
                 login_path: UNKNOWN_PROVIDER_LOGIN_PATH.to_owned(),
-                reason: SsoError::Unavailable(String::new()).reason_code(),
+                reason: SsoError::Unavailable {
+                    provider: SsoProviderId::new(id),
+                }
+                .reason_code(),
                 clear_binder: self.cleared_binder(None),
             };
         };

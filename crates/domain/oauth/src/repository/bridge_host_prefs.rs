@@ -105,7 +105,7 @@ impl BridgeHostPrefsRepository {
             WHERE user_id = $1 AND enabled = true
             ORDER BY host_id
             "#,
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(self.pool.as_ref())
         .await?;
@@ -133,7 +133,7 @@ impl BridgeHostPrefsRepository {
             WHERE user_id = $1 AND enabled = true
             FOR UPDATE
             "#,
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(&mut *tx)
         .await?;
@@ -173,7 +173,7 @@ impl BridgeHostPrefsRepository {
                     ON CONFLICT (user_id, host_id)
                     DO UPDATE SET enabled = true, updated_at = CURRENT_TIMESTAMP
                     "#,
-                    user_id.as_str(),
+                    user_id as _,
                     &keep,
                 )
                 .execute(&mut *tx)
@@ -187,7 +187,7 @@ impl BridgeHostPrefsRepository {
             ON CONFLICT (user_id, host_id)
             DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = CURRENT_TIMESTAMP
             "#,
-            user_id.as_str(),
+            user_id as _,
             host.as_str(),
             enabled,
         )
@@ -228,7 +228,7 @@ impl BridgeHostPrefsRepository {
             WHERE user_id = $1
             ORDER BY host_id
             "#,
-            user_id.as_str(),
+            user_id as _,
         )
         .fetch_all(self.pool.as_ref())
         .await?;
@@ -258,7 +258,7 @@ impl BridgeHostPrefsRepository {
                     DO UPDATE SET model_protocols = EXCLUDED.model_protocols,
                                   updated_at = CURRENT_TIMESTAMP
                     "#,
-                    user_id.as_str(),
+                    user_id as _,
                     host.as_str(),
                     list,
                 )
@@ -271,7 +271,7 @@ impl BridgeHostPrefsRepository {
                     DELETE FROM bridge_user_host_model_prefs
                     WHERE user_id = $1 AND host_id = $2
                     "#,
-                    user_id.as_str(),
+                    user_id as _,
                     host.as_str(),
                 )
                 .execute(self.write_pool.as_ref())

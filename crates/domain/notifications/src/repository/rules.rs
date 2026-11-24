@@ -76,14 +76,13 @@ impl NotificationRuleRepository {
         if owners.is_empty() {
             return Ok(HashMap::new());
         }
-        let owners: Vec<String> = owners.iter().map(|o| o.as_str().to_owned()).collect();
         let rows = sqlx::query!(
             r#"SELECT owner_user_id AS "owner!: UserId", id::text AS "id!: NotificationRuleId",
                       name, priority, match AS "match!: Json<RuleMatch>",
                       action AS "action!: Json<RuleAction>"
                FROM notification_rules WHERE owner_user_id = ANY($1)
                ORDER BY owner_user_id, priority, id"#,
-            &owners
+            owners as _
         )
         .fetch_all(executor)
         .await?;
@@ -117,7 +116,7 @@ impl NotificationRuleRepository {
                WHERE id = ANY($1::text[]::uuid[]) AND owner_user_id IS DISTINCT FROM $2
                ORDER BY id LIMIT 1"#,
             &ids,
-            owner.as_str(),
+            owner as _,
         )
         .fetch_optional(&mut *tx)
         .await?;
@@ -133,7 +132,7 @@ impl NotificationRuleRepository {
         }
         sqlx::query!(
             "DELETE FROM notification_rules WHERE owner_user_id = $1",
-            owner.as_str()
+            owner as _
         )
         .execute(&mut *tx)
         .await?;
@@ -158,7 +157,7 @@ impl NotificationRuleRepository {
                  name = EXCLUDED.name, priority = EXCLUDED.priority, match = EXCLUDED.match,
                  action = EXCLUDED.action, updated_at = now()
              WHERE notification_rules.owner_user_id IS NULL",
-            rule.id.as_str(),
+            rule.id as _,
             rule.name,
             rule.priority,
             matcher,
@@ -183,7 +182,7 @@ impl NotificationRuleRepository {
     ) -> Result<(), RepositoryError> {
         sqlx::query!(
             "DELETE FROM notification_rules WHERE id = $1::text::uuid AND owner_user_id IS NULL",
-            id.as_str()
+            id as _
         )
         .execute(executor)
         .await?;
@@ -202,10 +201,10 @@ async fn insert(
     sqlx::query!(
         "INSERT INTO notification_rules (id, name, priority, owner_user_id, match, action, source)
          VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7)",
-        rule.id.as_str(),
+        rule.id as _,
         rule.name,
         rule.priority,
-        owner.map(UserId::as_str),
+        owner as _,
         matcher,
         action,
         source,

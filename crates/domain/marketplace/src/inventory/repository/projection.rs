@@ -22,13 +22,13 @@ impl ManagedRepository {
         let mut tx = self.pool.begin().await?;
         sqlx::query!(
             "INSERT INTO managed_inventory_state(owner_id) VALUES($1) ON CONFLICT DO NOTHING",
-            owner.as_str()
+            owner as _
         )
         .execute(&mut *tx)
         .await?;
         let state = sqlx::query!(
             "SELECT generation FROM managed_inventory_state WHERE owner_id=$1 FOR UPDATE",
-            owner.as_str()
+            owner as _
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -57,10 +57,10 @@ impl ManagedRepository {
             sources.active_root,
             self.base_tree_hash_memo(),
         ))?;
-        sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,sources=$5,last_error=NULL WHERE owner_id=$1",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
+        sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,sources=$5,last_error=NULL WHERE owner_id=$1",owner as _,generation,observed,count,sources).execute(&mut *tx).await?;
         // Why: membership rows join on this generation's mint time as
         // `effective_from`; an unchanged pass must not move it.
-        sqlx::query!("INSERT INTO managed_inventory_observations(owner_id,generation,observed_at,entries,sources) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,generation) DO NOTHING",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
+        sqlx::query!("INSERT INTO managed_inventory_observations(owner_id,generation,observed_at,entries,sources) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,generation) DO NOTHING",owner as _,generation,observed,count,sources).execute(&mut *tx).await?;
         let result = InventoryStatus {
             generation,
             observed_at: Some(observed),

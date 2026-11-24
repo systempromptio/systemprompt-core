@@ -10,14 +10,17 @@ use std::sync::{Arc, Mutex};
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Contributions, Extension};
 use systemprompt_generator::{ContentPrerenderJob, GeneratorExtension, PagePrerenderJob};
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_identifiers::{Actor, ExtensionId};
 use systemprompt_provider_contracts::{Dependencies, Job, JobContext, JobScope, ProviderError};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_actor, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool, unique_user_id};
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
 fn empty_ctx() -> JobContext {
-    JobContext::new(fixture_actor(), Dependencies::new())
+    JobContext::new(
+        Actor::user(unique_user_id("jobs-tests")),
+        Dependencies::new(),
+    )
 }
 
 #[test]
@@ -84,7 +87,10 @@ async fn page_prerender_job_without_db_pool_is_configuration_error() {
 #[tokio::test]
 async fn content_prerender_job_without_app_paths_is_configuration_error() {
     let db = test_db_pool().await;
-    let ctx = JobContext::new(fixture_actor(), Dependencies::new().with(db));
+    let ctx = JobContext::new(
+        Actor::user(unique_user_id("jobs-tests")),
+        Dependencies::new().with(db),
+    );
     let err = ContentPrerenderJob
         .execute(&ctx)
         .await
@@ -98,7 +104,10 @@ async fn content_prerender_job_without_app_paths_is_configuration_error() {
 #[tokio::test]
 async fn page_prerender_job_without_app_paths_is_configuration_error() {
     let db = test_db_pool().await;
-    let ctx = JobContext::new(fixture_actor(), Dependencies::new().with(db));
+    let ctx = JobContext::new(
+        Actor::user(unique_user_id("jobs-tests")),
+        Dependencies::new().with(db),
+    );
     let err = PagePrerenderJob
         .execute(&ctx)
         .await
@@ -140,7 +149,7 @@ async fn run_prerender_jobs_with_empty_sources(with_hooks: bool) {
             systemprompt_content::contract::ContentHooks::default(),
         ));
     }
-    let ctx = JobContext::new(fixture_actor(), state);
+    let ctx = JobContext::new(Actor::user(unique_user_id("jobs-tests")), state);
 
     let result = ContentPrerenderJob
         .execute(&ctx)

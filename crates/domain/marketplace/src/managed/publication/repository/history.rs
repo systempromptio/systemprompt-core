@@ -18,7 +18,7 @@ impl ManagedRepository {
             EXISTS(SELECT 1 FROM managed_distribution_deliveries d WHERE d.owner_id=p.owner_id AND d.publication_id=p.id AND d.status='distributed') AS "distributed!",
             EXISTS(SELECT 1 FROM managed_installation_receipts i WHERE i.owner_id=p.owner_id AND i.publication_id=p.id) AS "installation_verified!"
             FROM managed_publications p JOIN managed_publication_reviews r ON r.id=p.review_id AND r.owner_id=p.owner_id WHERE p.owner_id=$1 AND p.resource_id=$2 ORDER BY p.generation DESC"#,
-            owner.as_str(), resource_id.as_str())
+            owner as _, resource_id as _)
             .fetch_all(&self.pool)
             .await?;
         rows.into_iter()
@@ -53,8 +53,8 @@ impl ManagedRepository {
     ) -> Result<i64> {
         Ok(sqlx::query_scalar!(
             r#"SELECT coalesce(max(generation), 0) AS "generation!" FROM managed_publications WHERE owner_id=$1 AND resource_id=$2"#,
-            owner.as_str(),
-            resource_id.as_str()
+            owner as _,
+            resource_id as _
         )
         .fetch_one(&self.pool)
         .await?)

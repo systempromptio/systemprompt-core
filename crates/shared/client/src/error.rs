@@ -35,8 +35,8 @@ pub enum ClientError {
     #[error("Request timeout")]
     Timeout,
 
-    #[error("Server unavailable: {0}")]
-    ServerUnavailable(String),
+    #[error("Server unavailable: stream ended before the remote exit code")]
+    StreamEndedWithoutExitCode,
 
     #[error("Server unavailable: undecodable cli event from server: {0}")]
     UndecodableEvent(#[source] serde_json::Error),
@@ -58,7 +58,7 @@ impl ClientError {
         matches!(
             self,
             Self::Timeout
-                | Self::ServerUnavailable(_)
+                | Self::StreamEndedWithoutExitCode
                 | Self::UndecodableEvent(_)
                 | Self::HttpError(_)
         )

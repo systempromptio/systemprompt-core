@@ -7,6 +7,7 @@ use systemprompt_identifiers::{
     AiRequestId, ArtifactId, ContextId, McpExecutionId, McpServerId, McpToolName, TaskId,
 };
 
+use super::ai_trace::parse_state;
 use super::{Result, TraceRepository};
 use crate::trace::models::{AiRequestInfo, McpToolExecution, TaskArtifact, ToolLogEntry};
 
@@ -22,25 +23,26 @@ impl TraceRepository {
            FROM mcp_tool_executions
            WHERE task_id = $1 OR context_id = $2
            ORDER BY started_at"#,
-            task_id.as_str(),
-            context_id.as_str()
+            task_id as _,
+            context_id as _
         )
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| McpToolExecution {
-                mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
-                tool_name: McpToolName::new(r.tool_name),
-                server_name: McpServerId::new(r.server_name),
-                status: r.status,
-                execution_time_ms: r.execution_time_ms,
-                error_message: r.error_message,
-                input: r.input,
-                output: r.output,
+        rows.into_iter()
+            .map(|r| -> Result<McpToolExecution> {
+                Ok(McpToolExecution {
+                    mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
+                    tool_name: McpToolName::new(r.tool_name),
+                    server_name: McpServerId::new(r.server_name),
+                    status: parse_state("mcp_tool_executions.status", r.status)?,
+                    execution_time_ms: r.execution_time_ms,
+                    error_message: r.error_message,
+                    input: r.input,
+                    output: r.output,
+                })
             })
-            .collect())
+            .collect()
     }
 
     pub async fn fetch_mcp_linked_ai_requests(
@@ -52,7 +54,7 @@ impl TraceRepository {
            FROM ai_requests
            WHERE mcp_execution_id = $1
            ORDER BY created_at"#,
-        mcp_execution_id.as_str()
+        mcp_execution_id as _
     )
     .fetch_all(&*self.pool)
     .await?;
@@ -89,8 +91,8 @@ impl TraceRepository {
                  OR message LIKE 'MCP execution%'
              )
            ORDER BY timestamp"#,
-        task_id.as_str(),
-        context_id.as_str()
+        task_id as _,
+        context_id as _
     )
     .fetch_all(&*self.pool)
     .await?;
@@ -120,8 +122,8 @@ impl TraceRepository {
            LEFT JOIN artifact_parts ap ON ta.artifact_id = ap.artifact_id AND ta.context_id = ap.context_id
            WHERE ta.task_id = $1 OR ta.context_id = $2
            ORDER BY ta.created_at, ap.sequence_number"#,
-        task_id.as_str(),
-        context_id.as_str()
+        task_id as _,
+        context_id as _
     )
     .fetch_all(&*self.pool)
     .await?;

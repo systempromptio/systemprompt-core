@@ -8,7 +8,10 @@
 use super::configured_files::configured_files;
 use super::publish_provenance::{PassProvenance, inventory_request};
 use super::{BaselineScope, InventoryEntry, InventoryService};
-use crate::managed::{AssetDigest, ManagedResolution, PublicationAdmission, ResourceKind, Result};
+use crate::managed::{
+    AssetDigest, ManagedResolution, PublicationAdmission, ReconciliationStatus, ResourceKind,
+    Result,
+};
 use serde::Serialize;
 use std::collections::HashMap;
 use systemprompt_identifiers::{InventoryEntryId, ManagedResourceId, ResourceRevisionId};
@@ -234,7 +237,7 @@ impl InventoryService {
             .inventory_reconciliations(scope.owner, &entry.entry_id, None)
             .await?
             .iter()
-            .any(|record| record.status == "open"))
+            .any(|record| record.status == ReconciliationStatus::Open))
     }
 }
 

@@ -72,7 +72,7 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
     let result = ToolExecutionResult {
         output: Some(json!({"ok": true})),
         output_schema: None,
-        status: McpToolExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at,
         completed_at: Some(Utc::now()),
@@ -100,12 +100,13 @@ async fn start_and_complete_execution_roundtrip() {
 
     let db = test_db_pool().await;
     let repo = ToolUsageRepository::new(&db);
+    let user_id = UserId::generate();
     let ctx = RequestContext::new(
         SessionId::new("s1"),
         TraceId::new("t1"),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
-        systemprompt_identifiers::Actor::user(UserId::new("test-user")),
+        systemprompt_identifiers::Actor::user(user_id.clone()),
     );
 
     let started_at = Utc::now();
@@ -142,7 +143,7 @@ async fn start_and_complete_execution_roundtrip() {
     let result = ToolExecutionResult {
         output: Some(json!({"ok":true})),
         output_schema: None,
-        status: McpToolExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success,
         error_message: None,
         started_at,
         completed_at: Some(completed_at),
@@ -158,7 +159,7 @@ async fn start_and_complete_execution_roundtrip() {
         .unwrap();
 
     let final_row = repo.find_by_id(&exec_id).await.unwrap().unwrap();
-    assert_eq!(final_row.status, "success");
+    assert_eq!(final_row.status, McpToolExecutionStatus::Success);
 
     let (actor_kind, actor_id, request_method, request_source): (
         Option<String>,
@@ -174,7 +175,7 @@ async fn start_and_complete_execution_roundtrip() {
     .await
     .unwrap();
     assert_eq!(actor_kind.as_deref(), Some("user"));
-    assert_eq!(actor_id.as_deref(), Some("test-user"));
+    assert_eq!(actor_id.as_deref(), Some(user_id.as_str()));
     assert_eq!(request_method.as_deref(), Some("mcp"));
     assert_eq!(request_source.as_deref(), Some("srv-x"));
 }
@@ -214,7 +215,7 @@ async fn log_execution_sync_writes_row() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: McpToolExecutionStatus::Failed.as_str().to_owned(),
+        status: McpToolExecutionStatus::Failed,
         error_message: Some("boom".to_owned()),
         started_at,
         completed_at: Some(Utc::now()),

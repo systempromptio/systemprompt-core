@@ -18,11 +18,15 @@ use systemprompt_identifiers::{
 use systemprompt_models::{StepContent, StepStatus};
 use systemprompt_traits::RepositoryError;
 
-fn step_row(task_id: &TaskId, status: &str, content: serde_json::Value) -> ExecutionStepBatchRow {
+fn step_row(
+    task_id: &TaskId,
+    status: StepStatus,
+    content: serde_json::Value,
+) -> ExecutionStepBatchRow {
     ExecutionStepBatchRow {
         step_id: ExecutionStepId::generate(),
         task_id: task_id.clone(),
-        status: status.to_owned(),
+        status,
         content,
         started_at: chrono::Utc::now(),
         completed_at: None,
@@ -31,13 +35,13 @@ fn step_row(task_id: &TaskId, status: &str, content: serde_json::Value) -> Execu
     }
 }
 
-fn message_row(task_id: &TaskId, ctx: &ContextId, role: &str, seq: i32) -> TaskMessage {
+fn message_row(task_id: &TaskId, ctx: &ContextId, role: MessageRole, seq: i32) -> TaskMessage {
     TaskMessage {
         id: seq,
         task_id: task_id.clone(),
         message_id: MessageId::generate(),
         client_message_id: None,
-        role: role.to_owned(),
+        role,
         context_id: ctx.clone(),
         user_id: Some(UserId::new("u-batch")),
         session_id: Some(SessionId::generate()),
@@ -107,7 +111,7 @@ fn build_execution_steps_parses_valid_rows() {
     let task_id = TaskId::generate();
     let row = step_row(
         &task_id,
-        "completed",
+        StepStatus::Completed,
         serde_json::json!({"type": "completion"}),
     );
     let rows = vec![&row];
@@ -124,27 +128,9 @@ fn build_execution_steps_parses_valid_rows() {
 #[test]
 fn build_execution_steps_rejects_a_malformed_row_instead_of_skipping_it() {
     let task_id = TaskId::generate();
-    let bad_status = step_row(
-        &task_id,
-        "nonsense",
-        serde_json::json!({"type": "completion"}),
-    );
-    let good = step_row(
-        &task_id,
-        "in_progress",
-        serde_json::json!({"type": "understanding"}),
-    );
-    let rows = vec![&good, &bad_status];
-
-    let err = build_execution_steps(Some(&rows)).expect_err("a malformed status row is an error");
-    assert!(
-        matches!(&err, RepositoryError::Decode { context, .. } if context.ends_with("status")),
-        "{err:?}"
-    );
-
     let bad_content = step_row(
         &task_id,
-        "pending",
+        StepStatus::Pending,
         serde_json::json!({"type": "unknown_kind"}),
     );
     let rows = vec![&bad_content];
@@ -167,9 +153,9 @@ fn build_messages_none_and_empty_inputs_yield_none() {
 fn build_messages_maps_roles_and_reference_task_ids() {
     let task_id = TaskId::generate();
     let ctx = ContextId::generate();
-    let mut user_row = message_row(&task_id, &ctx, "ROLE_USER", 1);
+    let mut user_row = message_row(&task_id, &ctx, MessageRole::User, 1);
     user_row.reference_task_ids = Some(vec!["t-ref".to_owned()]);
-    let agent_row = message_row(&task_id, &ctx, "agent", 2);
+    let agent_row = message_row(&task_id, &ctx, MessageRole::Agent, 2);
     let rows = vec![&user_row, &agent_row];
     let parts: HashMap<MessageId, Vec<&MessagePart>> = HashMap::new();
 
@@ -188,7 +174,7 @@ fn build_messages_maps_roles_and_reference_task_ids() {
 fn build_messages_merges_client_message_id_into_metadata() {
     let task_id = TaskId::generate();
     let ctx = ContextId::generate();
-    let mut row = message_row(&task_id, &ctx, "user", 1);
+    let mut row = message_row(&task_id, &ctx, MessageRole::User, 1);
     row.client_message_id = Some(MessageId::new("cmid-1"));
     row.metadata = Some(serde_json::json!({"existing": true}));
     let rows = vec![&row];

@@ -46,8 +46,8 @@ impl DocumentGrantRepository {
                FROM g)
                SELECT COUNT(*) AS "deleted!" FROM g"#,
                 id,
-                actor.user.as_str(),
-                actor.trace.as_str(),
+                actor.user as _,
+                actor.trace as _,
             )
             .fetch_one(&*self.pools.write)
             .await
@@ -89,9 +89,9 @@ impl DocumentGrantRepository {
                       g.subject_value, g.access_level, g.valid_until, $2, $3
                FROM g)
                SELECT COUNT(*) AS "revoked!" FROM g"#,
-                id.as_str(),
-                actor.user.as_str(),
-                actor.trace.as_str(),
+                id as _,
+                actor.user as _,
+                actor.trace as _,
             )
             .fetch_one(&*self.pools.write)
             .await

@@ -6,6 +6,7 @@
 pub mod cli_gateway;
 pub mod cloud;
 pub mod contexts;
+pub mod cursor;
 pub mod errors;
 pub mod ext;
 pub mod modules;
@@ -23,6 +24,7 @@ pub use contexts::{
     ContextKind, CreateContextRequest, ParseContextKindError, UpdateContextRequest, UserContext,
     UserContextWithStats,
 };
+pub use cursor::{KeysetCursor, KeysetCursorError, KeysetPage};
 pub use errors::{ApiError, ErrorCode, ValidationError};
 pub use ext::ApiErrorExt;
 pub use modules::ModuleInfo;

@@ -84,7 +84,7 @@ fn load_errors_when_skills_path_not_in_config() {
 
     let err = v.load(&cfg).unwrap_err();
     assert!(
-        matches!(err, DomainConfigError::NotFound(_)),
+        matches!(err, DomainConfigError::SkillsPathNotConfigured),
         "got: {err:?}"
     );
 }

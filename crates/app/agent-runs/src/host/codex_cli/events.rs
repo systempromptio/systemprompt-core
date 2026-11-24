@@ -19,7 +19,7 @@ use systemprompt_identifiers::{HostSessionId, ToolUseId};
 use crate::event::{RunEventPayload, RunnerLevel};
 use crate::host::HostEvent;
 
-use super::wire::{Item, ItemDetails, ThreadEvent, Usage};
+use super::wire::{Item, ItemDetails, ItemStatus, ThreadEvent, Usage};
 
 pub const TURN_COMPLETED: &str = "turn_completed";
 pub const TURN_FAILED: &str = "turn_failed";
@@ -130,8 +130,7 @@ fn tool(details: &ItemDetails) -> Option<Tool> {
             name: "command_execution".to_owned(),
             input: serde_json::json!({ "command": command }),
             content: aggregated_output.clone(),
-            is_error: status == "failed"
-                || status == "declined"
+            is_error: matches!(status, ItemStatus::Failed | ItemStatus::Declined)
                 || exit_code.is_some_and(|c| c != 0),
         },
         ItemDetails::FileChange { changes, status } => Tool {
@@ -142,7 +141,7 @@ fn tool(details: &ItemDetails) -> Option<Tool> {
                 .map(|c| format!("{} {}", c.kind, c.path))
                 .collect::<Vec<_>>()
                 .join("\n"),
-            is_error: status == "failed",
+            is_error: *status == ItemStatus::Failed,
         },
         ItemDetails::McpToolCall {
             server,

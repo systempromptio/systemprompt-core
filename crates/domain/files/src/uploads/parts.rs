@@ -47,7 +47,7 @@ impl DocumentUploadRepository {
         let mut tx = self.write.begin().await?;
         sqlx::query_scalar!(
             r#"SELECT 1 AS "locked!" FROM document_uploads WHERE id = $1::text::uuid FOR UPDATE"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_optional(&mut *tx)
         .await?;
@@ -71,11 +71,11 @@ impl DocumentUploadRepository {
                )
                SELECT (SELECT COUNT(*) FROM written)::bigint AS "written!",
                       (SELECT storage_id FROM previous) AS previous"#,
-            id.as_str(),
+            id as _,
             number,
             size,
-            part.sha256.as_str(),
-            part.storage_id.as_str(),
+            part.sha256 as _,
+            part.storage_id as _,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -99,7 +99,7 @@ impl DocumentUploadRepository {
         let mut tx = self.write.begin().await?;
         sqlx::query_scalar!(
             r#"SELECT 1 AS "locked!" FROM document_uploads WHERE id = $1::text::uuid FOR UPDATE"#,
-            id.as_str(),
+            id as _,
         )
         .fetch_optional(&mut *tx)
         .await?;
@@ -109,9 +109,9 @@ impl DocumentUploadRepository {
                AND ($3::text IS NULL OR NOT EXISTS (
                    SELECT 1 FROM document_upload_parts
                    WHERE upload_id = $1::text::uuid AND storage_id = $3))",
-            id.as_str(),
+            id as _,
             bytes,
-            attempt.map(StoredFileId::as_str),
+            attempt as _,
         )
         .execute(&mut *tx)
         .await?;

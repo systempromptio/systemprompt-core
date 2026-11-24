@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT o.id AS \"id: EventOutboxId\", o.fact AS \"fact!\" FROM event_outbox o\n             WHERE o.consumer = $1 AND o.processed_at IS NULL AND o.id <> ALL($3)\n               AND (o.aggregate_key = '' OR NOT EXISTS (\n                   SELECT 1 FROM event_outbox e\n                   WHERE e.consumer = o.consumer AND e.aggregate_key = o.aggregate_key\n                     AND e.processed_at IS NULL\n                     AND (e.aggregate_seq, e.created_at, e.id)\n                         < (o.aggregate_seq, o.created_at, o.id)))\n             ORDER BY o.created_at, o.id LIMIT $2 FOR UPDATE OF o SKIP LOCKED",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: EventOutboxId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "event_outbox",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "fact!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "event_outbox",
+            "name": "fact"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "6f6353922d8c32b1d1a1c344414c98090b933b2fc4f4106b437a11cc22d90cc1"
+}

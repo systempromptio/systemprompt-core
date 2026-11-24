@@ -35,7 +35,6 @@ impl ConversationAnalyticsRepository {
         limit: i64,
         user: Option<&UserId>,
     ) -> Result<Vec<ConversationListRow>> {
-        let user = user.map(UserId::as_str);
         sqlx::query_as!(
             ConversationListRow,
             r#"
@@ -59,7 +58,7 @@ impl ConversationAnalyticsRepository {
             end,
             limit,
             ContextKind::User.as_str(),
-            user
+            user as _
         )
         .fetch_all(&*self.pool)
         .await
@@ -73,7 +72,6 @@ impl ConversationAnalyticsRepository {
         limit: i64,
         user: Option<&UserId>,
     ) -> Result<Vec<GatewaySessionListRow>> {
-        let user = user.map(UserId::as_str);
         sqlx::query_as!(
             GatewaySessionListRow,
             r#"
@@ -98,7 +96,7 @@ impl ConversationAnalyticsRepository {
             start,
             end,
             limit,
-            user
+            user as _
         )
         .fetch_all(&*self.pool)
         .await

@@ -160,7 +160,7 @@ impl McpArtifactRepository {
         let mut tx = self.write_pool.begin().await?;
         let result = sqlx::query!(
             r#"DELETE FROM mcp_artifacts WHERE artifact_id = $1"#,
-            artifact_id.as_str()
+            artifact_id as _
         )
         .execute(&mut *tx)
         .await?;

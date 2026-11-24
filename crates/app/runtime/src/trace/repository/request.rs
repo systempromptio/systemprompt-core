@@ -5,6 +5,7 @@
 
 use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
 
+use super::ai_trace::parse_state;
 use super::{Result, TraceRepository};
 use crate::trace::models::{
     AiRequestClientEvidence, AiRequestDetail, AiRequestFilter, AiRequestListItem,
@@ -70,7 +71,7 @@ impl TraceRepository {
             cache_read_tokens, cache_creation_tokens, reasoning_tokens,
             cost_microdollars as "cost_microdollars!",
             latency_ms,
-            status as "status!",
+            status as "status!: systemprompt_traits::RequestStatus",
             finish_reason,
             billing_source as "billing_source!"
         FROM ai_requests
@@ -143,37 +144,40 @@ impl TraceRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(row.map(|r| AiRequestDetail {
-            id: r.id,
-            user_id: r.user_id,
-            actor_kind: r.actor_kind,
-            actor_id: r.actor_id,
-            provider: r.provider,
-            model: r.model,
-            input_tokens: r.input_tokens,
-            output_tokens: r.output_tokens,
-            cost_microdollars: r.cost_microdollars,
-            latency_ms: r.latency_ms,
-            status: r.status,
-            error_message: r.error_message,
-            client_kind: r.client_kind,
-            client_attestation: r.client_attestation,
-            client_evidence: r
-                .evidence_kind_source
-                .map(|kind_source| AiRequestClientEvidence {
-                    kind_source,
-                    attested_host: r.evidence_attested_host,
-                    declared_client: r.evidence_declared_client,
-                    native_marker: r.evidence_native_marker,
-                    ua_product: r.evidence_ua_product,
-                    ua_version: r.evidence_ua_version,
-                    sdk_lang: r.evidence_sdk_lang,
-                    sdk_package_version: r.evidence_sdk_package_version,
-                    sdk_runtime: r.evidence_sdk_runtime,
-                    sdk_runtime_version: r.evidence_sdk_runtime_version,
-                    sdk_os: r.evidence_sdk_os,
-                    sdk_arch: r.evidence_sdk_arch,
+        row.map(|r| -> Result<AiRequestDetail> {
+            Ok(AiRequestDetail {
+                id: r.id,
+                user_id: r.user_id,
+                actor_kind: r.actor_kind,
+                actor_id: r.actor_id,
+                provider: r.provider,
+                model: r.model,
+                input_tokens: r.input_tokens,
+                output_tokens: r.output_tokens,
+                cost_microdollars: r.cost_microdollars,
+                latency_ms: r.latency_ms,
+                status: parse_state("ai_requests.status", r.status)?,
+                error_message: r.error_message,
+                client_kind: r.client_kind,
+                client_attestation: r.client_attestation,
+                client_evidence: r.evidence_kind_source.map(|kind_source| {
+                    AiRequestClientEvidence {
+                        kind_source,
+                        attested_host: r.evidence_attested_host,
+                        declared_client: r.evidence_declared_client,
+                        native_marker: r.evidence_native_marker,
+                        ua_product: r.evidence_ua_product,
+                        ua_version: r.evidence_ua_version,
+                        sdk_lang: r.evidence_sdk_lang,
+                        sdk_package_version: r.evidence_sdk_package_version,
+                        sdk_runtime: r.evidence_sdk_runtime,
+                        sdk_runtime_version: r.evidence_sdk_runtime_version,
+                        sdk_os: r.evidence_sdk_os,
+                        sdk_arch: r.evidence_sdk_arch,
+                    }
                 }),
-        }))
+            })
+        })
+        .transpose()
     }
 }

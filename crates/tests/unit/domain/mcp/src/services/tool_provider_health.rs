@@ -9,7 +9,7 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId,
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{TestBootstrap, test_db_pool, unique_user_id};
 use systemprompt_traits::{ToolContext, ToolProvider};
 use wiremock::MockServer;
 
@@ -70,7 +70,7 @@ async fn provider_over_internal_servers(
         McpToolProvider::new(
             db,
             RegistryService::new(
-                fixture_user_id(),
+                unique_user_id("tool-provider-health"),
                 crate::harness::services_state().view(),
                 crate::harness::config(),
             ),

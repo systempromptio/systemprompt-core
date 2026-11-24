@@ -10,7 +10,7 @@
 
 use sqlx::PgConnection;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId, UserId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::AccessLevel;
 
 use super::Pools;
@@ -103,11 +103,11 @@ impl DocumentGrantRepository {
             request.subject_value,
             request.subject_display,
             request.access_level.as_str(),
-            request.granted_by.as_str(),
+            request.granted_by as _,
             request.valid_until,
-            request.trace_id.as_str(),
+            request.trace_id as _,
             request.reason,
-            request.via_agent.as_ref().map(AgentName::as_str),
+            request.via_agent as _,
             held.as_str(),
         )
         .fetch_optional(&mut *conn)
@@ -126,7 +126,7 @@ impl DocumentGrantRepository {
                       g.subject_display
                FROM document_grants g
                WHERE g.document_id = $1::text::uuid ORDER BY g.created_at, g.id"#,
-            id.as_str()
+            id as _
         )
         .fetch_all(&*self.pools.read)
         .await?
@@ -146,7 +146,7 @@ impl DocumentGrantRepository {
                       g.subject_display
                FROM document_grants g
                WHERE g.folder_id = $1::text::uuid ORDER BY g.created_at, g.id"#,
-            id.as_str()
+            id as _
         )
         .fetch_all(&*self.pools.read)
         .await?
@@ -159,7 +159,6 @@ impl DocumentGrantRepository {
         &self,
         folders: &[DocumentFolderId],
     ) -> RepoResult<Vec<DocumentGrant>> {
-        let folders: Vec<String> = folders.iter().map(|id| id.as_str().to_owned()).collect();
         sqlx::query_as!(
             GrantRow,
             r#"SELECT g.id, g.document_id::text AS "document_id: DocumentId",
@@ -170,7 +169,7 @@ impl DocumentGrantRepository {
                       g.subject_display
                FROM document_grants g
                WHERE g.folder_id = ANY($1::text[]::uuid[]) ORDER BY g.created_at, g.id"#,
-            &folders
+            folders as _
         )
         .fetch_all(&*self.pools.read)
         .await?
@@ -185,10 +184,6 @@ impl DocumentGrantRepository {
         folder_ancestors: &[DocumentFolderId],
         subjects: &SubjectPairs,
     ) -> RepoResult<Option<AccessLevel>> {
-        let folders: Vec<String> = folder_ancestors
-            .iter()
-            .map(|id| id.as_str().to_owned())
-            .collect();
         let rank = sqlx::query_scalar!(
             r#"SELECT MAX(CASE access_level
                           WHEN 'view' THEN 1 WHEN 'comment' THEN 2 WHEN 'edit' THEN 3
@@ -198,8 +193,8 @@ impl DocumentGrantRepository {
                  AND (g.subject_kind, g.subject_value) IN (
                      SELECT * FROM UNNEST($3::text[], $4::text[]))
                  AND (g.valid_until IS NULL OR g.valid_until > now())"#,
-            document_id.as_str(),
-            &folders,
+            document_id as _,
+            folder_ancestors as _,
             &subjects.kinds,
             &subjects.values,
         )

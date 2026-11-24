@@ -57,7 +57,6 @@ impl NotificationRepository {
         recipient: &UserId,
         ids: &[NotificationId],
     ) -> Result<Vec<Notification>, RepositoryError> {
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         sqlx::query_as!(
             NotificationRow,
             r#"SELECT n.id::text AS "id!: NotificationId",
@@ -73,8 +72,8 @@ impl NotificationRepository {
                FROM notifications n
                WHERE n.recipient_user_id = $1 AND n.id = ANY($2::text[]::uuid[])
                ORDER BY n.created_at DESC, n.id DESC"#,
-            recipient.as_str(),
-            &ids,
+            recipient as _,
+            ids as _,
         )
         .fetch_all(executor)
         .await?
@@ -87,7 +86,6 @@ impl NotificationRepository {
         &self,
         ids: &[NotificationId],
     ) -> Result<Vec<Notification>, RepositoryError> {
-        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         sqlx::query_as!(
             NotificationRow,
             r#"SELECT n.id::text AS "id!: NotificationId",
@@ -103,7 +101,7 @@ impl NotificationRepository {
                FROM notifications n
                WHERE n.id = ANY($1::text[]::uuid[])
                ORDER BY n.created_at, n.id"#,
-            &ids,
+            ids as _,
         )
         .fetch_all(&*self.pools.write)
         .await?
@@ -140,7 +138,7 @@ impl NotificationRepository {
                  AND (NOT $5 OR n.read_at IS NULL)
                ORDER BY n.created_at DESC, n.id DESC
                LIMIT $6"#,
-            recipient.as_str(),
+            recipient as _,
             at,
             id,
             filter.attention.map(Attention::as_str),

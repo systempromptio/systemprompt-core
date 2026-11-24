@@ -37,13 +37,36 @@ pub(crate) fn resolve_services_root(root: &Path) -> Result<PathBuf> {
     Ok(resolved)
 }
 
-const CATALOG_DIRECTORIES: [(&str, &str); 6] = [
-    ("skills", "skill"),
-    ("plugins", "plugin"),
-    ("marketplaces", "marketplace"),
-    ("rules", "rule"),
-    ("hooks", "hook"),
-    ("artifacts", "artifact"),
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CatalogKind {
+    Skill,
+    Plugin,
+    Marketplace,
+    Rule,
+    Hook,
+    Artifact,
+}
+
+impl CatalogKind {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Skill => "skill",
+            Self::Plugin => "plugin",
+            Self::Marketplace => "marketplace",
+            Self::Rule => "rule",
+            Self::Hook => "hook",
+            Self::Artifact => "artifact",
+        }
+    }
+}
+
+const CATALOG_DIRECTORIES: [(&str, CatalogKind); 6] = [
+    ("skills", CatalogKind::Skill),
+    ("plugins", CatalogKind::Plugin),
+    ("marketplaces", CatalogKind::Marketplace),
+    ("rules", CatalogKind::Rule),
+    ("hooks", CatalogKind::Hook),
+    ("artifacts", CatalogKind::Artifact),
 ];
 
 pub fn configured_inventory_fingerprint(
@@ -113,7 +136,7 @@ pub fn scan_configured_inventory(
 fn scan_catalog_directory(
     root: &Path,
     directory: &str,
-    kind: &str,
+    kind: CatalogKind,
     entries: &mut Vec<ConfiguredInventoryEntry>,
 ) -> Result<()> {
     let path = root.join(directory);
@@ -174,7 +197,7 @@ fn scan_catalog_directory(
                 .map(|error| error.to_string())
         };
         entries.push(ConfiguredInventoryEntry {
-            kind: kind.to_owned(),
+            kind: kind.as_str().to_owned(),
             resource_key: key,
             relative_root,
             availability: if diagnostic.is_some() {
@@ -198,7 +221,7 @@ struct CatalogEntryConfig {
     file: Option<String>,
 }
 
-fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
+fn inspect(path: &Path, kind: CatalogKind, key: &str) -> Result<()> {
     if std::fs::symlink_metadata(path)?.is_symlink() {
         return Err(invalid("Catalog configuration is a symlink"));
     }
@@ -236,7 +259,7 @@ fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
     {
         return Err(invalid("Configured identity conflicts with its path"));
     }
-    if kind == "skill" {
+    if kind == CatalogKind::Skill {
         let parent = path
             .parent()
             .ok_or_else(|| invalid("Missing skill directory"))?;

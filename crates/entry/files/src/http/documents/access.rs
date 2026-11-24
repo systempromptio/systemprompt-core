@@ -92,7 +92,7 @@ pub(super) async fn subjects(
             query.limit.unwrap_or(MAX_SUBJECT_SEARCH),
         )
         .await?;
-    let levels = match query.document_id.as_ref().filter(|_| found.kind == "user") {
+    let levels = match query.document_id.as_ref().filter(|_| found.is_user()) {
         Some(document) => {
             let users: Vec<UserId> = found
                 .matches

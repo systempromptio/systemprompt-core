@@ -60,6 +60,10 @@ impl ConfigPlane for GovernancePlane {
         GOVERNANCE_FILE
     }
 
+    fn requires(&self) -> Vec<systemprompt_extension::StateRequirement> {
+        Vec::new()
+    }
+
     fn supports_scoped_apply(&self) -> bool {
         true
     }
@@ -77,7 +81,7 @@ impl ConfigPlane for GovernancePlane {
             },
         };
         let entries = declared_entities(&text).map_err(|e| invalid(&e))?;
-        Ok(Some(DeclaredState::from_entries(entries)))
+        Ok(Some(DeclaredState::from_entries(entries.into())))
     }
 
     async fn read_current(
@@ -86,7 +90,10 @@ impl ConfigPlane for GovernancePlane {
         tx: &mut PlaneTx<'_>,
     ) -> ConfigPlaneResult<PlaneSnapshot> {
         let tx = tx.get::<PlaneTransaction>()?;
-        store::list_on(tx).await.map_err(backend)
+        store::list_on(tx)
+            .await
+            .map(PlaneSnapshot::from)
+            .map_err(backend)
     }
 
     async fn write(
@@ -124,6 +131,6 @@ impl ConfigPlane for GovernancePlane {
     }
 
     fn render_declarations(&self, entities: &PlaneSnapshot) -> ConfigPlaneResult<String> {
-        canonical::render_document(entities).map_err(|e| invalid(&e))
+        canonical::render_document(entities.entries()).map_err(|e| invalid(&e))
     }
 }

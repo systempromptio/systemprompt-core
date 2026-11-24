@@ -84,14 +84,13 @@ impl crate::repository::OAuthRepository {
     pub async fn store_setup_token(&self, params: CreateSetupTokenParams) -> Result<String> {
         let id = uuid::Uuid::new_v4().to_string();
 
-        let user_id_str = params.user_id.as_str();
         sqlx::query!(
             r#"
             INSERT INTO webauthn_setup_tokens (id, user_id, token_hash, purpose, expires_at)
             VALUES ($1, $2, $3, $4, $5)
             "#,
             id,
-            user_id_str,
+            params.user_id as _,
             params.token_hash,
             params.purpose.as_str(),
             params.expires_at
@@ -146,7 +145,7 @@ impl crate::repository::OAuthRepository {
               AND used_at IS NULL
               AND expires_at >= CURRENT_TIMESTAMP
             "#,
-            token_id.as_str(),
+            token_id as _,
             token_hash
         )
         .execute(self.write_pool_ref())
@@ -172,14 +171,13 @@ impl crate::repository::OAuthRepository {
     }
 
     pub async fn revoke_user_setup_tokens(&self, user_id: &UserId) -> Result<u64> {
-        let user_id_str = user_id.as_str();
         let rows_affected = sqlx::query!(
             r#"
             UPDATE webauthn_setup_tokens
             SET used_at = CURRENT_TIMESTAMP
             WHERE user_id = $1 AND used_at IS NULL
             "#,
-            user_id_str
+            user_id as _
         )
         .execute(self.write_pool_ref())
         .await?

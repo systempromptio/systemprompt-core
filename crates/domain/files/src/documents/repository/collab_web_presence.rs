@@ -16,7 +16,7 @@ impl DocumentCollabRepository {
                FROM document_presence
                WHERE document_id = $1::text::uuid AND source = 'web'
                  AND state = 'editing' AND expires_at > now()"#,
-            document_id.as_str(),
+            document_id as _,
         )
         .fetch_one(&*self.pools.write)
         .await?)
@@ -28,8 +28,8 @@ impl DocumentCollabRepository {
                    SELECT 1 FROM document_presence
                    WHERE document_id = $1::text::uuid AND user_id = $2 AND source = 'web'
                      AND state = 'editing' AND expires_at > now()) AS "editing!""#,
-            document_id.as_str(),
-            user.as_str(),
+            document_id as _,
+            user as _,
         )
         .fetch_one(&*self.pools.write)
         .await?)
@@ -43,8 +43,8 @@ impl DocumentCollabRepository {
         let result = sqlx::query!(
             "DELETE FROM document_presence
              WHERE document_id = $1::text::uuid AND user_id = $2 AND source = 'web'",
-            document_id.as_str(),
-            user.as_str(),
+            document_id as _,
+            user as _,
         )
         .execute(&*self.pools.write)
         .await?;
@@ -62,8 +62,8 @@ impl DocumentCollabRepository {
             "UPDATE document_presence SET cursor = $3, updated_at = now()
              WHERE document_id = $1::text::uuid AND user_id = $2 AND source = 'web'
                AND expires_at > now()",
-            document_id.as_str(),
-            user.as_str(),
+            document_id as _,
+            user as _,
             cursor,
         )
         .execute(&*self.pools.write)

@@ -36,15 +36,6 @@ pub enum DistributionState {
     Failed,
 }
 
-impl DistributionState {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Claimed => "claimed",
-            Self::Distributed => "distributed",
-            Self::Failed => "failed",
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionStatus {

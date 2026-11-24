@@ -29,8 +29,8 @@ impl DisputeRepository {
         sqlx::query!(
             "INSERT INTO brain_disputes (id, fact_id, candidate, similarity, reason)
              VALUES ($1, $2, $3, $4, $5)",
-            id.as_str(),
-            dispute.fact_id.as_str(),
+            id as _,
+            dispute.fact_id as _,
             serde_json::to_value(&dispute.candidate)?,
             dispute.similarity,
             dispute.reason,
@@ -50,10 +50,10 @@ impl DisputeRepository {
             "UPDATE brain_disputes
              SET status = $2, resolution = $3, resolved_by = $4, resolved_at = now()
              WHERE id = $1 AND status = 'open'",
-            id.as_str(),
+            id as _,
             DisputeStatus::Resolved.as_str(),
             resolution,
-            by.as_str(),
+            by as _,
         )
         .execute(conn)
         .await?;
@@ -67,7 +67,7 @@ impl DisputeRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT id AS "id: BrainDisputeId" FROM brain_disputes
                WHERE fact_id = $1 AND status = 'open' ORDER BY opened_at, id"#,
-            fact_id.as_str(),
+            fact_id as _,
         )
         .fetch_all(executor)
         .await?)

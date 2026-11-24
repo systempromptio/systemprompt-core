@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};
 
@@ -118,10 +119,10 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
 
 fn registry_error(error: AgentError) -> RegistryError {
     match error {
-        AgentError::NotFound { name } => RegistryError::NotFound(name),
-        AgentError::DefaultAgentNotConfigured => {
-            RegistryError::NotFound("default agent not configured".to_owned())
+        AgentError::NotFound { name } => RegistryError::NotFound {
+            service: ServiceName::new(name),
         },
+        AgentError::DefaultAgentNotConfigured => RegistryError::NoDefaultAgent,
         AgentError::EmptyCorsAllowlist
         | AgentError::InvalidConfig { .. }
         | AgentError::ServicesConfig(_) => RegistryError::Configuration(error.into()),

@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
 
 /// Claude Code settings the bridge writes into the client for a marketplace.
 ///
@@ -22,10 +22,11 @@ pub struct ClaudeCodeMarketplaceConfig {
 impl ClaudeCodeMarketplaceConfig {
     pub(super) fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
         if self.skill_listing_budget_chars == Some(0) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "Marketplace '{key}': claude_code.skill_listing_budget_chars must be greater \
-                 than zero"
-            )));
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("Marketplace", key),
+                "claude_code.skill_listing_budget_chars must be greater \
+                 than zero",
+            ));
         }
         Ok(())
     }

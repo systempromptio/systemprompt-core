@@ -137,7 +137,7 @@ impl AccessControlRepository {
                 updated_at = NOW()
             RETURNING id, rule_type, rule_value, access, justification
             "#,
-            id.as_str(),
+            id as _,
             params.entity_type.as_str(),
             params.entity_id,
             rule_type_str,
@@ -165,7 +165,7 @@ impl AccessControlRepository {
     ) -> AuthzResult<bool> {
         let result = sqlx::query!(
             r#"UPDATE access_control_rules SET justification = $2, updated_at = NOW() WHERE id = $1"#,
-            rule_id.as_str(),
+            rule_id as _,
             justification,
         )
         .execute(&*self.write_pool)
@@ -176,7 +176,7 @@ impl AccessControlRepository {
     pub async fn delete_rule(&self, rule_id: &RuleId) -> AuthzResult<bool> {
         let result = sqlx::query!(
             r#"DELETE FROM access_control_rules WHERE id = $1"#,
-            rule_id.as_str(),
+            rule_id as _,
         )
         .execute(&*self.write_pool)
         .await?;

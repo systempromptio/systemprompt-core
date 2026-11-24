@@ -77,12 +77,7 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(
-        &db,
-        &client_id,
-        &systemprompt_test_fixtures::fixture_user_id(),
-    )
-    .await;
+    create_test_client_with_owner(&db, &client_id, &user_id).await;
 
     let repo = Arc::new(systemprompt_test_fixtures::oauth_fixture_repository(&db));
     let code = test_code();
@@ -148,12 +143,7 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(
-        &db,
-        &client_id,
-        &systemprompt_test_fixtures::fixture_user_id(),
-    )
-    .await;
+    create_test_client_with_owner(&db, &client_id, &user_id).await;
 
     let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let code = test_code();
@@ -213,12 +203,7 @@ async fn test_refresh_token_replay_revokes_family() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(
-        &db,
-        &client_id,
-        &systemprompt_test_fixtures::fixture_user_id(),
-    )
-    .await;
+    create_test_client_with_owner(&db, &client_id, &user_id).await;
 
     let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
@@ -296,12 +281,7 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(
-        &db,
-        &client_id,
-        &systemprompt_test_fixtures::fixture_user_id(),
-    )
-    .await;
+    create_test_client_with_owner(&db, &client_id, &user_id).await;
 
     let repo = Arc::new(systemprompt_test_fixtures::oauth_fixture_repository(&db));
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
@@ -372,12 +352,7 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(
-        &db,
-        &client_id,
-        &systemprompt_test_fixtures::fixture_user_id(),
-    )
-    .await;
+    create_test_client_with_owner(&db, &client_id, &user_id).await;
 
     let repo = Arc::new(systemprompt_test_fixtures::oauth_fixture_repository(&db));
     let code = test_code();
