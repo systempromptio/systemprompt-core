@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`auth::API_KEY_PREFIX`, the `sp-live-` prefix every issued API key carries."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Changed"
+text = "`API_KEY_PREFIX` is defined in `systemprompt_models::auth`; `systemprompt_users::API_KEY_PREFIX` names that constant."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The bearer rate-limit window reads `API_KEY_PREFIX` from `systemprompt_models::auth`."

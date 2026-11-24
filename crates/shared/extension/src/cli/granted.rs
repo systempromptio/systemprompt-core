@@ -3,19 +3,24 @@
 //! A member command reaches kernel-held material only through a grant listed
 //! on its reserved CLI path's row. Each grant hands out one purpose-typed
 //! value, never the profile, the configuration or a secrets source:
-//! [`ServicesTree`] for `KernelGrant::ServicesTree` and [`CallerSession`]
-//! for `KernelGrant::CallerSession`.
+//! [`ServicesTree`] for `KernelGrant::ServicesTree`, [`CallerSession`]
+//! for `KernelGrant::CallerSession` and a [`DeploymentSigningKeys`] handle
+//! for `KernelGrant::SigningKeys`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, Utc};
+
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, SessionId, SessionToken, TraceId, UserId,
 };
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
+
+use super::command::CommandError;
 
 /// The active services tree and the public site values read beside it.
 ///
@@ -141,4 +146,47 @@ impl CallerSession {
         .with_auth_token(JwtToken::new(self.token.as_str()))
         .with_user_type(self.user_type)
     }
+}
+
+/// The deployment's signing state, read and rotated by the kernel.
+///
+/// A `KernelGrant::SigningKeys` holder reads the token signing key ids and
+/// the bridge manifest public key, stages, promotes and rotates the token
+/// key, and rotates the manifest signing seed. The kernel reads and writes the
+/// active profile's secrets file and applies the profile's token lifetimes to
+/// a promotion's overlap; the handle never returns a private key, a seed, the
+/// profile or the secrets source, and mints no token.
+pub trait DeploymentSigningKeys: Send + Sync {
+    fn token_keys(&self) -> Result<TokenKeySet, CommandError>;
+    fn stage_token_key(&self) -> Result<TokenKeySet, CommandError>;
+    fn promote_token_key(&self, promotion: TokenKeyPromotion) -> Result<TokenKeySet, CommandError>;
+    fn rotate_token_key(&self, promotion: TokenKeyPromotion) -> Result<TokenKeySet, CommandError>;
+    fn manifest_public_key(&self) -> Result<String, CommandError>;
+    fn rotate_manifest_key(&self) -> Result<String, CommandError>;
+}
+
+/// How a staged token key is promoted: with the outgoing key verifying for an
+/// overlap (the requested seconds, or the longest signed-token lifetime), or
+/// revoked with no overlap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenKeyPromotion {
+    Overlap { secs: Option<i64>, force: bool },
+    Revoke,
+}
+
+/// The token signing key ids after a read or a rotation step, and the kinds
+/// of signed token a forced short overlap cuts off.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TokenKeySet {
+    pub active_kid: String,
+    pub staged_kid: Option<String>,
+    pub retired: Vec<RetiredTokenKey>,
+    pub cut_off: Vec<String>,
+}
+
+/// A retired token key's id and the instant it stops verifying.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RetiredTokenKey {
+    pub kid: String,
+    pub expires_at: DateTime<Utc>,
 }

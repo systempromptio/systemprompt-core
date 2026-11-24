@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "Two kernel grants for the identity member's CLI commands: `SigningKeys` hands a command the kernel-held `DeploymentSigningKeys` handle (token key ids, stage/promote/rotate, the manifest public key and its rotation; never a private key, seed or secrets source, and no token minting), and `ConfigPlaneWriter(GrantedPlane::Identity)` confirms the identity plane accepts a write. The reserved CLI paths `admin users`, `admin keys` and `admin bridge` are held by `identity-http`; an install, or a core member on a path whose row does not list the grant, is refused either grant."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`KernelGrant` gains `SigningKeys` and `ConfigPlaneWriter(GrantedPlane)`; `CommandHost` gains `signing_keys` and `require_writable_plane`, so every `CommandHost` impl implements both. Added `GrantedPlane`, `DeploymentSigningKeys`, `TokenKeySet`, `RetiredTokenKey` and `TokenKeyPromotion`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`kernel::KernelSigningKeys`, the `DeploymentSigningKeys` handle over the booted profile's secrets file, served by `MemberHost::signing_keys` only under `KernelGrant::SigningKeys`."

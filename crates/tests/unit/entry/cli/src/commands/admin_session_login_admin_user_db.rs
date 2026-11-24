@@ -19,6 +19,10 @@ fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
 }
 
+fn admins(pool: &DbPool) -> systemprompt_traits::DynAdminBootstrap {
+    systemprompt_users::admin_bootstrap(pool.clone()).expect("the users admin bootstrap builds")
+}
+
 async fn seed(pool: &DbPool, name: &str, admin: bool) -> User {
     let service = service(pool);
     let user = service
@@ -40,7 +44,7 @@ async fn an_existing_admin_is_returned_without_being_recreated() {
     let name = unique("login-admin");
     let seeded = seed(&pool, &name, true).await;
 
-    let found = fetch_admin_user(&pool, &name, false, None)
+    let found = fetch_admin_user(admins(&pool).as_ref(), &name, false, None)
         .await
         .expect("an existing admin resolves");
 
@@ -61,9 +65,14 @@ async fn a_user_without_the_admin_role_is_refused_rather_than_promoted() {
     let name = unique("login-plain");
     seed(&pool, &name, false).await;
 
-    let err = fetch_admin_user(&pool, &name, true, Some("promoted@login.invalid"))
-        .await
-        .expect_err("a non-admin user must not be accepted as the admin");
+    let err = fetch_admin_user(
+        admins(&pool).as_ref(),
+        &name,
+        true,
+        Some("promoted@login.invalid"),
+    )
+    .await
+    .expect_err("a non-admin user must not be accepted as the admin");
 
     let message = format!("{err:#}");
     assert!(
@@ -87,7 +96,7 @@ async fn a_missing_admin_on_a_local_profile_is_told_to_bootstrap() {
     let pool = test_db_pool().await;
     let name = unique("login-absent");
 
-    let err = fetch_admin_user(&pool, &name, false, None)
+    let err = fetch_admin_user(admins(&pool).as_ref(), &name, false, None)
         .await
         .expect_err("a local profile must not create the admin user");
 
@@ -108,7 +117,7 @@ async fn a_missing_admin_on_a_cloud_profile_is_created_with_the_admin_role() {
     let name = unique("login-cloud");
     let email = format!("{name}@cloud.invalid");
 
-    let created = fetch_admin_user(&pool, &name, true, Some(&email))
+    let created = fetch_admin_user(admins(&pool).as_ref(), &name, true, Some(&email))
         .await
         .expect("a cloud profile provisions its admin user");
 

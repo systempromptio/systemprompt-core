@@ -24,7 +24,14 @@
 /// without a database boot; `CallerSession` serves the CLI caller's own
 /// session token through `CommandHost::caller_session`; `SessionContext` lets
 /// the command switch the caller's stored CLI session to a context the caller
-/// owns through `CommandHost::use_session_context`. A
+/// owns through `CommandHost::use_session_context`; `SigningKeys` serves the
+/// deployment's signing state through the kernel-held
+/// [`DeploymentSigningKeys`](crate::cli::DeploymentSigningKeys) handle of
+/// `CommandHost::signing_keys` (key ids, the manifest public key, stage,
+/// promote and rotate; never a private key or the secrets source);
+/// `ConfigPlaneWriter` lets the command write the one [`GrantedPlane`] it
+/// names, which `CommandHost::config_plane_writer` refuses when the profile
+/// makes that plane file-managed. A
 /// member's command requests the grants it needs; the composition and the CLI
 /// registry refuse a request the reserved CLI paths do not list for that path
 /// and owner.
@@ -41,10 +48,29 @@ pub enum KernelGrant {
     ServicesTree,
     CallerSession,
     SessionContext,
+    SigningKeys,
+    ConfigPlaneWriter(GrantedPlane),
+}
+
+/// A config plane a `KernelGrant::ConfigPlaneWriter` grant names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GrantedPlane {
+    Identity,
+}
+
+impl GrantedPlane {
+    pub const ALL: [Self; 1] = [Self::Identity];
+
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Identity => "identity",
+        }
+    }
 }
 
 impl KernelGrant {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 13] = [
         Self::ChildHost,
         Self::ServesApi,
         Self::CloudOperator,
@@ -56,11 +82,16 @@ impl KernelGrant {
         Self::ServicesTree,
         Self::CallerSession,
         Self::SessionContext,
+        Self::SigningKeys,
+        Self::ConfigPlaneWriter(GrantedPlane::Identity),
     ];
 }
 
 impl std::fmt::Display for KernelGrant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Self::ConfigPlaneWriter(plane) = self {
+            return write!(f, "config-plane-writer:{}", plane.name());
+        }
         f.write_str(match self {
             Self::ChildHost => "child-host",
             Self::ServesApi => "serves-api",
@@ -73,6 +104,8 @@ impl std::fmt::Display for KernelGrant {
             Self::ServicesTree => "services-tree",
             Self::CallerSession => "caller-session",
             Self::SessionContext => "session-context",
+            Self::SigningKeys => "signing-keys",
+            Self::ConfigPlaneWriter(_) => "config-plane-writer",
         })
     }
 }

@@ -17,16 +17,24 @@
 //! route state of any member but its provider are refused it as missing.
 //! [`Contributions::provide_conferred`] provides it sealed and confers it on
 //! the one core holder its reserved row names (`reserved::SEALED_CONFERRALS`).
+//! [`Contributions::admin_bootstrap`] is not a provide: it stores the
+//! pre-kernel admin-bootstrap constructor, which the CLI host calls only for a
+//! core-standing `users` member.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::Contributions;
 use super::entries::{ProvideEntry, ProvidePhase};
 use super::resolved::ProvideFn;
+use super::{AdminBootstrapFn, Contributions};
 use crate::reserved::ConferralRow;
 
 impl Contributions<'_> {
+    pub fn admin_bootstrap(&mut self, f: AdminBootstrapFn) -> &mut Self {
+        self.sink.admin_bootstrap = Some(f);
+        self
+    }
+
     pub fn provide<T, F>(&mut self, f: F) -> &mut Self
     where
         T: Clone + Send + Sync + 'static,

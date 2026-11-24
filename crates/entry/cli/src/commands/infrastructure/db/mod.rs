@@ -120,7 +120,12 @@ async fn execute_connected(cmd: DbCommands, host: &dyn KernelHost) -> Result<Com
             if host.is_database_scoped() {
                 bail!("assign-admin requires full profile context");
             }
-            admin::execute_assign_admin(app_context(host).await?.as_ref(), &user).await
+            let app = app_context(host).await?;
+            let admins = crate::kernel::admin_bootstrap(
+                host.admitted()?,
+                Arc::<systemprompt_database::Database>::clone(app.db_pool()),
+            )?;
+            admin::execute_assign_admin(admins.as_ref(), &user).await
         },
         DbCommands::Status => admin::execute_status(&admin_service).await,
         DbCommands::Count { table_name } => {

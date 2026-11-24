@@ -82,7 +82,8 @@ async fn coverage_active_profile_is_resolved_after_explicit_override_is_removed(
         )
         .with_profile(Some(
             systemprompt_config::LoadedProfile::from_path(&project.profile).unwrap(),
-        )),
+        ))
+        .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted())),
     );
     let resumed = get_or_create_session(&ctx).await.unwrap().session;
     assert_eq!(resumed.session_id, first.session_id);

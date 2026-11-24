@@ -260,6 +260,9 @@ fn the_direct_database_claim_is_listed_only_on_the_bare_url_paths() {
             (CoreId::AnalyticsHttp, vec!["core", "content", "popular"]),
             (CoreId::ContentHttp, vec!["core", "content"]),
             (CoreId::FilesHttp, vec!["core", "files"]),
+            (CoreId::IdentityHttp, vec!["admin", "users"]),
+            (CoreId::IdentityHttp, vec!["admin", "keys"]),
+            (CoreId::IdentityHttp, vec!["admin", "bridge"]),
         ]
     );
 }

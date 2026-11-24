@@ -4,17 +4,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 
 use systemprompt_cloud::{
     CliSession, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey, SessionStore,
 };
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
-use systemprompt_users::{User, UserRepository, UserRole, UserService};
+use systemprompt_traits::{AdminAccount, AdminBootstrap, AdminGrant};
 
 use super::login::{LoginArgs, LoginOutput};
 use systemprompt_extension::cli::CommandOutput;
@@ -24,7 +22,7 @@ pub(super) async fn try_use_existing_session(
     session_key: &SessionKey,
     issuer: &str,
     args: &LoginArgs,
-    db_pool: &DbPool,
+    admins: &dyn AdminBootstrap,
 ) -> Result<Option<CommandOutput>> {
     let mut store = SessionStore::load_or_create(sessions_dir)?;
 
@@ -40,11 +38,7 @@ pub(super) async fn try_use_existing_session(
     let user_email = session.user_email.to_string();
     let session_token = session.session_token.clone();
 
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
-    let exists = user_service
-        .session_exists(&session_id)
-        .await
-        .unwrap_or(false);
+    let exists = admins.session_exists(&session_id).await.unwrap_or(false);
 
     if !exists {
         if !args.token_only {
@@ -74,14 +68,12 @@ pub(super) async fn try_use_existing_session(
 }
 
 pub async fn fetch_admin_user(
-    db_pool: &DbPool,
+    admins: &dyn AdminBootstrap,
     admin_name: &str,
     is_cloud_profile: bool,
     email_override: Option<&str>,
-) -> Result<User> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
-
-    if let Some(user) = user_service
+) -> Result<AdminAccount> {
+    if let Some(user) = admins
         .find_by_name(admin_name)
         .await
         .context("Failed to fetch admin user")?
@@ -113,13 +105,13 @@ pub async fn fetch_admin_user(
         admin_name
     ));
 
-    let user = user_service
-        .create(admin_name, &email, None, None)
+    let user = admins
+        .create(admin_name, &email, None)
         .await
         .context("Failed to create user")?;
 
-    let user = user_service
-        .assign_roles(&user.id, &[UserRole::Admin.as_str().to_owned()])
+    let user = admins
+        .grant_admin(&user.id, AdminGrant::Only)
         .await
         .context("Failed to assign admin role")?;
 

@@ -19,16 +19,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod admin_bootstrap;
 mod describe;
 mod registry;
 mod registry_error;
+mod signing_keys;
 mod target_admission;
 
+pub use admin_bootstrap::{ADMIN_BOOTSTRAP_OWNER, AdminBootstrapUnavailable, admin_bootstrap};
 pub use describe::{classify_command_line, command_line_path, describe_command_line};
 pub use registry::{
     CommandOwner, CommandRegistry, RegistryEntry, ResolvedCommand, kernel_commands,
 };
 pub use registry_error::{RegistryError, ResolveError};
+pub use signing_keys::KernelSigningKeys;
 pub(crate) use target_admission::admit_target;
 pub use target_admission::{TargetAdmissionError, read_disabled};
 

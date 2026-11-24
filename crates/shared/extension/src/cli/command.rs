@@ -33,7 +33,8 @@ use systemprompt_traits::DatabaseHandle;
 use super::admitted_views::AdmittedViews;
 use super::child::ChildSupervisor;
 use super::descriptor::{CommandDescriptor, DescribeCommand};
-use super::granted::{CallerSession, ServicesTree};
+use super::grant::GrantedPlane;
+use super::granted::{CallerSession, DeploymentSigningKeys, ServicesTree};
 use super::output::CommandOutput;
 use super::prompt::Prompter;
 use super::settings::CliConfig;
@@ -205,7 +206,13 @@ pub struct DescribedCommand {
 /// profile's local exports directory; [`CommandHost::use_session_context`]
 /// needs [`KernelGrant::SessionContext`](super::KernelGrant::SessionContext)
 /// and switches the caller's stored CLI session to a context the kernel first
-/// confirms the caller owns. A command without the grant is refused,
+/// confirms the caller owns; [`CommandHost::signing_keys`] needs
+/// [`KernelGrant::SigningKeys`](super::KernelGrant::SigningKeys) and returns
+/// the kernel-held [`DeploymentSigningKeys`] handle;
+/// [`CommandHost::require_writable_plane`] needs
+/// [`KernelGrant::ConfigPlaneWriter`](super::KernelGrant::ConfigPlaneWriter)
+/// for that plane and refuses when the profile makes the plane file-managed.
+/// A command without the grant is refused,
 /// and a command whose path lists no grant holds none.
 ///
 /// [`CommandHost::render`] renders an intermediate output through the
@@ -234,4 +241,9 @@ pub trait CommandHost: Send + Sync {
     fn export_dir(&self) -> Result<PathBuf, CommandError>;
     fn caller_session(&self) -> BoxFuture<'_, Result<CallerSession, CommandError>>;
     fn use_session_context(&self, context: ContextId) -> BoxFuture<'_, Result<(), CommandError>>;
+    fn signing_keys(&self) -> Result<Arc<dyn DeploymentSigningKeys>, CommandError>;
+    fn require_writable_plane(
+        &self,
+        plane: GrantedPlane,
+    ) -> BoxFuture<'_, Result<(), CommandError>>;
 }

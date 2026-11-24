@@ -92,6 +92,13 @@ pub use messaging::{
 };
 pub mod ownership;
 pub mod process_liveness;
+pub mod rate_limit_buckets;
+pub use rate_limit_buckets::{DynRateLimitBuckets, RateLimitBuckets};
+pub mod admin_bootstrap;
+pub use admin_bootstrap::{
+    AdminAccount, AdminBootstrap, AdminBootstrapError, AdminGrant, AdminPromotion,
+    DynAdminBootstrap,
+};
 pub mod registry;
 pub mod repository;
 pub mod retention_purge;

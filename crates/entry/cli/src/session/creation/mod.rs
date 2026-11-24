@@ -24,7 +24,10 @@ use admin_bootstrap::{
     resolve_admin_with_fallback, resolve_credentialed_user_email, resolve_local_admin,
     resolve_tenant_admin_with_fallback,
 };
+use systemprompt_extension::Admitted;
 use systemprompt_extension::cli::CliConfig;
+
+use crate::kernel::admin_bootstrap;
 
 pub(super) async fn create_local_session(
     profile_ctx: &ProfileContext<'_>,
@@ -33,7 +36,11 @@ pub(super) async fn create_local_session(
     session_email_hint: Option<&str>,
     source: SessionSource<'_>,
 ) -> Result<CliSession> {
-    let SessionSource { boot, contexts } = source;
+    let SessionSource {
+        boot,
+        contexts,
+        admitted,
+    } = source;
     let profile = boot.profile();
     profile
         .validate()
@@ -47,13 +54,22 @@ pub(super) async fn create_local_session(
     }
 
     let db_pool = connect_database(&secrets).await?;
+    let admins = admin_bootstrap(
+        admitted,
+        std::sync::Arc::<systemprompt_database::Database>::clone(&db_pool),
+    )?;
 
     let admin_user = if profile.is_local_trial() && session_email_hint.is_none() {
-        resolve_local_admin(&db_pool, &profile.system_admin.username).await?
+        resolve_local_admin(admins.as_ref(), &profile.system_admin.username).await?
     } else {
         let user_email = resolve_credentialed_user_email(session_email_hint).await?;
-        resolve_admin_with_fallback(&db_pool, user_email.as_str(), session_email_hint, "local")
-            .await?
+        resolve_admin_with_fallback(
+            admins.as_ref(),
+            user_email.as_str(),
+            session_email_hint,
+            "local",
+        )
+        .await?
     };
 
     if config.is_interactive() {
@@ -100,6 +116,7 @@ pub(super) async fn create_local_session(
 pub(super) struct SessionSource<'a> {
     pub boot: &'a BootContext,
     pub contexts: &'a SessionContexts,
+    pub admitted: &'a Admitted,
 }
 
 pub(super) struct TenantSessionParams<'a> {
@@ -111,6 +128,7 @@ pub(super) struct TenantSessionParams<'a> {
     pub session_email_hint: Option<&'a str>,
     pub boot: &'a BootContext,
     pub contexts: &'a SessionContexts,
+    pub admitted: &'a Admitted,
 }
 
 pub(super) async fn create_session_for_tenant(
@@ -125,6 +143,7 @@ pub(super) async fn create_session_for_tenant(
         session_email_hint,
         boot,
         contexts,
+        admitted,
     } = params;
     profile
         .validate()
@@ -140,8 +159,13 @@ pub(super) async fn create_session_for_tenant(
     }
 
     let db_pool = connect_database(&secrets).await?;
+    let admins = admin_bootstrap(
+        admitted,
+        std::sync::Arc::<systemprompt_database::Database>::clone(&db_pool),
+    )?;
     let admin_user =
-        resolve_tenant_admin_with_fallback(&db_pool, creds, user_email, session_email_hint).await?;
+        resolve_tenant_admin_with_fallback(admins.as_ref(), creds, user_email, session_email_hint)
+            .await?;
 
     let keys = load_signing_keys(boot)?;
     let session_id = create_local_session_row(

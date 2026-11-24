@@ -10,6 +10,8 @@
 //! conferral table.
 
 #[cfg(test)]
+mod admin_bootstrap_slot;
+#[cfg(test)]
 mod admitted_views;
 #[cfg(test)]
 mod analytics_http;
@@ -63,6 +65,8 @@ mod governance_dimensions;
 mod governance_slots;
 #[cfg(test)]
 mod handed;
+#[cfg(test)]
+mod identity_grants;
 #[cfg(test)]
 mod install_refusals;
 #[cfg(test)]

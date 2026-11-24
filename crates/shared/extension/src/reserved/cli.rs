@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::CoreId;
-use crate::cli::{CommandClaim, KernelGrant};
+use crate::cli::{CommandClaim, GrantedPlane, KernelGrant};
 
 /// A CLI path only its core owner may claim, with the grants it may request
 /// and the claims its commands may make.
@@ -135,5 +135,23 @@ pub const RESERVED_CLI_PATHS: &[ReservedCliPath] = &[
         &["plugins", "mcp"],
         &[KernelGrant::ServicesTree, KernelGrant::CallerSession],
         PRESERVING,
+    ),
+    cli(
+        CoreId::IdentityHttp,
+        &["admin", "users"],
+        &[KernelGrant::ConfigPlaneWriter(GrantedPlane::Identity)],
+        DIRECT_PRESERVING,
+    ),
+    cli(
+        CoreId::IdentityHttp,
+        &["admin", "keys"],
+        &[KernelGrant::SigningKeys],
+        DIRECT_PRESERVING,
+    ),
+    cli(
+        CoreId::IdentityHttp,
+        &["admin", "bridge"],
+        &[KernelGrant::SigningKeys],
+        DIRECT_PRESERVING,
     ),
 ];

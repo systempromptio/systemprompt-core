@@ -19,7 +19,7 @@ use systemprompt_loader::BootContext;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{SessionGenerator, SessionParams};
-use systemprompt_users::{UserRepository, UserService};
+use systemprompt_traits::{AdminAccount, AdminBootstrap, AdminGrant};
 
 use crate::session::resolution::ProfileContext;
 
@@ -48,23 +48,21 @@ pub(super) async fn connect_database(secrets: &ResolvedSecrets) -> Result<DbPool
 }
 
 pub async fn get_or_create_admin(
-    db_pool: &DbPool,
+    admins: &dyn AdminBootstrap,
     email: &str,
     context_type: &str,
-) -> Result<systemprompt_users::User> {
+) -> Result<AdminAccount> {
     let email = Email::try_new(email).map_err(|e| {
         anyhow::anyhow!("refusing to provision an admin for an invalid address: {e}")
     })?;
     let email = email.as_str();
 
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
-
-    if let Some(user) = user_service
+    if let Some(user) = admins
         .find_by_email(email)
         .await
         .context("Failed to query user by email")?
     {
-        if user.is_service_account() {
+        if user.service_account {
             anyhow::bail!("{email} is a service account; it cannot open a CLI session");
         }
         if user.is_admin() {
@@ -73,8 +71,8 @@ pub async fn get_or_create_admin(
 
         tracing::info!(email = %email, context = %context_type, "Promoting existing user to admin");
 
-        return user_service
-            .assign_roles(&user.id, &["admin".to_owned()])
+        return admins
+            .grant_admin(&user.id, AdminGrant::Only)
             .await
             .context("Failed to assign admin role to existing user");
     }
@@ -83,21 +81,21 @@ pub async fn get_or_create_admin(
 
     tracing::info!(email = %email, name = %name, context = %context_type, "Auto-provisioning user");
 
-    let user = match user_service
-        .create_if_absent(&name, email, None, None)
+    let user = match admins
+        .create_if_absent(&name, email)
         .await
         .with_context(|| format!("Failed to create user in {context_type} database"))?
     {
         Some(user) => user,
-        None => user_service
+        None => admins
             .find_by_email(email)
             .await
             .context("Failed to query user by email")?
             .with_context(|| format!("User {email} vanished between provisioning and lookup"))?,
     };
 
-    user_service
-        .assign_roles(&user.id, &["admin".to_owned()])
+    admins
+        .grant_admin(&user.id, AdminGrant::Only)
         .await
         .context("Failed to assign admin role to new user")
 }
@@ -105,7 +103,7 @@ pub async fn get_or_create_admin(
 pub fn generate_admin_token(
     issuer: &str,
     keys: SigningKeys,
-    user: &systemprompt_users::User,
+    user: &AdminAccount,
     session_id: &SessionId,
 ) -> Result<SessionToken> {
     let generator = SessionGenerator::new(issuer, keys);
@@ -134,7 +132,7 @@ pub(super) fn build_cli_session(
     profile_ctx: &ProfileContext<'_>,
     session_key: &SessionKey,
     components: SessionComponents,
-    admin_user: &systemprompt_users::User,
+    admin_user: &AdminAccount,
     issuer: &str,
 ) -> Result<CliSession> {
     let email =
@@ -153,12 +151,10 @@ pub(super) fn build_cli_session(
 }
 
 pub async fn resolve_local_admin(
-    db_pool: &DbPool,
+    admins: &dyn AdminBootstrap,
     admin_name: &str,
-) -> Result<systemprompt_users::User> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
-
-    let user = user_service
+) -> Result<AdminAccount> {
+    let user = admins
         .find_by_name(admin_name)
         .await
         .context("Failed to query the local admin user by name")?
@@ -169,10 +165,10 @@ pub async fn resolve_local_admin(
             )
         })?;
 
-    if !user.is_active() {
+    if !user.active {
         anyhow::bail!("Local admin user '{admin_name}' exists but is not active.");
     }
-    if user.is_service_account() {
+    if user.service_account {
         anyhow::bail!("User '{admin_name}' is a service account; it cannot open a CLI session.");
     }
     if !user.is_admin() {
@@ -205,12 +201,12 @@ pub async fn resolve_credentialed_user_email(session_email_hint: Option<&str>) -
 
 #[doc(hidden)]
 pub async fn resolve_admin_with_fallback(
-    db_pool: &DbPool,
+    admins: &dyn AdminBootstrap,
     user_email: &str,
     session_email_hint: Option<&str>,
     context_type: &str,
-) -> Result<systemprompt_users::User> {
-    match get_or_create_admin(db_pool, user_email, context_type).await {
+) -> Result<AdminAccount> {
+    match get_or_create_admin(admins, user_email, context_type).await {
         Ok(user) => Ok(user),
         Err(e) if session_email_hint.is_some() => {
             tracing::warn!(
@@ -228,7 +224,7 @@ pub async fn resolve_admin_with_fallback(
             if let Some(creds) = creds
                 && creds.user_email.as_str() != user_email
             {
-                return get_or_create_admin(db_pool, creds.user_email.as_str(), context_type).await;
+                return get_or_create_admin(admins, creds.user_email.as_str(), context_type).await;
             }
             Err(e)
         },
@@ -237,12 +233,12 @@ pub async fn resolve_admin_with_fallback(
 }
 
 pub async fn resolve_tenant_admin_with_fallback(
-    db_pool: &DbPool,
+    admins: &dyn AdminBootstrap,
     creds: &CloudCredentials,
     user_email: &str,
     session_email_hint: Option<&str>,
-) -> Result<systemprompt_users::User> {
-    match get_or_create_admin(db_pool, user_email, "tenant").await {
+) -> Result<AdminAccount> {
+    match get_or_create_admin(admins, user_email, "tenant").await {
         Ok(user) => Ok(user),
         Err(e) if session_email_hint.is_some() && creds.user_email.as_str() != user_email => {
             tracing::warn!(
@@ -250,7 +246,7 @@ pub async fn resolve_tenant_admin_with_fallback(
                 error = %e,
                 "Session user lookup failed, falling back to cloud credentials"
             );
-            get_or_create_admin(db_pool, creds.user_email.as_str(), "tenant").await
+            get_or_create_admin(admins, creds.user_email.as_str(), "tenant").await
         },
         Err(e) => Err(e),
     }

@@ -8,7 +8,9 @@
 //!
 //! The window fails closed: when the bucket cannot be charged, an
 //! authenticated request answers `503` with `Retry-After` rather than
-//! running unmetered.
+//! running unmetered. A deployment without the users member's windows charges
+//! [`super::memory::MemoryRateLimitBuckets`], the same budget counted on this
+//! replica only, never no limit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,17 +20,16 @@ use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
-use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
-use systemprompt_users::UserRateLimitBucketRepository;
+use systemprompt_traits::DynRateLimitBuckets;
 
 pub(super) const GLOBAL_WINDOW_SECS: i64 = 10;
 
 #[derive(Clone, Debug)]
 pub(super) struct GlobalUserLimit {
-    pub(super) buckets: Arc<UserRateLimitBucketRepository>,
+    pub(super) buckets: DynRateLimitBuckets,
     pub(super) scope: &'static str,
     pub(super) budget: i64,
 }

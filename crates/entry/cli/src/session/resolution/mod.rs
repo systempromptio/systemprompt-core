@@ -146,6 +146,7 @@ async fn get_session_for_loaded_profile(
         crate::session::creation::SessionSource {
             boot,
             contexts: &contexts,
+            admitted: ctx.host.admitted()?,
         },
     )
     .await?;

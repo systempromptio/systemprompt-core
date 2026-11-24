@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The API's replica-shared per-user rate-limit window is read through the `DynRateLimitBuckets` seam the users member provides, accepted only from `users`. A kernel without it, or with windows another member provided, counts the same budget per replica in memory instead of running unlimited. `RateLimitState::new` takes a `DynRateLimitBuckets`; `RateLimitState::from_kernel` builds the state from kernel state."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`RateLimitBuckets` / `DynRateLimitBuckets`: charge one hit to a user's window and read its count, with no reset or prune."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "`UserRateLimitBucketRepository::hit` is the `RateLimitBuckets` impl and returns `RepositoryError`; the member provides the repository as an open `DynRateLimitBuckets`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`RateLimitState::new` takes a `DynRateLimitBuckets`; `repository::user_rate_limit_buckets` is removed; `MemoryRateLimitBuckets` and `RateLimitState::from_kernel` are added."

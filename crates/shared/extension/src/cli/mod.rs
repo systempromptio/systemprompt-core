@@ -48,9 +48,12 @@ pub use command::{
 pub use decl::{CommandDecl, CommandKind, ParsedCommand};
 #[cfg(feature = "cli")]
 pub use descriptor::{CommandDescriptor, DescribeCommand};
-pub use grant::KernelGrant;
+pub use grant::{GrantedPlane, KernelGrant};
 #[cfg(feature = "cli")]
-pub use granted::{CallerSession, ServicesTree};
+pub use granted::{
+    CallerSession, DeploymentSigningKeys, RetiredTokenKey, ServicesTree, TokenKeyPromotion,
+    TokenKeySet,
+};
 #[cfg(feature = "cli")]
 pub use impact::{DataImpact, DbUrlRouting, RoutingClass};
 #[cfg(feature = "cli")]

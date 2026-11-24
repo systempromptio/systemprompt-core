@@ -5,6 +5,7 @@ use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_traits::RateLimitBuckets;
 use systemprompt_users::UserRateLimitBucketRepository;
 use uuid::Uuid;
 

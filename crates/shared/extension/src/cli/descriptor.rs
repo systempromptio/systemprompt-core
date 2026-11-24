@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::impact::{DataImpact, RoutingClass};
-use super::{CommandClaim, KernelGrant};
+use super::{CommandClaim, GrantedPlane, KernelGrant};
 
 /// Bootstrap flags for one command.
 ///
@@ -72,6 +72,8 @@ impl CommandDescriptor {
     const FLAG_SERVICES_TREE: u32 = 0b0010_0000_0000_0000_0000;
     const FLAG_CALLER_SESSION: u32 = 0b0100_0000_0000_0000_0000;
     const FLAG_SESSION_CONTEXT: u32 = 0b1000_0000_0000_0000_0000;
+    const FLAG_SIGNING_KEYS: u32 = 0b0001_0000_0000_0000_0000_0000;
+    const FLAG_IDENTITY_PLANE_WRITER: u32 = 0b0010_0000_0000_0000_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -204,6 +206,10 @@ impl CommandDescriptor {
             KernelGrant::ServicesTree => Self::FLAG_SERVICES_TREE,
             KernelGrant::CallerSession => Self::FLAG_CALLER_SESSION,
             KernelGrant::SessionContext => Self::FLAG_SESSION_CONTEXT,
+            KernelGrant::SigningKeys => Self::FLAG_SIGNING_KEYS,
+            KernelGrant::ConfigPlaneWriter(GrantedPlane::Identity) => {
+                Self::FLAG_IDENTITY_PLANE_WRITER
+            },
         }
     }
 

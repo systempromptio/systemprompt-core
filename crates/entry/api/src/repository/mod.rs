@@ -19,12 +19,6 @@ pub fn proxy_sessions(db: &DbPool) -> Arc<systemprompt_mcp::repository::McpProxy
     Arc::new(systemprompt_mcp::repository::McpProxySessionRepository::new(db))
 }
 
-pub fn user_rate_limit_buckets(
-    db: &DbPool,
-) -> Arc<systemprompt_users::UserRateLimitBucketRepository> {
-    Arc::new(systemprompt_users::UserRateLimitBucketRepository::new(db))
-}
-
 pub fn config_plane_state(
     db: &DbPool,
 ) -> Arc<systemprompt_scheduler::repository::ConfigReconcileRepository> {
