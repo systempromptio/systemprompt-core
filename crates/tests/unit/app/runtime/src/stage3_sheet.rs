@@ -549,3 +549,48 @@ async fn the_inventory_publisher_stays_sealed_from_the_refresh_job() {
         "marketplace-http"
     ));
 }
+
+fn bridge_view_reads<T: Clone + Send + Sync + 'static>(ctx: &AppContext, owner: &str) -> bool {
+    ctx.kernel()
+        .route_scoped(&ExtensionId::new(owner), StandingTag::Core, &[])
+        .get::<Option<Arc<T>>>()
+        .is_ok_and(|view| view.is_some())
+}
+
+fn bridge_view_withheld<T: Clone + Send + Sync + 'static>(ctx: &AppContext) {
+    assert!(bridge_view_reads::<T>(ctx, "gateway-http"));
+    for other in [
+        "identity-http",
+        "files-http",
+        "marketplace-http",
+        "mcp-http",
+    ] {
+        assert!(
+            !bridge_view_reads::<T>(ctx, other),
+            "{other} reads a bridge view conferred only on gateway-http"
+        );
+    }
+    assert!(!install_reads::<Option<Arc<T>>>(ctx));
+    assert!(!member_command_reads::<Option<Arc<T>>>(ctx));
+    assert!(!job_reads::<Option<Arc<T>>>(ctx));
+}
+
+#[tokio::test]
+async fn each_bridge_view_is_read_only_by_gateway_http() {
+    use systemprompt_gateway::surface::views::{
+        BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsView,
+    };
+    let ctx = context().await;
+    bridge_view_withheld::<GatewayManifestSigner>(&ctx);
+    bridge_view_withheld::<BridgeReleaseSource>(&ctx);
+    bridge_view_withheld::<GatewaySettingsView>(&ctx);
+    bridge_view_withheld::<BridgeEventStream>(&ctx);
+    assert!(
+        !route_reads::<SigningKeys>(&ctx, "gateway-http"),
+        "gateway-http signs through its view, never the signing keys"
+    );
+    assert!(
+        !route_reads::<Arc<dyn systemprompt_traits::SecretLookup>>(&ctx, "gateway-http"),
+        "gateway-http reads the release token through its view, never the secret lookup"
+    );
+}
