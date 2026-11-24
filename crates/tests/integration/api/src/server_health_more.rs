@@ -162,12 +162,12 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
 
 #[tokio::test(start_paused = true)]
 async fn drain_grace_bounds_the_drain_and_not_the_server() {
-    let grace = ShutdownConfig::default().drain_grace();
+    let deadline = ShutdownConfig::default().stream_drain_deadline();
 
     // Never signalled: the guard must not be a deadline on healthy serving.
     let readiness = Arc::new(ReadinessState::new());
     let unsignalled = tokio::time::timeout(
-        grace * 3,
+        deadline * 3,
         shutdown::join_within_drain_grace(
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
@@ -201,7 +201,7 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     tokio::time::sleep(Duration::from_millis(50)).await;
     readiness.signal_shutdown();
 
-    let result = tokio::time::timeout(grace * 3, wedged)
+    let result = tokio::time::timeout(deadline * 3, wedged)
         .await
         .expect("a wedged drain must be abandoned once shutdown is signalled")
         .expect("join task panicked");
