@@ -1,7 +1,7 @@
 //! Bounded polling for conditions that settle asynchronously.
 
 use std::future::Future;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
 
@@ -50,4 +50,22 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
         .build()
         .expect("current-thread runtime")
         .block_on(future)
+}
+
+// A fixed quota window is aligned to the Unix epoch, so two charges a test
+// expects in one bucket land in two when the clock crosses a boundary between
+// them. Waits out the current window when fewer than `headroom` remain, so the
+// test starts at least `headroom` before the next boundary.
+pub async fn await_window_headroom(window_seconds: u64, headroom: Duration) {
+    let window = Duration::from_secs(window_seconds);
+    assert!(headroom < window, "headroom must be shorter than the window");
+    let since_epoch = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("the clock is after the Unix epoch");
+    let elapsed = u64::try_from(since_epoch.as_nanos() % window.as_nanos())
+        .expect("a window position fits in u64 nanoseconds");
+    let left = window - Duration::from_nanos(elapsed);
+    if left < headroom {
+        tokio::time::sleep(left + Duration::from_millis(50)).await;
+    }
 }
