@@ -40,19 +40,24 @@ pub async fn test_pg_pool() -> sqlx::PgPool {
 
 // The per-run connection budget.
 //
-// Every pool a fixture opens (`connect`, the disposable databases, and the
-// fixture AppContext through the `database.pool` block of the bootstrap
-// profile) is capped at `FIXTURE_POOL_MAX_CONNECTIONS`. A test process holds
-// at most `FIXTURE_TEST_CONNECTIONS`: its own pool, the AppContext pool, a
-// disposable database's admin pool, and the AppContext's claim and listener
-// sessions. nextest runs each test in its own process, so a run opens at most
-// (concurrent DB tests × `FIXTURE_TEST_CONNECTIONS`) sessions; the
-// `db-connection-budget` test group in `.config/nextest.toml` bounds the
-// concurrent DB tests so that product stays within
-// `SERVER_CONNECTION_BUDGET`, the share of the server's `max_connections`
-// (100) left after superuser-reserved, migration and operator sessions.
+// A pool a fixture opens for a test's own queries (`connect`, a disposable
+// database) is capped at `FIXTURE_POOL_MAX_CONNECTIONS`. The fixture
+// AppContext pool, sized through the `database.pool` block of the bootstrap
+// profile, is capped at `FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS`: a served
+// context runs the scheduler, heartbeat, lease supervisor and event bridge
+// over it, and starves itself below that. A test process holds
+// `FIXTURE_TEST_CONNECTIONS`: one test pool and one AppContext pool.
+// nextest runs each test in its own process, so the `db-connection-budget`
+// test group in `.config/nextest.toml` bounds a run to (its slots ×
+// `FIXTURE_TEST_CONNECTIONS`) sessions, which stays within
+// `SERVER_CONNECTION_BUDGET` with room for the one-slot shared-state groups
+// that run beside it. The budget is the share of the server's
+// `max_connections` (100) left after superuser-reserved, migration and
+// operator sessions.
 pub const FIXTURE_POOL_MAX_CONNECTIONS: u32 = 4;
-pub const FIXTURE_TEST_CONNECTIONS: u32 = 3 * FIXTURE_POOL_MAX_CONNECTIONS + 2;
+pub const FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS: u32 = 10;
+pub const FIXTURE_TEST_CONNECTIONS: u32 =
+    FIXTURE_POOL_MAX_CONNECTIONS + FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS;
 pub const SERVER_CONNECTION_BUDGET: u32 = 85;
 
 // Idle connections are returned to the server promptly rather than parked for

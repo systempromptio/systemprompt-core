@@ -492,7 +492,7 @@ fn render_profile_yaml(paths: &ProfilePaths<'_>, api_base_url: &str) -> String {
         storage,
         web,
     } = *paths;
-    let pool_max = crate::db::FIXTURE_POOL_MAX_CONNECTIONS;
+    let pool_max = crate::db::FIXTURE_CONTEXT_POOL_MAX_CONNECTIONS;
     let pool_idle = crate::db::FIXTURE_POOL_IDLE_TIMEOUT.as_secs();
     format!(
         r#"name: test
