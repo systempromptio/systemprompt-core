@@ -65,6 +65,7 @@ use systemprompt_models::mcp::ClientProfile;
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::DynContextDirectory;
+use systemprompt_database::DbPool;
 use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;
@@ -182,7 +183,6 @@ impl DocumentsMcpTools {
     #[must_use]
     pub fn for_host(
         handles: &DocumentsHandles,
-        users: Arc<UserRepository>,
         extension_state: &Dependencies,
         links: Arc<dyn LinkIssuer>,
         server_name: McpServerId,
@@ -194,7 +194,7 @@ impl DocumentsMcpTools {
                 .find::<Arc<NotificationsServiceSlot>>()
                 .and_then(|slot| slot.get().cloned()),
             uploads: Some(Arc::clone(&handles.uploads)),
-            users,
+            users: Arc::new(UserRepository::new(extension_state.find::<DbPool>()?)),
             links,
             contexts: Arc::clone(&handles.contexts),
             server_name,

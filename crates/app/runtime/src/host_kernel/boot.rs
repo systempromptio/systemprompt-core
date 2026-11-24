@@ -182,7 +182,6 @@ impl HostKernel {
             )),
             subjects: market.subjects.clone(),
             subject_providers: market.subject_providers,
-            user_repository,
             profile: Arc::clone(&loaded),
             services_root,
             config,

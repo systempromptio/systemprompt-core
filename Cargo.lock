@@ -7553,7 +7553,6 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-security",
  "systemprompt-traits",
- "systemprompt-users",
  "thiserror 2.0.21",
  "tokio",
  "tracing",

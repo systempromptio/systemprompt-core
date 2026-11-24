@@ -44,7 +44,6 @@ use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{BackgroundTasks, BoxedSource, FileStorage};
-use systemprompt_users::UserRepository;
 
 use crate::error::RuntimeError;
 use crate::kernel::Kernel;
@@ -101,7 +100,6 @@ pub struct HostParts {
     pub authz_hook: SharedAuthzHook,
     pub subject_providers: SubjectProviderSet,
     pub subjects: SubjectSourceHandle,
-    pub user_repository: Arc<UserRepository>,
     pub background_tasks: BackgroundTasks,
     pub log_sink: systemprompt_logging::LogSink,
     pub tokens: Arc<VerifyingTokenAuthority>,
