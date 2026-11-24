@@ -31,6 +31,7 @@
 mod breakers;
 mod chain;
 mod decision;
+mod held;
 mod load;
 mod selection;
 
@@ -62,12 +63,16 @@ pub(super) async fn send_with_failover(
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
     if send.primary.deployments.len() <= 1 {
-        let _in_flight = enter_deployment(&send.engines.load, send.primary);
-        return with_policy(
+        let slot = held::DeploymentSlot {
+            _permit: None,
+            _in_flight: enter_deployment(&send.engines.load, send.primary),
+        };
+        let outcome = with_policy(
             current_policy(),
             Box::pin(scanned.send(send.primary, send.forward_headers, send.audit)),
         )
-        .await;
+        .await?;
+        return Ok(slot.hold(outcome));
     }
     chain::run(scanned, send).await
 }

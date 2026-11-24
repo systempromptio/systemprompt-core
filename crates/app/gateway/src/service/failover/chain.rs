@@ -1,8 +1,10 @@
 //! The failover loop over a route's deployment chain: per-hop bind, send,
 //! breaker settlement and the hop's metric, audit and `route_match` updates.
-//! A send holds its deployment's bulkhead permit for the attempt; a full
-//! bulkhead moves on to the next deployment, and a chain that ends on one
-//! answers `GatewayError::Saturated` with `Retry-After`.
+//! A send holds its deployment's bulkhead permit for the attempt and, when the
+//! deployment serves it, for as long as the answer's body is open
+//! ([`DeploymentSlot`]); a full bulkhead moves on to the next deployment, and a
+//! chain that ends on one answers `GatewayError::Saturated` with
+//! `Retry-After`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +14,7 @@ use systemprompt_storage::resilience::Probe;
 use super::FailoverSend;
 use super::breakers::{acquire, breaker_key, settle};
 use super::decision::{FailoverReason, failover_reason, plan_attempts};
+use super::held::DeploymentSlot;
 use crate::protocol::outbound::OutboundOutcome;
 use crate::protocol::outbound::retry::{current_policy, with_policy};
 use crate::service::pricing::dispatch_pricing;
@@ -60,11 +63,11 @@ pub(super) async fn run(
             break;
         }
         let probe = probes.get_mut(index).and_then(Option::take);
-        let Ok(_permit) = bulkheads[index].try_acquire() else {
+        let Ok(permit) = bulkheads[index].try_acquire() else {
             chain.saturated(index, bulkheads[index].limit());
             continue;
         };
-        match chain.attempt(scanned, index, probe).await {
+        match chain.attempt(scanned, index, probe, permit).await {
             Step::Served(outcome) => return Ok(outcome),
             Step::Fatal(provider, error) => return Err(chain.failed(&provider, error).await),
             Step::Next => {},
@@ -100,6 +103,7 @@ impl<'r> Chain<'_, 'r> {
         scanned: &mut ScannedDispatch,
         index: usize,
         probe: Option<Probe<'_>>,
+        permit: tokio::sync::OwnedSemaphorePermit,
     ) -> Step {
         let name = self.names[index].clone();
         let hop = index != 0 || self.last.is_some();
@@ -115,7 +119,10 @@ impl<'r> Chain<'_, 'r> {
             self.record_hop(&name);
         }
         let upstream = rebound.as_ref().unwrap_or(self.send.primary);
-        let _in_flight = super::enter_deployment(&self.send.engines.load, upstream);
+        let slot = DeploymentSlot {
+            _permit: Some(permit),
+            _in_flight: super::enter_deployment(&self.send.engines.load, upstream),
+        };
         let outcome = with_policy(
             current_policy(),
             scanned.send_attempt(upstream, self.send.forward_headers, self.send.audit),
@@ -124,7 +131,7 @@ impl<'r> Chain<'_, 'r> {
         match outcome {
             Ok(outcome) => {
                 settle(probe, true);
-                Step::Served(outcome)
+                Step::Served(slot.hold(outcome))
             },
             Err(error) => {
                 let reason = failover_reason(&error);
