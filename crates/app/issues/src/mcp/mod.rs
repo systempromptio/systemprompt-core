@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod attach;
+mod hosted;
 pub mod read;
 pub mod refusal;
 pub mod report;
@@ -34,6 +35,7 @@ use self::refusal::refusal_result;
 use self::report::ReportHandler;
 use systemprompt_documents::links::LinkIssuer;
 
+pub use self::hosted::IssuesMcpError;
 pub use self::refusal::IssueRefusalCode;
 
 pub const TOOLSET_ID: &str = systemprompt_documents::links::ISSUES_TOOLSET;

@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "MCP"
+text = "The hosted document and issue toolsets are built by `DocumentsMcpTools::hosted` and `IssuesMcpTools::hosted` from the host's kernel state; `DocumentsMcpError` and `IssuesMcpError` move to `systemprompt_documents::mcp` and `systemprompt_issues::mcp` and gain `MissingConfig`, and `HostContext::{documents, files_config}` are removed. `systemprompt-mcp-host` no longer depends on `systemprompt-files`."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "`HostContext::{documents, files_config}` and `toolsets::{DocumentsMcpError, IssuesMcpError}` are removed; `documents_tools` and `issues_tools` return the owning crates' errors."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "`mcp::DocumentsMcpTools::hosted` and `mcp::DocumentsMcpError`."
+
+[[crate]]
+name = "systemprompt-issues"
+section = "Added"
+text = "`mcp::IssuesMcpTools::hosted` and `mcp::IssuesMcpError`."

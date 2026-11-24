@@ -11,8 +11,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Tool};
@@ -20,10 +18,8 @@ use systemprompt_extension::brain::{BRAIN_TOOLSET, DynBrainToolsetSource};
 use systemprompt_extension::mcp::{McpToolset, ToolsetCall};
 use systemprompt_identifiers::McpServerId;
 
-use systemprompt_documents::links::LinkIssueError;
-use systemprompt_documents::mcp::{DocumentsMcpTools, DocumentsToolCall};
-use systemprompt_files::documents::DocumentsUnbound;
-use systemprompt_issues::mcp::{IssuesMcpTools, IssuesToolCall};
+use systemprompt_documents::mcp::{DocumentsMcpError, DocumentsMcpTools, DocumentsToolCall};
+use systemprompt_issues::mcp::{IssuesMcpError, IssuesMcpTools, IssuesToolCall};
 
 use super::factory::ToolsetBuildResult;
 use crate::HostContext;
@@ -32,101 +28,20 @@ use crate::contract::ToolsetSlotBuilder;
 pub use systemprompt_documents::mcp::TOOLSET_ID as DOCUMENTS_TOOLSET;
 pub use systemprompt_issues::mcp::TOOLSET_ID as ISSUES_TOOLSET;
 
-/// Why the issue report tools could not be built for a hosted server.
-#[derive(Debug, thiserror::Error)]
-pub enum IssuesMcpError {
-    #[error(
-        "MCP server {server_name} serves issue report tools but issue reports are disabled: set \
-         files.issues.enabled: true in services/config/files.yaml"
-    )]
-    Disabled { server_name: McpServerId },
-    #[error("MCP server {server_name}: the API link client could not be built")]
-    Links {
-        server_name: McpServerId,
-        #[source]
-        source: LinkIssueError,
-    },
-    #[error("MCP server {server_name}: the document store is not bound on this host")]
-    Unbound {
-        server_name: McpServerId,
-        #[source]
-        source: DocumentsUnbound,
-    },
-}
-
-/// Why the document tools could not be built for a hosted server.
-#[derive(Debug, thiserror::Error)]
-pub enum DocumentsMcpError {
-    #[error(
-        "MCP server {server_name} serves document tools but the document store is disabled: set \
-         files.documents.enabled: true in services/config/files.yaml"
-    )]
-    Disabled { server_name: McpServerId },
-    #[error("MCP server {server_name}: the API link client could not be built")]
-    Links {
-        server_name: McpServerId,
-        #[source]
-        source: LinkIssueError,
-    },
-    #[error("MCP server {server_name}: the document store is not bound on this host")]
-    Unbound {
-        server_name: McpServerId,
-        #[source]
-        source: DocumentsUnbound,
-    },
-}
-
 pub fn issues_tools(
     host: &HostContext,
     server_name: McpServerId,
 ) -> Result<IssuesMcpTools, IssuesMcpError> {
-    if !host.files_config().issues_config().is_enabled() {
-        return Err(IssuesMcpError::Disabled { server_name });
-    }
-    let handles = host.documents().map_err(|source| IssuesMcpError::Unbound {
-        server_name: server_name.clone(),
-        source,
-    })?;
-    let uploads = host
-        .files_config()
-        .documents_config()
-        .is_enabled()
-        .then(|| Arc::clone(&handles.uploads));
-    let links = host
-        .link_issuer(&server_name)
-        .map_err(|source| IssuesMcpError::Links {
-            server_name: server_name.clone(),
-            source,
-        })?;
-    Ok(IssuesMcpTools::new(
-        Arc::clone(&handles.issues),
-        uploads,
-        links,
-        server_name,
-    ))
+    let links_for = server_name.clone();
+    IssuesMcpTools::hosted(host.state(), || host.link_issuer(&links_for), server_name)
 }
 
 pub fn documents_tools(
     host: &HostContext,
     server_name: McpServerId,
 ) -> Result<DocumentsMcpTools, DocumentsMcpError> {
-    if !host.files_config().documents_config().is_enabled() {
-        return Err(DocumentsMcpError::Disabled { server_name });
-    }
-    let links = host
-        .link_issuer(&server_name)
-        .map_err(|source| DocumentsMcpError::Links {
-            server_name: server_name.clone(),
-            source,
-        })?;
-    let handles = host
-        .documents()
-        .map_err(|source| DocumentsMcpError::Unbound {
-            server_name: server_name.clone(),
-            source,
-        })?;
-    DocumentsMcpTools::for_host(handles, host.state(), links, server_name.clone())
-        .ok_or(DocumentsMcpError::Disabled { server_name })
+    let links_for = server_name.clone();
+    DocumentsMcpTools::hosted(host.state(), || host.link_issuer(&links_for), server_name)
 }
 
 #[derive(Debug)]

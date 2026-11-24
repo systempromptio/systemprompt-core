@@ -7328,6 +7328,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -7558,7 +7559,6 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-documents",
  "systemprompt-extension",
- "systemprompt-files",
  "systemprompt-governance",
  "systemprompt-identifiers",
  "systemprompt-issues",
