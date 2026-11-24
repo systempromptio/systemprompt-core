@@ -12,7 +12,7 @@ brain_review	brain	systemprompt-brain	crates/domain/brain/src/jobs/review.rs:149
 brain_usage	brain	systemprompt-brain	crates/domain/brain/src/jobs/usage.rs:149
 cleanup_anonymous_users	users	systemprompt-users	crates/domain/users/src/jobs/cleanup_anonymous_users.rs:79
 cleanup_empty_contexts	agent	systemprompt-agent	crates/domain/agent/src/jobs/cleanup_empty_contexts.rs:81
-cleanup_inactive_sessions	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/cleanup_inactive_sessions.rs:65
+cleanup_inactive_sessions	users	systemprompt-users	crates/domain/users/src/jobs/cleanup_inactive_sessions.rs:65
 config_reconcile	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/config_reconcile.rs:75
 content_prerender	generator	systemprompt-generator	crates/app/generator/src/jobs/content_prerender.rs:71
 database_cleanup	scheduler	systemprompt-scheduler	crates/app/scheduler/src/jobs/database_cleanup/mod.rs:198

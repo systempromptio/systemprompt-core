@@ -6,8 +6,8 @@
 //! - A [`SchedulerService`] that uses [`tokio_cron_scheduler`] to dispatch jobs
 //!   of the admitted composition
 //!   ([`AdmittedSchedule`](systemprompt_extension::AdmittedSchedule)).
-//! - The kernel's built-in jobs ([`DatabaseCleanupJob`],
-//!   [`CleanupInactiveSessionsJob`], …), contributed by [`SchedulerExtension`].
+//! - The kernel's built-in jobs ([`DatabaseCleanupJob`], …), contributed by
+//!   [`SchedulerExtension`].
 //!   Capability members contribute their own jobs, and retention purges and
 //!   projection drains to the kernel jobs that iterate them.
 //! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
@@ -63,7 +63,7 @@ pub use jobs::otlp_export::{
     ExportReport as OtlpExportReport, SignalReport as OtlpSignalReport,
     export_now as otlp_export_now,
 };
-pub use jobs::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
+pub use jobs::DatabaseCleanupJob;
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};
 pub use repository::{

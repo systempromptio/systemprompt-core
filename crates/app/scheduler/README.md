@@ -45,7 +45,6 @@ retention each table's owner declares (`Contributions::retention`), and
 
 | Job | Schedule | Description |
 |-----|----------|-------------|
-| `CleanupInactiveSessionsJob` | Every 10 min | Closes sessions inactive for 1 hour |
 | `DatabaseCleanupJob` | Daily at 3 AM | Prunes every admitted retention target past its profile window, orphaned logs and expired archived users |
 | `BackfillRollupsJob` | Every minute | Drains the hourly usage rollups owners declare |
 

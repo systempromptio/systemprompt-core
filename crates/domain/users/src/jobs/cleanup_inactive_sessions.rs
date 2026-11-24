@@ -5,11 +5,11 @@
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
-use systemprompt_users::SessionRepository;
 use tracing::debug;
 
-use crate::error::SchedulerError;
+use crate::SessionRepository;
 
 const DEFAULT_INACTIVE_HOURS: i32 = 1;
 
@@ -45,7 +45,7 @@ impl Job for CleanupInactiveSessionsJob {
         let closed_sessions = session_repo
             .cleanup_inactive(inactive_hours)
             .await
-            .map_err(SchedulerError::from)?;
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

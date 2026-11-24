@@ -3,7 +3,7 @@
 //! It owns the `scheduled_jobs`, config-plane, OTLP export and licence
 //! check-in schemas and migrations, and the built-in jobs (config reconcile,
 //! licence check-in, the drainers of kernel-owned
-//! projections, session housekeeping, database cleanup, Vertex discovery and,
+//! projections, database cleanup, Vertex discovery and,
 //! with `otel`, the OTLP export).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,9 +12,9 @@
 use systemprompt_extension::prelude::*;
 
 use crate::jobs::{
-    BackfillRollupsJob, CleanupInactiveSessionsJob, ConfigReconcileJob, DatabaseCleanupJob,
-    LicenceCheckinJob, LogSummaryRollupJob, OutboxBacklogRollupJob, SessionBotTypeRollupJob,
-    TraceFactsRollupJob, VertexDiscoveryJob,
+    BackfillRollupsJob, ConfigReconcileJob, DatabaseCleanupJob, LicenceCheckinJob,
+    LogSummaryRollupJob, OutboxBacklogRollupJob, SessionBotTypeRollupJob, TraceFactsRollupJob,
+    VertexDiscoveryJob,
 };
 
 pub(crate) const SCHEDULER_MEMBER_ID: &str = "scheduler";
@@ -43,7 +43,6 @@ impl Extension for SchedulerExtension {
             .job(OutboxBacklogRollupJob)
             .job(SessionBotTypeRollupJob)
             .job(TraceFactsRollupJob)
-            .job(CleanupInactiveSessionsJob)
             .job(DatabaseCleanupJob)
             .job(VertexDiscoveryJob);
         crate::jobs::database_cleanup::kernel_purges::contribute(c);
