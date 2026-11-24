@@ -3,7 +3,8 @@
 //! With registration closed the `/register` endpoint refuses every caller and
 //! discovery stops advertising a `registration_endpoint`, so a conforming MCP
 //! client learns it must be pre-provisioned instead of failing at the POST.
-//! The flag is read from the `Config` each test's context is built with.
+//! The flag is read from the `IdentityConfigView` each test's context is built
+//! with.
 
 use std::sync::Arc;
 
@@ -16,6 +17,8 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth_issuance::JwksCache;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
+use systemprompt_security::http::EdgeConfigView;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_database_url,
 };
@@ -51,10 +54,13 @@ async fn register_is_forbidden_when_dcr_is_closed() {
         AgentName::system(),
         Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
-    let app = public_router(Arc::new(JwksCache::new()))
-        .with_state(state)
-        .layer(Extension(req_ctx))
-        .layer(Extension(ctx.config_arc().clone()));
+    let app = public_router(
+        Arc::new(JwksCache::new()),
+        &Arc::new(IdentityConfigView::of(ctx.config())),
+    )
+    .with_state(state)
+    .layer(Extension(req_ctx))
+    .layer(Extension(Arc::new(EdgeConfigView::of(ctx.config()))));
     let body = serde_json::json!({
         "client_name": "probe",
         "redirect_uris": ["https://app.example/cb"],
@@ -88,7 +94,7 @@ async fn discovery_omits_registration_endpoint_when_dcr_is_closed() {
                 .cloned(),
         ),
     )
-    .layer(Extension(ctx.config_arc().clone()));
+    .layer(Extension(Arc::new(EdgeConfigView::of(ctx.config()))));
     let resp = app
         .oneshot(
             Request::builder()

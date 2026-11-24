@@ -1,6 +1,6 @@
 //! RFC 8707 resource resolution for bound and unbound grants.
 
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth_issuance::IssuanceError;
 use systemprompt_oauth_issuance::resource::{ResourceBinding, resolve_grant_resource};
 use systemprompt_test_fixtures::fixture_config;
@@ -8,8 +8,8 @@ use systemprompt_test_fixtures::fixture_config;
 const BOUND: &str = "https://mcp-a.test";
 const FOREIGN: &str = "https://anything.test";
 
-fn config() -> Config {
-    let mut config = fixture_config("postgres://unused/unused");
+fn config() -> IdentityConfigView {
+    let mut config = IdentityConfigView::of(&fixture_config("postgres://unused/unused"));
     config.allowed_resource_audiences = vec![FOREIGN.to_owned()];
     config
 }

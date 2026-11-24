@@ -4,6 +4,9 @@
 //! route mounted behind the context middleware that admits a person's UI
 //! session, so a `person_ui` client can sign its own grant out.
 //!
+//! Each router carries the [`IdentityConfigView`] its handlers read as a
+//! request extension; no OAuth handler reads the whole runtime configuration.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,15 +17,19 @@ use axum::routing::{get, post};
 use axum::{Extension, Router};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth_issuance::JwksCache;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 
-pub fn router(jwks: Arc<JwksCache>) -> Router<OAuthState> {
+pub fn router(jwks: Arc<JwksCache>, config: &Arc<IdentityConfigView>) -> Router<OAuthState> {
     Router::new()
-        .merge(public_router(jwks))
-        .merge(authenticated_router())
-        .merge(revocation_router())
+        .merge(public_router(jwks, config))
+        .merge(authenticated_router(config))
+        .merge(revocation_router(config))
 }
 
-pub fn public_router(jwks: Arc<JwksCache>) -> Router<OAuthState> {
+pub fn public_router(
+    jwks: Arc<JwksCache>,
+    config: &Arc<IdentityConfigView>,
+) -> Router<OAuthState> {
     Router::new()
         .route("/health", get(health::handle_health_api))
         .route(
@@ -74,9 +81,10 @@ pub fn public_router(jwks: Arc<JwksCache>) -> Router<OAuthState> {
             axum::routing::delete(endpoints::client_config::delete_client_configuration),
         )
         .layer(Extension(jwks))
+        .layer(Extension(Arc::clone(config)))
 }
 
-pub fn authenticated_router() -> Router<OAuthState> {
+pub fn authenticated_router(config: &Arc<IdentityConfigView>) -> Router<OAuthState> {
     Router::new()
         .nest("/clients", clients::router())
         .route(
@@ -85,8 +93,11 @@ pub fn authenticated_router() -> Router<OAuthState> {
         )
         .route("/logout", post(endpoints::logout::handle_logout))
         .route("/userinfo", get(endpoints::userinfo::handle_userinfo))
+        .layer(Extension(Arc::clone(config)))
 }
 
-pub fn revocation_router() -> Router<OAuthState> {
-    Router::new().route("/revoke", post(endpoints::revoke::handle_revoke))
+pub fn revocation_router(config: &Arc<IdentityConfigView>) -> Router<OAuthState> {
+    Router::new()
+        .route("/revoke", post(endpoints::revoke::handle_revoke))
+        .layer(Extension(Arc::clone(config)))
 }

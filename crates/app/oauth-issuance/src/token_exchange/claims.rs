@@ -6,7 +6,7 @@
 use std::str::FromStr;
 
 use systemprompt_identifiers::ClientId;
-use systemprompt_manifest::Config;
+use crate::surface::IdentityConfigView;
 use systemprompt_models::auth::{ActClaim, JwtAudience, Permission};
 
 use crate::{IssuanceError, IssuanceResult};
@@ -37,7 +37,7 @@ pub fn intersect_scopes(
 
 pub fn resolve_audience(
     requested: Option<&str>,
-    global: &Config,
+    global: &IdentityConfigView,
 ) -> IssuanceResult<Vec<JwtAudience>> {
     if let Some(value) = requested {
         if !global

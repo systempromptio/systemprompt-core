@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_manifest::Config;
+use crate::surface::IdentityConfigView;
 
 use crate::{IssuanceError, IssuanceResult};
 
@@ -24,7 +24,7 @@ pub enum ResourceBinding<'a> {
 pub fn resolve_grant_resource<'a>(
     requested: Option<&'a str>,
     binding: ResourceBinding<'a>,
-    global: &Config,
+    global: &IdentityConfigView,
 ) -> IssuanceResult<Option<&'a str>> {
     match binding {
         ResourceBinding::Unbound => validate_resource(requested, global),
@@ -45,7 +45,7 @@ pub fn resolve_grant_resource<'a>(
 
 pub fn validate_resource<'a>(
     resource: Option<&'a str>,
-    global: &Config,
+    global: &IdentityConfigView,
 ) -> IssuanceResult<Option<&'a str>> {
     match resource {
         Some(value) if !is_allowed_resource(value, global) => Err(IssuanceError::InvalidTarget {
@@ -55,7 +55,7 @@ pub fn validate_resource<'a>(
     }
 }
 
-pub fn is_allowed_resource(value: &str, global: &Config) -> bool {
+pub fn is_allowed_resource(value: &str, global: &IdentityConfigView) -> bool {
     global
         .allowed_resource_audiences
         .iter()

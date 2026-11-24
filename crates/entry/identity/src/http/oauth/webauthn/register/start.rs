@@ -9,7 +9,7 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use std::sync::Arc;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
@@ -48,7 +48,7 @@ impl StartRegisterQuery {
 pub async fn start_register(
     Query(params): Query<StartRegisterQuery>,
     State(state): State<OAuthState>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
 ) -> Result<Response, OAuthHttpError> {
     super::ensure_registration_enabled(&config)?;
     params.validate().map_err(OAuthHttpError::invalid_request)?;

@@ -108,10 +108,10 @@ fn app_as(ctx: &AppContext, caller: RequestContext) -> Router {
             next.run(req).await
         }
     };
-    revocation_router()
+    revocation_router(&crate::common::identity_view(&ctx))
         .layer(middleware::from_fn(inject))
         .with_state(state)
-        .layer(axum::Extension(ctx.config_arc().clone()))
+        .layer(axum::Extension(crate::common::edge_view(&ctx)))
 }
 
 fn form_encode(value: &str) -> String {

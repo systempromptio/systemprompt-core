@@ -7,7 +7,7 @@ use axum::extract::{Extension, Path};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json, Response};
 use std::sync::Arc;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 
 use super::validation::authenticate_client_configuration;
 use crate::http::oauth::extractors::OAuthRepo;
@@ -21,7 +21,7 @@ use systemprompt_oauth::services::validation::{
 
 pub async fn update_client_configuration(
     OAuthRepo(repository): OAuthRepo,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     Path(client_id): Path<String>,
     headers: HeaderMap,
     Json(request): Json<DynamicRegistrationRequest>,

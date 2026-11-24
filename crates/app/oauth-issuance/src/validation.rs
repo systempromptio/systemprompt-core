@@ -6,7 +6,7 @@
 
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
-use systemprompt_manifest::Config;
+use crate::surface::IdentityConfigView;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::repository::{
     AuthCodeRedemption, AuthCodeValidationResult, OAuthRepository,
@@ -57,7 +57,7 @@ pub struct AuthCodeValidationParams<'a> {
     pub code_verifier: Option<&'a str>,
     pub request_resource: Option<&'a str>,
     pub refresh_token_id: &'a RefreshTokenId,
-    pub config: &'a Config,
+    pub config: &'a IdentityConfigView,
 }
 
 pub async fn validate_authorization_code(

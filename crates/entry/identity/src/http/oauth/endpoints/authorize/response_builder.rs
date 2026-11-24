@@ -7,7 +7,7 @@
 use super::validation::ValidatedAuthorizeRequest;
 use super::{AuthorizeQuery, AuthorizeRequest};
 use std::collections::HashMap;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::services::templating::TemplateService;
 use url::Url;
 
@@ -36,7 +36,7 @@ pub fn convert_form_to_query(form: &AuthorizeRequest) -> AuthorizeQuery {
 }
 
 pub fn generate_webauthn_form(
-    config: &Config,
+    config: &IdentityConfigView,
     params: &AuthorizeQuery,
     validated: &ValidatedAuthorizeRequest,
 ) -> String {

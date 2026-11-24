@@ -65,9 +65,10 @@ fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthSt
 async fn app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
-    let router = public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    let router = public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state);
     Ok(with_config(router, &ctx))
 }
@@ -221,9 +222,10 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.
-    let merged = systemprompt_identity_entry::http::oauth::router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    let merged = systemprompt_identity_entry::http::oauth::router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state);
     let merged = with_config(merged, &ctx);
     let resp = merged.oneshot(get("/health")).await?;
@@ -260,9 +262,10 @@ async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, St
 async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppContext>)> {
     let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
-    let router = public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    let router = public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state);
     Ok((with_config(router, &ctx), ctx))
 }

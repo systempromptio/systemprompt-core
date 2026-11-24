@@ -26,7 +26,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId, RefreshTokenId, UserId};
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{JwtAudience, UserType};
 use systemprompt_oauth::OAuthState;
@@ -79,7 +79,7 @@ impl Caller<'_> {
 #[instrument(skip(state, config, req_ctx, request, repo))]
 pub async fn handle_revoke(
     Extension(req_ctx): Extension<RequestContext>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
@@ -180,7 +180,7 @@ async fn end_bearer(
 
 async fn revoke_access_token(
     state: &OAuthState,
-    config: &Config,
+    config: &IdentityConfigView,
     repo: &OAuthRepository,
     token: &str,
     caller: &Caller<'_>,

@@ -1,7 +1,7 @@
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde_json::{Value, json};
 use systemprompt_identifiers::ClientId;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_oauth_issuance::token_exchange::ID_TOKEN_TYPE;
 use systemprompt_oauth_issuance::token_exchange::issue::issue_id_jag;
@@ -12,14 +12,14 @@ use systemprompt_test_fixtures::{fixture_config, test_key, test_signing_keys};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-async fn issuer() -> (MockServer, Config) {
+async fn issuer() -> (MockServer, IdentityConfigView) {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/jwks"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({"keys":[test_key(2).jwk()]})))
         .mount(&server)
         .await;
-    let mut config = fixture_config("postgres://unused");
+    let mut config = IdentityConfigView::of(&fixture_config("postgres://unused"));
     config.trusted_issuers = vec![TrustedIssuer {
         issuer: server.uri(),
         jwks_uri: format!("{}/jwks", server.uri()),
@@ -32,7 +32,7 @@ async fn issuer() -> (MockServer, Config) {
     config.allowed_resource_audiences = vec!["https://resource.example".into()];
     (server, config)
 }
-fn claims(config: &Config) -> Value {
+fn claims(config: &IdentityConfigView) -> Value {
     let now = chrono::Utc::now().timestamp();
     json!({"iss":config.trusted_issuers[0].issuer,"aud":["federated-client"],"sub":"enterprise-user","email":"person@example.invalid","iat":now,"exp":now+300,"scope":"","jti":"fixture-token","username":"enterprise","user_type":"user","token_type":"Bearer","auth_time":now,"act":{"iss":"https://prior.example","sub":"prior-agent"}})
 }

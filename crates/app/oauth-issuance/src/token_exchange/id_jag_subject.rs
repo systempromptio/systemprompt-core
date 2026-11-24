@@ -17,7 +17,7 @@ use std::str::FromStr;
 use chrono::{TimeZone, Utc};
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_identifiers::{AccessTokenId, ClientId};
-use systemprompt_manifest::Config;
+use crate::surface::IdentityConfigView;
 use systemprompt_models::auth::Permission;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::EnterprisePrincipal;
@@ -35,7 +35,7 @@ use crate::{IssuanceError, IssuanceResult};
 pub struct IdJagContext<'a> {
     pub repo: &'a OAuthRepository,
     pub keys: &'a SigningKeys,
-    pub global: &'a Config,
+    pub global: &'a IdentityConfigView,
     pub jwks: &'a JwksCache,
 }
 
@@ -113,7 +113,7 @@ struct Vouching {
     link: LinkPolicy,
 }
 
-fn upstream_vouching(claims: &IdJagClaims, global: &Config) -> IssuanceResult<Vouching> {
+fn upstream_vouching(claims: &IdJagClaims, global: &IdentityConfigView) -> IssuanceResult<Vouching> {
     let upstream = claims
         .upstream_iss
         .as_deref()
@@ -136,7 +136,7 @@ fn upstream_vouching(claims: &IdJagClaims, global: &Config) -> IssuanceResult<Vo
 async fn verify_id_jag_signature(
     keys: &SigningKeys,
     token: &str,
-    global: &Config,
+    global: &IdentityConfigView,
     jwks: &JwksCache,
 ) -> IssuanceResult<(IdJagClaims, Vec<ClientId>, Vouching)> {
     let header = decode_header(token)

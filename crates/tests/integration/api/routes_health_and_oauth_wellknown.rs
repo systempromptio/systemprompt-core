@@ -20,7 +20,7 @@ async fn handle_health_returns_status() -> anyhow::Result<()> {
             systemprompt_api::services::server::SchedulerHealth::new(),
         )))
         .with_state((*ctx).clone())
-        .layer(axum::Extension(ctx.config_arc().clone()));
+        .layer(axum::Extension(crate::common::edge_view(&ctx)));
     let resp = app.oneshot(empty_get("/health")).await?;
     let status = resp.status().as_u16();
     assert!(status == 200 || status == 503, "{status}");

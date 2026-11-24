@@ -31,7 +31,7 @@ use axum::extract::{Extension, Form, OriginalUri, Query, State};
 use axum::http::{HeaderMap, Uri};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use std::sync::Arc;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::CsrfToken;
@@ -50,7 +50,7 @@ fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpErr
 }
 
 fn resolve_self_origins(
-    config: &Config,
+    config: &IdentityConfigView,
     base: &RequestBaseUrl,
 ) -> Result<SelfOrigins, OAuthHttpError> {
     let primary_origin = reqwest::Url::parse(&config.api_external_url)
@@ -89,7 +89,7 @@ async fn validate_request(
 
 async fn decide_request(
     repo: &OAuthRepository,
-    config: &Config,
+    config: &IdentityConfigView,
     request: Option<&SignedInRequest<'_>>,
     params: &AuthorizeQuery,
     now: i64,
@@ -135,7 +135,7 @@ async fn decide_request(
 
 fn login_page_redirect(
     repo: &OAuthRepository,
-    config: &Config,
+    config: &IdentityConfigView,
     params: &AuthorizeQuery,
     original: &Uri,
     now: i64,
@@ -160,7 +160,7 @@ fn login_page_redirect(
 )]
 pub async fn handle_authorize_get(
     State(state): State<OAuthState>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     base: RequestBaseUrl,
     OriginalUri(original): OriginalUri,
     headers: HeaderMap,
@@ -237,7 +237,7 @@ pub async fn handle_authorize_get(
 #[instrument(skip_all, fields(client_id = %form.client_id))]
 pub async fn handle_authorize_post(
     State(state): State<OAuthState>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     base: RequestBaseUrl,
     headers: HeaderMap,
     Form(form): Form<AuthorizeRequest>,

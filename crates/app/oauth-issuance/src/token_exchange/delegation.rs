@@ -7,7 +7,7 @@
 use std::str::FromStr;
 
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
-use systemprompt_manifest::Config;
+use crate::surface::IdentityConfigView;
 use systemprompt_models::auth::{Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
@@ -23,7 +23,7 @@ use crate::{IssuanceError, IssuanceResult, RequestOrigin};
 pub(super) fn resolve_resource(
     subject: &SubjectIdentity,
     requested: Option<&str>,
-    global: &Config,
+    global: &IdentityConfigView,
 ) -> IssuanceResult<Option<String>> {
     let effective = resolve_bound_resource(subject.bound_resource.as_deref(), requested)
         .map_err(IssuanceError::BoundResource)?;
@@ -114,7 +114,7 @@ pub(super) async fn ensure_session(
     state: &OAuthState,
     origin: RequestOrigin<'_>,
     user_id: &UserId,
-    global: &Config,
+    global: &IdentityConfigView,
 ) -> IssuanceResult<SessionId> {
     create_oauth_session(state, origin, user_id, global.jwt_access_token_expiration)
         .await

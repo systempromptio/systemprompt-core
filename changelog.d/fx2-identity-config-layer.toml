@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "The API no longer installs the whole runtime `Config` on every router. Each route carries an `EdgeConfigView` instead (the public URL, the advertised URL and the trusted proxies, the three facts `ClientIp`, `RequestBaseUrl` and the document routes' same-origin check read), and the OAuth routers carry the `IdentityConfigView` their handlers read. A member or install handler that extracted `Extension<Arc<Config>>` is refused `500`. Migrate by extracting `Extension<Arc<EdgeConfigView>>` for those facts, or by reading the value the member's provide is given."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`http::EdgeConfigView` and `EdgeConfigView::of(&Config)`."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Breaking"
+text = "`ClientIp` and `RequestBaseUrl` read `Extension<Arc<EdgeConfigView>>`; with only an `Arc<Config>` extension they reject with `ClientIpConfigMissing` / `RequestBaseUrlError::ConfigMissing`."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Breaking"
+text = "`IdentityConfigView` gains `api_server_url`, `jwt_refresh_token_expiration`, `allowed_resource_audiences`, `trusted_issuers`, `id_jag_ttl_secs`, `allow_registration`, `login_page_url` and `authorize`. `TokenIssuanceOrchestrator::new`, `validation::AuthCodeValidationParams::config`, the user-token, client-credentials and token-exchange params and `resource::{resolve_grant_resource, validate_resource, is_allowed_resource}` take the `IdentityConfigView` in place of `Config`. Migrate by passing `IdentityConfigView::of(&config)`."
+
+[[crate]]
+name = "systemprompt-identity-entry"
+section = "Breaking"
+text = "`oauth::{router, public_router, authenticated_router, revocation_router}` take `&Arc<IdentityConfigView>` and layer it; the OAuth handlers extract `Extension<Arc<IdentityConfigView>>` in place of `Extension<Arc<Config>>`, and `response_builder::generate_webauthn_form` takes `&IdentityConfigView`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The server router carries `Extension<Arc<EdgeConfigView>>` in place of `Extension<Arc<Config>>`."

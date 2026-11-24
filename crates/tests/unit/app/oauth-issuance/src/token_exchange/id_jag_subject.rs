@@ -10,7 +10,7 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
 use systemprompt_oauth_issuance::token_exchange::id_jag_subject::{
     IdJagContext, validate_id_jag_subject,
@@ -24,12 +24,12 @@ use uuid::Uuid;
 const CLIENT: &str = "sp_web";
 const UPSTREAM: &str = systemprompt_test_fixtures::FIXTURE_UPSTREAM_ISSUER;
 
-fn config() -> Config {
-    fixture_config(&test_database_url())
+fn config() -> IdentityConfigView {
+    IdentityConfigView::of(&fixture_config(&test_database_url()))
 }
 
 fn sign_id_jag(
-    config: &Config,
+    config: &IdentityConfigView,
     typ: Option<&str>,
     alg: Algorithm,
     claims: serde_json::Value,
@@ -44,7 +44,7 @@ fn sign_id_jag(
     encode(&header, &claims, &EncodingKey::from_rsa_der(der.as_bytes())).expect("sign")
 }
 
-fn claims(config: &Config, jti: &str, scope: &str) -> serde_json::Value {
+fn claims(config: &IdentityConfigView, jti: &str, scope: &str) -> serde_json::Value {
     let now = Utc::now().timestamp();
     serde_json::json!({
         "iss": config.jwt_issuer,
@@ -62,7 +62,7 @@ fn claims(config: &Config, jti: &str, scope: &str) -> serde_json::Value {
 async fn validate(
     token: &str,
     pool: &DbPool,
-    config: &Config,
+    config: &IdentityConfigView,
 ) -> Result<Vec<String>, IssuanceError> {
     let repo = systemprompt_test_fixtures::oauth_fixture_repository(pool);
     let keys = test_signing_keys();
@@ -192,7 +192,7 @@ fn unsigned(header: &str, payload: &str) -> String {
     )
 }
 
-async fn reject(token: &str, config: &Config) -> String {
+async fn reject(token: &str, config: &IdentityConfigView) -> String {
     let pool = test_db_pool().await;
     validate(token, &pool, config)
         .await

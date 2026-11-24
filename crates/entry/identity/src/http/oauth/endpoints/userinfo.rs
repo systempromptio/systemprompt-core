@@ -9,7 +9,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use std::sync::Arc;
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 
@@ -30,7 +30,7 @@ pub struct UserinfoResponse {
 
 pub async fn handle_userinfo(
     State(state): State<OAuthState>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthHttpError> {
     let token = extract_bearer_token(&headers).ok_or_else(|| {
@@ -60,7 +60,7 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
 
 fn get_userinfo(
     state: &OAuthState,
-    config: &Config,
+    config: &IdentityConfigView,
     token: &str,
 ) -> systemprompt_oauth::OauthResult<UserinfoResponse> {
     let claims = validate_jwt_token(

@@ -154,7 +154,9 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }));
     }
 
-    let router = router.layer(axum::Extension(Arc::clone(ctx.config_arc())));
+    let router = router.layer(axum::Extension(Arc::new(
+        systemprompt_security::http::EdgeConfigView::of(ctx.config()),
+    )));
     Ok(crate::services::middleware::load_shed::outermost(
         router,
         ctx.config().max_in_flight,

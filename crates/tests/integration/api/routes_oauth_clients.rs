@@ -58,10 +58,10 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
             next.run(req).await
         }
     };
-    Ok(authenticated_router()
+    Ok(authenticated_router(&crate::common::identity_view(&ctx))
         .layer(middleware::from_fn(inject))
         .with_state(state)
-        .layer(axum::Extension(ctx.config_arc().clone())))
+        .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 async fn client_config_app() -> anyhow::Result<Router> {
@@ -75,11 +75,12 @@ async fn client_config_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    Ok(public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state)
-    .layer(axum::Extension(ctx.config_arc().clone())))
+    .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 async fn seed_owner() -> anyhow::Result<UserId> {

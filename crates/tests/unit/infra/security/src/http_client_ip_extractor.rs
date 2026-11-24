@@ -13,7 +13,7 @@ use axum::body::{Body, to_bytes};
 use axum::extract::{ConnectInfo, Request};
 use axum::http::StatusCode;
 use axum::routing::get;
-use systemprompt_security::http::ClientIp;
+use systemprompt_security::http::{ClientIp, EdgeConfigView};
 use tower::ServiceExt;
 
 async fn echo_ip(ClientIp(ip): ClientIp) -> String {
@@ -23,7 +23,9 @@ async fn echo_ip(ClientIp(ip): ClientIp) -> String {
 async fn resolved(peer: Option<SocketAddr>, headers: &[(&str, &str)]) -> String {
     let app = Router::new()
         .route("/", get(echo_ip))
-        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
+        .layer(axum::Extension(std::sync::Arc::new(EdgeConfigView::of(
+            &systemprompt_test_fixtures::test_config(),
+        ))));
     let mut builder = Request::builder().uri("/");
     for (name, value) in headers {
         builder = builder.header(*name, *value);
@@ -94,4 +96,22 @@ async fn the_extracted_address_parses_back_to_the_peer_it_came_from() {
 
     let parsed: IpAddr = text.parse().expect("the extractor emits a real address");
     assert_eq!(parsed, IpAddr::from([10, 1, 2, 3]));
+}
+
+#[tokio::test]
+async fn the_runtime_configuration_alone_does_not_wire_the_extractor() {
+    let app = Router::new()
+        .route("/", get(echo_ip))
+        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
+    let mut req = Request::builder()
+        .uri("/")
+        .body(Body::empty())
+        .expect("request must build");
+    req.extensions_mut().insert(ConnectInfo(peer([203, 0, 113, 7])));
+    let resp = app.oneshot(req).await.expect("request must complete");
+    assert_eq!(
+        resp.status(),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "the extractor reads the edge view, never the whole configuration"
+    );
 }

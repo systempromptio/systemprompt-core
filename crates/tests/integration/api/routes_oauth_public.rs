@@ -23,11 +23,12 @@ async fn public_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    Ok(public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state)
-    .layer(axum::Extension(ctx.config_arc().clone())))
+    .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 async fn authenticated_app() -> anyhow::Result<Router> {
@@ -41,10 +42,10 @@ async fn authenticated_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(authenticated_router()
-        .merge(systemprompt_identity_entry::http::oauth::revocation_router())
+    Ok(authenticated_router(&crate::common::identity_view(&ctx))
+        .merge(systemprompt_identity_entry::http::oauth::revocation_router(&crate::common::identity_view(&ctx)))
         .with_state(state)
-        .layer(axum::Extension(ctx.config_arc().clone())))
+        .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 #[tokio::test]
@@ -210,11 +211,12 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_identity_entry::http::oauth::public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    let app = systemprompt_identity_entry::http::oauth::public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state)
-    .layer(axum::Extension(ctx.config_arc().clone()))
+    .layer(axum::Extension(crate::common::edge_view(&ctx)))
     .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
@@ -280,11 +282,12 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_identity_entry::http::oauth::public_router(std::sync::Arc::new(
-        systemprompt_oauth_issuance::JwksCache::new(),
-    ))
+    let app = systemprompt_identity_entry::http::oauth::public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
     .with_state(state)
-    .layer(axum::Extension(ctx.config_arc().clone()))
+    .layer(axum::Extension(crate::common::edge_view(&ctx)))
     .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
@@ -372,11 +375,12 @@ async fn dcr_app() -> anyhow::Result<Router> {
         systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(
-        systemprompt_identity_entry::http::oauth::public_router(std::sync::Arc::new(
-            systemprompt_oauth_issuance::JwksCache::new(),
-        ))
+        systemprompt_identity_entry::http::oauth::public_router(
+        std::sync::Arc::new(systemprompt_oauth_issuance::JwksCache::new()),
+        &crate::common::identity_view(&ctx),
+    )
         .with_state(state)
-        .layer(axum::Extension(ctx.config_arc().clone()))
+        .layer(axum::Extension(crate::common::edge_view(&ctx)))
         .layer(Extension(req_ctx)),
     )
 }

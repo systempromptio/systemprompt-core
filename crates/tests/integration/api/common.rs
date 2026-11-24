@@ -10,7 +10,9 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::http::EdgeConfigView;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_app_context,
     test_db_pool,
@@ -78,18 +80,36 @@ pub async fn setup_ctx_customised(
     Ok((pool, ctx))
 }
 
+pub fn edge_view(ctx: &AppContext) -> Arc<EdgeConfigView> {
+    Arc::new(EdgeConfigView::of(ctx.config()))
+}
+
+pub fn identity_view(ctx: &AppContext) -> Arc<IdentityConfigView> {
+    Arc::new(IdentityConfigView::of(ctx.config()))
+}
+
+pub fn fixture_edge_view() -> Arc<EdgeConfigView> {
+    Arc::new(EdgeConfigView::of(&systemprompt_test_fixtures::test_config()))
+}
+
+pub fn fixture_identity_view() -> Arc<IdentityConfigView> {
+    Arc::new(IdentityConfigView::of(&systemprompt_test_fixtures::test_config()))
+}
+
 pub fn with_config<S: Clone + Send + Sync + 'static>(
     router: axum::Router<S>,
     ctx: &AppContext,
 ) -> axum::Router<S> {
-    router.layer(axum::Extension(Arc::clone(ctx.config_arc())))
+    router.layer(axum::Extension(edge_view(ctx)))
 }
 
 pub fn browser_page<S: Clone + Send + Sync + 'static>(router: axum::Router<S>) -> axum::Router<S> {
-    let config = Arc::new(fixture_config(&ensure_test_bootstrap().database_url));
+    let edge = Arc::new(EdgeConfigView::of(&fixture_config(
+        &ensure_test_bootstrap().database_url,
+    )));
     router
         .layer(axum::middleware::from_fn(same_origin_fetch))
-        .layer(axum::Extension(config))
+        .layer(axum::Extension(edge))
 }
 
 async fn same_origin_fetch(

@@ -56,11 +56,11 @@ async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
             next.run(req).await
         }
     };
-    Ok(authenticated_router()
-        .merge(revocation_router())
+    Ok(authenticated_router(&crate::common::identity_view(&ctx))
+        .merge(revocation_router(&crate::common::identity_view(&ctx)))
         .layer(middleware::from_fn(inject))
         .with_state(state)
-        .layer(axum::Extension(ctx.config_arc().clone())))
+        .layer(axum::Extension(crate::common::edge_view(&ctx))))
 }
 
 async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {

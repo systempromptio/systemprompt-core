@@ -16,7 +16,7 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
-use systemprompt_manifest::Config;
+use systemprompt_oauth_issuance::surface::IdentityConfigView;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::FinishRegistrationParams;
 use tracing::instrument;
@@ -67,7 +67,7 @@ pub(super) struct FinishRegisterResponse {
 #[instrument(skip(state, config, body), fields(challenge_id = tracing::field::Empty, username = tracing::field::Empty))]
 pub async fn finish_register(
     State(state): State<OAuthState>,
-    Extension(config): Extension<Arc<Config>>,
+    Extension(config): Extension<Arc<IdentityConfigView>>,
     body: Result<Json<FinishRegisterRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, OAuthHttpError> {
     super::ensure_registration_enabled(&config)?;
