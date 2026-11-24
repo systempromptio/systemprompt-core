@@ -43,6 +43,21 @@ impl std::fmt::Debug for PersonalProviderCredentials {
     }
 }
 
+#[async_trait::async_trait]
+impl systemprompt_extension::router::PersonalCredentialNames for PersonalProviderCredentials {
+    async fn credential_names(
+        &self,
+        caller: &GatewayPrincipal,
+    ) -> Result<std::collections::BTreeSet<String>, RepositoryError> {
+        Ok(self
+            .list(caller)
+            .await?
+            .into_iter()
+            .map(|meta| meta.credential)
+            .collect())
+    }
+}
+
 impl PersonalProviderCredentials {
     #[must_use]
     pub fn new(

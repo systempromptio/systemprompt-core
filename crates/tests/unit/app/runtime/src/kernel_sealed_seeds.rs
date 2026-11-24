@@ -299,6 +299,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_gateway::audit::journal::GatewayJournal>(),
         ),
         (
+            type_name::<systemprompt_extension::router::DynPersonalCredentialNames>(),
+            carrier::<systemprompt_ai::repository::UserProviderCredentialRepository>(),
+        ),
+        (
             type_name::<systemprompt_traits::DynSignInSessions>(),
             carrier::<systemprompt_users::SessionRepository>(),
         ),

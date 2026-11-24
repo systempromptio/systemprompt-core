@@ -10,7 +10,26 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
+use std::sync::Arc;
+
 use systemprompt_identifiers::UserId;
+use systemprompt_traits::RepositoryError;
+
+/// The names of the catalog credentials a gateway principal stored a
+/// personal key for, and nothing else: no key material, no write, no other
+/// principal. The `ai` member provides it sealed; the kernel's bridge
+/// profile reads it. Held as `Arc<dyn PersonalCredentialNames>`, hence
+/// `#[async_trait]`.
+#[async_trait::async_trait]
+pub trait PersonalCredentialNames: Send + Sync {
+    async fn credential_names(
+        &self,
+        caller: &GatewayPrincipal,
+    ) -> Result<BTreeSet<String>, RepositoryError>;
+}
+
+pub type DynPersonalCredentialNames = Arc<dyn PersonalCredentialNames>;
 
 /// The gateway principal the kernel's gateway verifier attached to a
 /// conferred gateway route's request.

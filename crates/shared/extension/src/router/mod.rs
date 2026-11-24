@@ -49,7 +49,7 @@ pub use overlap::{
     GatewayDefRefusal, RouteOverlap, first_overlap, full_path, path_covers, refused_gateway_def,
     refused_reservation, reserved_below,
 };
-pub use principal::GatewayPrincipal;
+pub use principal::{DynPersonalCredentialNames, GatewayPrincipal, PersonalCredentialNames};
 #[cfg(feature = "router")]
 pub use set::{GatewayRouteDecl, RouteSet, RouteSetBuilder};
 pub use shape::{
