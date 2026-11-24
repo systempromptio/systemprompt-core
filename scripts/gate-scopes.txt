@@ -55,6 +55,7 @@ lint-http-errors            unit    cheap    sql     0.1s; crates/entry/api/src
 lint-no-untyped-admin       unit    cheap    sql     0.1s
 check-headers               unit    cheap    sql     0.2s
 lint-layers                 global  cheap    sql     0.1s; the cargo dependency graph
+lint-kernel-deps            global  cheap    sql     0.1s; the cargo dependency graph
 lint-kernel-identity        global  cheap    errors  0.1s; the api mount and cli kernel trees against the CoreId ids
 lint-contributions-surface  global  cheap    errors  0.1s; the Contributions impl in shared/extension contribute/mod.rs
 lint-hidden-constructors    global  cheap    errors  0.3s; crates/ (minus crates/tests) and systemprompt/ token scan
