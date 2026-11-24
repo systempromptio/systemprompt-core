@@ -20,6 +20,15 @@
 //! `unlisted_jobs: default` it is scheduled even when the configuration does
 //! not name it.
 //!
+//! [`Job::requires`] lists the types the job cannot run without: the scheduler
+//! checks each against the job's own context before it starts the cron loop
+//! and refuses boot naming the job and the type, so an unlinked or disabled
+//! provider is a boot error, never a run that fails or a job that is quietly
+//! dropped. A type the job reads with [`JobContext::find`] is optional by
+//! definition and is not listed; an optional read never switches a
+//! protection off. [`Job::missed_runs`] is what the scheduler does at start
+//! with the instants a job's schedule passed while no replica ran it.
+//!
 //! [`Job::db_budget`] declares the statement, lock and memory limits the
 //! job's run transactions carry; see [`crate::DbBudget`].
 //!
@@ -32,7 +41,10 @@
 //! withholds every sealed seed (the runtime `Config`, the secret store, the
 //! signing keys, the system admin, the services root, the event router), so no
 //! job or runner service reads one; the application context and the profile
-//! are never in a job context.
+//! are never in a job context. [`JobContext::for_member`] is the scheduler's
+//! constructor: it withholds the same set except the sealed values the job's
+//! owning member provided itself, so a member's job reads its own sealed
+//! value and never another member's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,9 +54,9 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::Actor;
+use systemprompt_identifiers::{Actor, ExtensionId};
 
-use crate::dependencies::Dependencies;
+use crate::dependencies::{Dependencies, StateRequirement};
 use crate::dependency_error::MissingDependency;
 use crate::error::ProviderResult;
 
@@ -128,6 +140,16 @@ impl JobContext {
     }
 
     #[must_use]
+    pub fn for_member(actor: Actor, dependencies: Dependencies, owner: &ExtensionId) -> Self {
+        Self {
+            actor,
+            dependencies: dependencies.withholding_sealed_except(owner),
+            parameters: HashMap::new(),
+            enforce: false,
+        }
+    }
+
+    #[must_use]
     pub const fn enforce(&self) -> bool {
         self.enforce
     }
@@ -197,15 +219,33 @@ impl JobContext {
 
 /// Where a job runs when the scheduler has several replicas.
 ///
-/// `Cluster` jobs run once per tick across the whole deployment (one replica
-/// wins the advisory lock). `Node` jobs run on every replica, because their
-/// effect is local to the process or its filesystem.
+/// `Cluster` jobs run once per scheduled instant across the whole deployment
+/// (one replica's claim of the instant's run row wins). `Node` jobs run once
+/// per instant on every replica, because their effect is local to the process
+/// or its filesystem.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum JobScope {
     #[default]
     Cluster,
     Node,
+}
+
+/// What the scheduler does at start with the instants a job's schedule passed
+/// since the last instant any replica recorded for it.
+///
+/// `Skip` runs none of them and waits for the next instant. `RunOnce` runs
+/// the latest missed instant once. `CatchUp { max }` runs up to `max` of the
+/// most recent missed instants, oldest first. A job with no recorded instant
+/// has missed nothing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MissedRunPolicy {
+    #[default]
+    Skip,
+    RunOnce,
+    CatchUp {
+        max: u32,
+    },
 }
 
 #[async_trait]
@@ -246,5 +286,13 @@ pub trait Job: Send + Sync + 'static {
 
     fn db_budget(&self) -> Option<crate::DbBudget> {
         None
+    }
+
+    fn requires(&self) -> Vec<StateRequirement> {
+        Vec::new()
+    }
+
+    fn missed_runs(&self) -> MissedRunPolicy {
+        MissedRunPolicy::Skip
     }
 }

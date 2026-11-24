@@ -47,7 +47,7 @@ use super::member::MemberScope;
 use super::resolved::Resolved;
 use super::slot_insert::{SlotBuilt, insert_erased};
 use super::standing::StandingTag;
-use crate::state::StateRequirement;
+use systemprompt_provider_contracts::StateRequirement;
 
 /// A contribution point owned by a capability; the kernel never names it. A
 /// `SEALED` slot's built value enters the state as a sealed provide; a `LATE`
