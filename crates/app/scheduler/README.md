@@ -62,7 +62,7 @@ retention each table's owner declares (`Contributions::retention`), and
 
 ```toml
 [dependencies]
-systemprompt-scheduler = "0.86"
+systemprompt-scheduler = "0.87"
 ```
 
 ### Job Discovery

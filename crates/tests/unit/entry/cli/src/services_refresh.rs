@@ -11,9 +11,12 @@ use std::collections::BTreeMap;
 use chrono::Utc;
 use systemprompt_cli::core::services::refresh::{
     RefreshOutcome, diff_states, exit_code_for, outcome_for, outcome_with_pending,
+    refused_or_fallback,
 };
 use systemprompt_identifiers::ContentHash;
+use systemprompt_loader::bundle::BundleCache;
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_manifest::services::root::ServicesProvenance;
 
 fn state(entries: &[(&str, &str)]) -> ServicesBundleState {
     let sources: BTreeMap<String, BundleSourceState> = entries
@@ -47,6 +50,49 @@ fn state(entries: &[(&str, &str)]) -> ServicesBundleState {
 fn exit_codes_distinguish_a_swap_from_a_no_op() {
     assert_eq!(exit_code_for(RefreshOutcome::Unchanged), 0);
     assert_eq!(exit_code_for(RefreshOutcome::Changed), 3);
+}
+
+#[test]
+fn a_fallback_the_cache_could_not_record_is_still_an_error() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(root.path());
+
+    for provenance in [
+        ServicesProvenance::LastGood {
+            composed_hash: "composed".to_owned(),
+            error: "Permission denied".to_owned(),
+        },
+        ServicesProvenance::BundledFallback {
+            error: "Permission denied".to_owned(),
+        },
+    ] {
+        let error = refused_or_fallback(&provenance, &cache).expect_err("a fallback");
+        assert!(error.to_string().contains("Permission denied"), "{error}");
+    }
+}
+
+#[test]
+fn an_unreadable_refusal_record_is_an_error_and_a_bundled_tree_has_none() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(root.path());
+    let fetched = ServicesProvenance::Fetched {
+        composed_hash: "composed".to_owned(),
+        versions: BTreeMap::new(),
+    };
+    assert!(
+        refused_or_fallback(&fetched, &cache)
+            .expect("clean")
+            .is_empty()
+    );
+
+    std::fs::write(root.path().join("refusals.json"), "{").expect("write");
+
+    assert!(refused_or_fallback(&fetched, &cache).is_err());
+    assert!(
+        refused_or_fallback(&ServicesProvenance::Bundled, &cache)
+            .expect("no sources")
+            .is_empty()
+    );
 }
 
 #[test]

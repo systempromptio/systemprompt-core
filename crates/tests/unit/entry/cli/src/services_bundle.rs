@@ -39,6 +39,7 @@ fn args(root: PathBuf, out: PathBuf) -> BundleArgs {
         source_commit: Some("deadbeef".to_owned()),
         workflow_run: Some("42".to_owned()),
         marketplace_only: false,
+        requires_core: None,
     }
 }
 
@@ -46,6 +47,34 @@ fn args(root: PathBuf, out: PathBuf) -> BundleArgs {
 fn requires_core_pins_the_current_major_minor() {
     assert_eq!(requires_core("0.49.3").expect("semver"), ">=0.49");
     assert!(requires_core("not-a-version").is_err());
+}
+
+#[test]
+fn a_declared_core_range_is_stamped_instead_of_the_packers_minor() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().join("tree");
+    marketplace_tree(&root);
+    let mut declared = args(root, dir.path().join("bundle.tar.gz"));
+    declared.requires_core = Some(">=0.82".to_owned());
+
+    let outcome = pack_bundle(&declared, None).expect("pack succeeds");
+
+    assert_eq!(outcome.requires_core, ">=0.82");
+}
+
+#[test]
+fn a_declared_core_range_that_is_not_semver_is_refused_before_packing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let root = dir.path().join("tree");
+    marketplace_tree(&root);
+    let out = dir.path().join("bundle.tar.gz");
+    let mut declared = args(root, out.clone());
+    declared.requires_core = Some("the floor".to_owned());
+
+    let err = pack_bundle(&declared, None).expect_err("a bad range must not pack");
+
+    assert!(err.to_string().contains("--requires-core"), "{err}");
+    assert!(!out.exists(), "nothing is written for a refused range");
 }
 
 #[test]

@@ -51,7 +51,7 @@ The content publishing pipeline runs in four stages:
 
 ```toml
 [dependencies]
-systemprompt-generator = "0.86"
+systemprompt-generator = "0.87"
 ```
 
 ### Public Exports
