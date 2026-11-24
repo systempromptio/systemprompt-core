@@ -36,10 +36,6 @@ async fn plane_debug_impls_flag_optional_members() {
     let data = DataPlane {
         database: Arc::clone(&pool),
         user_service: None,
-        oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
-            &pool,
-            Arc::from("pepper"),
-        )),
         user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
             &pool,

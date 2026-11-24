@@ -26,7 +26,6 @@ use systemprompt_governance::policy::GovernanceEngineError;
 use systemprompt_identifiers::SecretName;
 use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_models::errors::GlobalConfigError;
-use systemprompt_oauth::OauthError;
 use systemprompt_security::keys::SigningKeysError;
 use systemprompt_traits::{FileStorageError, RepositoryError};
 use systemprompt_users::UserError;
@@ -59,9 +58,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Repository(#[from] RepositoryError),
-
-    #[error(transparent)]
-    Oauth(#[from] OauthError),
 
     #[error(transparent)]
     Loader(#[from] LoaderError),

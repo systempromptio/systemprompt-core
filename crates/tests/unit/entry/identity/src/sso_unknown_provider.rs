@@ -15,7 +15,9 @@ async fn app() -> axum::Router {
     ensure_test_bootstrap();
     let ctx = test_app_context(&url).await;
     let oauth = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),

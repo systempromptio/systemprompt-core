@@ -26,9 +26,9 @@ pub use exchange_code::{
 };
 pub use oauth::{
     AuthCodeParams, AuthCodeRedemption, AuthCodeValidationResult, CONSENT_TOKEN_TTL_SECS,
-    ConsentBinding, MintAuthCodeParams, OAuthRepository,
-    PostgresReplayGuard, REAUTH_MARKER_TTL_SECS, ReauthBinding, RefreshTokenLineage,
-    RefreshTokenParams, SsoStateParams, SsoStateRow,
+    ConsentBinding, MintAuthCodeParams, OAuthRepository, PostgresReplayGuard,
+    REAUTH_MARKER_TTL_SECS, ReauthBinding, RefreshTokenLineage, RefreshTokenParams, SsoStateParams,
+    SsoStateRow,
 };
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,

@@ -49,12 +49,16 @@ async fn webauthn_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_webauthn_ctx().await?;
     let webauthn = WebAuthnService::new(
         ctx.config(),
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.user_provider().expect("user"),
     )
     .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),

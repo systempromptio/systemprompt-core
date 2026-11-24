@@ -7,6 +7,10 @@
 //! gateway guards) are built, for a value assembled from them. A provide fn
 //! reads its dependencies with `r.get`, and a missing dependency fails the
 //! boot; a consumer that may run without a value reads it with `r.optional`.
+//! A provide fn whose value cannot exist on this host (it is built from a
+//! seed only the API host holds) returns `ProvideError::Withheld`: the kernel
+//! reserves the type instead, so every `get` of it is a typed missing
+//! dependency and no member can provide a substitute.
 //!
 //! [`Contributions::provide_sealed`] and
 //! [`Contributions::provide_sealed_after_governance`] provide a value that

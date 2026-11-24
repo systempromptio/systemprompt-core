@@ -71,7 +71,7 @@ use systemprompt_extension::contribute::{SlotBuildInput, build_slot};
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedOwnerReassignments,
     AdmittedProjections, AdmittedPurge, AdmittedSchedule, AudienceResolvers, BuiltState, HandleId,
-    KernelHandle, MemberResolved, MemberScope, ProvidePhase, Resolved, StandingTag,
+    KernelHandle, MemberResolved, MemberScope, ProvideError, ProvidePhase, Resolved, StandingTag,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -194,14 +194,17 @@ impl Kernel {
                 .filter(|entry| entry.phase() == phase)
             {
                 let scope = member.scope();
-                let value = entry
-                    .compute(&self.member_resolved(&scope))
-                    .map_err(|source| KernelError::Provide {
-                        owner: member.owner.clone(),
-                        ty: entry.type_name(),
-                        source,
-                    })?;
-                value.insert_into(&mut self.state, &member.owner)?;
+                match entry.compute(&self.member_resolved(&scope)) {
+                    Ok(value) => value.insert_into(&mut self.state, &member.owner)?,
+                    Err(ProvideError::Withheld) => entry.withhold_into(&mut self.state),
+                    Err(source) => {
+                        return Err(KernelError::Provide {
+                            owner: member.owner.clone(),
+                            ty: entry.type_name(),
+                            source,
+                        });
+                    },
+                }
             }
         }
         Ok(())

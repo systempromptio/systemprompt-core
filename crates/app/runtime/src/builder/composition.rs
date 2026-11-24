@@ -17,7 +17,6 @@ pub(super) fn build_data_plane(
     DataPlane {
         database,
         user_service: Some(user_service),
-        oauth_repositories: repositories.oauth,
         user_repository: repositories.users,
         service_repository: repositories.services,
         coordination: repositories.coordination,
@@ -47,14 +46,12 @@ pub(super) async fn ensure_legacy_context(
 const LEGACY_CONTEXT_NAME: &str = "Legacy (pre-context)";
 
 pub(super) struct RepositoryBundles {
-    oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
     coordination: Arc<systemprompt_database::CoordinationRepositories>,
 }
 
 pub(super) struct SeededRepositories {
-    pub(super) oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     pub(super) services: Arc<systemprompt_database::ServiceRepository>,
     pub(super) coordination: Arc<systemprompt_database::CoordinationRepositories>,
@@ -62,14 +59,9 @@ pub(super) struct SeededRepositories {
 
 pub(super) fn seeded_repositories(
     database: &DbPool,
-    secrets: &systemprompt_manifest::secrets::Secrets,
     instance_id: &systemprompt_identifiers::InstanceId,
 ) -> SeededRepositories {
-    let pepper: Arc<str> = Arc::from(secrets.oauth_at_rest_pepper.as_str());
     SeededRepositories {
-        oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
-            database, pepper,
-        )),
         users: Arc::new(systemprompt_users::UserRepository::new(database)),
         services: Arc::new(systemprompt_database::ServiceRepository::new(
             database,
@@ -84,7 +76,6 @@ pub(super) fn seeded_repositories(
 
 pub(super) fn build_repositories(seeded: &SeededRepositories) -> RepositoryBundles {
     RepositoryBundles {
-        oauth: Arc::clone(&seeded.oauth),
         users: Arc::clone(&seeded.users),
         services: Arc::clone(&seeded.services),
         coordination: Arc::clone(&seeded.coordination),

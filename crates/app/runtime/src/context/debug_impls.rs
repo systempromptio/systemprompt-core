@@ -29,7 +29,6 @@ impl std::fmt::Debug for DataPlane {
         f.debug_struct("DataPlane")
             .field("database", &"DbPool")
             .field("user_service", &self.user_service.is_some())
-            .field("oauth_repositories", &"OAuthRepositories")
             .field("user_repository", &"UserRepository")
             .field("service_repository", &"ServiceRepository")
             .field("coordination", &"CoordinationRepositories")

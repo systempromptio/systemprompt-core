@@ -48,6 +48,15 @@ pub fn fixture_analytics_repositories(
     )
 }
 
+pub fn oauth_repositories(
+    ctx: &AppContext,
+) -> &Arc<systemprompt_oauth::repository::OAuthRepositories> {
+    ctx.kernel()
+        .state()
+        .get::<Arc<systemprompt_oauth::repository::OAuthRepositories>>()
+        .expect("the oauth member provides its repositories on the API host")
+}
+
 pub fn fixture_session_usage(db: &DbPool) -> systemprompt_traits::DynSessionUsageCounters {
     Arc::new(systemprompt_users::SessionRepository::new(db))
 }

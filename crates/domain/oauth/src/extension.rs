@@ -1,7 +1,8 @@
 //! The oauth member: its client, token, `WebAuthn` and bridge schemas, its
 //! migrations, the expired-grant cleanup job, and the sealed browser-session
 //! issuer (`DynSessionIssuer`), which requires the users member's sealed user
-//! directory (`DynUserProvider`).
+//! directory (`DynUserProvider`), and its repositories
+//! (`Arc<OAuthRepositories>`), conferred on `identity-http`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,6 +34,10 @@ impl Extension for OauthExtension {
         }
         c.migrations(extension_migrations!())
             .requires::<systemprompt_traits::DynUserProvider>()
+            .provide_conferred(
+                ConferralRow::IdentityOAuthRepositories,
+                crate::provides::oauth_repositories,
+            )
             .provide_sealed_after_governance(crate::provides::session_issuer)
             .job(OauthCleanupJob);
         c.user_purge(UserPurgeTable {

@@ -2,7 +2,8 @@
 //! authenticator consults this table through
 //! `systemprompt_database::JtiRevocationChecker` (the `TokenRevocations` the
 //! kernel seeds) on every authenticated request. The `exp` column carries the
-//! JWT's original expiry so cleanup can drop rows that are no longer load-bearing.
+//! JWT's original expiry so cleanup can drop rows that are no longer
+//! load-bearing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

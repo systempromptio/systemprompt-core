@@ -7760,7 +7760,6 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-manifest",
  "systemprompt-models",
- "systemprompt-oauth",
  "systemprompt-provider-contracts",
  "systemprompt-security",
  "systemprompt-storage",

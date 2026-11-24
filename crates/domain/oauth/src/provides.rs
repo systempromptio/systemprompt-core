@@ -12,15 +12,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::{ProvideError, Resolved};
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_traits::{
-    BrowserSession, DynSessionIssuer, DynSessionStore, DynUserProvider, IssuedSession,
-    SessionAnalytics, SessionIssueError, SessionIssuer, SessionProvider,
+    AtRestPepper, BrowserSession, DynSessionIssuer, DynSessionStore, DynUserProvider,
+    IssuedSession, SessionAnalytics, SessionIssueError, SessionIssuer, SessionProvider,
 };
 
+use crate::repository::OAuthRepositories;
 use crate::services::generation::generate_anonymous_jwt_with_expiry;
 use crate::services::{CreateAnonymousSessionInput, SessionCreationError, SessionCreationService};
 
@@ -203,4 +205,12 @@ pub(crate) fn session_issuer(r: &Resolved<'_>) -> Result<DynSessionIssuer, Provi
         authority,
         config,
     }))
+}
+
+pub(crate) fn oauth_repositories(r: &Resolved<'_>) -> Result<Arc<OAuthRepositories>, ProvideError> {
+    let Some(pepper) = r.optional::<AtRestPepper>() else {
+        return Err(ProvideError::Withheld);
+    };
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(OAuthRepositories::new(&db, pepper.shared())))
 }

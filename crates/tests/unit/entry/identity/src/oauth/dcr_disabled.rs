@@ -36,7 +36,9 @@ async fn ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
 async fn register_is_forbidden_when_dcr_is_closed() {
     let ctx = ctx().await;
     let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_test_fixtures::oauth_repositories(&ctx)
+            .oauth
+            .clone(),
         ctx.analytics_provider(),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),

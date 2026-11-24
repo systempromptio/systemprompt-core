@@ -48,13 +48,12 @@
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
 //! conferral row; `AppContext::token_authority` hands out the same value. The
 //! signing keys are recorded under the `identity-signing-keys` row: both are
-//! conferred on `identity-http`, the issuer. The OAuth repositories
-//! (`Arc<OAuthRepositories>`: clients, authorization codes, refresh tokens,
-//! passkeys) are sealed the same way under the `identity-oauth-repositories`
-//! row, so no install's provide fn or route state reads them; the agent-runs
-//! member's runner factory reads them as a core member's factory. A child host
-//! holds verification keys only, so it seeds no token authority and no OAuth
-//! repositories.
+//! conferred on `identity-http`, the issuer. The API seeds the OAuth
+//! at-rest pepper (`AtRestPepper`) sealed; the oauth member builds its
+//! repositories over it in its own provide and confers them on
+//! `identity-http`. A child host holds verification keys only, so it seeds no
+//! token authority and no pepper, and the oauth member withholds its
+//! repositories there.
 //!
 //! Every host seeds its verification keyring (`VerificationKeyring`, public
 //! keys only: the API's from its signing keys, a child host's from the
@@ -112,10 +111,10 @@ use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::{ContentConfigRaw, late_pair};
 
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
+use systemprompt_database::JtiRevocationChecker;
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::auth::DynTokenRevocations;
-use systemprompt_database::JtiRevocationChecker;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
 use systemprompt_traits::MessagingDispatcher;
 
@@ -192,15 +191,7 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         .with_sealed(Arc::clone(seed.spawner))
         .with_sealed(seed.child_secrets)
         .with(seed.signing_keys.verification_keys().clone())
-        .with_sealed_conferred(
-            Arc::clone(seed.oauth),
-            Conferred {
-                holder: ExtensionId::new(
-                    ConferralRow::IdentityOAuthRepositories.entry().holder.id(),
-                ),
-                row: ConferralRow::IdentityOAuthRepositories.name(),
-            },
-        )
+        .with_sealed(seed.at_rest_pepper)
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
     match seed.content_config {

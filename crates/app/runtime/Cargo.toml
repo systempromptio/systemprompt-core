@@ -45,7 +45,6 @@ systemprompt-storage = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
-systemprompt-oauth = { workspace = true }
 systemprompt-agent-runs = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -21,12 +21,11 @@ use systemprompt_models::ContentConfigRaw;
 use systemprompt_models::authz::CatalogRoleNames;
 
 use systemprompt_models::auth::TokenAuthority;
-use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::{SigningKeys, VerificationKeyring};
 use systemprompt_traits::{
-    BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
-    EscalationDelivery, FileStorage, SecretLookup, SecretStore,
+    AtRestPepper, BackgroundTasks, CacheEpochs, DynAdvisoryLocks, DynInstanceRegistry,
+    DynLeaseRepository, EscalationDelivery, FileStorage, SecretLookup, SecretStore,
 };
 
 /// The cross-replica coordination seams every host seeds.
@@ -68,7 +67,7 @@ pub struct ApiKernelSeed<'a> {
     pub token_authority: &'a Arc<dyn TokenAuthority>,
     pub spawner: &'a Arc<Spawner>,
     pub child_secrets: DynChildSecretEnv,
-    pub oauth: &'a Arc<OAuthRepositories>,
+    pub at_rest_pepper: AtRestPepper,
     pub content_config: Option<&'a Arc<ContentConfigRaw>>,
 }
 

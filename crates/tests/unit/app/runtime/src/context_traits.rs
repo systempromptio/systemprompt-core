@@ -148,13 +148,17 @@ async fn the_background_task_seed_shares_the_context_owner() {
 }
 
 #[tokio::test]
-async fn the_kernel_state_carries_the_oauth_repositories() {
+async fn the_oauth_repositories_are_the_oauth_members_provide() {
     let (ctx, _url) = context().await;
     let state = ctx.kernel().state();
-    let repos = state
-        .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
-        .expect("the oauth repositories are a kernel state entry");
-    assert!(std::sync::Arc::ptr_eq(repos, ctx.oauth_repositories()));
+    let provider = state
+        .provider_of::<Arc<systemprompt_oauth::repository::OAuthRepositories>>()
+        .expect("the oauth repositories are provided by a member");
+    assert!(matches!(
+        provider,
+        systemprompt_provider_contracts::DependencyProvider::Extension(id) if id.as_str() == "oauth"
+    ));
+    assert!(state.is_sealed::<systemprompt_traits::AtRestPepper>());
 }
 
 #[tokio::test]

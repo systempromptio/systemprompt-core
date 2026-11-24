@@ -37,7 +37,7 @@ async fn user(ctx: &AppContext) -> anyhow::Result<UserId> {
 }
 
 fn repo(ctx: &AppContext) -> &OAuthRepository {
-    &ctx.oauth_repositories().oauth
+    &systemprompt_test_fixtures::oauth_repositories(&ctx).oauth
 }
 
 async fn fixture() -> anyhow::Result<Fixture> {

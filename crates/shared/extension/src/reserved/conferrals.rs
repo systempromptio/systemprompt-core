@@ -93,9 +93,10 @@ impl ConferralRow {
             | Self::BridgeEventStream => ("gateway", CoreId::GatewayHttp),
             Self::GatewaySessionMint => ("users", CoreId::GatewayHttp),
             Self::GatewayProviderCredentials => ("ai", CoreId::GatewayHttp),
-            Self::IdentityTokenAuthority
-            | Self::IdentitySigningKeys
-            | Self::IdentityOAuthRepositories => (CoreId::Kernel.id(), CoreId::IdentityHttp),
+            Self::IdentityTokenAuthority | Self::IdentitySigningKeys => {
+                (CoreId::Kernel.id(), CoreId::IdentityHttp)
+            },
+            Self::IdentityOAuthRepositories => ("oauth", CoreId::IdentityHttp),
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
             Self::DocumentLinkTokens | Self::DriveTokens => ("documents", CoreId::FilesHttp),
         };

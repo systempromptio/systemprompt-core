@@ -9,11 +9,10 @@
 //! invisible from the query alone.
 
 use chrono::{Duration, Utc};
-use systemprompt_database::DbPool;
+use systemprompt_database::{DbPool, JtiRevocationChecker};
 use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::auth::TokenRevocations;
 use systemprompt_models::execution::context::ContextExtractionError;
-use systemprompt_database::JtiRevocationChecker;
 use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 use uuid::Uuid;
 

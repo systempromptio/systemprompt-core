@@ -7,7 +7,10 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
-use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
+use std::sync::Arc;
+use systemprompt_oauth::repository::{
+    CreateSetupTokenParams, OAuthRepositories, SetupTokenPurpose,
+};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
 use systemprompt_traits::AppContext as _;
 
@@ -25,7 +28,8 @@ pub struct Args {
 
 pub(super) async fn execute(args: Args, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = crate::commands::admin::state::app(host).await?;
-    let oauth_repo = &app.oauth_repositories().oauth;
+    let repositories = crate::commands::admin::state::get::<Arc<OAuthRepositories>>(host).await?;
+    let oauth_repo = &repositories.oauth;
 
     let users = app
         .user_provider()

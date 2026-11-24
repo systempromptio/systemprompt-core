@@ -129,8 +129,7 @@ impl AppContextBuilder {
         .await?;
 
         let content = assembly::assemble_content(&config, &app_paths);
-        let seeded =
-            seeded_repositories(&database, &self.boot.secrets().get(), &config.instance_id);
+        let seeded = seeded_repositories(&database, &config.instance_id);
         let system_admin = load_identity(&self.boot, &seeded.users).await?;
         let (router, bridge, listener_pool) =
             event_plane(self.event_router, &database, &config, &cache_epochs);
@@ -177,7 +176,9 @@ impl AppContextBuilder {
             token_authority: &token_authority,
             spawner: &spawner,
             child_secrets: Arc::<systemprompt_config::SecretsService>::clone(self.boot.secrets()),
-            oauth: &seeded.oauth,
+            at_rest_pepper: systemprompt_traits::AtRestPepper::new(
+                &self.boot.secrets().get().oauth_at_rest_pepper,
+            ),
             content_config: content.content_config.as_ref(),
         });
         let handle: Arc<dyn DatabaseHandle> =

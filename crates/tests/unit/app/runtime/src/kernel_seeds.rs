@@ -20,7 +20,6 @@ use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::services::ServicesView;
-use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_test_fixtures::{
     ComposedParts, FixtureSeedParts, Probe, ensure_test_bootstrap, fixture_documents_admitted,
@@ -143,8 +142,8 @@ async fn the_documents_handles_seed() {
 }
 
 #[tokio::test]
-async fn the_oauth_repositories_seed() {
-    assert_seed::<Arc<OAuthRepositories>>().await;
+async fn the_at_rest_pepper_seed() {
+    assert_seed::<systemprompt_traits::AtRestPepper>().await;
 }
 
 #[test]
@@ -250,4 +249,26 @@ async fn the_fixture_seed_set_names_the_hosts_open_and_sealed_types() {
             "{kind} host seeds differ: only the fixture seeds {only_fixture:?}; only the host seeds {only_host:?}"
         );
     }
+}
+
+#[derive(Clone)]
+struct HostOnly;
+
+#[test]
+fn a_withheld_provide_reserves_its_type_and_resolves() {
+    let admitted = probe_admitted(ComposedParts {
+        probes: vec![Probe::new("host-only", |c| {
+            c.provide::<HostOnly, _>(|_: &Resolved<'_>| {
+                Err(systemprompt_extension::ProvideError::Withheld)
+            });
+        })],
+        ..ComposedParts::default()
+    });
+    let kernel = resolved_kernel(&offline_pool(), &admitted, Dependencies::new())
+        .unwrap_or_else(|e| panic!("a withheld provide does not fail the resolve: {e:#}"));
+    assert_eq!(
+        kernel.resolved().get::<HostOnly>().err(),
+        Some(MissingDependency::of::<HostOnly>())
+    );
+    assert!(kernel.state().find::<HostOnly>().is_none());
 }

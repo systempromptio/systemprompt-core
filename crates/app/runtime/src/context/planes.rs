@@ -17,7 +17,6 @@ use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_models::RouteClassifier;
-use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
@@ -41,7 +40,6 @@ pub struct ContextPlanes {
 pub struct DataPlane {
     pub database: DbPool,
     pub user_service: Option<Arc<UserService>>,
-    pub oauth_repositories: Arc<OAuthRepositories>,
     pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
     pub coordination: Arc<CoordinationRepositories>,
