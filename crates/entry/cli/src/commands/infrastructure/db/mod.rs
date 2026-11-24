@@ -123,7 +123,7 @@ async fn execute_connected(cmd: DbCommands, host: &dyn KernelHost) -> Result<Com
             let app = app_context(host).await?;
             let admins = systemprompt_runtime::admin_bootstrap(
                 host.admitted()?,
-                Arc::<systemprompt_database::Database>::clone(app.db_pool()),
+                app.kernel().state().get::<DbPool>()?.clone(),
             )?;
             admin::execute_assign_admin(admins.as_ref(), &user).await
         },

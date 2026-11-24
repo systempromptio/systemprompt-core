@@ -106,7 +106,12 @@ impl<'a> MemberHost<'a> {
         let app = self.ctx.app_context().await.map_err(CommandError::new)?;
         let reconcile = ConfigReconcileService::from_app_context(
             app,
-            ConfigReconcileRepository::new(app.db_pool()),
+            ConfigReconcileRepository::new(
+                app.kernel()
+                    .state()
+                    .get::<systemprompt_database::DbPool>()
+                    .map_err(CommandError::new)?,
+            ),
         )
         .map_err(CommandError::new)?;
         Ok(kernel

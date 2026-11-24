@@ -27,7 +27,15 @@ pub(super) async fn execute_migrations(
     built: &BuiltState,
     cmd: MigrationsCommands,
 ) -> Result<CommandOutput> {
-    run_migrations(ctx.db_pool().as_ref(), built, cmd).await
+    run_migrations(
+        ctx.kernel()
+            .state()
+            .get::<systemprompt_database::DbPool>()?
+            .as_ref(),
+        built,
+        cmd,
+    )
+    .await
 }
 
 pub(super) async fn execute_migrations_standalone(

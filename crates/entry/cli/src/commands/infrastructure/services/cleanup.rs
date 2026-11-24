@@ -29,7 +29,11 @@ pub(super) async fn execute(
 
     let app = app_context(host).await?;
     let service_mgmt = ServiceManagementService::new(
-        app.service_repository().as_ref().clone(),
+        app.kernel()
+            .state()
+            .get::<std::sync::Arc<systemprompt_database::ServiceRepository>>()?
+            .as_ref()
+            .clone(),
         host.profile()?.server.shutdown,
     );
     let api_port = get_api_port(host.profile()?);

@@ -33,7 +33,7 @@ pub struct HistoryArgs {
 
 pub(super) async fn execute(args: HistoryArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let app = app_context(host).await?;
-    execute_with_pool(args, app.db_pool()).await
+    execute_with_pool(args, app.kernel().state().get::<DbPool>()?).await
 }
 
 pub async fn execute_with_pool(args: HistoryArgs, pool: &DbPool) -> Result<CommandOutput> {

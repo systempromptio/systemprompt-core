@@ -32,7 +32,11 @@ pub(super) async fn execute(args: EnableArgs, host: &dyn KernelHost) -> Result<C
     }
 
     let app = app_context(host).await?;
-    let repo = JobRepository::new(app.db_pool());
+    let repo = JobRepository::new(
+        app.kernel()
+            .state()
+            .get::<systemprompt_database::DbPool>()?,
+    );
     repo.set_enabled(&args.job_name, true)
         .await
         .context("Failed to enable job")?;

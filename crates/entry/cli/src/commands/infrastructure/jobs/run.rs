@@ -91,7 +91,7 @@ pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<Comm
     let scheduler_config = services_config(host)?
         .scheduler
         .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin);
-    let service = JobExecutionService::new(app, scheduler_config, schedule)
+    let service = JobExecutionService::new(app, scheduler_config, schedule)?
         .with_lock_wait(Duration::from_secs(args.lock_wait_secs));
     let batch = service.run_jobs(&selection, &parameters).await?;
 

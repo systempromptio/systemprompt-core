@@ -78,11 +78,16 @@ pub async fn execute_with_events(
         .await
         .context("System validation failed")?;
 
+    let role = app
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_manifest::Config>>()?
+        .role;
     if events.is_none() {
         CliService::phase_success("System validation complete", None);
-        CliService::phase_info(&format!("Node role: {}", app.config().role), None);
+        CliService::phase_info(&format!("Node role: {role}"), None);
     } else if let Some(tx) = events {
-        tx.info(format!("Node role: {}", app.config().role));
+        tx.info(format!("Node role: {role}"));
     }
 
     if events.is_none() {
