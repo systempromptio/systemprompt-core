@@ -14,7 +14,7 @@ use axum::response::Response;
 use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use systemprompt_analytics::matches_bot_pattern;
+use systemprompt_models::analytics::bot_keywords::matches_bot_pattern;
 
 use systemprompt_security::http::resolve_client_ip;
 

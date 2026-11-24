@@ -1,7 +1,7 @@
 //! Tests for bot keyword detection, malformed UA detection, and bot IP range
 //! checks.
 
-use systemprompt_analytics::services::bot_keywords::{
+use systemprompt_models::analytics::bot_keywords::{
     BOT_IP_PREFIXES, BOT_KEYWORDS, is_malformed_user_agent, matches_bot_ip_range,
     matches_bot_pattern,
 };

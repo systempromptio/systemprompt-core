@@ -15,7 +15,9 @@
 //! with the `GeoIP` reader and the content routing when the kernel seeds
 //! them; and the
 //! [`DynSessionBehaviourScorer`]
-//! the request-analytics middleware hands each tracked request's session to.
+//! the request-analytics middleware hands each tracked request's session to,
+//! and the open request-analytics write (`DynRequestAnalytics`) that
+//! middleware records each tracked request through.
 //!
 //! It contributes the analytics jobs (session classification, the on-demand
 //! geo backfill, the two detectors that feed the IP ban list, and the
@@ -66,6 +68,7 @@ impl Extension for AnalyticsExtension {
         }
         c.migrations(extension_migrations!())
             .requires::<DynIpBanStore>()
+            .provide(crate::provides::request_analytics)
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
                 let popularity: DynContentPopularity =

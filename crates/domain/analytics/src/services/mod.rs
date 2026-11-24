@@ -10,7 +10,6 @@
 
 pub mod ai_crawler_keywords;
 mod behavioral_detector;
-pub mod bot_keywords;
 pub mod detection;
 pub(crate) mod extractor;
 mod profile_usage;

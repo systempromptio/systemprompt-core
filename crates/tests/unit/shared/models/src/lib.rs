@@ -17,6 +17,9 @@
 mod a2a;
 
 #[cfg(test)]
+mod bot_keywords;
+
+#[cfg(test)]
 mod path_confine_logs;
 
 #[cfg(test)]

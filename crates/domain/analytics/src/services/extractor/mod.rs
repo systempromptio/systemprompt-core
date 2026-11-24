@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 
 use super::ai_crawler_keywords::matches_ai_crawler;
-use super::bot_keywords::{matches_bot_ip_range, matches_bot_pattern};
+use systemprompt_models::analytics::bot_keywords::{matches_bot_ip_range, matches_bot_pattern};
 use super::detection;
 use super::user_agent::parse_user_agent;
 use crate::GeoIpReader;

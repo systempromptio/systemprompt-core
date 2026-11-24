@@ -95,6 +95,7 @@ pub mod ownership;
 pub mod process_liveness;
 pub mod registry;
 pub mod repository;
+pub mod request_analytics;
 pub mod retention_purge;
 pub mod run_origin;
 pub mod runner_service;
@@ -227,3 +228,6 @@ pub use session_behaviour::{DetectionSubject, DynSessionBehaviourScorer, Session
 pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};
 pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};
 pub use escalation::EscalationDelivery;
+pub use request_analytics::{
+    DynRequestAnalytics, RequestAnalytics, RequestAnalyticsError, RequestAnalyticsEvent,
+};
