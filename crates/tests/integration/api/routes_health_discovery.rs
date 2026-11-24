@@ -53,7 +53,9 @@ async fn root_documents_block(app: Router) -> anyhow::Result<serde_json::Value> 
 #[tokio::test]
 async fn root_discovery_advertises_the_enabled_document_store() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let config = systemprompt_test_fixtures::files_config(&ctx).documents_config().clone();
+    let config = systemprompt_test_fixtures::files_config(&ctx)
+        .documents_config()
+        .clone();
     let base = ctx.config().api_external_url.clone();
     let documents = root_documents_block(discovery_router_over(&ctx)).await?;
     assert_eq!(

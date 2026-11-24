@@ -44,7 +44,10 @@ async fn layers() -> anyhow::Result<Layers> {
 }
 
 fn files_url(state: &StaticContentState, relative: &str) -> String {
-    format!("{}/{relative}", systemprompt_test_fixtures::files_config(&state.ctx).url_prefix())
+    format!(
+        "{}/{relative}",
+        systemprompt_test_fixtures::files_config(&state.ctx).url_prefix()
+    )
 }
 
 async fn get(state: &StaticContentState, uri: &str) -> (StatusCode, HeaderMap, Vec<u8>) {
@@ -104,7 +107,9 @@ async fn a_file_only_in_the_shipped_layer_is_served() -> anyhow::Result<()> {
 async fn the_writable_layer_wins_over_the_shipped_layer() -> anyhow::Result<()> {
     let l = layers().await?;
     let rel = format!("css/override-{}.css", FileId::generate().as_str());
-    let writable = l.systemprompt_test_fixtures::files_config(&state.ctx).files().join(&rel);
+    let writable = systemprompt_test_fixtures::files_config(&l.state.ctx)
+        .files()
+        .join(&rel);
     write(&writable, "operator");
     write(&l.shipped.join(&rel), "image");
     let (status, _, body) = get(&l.state, &files_url(&l.state, &rel)).await;
