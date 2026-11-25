@@ -13,6 +13,7 @@ use super::{RouteMountError, protocol};
         unused_mut,
         unused_variables,
         clippy::unnecessary_wraps,
+        clippy::needless_pass_by_value,
         reason = "every route group mounted here is behind a cargo feature"
     )
 )]
