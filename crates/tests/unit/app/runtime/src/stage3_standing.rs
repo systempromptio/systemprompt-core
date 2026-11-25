@@ -316,3 +316,22 @@ async fn the_n1_exploit_replayed_fails_at_admission() {
         "unexpected error: {error:?}"
     );
 }
+
+const UPGRADE_GUIDE: &str =
+    include_str!("../../../../../../documentation/guides/upgrading-0.88.md");
+
+#[test]
+fn the_upgrade_guide_states_what_the_kernel_enforces_for_sealed_seeds() {
+    assert!(
+        !UPGRADE_GUIDE.contains("slot build or route set reads those and the sealed"),
+        "a route set reads no host-sealed seed"
+    );
+    assert!(
+        UPGRADE_GUIDE.contains("A route set's state, core or install, reads no host-sealed seed")
+    );
+    assert!(UPGRADE_GUIDE.contains(
+        "read only the host-sealed seeds `reserved::INSTALL_SEEDS` lists (`Arc<Config>` and \
+         `SystemAdmin`)"
+    ));
+    assert_eq!(INSTALL_SEEDS.len(), 2, "extend the guide with a new row");
+}
