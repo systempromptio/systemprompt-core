@@ -78,6 +78,15 @@ pub fn probe_admitted(parts: ComposedParts) -> Admitted {
     admitted_over(Vec::new(), parts)
 }
 
+pub fn authz_probe_admitted(parts: ComposedParts) -> Admitted {
+    let authz = systemprompt_test_migrate::admitted_member(
+        &systemprompt_governance::authz::AuthzExtension,
+        StandingTag::Core,
+    )
+    .expect("the authz member contributes");
+    admitted_over(vec![authz], parts)
+}
+
 pub fn gateway_probe_admitted(parts: ComposedParts) -> Admitted {
     admitted_over(vec![gateway_member()], parts)
 }

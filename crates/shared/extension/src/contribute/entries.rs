@@ -27,7 +27,10 @@ type ReserveFn = fn(&mut Dependencies);
 /// `AfterGovernance` provide fns run once every slot, the subject providers,
 /// the policy catalog and the gateway guards are built, so they may read
 /// `Arc<SubjectProviderSet>`, `Arc<PolicyCatalog>` and every slot-built
-/// value; no slot build or governance factory may read their values.
+/// value; no slot build or governance factory may read their values. A slot
+/// entry, gateway guard or subject provider that needs subject attributes
+/// holds the governance `SubjectSourceCell` late cell instead, which the
+/// kernel binds to the subject provider set once the composition resolves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProvidePhase {
     Early,

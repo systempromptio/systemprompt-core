@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Governance"
+text = "A member's gateway guard, slot entry (an authz hook, a marketplace filter) or subject provider reads the subject attributes through `SubjectSourceCell`: these are built before the subject provider set, so reading `Arc<SubjectProviderSet>` from them failed and every subject read answered not-ready, failing each call closed. The cell is bound to the set once the composition resolves, and answers `SubjectSourceError::NotReady` until then."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Added"
+text = "`authz::SubjectSourceCell`, the late cell the `authz` member declares and the kernel binds to the subject provider set; it implements `SubjectAttributeSource` and fails closed while unbound."

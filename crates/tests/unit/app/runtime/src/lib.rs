@@ -21,6 +21,8 @@ mod audit_span_seal;
 #[cfg(test)]
 mod boot;
 #[cfg(test)]
+mod subject_source_cell;
+#[cfg(test)]
 mod brain_composition;
 #[cfg(test)]
 mod brain_consumer_start;

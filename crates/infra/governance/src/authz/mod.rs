@@ -49,6 +49,7 @@ pub mod rules_file;
 pub mod runtime;
 pub mod scope_binding;
 pub mod subject;
+pub mod subject_cell;
 pub mod subject_directory;
 pub mod traffic;
 pub mod types;
@@ -88,6 +89,7 @@ pub use subject::{
     SubjectProviderError, SubjectProviderSet, SubjectSourceError, USER_PRECEDENCE,
     default_attribution_value, dimensions_of, gather_subject_attributes,
 };
+pub use subject_cell::SubjectSourceCell;
 pub use subject_directory::{RoleDirectory, SharedRoleDirectory};
 pub use traffic::{TRAFFIC_PRECEDENCE, TrafficProvider};
 pub use types::{

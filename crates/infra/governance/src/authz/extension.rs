@@ -1,5 +1,7 @@
 //! The `authz` member: schema, migrations, the `access_control` and
-//! `governance` config planes, and core's `traffic` subject provider.
+//! `governance` config planes, core's `traffic` subject provider and the
+//! [`SubjectSourceCell`][super::SubjectSourceCell] the kernel binds to the
+//! subject provider set.
 //!
 //! It opens the authz hook slot, so the composed hooks are built under core
 //! standing and no other slot can build the same value.
@@ -39,6 +41,7 @@ impl Extension for AuthzExtension {
         c.migrations(extension_migrations!())
             .config_plane(Arc::new(AccessControlPlane))
             .config_plane(Arc::new(GovernancePlane))
+            .late_cell::<super::subject_cell::SubjectSourceCell>()
             .subject_attributes(|_: &Resolved<'_>| {
                 let provider: SharedSubjectAttributeProvider = Arc::new(TrafficProvider);
                 Ok(provider)
