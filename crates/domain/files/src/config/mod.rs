@@ -32,7 +32,7 @@ pub use upload_limits::UploadLimits;
 pub use validator::FilesConfigValidator;
 
 use std::path::{Path, PathBuf};
-use systemprompt_cloud::constants::storage;
+use systemprompt_manifest::paths::constants::storage;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::env::untyped;
 use systemprompt_manifest::{interpolate_yaml, read_env_optional};

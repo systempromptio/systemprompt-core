@@ -30,7 +30,7 @@ pub use overrides::{
     OverrideAction, OverrideContext, OverrideContextBuilder, OverrideError, OverridePolicy,
     OverrideResolution, OverrideSource, SystemPromptOverride,
 };
-pub use plane::{GATEWAY_POLICIES_FILE, GATEWAY_POLICIES_PLANE, GatewayPoliciesPlane};
+pub use plane::{GATEWAY_POLICIES_FILE, GatewayPoliciesPlane};
 pub use resolver::{
     MalformedPolicy, MalformedSpec, PolicyResolver, PolicyUnavailable, merge_policy_rows,
 };

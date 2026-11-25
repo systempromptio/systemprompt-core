@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_cloud::constants::storage;
+use systemprompt_manifest::paths::constants::storage;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{
     PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderResult, WebConfig,

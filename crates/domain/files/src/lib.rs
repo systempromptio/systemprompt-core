@@ -26,7 +26,7 @@
 //! ## Layering
 //!
 //! `systemprompt-files` is a **domain** crate. It depends downward on
-//! `systemprompt-database`, `systemprompt-cloud`, `systemprompt-config`,
+//! `systemprompt-database`, `systemprompt-manifest`, `systemprompt-config`,
 //! `systemprompt-models`, `systemprompt-traits`, and
 //! `systemprompt-provider-contracts`.
 //!

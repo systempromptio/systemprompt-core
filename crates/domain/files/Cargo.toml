@@ -24,7 +24,6 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
-systemprompt-cloud = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx"] }

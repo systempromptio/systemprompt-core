@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Build"
+text = "`systemprompt-content` and `systemprompt-files` no longer depend on `systemprompt-cloud` (they read the storage constants from `systemprompt_manifest::paths::constants::storage`), and `systemprompt-cloud-entry` no longer depends on `systemprompt-gateway`: `GATEWAY_POLICIES_PLANE` moves to `systemprompt_models::ai`. Migrate by importing the constant from there."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GATEWAY_POLICIES_PLANE` moves to `systemprompt_models::ai`. Migrate by importing it from there."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`ai::GATEWAY_POLICIES_PLANE`, the config plane name the gateway policies are applied under."

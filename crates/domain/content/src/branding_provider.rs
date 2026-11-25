@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_cloud::constants::storage;
+use systemprompt_manifest::paths::constants::storage;
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{PageContext, PageDataProvider, ProviderResult};
 
