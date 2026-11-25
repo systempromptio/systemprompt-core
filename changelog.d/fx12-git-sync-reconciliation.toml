@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Install views and conferred capabilities"
+text = "`GitSourceSynced::Incoming` carries `reconciliation_id`, the reconciliation an incoming revision opened. Migrate exhaustive patterns and literals."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`GitSourceSynced::Incoming` gains `reconciliation_id: Option<ManagedReconciliationId>`."
