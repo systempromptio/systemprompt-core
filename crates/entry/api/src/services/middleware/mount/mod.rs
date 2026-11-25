@@ -37,10 +37,11 @@
 //! handler-resolved context with a gated policy), or that names a bearer
 //! window or protection layer the server has no primitive for, is refused
 //! with a typed [`MountError`] at boot. A body limit above
-//! [`DEFAULT_BODY_LIMIT_BYTES`] mounts when it is within
-//! [`MountLayers::body_ceiling`] (the profile's `server.max_route_body_bytes`),
-//! or at the base and with the limit of the kernel's body-limit privileged
-//! shape (the agent proxy).
+//! [`DEFAULT_BODY_LIMIT_BYTES`] mounts only at the base and with the limit of
+//! the kernel's body-limit privileged shape (the agent proxy); an install
+//! route's own byte limit is governed instead by
+//! [`MountLayers::body_ceiling`] (the profile's `server.max_route_body_bytes`)
+//! in the enumerating mount.
 //!
 //! The composition's site fallback ([`protect_site_fallback`]) takes the
 //! tree's one fallback in place of the static group's: public policy, public
@@ -126,8 +127,17 @@ pub fn protect(
     layers: &MountLayers,
     base_path: &'static str,
 ) -> Result<Router, MountError> {
+    check_body_limit(protection, base_path)?;
+    protect_layered(router, protection, layers, base_path)
+}
+
+pub(super) fn protect_layered(
+    router: Router,
+    protection: &RouteProtection,
+    layers: &MountLayers,
+    base_path: &'static str,
+) -> Result<Router, MountError> {
     check_coherence(protection, base_path)?;
-    check_body_limit(protection, layers, base_path)?;
     let (router, reach) = if base_path == WEB_ROOT_BASE_PATH {
         if !router.has_routes() {
             return Ok(Router::new());
@@ -154,7 +164,7 @@ pub fn protect_root_fallback(
     group: RouteGroup,
 ) -> Result<RootFallback, MountError> {
     check_coherence(protection, WEB_ROOT_BASE_PATH)?;
-    check_body_limit(protection, layers, WEB_ROOT_BASE_PATH)?;
+    check_body_limit(protection, WEB_ROOT_BASE_PATH)?;
     let router = apply(
         router,
         protection,
@@ -215,14 +225,11 @@ fn check_coherence(
 
 fn check_body_limit(
     protection: &RouteProtection,
-    layers: &MountLayers,
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
         Some(declared)
-            if declared > DEFAULT_BODY_LIMIT_BYTES
-                && declared > layers.body_ceiling
-                && !admits_body_limit(base_path, declared) =>
+            if declared > DEFAULT_BODY_LIMIT_BYTES && !admits_body_limit(base_path, declared) =>
         {
             Err(MountError::UnlistedBodyExemption {
                 base_path,

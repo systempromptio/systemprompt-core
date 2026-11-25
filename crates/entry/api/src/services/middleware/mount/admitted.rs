@@ -12,7 +12,9 @@
 //! [`MountError::Resolve`]. A route's own byte limit (`BodyLimit::Bytes`) of
 //! zero or above `MountLayers::body_ceiling` (the profile's
 //! `server.max_route_body_bytes`) refuses the mount with
-//! [`MountError::RouteBodyLimit`], naming the route. An install route
+//! [`MountError::RouteBodyLimit`], naming the route; within it, an install
+//! route mounts with that limit, while a core route above the server default
+//! must still be a listed body-limit exemption. An install route
 //! admitted beside a reserved literal is wrapped so it answers `404` for any
 //! request that falls under a reserved entry.
 //!
@@ -27,7 +29,7 @@ use systemprompt_extension::{Admitted, RouteGroup, RouteProtection, StandingTag}
 use systemprompt_runtime::Kernel;
 
 use super::recheck::{path_base, recheck};
-use super::{MountError, MountLayers, place, protect, reserved_guard};
+use super::{MountError, MountLayers, place, protect, protect_layered, reserved_guard};
 use crate::services::middleware::rate_limit::LayerReach;
 use crate::services::server::routes::Composed;
 
@@ -71,7 +73,14 @@ pub fn mount_admitted(
         let mut group = Router::new();
         for (def, router) in set.set.defs().iter().zip(routers) {
             check_route_body_limit(set.set.base(), def, layers)?;
-            let protected = protect(router, &protection_of(&def.spec), layers, base.path())?;
+            let protection = protection_of(&def.spec);
+            let protected = if set.standing == StandingTag::Install
+                && matches!(def.spec.limits.body, BodyLimit::Bytes(_))
+            {
+                protect_layered(router, &protection, layers, base.path())?
+            } else {
+                protect(router, &protection, layers, base.path())?
+            };
             group = group.merge(
                 if set.standing == StandingTag::Install
                     && shadows_reserved_literal(set.set.base(), def)
