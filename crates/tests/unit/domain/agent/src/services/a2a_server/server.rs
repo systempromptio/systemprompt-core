@@ -109,7 +109,7 @@ async fn server_new_rejects_an_agent_absent_from_the_registry() {
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let state = super::a2a_helpers::make_agent_state(&pool);
 
-    let err = systemprompt_agent::services::a2a_server::Server::new(
+    let err = systemprompt_agent_entry::a2a_server::Server::new(
         state,
         Arc::new(StubAiProvider::new()),
         &AgentName::new("__no_such_agent_for_server"),

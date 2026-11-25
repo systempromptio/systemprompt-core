@@ -4,7 +4,7 @@
 // RUN_ERROR webhook that carries no internal cause). Webhook traffic is
 // captured by the recording broadcaster injected through `WebhookContext`.
 
-use axum::response::sse::Event;
+use systemprompt_agent::services::a2a_server::streaming::StreamFrame;
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::repository::task::TaskRepository;
@@ -56,7 +56,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let webhook_context =
         WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
-    let (tx, mut rx) = mpsc::channel::<Event>(8);
+    let (tx, mut rx) = mpsc::channel::<StreamFrame>(8);
 
     emit_run_started(EmitRunStartedParams {
         tx: &tx,
@@ -101,7 +101,7 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let webhook_context =
         WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
-    let (tx, rx) = mpsc::channel::<Event>(1);
+    let (tx, rx) = mpsc::channel::<StreamFrame>(1);
     drop(rx);
 
     emit_run_started(EmitRunStartedParams {

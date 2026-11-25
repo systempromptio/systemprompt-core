@@ -5,14 +5,12 @@ use serde_json::json;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
-use systemprompt_mcp::{
-    ArtifactIngest, IngestRequest, from_canonical_tool_result, from_hook_response, from_wire_value,
-};
+use systemprompt_extension::mcp::artifacts::IngestRequest;
+use systemprompt_mcp::{ArtifactIngest, from_hook_response, from_wire_value};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_wire::canonical::{CanonicalContent, ImageSource};
 
 fn context(session: &str) -> RequestContext {
     RequestContext::new(
@@ -49,7 +47,7 @@ async fn ingest() -> ArtifactIngest {
 }
 
 #[test]
-fn hook_and_canonical_normalization_preserve_wire_semantics() {
+fn hook_normalization_preserves_wire_semantics() {
     assert!(from_wire_value(&json!({"content": "not-an-array"})).is_none());
     assert!(
         from_hook_response(&serde_json::Value::Null)
@@ -62,43 +60,6 @@ fn hook_and_canonical_normalization_preserve_wire_semantics() {
     let mixed = from_hook_response(&json!(["first", 2]));
     assert!(mixed.content.is_empty());
     assert_eq!(mixed.structured_content, Some(json!(["first", 2])));
-
-    let content = vec![
-        CanonicalContent::text("plain"),
-        CanonicalContent::image(ImageSource::Base64 {
-            media_type: "image/png".to_owned(),
-            data: "aGVsbG8=".to_owned(),
-            detail: None,
-        }),
-        CanonicalContent::image(ImageSource::Url {
-            url: "https://example.invalid/image.png".to_owned(),
-            detail: None,
-        }),
-        CanonicalContent::ToolUse {
-            id: "call-1".to_owned(),
-            name: "ignored".to_owned(),
-            input: json!({}),
-            signature: None,
-            cache_control: None,
-        },
-        CanonicalContent::Thinking {
-            text: "ignored".to_owned(),
-            signature: None,
-            id: None,
-            encrypted_content: None,
-        },
-    ];
-    let mut meta = json!({});
-    meta[EXECUTION_META_KEY] = json!({"artifact_id": "artifact-wire"});
-    let result =
-        from_canonical_tool_result(&content, Some(&json!({"answer": 42})), Some(&meta), true);
-    assert_eq!(result.content.len(), 3);
-    assert_eq!(result.is_error, Some(true));
-    assert_eq!(result.structured_content, Some(json!({"answer": 42})));
-    assert_eq!(
-        result.meta.unwrap().0[EXECUTION_META_KEY]["artifact_id"],
-        "artifact-wire"
-    );
 }
 
 #[tokio::test]

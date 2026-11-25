@@ -57,9 +57,9 @@ pub(crate) fn gateway_repos_in(
     systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(state_dir),
-        std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
+        Some(std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
-        )),
+        ))),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new().view(),

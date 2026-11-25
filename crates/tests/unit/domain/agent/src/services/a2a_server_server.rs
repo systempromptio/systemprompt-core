@@ -12,7 +12,7 @@ use systemprompt_identifiers::AgentName;
 use axum::body::Body;
 use axum::http::Request;
 use systemprompt_agent::AgentState;
-use systemprompt_agent::services::a2a_server::Server;
+use systemprompt_agent_entry::a2a_server::Server;
 use systemprompt_models::ai::AiProvider;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_config, init_services_bootstrap, test_db_pool,

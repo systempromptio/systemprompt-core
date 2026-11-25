@@ -227,7 +227,8 @@ async fn ingest_one(
 }
 
 // JSON: MCP `structuredContent` and `_meta` — both schema-less per the spec.
-fn canonical_tool_result(
+#[must_use]
+pub fn canonical_tool_result(
     content: &[CanonicalContent],
     structured_content: Option<&JsonValue>,
     meta: Option<&JsonValue>,

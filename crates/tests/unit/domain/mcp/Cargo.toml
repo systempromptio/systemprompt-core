@@ -23,7 +23,7 @@ systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-storage = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["mcp"] }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-governance = { workspace = true }

@@ -21,6 +21,7 @@ mod request_non_streaming;
 mod request_validation;
 mod server;
 mod server_router;
+mod sse_frames;
 mod stream_helpers;
 mod stream_service;
 mod streaming_run;

@@ -13,7 +13,8 @@ use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, ExtensionId, McpServerId, McpToolName, SessionId,
     TraceId, UserId,
 };
-use systemprompt_mcp::{ArtifactIngest, IngestRequest};
+use systemprompt_extension::mcp::artifacts::IngestRequest;
+use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExecutionSource;
 use systemprompt_test_fixtures::{

@@ -26,6 +26,7 @@ use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, PluginId, UserId
 use systemprompt_models::bridge::manifest::PluginEntry;
 
 use super::{MarketplaceCache, ResolvedCatalog, ResolvedKey};
+use crate::bundle::pack_plugin_bundle;
 use crate::contract::MarketplaceSeams;
 use crate::error::MarketplaceError;
 use crate::managed::ManagedRepository;
@@ -210,16 +211,8 @@ impl ResolvedBridgeCatalog for ResolvedCatalog {
         Some(bundle.get(path).map(|file| file.bytes.as_slice()))
     }
 
-    // Why: one entry per bundle path, mode `0755` for executables.
     fn pack_plugin(&self, plugin: &PluginId) -> Option<Result<Vec<u8>, BridgeCatalogError>> {
         let bundle = self.bundles.get(plugin)?;
-        Some(
-            systemprompt_loader::bundle::pack::create_tarball_from_memory(
-                bundle
-                    .iter()
-                    .map(|(path, file)| (path.as_str(), file.bytes.as_slice(), file.executable)),
-            )
-            .map_err(|e| BridgeCatalogError::Pack(Box::new(e))),
-        )
+        Some(pack_plugin_bundle(bundle).map_err(|e| BridgeCatalogError::Pack(Box::new(e))))
     }
 }

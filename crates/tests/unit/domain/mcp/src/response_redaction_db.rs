@@ -13,8 +13,9 @@ use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner};
 use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, McpExecutionId, SessionId, TraceId, UserId,
 };
+use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_mcp::{
-    ArtifactIngest, IngestRequest, MAX_PAYLOAD_BYTES, McpResponseBuilder, ToolIdentity,
+    ArtifactIngest, MAX_PAYLOAD_BYTES, McpResponseBuilder, ToolIdentity,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;

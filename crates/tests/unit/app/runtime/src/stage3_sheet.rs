@@ -22,7 +22,7 @@ use systemprompt_governance::authz::AuthzHookCell;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::managed::ManagedRepository;
-use systemprompt_marketplace::surface::DynManagedSurface;
+use systemprompt_extension::router::DynManagedSurface;
 use systemprompt_marketplace_entry::http::MarketplaceHttpSettings;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_mcp_entry::http::McpHttpRepositories;

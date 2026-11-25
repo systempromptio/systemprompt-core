@@ -17,7 +17,7 @@ use systemprompt_agent::models::a2a::protocol::{
 use systemprompt_agent::models::a2a::{
     A2aRequestParams, Message, MessageRole, Part, TaskState, TaskStatus,
 };
-use systemprompt_agent::services::a2a_server::handlers::request::routing::handle_streaming_path;
+use systemprompt_agent_entry::a2a_server::request::routing::handle_streaming_path;
 use systemprompt_identifiers::{AgentRunId, ContextId, MessageId, TaskId};
 use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates};
 

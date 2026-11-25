@@ -7,8 +7,8 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use systemprompt_identifiers::UserId;
-use systemprompt_marketplace::MarketplaceCandidate;
-use systemprompt_marketplace::surface::ConsumerCatalog;
+use systemprompt_models::bridge::manifest::SkillEntry;
+use systemprompt_extension::router::ConsumerCatalog;
 use systemprompt_marketplace_entry::http::managed::{ManagedConsumerState, routes};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context};
 use systemprompt_traits::BoxedSource;
@@ -18,7 +18,7 @@ struct NoCatalog;
 
 #[async_trait::async_trait]
 impl ConsumerCatalog for NoCatalog {
-    async fn candidate(&self, _consumer: &UserId) -> Result<MarketplaceCandidate, BoxedSource> {
+    async fn granted_skills(&self, _consumer: &UserId) -> Result<Vec<SkillEntry>, BoxedSource> {
         Err("no catalog in this suite".into())
     }
 }

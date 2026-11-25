@@ -2,7 +2,7 @@ use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::protocol::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, ListTasksParams, ListTasksResult,
 };
-use systemprompt_agent::services::a2a_server::handlers::request::list_tasks::{
+use systemprompt_agent_entry::a2a_server::request::list_tasks::{
     DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, clamp_page_size, trim_history,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};

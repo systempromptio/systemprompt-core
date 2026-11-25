@@ -12,7 +12,8 @@ use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner};
 use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, SessionId, TraceId, UserId,
 };
-use systemprompt_mcp::{ArtifactIngest, IngestRequest};
+use systemprompt_extension::mcp::artifacts::IngestRequest;
+use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::auth::UserType;

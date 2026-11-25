@@ -272,7 +272,7 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         ),
         (
             type_name::<systemprompt_traits::DynAgentServer>(),
-            carrier::<systemprompt_agent::services::a2a_server::serve::HostedAgentServer>(),
+            carrier::<systemprompt_agent_entry::a2a_server::serve::HostedAgentServer>(),
         ),
         (
             type_name::<systemprompt_extension::mcp::DynMcpSessionStore>(),
