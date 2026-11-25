@@ -6,6 +6,10 @@
 //! per-aggregate order (`ORDER BY created_at, id … FOR UPDATE SKIP LOCKED`,
 //! held here as SQL text), `shape=after` claims through
 //! [`OutboxConsumer::claim`]. Unkeyed and keyed seeds are both measured.
+//! A lone claimer has no contention, so its rate is the claim statement's
+//! own cost: there the ordered claim must keep at least half the unordered
+//! rate. Contended runs are reported, not asserted, because their wall clock
+//! varies by more than the bound on a shared runner.
 
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
@@ -119,7 +123,7 @@ async fn drain_before(pool: sqlx::PgPool, consumer: String) -> (Vec<EventOutboxI
     }
 }
 
-async fn run(scratch: &crate::OutboxSchema, shape: Shape, keyed: bool, claimers: u32) {
+async fn run(scratch: &crate::OutboxSchema, shape: Shape, keyed: bool, claimers: u32) -> f64 {
     let pool = scratch.pool_of(claimers + 1).await;
     let consumer = format!(
         "claim_{}",
@@ -157,6 +161,7 @@ async fn run(scratch: &crate::OutboxSchema, shape: Shape, keyed: bool, claimers:
         per_claim.as_micros()
     );
     pool.close().await;
+    rate
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -164,8 +169,14 @@ async fn concurrent_claimers_take_every_row_once_and_report_throughput() {
     let scratch = crate::OutboxSchema::create().await;
     for keyed in [false, true] {
         for claimers in CLAIMERS {
-            for shape in [Shape::Before, Shape::After] {
-                run(&scratch, shape, keyed, claimers).await;
+            let before = run(&scratch, Shape::Before, keyed, claimers).await;
+            let after = run(&scratch, Shape::After, keyed, claimers).await;
+            if claimers == 1 {
+                assert!(
+                    after * 2.0 >= before,
+                    "a lone claimer keeps at least half the throughput of the unordered claim \
+                     (keyed={keyed}: before={before:.0}/s after={after:.0}/s)"
+                );
             }
         }
     }

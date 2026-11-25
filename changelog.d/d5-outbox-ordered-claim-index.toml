@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Event outbox"
+text = "The per-aggregate ordered outbox claim finds an aggregate's earlier pending row through the pending-by-aggregate partial index instead of scanning the outbox for every candidate, so a keyed claim costs about what an unkeyed one does."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Fixed"
+text = "The ordered claim's head-of-aggregate probe is restricted to keyed rows, which lets it use `idx_event_outbox_aggregate_pending` instead of a sequential scan."
