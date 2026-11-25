@@ -47,7 +47,9 @@ fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
             .service
             .clone()
             .expect("the document store is enabled"),
-        notifications: Some(systemprompt_test_fixtures::notifications_service(ctx) as DynNotificationInbox),
+        notifications: Some(
+            systemprompt_test_fixtures::notifications_service(ctx) as DynNotificationInbox
+        ),
         uploads: Some(Arc::clone(
             &systemprompt_test_fixtures::documents_handles(ctx).uploads,
         )),

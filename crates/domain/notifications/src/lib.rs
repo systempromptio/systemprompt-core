@@ -69,7 +69,7 @@ pub use pipeline::{
 pub use plane::{NOTIFICATIONS_PLANE, NotificationsPlane};
 pub use repository::NotificationRepositories;
 pub use service::{
-    NotificationsService, NotificationsServiceParts,
-    NotificationsServiceSlot, PublishOutcome, PublishRequest, SlotInbox,
+    NotificationsService, NotificationsServiceParts, NotificationsServiceSlot, PublishOutcome,
+    PublishRequest, SlotInbox,
 };
 pub use sink::OutboxNotificationSink;

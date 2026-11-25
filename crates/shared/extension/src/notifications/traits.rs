@@ -14,8 +14,8 @@ use systemprompt_models::notifications::{
 #[cfg(feature = "sqlx")]
 use super::errors::NotificationSinkError;
 use super::errors::{
-    ChannelError, InboxError, NotificationAudienceError, NotificationRouterError, PublishPolicyError,
-    VisibilityError,
+    ChannelError, InboxError, NotificationAudienceError, NotificationRouterError,
+    PublishPolicyError, VisibilityError,
 };
 
 /// Appends a notification event to the outbox on the caller's connection;

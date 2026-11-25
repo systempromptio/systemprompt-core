@@ -8,9 +8,9 @@
 use systemprompt_identifiers::{NotificationId, UserId};
 use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::notifications::{
-    Attention, Escalate, FeedQuery, MarkRead, MarkReadOutcome, NOTIFICATION_ESCALATED, NOTIFICATION_READ, Notification,
-    NotificationEscalatedPayload, NotificationPage, NotificationReadPayload, ReceiptState,
-    SURFACE_API,
+    Attention, Escalate, FeedQuery, MarkRead, MarkReadOutcome, NOTIFICATION_ESCALATED,
+    NOTIFICATION_READ, Notification, NotificationEscalatedPayload, NotificationPage,
+    NotificationReadPayload, ReceiptState, SURFACE_API,
 };
 
 use systemprompt_traits::{EscalationDelivery, RepositoryError};

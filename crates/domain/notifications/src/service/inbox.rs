@@ -75,7 +75,10 @@ pub struct SlotInbox(pub(crate) Arc<NotificationsServiceSlot>);
 
 impl SlotInbox {
     fn service(&self) -> Result<&NotificationsService, InboxError> {
-        self.0.get().map(AsRef::as_ref).ok_or(InboxError::Unavailable)
+        self.0
+            .get()
+            .map(AsRef::as_ref)
+            .ok_or(InboxError::Unavailable)
     }
 }
 

@@ -11,7 +11,6 @@ publish = false
 workspace = true
 
 [dependencies]
-reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-mcp-host = { workspace = true }

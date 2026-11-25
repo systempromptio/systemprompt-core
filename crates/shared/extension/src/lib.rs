@@ -162,9 +162,9 @@ pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
 pub use notifications::{
     ChannelError, DynNotificationInbox, InboxError, Membership, NotificationAudienceError,
-    NotificationAudienceResolver, NotificationChannel, NotificationInbox, NotificationRouter, NotificationRouterError, NotificationSinkError,
-    PublishPolicy, PublishPolicyError, PublishVerdict, ResourceVisibility, Visibility,
-    VisibilityError,
+    NotificationAudienceResolver, NotificationChannel, NotificationInbox, NotificationRouter,
+    NotificationRouterError, NotificationSinkError, PublishPolicy, PublishPolicyError,
+    PublishVerdict, ResourceVisibility, Visibility, VisibilityError,
 };
 #[cfg(feature = "sqlx")]
 pub use notifications::{DynNotificationSink, NotificationSink};

@@ -24,12 +24,13 @@ mod errors;
 mod traits;
 
 pub use errors::{
-    ChannelError, InboxError, NotificationAudienceError, NotificationRouterError, NotificationSinkError,
-    PublishPolicyError, VisibilityError,
+    ChannelError, InboxError, NotificationAudienceError, NotificationRouterError,
+    NotificationSinkError, PublishPolicyError, VisibilityError,
+};
+pub use traits::{
+    DynNotificationInbox, Membership, NotificationAudienceResolver, NotificationChannel,
+    NotificationInbox, NotificationRouter, PublishPolicy, PublishVerdict, ResourceVisibility,
+    Visibility,
 };
 #[cfg(feature = "sqlx")]
 pub use traits::{DynNotificationSink, NotificationSink};
-pub use traits::{
-    DynNotificationInbox, Membership, NotificationAudienceResolver, NotificationInbox, NotificationChannel, NotificationRouter,
-    PublishPolicy, PublishVerdict, ResourceVisibility, Visibility,
-};

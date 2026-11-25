@@ -11,8 +11,9 @@ use super::support::run;
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools,
     DocumentsToolCall, EditHandler, ExportHandler, FolderHandler, GuideHandler, HistoryHandler,
-    ImportHandler, InboxHandler, ListHandler, PeopleHandler, ProposalsHandler, ReadHandler, SearchHandler,
-    ShareHandler, TOOL_NAMES, TrashHandler, UntrashHandler, UpdateHandler, UploadHandler,
+    ImportHandler, InboxHandler, ListHandler, PeopleHandler, ProposalsHandler, ReadHandler,
+    SearchHandler, ShareHandler, TOOL_NAMES, TrashHandler, UntrashHandler, UpdateHandler,
+    UploadHandler,
 };
 
 impl DocumentsMcpTools {

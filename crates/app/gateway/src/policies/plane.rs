@@ -20,11 +20,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use systemprompt_ai::repository::{AiGatewayPolicyRepository, GatewayPolicyWrite};
 use systemprompt_database::PlaneTransaction;
-use systemprompt_models::ai::GATEWAY_POLICIES_PLANE;
 use systemprompt_extension::prelude::{
     ApplyOutcome, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, DeclaredState, PlaneContext,
     PlaneSnapshot, PlaneTx, ResolvedEntities,
 };
+use systemprompt_models::ai::GATEWAY_POLICIES_PLANE;
 
 use super::config::{GatewayPolicyConfig, GatewayPolicyEntry};
 use super::spec::GatewayPolicySpec;

@@ -15,9 +15,9 @@ use async_trait::async_trait;
 use chrono::Utc;
 use std::path::Path;
 use std::sync::Arc;
-use systemprompt_manifest::paths::constants::storage;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::FileId;
+use systemprompt_manifest::paths::constants::storage;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 use walkdir::WalkDir;
 
