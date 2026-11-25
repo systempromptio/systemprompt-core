@@ -129,6 +129,7 @@ impl HostKernel {
             escalation: systemprompt_traits::EscalationDelivery::Consumer,
             audit_spans: Arc::new(log_sink.clone()),
         });
+        let seed = seed.with_sealed(systemprompt_extension::ConferralsWithheld);
         let handle: Arc<dyn DatabaseHandle> =
             Arc::<systemprompt_database::Database>::clone(&database);
         let mut kernel = Kernel::new(handle, background_tasks.clone(), seed);

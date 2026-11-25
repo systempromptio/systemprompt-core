@@ -142,11 +142,12 @@ pub use brain::{
 #[cfg(feature = "sqlx")]
 pub use brain::{BrainSink, DynBrainSink};
 pub use contribute::{
-    AudienceEntry, AudienceResolvers, ConferralDeclarations, ContributionError, Contributions,
-    ExtensionConfig, Factory, FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle,
-    LateCell, MemberConferrals, MemberResolved, MemberScope, MemberSecrets, ProvideError,
-    ProvideFn, ProvidePhase, Resolved, SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder,
-    StandingTag, build_factories, handles,
+    AudienceEntry, AudienceResolvers, ConferralDeclarations, ConferralError, ConferralsWithheld,
+    ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FactoryKind,
+    FromState, Handed, HandleId, KernelHandle, LateCell, MemberConferrals, MemberResolved,
+    MemberScope, MemberSecrets, ProvideError, ProvideFn, ProvidePhase, Resolved,
+    SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
+    handles,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
@@ -197,9 +198,9 @@ pub use capabilities::HasRouteClassifier;
 pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
     pub use crate::contribute::{
-        ContributionError, Contributions, ExtensionConfig, Factory, FactoryError, FromState,
-        Handed, MemberResolved, MemberScope, ProvideError, Resolved, Slot, SlotEntry, SlotError,
-        SlotOrder, StandingTag,
+        ConferralError, ContributionError, Contributions, ExtensionConfig, Factory, FactoryError,
+        FromState, Handed, MemberResolved, MemberScope, ProvideError, Resolved, Slot, SlotEntry,
+        SlotError, SlotOrder, StandingTag,
     };
     pub use crate::error::{ExtensionConfigError, ExtensionStateError, LoaderError};
     pub use crate::gateway_guard::{

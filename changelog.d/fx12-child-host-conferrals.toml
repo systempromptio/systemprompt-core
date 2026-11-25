@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Install views and conferred capabilities"
+text = "A child host (`admin mcp serve`, `admin agent-host run`) confers nothing: it seeds no conferral issuer, even when the encryption master key was granted, and seeds `ConferralsWithheld` sealed. `Resolved::{member_cipher, share_tokens, git_source_sync, token_minter}` return `ConferralError` (`Missing` for an undeclared row, `Withheld` for a declared one on a child); `?` in a provide fn withholds the value, so a member that declares a conferral no longer stops the child from booting. Migrate exhaustive handling of the read's error to `ConferralError`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`Resolved::{member_cipher, share_tokens, git_source_sync, token_minter}` return `ConferralError`; new `ConferralError` and `ConferralsWithheld`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Changed"
+text = "Only the API seeds the conferral issuers; a child host seeds `ConferralsWithheld` and the API reserves it."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Changed"
+text = "The Git source sync issuer is withheld on a child host."
