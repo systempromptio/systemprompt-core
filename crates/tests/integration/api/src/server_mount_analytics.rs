@@ -19,7 +19,6 @@
 //! | `content` | boot refused | | |
 //! | `analytics` (with or without `analytics-http`) | boot refused (required extension) | | |
 
-use std::any::TypeId;
 use std::net::SocketAddr;
 
 use axum::Router;
@@ -38,7 +37,7 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
     seed_admin_credential, seed_bridge_credential, test_db_pool,
 };
-use systemprompt_traits::{DynContentCatalogStats, DynSessionBehaviourScorer};
+use systemprompt_traits::DynSessionBehaviourScorer;
 use tower::ServiceExt;
 
 const EVENTS: &str = "/api/v1/analytics/events";
@@ -125,7 +124,7 @@ fn anonymous(method: Method, uri: &str) -> Request<Body> {
 }
 
 #[test]
-fn the_routes_extension_carries_the_declared_id_and_requires_the_content_catalog() {
+fn the_routes_extension_carries_the_declared_id_and_requires_nothing() {
     assert_eq!(
         AnalyticsHttpExtension.metadata().id,
         ANALYTICS_HTTP_EXTENSION
@@ -136,8 +135,7 @@ fn the_routes_extension_carries_the_declared_id_and_requires_the_content_catalog
     AnalyticsHttpExtension
         .contribute(&mut contributions)
         .expect("the analytics-http member contributes");
-    let required: Vec<TypeId> = sink.requires().iter().map(|r| r.type_id()).collect();
-    assert_eq!(required, [TypeId::of::<DynContentCatalogStats>()]);
+    assert!(sink.requires().is_empty(), "{:?}", sink.requires());
 }
 
 #[tokio::test]

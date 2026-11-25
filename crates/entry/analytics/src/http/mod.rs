@@ -34,24 +34,29 @@ use systemprompt_traits::DynContentCatalogStats;
 /// its page URL.
 #[derive(Clone)]
 pub struct ContentResolver {
-    catalog: DynContentCatalogStats,
+    catalog: Option<DynContentCatalogStats>,
     routing: Option<Arc<dyn ContentRouting>>,
 }
 
 impl std::fmt::Debug for ContentResolver {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ContentResolver")
+            .field("catalog", &self.catalog.is_some())
             .field("routing", &self.routing.is_some())
             .finish_non_exhaustive()
     }
 }
 
 impl ContentResolver {
-    pub fn new(catalog: DynContentCatalogStats, routing: Option<Arc<dyn ContentRouting>>) -> Self {
+    pub fn new(
+        catalog: Option<DynContentCatalogStats>,
+        routing: Option<Arc<dyn ContentRouting>>,
+    ) -> Self {
         Self { catalog, routing }
     }
 
     pub async fn resolve(&self, page_url: &str, slug: Option<&str>) -> Option<ContentId> {
+        let catalog = self.catalog.as_ref()?;
         let resolved_slug;
         let slug = if let Some(slug) = slug {
             slug
@@ -59,7 +64,7 @@ impl ContentResolver {
             resolved_slug = self.routing.as_deref()?.resolve_slug(page_url)?;
             &resolved_slug
         };
-        self.catalog
+        catalog
             .content_id_by_slug(slug, &LocaleCode::english())
             .await
             .inspect_err(|e| {
@@ -93,7 +98,7 @@ impl FromState for EngagementState {
             .map(|config| -> Arc<dyn ContentRouting> { config });
         Ok(Self {
             repositories: r.get()?,
-            content: ContentResolver::new(r.get()?, routing),
+            content: ContentResolver::new(r.optional::<DynContentCatalogStats>(), routing),
         })
     }
 }

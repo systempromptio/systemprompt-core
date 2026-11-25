@@ -15,7 +15,7 @@ pub use systemprompt_extension::{
     FromState, Resolved, SchemaDefinition,
 };
 
-#[cfg(feature = "reference")]
+#[cfg(feature = "runtime")]
 pub use crate::composition::{Composition, reference};
 
 #[cfg(feature = "core")]
@@ -39,13 +39,13 @@ pub use systemprompt_runtime::{AppContext, AppContextBuilder};
 #[cfg(feature = "mcp")]
 pub use rmcp;
 
-#[cfg(feature = "reference")]
+#[cfg(feature = "loader")]
 pub use systemprompt_loader::ConfigLoader;
 
-#[cfg(feature = "reference")]
+#[cfg(feature = "logging")]
 pub use systemprompt_logging::init_logging;
 
-#[cfg(feature = "reference")]
+#[cfg(feature = "api")]
 pub use systemprompt_mcp_host::serving::{
     McpHttpConfig, SessionTimeouts, create_router as create_mcp_router,
 };

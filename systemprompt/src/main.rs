@@ -1,4 +1,5 @@
-//! The `systemprompt` binary: the CLI with every capability in `reference`.
+//! The `systemprompt` binary: the CLI over `reference()`, the kernel and every
+//! capability this build enables.
 //!
 //! The capability crates are linked through this crate's library, which
 //! re-exports each of them, so their link-time registrations are present.

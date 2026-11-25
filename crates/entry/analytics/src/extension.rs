@@ -12,14 +12,15 @@
 //! `popular` leaf attaches under `core content`.
 //!
 //! The routes read the analytics repositories the `analytics` member
-//! provides, the loaded content configuration when there is one, and the
-//! content catalog the `content` extension provides, which this extension
-//! `requires`:
+//! provides, and, when present, the loaded content configuration and the
+//! content catalog the `content` extension provides. Without the catalog
+//! (no `content` member, or `content` disabled) an event is recorded with
+//! no content id:
 //!
 //! | profile disables | analytics | engagement | CLI |
 //! |---|---|---|---|
 //! | `analytics-http` | 404 | 404 | refused at dispatch |
-//! | `content` | boot refused | boot refused | |
+//! | `content` | recorded, no content id | recorded, no content id | |
 //! | `analytics` | boot refused (required member) | | |
 //!
 //! Disabling `analytics-http` leaves request recording and the analytics jobs
@@ -69,7 +70,6 @@ mod routes {
     use systemprompt_extension::router::{
         ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec, WebBase,
     };
-    use systemprompt_traits::DynContentCatalogStats;
 
     use crate::http::{AnalyticsHttpState, EngagementState, analytics, engagement};
 
@@ -81,36 +81,35 @@ mod routes {
     const PUBLIC: RouteSpec = RouteSpec::new(AuthzPolicy::public(), ContextKind::Public, LIMITS);
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
-        c.requires::<DynContentCatalogStats>()
-            .routes(
-                RouteSet::at::<AnalyticsHttpState>(
-                    BasePath::Api(ApiBase::Analytics),
-                    RouteGroup::ContentAndMisc,
-                )
-                .route(Method::POST, "/events", analytics::record_event, ADMIN)
-                .route(
-                    Method::POST,
-                    "/events/batch",
-                    analytics::record_events_batch,
-                    ADMIN,
-                )
-                .route(Method::GET, "/stream", analytics::analytics_stream, ADMIN)
-                .build(),
+        c.routes(
+            RouteSet::at::<AnalyticsHttpState>(
+                BasePath::Api(ApiBase::Analytics),
+                RouteGroup::ContentAndMisc,
             )
-            .routes(
-                RouteSet::at::<EngagementState>(
-                    BasePath::Web(WebBase::TrackEngagement),
-                    RouteGroup::ContentAndMisc,
-                )
-                .route(Method::POST, "/", engagement::record_engagement, PUBLIC)
-                .route(
-                    Method::POST,
-                    "/batch",
-                    engagement::record_engagement_batch,
-                    PUBLIC,
-                )
-                .build(),
-            );
+            .route(Method::POST, "/events", analytics::record_event, ADMIN)
+            .route(
+                Method::POST,
+                "/events/batch",
+                analytics::record_events_batch,
+                ADMIN,
+            )
+            .route(Method::GET, "/stream", analytics::analytics_stream, ADMIN)
+            .build(),
+        )
+        .routes(
+            RouteSet::at::<EngagementState>(
+                BasePath::Web(WebBase::TrackEngagement),
+                RouteGroup::ContentAndMisc,
+            )
+            .route(Method::POST, "/", engagement::record_engagement, PUBLIC)
+            .route(
+                Method::POST,
+                "/batch",
+                engagement::record_engagement_batch,
+                PUBLIC,
+            )
+            .build(),
+        );
     }
 }
 

@@ -157,7 +157,13 @@ pub(super) async fn execute(
     host: &dyn KernelHost,
 ) -> Result<CommandOutput> {
     let secrets_file = super::secret::file_secrets_path(host)?;
-    let directory = super::super::state::get::<DynGitCredentialDirectory>(host).await?;
+    let directory = super::super::state::optional::<DynGitCredentialDirectory>(host)
+        .await?
+        .ok_or_else(|| {
+            anyhow!(
+                "this build does not link the managed_resources member (facade feature `marketplace`), which provides the Git source credential directory"
+            )
+        })?;
     let sources = directory.sources().await?;
     let output = migrate_file(
         &secrets_file,

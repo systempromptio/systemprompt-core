@@ -49,6 +49,11 @@ api = [
     "dep:systemprompt-mcp-host",
     "dep:systemprompt-oauth-issuance",
     "dep:systemprompt-gateway-entry",
+    "dep:systemprompt-users",
+    "dep:systemprompt-oauth",
+    "dep:systemprompt-scheduler",
+    "dep:systemprompt-documents",
+    "dep:systemprompt-files",
     "dep:axum",
     "systemprompt-extension?/router",
     "systemprompt-slack-entry?/http",
@@ -88,8 +93,10 @@ security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 # CLI entry point for product binaries (standalone; `reference` for the reference composition)
 cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli", "systemprompt-marketplace-entry?/cli", "systemprompt-files-entry?/cli", "systemprompt-issues?/cli", "systemprompt-mcp-entry?/cli", "systemprompt-agent-entry?/cli", "systemprompt-identity-entry?/cli"]
 
-# Runtime builder for embedding systemprompt as a library
-runtime = ["cli", "dep:systemprompt-extension"]
+# The kernel composition: the API server, the CLI and the infrastructure every
+# kernel member needs. `systemprompt::reference()`, `Composition` and the
+# `systemprompt` binary need it; each capability feature adds its members.
+runtime = ["api", "cli", "logging", "systemprompt-logging/cli", "security", "events", "config"]
 
 # Granular access to the analytics domain for consumers that need request /
 # cost metrics without pulling the whole product surface — a server-rendered
@@ -99,7 +106,7 @@ analytics = ["dep:systemprompt-analytics", "dep:systemprompt-analytics-entry"]
 # The content capability: the domain crate with its routes and commands from
 # `systemprompt-content-entry` (served when `api` / `cli` are also enabled).
 # `reference` implies it.
-content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "systemprompt-analytics-entry?/content-commands"]
+content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "dep:systemprompt-generator", "systemprompt-analytics-entry?/content-commands"]
 
 # The marketplace capability: plugins, skills and managed resources, with its
 # routes and commands from `systemprompt-marketplace-entry`. `reference` implies it.
@@ -169,27 +176,19 @@ issues = ["dep:systemprompt-issues"]
 # `reference` implies it.
 ai = ["dep:systemprompt-ai", "systemprompt-models?/mcp"]
 
-# The reference composition: every core capability, the API and the CLI. The
-# only supported compositions are those listed in scripts/build-compositions.txt;
-# Slack and Teams stay opt-in.
+# The reference composition: the kernel (`runtime`) and every core capability.
+# The only supported compositions are those listed in
+# scripts/build-compositions.txt; Slack and Teams stay opt-in.
 reference = [
-    "api",
+    "runtime",
     "mcp",
     "cloud",
-    "cli",
     "agents",
     "ai",
     "mcp-servers",
-    "dep:systemprompt-oauth",
-    "dep:systemprompt-users",
     "content",
     "analytics",
     "marketplace",
-    "dep:systemprompt-scheduler",
-    "dep:systemprompt-generator",
-    "logging",
-    "systemprompt-logging/cli",
-    "config",
     "files",
     "files-office",
     "files-pdf",
@@ -203,10 +202,8 @@ reference = [
     "identity",
     # Infrastructure crates for extension authors
     "loader",
-    "events",
     "storage",
     "client",
-    "security",
 ]
 
 [dependencies]
@@ -295,13 +292,13 @@ tracing-subscriber = { workspace = true }
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-# The in-repo `systemprompt` binary. It is the reference composition: every
-# capability in `reference` is a member of its composition. `doc = false`:
-# the library of the same name is the documented target.
+# The in-repo `systemprompt` binary: `reference()` over the features this build
+# enables, so every linked core capability is a member of its composition.
+# `doc = false`: the library of the same name is the documented target.
 [[bin]]
 name = "systemprompt"
 path = "src/main.rs"
-required-features = ["reference"]
+required-features = ["runtime"]
 doc = false
 
 [[example]]
@@ -318,7 +315,7 @@ required-features = ["api"]
 
 [[example]]
 name = "cli"
-required-features = ["reference"]
+required-features = ["runtime"]
 
 [package.metadata.cargo-machete]
 ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry"]

@@ -19,6 +19,12 @@ pub(crate) async fn get<T: Clone + Send + Sync + 'static>(host: &dyn KernelHost)
     Ok(host.resolved().await?.get::<T>()?)
 }
 
+pub(crate) async fn optional<T: Clone + Send + Sync + 'static>(
+    host: &dyn KernelHost,
+) -> Result<Option<T>> {
+    Ok(host.resolved().await?.optional::<T>())
+}
+
 pub(crate) async fn app(host: &dyn KernelHost) -> Result<Arc<AppContext>> {
     Ok(host.app_context().await?)
 }

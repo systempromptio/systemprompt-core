@@ -80,40 +80,40 @@ fn kernel_members() -> Vec<Member> {
         Member::core::<systemprompt_database::DatabaseExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "events")]
         Member::core::<systemprompt_events::EventsExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "api")]
         Member::core::<systemprompt_users::UsersExtension>(CoreTerms::REQUIRED),
         #[cfg(feature = "logging")]
         Member::core::<systemprompt_logging::LoggingExtension>(CoreTerms::REQUIRED),
         #[cfg(feature = "security")]
         Member::core::<systemprompt_governance::authz::AuthzExtension>(CoreTerms::REQUIRED),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "api")]
         Member::core::<systemprompt_oauth::OauthExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "api")]
         Member::core::<systemprompt_oauth_issuance::IdentityExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "mcp-servers")]
         Member::core::<systemprompt_mcp::McpExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "api")]
         Member::core::<systemprompt_mcp_host::McpHostExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "ai")]
         Member::core::<systemprompt_ai::AiExtension>(CoreTerms::OPTIONAL),
     ]
 }
 
 fn domain_members() -> Vec<Member> {
     vec![
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "marketplace")]
         Member::core::<systemprompt_marketplace::ManagedResourcesExtension>(CoreTerms::REQUIRED),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "agents")]
         Member::core::<systemprompt_agent::AgentExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "analytics")]
         Member::core::<systemprompt_analytics::AnalyticsExtension>(CoreTerms::REQUIRED),
         #[cfg(feature = "content")]
         Member::core::<systemprompt_content::ContentExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "api")]
         Member::core::<systemprompt_documents::extension::DocumentsExtension>(CoreTerms::REQUIRED),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "api")]
         Member::core::<systemprompt_files::FilesExtension>(CoreTerms::REQUIRED),
-        #[cfg(all(feature = "issues", feature = "reference"))]
+        #[cfg(feature = "issues")]
         Member::core::<systemprompt_issues::extension::IssuesExtension>(CoreTerms::conferred(
             CoreId::Issues,
         )),
@@ -125,14 +125,14 @@ fn domain_members() -> Vec<Member> {
         Member::core::<systemprompt_gateway::extension::GatewayExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "agent-runs")]
         Member::core::<systemprompt_agent_runs::AgentRunsExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "content")]
         Member::core::<systemprompt_generator::GeneratorExtension>(CoreTerms::OPTIONAL),
     ]
 }
 
 fn entry_members() -> Vec<Member> {
     vec![
-        #[cfg(feature = "reference")]
+        #[cfg(feature = "api")]
         Member::core::<systemprompt_scheduler::SchedulerExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "content")]
         Member::core::<systemprompt_content_entry::extension::ContentHttpExtension>(
@@ -158,11 +158,11 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_agent_runs_entry::extension::AgentRunsApiExtension>(
             CoreTerms::conferred(CoreId::AgentRunsApi),
         ),
-        #[cfg(all(feature = "mcp-servers", feature = "reference"))]
+        #[cfg(feature = "mcp-servers")]
         Member::core::<systemprompt_mcp_entry::extension::McpHttpExtension>(CoreTerms::conferred(
             CoreId::McpHttp,
         )),
-        #[cfg(all(feature = "agents", feature = "reference"))]
+        #[cfg(feature = "agents")]
         Member::core::<systemprompt_agent_entry::extension::AgentHttpExtension>(
             CoreTerms::conferred(CoreId::AgentHttp),
         ),
@@ -170,7 +170,7 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_gateway_entry::extension::GatewayHttpExtension>(
             CoreTerms::conferred(CoreId::GatewayHttp),
         ),
-        #[cfg(all(feature = "identity", feature = "reference"))]
+        #[cfg(feature = "identity")]
         Member::core::<systemprompt_identity_entry::extension::IdentityHttpExtension>(
             CoreTerms::conferred(CoreId::IdentityHttp),
         ),
