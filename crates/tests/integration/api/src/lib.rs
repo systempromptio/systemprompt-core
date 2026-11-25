@@ -457,6 +457,8 @@ mod middleware_more;
 #[cfg(test)]
 mod gateway_scanner_without_ai;
 #[cfg(test)]
+mod gateway_without_agents;
+#[cfg(test)]
 mod proxy_cli_attribution;
 #[cfg(test)]
 mod proxy_external_mcp;

@@ -180,7 +180,11 @@ async fn a_harness_that_fails_to_load_is_unavailable() {
     );
     assert_eq!(
         row.error.as_deref(),
-        Some("harness path AGENTS.md has no bytes in the bundle")
+        Some(
+            "harness revision could not be loaded: the managed revision bundle could not be \
+             loaded: the fixture source refuses every revision: the fixture source refuses \
+             every revision"
+        )
     );
 }
 
