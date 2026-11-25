@@ -56,7 +56,9 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 |-----|----------|------|----------|---------|---------|
 | `db_type` | `type` | string | yes | — | Database backend selector. PostgreSQL is the supported backend. |
 | `external_db_access` | `external_db_access` | bool | no | `false` | When `true`, the platform uses `external_database_url` from the secrets document if present (`secrets.rs:85`). |
-
+| `migrate_on_boot` | `migrate_on_boot` | bool | no | `true` | Install the schema when the node boots. A node that does not install verifies the schema instead. |
+| `schema_install_roles` | `schema_install_roles` | list of `server.role` | no | every role | The roles that install at boot when `migrate_on_boot` is true; a node whose role is not listed verifies the schema and does not migrate. Omitted, every role installs, so a single-node deployment keeps migrating on boot. |
+| `connection_budget` | `connection_budget` | u32 | no | unset | The most Postgres connections one node may hold, its hosted MCP and agent children included (1–10000). The runtime divides it between the main, write and session pools and the children's share, and refuses to boot when the pinned pool sizes exceed it. Unset, every pool keeps its own ceiling. |
 | `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `api`, `worker`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `session_max_connections` (1–500, default 10; sizes the pool `database_session_url` opens), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
 
 The connection string itself is never in `profile.yaml`; it lives in the secrets document as `database_url` (see [Secrets envelope](#secrets-envelope)).
@@ -77,6 +79,7 @@ Derived, never stated (`crates/shared/manifest/src/profile/derived.rs`): `api_se
 | `security_headers` | object | no | see below | HTTP security response headers. |
 | `instance_id` | string | no (required on `cloud` unless `HOSTNAME` is set) | `HOSTNAME`, else a random id on local targets | Stable replica identifier. Keys the service registry, event outbox origin and node-scoped scheduler runs; stamped on logs, `ai_requests`, metrics and `x-served-by`. A cloud profile that resolves to neither refuses to boot. |
 | `metrics_port` | u16 | no | unset | Serve `GET /metrics` on a second listener bound to `host:metrics_port`. Unset means no metrics endpoint. Must differ from `port`. |
+| `max_in_flight` | u32 or `null` | no | `4096` | The API's admission ceiling: concurrent requests per replica. A request that finds no free permit is refused at once with `503`, `Retry-After: 1` and `error_key: "overloaded"`; health, readiness and metrics routes are exempt. An explicit `null` is no ceiling; `0` is refused. |
 | `max_concurrent_streams` | usize | no | `256` | Global cap on concurrent A2A SSE streams for this replica (`config/mod.rs:34`). |
 | `role` | `all` \| `gateway` \| `api` \| `worker` \| `runner` | no | `all` | Which surfaces and background work the node runs; see [deploy-production.md §3.1](../guides/deploy-production.md). `admin` is not a role: a profile that names it is refused with an error naming `api` and `worker`. `api` and `worker` with `storage.backend: local` require `storage.shared: true`. |
 | `advertise_url` | string | required on `worker` | unset | Absolute `http(s)` URL peers use to reach this node (e.g. `http://${POD_IP}:8080`). A worker records it with every registry heartbeat; `api` replicas forward MCP and agent traffic to the worker that owns the process through it. |
@@ -91,6 +94,7 @@ Derived, never stated (`crates/shared/manifest/src/profile/derived.rs`): `api_se
 |-----|------|----------|---------|---------|
 | `pre_stop_delay_secs` | u64 | no | `0` | After the termination signal `/readyz` answers `503 draining` while the listener keeps accepting for this long, so endpoints can update before connections are refused. At most `600`. |
 | `drain_grace_secs` | u64 | no | `10` | How long in-flight requests and SSE streams may run once the listener stops accepting. `1`–`86400`. A gateway stream still open when it expires ends itself with a terminal error frame in its wire format ("server is shutting down; retry the request"), counted in `gateway_streams_aborted_on_shutdown_total`, and gets 2 s to flush. |
+| `longest_stream_secs` | u64 | no | `600` | The longest response stream the node permits (an LLM stream). While a stream is open the drain lasts the larger of `drain_grace_secs` and this, capped at `86400`; it ends as soon as the last request does. |
 | `child_grace_secs` | u64 | no | `5` | How long MCP and agent children get to exit after their signal. Greater than `0`. |
 | `background_grace_secs` | u64 | no | `5` | How long owned background work, including the final gateway journal settlement, gets to finish. Greater than `0`. |
 | `forced_exit_grace_secs` | u64 | no | `10` | Backstop armed after the drain; the process exits non-zero when it fires. Must exceed `child_grace_secs` and `background_grace_secs`. |
@@ -268,13 +272,16 @@ security:
 | `bridge_auth_per_second` | u64 | no | `20` | Bridge sign-in (`/v1/auth/bridge/*`), kept separate from `gateway_per_second` so a saturated gateway cannot lock users out of authenticating. |
 | `pre_auth_ip_per_second` | u64 | no | `500` | Every request, keyed by client address only and charged before any authentication runs, so forged or expired credentials are throttled before a token decode. Sized for a whole network behind one address. |
 | `burst_multiplier` | u64 | no | `3` | Burst allowance multiplier. |
+| `memory_capacity` | u64 | no | `262144` | The callers (`(user, scope)` counters) one node tracks in its per-replica windows, divided evenly over the limiter's 64 shards. `1`–`16777216`. A per-node bound, not a budget. |
 
 Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
 that identity, and an unauthenticated request by the client address resolved through
 `trusted_proxies`. Hop headers from an untrusted peer are ignored, so a caller cannot select its
-own bucket. Identity-keyed budgets are counted in the database and therefore hold across every
-replica; address-keyed throttles are per process, so their effective ceiling scales with the
-replica count. The identity-keyed window fails closed: if the database counter cannot be
+own bucket. Identity-keyed budgets are counted in the database when the users member provides its
+replica-shared windows (the reference composition does) and therefore hold across every
+replica. Address-keyed throttles, and every window of a composition without those shared
+windows, are per replica: each replica counts its own callers, so the effective limit across N
+replicas is N times the published rate. The identity-keyed window fails closed: if the database counter cannot be
 updated, an authenticated request answers `503` with `Retry-After` instead of running unmetered.
 There is no fail-open option; `disabled: true` is the only way to run without the window.
 

@@ -34,12 +34,12 @@ Facade (1)     systemprompt (re-exports with feature gates; owns the composition
 ### Installation
 
 ```toml
-# Full installation
+# The reference composition
 [dependencies]
-systemprompt = { version = "0.87", features = ["full"] }
+systemprompt = { version = "0.87", features = ["reference"] }
 
 # Selective (pick what you need; `mcp` adds `rmcp` only, the
-# `systemprompt::mcp` domain module comes with `full`)
+# `systemprompt::mcp` domain module comes with `reference`)
 systemprompt = { version = "0.87", features = ["core", "database", "mcp"] }
 ```
 

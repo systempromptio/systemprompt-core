@@ -10,7 +10,7 @@ Microsoft Teams integration for [systemprompt.io](https://systemprompt.io).
 Bot Framework activities pass token verification, identity resolution and authorization before dispatch to configured A2A agents.
 
 This crate is **fully opt-in**: it is excluded from the facade's `default` and
-`full` feature sets and only compiles under the `teams` feature.
+`reference` feature sets and only compiles under the `teams` feature.
 
 ## How Teams differs from Slack
 

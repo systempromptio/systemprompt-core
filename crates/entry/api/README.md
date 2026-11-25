@@ -78,13 +78,7 @@ src/
 systemprompt-api = "0.87"
 ```
 
-```rust
-use systemprompt_api::services::server::{run_server, setup_api_server};
-use systemprompt_runtime::AppContext;
-
-let ctx = AppContext::new().await?;
-run_server(ctx, None).await?;
-```
+A product binary does not call the server directly: `systemprompt::reference().run()` (or a `Composition` with its own members) declares every member, admits the composition against the profile and serves it through `systemprompt infra services serve`. The server reads every host value it needs as a typed kernel seed (`ctx.kernel().state().get::<T>()`) from the `AppContext` the runtime builds over the admitted composition.
 
 ## Configuration
 
@@ -101,7 +95,7 @@ The API server is configured through `systemprompt-runtime::Config` and the acti
 ## Notes
 
 - Handlers extract request data and delegate to domain services; no direct repository access.
-- All routes are composed in `services/server/routes/`; extensions are discovered via `services/server/discovery.rs`.
+- All routes are composed in `services/server/routes/` from the admitted composition: each member's `RouteSet`s are mounted after admission against the kernel's reserved paths and privileged shapes.
 - Middleware order is significant — see `services/server/builder.rs`.
 - The gateway path mints a UUID v5 `ContextId` from `GatewayConversationId`; it does not read upstream `x-context-id`.
 - Static content requires prebuilt web assets under the configured system path.

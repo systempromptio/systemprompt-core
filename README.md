@@ -57,7 +57,7 @@ The workspace publishes a `systemprompt` facade with feature-gated `systemprompt
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.87", features = ["full"] }
+systemprompt = { version = "0.87", features = ["reference"] }
 ```
 
 | Feature | Includes |
@@ -66,8 +66,10 @@ systemprompt = { version = "0.87", features = ["full"] }
 | `database` | PostgreSQL integration. |
 | `api` | HTTP server and application context. |
 | `cli` | Command-line entry point. |
-| `files-office` | Word, Excel, PowerPoint and OpenDocument codecs for the shared document store; included in `full`. |
-| `full` | Bundled runtime, domain modules and CLI, including the shared document store; the Slack and Teams modules remain opt-in. |
+| `files-office` | Word, Excel, PowerPoint and OpenDocument codecs for the shared document store; included in `reference`. |
+| `reference` | The reference composition: bundled runtime, every core capability and the CLI, including the shared document store; the Slack and Teams modules remain opt-in. |
+
+The supported compositions (`reference`, `reference` with `slack` and `teams`, `api`, `core` + `cli`, the gateway `api` + `ai`, the minimal kernel `core` + `database`, and `core`) are built in CI on every change; see [feature flags](documentation/reference/feature-flags.md). Other feature combinations are unsupported.
 
 Use YAML to configure a deployment and Rust extensions to add behavior. Your host links those extensions and delegates startup to Core; the [template entry point](https://github.com/systempromptio/systemprompt-template/blob/next/src/main.rs) is a working example.
 

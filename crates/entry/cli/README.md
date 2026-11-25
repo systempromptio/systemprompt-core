@@ -93,7 +93,7 @@ This crate is a library. The `systemprompt` binary is built by the
 links every capability's commands:
 
 ```bash
-cargo install systemprompt --features full
+cargo install systemprompt --features reference
 ```
 
 ## Dual-Mode Operation

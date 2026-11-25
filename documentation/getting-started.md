@@ -29,7 +29,7 @@ just build
 just cli
 ```
 
-`just build` runs `cargo build --workspace`; `just cli` builds the `systemprompt` binary (`cargo build -p systemprompt --bin systemprompt --features full`). The compiled binary is at `./target/debug/systemprompt`.
+`just build` runs `cargo build --workspace`; `just cli` builds the `systemprompt` binary (`cargo build -p systemprompt --bin systemprompt --features reference`). The compiled binary is at `./target/debug/systemprompt`.
 
 ## 2. Generate a profile, database, and secrets
 

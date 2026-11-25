@@ -41,7 +41,7 @@ Every format is handled through one trait, `DocumentCodec` (`systemprompt-provid
 
 Office codecs edit by rewriting only the parts they touch inside the package (for example `word/document.xml`) and copy every other entry byte for byte. Styles, formulas and unknown elements survive an edit.
 
-The `office` feature of `systemprompt-files` is exposed by the facade as `files-office` (included in `full`). Without it the HTML, Markdown and text codecs remain.
+The `office` feature of `systemprompt-files` is exposed by the facade as `files-office` (included in `reference`). Without it the HTML, Markdown and text codecs remain.
 
 ### Projections and anchors
 
@@ -255,7 +255,7 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `GET`, `POST /api/v1/document-folders`, `PATCH`, `DELETE /api/v1/document-folders/{id}` | Folders: list, create, rename, move, and set `agent_edit_policy` (`direct` or `propose`, needs `share` access); delete, with `?recursive=true` for a folder that still has content (otherwise `folder_not_empty`). |
 | `GET /api/v1/documents/{id}/live`, `POST /api/v1/documents/{id}/collab/awareness` | The document's live channel and awareness state. See [Live channel and awareness](#live-channel-and-awareness). |
 
-With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
+With the `files-collab` facade feature (part of `reference`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
 
 A write records the request's session, trace and task, the agent and OAuth client of its token, and the conversation named by an `x-context-id` header. The header must name a conversation the caller owns (or the context derived from the caller's session); an unknown id and another user's are both refused as `422 unknown_context` and nothing is written. `POST /api/v1/documents` (JSON or multipart, as a `message` part) and `POST /api/v1/documents/import` take an optional `message`, stored on the first revision. `GET /api/v1/documents/{id}/revisions` answers each revision's `context_id`, `agent_name` and `client_id`, and `context_name` when the caller owns that conversation; comment listings carry `via_agent`, `context_id`, `client_id` and the owner-only `context_name` the same way. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`.
 

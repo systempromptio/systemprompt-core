@@ -6,10 +6,10 @@ Notifications live in the `notifications` domain (`crates/domain/notifications`)
 
 ## Enabling
 
-Notifications are opt-in at build time. Enable the `notifications` feature of the `systemprompt` crate; `full` includes it and `core` does not.
+Notifications are opt-in at build time. Enable the `notifications` feature of the `systemprompt` crate; `reference` includes it and `core` does not.
 
 ```toml
-systemprompt = { version = "0.87", features = ["full"] }
+systemprompt = { version = "0.87", features = ["reference"] }
 # or, on top of a narrower set:
 systemprompt = { version = "0.87", features = ["api", "notifications"] }
 ```

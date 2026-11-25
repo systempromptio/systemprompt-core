@@ -7,12 +7,12 @@ An extension is a composition member: a type that implements `Extension` and is 
 ## Prerequisites
 
 - A Rust toolchain matching the workspace edition (Edition 2024; minimum Rust per `rust-toolchain.toml`).
-- A crate that depends on the `systemprompt` facade with the `full` feature. `Composition` and `reference()` are compiled only with `full`; a library crate that only declares a member can depend on `systemprompt-extension` (with its `router` and `cli` features for route sets and commands).
+- A crate that depends on the `systemprompt` facade with the `reference` feature. `Composition` and `reference()` are compiled only with `reference`; a library crate that only declares a member can depend on `systemprompt-extension` (with its `router` and `cli` features for route sets and commands).
 
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.87", features = ["full"] }
+systemprompt = { version = "0.87", features = ["reference"] }
 ```
 
 The complete minimal member and binary is the facade example `systemprompt/examples/extension.rs`:
@@ -128,7 +128,7 @@ fn main() -> Result<ExitCode, RunError> {
 ```
 
 ```bash
-cargo run -p systemprompt --example extension --features full -- demo status
+cargo run -p systemprompt --example extension --features reference -- demo status
 ```
 
 ## The `Extension` trait

@@ -10,10 +10,10 @@ This page is the reference: what to declare, what each knob does, what every sur
 
 The brain is opt-in twice: at build time and in the profile.
 
-Enable the `brain` feature of the `systemprompt` crate. `full` includes it and `core` does not. The feature implies `notifications`.
+Enable the `brain` feature of the `systemprompt` crate. `reference` includes it and `core` does not. The feature implies `notifications`.
 
 ```toml
-systemprompt = { version = "0.87", features = ["full"] }
+systemprompt = { version = "0.87", features = ["reference"] }
 # or, on top of a narrower set:
 systemprompt = { version = "0.87", features = ["api", "brain"] }
 ```

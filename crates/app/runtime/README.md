@@ -24,7 +24,7 @@ This crate:
 
 | Module | Purpose |
 |--------|---------|
-| `context` | `AppContext` and its planes (`DataPlane`, `ConfigPlane`, `Plugins`, `Subsystems`), plus the GeoIP and content-config loaders |
+| `context` | `AppContext` (the resolved `Kernel` and the `Admitted` composition) and the `ContextPlanes` (`DataPlane`, `ConfigPlane`, `Subsystems`) the context seals into the kernel state, plus the GeoIP and content-config loaders |
 | `builder` | `AppContextBuilder::new(boot, admitted)` construction (`with_authz_hook`, `with_services`, …), plane assembly and kernel state seeding (`KernelSeed`, `kernel_state`) |
 | `kernel`, `host_kernel` | `Kernel` resolution of the admitted members' provided state and slots (`KernelError`), and `HostKernel`, the host boot path |
 | `startup_validation` | `StartupValidator` across files, rate limits, web/content config, agents, MCP servers, AI providers, and extensions |
@@ -32,7 +32,7 @@ This crate:
 | `validation` | Runtime prerequisite checks (`validate_system`, `validate_database_path`) |
 | `error` | `RuntimeError` / `RuntimeResult`, the typed error model for construction and validation |
 
-`AppContext` is assembled either through `AppContextBuilder` (the bootstrap path: the `BootContext`, database init, the admitted composition, optional GeoIP and content config, tracing with database persistence) or directly through `AppContext::from_parts(data, cfg, plugins, subsystems)` for tests and embedders that own plane construction.
+`AppContext` is assembled through its `builder(boot, admitted)` or `new(boot, admitted)` constructor (the bootstrap path: the `BootContext`, database init, the admitted composition, optional GeoIP and content config, tracing with database persistence), or from a resolved `Kernel` and its `ContextPlanes` with `from_parts` for tests and embedders that assemble them. Its public surface is those three constructors plus `kernel()` and `admitted()`: every host value (configuration, pool, paths, signing keys, the service registry, the shutdown request and the rest) is a typed kernel seed read with `ctx.kernel().state().get::<T>()`; a missing seed is `RuntimeError::Missing`, and the values the context builds are sealed, so no member route or command resolves them.
 
 ## Usage
 

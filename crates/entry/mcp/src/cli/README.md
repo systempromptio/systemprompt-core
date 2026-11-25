@@ -11,7 +11,7 @@ No command here starts, stops, restarts or signals an MCP server: `status` and `
 ```bash
 export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
-cargo build --package systemprompt --features full,cli
+cargo build --package systemprompt --features reference
 
 alias sp="./target/debug/systemprompt --non-interactive"
 ```

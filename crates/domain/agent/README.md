@@ -198,7 +198,7 @@ pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 
 ## Features
 
-The crate is feature-flag-free; functionality is unconditional. The facade crate `systemprompt` gates inclusion via its `full` feature (there is no standalone `agent` feature).
+The crate is feature-flag-free; functionality is unconditional. The facade crate `systemprompt` gates inclusion via its `reference` feature (there is no standalone `agent` feature).
 
 ## License
 
