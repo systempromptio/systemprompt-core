@@ -36,20 +36,6 @@
 //! | `ai` | `systemprompt-ai` | Provider dispatch, model routing and tool execution. In `reference`. |
 //! | `reference` | `api`, `mcp`, `ai`, `cloud`, `cli`, `identity`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `agent-runs`, `notifications`, `brain`, `issues`), `files-office`, `files-pdf`, `files-collab-loro`, `otel` and `bridge` | The reference composition: building a product binary, and the composition of this crate's own `systemprompt` binary. The `slack` and `teams` modules stay opt-in. |
 //!
-//! ```toml
-//! systemprompt = { version = "0.87.0", features = ["reference"] }
-//! ```
-//!
-//! # Supported compositions
-//!
-//! A feature set is supported when it is listed in
-//! `scripts/build-compositions.txt` of the source repository; CI builds every
-//! listed composition and boots the ones that link the CLI. They are:
-//! `reference`; `reference` with `slack` and `teams`; `api` alone; `cli`
-//! alone; the gateway alone (`api`, `ai`); and the minimal kernel (`core`,
-//! `database`). Every other combination of features compiles on a best-effort
-//! basis and is unsupported.
-//!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
 //! `systemprompt::agent`, …) gated on its feature, with three exceptions:
 //! `systemprompt-runtime` is `systemprompt::system`, `systemprompt::cli`

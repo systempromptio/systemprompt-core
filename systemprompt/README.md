@@ -35,7 +35,7 @@ fn main() -> Result<ExitCode, RunError> {
 | `slack` | `systemprompt::slack` module (not in `reference`; `api` compiles the crate regardless) |
 | `teams` | `systemprompt::teams` module (not in `reference`; `api` compiles the crate regardless) |
 
-Supported compositions are `reference`, `reference` with `slack` and `teams`, `api` alone, `cli` alone, the gateway alone (`api`, `ai`) and the minimal kernel (`core`, `database`); CI builds each one. Any other feature combination is unsupported.
+Supported compositions are `reference`, `reference` with `slack` and `teams`, `api` alone, `cli` alone, the gateway alone (`api`, `ai`) the minimal kernel (`core`, `database`) and `core` alone for extension authoring; CI builds each one. Any other feature combination is unsupported.
 
 The per-feature matrix, including the finer-grained flags (`config`, `mcp`, `events`, `security`, `runtime`, `content`, `analytics`, `notifications`, `brain`, and the rest), is on the [docs.rs crate root](https://docs.rs/systemprompt).
 
