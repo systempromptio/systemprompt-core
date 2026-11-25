@@ -25,7 +25,6 @@ use systemprompt_agent::services::a2a_server::streaming::StreamFrame;
 pub use server::Server;
 pub use standalone::run_standalone;
 
-#[must_use]
 pub fn sse_event(frame: StreamFrame) -> Event {
     Event::default().data(frame.into_data())
 }

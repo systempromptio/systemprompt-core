@@ -20,7 +20,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_extension::bridge_catalog::{
     BridgeCatalogError, BridgeCatalogSource, CatalogFreshness, CatalogScope,
-    DynResolvedBridgeCatalog, IssuedConsumerCredential, ManifestEntries, ResolvedBridgeCatalog,
+    DynResolvedBridgeCatalog, IssuedConsumerCredential, ManifestEntries, PluginFile,
+    ResolvedBridgeCatalog,
 };
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, PluginId, UserId};
 use systemprompt_models::bridge::manifest::PluginEntry;
@@ -206,9 +207,13 @@ impl ResolvedBridgeCatalog for ResolvedCatalog {
         (*self.candidate).clone().into_manifest_parts().0
     }
 
-    fn plugin_file(&self, plugin: &PluginId, path: &str) -> Option<Option<&[u8]>> {
-        let bundle = self.bundles.get(plugin)?;
-        Some(bundle.get(path).map(|file| file.bytes.as_slice()))
+    fn plugin_file(&self, plugin: &PluginId, path: &str) -> PluginFile<'_> {
+        let Some(bundle) = self.bundles.get(plugin) else {
+            return PluginFile::NoPlugin;
+        };
+        bundle
+            .get(path)
+            .map_or(PluginFile::NoFile, |file| PluginFile::Bytes(&file.bytes))
     }
 
     fn pack_plugin(&self, plugin: &PluginId) -> Option<Result<Vec<u8>, BridgeCatalogError>> {

@@ -16,7 +16,9 @@ use axum::body::Body;
 use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
-use systemprompt_extension::bridge_catalog::{CatalogFreshness, DynResolvedBridgeCatalog};
+use systemprompt_extension::bridge_catalog::{
+    CatalogFreshness, DynResolvedBridgeCatalog, PluginFile,
+};
 use systemprompt_identifiers::{PluginId, UserId};
 
 use super::error::{BridgeError, authenticate_bridge};
@@ -52,10 +54,11 @@ pub async fn handle(
 
     let resolved = resolve_entitled(&state, &user.id, &id).await?;
 
-    let file = resolved
-        .plugin_file(&id, relative_path.as_str())
-        .ok_or(BridgeError::PluginNotFound)?
-        .ok_or(BridgeError::FileNotFound)?;
+    let file = match resolved.plugin_file(&id, relative_path.as_str()) {
+        PluginFile::Bytes(bytes) => bytes,
+        PluginFile::NoPlugin => return Err(BridgeError::PluginNotFound.into()),
+        PluginFile::NoFile => return Err(BridgeError::FileNotFound.into()),
+    };
 
     let mut response = Response::new(Body::from(file.to_vec()));
     response.headers_mut().insert(

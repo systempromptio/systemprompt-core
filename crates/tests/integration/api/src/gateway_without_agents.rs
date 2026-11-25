@@ -52,7 +52,9 @@ fn repositories(
             &ctx.kernel().resolved(),
             &host_handles(ctx)?,
             ctx.kernel().resolved().optional::<DynContextMaterializer>(),
-            ctx.kernel().state().get::<systemprompt_database::DbPool>()?,
+            ctx.kernel()
+                .state()
+                .get::<systemprompt_database::DbPool>()?,
         )?,
     )
 }
@@ -82,7 +84,10 @@ async fn without_the_agent_member_the_gateway_boots_and_serves() -> anyhow::Resu
     let ctx =
         fixture_app_context_with_extensions(fixture_config(&boot.database_url), admitted).await?;
     assert!(
-        ctx.kernel().state().find::<DynContextMaterializer>().is_none(),
+        ctx.kernel()
+            .state()
+            .find::<DynContextMaterializer>()
+            .is_none(),
         "no member provides a context materializer without the agent member"
     );
     assert!(
@@ -115,7 +120,10 @@ async fn with_the_agent_member_the_gateway_reads_its_context_materializer() -> a
         fixture_app_context_with_extensions(fixture_config(&boot.database_url), fixture_admitted())
             .await?;
     assert!(
-        ctx.kernel().state().find::<DynContextMaterializer>().is_some(),
+        ctx.kernel()
+            .state()
+            .find::<DynContextMaterializer>()
+            .is_some(),
         "the agent member provides the context materializer"
     );
     assert!(

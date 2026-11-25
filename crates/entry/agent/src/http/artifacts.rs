@@ -139,7 +139,7 @@ pub async fn get_artifact_ui(
 
     let renderer = state.renderers.as_ref().ok_or(ArtifactUiError::Renderers)?;
     let ui_resource = match renderer.render(&artifact) {
-        Ok(rendered) => rendered,
+        Ok(ui) => ui,
         Err(RenderError::Unsupported { artifact_type }) => {
             tracing::warn!(artifact_type = %artifact_type, "No UI renderer for artifact type");
             return Err(ApiHttpError::bad_request(format!(

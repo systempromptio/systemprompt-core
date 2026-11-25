@@ -84,6 +84,14 @@ impl std::fmt::Debug for IssuedConsumerCredential {
     }
 }
 
+/// A plugin file of a resolved catalogue, or which half of the lookup missed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PluginFile<'a> {
+    NoPlugin,
+    NoFile,
+    Bytes(&'a [u8]),
+}
+
 /// One user's resolved catalogue.
 pub trait ResolvedBridgeCatalog: Send + Sync {
     fn plugins(&self) -> &[PluginEntry];
@@ -92,7 +100,7 @@ pub trait ResolvedBridgeCatalog: Send + Sync {
 
     fn manifest_entries(&self) -> ManifestEntries;
 
-    fn plugin_file(&self, plugin: &PluginId, path: &str) -> Option<Option<&[u8]>>;
+    fn plugin_file(&self, plugin: &PluginId, path: &str) -> PluginFile<'_>;
 
     fn pack_plugin(&self, plugin: &PluginId) -> Option<Result<Vec<u8>, BridgeCatalogError>>;
 }

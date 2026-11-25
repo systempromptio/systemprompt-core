@@ -112,6 +112,22 @@ pub fn credential_request(
     }
 }
 
+/// The signing authority a runner mints run credentials with, and the
+/// revision source it installs harnesses from when one is provided.
+#[derive(Clone)]
+pub struct A2aRunnerSources {
+    pub signing_keys: SigningKeys,
+    pub harness: Option<DynRevisionBundleSource>,
+}
+
+impl std::fmt::Debug for A2aRunnerSources {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("A2aRunnerSources")
+            .field("harness", &self.harness.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Clone)]
 pub struct A2aRunnerService {
     handler: Arc<A2aRunHandler>,
@@ -134,9 +150,12 @@ impl A2aRunnerService {
         oauth: &OAuthRepositories,
         config: &Arc<Config>,
         paths: &AppPaths,
-        signing_keys: SigningKeys,
-        harness: Option<DynRevisionBundleSource>,
+        sources: A2aRunnerSources,
     ) -> Self {
+        let A2aRunnerSources {
+            signing_keys,
+            harness,
+        } = sources;
         let runner = A2aRunnerConfig::new(
             &config.api_internal_url,
             &config.jwt_issuer,
