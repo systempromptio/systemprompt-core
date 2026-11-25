@@ -14,7 +14,8 @@ use super::{DeclaredMember, Standing};
 
 pub(super) fn check_providers(
     enabled: &[DeclaredMember],
-    dropped: &[DeclaredMember],
+    disabled: &[DeclaredMember],
+    held_back: &[(&DeclaredMember, &ExtensionId)],
 ) -> Result<(), CompositionError> {
     let mut providers: HashMap<TypeId, ValueSource<'_>> = HashMap::new();
     for member in enabled {
@@ -64,18 +65,21 @@ pub(super) fn check_providers(
                 },
                 Some(_) => {},
                 None => {
-                    if let Some(provider) = dropped.iter().find(|other| {
-                        other.sink.provides().iter().any(|p| p.type_id() == ty)
-                            || other
-                                .sink
-                                .slots()
-                                .iter()
-                                .any(|slot| slot.built().type_id() == ty)
-                    }) {
+                    if let Some(provider) = disabled.iter().find(|other| builds(other, ty)) {
                         return Err(CompositionError::DisabledDependency {
                             owner: member.id.clone(),
                             ty: requirement.type_name(),
                             provider: provider.id.clone(),
+                        });
+                    }
+                    if let Some((provider, dependency)) =
+                        held_back.iter().find(|(other, _)| builds(other, ty))
+                    {
+                        return Err(CompositionError::WithheldDependency {
+                            owner: member.id.clone(),
+                            ty: requirement.type_name(),
+                            provider: provider.id.clone(),
+                            dependency: (*dependency).clone(),
                         });
                     }
                 },
@@ -83,6 +87,15 @@ pub(super) fn check_providers(
         }
     }
     Ok(())
+}
+
+fn builds(member: &DeclaredMember, ty: TypeId) -> bool {
+    member.sink.provides().iter().any(|p| p.type_id() == ty)
+        || member
+            .sink
+            .slots()
+            .iter()
+            .any(|slot| slot.built().type_id() == ty)
 }
 
 #[derive(Clone, Copy)]

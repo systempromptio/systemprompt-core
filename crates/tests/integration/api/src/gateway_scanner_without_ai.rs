@@ -35,9 +35,10 @@ fn without_ai() -> Vec<ExtensionId> {
     let mut disabled = vec![ExtensionId::new("ai")];
     loop {
         match admit(&disabled) {
-            Err(CompositionError::DisabledDependency { owner, .. })
-                if !disabled.contains(&owner) =>
-            {
+            Err(
+                CompositionError::DisabledDependency { owner, .. }
+                | CompositionError::WithheldDependency { owner, .. },
+            ) if !disabled.contains(&owner) => {
                 disabled.push(owner);
             },
             Err(error) => panic!("admission without ai: {error}"),

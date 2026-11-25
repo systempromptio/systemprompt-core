@@ -162,7 +162,7 @@ async fn disabling_brain_while_its_routes_stay_enabled_is_refused_at_boot() -> R
         Err(error) => format!("{error:#}"),
     };
     assert!(
-        message.contains("its core provider brain is disabled"),
+        message.contains("its provider brain is disabled"),
         "{message}"
     );
     Ok(())

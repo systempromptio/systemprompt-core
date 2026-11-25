@@ -352,9 +352,10 @@ fn content_and_its_dependants_except_the_routes() -> Vec<ExtensionId> {
             .map(systemprompt_manifest::DisabledExtension::literal)
             .collect();
         match systemprompt::reference().build(&profile) {
-            Err(CompositionError::DisabledDependency { owner, .. })
-                if owner.as_str() != ANALYTICS_HTTP_EXTENSION =>
-            {
+            Err(
+                CompositionError::DisabledDependency { owner, .. }
+                | CompositionError::WithheldDependency { owner, .. },
+            ) if owner.as_str() != ANALYTICS_HTTP_EXTENSION => {
                 disabled.push(owner);
             },
             _ => return disabled,
@@ -370,7 +371,7 @@ async fn disabling_content_while_the_routes_stay_enabled_refuses_boot() -> anyho
     let rendered = format!("{error:#}");
     assert!(
         rendered.contains(&format!("{ANALYTICS_HTTP_EXTENSION} requires"))
-            && rendered.contains("its core provider content is disabled"),
+            && rendered.contains("its provider content is disabled"),
         "{rendered}"
     );
     Ok(())

@@ -254,7 +254,7 @@ async fn disabling_content_while_its_routes_stay_enabled_is_refused_at_boot() ->
         Err(error) => format!("{error:#}"),
     };
     assert!(
-        message.contains("its core provider content is disabled"),
+        message.contains("its provider content is disabled"),
         "{message}"
     );
     Ok(())

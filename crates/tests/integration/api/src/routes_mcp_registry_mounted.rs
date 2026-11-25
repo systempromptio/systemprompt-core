@@ -106,7 +106,7 @@ async fn disabling_mcp_while_the_registry_stays_enabled_is_refused_at_boot() -> 
         Err(error) => format!("{error:#}"),
     };
     assert!(
-        message.contains("its core provider mcp is disabled"),
+        message.contains("its provider mcp is disabled"),
         "{message}"
     );
     Ok(())
