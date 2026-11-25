@@ -110,3 +110,19 @@ impl ChannelError {
         !matches!(self, Self::Encode(_))
     }
 }
+
+/// Why a notification inbox call was refused or failed, classified for the
+/// surface that answers the caller; the cause is kept as the source.
+#[derive(Debug, thiserror::Error)]
+pub enum InboxError {
+    #[error("the notification inbox is not available on this server")]
+    Unavailable,
+    #[error(transparent)]
+    NotFound(BoxedSource),
+    #[error(transparent)]
+    Forbidden(BoxedSource),
+    #[error(transparent)]
+    InvalidParams(BoxedSource),
+    #[error("the notification inbox failed")]
+    Failed(#[source] BoxedSource),
+}

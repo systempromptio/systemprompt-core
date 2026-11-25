@@ -4,7 +4,9 @@
 //!
 //! It provides the producer sink (`DynNotificationSink`, the outbox sink over
 //! the write pool, stamped with the kernel's instance id) that members
-//! emitting notifications require. The service and the consumer are
+//! emitting notifications require, and, after the slot is built, the
+//! `DynNotificationInbox` other capabilities' surfaces work a user's feed
+//! through. The service and the consumer are
 //! assembled over the built
 //! [`NotificationSeams`](crate::contract::NotificationSeams) when the kernel
 //! builds the [`NotificationsSlot`], which creates their cells, binds them and
@@ -25,7 +27,9 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_extension::{DiagnosticProbe, DynNotificationSink, MetricDescriptor, MetricKind};
+use systemprompt_extension::{
+    DiagnosticProbe, DynNotificationInbox, DynNotificationSink, MetricDescriptor, MetricKind,
+};
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::RunnerService;
 
@@ -35,7 +39,7 @@ use crate::jobs::NotificationRetentionJob;
 use crate::pipeline::metrics::{BACKLOG_OLDEST_SECONDS, BACKLOG_PENDING};
 use crate::plane::NotificationsPlane;
 use crate::schema::NOTIFICATION_SCHEMAS;
-use crate::service::NotificationsServiceSlot;
+use crate::service::{NotificationsServiceSlot, SlotInbox};
 use crate::sink::OutboxNotificationSink;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -65,6 +69,12 @@ impl Extension for NotificationsExtension {
                     let db = r.get::<DbPool>()?;
                     let instance = r.get::<InstanceId>()?;
                     Ok(OutboxNotificationSink::over_write_pool(&db, &instance))
+                },
+            )
+            .provide_after_governance(
+                |r: &Resolved<'_>| -> Result<DynNotificationInbox, ProvideError> {
+                    let slot = r.get::<Arc<NotificationsServiceSlot>>()?;
+                    Ok(Arc::new(SlotInbox(slot)))
                 },
             )
             .runner_service(

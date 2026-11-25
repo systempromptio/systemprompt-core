@@ -10421,7 +10421,6 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-manifest",
  "systemprompt-models",
- "systemprompt-notifications",
  "systemprompt-oauth-issuance",
  "systemprompt-provider-contracts",
  "systemprompt-traits",

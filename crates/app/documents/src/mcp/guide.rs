@@ -22,10 +22,6 @@ use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
 use crate::refusal::RefusalCode;
 
-#[cfg(feature = "notifications")]
-const INBOX_TOPIC: &str = "inbox and ";
-#[cfg(not(feature = "notifications"))]
-const INBOX_TOPIC: &str = "and ";
 
 fn formats(tools: &DocumentsMcpTools) -> String {
     let service = tools.service();
@@ -61,16 +57,20 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
         "model" => model_topic(),
         "uploads" => UPLOADS.to_owned(),
         "agents" => AGENTS.to_owned(),
-        #[cfg(feature = "notifications")]
-        "inbox" => super::guide_topics::INBOX.to_owned(),
+        "inbox" if tools.notifications().is_some() => super::guide_topics::INBOX.to_owned(),
         other => RefusalCode::ALL
             .iter()
             .find(|code| other.strip_prefix("refusal.") == Some(code.as_str()))
             .map_or_else(
                 || {
+                    let inbox_topic = if tools.notifications().is_some() {
+                        "inbox and "
+                    } else {
+                        "and "
+                    };
                     format!(
                         "unknown topic; topics are editing, model, formats, uploads, sheets, \
-                         slides, sharing, comments, lifecycle, proposals, agents, {INBOX_TOPIC}\
+                         slides, sharing, comments, lifecycle, proposals, agents, {inbox_topic}\
                          refusal.<code> for {}",
                         RefusalCode::ALL.map(RefusalCode::as_str).join(", ")
                     )

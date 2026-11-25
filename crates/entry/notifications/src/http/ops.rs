@@ -14,7 +14,8 @@ use systemprompt_models::notifications::{
     Attention, Escalate, MarkRead, MarkSeen, Notification, NotificationPage, StreamDecl,
     SubscriptionDecl,
 };
-use systemprompt_notifications::service::{FeedQuery, NotificationsService, SubscriptionView};
+use systemprompt_models::notifications::FeedQuery;
+use systemprompt_notifications::service::{NotificationsService, SubscriptionView};
 
 use super::NotificationsHttpError;
 

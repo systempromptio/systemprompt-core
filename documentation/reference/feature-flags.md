@@ -62,7 +62,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `files-pdf` | `dep:systemprompt-files`, `systemprompt-files/pdf` |
 | `files-collab` | `dep:systemprompt-files`, `systemprompt-files/collab`, `dep:systemprompt-documents`, `systemprompt-documents/collab`, `dep:systemprompt-files-entry`, `systemprompt-files-entry/collab` |
 | `files-collab-loro` | `files-collab`, `systemprompt-documents/engine-loro` |
-| `notifications` | `dep:systemprompt-notifications`, `dep:systemprompt-notifications-entry`, `systemprompt-documents?/notifications` |
+| `notifications` | `dep:systemprompt-notifications`, `dep:systemprompt-notifications-entry` |
 | `brain` | `dep:systemprompt-brain`, `dep:systemprompt-brain-entry`, `notifications` |
 | `issues` | `dep:systemprompt-issues` |
 | `ai` | `dep:systemprompt-ai`, `systemprompt-models?/mcp` |

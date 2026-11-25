@@ -161,8 +161,8 @@ pub use health::{
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
 pub use notifications::{
-    ChannelError, Membership, NotificationAudienceError, NotificationAudienceResolver,
-    NotificationChannel, NotificationRouter, NotificationRouterError, NotificationSinkError,
+    ChannelError, DynNotificationInbox, InboxError, Membership, NotificationAudienceError,
+    NotificationAudienceResolver, NotificationChannel, NotificationInbox, NotificationRouter, NotificationRouterError, NotificationSinkError,
     PublishPolicy, PublishPolicyError, PublishVerdict, ResourceVisibility, Visibility,
     VisibilityError,
 };

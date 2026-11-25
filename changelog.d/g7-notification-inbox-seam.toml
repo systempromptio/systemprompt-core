@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Notifications"
+text = "The documents MCP server reaches a user's notification feed through the `NotificationInbox` seam (`systemprompt_extension::{NotificationInbox, DynNotificationInbox, InboxError}`) that the `notifications` member provides, so `documents_inbox` is offered whenever that member is admitted and `systemprompt-documents` has no `notifications` feature. `FeedQuery` and `MarkReadOutcome` move to `systemprompt_models::notifications`. Migrate by importing them from there and passing a `DynNotificationInbox` to `DocumentsMcpConfig::notifications`."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Breaking"
+text = "The `notifications` feature is removed; `DocumentsMcpConfig::notifications` is `Option<DynNotificationInbox>`, `DocumentsMcpTools::notifications` returns `Option<&dyn NotificationInbox>`, `TOOL_NAMES` always lists `documents_inbox`, and `DocumentsMcpTools::instructions` returns `INBOX_INSTRUCTIONS` while an inbox is present, else `INSTRUCTIONS`."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Breaking"
+text = "`FeedQuery` and `MarkReadOutcome` move to `systemprompt_models::notifications`. `NotificationsService` implements `NotificationInbox`, and the extension provides `DynNotificationInbox` (`SlotInbox`) after the notifications slot is built."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`NotificationInbox`, `DynNotificationInbox` and `InboxError`: a user's notification feed as another capability's surface works it."

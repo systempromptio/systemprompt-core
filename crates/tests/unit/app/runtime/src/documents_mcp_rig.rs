@@ -5,6 +5,7 @@ use systemprompt_database::DbPool;
 use systemprompt_documents::DocumentsRuntime;
 use systemprompt_documents::mcp::{DocumentsMcpConfig, DocumentsMcpTools, refusal_code};
 use systemprompt_documents::refusal::RefusalCode;
+use systemprompt_extension::DynNotificationInbox;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_traits::FileStorage;
@@ -32,7 +33,7 @@ pub(crate) async fn rig(with_uploads: bool) -> Rig {
         systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &runtime);
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
-        notifications: Some(Arc::clone(&notifications)),
+        notifications: Some(Arc::clone(&notifications) as DynNotificationInbox),
         uploads: with_uploads.then(|| Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
         links: crate::link_rig::in_process_links(

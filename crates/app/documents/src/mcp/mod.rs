@@ -30,7 +30,6 @@ mod guide_refusals;
 mod guide_topics;
 mod hosted;
 mod import;
-#[cfg(feature = "notifications")]
 mod inbox;
 mod inputs;
 mod lifecycle;
@@ -53,6 +52,7 @@ mod write;
 
 use std::sync::Arc;
 use systemprompt_extension::mcp::{ToolExecution, VerifiedCaller};
+use systemprompt_extension::{DynNotificationInbox, NotificationInbox};
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
@@ -61,15 +61,13 @@ use systemprompt_files::documents::{DocumentService, DocumentsHandles};
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::{JwtToken, McpServerId};
 use systemprompt_models::mcp::ClientProfile;
-#[cfg(feature = "notifications")]
-use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::DynContextDirectory;
 use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
-pub use catalog::{INSTRUCTIONS, TOOL_NAMES};
+pub use catalog::{INBOX_INSTRUCTIONS, INSTRUCTIONS, TOOL_NAMES};
 pub use comment::CommentHandler;
 pub use create::{CreateHandler, create_content};
 pub use export::ExportHandler;
@@ -77,7 +75,6 @@ pub use folders::FolderHandler;
 pub use guide::GuideHandler;
 pub use hosted::DocumentsMcpError;
 pub use import::ImportHandler;
-#[cfg(feature = "notifications")]
 pub use inbox::{InboxAction, InboxHandler, InboxInput, InboxOutput};
 pub use inputs::{
     AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
@@ -114,8 +111,7 @@ pub struct DocumentsMcpUsers(pub(crate) Arc<UserRepository>);
 #[derive(Clone)]
 pub struct DocumentsMcpConfig {
     pub service: Arc<DocumentService>,
-    #[cfg(feature = "notifications")]
-    pub notifications: Option<Arc<NotificationsService>>,
+    pub notifications: Option<DynNotificationInbox>,
     pub uploads: Option<Arc<UploadService>>,
     pub users: Arc<UserRepository>,
     pub links: Arc<dyn LinkIssuer>,
@@ -137,8 +133,7 @@ pub struct DocumentsToolCall<'a> {
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
-    #[cfg(feature = "notifications")]
-    notifications: Option<Arc<NotificationsService>>,
+    notifications: Option<DynNotificationInbox>,
     uploads: Option<Arc<UploadService>>,
     users: Arc<UserRepository>,
     links: Arc<dyn LinkIssuer>,
@@ -167,7 +162,6 @@ impl DocumentsMcpTools {
     pub fn new(config: DocumentsMcpConfig) -> Self {
         Self {
             service: config.service,
-            #[cfg(feature = "notifications")]
             notifications: config.notifications,
             uploads: config.uploads,
             users: config.users,
@@ -186,10 +180,7 @@ impl DocumentsMcpTools {
     ) -> Option<Self> {
         Some(Self::new(DocumentsMcpConfig {
             service: Arc::clone(handles.service.as_ref()?),
-            #[cfg(feature = "notifications")]
-            notifications: extension_state
-                .find::<Arc<NotificationsServiceSlot>>()
-                .and_then(|slot| slot.get().cloned()),
+            notifications: extension_state.find::<DynNotificationInbox>().cloned(),
             uploads: Some(Arc::clone(&handles.uploads)),
             users: Arc::clone(&extension_state.find::<Arc<DocumentsMcpUsers>>()?.0),
             links,
@@ -203,10 +194,18 @@ impl DocumentsMcpTools {
         &self.service
     }
 
-    #[cfg(feature = "notifications")]
     #[must_use]
-    pub fn notifications(&self) -> Option<&NotificationsService> {
+    pub fn notifications(&self) -> Option<&dyn NotificationInbox> {
         self.notifications.as_deref()
+    }
+
+    #[must_use]
+    pub fn instructions(&self) -> &'static str {
+        if self.notifications.is_some() {
+            INBOX_INSTRUCTIONS
+        } else {
+            INSTRUCTIONS
+        }
     }
 
     #[must_use]

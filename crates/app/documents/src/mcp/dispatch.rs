@@ -7,13 +7,11 @@
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolResult;
 
-#[cfg(feature = "notifications")]
-use super::InboxHandler;
 use super::support::run;
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools,
     DocumentsToolCall, EditHandler, ExportHandler, FolderHandler, GuideHandler, HistoryHandler,
-    ImportHandler, ListHandler, PeopleHandler, ProposalsHandler, ReadHandler, SearchHandler,
+    ImportHandler, InboxHandler, ListHandler, PeopleHandler, ProposalsHandler, ReadHandler, SearchHandler,
     ShareHandler, TOOL_NAMES, TrashHandler, UntrashHandler, UpdateHandler, UploadHandler,
 };
 
@@ -61,7 +59,6 @@ impl DocumentsMcpTools {
             "documents_import" => Box::pin(run(call, &ImportHandler { tools: self })).await,
             "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
             "documents_people" => Box::pin(run(call, &PeopleHandler { tools: self })).await,
-            #[cfg(feature = "notifications")]
             "documents_inbox" if self.notifications.is_some() => {
                 Box::pin(run(call, &InboxHandler { tools: self })).await
             },

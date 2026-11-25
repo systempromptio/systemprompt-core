@@ -12,6 +12,7 @@ use systemprompt_documents::mcp::{
     DocumentsMcpConfig, DocumentsMcpTools, ReadHandler, refusal_result,
 };
 use systemprompt_documents::views::{NodeRange, ReadInput, ReadView};
+use systemprompt_extension::DynNotificationInbox;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_files_entry::http::documents::{DocumentsState, router};
 use systemprompt_identifiers::{
@@ -46,7 +47,7 @@ fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
             .service
             .clone()
             .expect("the document store is enabled"),
-        notifications: Some(systemprompt_test_fixtures::notifications_service(ctx)),
+        notifications: Some(systemprompt_test_fixtures::notifications_service(ctx) as DynNotificationInbox),
         uploads: Some(Arc::clone(
             &systemprompt_test_fixtures::documents_handles(ctx).uploads,
         )),

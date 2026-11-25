@@ -3,7 +3,7 @@ use systemprompt_identifiers::DocumentId;
 use systemprompt_models::notifications::{
     Attention, AttentionReason, DeliveryState, MarkRead, NOTIFICATIONS_CONSUMER, SURFACE_API,
 };
-use systemprompt_notifications::service::FeedQuery;
+use systemprompt_models::notifications::FeedQuery;
 
 use crate::harness::{Harness, mention};
 

@@ -113,3 +113,31 @@ pub struct Escalate {
     #[serde(default)]
     pub note: Option<String>,
 }
+
+/// A feed page request: newest first, after `since` when given.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FeedQuery {
+    pub since: Option<KeysetCursor>,
+    pub limit: u32,
+    pub attention: Option<Attention>,
+    pub unread_only: bool,
+}
+
+impl Default for FeedQuery {
+    fn default() -> Self {
+        Self {
+            since: None,
+            limit: 50,
+            attention: None,
+            unread_only: false,
+        }
+    }
+}
+
+/// The ids a mark-read changed and the caller's unread count after it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarkReadOutcome {
+    pub ids: Vec<NotificationId>,
+    pub unread: i64,
+}

@@ -2,7 +2,7 @@ use chrono::Utc;
 use systemprompt_identifiers::{DocumentId, NotificationId, UserId};
 use systemprompt_models::notifications::{ActionPrompt, NotificationKind};
 use systemprompt_notifications::repository::UNREAD_CAP;
-use systemprompt_notifications::service::FeedQuery;
+use systemprompt_models::notifications::FeedQuery;
 
 use crate::harness::{Harness, mention};
 

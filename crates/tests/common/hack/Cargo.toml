@@ -105,7 +105,7 @@ systemprompt-agent-entry = { path = "../../../entry/agent", features = ["cli", "
 systemprompt-analytics = { path = "../../../domain/analytics", features = ["geolocation"] }
 systemprompt-analytics-entry = { path = "../../../entry/analytics", features = ["cli", "content-commands", "http"] }
 systemprompt-cloud-entry = { path = "../../../entry/cloud", features = ["cli", "http"] }
-systemprompt-documents = { path = "../../../app/documents", features = ["engine-loro", "http", "notifications"] }
+systemprompt-documents = { path = "../../../app/documents", features = ["engine-loro", "http"] }
 systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["cli", "mcp", "router", "slack", "sqlx", "teams"] }
 systemprompt-files = { path = "../../../domain/files", default-features = false, features = ["collab-loro", "office", "pdf"] }
 systemprompt-files-entry = { path = "../../../entry/files", features = ["cli", "collab"] }
