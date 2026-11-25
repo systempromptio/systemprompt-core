@@ -40,6 +40,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
@@ -161,7 +162,7 @@ fn register_artifact_scanner(
         return Ok(());
     };
     ingest.register_scanner(Arc::new(GatewayArtifactScanner::over_policy_table(
-        &r.get::<DbPool>()?,
+        AiGatewayPolicyRepository::new(&r.get::<DbPool>()?),
         r.get::<CacheEpochView>()?,
         r.get::<UnappliedPlaneMode>()?,
         Arc::clone(&engines.scanner_registry),

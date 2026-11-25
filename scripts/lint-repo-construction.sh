@@ -14,6 +14,12 @@
 #      - crates/app/runtime/src/builder/**  the AppContext composition root
 #      - crates/entry/cli/src/**, crates/entry/*/src/cli/**   one-shot command bodies
 #      - **/jobs/**                         per-tick scheduler job bodies
+#      - crates/*/*/src/{extension,extension_state,provides}.rs   a member's
+#        composition root: its `contribute` and provide fns build the
+#        member's state over the pool the kernel resolves
+#      - crates/*/*/src/repository.rs       a single-file repository bundle
+#
+#      Top-level `src/*.rs` files are walked like every other source file.
 #
 #   2. The files a package lists in its `gates/lint-repo-construction.allow`
 #      (one path per line, relative to the package). Every entry is structurally unable to use
@@ -70,7 +76,7 @@ fi
 
 list_sources() {
     if [ "${#ROOTS[@]}" -eq 0 ]; then
-        gate_files 'crates/*/*/src/**/*.rs'
+        gate_files 'crates/*/*/src/*.rs' 'crates/*/*/src/**/*.rs' | sort -u
     else
         gate_tree_files "${ROOTS[@]}" | grep -E '\.rs$' || true
     fi
@@ -93,6 +99,7 @@ while IFS= read -r file; do
     */cli/src/*) continue ;;
     */entry/*/src/cli/*) continue ;;
     */jobs/*) continue ;;
+    */src/extension.rs|*/src/extension_state.rs|*/src/provides.rs|*/src/repository.rs) continue ;;
   esac
   if ! grep -q "$pattern" "$file"; then
     continue

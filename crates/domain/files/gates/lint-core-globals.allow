@@ -1,0 +1,2 @@
+# owner: domain/files; reason: stated on the entry line
+src/documents/pdf/fonts.rs:FACES — immutable data: the parsed faces of the fonts embedded with include_bytes!, each parsed once on first use

@@ -41,6 +41,22 @@ def production_edges(pkgs):
     return deps
 
 
+def capability_edges(metadata, units):
+    """Sorted `(package, dependency)` production edges between packages of two
+    different capabilities (`capability:<name>` rows of the unit table)."""
+    deps = production_edges(packages_by_name(metadata))
+    found = []
+    for name in sorted(deps):
+        unit = units.get(name, "")
+        if not unit.startswith("capability:"):
+            continue
+        for dep in sorted(deps[name]):
+            other = units.get(dep, "")
+            if other.startswith("capability:") and other != unit:
+                found.append((name, dep))
+    return found
+
+
 def workspace_manifests(root):
     """Every tracked Cargo.toml that declares a `[workspace]`, as repo-relative paths."""
     listed = subprocess.run(

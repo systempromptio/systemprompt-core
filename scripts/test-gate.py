@@ -68,6 +68,7 @@ class Plans(unittest.TestCase):
         self.assertEqual(plan["fmt"], ["just format-check"])
         self.assertEqual(plan["clippy"], [
             "cargo clippy -p systemprompt-api -p systemprompt-files --all-targets --all-features --keep-going -- -D warnings",
+            "cargo clippy -p systemprompt-api -p systemprompt-files --all-targets --keep-going -- -D warnings",
             f"(cd crates/tests && {LIVE} cargo clippy -p systemprompt-files-tests --all-targets --all-features --keep-going "
             "-- -D warnings)"])
         self.assertEqual(plan["doc"], [

@@ -18,7 +18,6 @@ use std::sync::Arc;
 use crate::policies::Finding;
 use async_trait::async_trait;
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
-use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_mcp::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
@@ -42,17 +41,13 @@ pub struct GatewayArtifactScanner {
 impl GatewayArtifactScanner {
     #[must_use]
     pub fn over_policy_table(
-        db: &DbPool,
+        policies: AiGatewayPolicyRepository,
         epochs: CacheEpochView,
         unapplied: UnappliedPlaneMode,
         scanners: Arc<SafetyScannerRegistry>,
     ) -> Self {
         Self {
-            resolver: PolicyResolver::from_repository(
-                AiGatewayPolicyRepository::new(db),
-                epochs,
-                unapplied,
-            ),
+            resolver: PolicyResolver::from_repository(policies, epochs, unapplied),
             scanners,
         }
     }

@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayArtifactScanner::over_policy_table` takes the `AiGatewayPolicyRepository` in place of the `DbPool`. Migrate by passing `AiGatewayPolicyRepository::new(&pool)`."

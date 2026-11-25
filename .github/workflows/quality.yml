@@ -183,6 +183,12 @@ jobs:
         env:
           SCOPE: ${{ needs.affected.outputs.clippy_args }}
         run: cargo clippy $SCOPE --all-targets --all-features --keep-going --locked -- -D warnings
+      # The same scope with default features: code behind a feature gate must
+      # also be clean when the feature is off.
+      - if: ${{ !cancelled() && needs.affected.outputs.clippy_args != '' }}
+        env:
+          SCOPE: ${{ needs.affected.outputs.clippy_args }}
+        run: cargo clippy $SCOPE --all-targets --keep-going --locked -- -D warnings
       - if: ${{ !cancelled() && needs.affected.outputs.bridge == 'true' }}
         run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
       - if: env.RUSTC_WRAPPER == 'sccache'
@@ -525,6 +531,7 @@ jobs:
           SCOPE: ${{ needs.affected.outputs.shadow_clippy_args }}
         run: |
           cargo clippy $SCOPE --all-targets --all-features --keep-going --locked -- -D warnings
+          cargo clippy $SCOPE --all-targets --keep-going --locked -- -D warnings
           cargo doc $SCOPE --no-deps --all-features --locked
       - if: ${{ !cancelled() && needs.affected.outputs.shadow_bridge == 'true' }}
         run: |

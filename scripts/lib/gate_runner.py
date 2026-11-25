@@ -10,8 +10,9 @@ Phases, in run order:
              (`just doc-check` includes the test-workspace pass),
              which compile live against it (TEST_DATABASE_URL, SQLX_OFFLINE=false)
     fmt      `just format-check` (whole tree in every mode)
-    clippy   root-workspace clippy over the affected crates, the bridge when it
-             is affected, test-workspace clippy over the affected test crates
+    clippy   root-workspace clippy over the affected crates (with all features
+             and with default features), the bridge when it is affected,
+             test-workspace clippy over the affected test crates
     doc      rustdoc over the same three sets (`just doc-check` in full mode)
     gates    the source gates of scripts/check-gates.txt: global gates always,
              unit gates with `--paths <affected crate dirs>`; every gate in full
@@ -56,6 +57,7 @@ DEFAULT_LOG = ROOT / "target" / "gate-log" / "runs.jsonl"
 SESSION_VARIABLES = ("CLAUDE_CODE_SESSION_ID", "GITHUB_RUN_ID")
 RUST_CONTRACTS = ["cargo", "test", "--locked", "--manifest-path", "scripts/rust-contracts/Cargo.toml"]
 CLIPPY_TAIL = ["--all-targets", "--all-features", "--keep-going", "--", "-D", "warnings"]
+CLIPPY_DEFAULT_TAIL = ["--all-targets", "--keep-going", "--", "-D", "warnings"]
 RUSTDOC_ENV = {"RUSTDOCFLAGS": "-D warnings"}
 TEST_WORKSPACE = "crates/tests"
 
@@ -91,10 +93,13 @@ def phase_fmt(selection, changed, group=None):
 def phase_clippy(selection, changed, group=None):
     if selection["mode"] == "full":
         return [step("clippy", ["just", "lint"]),
-                step("clippy-tests", ["cargo", "clippy", "--workspace", *CLIPPY_TAIL], cwd=TEST_WORKSPACE)]
+                step("clippy-tests", ["cargo", "clippy", "--workspace", *CLIPPY_TAIL], cwd=TEST_WORKSPACE),
+                step("clippy-default", ["cargo", "clippy", "--workspace", *CLIPPY_DEFAULT_TAIL])]
     steps = []
     if selection["clippy_packages"]:
         steps.append(step("clippy", ["cargo", "clippy", *packages(selection["clippy_packages"]), *CLIPPY_TAIL]))
+        steps.append(step("clippy-default",
+                          ["cargo", "clippy", *packages(selection["clippy_packages"]), *CLIPPY_DEFAULT_TAIL]))
     if selection["bridge"]:
         steps.append(step("clippy-bridge", ["just", "lint-bridge"]))
     if selection["test_packages"]:

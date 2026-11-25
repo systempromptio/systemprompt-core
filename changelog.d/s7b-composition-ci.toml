@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Tooling"
+text = "CI builds every composition listed in `scripts/build-compositions.txt` and runs `systemprompt --help` on the ones that link the binary; root-workspace clippy runs with default features as well as with `--all-features`; `lint-repo-construction` walks top-level `src/*.rs` files and `lint-core-globals` sees a fixed array of `OnceLock`s. `scripts/lint-capability-deps.py`, `scripts/lint-domain-protocol-deps.py` and `scripts/lint-capability-cfg.py` report capability-to-capability dependencies, domain HTTP/CLI dependencies and capability `cfg` off a module declaration."

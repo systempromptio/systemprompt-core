@@ -3,7 +3,8 @@
 #
 # `AppContext` (and the server, gateway and bridge roots) own injected
 # services; a `static` holding an `OnceLock`, `LazyLock`, `RwLock`, `Mutex`,
-# `ArcSwap`, `Once`, `OnceCell` or an atomic is service state unless it is
+# `ArcSwap`, `Once`, `OnceCell` or an atomic (or a fixed array of them) is
+# service state unless it is
 # listed in its package's `gates/lint-core-globals.allow` as `path:NAME —
 # reason` (path relative to the package). "immutable data" marks compiled
 # regexes, const tables and link-time inventories set once and never mutated;
@@ -40,7 +41,7 @@ if [ "${#roots[@]}" -eq 0 ]; then
     gate_pass_if_empty lint-core-globals "${#roots[@]}"
 fi
 
-pattern='^\s*(pub(\([a-z]+\))? )?static [A-Z_][A-Z0-9_]*: *(std::sync::|std::sync::atomic::|tokio::sync::)?(OnceLock|LazyLock|RwLock|Mutex|ArcSwap|Atomic[A-Za-z0-9]+|Once|OnceCell)\b'
+pattern='^\s*(pub(\([a-z]+\))? )?static [A-Z_][A-Z0-9_]*: *\[?(std::sync::|std::sync::atomic::|tokio::sync::)?(OnceLock|LazyLock|RwLock|Mutex|ArcSwap|Atomic[A-Za-z0-9]+|Once|OnceCell)\b'
 
 declare -A allowed
 gate_load_allowlist ALLOW_ENTRIES entries lint-core-globals "$allowlist"
