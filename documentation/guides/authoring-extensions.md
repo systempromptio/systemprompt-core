@@ -451,7 +451,7 @@ An install is granted a sealed core handle only if it already exists as a narrow
 | `InventoryPublisher` / `InventoryRefresher` | template, dynapps | Publishes under the system admin | `InventoryService::refresh` over `InstallServicesView`; core's `inventory_refresh` job publishes |
 | `ProviderTokenCache` | dynapps | Caches connector bearers of every user | None in 0.88 |
 | Secret key enumeration, status and reload | dynapps | Lists core secret names | Declare and read your own names with `c.secret` |
-| `Arc<dyn SecretPresence>` (is a secret set?) | dynapps | Answers presence for every secret name; provided sealed to the `agent` member's commands | Declare the secret and read it with `r.secrets()`; absence is `None` |
+| `Arc<dyn SecretPresence>` (is a secret set?) | dynapps | Answers presence for every secret name; provided sealed, conferred only on `agent-http`'s commands | Declare the secret and read it with `r.secrets()`; absence is `None` |
 | `encryption_master_key` granted to a spawned server or agent | dynapps, astound | The raw key derives every member's key; the grant is refused at config validation | `MemberCipher` (conferred), and `admin secrets reseal` for pre-0.88 values |
 | `Arc<Config>`, `SecretStore`, signing keys | all | Host-sealed | `ConfigView`, declared secrets, the conferred capabilities |
 | An in-process API host exposing the token authority and the documents service | astound | Hands out core minting and cross-owner document access | Drive the HTTP surface of a composed test server |
