@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Route admission"
+text = "A core route declaring a body limit above the server default mounts only as a listed body-limit exemption again; the profile's `server.max_route_body_bytes` ceiling governs install routes alone. Admission refuses one route spelled with two parameter names (`/x/{id}` beside `/x/{slug}`) as `RouteConflict` instead of the router panicking at boot."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Fixed"
+text = "`protect` refuses a body limit above `DEFAULT_BODY_LIMIT_BYTES` outside the privileged body-limit shape whatever the profile ceiling; `mount_admitted` applies the ceiling to install routes' `BodyLimit::Bytes` only."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Fixed"
+text = "`first_overlap` reports two defs whose full paths differ only in parameter names; `GatewayDefRefusal` and `refused_gateway_def` move to the `router::gateway_def` module (re-exported at `router` unchanged)."
