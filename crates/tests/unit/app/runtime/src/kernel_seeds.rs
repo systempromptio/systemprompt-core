@@ -183,6 +183,7 @@ const API_ONLY_SEEDS: &[&str] = &[
     "alloc::sync::Arc<dyn systemprompt_config::bootstrap::secrets::child::ChildSecretEnv>",
     "systemprompt_security::keys::verification::TokenVerificationKeys",
     "alloc::sync::Arc<dyn systemprompt_models::auth::token_authority::TokenAuthority>",
+    "alloc::sync::Arc<dyn systemprompt_traits::conferred::ConferralIssuer<dyn systemprompt_models::auth::scoped_minter::ScopedTokenMinter>>",
     "systemprompt_models::late_bound::LateRead<dyn systemprompt_traits::messaging::MessagingDispatcher>",
     "systemprompt_models::late_bound::LateRead<dyn systemprompt_models::a2a::dispatch::AgentDispatch>",
     "alloc::sync::Arc<systemprompt_models::content_config::ContentConfigRaw>",

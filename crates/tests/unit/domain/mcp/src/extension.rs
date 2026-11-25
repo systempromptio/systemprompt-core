@@ -71,9 +71,25 @@ fn the_mcp_member_provides_its_lookups_stores_tool_provider_and_tool_executions(
             TypeId::of::<Arc<McpServiceObserver>>(),
             TypeId::of::<systemprompt_extension::mcp::DynMcpSessionStore>(),
             TypeId::of::<Arc<systemprompt_mcp::ArtifactIngest>>(),
+            TypeId::of::<systemprompt_extension::mcp::artifacts::DynToolResultIngest>(),
             TypeId::of::<Arc<dyn systemprompt_traits::ToolProvider>>(),
+            TypeId::of::<systemprompt_extension::artifact_ui::DynArtifactUiRenderer>(),
             TypeId::of::<systemprompt_extension::mcp::DynToolExecutions>(),
         ]
+    );
+    let sealed: Vec<TypeId> = sink
+        .provides()
+        .iter()
+        .filter(|p| p.is_sealed())
+        .map(|p| p.type_id())
+        .collect();
+    assert_eq!(
+        sealed,
+        [
+            TypeId::of::<systemprompt_extension::mcp::DynMcpSessionStore>(),
+            TypeId::of::<Arc<dyn systemprompt_traits::ToolProvider>>(),
+        ],
+        "the ingest contract and the renderer contract stay open, as the values they wrap are"
     );
 }
 

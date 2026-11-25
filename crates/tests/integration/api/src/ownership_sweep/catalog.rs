@@ -36,6 +36,7 @@ const CONSUMER: &str =
     "managed-consumer device protocol authenticated by the device enrollment credential";
 const TOKEN: &str = "issues a Drive sync token for the calling device user only";
 const STATIC: &str = "static site and prerendered page serving; no per-user resource";
+const AGENT_PROCESS: &str = "the hosted agent process's A2A message endpoint, reached through the authorised agent proxy and checked by the agent's own OAuth middleware; it addresses no stored resource by id";
 
 #[rustfmt::skip]
 pub(super) const NOT_USER_OWNED: &[Row] = &[
@@ -176,6 +177,9 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("agent/http/agent_cards.rs::router", "GET", r#"&format!("{}/{{agent_name}}",ApiPaths::WELLKNOWN_AGENT_CARDS)"#, PUBLIC),
     free("agent/http/agent_cards.rs::router", "GET", "ApiPaths::WELLKNOWN_AGENT_CARD", PUBLIC),
     free("agent/http/agent_cards.rs::router", "GET", "ApiPaths::WELLKNOWN_AGENT_CARDS", PUBLIC),
+    free("agent/a2a_server/server.rs::create_router", "POST", r#""/""#, AGENT_PROCESS),
+    free("agent/a2a_server/server.rs::create_router", "GET", "ApiPaths::A2A_CARD", PUBLIC),
+    free("agent/a2a_server/server.rs::create_router", "GET", "ApiPaths::WELLKNOWN_AGENT_CARD", PUBLIC),
     free("routes/wellknown/bridge.rs::bridge_discovery_router", "GET", "ApiPaths::WELLKNOWN_BRIDGE", PUBLIC),
     free("routes/wellknown/jwks.rs::jwks_router", "GET", "ApiPaths::WELLKNOWN_JWKS", PUBLIC),
     free("services/server/discovery.rs::authenticated_discovery_router", "GET", "ApiPaths::HEALTH_DETAIL", ADMIN),
