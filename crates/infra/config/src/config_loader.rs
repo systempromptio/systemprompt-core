@@ -161,6 +161,8 @@ fn build_config(
         role: profile.server.role,
         advertise_url: profile.server.advertise_url.clone(),
         max_in_flight: profile.server.max_in_flight,
+        max_probe_in_flight: profile.server.max_probe_in_flight,
+        max_route_body_bytes: profile.server.max_route_body_bytes,
         shutdown: profile.server.shutdown,
         sitename: profile.site.name.clone(),
         database_type: profile.database.db_type.clone(),

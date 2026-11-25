@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Overload"
+text = "Health, readiness and metrics routes share their own in-flight ceiling, `server.max_probe_in_flight` (default 64), refused with the same `503` shape and counted in `http_probe_shed_total`; a saturated main ceiling never refuses them."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`load_shed::outermost` takes `InFlightLimits`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`ServerConfig` and `Config` gain `max_probe_in_flight` (`DEFAULT_MAX_PROBE_IN_FLIGHT`)."

@@ -1,4 +1,5 @@
-//! Overload shedding: a process-wide in-flight request ceiling.
+//! Overload shedding: a process-wide in-flight request ceiling, and a
+//! separate ceiling for the probes.
 //!
 //! [`outermost`] is the last layer the server applies, so admission is
 //! decided before CORS, sessions, authentication, rate limits and body
@@ -9,10 +10,13 @@
 //! count against the ceiling until they close; when none is free the request is
 //! refused at once with `503`, `Retry-After: 1` and the `ApiError` envelope
 //! (`error_key: "overloaded"`), instead of queueing until the balancer's
-//! timeout. Health probes and `/metrics` never take a permit, so a saturated
-//! replica still answers its orchestrator; `/readyz` reports `saturated` (read
-//! from the request extension this middleware attaches) so the balancer steers
-//! traffic away.
+//! timeout. Health probes and `/metrics` never take a main permit, so a
+//! saturated replica still answers its orchestrator; `/readyz` reports
+//! `saturated` (read from the request extension this middleware attaches) so
+//! the balancer steers traffic away. They take a permit from their own
+//! ceiling instead (`server.max_probe_in_flight`, always on), refused with the
+//! same `503` shape when it is exhausted, so a flood of probes cannot exhaust
+//! the server.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,6 +38,20 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 pub(crate) const HTTP_LOAD_SHED_TOTAL: &str = "http_load_shed_total";
 pub(crate) const HTTP_IN_FLIGHT_LIMIT: &str = "http_in_flight_limit";
 pub(crate) const HTTP_IN_FLIGHT_SATURATION: &str = "http_in_flight_saturation";
+pub(crate) const HTTP_PROBE_SHED_TOTAL: &str = "http_probe_shed_total";
+
+/// The two in-flight ceilings: requests (`None` is no ceiling) and probes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InFlightLimits {
+    pub requests: Option<NonZeroU32>,
+    pub probes: NonZeroU32,
+}
+
+#[derive(Debug, Clone)]
+struct Shedders {
+    requests: Option<Arc<LoadShed>>,
+    probes: Arc<Semaphore>,
+}
 
 const EXEMPT_PATHS: [&str; 5] = [
     ApiPaths::LIVEZ,
@@ -81,26 +99,31 @@ impl LoadShed {
     }
 }
 
-pub fn outermost(router: axum::Router, max_in_flight: Option<NonZeroU32>) -> axum::Router {
-    match max_in_flight {
-        Some(max) => router.layer(axum::middleware::from_fn_with_state(
-            Arc::new(LoadShed::new(max)),
-            shed,
-        )),
-        None => router,
-    }
+pub fn outermost(router: axum::Router, limits: InFlightLimits) -> axum::Router {
+    let shedders = Shedders {
+        requests: limits.requests.map(|max| Arc::new(LoadShed::new(max))),
+        probes: Arc::new(Semaphore::new(limits.probes.get() as usize)),
+    };
+    router.layer(axum::middleware::from_fn_with_state(shedders, shed))
 }
 
-pub(crate) async fn shed(
-    State(shed): State<Arc<LoadShed>>,
-    mut req: Request,
-    next: Next,
-) -> Response {
-    req.extensions_mut().insert(Arc::clone(&shed));
-    if EXEMPT_PATHS.contains(&req.uri().path()) {
-        return next.run(req).await;
+async fn shed(State(shedders): State<Shedders>, mut req: Request, next: Next) -> Response {
+    if let Some(shed) = &shedders.requests {
+        req.extensions_mut().insert(Arc::clone(shed));
     }
-
+    if EXEMPT_PATHS.contains(&req.uri().path()) {
+        let Ok(permit) = Arc::clone(&shedders.probes).try_acquire_owned() else {
+            metrics::counter!(HTTP_PROBE_SHED_TOTAL).increment(1);
+            return overloaded();
+        };
+        return next
+            .run(req)
+            .await
+            .map(|body| Body::new(Held::new(body, permit)));
+    }
+    let Some(shed) = shedders.requests else {
+        return next.run(req).await;
+    };
     let Ok(permit) = Arc::clone(&shed.permits).try_acquire_owned() else {
         metrics::counter!(HTTP_LOAD_SHED_TOTAL).increment(1);
         shed.publish_saturation();
@@ -109,7 +132,7 @@ pub(crate) async fn shed(
     shed.publish_saturation();
     let admitted = Admitted {
         permit: Some(permit),
-        shed: Arc::clone(&shed),
+        shed,
     };
     next.run(req)
         .await
