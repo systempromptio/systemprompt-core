@@ -1,0 +1,9 @@
+[root]
+section = "Removed"
+area = "Config planes"
+text = "`PlaneSnapshot::into_keys` and the panicking `Index<&str>` impl are removed. Use `get`, `keys`, `iter`, `entries` or `into_iter`."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Removed"
+text = "`PlaneSnapshot::into_keys` and `impl Index<&str> for PlaneSnapshot`."

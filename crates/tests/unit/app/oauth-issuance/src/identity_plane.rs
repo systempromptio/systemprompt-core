@@ -69,17 +69,32 @@ fn entities_are_keyed_and_canonical() {
             "user:robot@example.com"
         ]
     );
-    let alice: serde_json::Value =
-        serde_json::from_str(&declared.entries["user:alice@example.com"]).expect("json");
+    let alice: serde_json::Value = serde_json::from_str(
+        declared
+            .entries
+            .get("user:alice@example.com")
+            .expect("user:alice@example.com declared"),
+    )
+    .expect("json");
     assert_eq!(alice["roles"], serde_json::json!(["admin", "user"]));
     assert_eq!(alice["kind"], "person");
     assert_eq!(alice["status"], "active");
-    let robot: serde_json::Value =
-        serde_json::from_str(&declared.entries["user:robot@example.com"]).expect("json");
+    let robot: serde_json::Value = serde_json::from_str(
+        declared
+            .entries
+            .get("user:robot@example.com")
+            .expect("user:robot@example.com declared"),
+    )
+    .expect("json");
     assert_eq!(robot["kind"], "service");
     assert_eq!(robot["roles"], serde_json::json!(["user"]));
-    let portal: serde_json::Value =
-        serde_json::from_str(&declared.entries["oauth_client:portal"]).expect("json");
+    let portal: serde_json::Value = serde_json::from_str(
+        declared
+            .entries
+            .get("oauth_client:portal")
+            .expect("oauth_client:portal declared"),
+    )
+    .expect("json");
     assert_eq!(
         portal["redirect_uris"],
         serde_json::json!([

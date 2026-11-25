@@ -86,7 +86,7 @@ async fn plane_keys(h: &Harness) -> Vec<String> {
         .read_current(&ctx, &mut PlaneTx::new(&mut tx))
         .await
         .expect("read current");
-    snapshot.into_keys().collect()
+    snapshot.into_iter().map(|(key, _)| key).collect()
 }
 
 #[tokio::test]

@@ -72,7 +72,10 @@ fn absent_directory_is_undeclared() {
 fn declared_tree_projects_every_entity() {
     let root = tempfile::tempdir().expect("tempdir");
     declare(root.path());
-    let keys: Vec<String> = entries(root.path()).into_keys().collect();
+    let keys: Vec<String> = entries(root.path())
+        .into_iter()
+        .map(|(key, _)| key)
+        .collect();
     assert_eq!(
         keys,
         [

@@ -5,8 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::collections::btree_map::{IntoIter, IntoKeys, Iter, Keys};
-use std::ops::Index;
+use std::collections::btree_map::{IntoIter, Iter, Keys};
 
 /// One side of a drift comparison: every entity a declaration or the database
 /// holds, keyed by its entity key, valued by its canonical encoding.
@@ -41,10 +40,6 @@ impl PlaneSnapshot {
         self.0.keys()
     }
 
-    pub fn into_keys(self) -> IntoKeys<String, String> {
-        self.0.into_keys()
-    }
-
     pub fn iter(&self) -> Iter<'_, String, String> {
         self.0.iter()
     }
@@ -62,14 +57,6 @@ impl PlaneSnapshot {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-impl Index<&str> for PlaneSnapshot {
-    type Output = String;
-
-    fn index(&self, entity: &str) -> &String {
-        &self.0[entity]
     }
 }
 
