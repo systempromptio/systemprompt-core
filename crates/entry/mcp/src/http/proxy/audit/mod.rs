@@ -32,10 +32,10 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpServerId};
 use systemprompt_mcp::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_mcp::repository::ToolUsageRepository;
-use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_mcp::{
     ArtifactIngest, INTENT_CLAIM_WINDOW_SECONDS, IntentClaimService, from_wire_value,
 };

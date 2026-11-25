@@ -17,10 +17,10 @@ use axum::Json;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
+use systemprompt_extension::bridge_catalog::{CatalogFreshness, ManifestEntries};
 use systemprompt_gateway::surface::views::GatewayManifestSigner;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::{BridgePolicyConfig, BridgeReleasesSpec};
-use systemprompt_extension::bridge_catalog::{CatalogFreshness, ManifestEntries};
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_INLINE_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope,

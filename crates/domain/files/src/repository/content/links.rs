@@ -58,13 +58,20 @@ impl ContentFileLinks for FileRepository {
             .map_err(links_error)
     }
 
-    async fn unlink(&self, content: &ContentId, file: &FileId) -> Result<(), ContentFileLinksError> {
+    async fn unlink(
+        &self,
+        content: &ContentId,
+        file: &FileId,
+    ) -> Result<(), ContentFileLinksError> {
         self.unlink_from_content(content, file)
             .await
             .map_err(links_error)
     }
 
-    async fn files_of(&self, content: &ContentId) -> Result<Vec<LinkedFile>, ContentFileLinksError> {
+    async fn files_of(
+        &self,
+        content: &ContentId,
+    ) -> Result<Vec<LinkedFile>, ContentFileLinksError> {
         let rows = self
             .list_files_by_content(content)
             .await
@@ -75,7 +82,10 @@ impl ContentFileLinks for FileRepository {
             .collect())
     }
 
-    async fn contents_of(&self, file: &FileId) -> Result<Vec<FileContentLink>, ContentFileLinksError> {
+    async fn contents_of(
+        &self,
+        file: &FileId,
+    ) -> Result<Vec<FileContentLink>, ContentFileLinksError> {
         let rows = self.list_content_by_file(file).await.map_err(links_error)?;
         Ok(rows
             .into_iter()
@@ -88,12 +98,24 @@ impl ContentFileLinks for FileRepository {
             .collect())
     }
 
-    async fn featured(&self, content: &ContentId) -> Result<Option<LinkedFile>, ContentFileLinksError> {
-        let file = self.find_featured_image(content).await.map_err(links_error)?;
+    async fn featured(
+        &self,
+        content: &ContentId,
+    ) -> Result<Option<LinkedFile>, ContentFileLinksError> {
+        let file = self
+            .find_featured_image(content)
+            .await
+            .map_err(links_error)?;
         Ok(file.map(|file| linked(file, FileRole::Featured.to_string(), 0)))
     }
 
-    async fn set_featured(&self, content: &ContentId, file: &FileId) -> Result<(), ContentFileLinksError> {
-        Self::set_featured(self, file, content).await.map_err(links_error)
+    async fn set_featured(
+        &self,
+        content: &ContentId,
+        file: &FileId,
+    ) -> Result<(), ContentFileLinksError> {
+        Self::set_featured(self, file, content)
+            .await
+            .map_err(links_error)
     }
 }

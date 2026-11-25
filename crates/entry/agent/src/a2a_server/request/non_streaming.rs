@@ -25,11 +25,13 @@ use systemprompt_traits::BoxedSource;
 
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::protocol::SendMessageParams;
-use systemprompt_agent::models::a2a::{A2aRequestParams, A2aResponse, SendMessageResult, Task, TaskState};
+use systemprompt_agent::models::a2a::{
+    A2aRequestParams, A2aResponse, SendMessageResult, Task, TaskState,
+};
 use systemprompt_agent::repository::OwnedTask;
 use systemprompt_agent::repository::task::TaskRepository;
-use systemprompt_agent::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use systemprompt_agent::services::a2a_server::processing::message::MessageHandler;
 use systemprompt_agent::services::shared::AgentServiceError;
 

@@ -37,21 +37,22 @@ use std::sync::Arc;
 use axum::Router;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
-use systemprompt_extension::router::{DynPersonalCredentialNames, GatewayPrincipal};
+use systemprompt_extension::bridge_catalog::{CatalogFreshness, DynBridgeCatalogSource};
+use systemprompt_extension::profile_usage::DynProfileUsageSource;
+use systemprompt_extension::router::{
+    ConsumerCatalog, DynConsumerCatalog, DynPersonalCredentialNames, GatewayPrincipal,
+};
 use systemprompt_gateway::GatewayHostHandles;
 use systemprompt_gateway::surface::views::{
     BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsView,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::UserId;
-use systemprompt_extension::bridge_catalog::{CatalogFreshness, DynBridgeCatalogSource};
-use systemprompt_extension::router::{ConsumerCatalog, DynConsumerCatalog};
-use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::auth::DynRequestAuthenticator;
+use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_oauth::repository::{BridgeHostPrefsRepository, BridgeSessionRepository};
 use systemprompt_security::http::resolve_client_ip;
-use systemprompt_extension::profile_usage::DynProfileUsageSource;
 use systemprompt_traits::BoxedSource;
 use systemprompt_users::UserRepository;
 

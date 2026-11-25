@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::artifact_ui::{ArtifactUiError, ArtifactUiRenderer, RenderedArtifactUi};
+use systemprompt_extension::artifact_ui::{
+    ArtifactUiError, ArtifactUiRenderer, RenderedArtifactUi,
+};
 use systemprompt_models::a2a::Artifact;
 
 use super::UiRendererRegistry;
@@ -17,7 +19,8 @@ impl ArtifactUiRenderer for UiRendererRegistry {
                 artifact_type: artifact_type.to_owned(),
             });
         }
-        let resource = Self::render(self, artifact).map_err(|e| ArtifactUiError::Render(Box::new(e)))?;
+        let resource =
+            Self::render(self, artifact).map_err(|e| ArtifactUiError::Render(Box::new(e)))?;
         Ok(RenderedArtifactUi {
             content_security_policy: resource.csp.to_header_value(),
             html: resource.html,

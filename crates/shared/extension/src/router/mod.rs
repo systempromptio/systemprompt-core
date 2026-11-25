@@ -54,6 +54,11 @@ pub use capability::{IntoApiError, capability_response};
 #[cfg(feature = "router")]
 pub use http_error::{ApiHttpError, unreadable_body};
 #[cfg(feature = "router")]
+pub use managed_surface::{
+    ConsumerCatalog, ConsumerNormalizer, DynConsumerCatalog, DynManagedSurface, ManagedRouteState,
+    ManagedRoutes, ManagedSurface,
+};
+#[cfg(feature = "router")]
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };
@@ -77,11 +82,6 @@ pub use shape::{
 pub use sse::{
     HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive,
     subscription_refused,
-};
-#[cfg(feature = "router")]
-pub use managed_surface::{
-    ConsumerCatalog, ConsumerNormalizer, DynConsumerCatalog, DynManagedSurface, ManagedRouteState,
-    ManagedRoutes, ManagedSurface,
 };
 #[cfg(feature = "router")]
 pub use surface::{DynMcpSurface, DynSyncSurface, McpRoutes, McpSurface, SyncSurface};

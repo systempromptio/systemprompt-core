@@ -56,10 +56,12 @@ fn gateway_http_state(
             systemprompt_gateway::surface::repositories::gateway_repositories(
                 &ctx.kernel().resolved(),
                 &systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
-                Some(ctx.kernel()
-                    .resolved()
-                    .get::<systemprompt_traits::DynContextMaterializer>()
-                    .expect("context materializer")),
+                Some(
+                    ctx.kernel()
+                        .resolved()
+                        .get::<systemprompt_traits::DynContextMaterializer>()
+                        .expect("context materializer"),
+                ),
                 ctx.db_pool(),
             )
             .expect("gateway repositories"),

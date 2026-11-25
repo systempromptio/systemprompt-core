@@ -1,8 +1,8 @@
 use chrono::Utc;
 use sqlx::PgPool;
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{ConsumerInstallationId, DeviceCertId, NativeSessionId, UserId};
 use systemprompt_extension::bridge_catalog::IssuedConsumerCredential;
+use systemprompt_identifiers::{ConsumerInstallationId, DeviceCertId, NativeSessionId, UserId};
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,

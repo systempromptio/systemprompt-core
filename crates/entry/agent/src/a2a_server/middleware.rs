@@ -9,8 +9,8 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
-use systemprompt_agent::services::a2a_server::auth::AgentOAuthState;
 use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::a2a_server::auth::AgentOAuthState;
 
 pub async fn agent_oauth_middleware(
     State(state): State<AgentOAuthState>,

@@ -15,9 +15,9 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::DynBrainSink;
+use systemprompt_extension::mcp::artifacts::DynToolResultIngest;
 use systemprompt_extension::prelude::Resolved;
 use systemprompt_governance::authz::SubjectProviderSet;
-use systemprompt_extension::mcp::artifacts::DynToolResultIngest;
 use systemprompt_traits::{CacheEpochView, DynContextMaterializer, DynSessionUsageCounters};
 
 use super::{GatewayHostHandles, GatewaySurfaceError};

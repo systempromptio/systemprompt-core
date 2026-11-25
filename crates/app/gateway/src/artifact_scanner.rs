@@ -18,9 +18,9 @@ use std::sync::Arc;
 use crate::policies::Finding;
 use async_trait::async_trait;
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
+use systemprompt_extension::mcp::artifacts::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_manifest::services::QuotaFaultMode;
-use systemprompt_extension::mcp::artifacts::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
 use systemprompt_traits::{BoxedSource, CacheEpochView};
 use systemprompt_wire::inspect::ForwardedSurface;
 

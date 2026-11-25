@@ -7,16 +7,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_agent::services::a2a_server::streaming::StreamFrame;
 use std::sync::Arc;
+use systemprompt_agent::services::a2a_server::streaming::StreamFrame;
 use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::validation::validate_message_context;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{StreamResponse, Task};
-use systemprompt_agent::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, StreamRejected, create_sse_stream, jsonrpc_error_event,
     stream_response_event,
@@ -31,8 +31,8 @@ pub(super) async fn handle_streaming_request(
     impl futures_util::stream::Stream<Item = Result<StreamFrame, std::convert::Infallible>> + Send,
     StreamRejected,
 > {
-    use systemprompt_agent::models::a2a::A2aRequestParams;
     use futures_util::StreamExt;
+    use systemprompt_agent::models::a2a::A2aRequestParams;
 
     let request_type = match &request {
         A2aRequestParams::SendStreamingMessage(_) => "SendStreamingMessage",
@@ -121,7 +121,10 @@ async fn run_stream(
     )
 }
 
-fn error_stream(error: JsonRpcErrorBuilder, request_id: &NumberOrString) -> ReceiverStream<StreamFrame> {
+fn error_stream(
+    error: JsonRpcErrorBuilder,
+    request_id: &NumberOrString,
+) -> ReceiverStream<StreamFrame> {
     single_event_stream(jsonrpc_error_event(error, request_id))
 }
 

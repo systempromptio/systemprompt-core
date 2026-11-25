@@ -9,14 +9,12 @@ use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::json;
+use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner};
 use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, McpExecutionId, SessionId, TraceId, UserId,
 };
-use systemprompt_extension::mcp::artifacts::IngestRequest;
-use systemprompt_mcp::{
-    ArtifactIngest, MAX_PAYLOAD_BYTES, McpResponseBuilder, ToolIdentity,
-};
+use systemprompt_mcp::{ArtifactIngest, MAX_PAYLOAD_BYTES, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
 use systemprompt_models::auth::UserType;

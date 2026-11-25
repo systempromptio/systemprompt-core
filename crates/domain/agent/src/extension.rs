@@ -3,9 +3,9 @@
 //! by type: `DynContextDirectory`, `DynContextMaterializer` and
 //! `DynSessionContextIssuer`, each open (database-only), the open
 //! live `Arc<dyn AgentRegistryProvider>` (the proxy's agent OAuth lookup), the
-//! open status-only `Arc<AgentStatusView>` and the open `Arc<AgentCardSite>` (the public URL and skills directory,
-//! narrowed from the configuration). It contributes its supervised process set
-//! to the sealed `ServiceProcessSlot`.
+//! open status-only `Arc<AgentStatusView>` and the open `Arc<AgentCardSite>`
+//! (the public URL and skills directory, narrowed from the configuration). It
+//! contributes its supervised process set to the sealed `ServiceProcessSlot`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,8 +19,8 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{
-    AgentRegistryProvider, DynContextDirectory, DynContextMaterializer,
-    DynServiceProcessSet, DynSessionContextIssuer,
+    AgentRegistryProvider, DynContextDirectory, DynContextMaterializer, DynServiceProcessSet,
+    DynSessionContextIssuer,
 };
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};

@@ -18,9 +18,9 @@
 //! pins the host adapter instead of resolving it from the request.
 //!
 //! A request naming a harness loads that revision for the row's user through
-//! the injected `DynRevisionBundleSource`; a missing source or a failed load finishes
-//! the row as `harness_unavailable` without spawning, and a loaded harness
-//! records its digest on the row.
+//! the injected `DynRevisionBundleSource`; a missing source or a failed load
+//! finishes the row as `harness_unavailable` without spawning, and a loaded
+//! harness records its digest on the row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

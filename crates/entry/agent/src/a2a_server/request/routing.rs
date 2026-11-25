@@ -12,10 +12,10 @@ use futures_util::StreamExt;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
 
-use systemprompt_agent::services::a2a_server::AgentHandlerState;
 use super::streaming::handle_streaming_request;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{A2aJsonRpcRequest, A2aParseError, A2aRequestParams};
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
 use systemprompt_agent::services::a2a_server::errors::JsonRpcErrorBuilder;
 
 pub async fn parse_a2a_request(

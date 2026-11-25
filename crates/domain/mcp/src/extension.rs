@@ -10,10 +10,10 @@
 //! scanner cell and records tool results) and the same ingest as the shared
 //! `DynToolResultIngest` contract the gateway reads (open, as the ingest is),
 //! the built UI renderers as the shared `DynArtifactUiRenderer` the agent
-//! artifact routes read (open, after governance), and, once governance has loaded,
-//! the per-server tool executions (`DynToolExecutions`, open: an execution
-//! records usage as the request context the host hands it and reads no
-//! secret) and the tool provider the ai member's inference path reads
+//! artifact routes read (open, after governance), and, once governance has
+//! loaded, the per-server tool executions (`DynToolExecutions`, open: an
+//! execution records usage as the request context the host hands it and reads
+//! no secret) and the tool provider the ai member's inference path reads
 //! (`Arc<dyn ToolProvider>`, **sealed**: it calls servers with the
 //! connector-token cache and the secret lookup; provided before governance so
 //! the ai member's after-governance inference provide sees it whatever the

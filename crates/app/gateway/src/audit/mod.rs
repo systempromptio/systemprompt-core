@@ -54,8 +54,8 @@ use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 
 pub use access_log::GatewayAccessLog;
-pub use tool_results::canonical_tool_result;
 use clock::UpstreamClock;
+pub use tool_results::canonical_tool_result;
 
 impl GatewayRequestContext {
     pub fn open_on(&mut self, hop: &ResolvedHop) {

@@ -13,7 +13,9 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_documents::tokens::DocumentLinkTokens;
 use systemprompt_extension::reserved::ConferralRow;
-use systemprompt_extension::router::{DynAgentSurface, DynMcpSurface, DynSyncSurface};
+use systemprompt_extension::router::{
+    DynAgentSurface, DynManagedSurface, DynMcpSurface, DynSyncSurface,
+};
 use systemprompt_extension::{DynBrainSink, Resolved, StandingTag};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::DocumentsHandlesSlot;
@@ -22,7 +24,6 @@ use systemprompt_governance::authz::AuthzHookCell;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::managed::ManagedRepository;
-use systemprompt_extension::router::DynManagedSurface;
 use systemprompt_marketplace_entry::http::MarketplaceHttpSettings;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_mcp_entry::http::McpHttpRepositories;

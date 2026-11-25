@@ -9,9 +9,9 @@ use systemprompt_identifiers::{DeviceCertId, DeviceId, InstallationReceiptId, Us
 use systemprompt_models::feedback::ContentDigest;
 use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 
-use systemprompt_extension::bridge_catalog::IssuedConsumerCredential;
 use crate::managed::error::integrity;
 use crate::managed::{ManagedError, ManagedRepository, Result};
+use systemprompt_extension::bridge_catalog::IssuedConsumerCredential;
 
 impl ManagedRepository {
     pub async fn issue_consumer_credential(

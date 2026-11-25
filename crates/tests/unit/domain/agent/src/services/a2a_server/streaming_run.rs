@@ -58,7 +58,9 @@ fn message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
 }
 
 async fn collect_events(
-    stream: impl futures::Stream<Item = systemprompt_agent::services::a2a_server::streaming::StreamFrame> + Send,
+    stream: impl futures::Stream<
+        Item = systemprompt_agent::services::a2a_server::streaming::StreamFrame,
+    > + Send,
 ) -> Vec<String> {
     let mut events = Vec::new();
     let mut stream = std::pin::pin!(stream);

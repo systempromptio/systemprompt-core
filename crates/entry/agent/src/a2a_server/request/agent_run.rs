@@ -10,10 +10,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_agent::services::a2a_server::AGENT_RUN_ORIGIN_KIND;
 use systemprompt_identifiers::{AgentName, AgentRunOriginId};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::AgentRunLaunch;
-use systemprompt_agent::services::a2a_server::AGENT_RUN_ORIGIN_KIND;
 
 use super::non_streaming::RequestFailure;
 use systemprompt_agent::models::a2a::{Message, Task};

@@ -1,6 +1,6 @@
-//! Streaming surface — stream channel construction, lifecycle event broadcasting,
-//! and the per-task event loop that fans the model's stream out to A2A,
-//! AG-UI webhooks, and stream clients.
+//! Streaming surface — stream channel construction, lifecycle event
+//! broadcasting, and the per-task event loop that fans the model's stream out
+//! to A2A, AG-UI webhooks, and stream clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

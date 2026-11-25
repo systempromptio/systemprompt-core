@@ -32,8 +32,7 @@ fn canonical_tool_result_preserves_wire_semantics() {
     ];
     let mut meta = json!({});
     meta[EXECUTION_META_KEY] = json!({"artifact_id": "artifact-wire"});
-    let result =
-        canonical_tool_result(&content, Some(&json!({"answer": 42})), Some(&meta), true);
+    let result = canonical_tool_result(&content, Some(&json!({"answer": 42})), Some(&meta), true);
     assert_eq!(result.content.len(), 3);
     assert_eq!(result.is_error, Some(true));
     assert_eq!(result.structured_content, Some(json!({"answer": 42})));

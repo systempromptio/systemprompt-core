@@ -15,8 +15,8 @@
 
 use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{JwtToken, ManagedResourceId, UserId};
 use systemprompt_extension::bridge_catalog::BridgeCatalogError;
+use systemprompt_identifiers::{JwtToken, ManagedResourceId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::execution::ContextExtractionError;

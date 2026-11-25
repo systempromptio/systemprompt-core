@@ -1,10 +1,10 @@
 //! Installs a run's harness revision into the host before spawn.
 //!
 //! The run handler loads the verified revision closure for the run's owner
-//! from the shared `RevisionBundleSource`; [`materialise`] checks that the closure's root is the requested
-//! revision and that the closure's digest is the requested
-//! [`HarnessRef::bundle_digest`], then writes every file of every revision
-//! in the closure under the host's [`HarnessTargets`], keeping the
+//! from the shared `RevisionBundleSource`; [`materialise`] checks that the
+//! closure's root is the requested revision and that the closure's digest is
+//! the requested [`HarnessRef::bundle_digest`], then writes every file of every
+//! revision in the closure under the host's [`HarnessTargets`], keeping the
 //! executable bit. Two revisions that write one path, a path that escapes
 //! the target, or any digest mismatch refuse the whole harness; nothing is
 //! written past the first refusal. [`install`] runs it on a blocking thread,

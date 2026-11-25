@@ -2,10 +2,10 @@
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject, Resource, ResourceContents};
 use serde_json::json;
+use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
-use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_mcp::{ArtifactIngest, from_hook_response, from_wire_value};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;

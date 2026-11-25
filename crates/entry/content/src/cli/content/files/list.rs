@@ -32,7 +32,6 @@ pub async fn execute_with_links(
     links: &dyn ContentFileLinks,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-
     match (&args.content, &args.file) {
         (Some(content_id_str), None) => {
             let content_id = ContentId::new(content_id_str.clone());

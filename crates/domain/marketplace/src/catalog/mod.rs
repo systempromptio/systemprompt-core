@@ -25,8 +25,8 @@ mod rules;
 mod skills;
 
 pub use agents::load_agents;
-pub use bridge::{FRESH_REVALIDATE_AFTER, MarketplaceBridgeCatalog};
 pub use artifacts::{load_artifacts, validate_artifact_tools};
+pub use bridge::{FRESH_REVALIDATE_AFTER, MarketplaceBridgeCatalog};
 pub use cache::{
     BundleMap, MarketplaceCache, RESOLVED_CAPACITY, RESOLVED_TTL, ResolvedCatalog, ResolvedKey,
 };

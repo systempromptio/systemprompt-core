@@ -13,8 +13,8 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_extension::prelude::*;
 use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
+use systemprompt_extension::prelude::*;
 use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_loader::bundle::BundleSources;

@@ -16,8 +16,8 @@ use axum::body::Body;
 use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
-use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_extension::bridge_catalog::{CatalogFreshness, DynResolvedBridgeCatalog};
+use systemprompt_identifiers::{PluginId, UserId};
 
 use super::error::{BridgeError, authenticate_bridge};
 use super::plugin_archive::ArchiveMemo;
@@ -73,7 +73,8 @@ pub(super) async fn resolve_entitled(
     user_id: &UserId,
     id: &PluginId,
 ) -> Result<DynResolvedBridgeCatalog, BridgeError> {
-    let grants = |resolved: &DynResolvedBridgeCatalog| resolved.plugins().iter().any(|p| &p.id == id);
+    let grants =
+        |resolved: &DynResolvedBridgeCatalog| resolved.plugins().iter().any(|p| &p.id == id);
     if let Some(latest) = state.catalog.latest(user_id)
         && grants(&latest)
     {

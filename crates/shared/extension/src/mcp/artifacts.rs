@@ -23,9 +23,8 @@ use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{
     AiToolCallId, ArtifactId, McpExecutionId, McpServerId, McpToolName, SkillId, SkillName, UserId,
 };
-use systemprompt_models::CallToolResult;
-use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
+use systemprompt_models::{CallToolResult, RequestContext};
 use systemprompt_traits::BoxedSource;
 
 pub const PHASE_TOOL_RESULT: &str = "tool_result";
@@ -122,9 +121,16 @@ pub trait ToolResultIngest: Send + Sync {
 
     async fn ingest(&self, request: IngestRequest) -> Result<IngestOutcome, ToolResultIngestError>;
 
-    async fn find_mark(&self, key: &IngestMarkKey) -> Result<Option<IngestMark>, ToolResultIngestError>;
+    async fn find_mark(
+        &self,
+        key: &IngestMarkKey,
+    ) -> Result<Option<IngestMark>, ToolResultIngestError>;
 
-    async fn set_mark(&self, key: &IngestMarkKey, mark: &IngestMark) -> Result<(), ToolResultIngestError>;
+    async fn set_mark(
+        &self,
+        key: &IngestMarkKey,
+        mark: &IngestMark,
+    ) -> Result<(), ToolResultIngestError>;
 
     async fn list_settled_gateway_call_ids(
         &self,

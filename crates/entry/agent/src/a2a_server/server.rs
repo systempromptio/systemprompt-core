@@ -19,13 +19,12 @@ use systemprompt_models::modules::ApiPaths;
 use tokio::sync::{RwLock, Semaphore};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use systemprompt_agent::services::a2a_server::ActiveTasks;
-use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
-use super::middleware::agent_oauth_middleware_wrapper;
-use systemprompt_agent::services::a2a_server::AgentHandlerState;
 use super::card::handle_agent_card;
+use super::middleware::agent_oauth_middleware_wrapper;
 use super::request::handle_agent_request;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
+use systemprompt_agent::services::a2a_server::{ActiveTasks, AgentHandlerState};
 
 // Why: A2A file parts travel inline as base64, so the JSON-RPC body cap is
 // deliberately wider than the API's default request limit.

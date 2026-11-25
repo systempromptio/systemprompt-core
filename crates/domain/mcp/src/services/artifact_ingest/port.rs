@@ -29,12 +29,22 @@ impl ToolResultIngest for ArtifactIngest {
         Self::ingest(self, request).await.map_err(port_error)
     }
 
-    async fn find_mark(&self, key: &IngestMarkKey) -> Result<Option<IngestMark>, ToolResultIngestError> {
+    async fn find_mark(
+        &self,
+        key: &IngestMarkKey,
+    ) -> Result<Option<IngestMark>, ToolResultIngestError> {
         self.ingest_marks().find_mark(key).await.map_err(port_error)
     }
 
-    async fn set_mark(&self, key: &IngestMarkKey, mark: &IngestMark) -> Result<(), ToolResultIngestError> {
-        self.ingest_marks().set_mark(key, mark).await.map_err(port_error)
+    async fn set_mark(
+        &self,
+        key: &IngestMarkKey,
+        mark: &IngestMark,
+    ) -> Result<(), ToolResultIngestError> {
+        self.ingest_marks()
+            .set_mark(key, mark)
+            .await
+            .map_err(port_error)
     }
 
     async fn list_settled_gateway_call_ids(

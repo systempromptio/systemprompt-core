@@ -11,8 +11,10 @@ use systemprompt_agent_entry::a2a_server::sse_event;
 use systemprompt_models::a2a::{StreamResponse, Task};
 
 async fn wire(events: Vec<Event>) -> String {
-    let response =
-        Sse::new(futures::stream::iter(events.into_iter().map(Ok::<_, Infallible>))).into_response();
+    let response = Sse::new(futures::stream::iter(
+        events.into_iter().map(Ok::<_, Infallible>),
+    ))
+    .into_response();
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("an SSE body collects");
@@ -43,7 +45,10 @@ async fn stream_frames_serve_the_bytes_a_data_event_of_the_frame_json_serves() {
     .await;
 
     assert_eq!(served, previous);
-    assert_eq!(served, format!("data: {result_json}\n\ndata: {error_json}\n\n"));
+    assert_eq!(
+        served,
+        format!("data: {result_json}\n\ndata: {error_json}\n\n")
+    );
 }
 
 #[test]

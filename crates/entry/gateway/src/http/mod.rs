@@ -50,6 +50,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::{get, post};
 use systemprompt_database::DbPool;
+use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
@@ -59,7 +60,6 @@ use systemprompt_gateway::surface::repositories::gateway_repositories;
 use systemprompt_gateway::{
     GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
 };
-use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
 use systemprompt_traits::{DynContextMaterializer, DynGatewaySessionMint};
 
 use self::bridge::BridgeRouteState;

@@ -83,15 +83,27 @@ pub trait ContentFileLinks: Send + Sync {
         display_order: i32,
     ) -> Result<(), ContentFileLinksError>;
 
-    async fn unlink(&self, content: &ContentId, file: &FileId) -> Result<(), ContentFileLinksError>;
+    async fn unlink(&self, content: &ContentId, file: &FileId)
+    -> Result<(), ContentFileLinksError>;
 
-    async fn files_of(&self, content: &ContentId) -> Result<Vec<LinkedFile>, ContentFileLinksError>;
+    async fn files_of(&self, content: &ContentId)
+    -> Result<Vec<LinkedFile>, ContentFileLinksError>;
 
-    async fn contents_of(&self, file: &FileId) -> Result<Vec<FileContentLink>, ContentFileLinksError>;
+    async fn contents_of(
+        &self,
+        file: &FileId,
+    ) -> Result<Vec<FileContentLink>, ContentFileLinksError>;
 
-    async fn featured(&self, content: &ContentId) -> Result<Option<LinkedFile>, ContentFileLinksError>;
+    async fn featured(
+        &self,
+        content: &ContentId,
+    ) -> Result<Option<LinkedFile>, ContentFileLinksError>;
 
-    async fn set_featured(&self, content: &ContentId, file: &FileId) -> Result<(), ContentFileLinksError>;
+    async fn set_featured(
+        &self,
+        content: &ContentId,
+        file: &FileId,
+    ) -> Result<(), ContentFileLinksError>;
 }
 
 pub type DynContentFileLinks = Arc<dyn ContentFileLinks>;

@@ -50,6 +50,7 @@ use systemprompt_agent::services::registry::AgentCardSite;
 use systemprompt_database::{DbPool, ServiceRepository};
 
 pub use crate::repository::ConversationRepositories;
+use systemprompt_extension::artifact_ui::DynArtifactUiRenderer;
 use systemprompt_extension::router::{
     ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
 };
@@ -59,7 +60,6 @@ use systemprompt_extension::{
 };
 use systemprompt_identifiers::{ContextId, InstanceId};
 use systemprompt_manifest::services::ServicesView;
-use systemprompt_extension::artifact_ui::DynArtifactUiRenderer;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::DynSessionUsageCounters;
 

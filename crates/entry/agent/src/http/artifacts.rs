@@ -15,12 +15,12 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
 
+use systemprompt_extension::artifact_ui::ArtifactUiError as RenderError;
 use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{ArtifactId, TaskId};
-use systemprompt_extension::artifact_ui::ArtifactUiError as RenderError;
-use systemprompt_models::mcp::MCP_APP_MIME_TYPE;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::mcp::MCP_APP_MIME_TYPE;
 
 use super::{AgentHttpError, AgentHttpState, clamp_page_limit};
 

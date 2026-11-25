@@ -24,12 +24,12 @@ use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
 
-use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use crate::a2a_server::version::negotiate;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{A2aJsonRpcRequest, A2aRequestParams};
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
 use systemprompt_agent::services::a2a_server::auth::validate_oauth_for_request;
 use systemprompt_agent::services::a2a_server::errors::JsonRpcErrorBuilder;
-use crate::a2a_server::version::negotiate;
 
 use non_streaming::handle_non_streaming_request;
 use routing::{handle_streaming_path, parse_a2a_request};

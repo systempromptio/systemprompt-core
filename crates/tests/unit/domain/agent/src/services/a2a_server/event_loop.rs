@@ -10,14 +10,15 @@ use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
-use systemprompt_agent::services::a2a_server::streaming::StreamFrame;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::message::{
     MessageHandler, MessageStream, StreamEvent,
 };
-use systemprompt_agent::services::a2a_server::streaming::{ProcessEventsParams, process_events};
+use systemprompt_agent::services::a2a_server::streaming::{
+    ProcessEventsParams, StreamFrame, process_events,
+};
 use systemprompt_agent::services::shared::AgentServiceError;
 use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{

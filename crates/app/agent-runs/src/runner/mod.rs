@@ -154,8 +154,7 @@ impl A2aRunnerService {
                 config,
             ),
             runner,
-        )
-        ;
+        );
         let handler = match harness {
             Some(source) => handler.with_harness_source(source),
             None => handler,

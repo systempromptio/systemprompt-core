@@ -71,12 +71,11 @@ pub(super) async fn serve(
     } else {
         let catalog = Arc::clone(&resolved);
         let plugin = id.clone();
-        let packed =
-            tokio::task::spawn_blocking(move || catalog.pack_plugin(&plugin).transpose())
-                .await
-                .map_err(|e| BridgeError::internal("plugin archive: packing task failed", e))?
-                .map_err(|e| BridgeError::internal("plugin archive: packing failed", e))?
-                .ok_or(BridgeError::PluginNotFound)?;
+        let packed = tokio::task::spawn_blocking(move || catalog.pack_plugin(&plugin).transpose())
+            .await
+            .map_err(|e| BridgeError::internal("plugin archive: packing task failed", e))?
+            .map_err(|e| BridgeError::internal("plugin archive: packing failed", e))?
+            .ok_or(BridgeError::PluginNotFound)?;
         let bytes = Bytes::from(packed);
         memo.put(key.clone(), bytes.clone());
         bytes

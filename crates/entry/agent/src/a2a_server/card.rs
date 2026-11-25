@@ -12,8 +12,8 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 
-use systemprompt_agent::services::a2a_server::AgentHandlerState;
 use systemprompt_agent::AgentResult;
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
 use systemprompt_agent::services::registry::{AgentRegistry, CardSite};
 
 pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> impl IntoResponse {

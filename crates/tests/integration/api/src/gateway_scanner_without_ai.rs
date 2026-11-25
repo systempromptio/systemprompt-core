@@ -9,11 +9,11 @@ use rmcp::model::{CallToolResult, ContentBlock};
 use systemprompt::{CompositionError, reference};
 use systemprompt_api::services::server::routes::Composed;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
+use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, ExtensionId, McpServerId, McpToolName, SessionId,
     TraceId, UserId,
 };
-use systemprompt_extension::mcp::artifacts::IngestRequest;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExecutionSource;

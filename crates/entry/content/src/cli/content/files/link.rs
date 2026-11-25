@@ -36,7 +36,6 @@ pub async fn execute_with_links(
     links: &dyn ContentFileLinks,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-
     let file_id = FileId::try_new(&args.file)
         .map_err(|e| anyhow!("Invalid file ID '{}': {}", args.file, e))?;
     let content_id = ContentId::new(args.content.clone());
