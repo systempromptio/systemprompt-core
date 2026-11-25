@@ -135,6 +135,7 @@ pub fn fixture_documents_admitted() -> Arc<systemprompt_extension::Admitted> {
     crate::app_context::fixture_admitted_of(vec![
         Box::new(systemprompt_users::UsersExtension),
         Box::new(systemprompt_files::FilesExtension),
+        Box::new(systemprompt_governance::authz::AuthzExtension),
     ])
 }
 
