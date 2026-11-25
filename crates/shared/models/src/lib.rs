@@ -53,6 +53,7 @@
 //! | ------- | ------ |
 //! | _default_ | All public DTOs and traits, no axum integration. |
 //! | `web` | Adds `axum::IntoResponse` impls for the API envelopes. |
+//! | `mcp` | The `rmcp`-typed items: `ai::{AiProvider, AiResponse, CallToolResult, ToolResultFormatter}` and the MCP Apps, client-profile and tool-result metadata helpers in `mcp`. |
 //! | `sqlx` | Derives `sqlx::Type` on DB-persisted enums (e.g. [`ContextKind`]). |
 //!
 //! Public functions return `thiserror`-derived enums from [`errors`];
@@ -117,10 +118,11 @@ pub use agui::{
     StateSnapshotPayload,
 };
 pub use ai::{
-    AiContentPart, AiMessage, AiProvider, AiRequest, CallToolResult, McpTool, MessageRole,
-    ProviderConfig, SamplingParams, StreamChunk, ToolCall, ToolResultFormatter, is_supported_audio,
-    is_supported_image, is_supported_text, is_supported_video,
+    AiContentPart, AiMessage, AiRequest, McpTool, MessageRole, ProviderConfig, SamplingParams,
+    ToolCall, is_supported_audio, is_supported_image, is_supported_text, is_supported_video,
 };
+#[cfg(feature = "mcp")]
+pub use ai::{AiProvider, CallToolResult, StreamChunk, ToolResultFormatter};
 pub use api::{
     AcceptedResponse, ApiError, ApiErrorExt, ApiResponse, CollectionResponse, ContextKind,
     CreateContextRequest, CreatedResponse, ErrorCode, PaginationInfo, PaginationParams,

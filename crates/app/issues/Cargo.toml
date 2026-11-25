@@ -34,7 +34,7 @@ systemprompt-documents = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["mcp"] }
 systemprompt-files = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-models = { workspace = true, features = ["mcp"] }
 
 anyhow = { workspace = true, optional = true }
 chrono = { workspace = true }

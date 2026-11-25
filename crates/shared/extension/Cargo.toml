@@ -22,7 +22,7 @@ router = ["dep:axum", "dep:futures", "dep:tower", "dep:http-body-util"]
 cli = ["dep:clap"]
 slack = []
 teams = []
-mcp = ["dep:rmcp"]
+mcp = ["dep:rmcp", "systemprompt-models/mcp"]
 
 [dependencies]
 thiserror = { workspace = true }

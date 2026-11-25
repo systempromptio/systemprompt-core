@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "`systemprompt-models` links `rmcp` only with its new `mcp` feature. Without it, `ai::{AiProvider, DynAiProvider, AiResponse, StreamChunk, CallToolResult, ToolResultFormatter}`, the `ai::{provider_trait, response, tool_result_formatter}` modules and `mcp::{apps, client_profile, McpToolResultMetadata, ClientProfile}` are absent. Migrate by enabling `systemprompt-models/mcp` (or the facade's `mcp` or `ai` feature) in a crate that names them."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`rmcp` is optional behind the `mcp` feature, which gates `ai::{provider_trait, response, tool_result_formatter}`, `ai::tools::CallToolResult` (now in `ai::tools::call_result`), and `mcp::{apps, client_profile}` with `McpToolResultMetadata`; their crate-root re-exports `AiProvider`, `CallToolResult`, `StreamChunk` and `ToolResultFormatter` follow it."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Changed"
+text = "The `mcp` feature also enables `systemprompt-models/mcp`."

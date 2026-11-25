@@ -68,10 +68,11 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 
 # MCP protocol
-rmcp = { workspace = true }
+rmcp = { workspace = true, optional = true }
 
 [features]
 default = []
+mcp = ["dep:rmcp"]
 sqlx = ["dep:sqlx", "systemprompt-traits/sqlx"]
 
 [package.metadata.docs.rs]

@@ -1,7 +1,6 @@
 //! Provider tool-call request type.
 //!
-//! [`ToolCall`] is a requested invocation (id, name, arguments);
-//! [`CallToolResult`] is the MCP result it resolves to.
+//! [`ToolCall`] is a requested invocation (id, name, arguments).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,5 +16,3 @@ pub struct ToolCall {
     // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub arguments: JsonValue,
 }
-
-pub use rmcp::model::CallToolResult;

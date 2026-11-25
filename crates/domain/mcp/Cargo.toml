@@ -68,7 +68,7 @@ systemprompt-extension = { workspace = true, features = ["mcp"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
-systemprompt-models = { workspace = true, features = ["sqlx"] }
+systemprompt-models = { workspace = true, features = ["mcp", "sqlx"] }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-client = { workspace = true }

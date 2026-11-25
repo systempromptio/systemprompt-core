@@ -10,13 +10,16 @@ pub mod execution_plan;
 pub mod media_types;
 pub mod message_role;
 pub mod models;
+#[cfg(feature = "mcp")]
 pub mod provider_trait;
 pub mod request;
+#[cfg(feature = "mcp")]
 pub mod response;
 pub mod response_format;
 pub mod sampling;
 pub mod template_resolver;
 pub mod template_validation;
+#[cfg(feature = "mcp")]
 pub mod tool_result_formatter;
 pub mod tools;
 
@@ -32,6 +35,7 @@ pub use media_types::{
 pub use message_role::{StoredMessageRole, UnknownStoredMessageRole};
 pub use models::{ModelConfig, ToolModelConfig, ToolModelOverrides};
 pub use request::{AiContentPart, AiMessage, AiRequest, AiRequestBuilder, MessageRole};
+#[cfg(feature = "mcp")]
 pub use response::{
     AiResponse, SafetyRating, SearchGroundedResponse, StreamChunk, UrlMetadata, WebSource,
 };
@@ -41,7 +45,11 @@ pub use sampling::{
 };
 pub use template_resolver::TemplateResolver;
 pub use template_validation::{PlanValidationError, TemplateValidator, ValidationErrorKind};
-pub use tools::{CallToolResult, McpTool, ToolCall};
+#[cfg(feature = "mcp")]
+pub use tools::CallToolResult;
+pub use tools::{McpTool, ToolCall};
 
+#[cfg(feature = "mcp")]
 pub use provider_trait::{AiProvider, DynAiProvider, GenerateResponseParams, GoogleSearchParams};
+#[cfg(feature = "mcp")]
 pub use tool_result_formatter::ToolResultFormatter;

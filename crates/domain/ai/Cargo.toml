@@ -48,7 +48,7 @@ systemprompt-database = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
-systemprompt-models = { workspace = true, features = ["sqlx"] }
+systemprompt-models = { workspace = true, features = ["mcp", "sqlx"] }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-config = { workspace = true }

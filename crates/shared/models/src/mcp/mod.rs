@@ -7,8 +7,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "mcp")]
 pub mod apps;
 pub mod capabilities;
+#[cfg(feature = "mcp")]
 pub mod client_profile;
 pub mod connector;
 pub mod deployment;
@@ -19,9 +21,11 @@ pub mod registry;
 pub mod registry_trait;
 pub mod server;
 mod settings;
+#[cfg(feature = "mcp")]
 mod tool_result_metadata;
 pub mod toolset;
 
+#[cfg(feature = "mcp")]
 pub use apps::{
     EXTENSION_ID, LATEST_PROTOCOL_VERSION, McpUiToolMeta, RESOURCE_MIME_TYPE, SizeChangedParams,
     UI_META_KEY, UiInitializeParams, UiMessageParams, UiMessageRole, UiMethod,
@@ -32,6 +36,7 @@ pub use capabilities::{
     McpResourceUiMeta, ToolVisibility, default_visibility, model_only_visibility,
     visibility_to_json,
 };
+#[cfg(feature = "mcp")]
 pub use client_profile::ClientProfile;
 pub use deployment::{
     Deployment, DeploymentConfig, ExternalAuth, McpServerType, OAuthRequirement, Settings,
@@ -42,5 +47,6 @@ pub use execution_status::{McpToolExecutionStatus, UnknownMcpToolExecutionStatus
 pub use registry::RegistryConfig;
 pub use registry_trait::{McpRegistry, McpServerState};
 pub use server::{McpAuthState, McpServerConfig};
+#[cfg(feature = "mcp")]
 pub use tool_result_metadata::McpToolResultMetadata;
 pub use toolset::{ResolvedAccess, ToolAccess, ToolsetRef};

@@ -38,7 +38,7 @@ systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-models = { workspace = true, features = ["mcp"] }
 systemprompt-notifications = { workspace = true, optional = true }
 systemprompt-oauth-issuance = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }

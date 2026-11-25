@@ -42,7 +42,7 @@ systemprompt-issues = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-models = { workspace = true, features = ["mcp"] }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-security = { workspace = true }

@@ -61,7 +61,7 @@ systemprompt-logging = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-marketplace = { workspace = true, features = ["http"] }
 systemprompt-mcp = { workspace = true }
-systemprompt-models = { workspace = true }
+systemprompt-models = { workspace = true, features = ["mcp"] }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-traits = { workspace = true }

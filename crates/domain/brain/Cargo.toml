@@ -29,7 +29,7 @@ systemprompt-events = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx", "mcp"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-manifest = { workspace = true }
-systemprompt-models = { workspace = true, features = ["sqlx"] }
+systemprompt-models = { workspace = true, features = ["mcp", "sqlx"] }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true, features = ["sqlx"] }
 async-trait = { workspace = true }
