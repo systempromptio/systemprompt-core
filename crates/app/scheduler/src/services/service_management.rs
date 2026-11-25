@@ -186,6 +186,13 @@ impl ServiceManagementService {
         await_api_port_release(api_port, &api).await?;
 
         let stale_entries_removed = match self.reap_stale().await {
+            Ok(reaped) if reaped.held_elsewhere => {
+                warn!(
+                    "Another live process holds this instance's claim; its service rows are left \
+                     for it to reconcile"
+                );
+                0
+            },
             Ok(reaped) => reaped.total(),
             Err(e) => {
                 warn!(error = %e, "Failed to clean stale service entries");

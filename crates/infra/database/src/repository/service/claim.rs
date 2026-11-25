@@ -16,6 +16,11 @@
 //! seconds, so a vanished holder is torn down within
 //! [`CLAIM_DEAD_PEER_SECS`].
 //!
+//! The claim session names its holder in `application_name`
+//! (the machine fingerprint and the OS pid), so any
+//! connection of the holding process can tell with
+//! [`ServiceRepository::holds_claim`] that its own process holds the claim.
+//!
 //! The session is detached from the session pool (`database_session_url`
 //! when set), never from a pool that may sit behind a transaction-mode
 //! pooler, which would hand the locked backend to another client.
@@ -36,6 +41,13 @@ use super::repo::ServiceRepository;
 pub const INSTANCE_CLAIM_CLASS: i32 = 0x5350_0001;
 
 pub const CLAIM_DEAD_PEER_SECS: u64 = 25;
+
+#[must_use]
+fn claim_holder_tag() -> String {
+    let machine = systemprompt_manifest::config::MachineIdentity::probe()
+        .map_or_else(|| "unknown".to_owned(), |machine| machine.to_string());
+    format!("systemprompt-claim:{machine}:{}", std::process::id())
+}
 
 /// Failure to claim this process's replica identity.
 #[derive(Debug, thiserror::Error)]
@@ -104,6 +116,29 @@ impl std::fmt::Debug for InstanceClaim {
 }
 
 impl ServiceRepository {
+    pub async fn holds_claim(&self) -> Result<bool, RepositoryError> {
+        let held = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM pg_locks l
+                JOIN pg_stat_activity a ON a.pid = l.pid
+                WHERE l.locktype = 'advisory'
+                  AND l.granted
+                  AND l.classid = ($1::int)::oid
+                  AND l.objid = (hashtext($2))::oid
+                  AND l.objsubid = 2
+                  AND a.application_name = $3
+            ) AS "held!"
+            "#,
+            INSTANCE_CLAIM_CLASS,
+            self.instance_id as _,
+            claim_holder_tag()
+        )
+        .fetch_one(&*self.write_pool)
+        .await?;
+        Ok(held)
+    }
+
     pub async fn claim_instance(&self) -> Result<InstanceClaim, InstanceClaimError> {
         let mut session = self.session_pool.acquire().await?.detach();
         // Why: idle 10 s + 3 probes 5 s apart bounds a dead peer at
@@ -112,7 +147,9 @@ impl ServiceRepository {
         sqlx::query_scalar!(
             r#"SELECT set_config('tcp_keepalives_idle', '10', false)
                    || set_config('tcp_keepalives_interval', '5', false)
-                   || set_config('tcp_keepalives_count', '3', false) AS "applied!""#
+                   || set_config('tcp_keepalives_count', '3', false)
+                   || set_config('application_name', $1, false) AS "applied!""#,
+            claim_holder_tag()
         )
         .fetch_one(&mut session)
         .await?;

@@ -1,10 +1,11 @@
 //! A replica's identity must be stable across restarts on cloud targets: an
 //! explicit `server.instance_id` wins, `HOSTNAME` is accepted, and a random
-//! local profile with neither resolves one id per profile, so the host and a
-//! CLI on the same profile share it.
+//! local profile with neither resolves one id per profile and machine, so the
+//! host and a CLI on the same machine share it and another machine never does.
 
 use systemprompt_config::{ConfigError, resolve_instance_id};
 use systemprompt_manifest::Profile;
+use systemprompt_manifest::config::{MachineIdentity, local_instance_id};
 
 use crate::fixture;
 
@@ -52,7 +53,22 @@ fn local_profile_without_an_id_resolves_one_id_per_profile() {
     let host = resolve_instance_id(&local).unwrap();
     let cli = resolve_instance_id(&local).unwrap();
     assert_eq!(host, cli);
-    assert_eq!(host.as_str(), format!("local-{}", local.name));
+    let machine = MachineIdentity::probe().expect("this machine has an identity");
+    assert_eq!(host.as_str(), format!("local-{}-{machine}", local.name));
+}
+
+#[test]
+fn another_machine_never_resolves_the_same_local_id() {
+    let local = profile("local", None);
+    let here = MachineIdentity::from_source("machine-a").unwrap();
+    let there = MachineIdentity::from_source("machine-b").unwrap();
+    assert_eq!(here, MachineIdentity::from_source(" machine-a\n").unwrap());
+    assert_ne!(
+        local_instance_id(&local, &here),
+        local_instance_id(&local, &there)
+    );
+    assert!(MachineIdentity::from_source("  ").is_none());
+    assert_eq!(here.as_str().len(), 12);
 }
 
 #[test]

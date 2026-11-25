@@ -138,7 +138,9 @@ pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<InstanceId> {
     match systemprompt_manifest::config::stable_instance_id(|name| std::env::var(name).ok()) {
         Some(id) => Ok(InstanceId::new(id)),
         None if profile.target.is_cloud() => Err(ConfigError::InstanceIdUnresolved),
-        None => Ok(systemprompt_manifest::config::local_instance_id(profile)),
+        None => systemprompt_manifest::config::MachineIdentity::probe()
+            .map(|machine| systemprompt_manifest::config::local_instance_id(profile, &machine))
+            .ok_or(ConfigError::InstanceIdUnresolved),
     }
 }
 

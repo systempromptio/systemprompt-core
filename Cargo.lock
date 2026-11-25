@@ -7399,6 +7399,7 @@ dependencies = [
  "chrono",
  "hex",
  "ipnet",
+ "nix",
  "regex",
  "schemars 1.2.3",
  "semver",

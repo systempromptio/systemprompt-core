@@ -8,37 +8,28 @@
 //! [`SubjectSourceCell`] instead: the `authz` member declares the cell
 //! (`Contributions::late_cell`), the kernel seeds its read half before any
 //! member provides and binds it to the set once the composition has resolved.
-//! The write half never enters the state, so no member can bind it. Until it
-//! is bound, and on a composition that built no set, every read answers
-//! [`SubjectSourceError::NotReady`] and the dimension list is empty: a caller
-//! fails closed rather than resolve from an empty set.
+//! The write half never enters the state, so no member can bind it. The cell
+//! hands out the set only through [`SubjectSourceCell::get`], which withholds
+//! it with [`SubjectSourceError::NotReady`] until it is bound (and on a
+//! composition that built no set): there is no empty dimension list or empty
+//! attribute map a caller could iterate and allow from.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use systemprompt_extension::LateCell;
-use systemprompt_identifiers::UserId;
 use systemprompt_models::{AlreadyBound, LateBinder, LateRead, late_pair};
 
-use super::subject::{
-    SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectProviderSet,
-    SubjectSourceError,
-};
+use super::subject::{SubjectProviderSet, SubjectSourceError};
 
 /// The read half of the subject set cell; see the module docs.
 #[derive(Debug, Clone)]
 pub struct SubjectSourceCell(LateRead<SubjectProviderSet>);
 
 impl SubjectSourceCell {
-    #[must_use]
-    pub fn is_bound(&self) -> bool {
-        self.0.is_bound()
-    }
-
-    fn source(&self) -> Result<&Arc<SubjectProviderSet>, SubjectSourceError> {
+    pub fn get(&self) -> Result<&Arc<SubjectProviderSet>, SubjectSourceError> {
         self.0.get().ok_or(SubjectSourceError::NotReady)
     }
 }
@@ -54,31 +45,5 @@ impl LateCell for SubjectSourceCell {
 
     fn bind(binder: Self::Binder, value: Arc<Self::Value>) -> Result<(), AlreadyBound> {
         binder.bind(value)
-    }
-}
-
-#[async_trait]
-impl SubjectAttributeSource for SubjectSourceCell {
-    fn dimensions(&self) -> &[SubjectDimension] {
-        self.0.get().map_or(&[], |set| set.dimensions())
-    }
-
-    async fn values_for(
-        &self,
-        user: &UserId,
-        dimension: &SubjectDimension,
-    ) -> Result<Vec<String>, SubjectSourceError> {
-        self.source()?.values_for(user, dimension).await
-    }
-
-    async fn resolve_all(&self, user: &UserId) -> Result<SubjectAttributes, SubjectSourceError> {
-        self.source()?.resolve_all(user).await
-    }
-
-    async fn known_values(
-        &self,
-        dimension: &SubjectDimension,
-    ) -> Result<Option<Vec<String>>, SubjectSourceError> {
-        self.source()?.known_values(dimension).await
     }
 }

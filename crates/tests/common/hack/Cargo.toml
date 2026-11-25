@@ -239,7 +239,7 @@ hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc
 hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "client-proxy"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 mio = { version = "1", features = ["net", "os-ext"] }
-nix = { version = "0.31", features = ["fs", "signal", "user"] }
+nix = { version = "0.31", features = ["fs", "hostname", "signal", "user"] }
 rustix = { version = "1", features = ["event", "fs", "net", "pipe", "process", "time"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
@@ -256,6 +256,7 @@ getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-f
 hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "client-proxy"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 mio = { version = "1", features = ["net", "os-ext"] }
+nix = { version = "0.31", features = ["fs", "hostname", "signal", "user"] }
 rustix = { version = "1", features = ["event", "fs", "net", "pipe", "process", "time"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }

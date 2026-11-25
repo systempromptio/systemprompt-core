@@ -1,11 +1,15 @@
 //! Liveness maintenance on the `services` registry: heartbeats, the stale-row
 //! reaper for this instance, and the cross-instance reap of dead replicas.
 //!
-//! [`ServiceRepository::reap_stale`] is the only stale-row reaper. It deletes
-//! this instance's `error` rows and `running` rows with no pid outright, then
-//! asks the injected [`ProcessLiveness`] about every remaining `running` pid
-//! and deletes the rows whose process is gone or is not a child this
-//! installation spawned.
+//! [`ServiceRepository::reap_stale`] is the only stale-row reaper. It judges
+//! rows only while this process holds the instance claim: a process that does
+//! not already hold it (a CLI run) takes it for the pass, and when another live
+//! process holds it the pass deletes nothing and reports `held_elsewhere`, so
+//! a CLI never deletes rows of a server it cannot see the processes of. Under
+//! the claim it deletes this instance's `error` rows and `running` rows with no
+//! pid outright, then asks the injected [`ProcessLiveness`] about every
+//! remaining `running` pid and deletes the rows whose process is gone or is not
+//! a child this installation spawned.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +18,7 @@ use systemprompt_identifiers::{ServiceName, SpawnNonce};
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::ProcessLiveness;
 
-use super::claim::INSTANCE_CLAIM_CLASS;
+use super::claim::{INSTANCE_CLAIM_CLASS, InstanceClaimError};
 use super::repo::ServiceRepository;
 use crate::error::{DatabaseResult, RepositoryError};
 
@@ -31,6 +35,7 @@ pub struct ReapedService {
 pub struct Reaped {
     pub stale_rows: u64,
     pub dead: Vec<ReapedService>,
+    pub held_elsewhere: bool,
 }
 
 impl Reaped {
@@ -42,6 +47,24 @@ impl Reaped {
 
 impl ServiceRepository {
     pub async fn reap_stale(&self, liveness: &dyn ProcessLiveness) -> DatabaseResult<Reaped> {
+        if self.holds_claim().await? {
+            return self.reap_under_claim(liveness).await;
+        }
+        match self.claim_instance().await {
+            Ok(claim) => {
+                let reaped = self.reap_under_claim(liveness).await;
+                claim.release().await;
+                reaped
+            },
+            Err(InstanceClaimError::Claimed { .. }) => Ok(Reaped {
+                held_elsewhere: true,
+                ..Reaped::default()
+            }),
+            Err(InstanceClaimError::Repository(source)) => Err(source),
+        }
+    }
+
+    async fn reap_under_claim(&self, liveness: &dyn ProcessLiveness) -> DatabaseResult<Reaped> {
         let stale_rows = sqlx::query!(
             r#"
             DELETE FROM services
@@ -98,7 +121,11 @@ impl ServiceRepository {
             });
         }
 
-        Ok(Reaped { stale_rows, dead })
+        Ok(Reaped {
+            stale_rows,
+            dead,
+            held_elsewhere: false,
+        })
     }
 
     pub async fn touch_heartbeat(&self) -> DatabaseResult<u64> {

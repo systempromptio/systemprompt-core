@@ -74,7 +74,7 @@ fn probe(seen: &Arc<Mutex<Seen>>) -> Probe {
         c.subject_attributes(move |r: &Resolved<'_>| {
             let cell = r.get::<SubjectSourceCell>()?;
             let mut seen = on_provider.lock().expect("seen");
-            seen.bound_at_build.push(cell.is_bound());
+            seen.bound_at_build.push(cell.get().is_ok());
             seen.provider = Some(cell);
             let provider: Arc<dyn SubjectAttributeProvider> = Arc::new(CostCentre);
             Ok(provider)
@@ -83,7 +83,7 @@ fn probe(seen: &Arc<Mutex<Seen>>) -> Probe {
             let cell = r.get::<SubjectSourceCell>()?;
             let mut seen = on_guard.lock().expect("seen");
             seen.set_at_guard_build = Some(r.get::<Arc<SubjectProviderSet>>().is_ok());
-            seen.bound_at_build.push(cell.is_bound());
+            seen.bound_at_build.push(cell.get().is_ok());
             seen.guard = Some(cell);
             let guard: Arc<dyn GatewayRequestGuard> = Arc::new(ReadsSubjects);
             Ok(guard)
@@ -91,7 +91,7 @@ fn probe(seen: &Arc<Mutex<Seen>>) -> Probe {
         c.slot::<AuthzHookSlot>().hook(move |r: &Resolved<'_>| {
             let cell = r.get::<SubjectSourceCell>()?;
             let mut seen = on_hook.lock().expect("seen");
-            seen.bound_at_build.push(cell.is_bound());
+            seen.bound_at_build.push(cell.get().is_ok());
             seen.hook = Some(cell);
             let hook: SharedAuthzHook = Arc::new(AllowAllHook::null());
             Ok(hook)
@@ -119,11 +119,10 @@ async fn install_factories_read_the_subject_set_through_the_cell_once_resolved()
     let user = UserId::new("fx-user");
     for cell in [&seen.guard, &seen.hook, &seen.provider] {
         let cell = cell.as_ref().expect("every factory ran");
-        assert!(
-            cell.is_bound(),
-            "the kernel binds the cell once it resolves"
-        );
-        let names: Vec<&str> = cell
+        let set = cell
+            .get()
+            .expect("the kernel binds the cell once it resolves");
+        let names: Vec<&str> = set
             .dimensions()
             .iter()
             .map(|d| d.rule_type.as_str())
@@ -131,26 +130,15 @@ async fn install_factories_read_the_subject_set_through_the_cell_once_resolved()
         assert!(names.contains(&DIMENSION), "{names:?}");
         assert!(names.contains(&"traffic"), "{names:?}");
         assert_eq!(
-            cell.values_for(&user, &dimension())
-                .await
-                .expect("resolves"),
+            set.values_for(&user, &dimension()).await.expect("resolves"),
             vec!["cc-7".to_owned()]
         );
     }
 }
 
 #[tokio::test]
-async fn an_unbound_cell_fails_closed() {
+async fn an_unbound_cell_withholds_the_set() {
     use systemprompt_extension::LateCell;
     let (cell, _binder) = SubjectSourceCell::unbound();
-    assert!(cell.dimensions().is_empty());
-    let user = UserId::new("fx-user");
-    assert!(matches!(
-        cell.resolve_all(&user).await,
-        Err(SubjectSourceError::NotReady)
-    ));
-    assert!(matches!(
-        cell.values_for(&user, &dimension()).await,
-        Err(SubjectSourceError::NotReady)
-    ));
+    assert!(matches!(cell.get(), Err(SubjectSourceError::NotReady)));
 }

@@ -50,3 +50,6 @@ systemprompt-models = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-wire = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true, features = ["hostname"] }

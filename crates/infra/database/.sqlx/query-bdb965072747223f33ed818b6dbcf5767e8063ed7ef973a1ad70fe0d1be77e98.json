@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT EXISTS (\n                SELECT 1 FROM pg_locks l\n                JOIN pg_stat_activity a ON a.pid = l.pid\n                WHERE l.locktype = 'advisory'\n                  AND l.granted\n                  AND l.classid = ($1::int)::oid\n                  AND l.objid = (hashtext($2))::oid\n                  AND l.objsubid = 2\n                  AND a.application_name = $3\n            ) AS \"held!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "held!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "bdb965072747223f33ed818b6dbcf5767e8063ed7ef973a1ad70fe0d1be77e98"
+}

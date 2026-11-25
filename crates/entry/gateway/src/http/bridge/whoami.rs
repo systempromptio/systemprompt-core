@@ -59,7 +59,10 @@ async fn subject_attributes(
             .iter()
             .map(|(dimension, values)| (dimension.as_str().to_owned(), values.to_vec()))
             .collect(),
-        Err(SubjectSourceError::NotReady) => BTreeMap::new(),
+        Err(SubjectSourceError::NotReady) => {
+            tracing::debug!(%user_id, "subject attributes for whoami withheld: source not ready");
+            BTreeMap::new()
+        },
         Err(error) => {
             tracing::warn!(%error, %user_id, "subject attributes for whoami could not be read");
             BTreeMap::new()

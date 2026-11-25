@@ -1,9 +1,14 @@
 [root]
 section = "Fixed"
 area = "Runtime"
-text = "A local profile with no `server.instance_id` and no platform hostname resolves the instance id `local-<profile name>` instead of a random id per process, so a CLI run on the same profile sees the services the running server started: `plugins mcp tools`, `plugins mcp status` and `infra services status` listed none, or reported the server's own agents as orphaned. Markers named `instance-<32 hex>` that earlier releases left under `<storage root>/.systemprompt/instances/` are no longer pruned; delete them once."
+text = "A local profile with no `server.instance_id` and no platform hostname resolves `local-<profile name>-<machine fingerprint>` (a hash of the OS machine id, else the host name) instead of a random id per process, so a CLI on the same machine sees the services the running server started (`plugins mcp tools`, `plugins mcp status` and `infra services status` listed none, or reported the server's agents as orphaned), and a process on another machine never shares the id. Stale `instance-<32 hex>` storage markers from earlier releases are no longer pruned; they affect only the shared-storage boot diagnostic."
 
 [[crate]]
 name = "systemprompt-manifest"
 section = "Breaking"
-text = "`config::random_instance_id` and `config::is_random_instance_id` are removed; `config::local_instance_id` names the id a local profile resolves when it sets none."
+text = "`config::random_instance_id` and `config::is_random_instance_id` are removed; `config::MachineIdentity` and `config::local_instance_id(profile, machine)` name the id a local profile resolves when it sets none."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Fixed"
+text = "`ServiceRepository::reap_stale` deletes rows only under the instance claim: a caller that does not hold it takes it for the pass, and when another live process holds it nothing is deleted and `Reaped::held_elsewhere` is set, so a CLI never removes a running server's rows. The claim session names its holder in `application_name`; `ServiceRepository::holds_claim` tells whether this process holds it."

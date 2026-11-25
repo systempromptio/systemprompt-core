@@ -16,9 +16,11 @@ use crate::profile::{
 };
 use systemprompt_models::auth::JwtAudience;
 
+mod machine;
 mod paths;
 mod validation;
 
+pub use machine::MachineIdentity;
 pub use paths::PathNotConfiguredError;
 pub use validation::validate_postgres_url;
 
@@ -39,13 +41,17 @@ pub fn stable_instance_id(lookup: impl Fn(&str) -> Option<String>) -> Option<Str
         })
 }
 
-// Why: every process that boots a local profile — the host, the MCP servers
-// and agents it spawns, and a CLI run against the same profile — must resolve
-// one id, because the service registry, scheduler claims and outbox origin are
-// keyed by it; a per-process id hides the host's rows from the CLI.
+// Why: every process that boots a local profile on one machine — the host,
+// the MCP servers and agents it spawns, and a CLI run against the same
+// profile — must resolve one id, and a process on another machine never the
+// same one, because the service registry, the instance claim, scheduler claims
+// and outbox origin are keyed by it.
 #[must_use]
-pub fn local_instance_id(profile: &crate::profile::Profile) -> InstanceId {
-    InstanceId::new(format!("local-{}", profile.name))
+pub fn local_instance_id(
+    profile: &crate::profile::Profile,
+    machine: &MachineIdentity,
+) -> InstanceId {
+    InstanceId::new(format!("local-{}-{machine}", profile.name))
 }
 
 #[derive(Clone)]
