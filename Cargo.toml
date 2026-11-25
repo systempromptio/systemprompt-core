@@ -221,6 +221,7 @@ axum = "0.8"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-no-provider", "query", "form"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 http = "1.5"
+http-body = "1"
 tower-http = { version = "0.7", features = ["catch-panic", "cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 

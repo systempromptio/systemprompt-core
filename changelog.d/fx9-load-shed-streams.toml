@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "API"
+text = "A request now holds its `server.max_in_flight` permit until its response body has been read to the end or dropped, not only until the response headers are sent. An open SSE, A2A or gateway stream, or a slow download, counts against the ceiling until it closes, and `/readyz` reports `saturated` while every permit is held. A replica that serves long streams may reach the ceiling sooner, so size `max_in_flight` for open streams as well as for requests."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`services::middleware::LoadShed` and `load_shed::shed` are crate-private; `load_shed::outermost` is the entry point. The permit is released when the response body is dropped."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`Held<S, G>`: a stream or HTTP body that keeps a guard alive until it is dropped, forwarding the body's size hint. The gateway's deployment slot and the API's admission permit both use it."

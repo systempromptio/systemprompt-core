@@ -10,7 +10,7 @@ How to move a deployment and the code built on the `systemprompt` crates from 0.
 | `infra db migrate` exit status | The command exits non-zero when it holds a member back because the database records migrations the binary does not know, and names each such member. Run the release that wrote them, or add a tombstone for a migration no release ships | Review, in deploy scripts |
 | Facade feature | Replace `features = ["full"]` with `features = ["reference"]` in every crate that depends on `systemprompt` | Yes, if `full` is named |
 | Supported compositions | Build one of the compositions listed in [feature flags](../reference/feature-flags.md#supported-compositions); other feature sets are unsupported | Review |
-| `server.max_in_flight` | Load shedding is on by default at 4096 concurrent requests per replica. Set a value sized for the node, or `null` for no ceiling | Review |
+| `server.max_in_flight` | Load shedding is on by default at 4096 concurrent requests per replica; an open response stream counts until it closes. Set a value sized for the node, or `null` for no ceiling | Review |
 | `server.shutdown.longest_stream_secs` | The drain now waits up to 600 s while a response stream is open. Raise the orchestrator's termination grace to cover the total the server logs at boot, or lower this value | Yes, on Kubernetes |
 | `database.connection_budget` | New, optional: the most Postgres connections one node holds, children included. Boot is refused when the pinned pool sizes exceed it | No |
 | `database.schema_install_roles` | New, optional: the roles that install the schema at boot; every other role verifies it | No |
@@ -288,7 +288,7 @@ Each entry below is one breaking change of this release, with its migration wher
 
 ## Overload
 
-- Admission control is on by default and decided outside every other layer: `server.max_in_flight` defaults to 4096 in-flight requests per replica (an explicit `null` is no ceiling), and the shed layer is the outermost layer of the API router, so a saturated replica answers `503` with `Retry-After: 1` before CORS, sessions, authentication, rate limits or body parsing. Migrate by setting `server.max_in_flight` to the replica's measured capacity, or `null` to keep queueing.
+- Admission control is on by default and decided outside every other layer: `server.max_in_flight` defaults to 4096 in-flight requests per replica, each counted until its response body is read to the end or dropped (an explicit `null` is no ceiling), and the shed layer is the outermost layer of the API router, so a saturated replica answers `503` with `Retry-After: 1` before CORS, sessions, authentication, rate limits or body parsing. Migrate by setting `server.max_in_flight` to the replica's measured capacity, or `null` to keep queueing.
 
 ## Resilience
 

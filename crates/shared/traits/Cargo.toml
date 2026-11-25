@@ -40,6 +40,7 @@ schemars = { workspace = true }
 futures = { workspace = true }
 bytes = { workspace = true }
 http = { workspace = true }
+http-body = { workspace = true }
 xxhash-rust = { workspace = true }
 sqlx = { workspace = true, optional = true }
 tokio = { version = "1.54", default-features = false, features = ["rt", "time", "sync", "macros"] }

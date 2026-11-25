@@ -8681,6 +8681,7 @@ dependencies = [
  "chrono",
  "futures",
  "http",
+ "http-body",
  "schemars 1.2.3",
  "serde",
  "serde_json",

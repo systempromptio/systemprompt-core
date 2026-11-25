@@ -43,7 +43,6 @@ pub use context::{
 pub use cors::{CorsError, CorsMiddleware};
 pub use ip_ban::ip_ban_middleware;
 pub use jwt::{JwtContextExtractor, JwtUserContext};
-pub use load_shed::LoadShed;
 pub use mount::{
     ClientWritesGuard, DEFAULT_BODY_LIMIT_BYTES, KernelRoutes, MountError, MountLayers,
     MountedGatewayRoute, ProtectionGuards, RootFallback, RootFallbackOwner, SiteAuthGuard,

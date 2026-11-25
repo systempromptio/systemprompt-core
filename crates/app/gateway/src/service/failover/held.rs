@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures_util::StreamExt;
+use systemprompt_traits::Held;
 use tokio::sync::OwnedSemaphorePermit;
 
 use super::InFlight;
@@ -60,10 +61,5 @@ fn carry<T: Send + 'static>(
     stream: futures_util::stream::BoxStream<'static, T>,
     slot: DeploymentSlot,
 ) -> futures_util::stream::BoxStream<'static, T> {
-    stream
-        .map(move |item| {
-            let _held = &slot;
-            item
-        })
-        .boxed()
+    Held::new(stream, slot).boxed()
 }
