@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build report: per reference composition (a facade feature set of the
+# Build report: per supported composition (a facade feature set of the
 # `systemprompt` crate, listed in scripts/build-compositions.txt) it
 # reports the crate closure and, unless --closure-only, the stripped release
 # binary size. The composition marked `largest` also gets `cargo bloat --crates`
@@ -55,7 +55,7 @@ json="${out%.md}.json"
 mkdir -p "$base" "$(dirname "$out")"
 
 mapfile -t rows < <(grep -vE '^\s*(#|$)' "$table")
-[ "$(printf '%s\n' "${rows[@]}" | awk '$3 == "largest"' | wc -l)" -eq 1 ] \
+[ "$(printf '%s\n' "${rows[@]}" | awk '$3 ~ /(^|,)largest(,|$)/' | wc -l)" -eq 1 ] \
     || { echo "$table must mark exactly one composition largest" >&2; exit 2; }
 if [ -n "$only" ] && ! printf '%s\n' "${rows[@]}" | awk -v n="$only" '$1 == n {f=1} END {exit !f}'; then
     echo "no composition named $only in $table" >&2; exit 2
@@ -64,8 +64,6 @@ fi
 
 release_profile="$(awk '/^\[profile\.release\]/ {p=1; print; next} /^\[/ {p=0} p' "$root/Cargo.toml")"
 [ -n "$release_profile" ] || { echo 'no [profile.release] in Cargo.toml' >&2; exit 2; }
-tokio_req="$(sed -n 's/^tokio = //p' "$root/Cargo.toml")"
-anyhow_req="$(sed -n 's/^anyhow = //p' "$root/Cargo.toml")"
 
 lock_packages() {
     awk '/^\[\[package\]\]/ {if (n) print n" "v; n=""; v=""} /^name = / {n=$3} /^version = / {v=$3} END {if (n) print n" "v}' "$1" \
@@ -81,16 +79,12 @@ generate() {
         printf '[package]\nname = "%s"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n' "$pkg"
         printf '[workspace]\n\n[dependencies]\n'
         printf 'systemprompt = { path = "../../../systemprompt", default-features = false, features = %s }\n' "$feature_list"
-        if [ "$cli" = true ]; then
-            printf 'tokio = %s\nanyhow = %s\n' "$tokio_req" "$anyhow_req"
-        fi
         printf '\n%s\n' "$release_profile"
     } >"$dir/Cargo.toml"
     if [ "$cli" = true ]; then
         cat >"$dir/src/main.rs" <<'EOF'
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    Box::pin(systemprompt::cli::run()).await
+fn main() -> Result<std::process::ExitCode, systemprompt::RunError> {
+    systemprompt::reference().run()
 }
 EOF
     else
@@ -118,12 +112,14 @@ host="$(rustc -vV | sed -n 's/^host: //p')"
 results="[]"
 bloat_md=""
 for row in "${rows[@]}"; do
-    read -r name features flag <<<"$row"
+    read -r name features flags <<<"$row"
+    flag=""
+    case ",${flags:-}," in *,largest,*) flag=largest ;; esac
     [ -n "$only" ] && [ "$name" != "$only" ] && continue
     pkg="build-report-$name"
     dir="$base/$name"
     cli=false
-    case ",$features," in *,cli,*|*,full,*|*,runtime,*) cli=true ;; esac
+    case ",$features," in *,reference,*) cli=true ;; esac
     generate "$features" "$cli" "$dir" "$pkg"
     echo "== $name ($features)" >&2
 

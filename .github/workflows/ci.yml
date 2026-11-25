@@ -68,6 +68,7 @@ jobs:
       run_fmt: ${{ steps.plan.outputs.run_fmt }}
       run_build: ${{ steps.plan.outputs.run_build }}
       run_build_no_engine: ${{ steps.plan.outputs.run_build_no_engine }}
+      run_compositions: ${{ steps.plan.outputs.run_compositions }}
       run_migrator: ${{ steps.plan.outputs.run_migrator }}
       run_test_tools: ${{ steps.plan.outputs.run_test_tools }}
       run_test: ${{ steps.plan.outputs.run_test }}
@@ -175,7 +176,7 @@ jobs:
       # dependencies, so the test archive job does not wait on them.
       - name: Build the binaries the test shards spawn
         run: |
-          cargo build -p systemprompt --bin systemprompt --features full --locked
+          cargo build -p systemprompt --bin systemprompt --features reference --locked
           cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --locked
           bridge_target=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
           mkdir -p test-bins
@@ -212,6 +213,44 @@ jobs:
               | grep -E '^loro' ; then
             echo "::error::a document engine is linked without the collab-loro feature"; exit 1
           fi
+
+  # Every supported composition (scripts/build-compositions.txt) is built
+  # against the committed lock; a composition flagged `boot` links the
+  # `systemprompt` binary and runs `systemprompt --help`, which declares every
+  # member and builds the command tree before any profile is read. A feature
+  # set not in that file is unsupported.
+  compositions:
+    name: Compositions
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: affected
+    if: needs.affected.outputs.run_compositions == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - uses: ./.github/actions/sccache
+      - name: Build and boot every supported composition
+        run: |
+          mapfile -t rows < <(grep -vE '^\s*(#|$)' scripts/build-compositions.txt)
+          [ "${#rows[@]}" -gt 0 ] || { echo "::error::scripts/build-compositions.txt lists no composition"; exit 1; }
+          for row in "${rows[@]}"; do
+            read -r name features flags <<<"$row"
+            echo "::group::$name ($features)"
+            case ",${flags:-}," in
+              *,boot,*)
+                cargo build -p systemprompt --no-default-features --features "$features" --bin systemprompt --locked
+                ./target/debug/systemprompt --help >/dev/null
+                ;;
+              *)
+                cargo build -p systemprompt --no-default-features --features "$features" --lib --locked
+                ;;
+            esac
+            echo "::endgroup::"
+          done
+      - if: env.RUSTC_WRAPPER == 'sccache'
+        run: sccache --show-stats
 
   # The schema migrator alone, so the schema ladder starts on it without
   # waiting for the full test archive.
@@ -454,7 +493,7 @@ jobs:
     name: Escape report
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [affected, fmt, build, build-no-engine, migrator, test-tools, test, schema-ladder]
+    needs: [affected, fmt, build, build-no-engine, compositions, migrator, test-tools, test, schema-ladder]
     if: ${{ always() && needs.affected.outputs.shadow == 'true' }}
     permissions:
       contents: read
@@ -494,7 +533,7 @@ jobs:
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'CI passed' || 'CI passed (push)' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [affected, gate-plan, fmt, build, build-no-engine, migrator, test-tools, test, schema-ladder]
+    needs: [affected, gate-plan, fmt, build, build-no-engine, compositions, migrator, test-tools, test, schema-ladder]
     if: always()
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

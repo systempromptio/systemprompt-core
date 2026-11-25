@@ -84,6 +84,7 @@ JOBS = {
         "fmt": Rule("always", "Format"),
         "build": Rule("any", "Build"),
         "build-no-engine": Rule("any", "Build (no document engine)"),
+        "compositions": Rule("any", "Compositions"),
         "migrator": Rule("any", "Test migrator"),
         "test-tools": Rule("fields", "Test tools ({})", ("archive_sets",), matrix_field="archive_sets"),
         "test": Rule("fields", "Test ({})", ("shard_groups",), matrix_field="shard_groups"),
