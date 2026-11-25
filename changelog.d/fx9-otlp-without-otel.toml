@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Observability"
+text = "A build without the `otel` feature refuses to boot when the profile sets `observability.otlp`. Startup validation reports `observability.otlp` with the collector endpoint and the missing feature. Previously the server started and dropped every log record and audit span. Build with the `otel` feature, or remove the block."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Added"
+text = "`ExportCapability` (`Linked`, `NotLinked`, `COMPILED`) and `OtlpExportUnavailable`. `ExportCapability::admit` refuses an `observability.otlp` block that the build cannot export to."

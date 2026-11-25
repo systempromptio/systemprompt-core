@@ -12,6 +12,7 @@ How to move a deployment and the code built on the `systemprompt` crates from 0.
 | Supported compositions | Build one of the compositions listed in [feature flags](../reference/feature-flags.md#supported-compositions); other feature sets are unsupported | Review |
 | `server.max_in_flight` | Load shedding is on by default at 4096 concurrent requests per replica; an open response stream counts until it closes. Set a value sized for the node, or `null` for no ceiling | Review |
 | `server.shutdown.longest_stream_secs` | The drain now waits up to 600 s while a response stream is open, so the default shutdown budget is 612 s. Raise the orchestrator's termination grace (`terminationGracePeriodSeconds`, 30 s by default on Kubernetes) above the total the server logs at boot, or lower this value | Yes, on Kubernetes |
+| `observability.otlp` | A build without the `otel` feature refuses to boot when the profile sets this block, instead of dropping every span. Build with the facade's `otel` feature (in `full`), or remove the block | Yes, on reduced compositions |
 | `database.connection_budget` | New, optional: the most Postgres connections one node holds, children included. Boot is refused when the pinned pool sizes exceed it | No |
 | `database.schema_install_roles` | New, optional: the roles that install the schema at boot; every other role verifies it | No |
 | `rate_limits.memory_capacity` | New, optional: callers tracked per node in per-replica windows (default 262144) | No |
@@ -284,6 +285,7 @@ Each entry below is one breaking change of this release, with its migration wher
 
 ## Observability
 
+- A build without the `otel` feature refuses to boot when the profile sets `observability.otlp`: startup validation reports `observability.otlp` with the collector endpoint and the missing `otel` feature (`systemprompt_logging::OtlpExportUnavailable`), where it used to start and drop every log record and audit span. Migrate by building with the facade's `otel` feature, or by removing the block.
 - OTLP export is live: with `observability.otlp` set and the `otel` feature built in, the server ships its own `tracing` pipeline — every persisted log entry as a log record and every span under a platform trace as a span — through a bounded queue to the collector, counting what it drops in `otlp_export_dropped_total{signal}`. The `otlp_export` replay job and its `otlp_export_state` table (dropped by migration) are removed; the audit tables stay the durable record. `batch_seconds` is now the longest an item waits before its batch ships.
 
 ## Overload

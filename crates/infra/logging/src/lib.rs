@@ -41,6 +41,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod export_capability;
 pub mod extension;
 pub mod layer;
 pub mod models;
@@ -51,6 +52,7 @@ pub mod runtime;
 pub mod sanitize;
 pub mod services;
 
+pub use export_capability::{ExportCapability, OtlpExportUnavailable};
 pub use extension::LoggingExtension;
 
 pub use layer::{DatabaseLayer, LogWriterHandle, LogWriterShutdownError};
