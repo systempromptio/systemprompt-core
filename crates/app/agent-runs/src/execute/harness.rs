@@ -1,7 +1,7 @@
 //! Installs a run's harness revision into the host before spawn.
 //!
-//! [`HarnessSource`] loads the verified revision closure for the run's
-//! owner; [`materialise`] checks that the closure's root is the requested
+//! The run handler loads the verified revision closure for the run's owner
+//! from the shared `RevisionBundleSource`; [`materialise`] checks that the closure's root is the requested
 //! revision and that the closure's digest is the requested
 //! [`HarnessRef::bundle_digest`], then writes every file of every revision
 //! in the closure under the host's [`HarnessTargets`], keeping the
@@ -16,9 +16,8 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
-use systemprompt_identifiers::{ResourceRevisionId, UserId};
-use systemprompt_marketplace::managed::{ManagedError, ManagedRepository};
+use systemprompt_extension::revision_bundles::RevisionBundleLoadError;
+use systemprompt_identifiers::ResourceRevisionId;
 use systemprompt_models::managed::{AssetDigest, RevisionBundle, validate_path};
 
 use crate::host::HarnessTargets;
@@ -30,7 +29,7 @@ pub enum HarnessError {
     #[error("no harness source is configured for this runner")]
     NoSource,
     #[error("harness revision could not be loaded")]
-    Load(#[source] ManagedError),
+    Load(#[source] RevisionBundleLoadError),
     #[error("harness bundle failed verification")]
     Verify(#[source] systemprompt_models::managed::RevisionBundleError),
     #[error("harness root is {found}, requested {requested}")]
@@ -61,32 +60,6 @@ pub enum HarnessError {
         #[source]
         source: std::io::Error,
     },
-}
-
-/// Loads a harness revision closure on behalf of a run's owner.
-///
-/// Held as `Arc<dyn HarnessSource>` by the run handler, hence
-/// `#[async_trait]`.
-#[async_trait]
-pub trait HarnessSource: Send + Sync {
-    async fn revision_bundle(
-        &self,
-        owner: &UserId,
-        revision: &ResourceRevisionId,
-    ) -> Result<RevisionBundle, HarnessError>;
-}
-
-#[async_trait]
-impl HarnessSource for ManagedRepository {
-    async fn revision_bundle(
-        &self,
-        owner: &UserId,
-        revision: &ResourceRevisionId,
-    ) -> Result<RevisionBundle, HarnessError> {
-        self.get_revision_bundle(owner, revision)
-            .await
-            .map_err(HarnessError::Load)
-    }
 }
 
 #[must_use]

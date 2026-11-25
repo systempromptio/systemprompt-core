@@ -105,6 +105,7 @@ pub mod purge;
 pub mod reassignment;
 pub mod reserved;
 pub mod retention;
+pub mod revision_bundles;
 pub mod router;
 pub mod seed;
 pub mod service_process;

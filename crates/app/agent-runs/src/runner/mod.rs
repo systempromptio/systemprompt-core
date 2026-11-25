@@ -30,6 +30,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
+use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
 use systemprompt_identifiers::{AgentRunId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepositories;
@@ -134,6 +135,7 @@ impl A2aRunnerService {
         config: &Arc<Config>,
         paths: &AppPaths,
         signing_keys: SigningKeys,
+        harness: Option<DynRevisionBundleSource>,
     ) -> Self {
         let runner = A2aRunnerConfig::new(
             &config.api_internal_url,
@@ -153,7 +155,11 @@ impl A2aRunnerService {
             ),
             runner,
         )
-        .with_harness_source(Arc::new(repos.managed));
+        ;
+        let handler = match harness {
+            Some(source) => handler.with_harness_source(source),
+            None => handler,
+        };
         Self {
             handler: Arc::new(handler),
             runs: repos.runs,

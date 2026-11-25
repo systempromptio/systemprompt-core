@@ -21,6 +21,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::keys::SigningKeys;
@@ -87,6 +88,7 @@ impl Extension for AgentRunsExtension {
                     &r.get::<Arc<Config>>()?,
                     r.get::<Arc<AppPaths>>()?.as_ref(),
                     r.get::<SigningKeys>()?,
+                    r.optional::<DynRevisionBundleSource>(),
                 )))
             },
         )

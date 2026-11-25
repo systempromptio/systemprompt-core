@@ -18,7 +18,7 @@
 //! pins the host adapter instead of resolving it from the request.
 //!
 //! A request naming a harness loads that revision for the row's user through
-//! the injected [`HarnessSource`]; a missing source or a failed load finishes
+//! the injected `DynRevisionBundleSource`; a missing source or a failed load finishes
 //! the row as `harness_unavailable` without spawning, and a loaded harness
 //! records its digest on the row.
 //!
@@ -34,7 +34,9 @@ use systemprompt_traits::OwnedTask;
 use super::{A2aRunnerConfig, credential_request};
 use crate::credentials::{RunCredentialService, RunCredentials};
 use crate::error::{AgentRunsError, AgentRunsResult};
-use crate::execute::harness::{HarnessError, HarnessSource};
+use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
+
+use crate::execute::harness::HarnessError;
 use crate::execute::{ExecuteParams, RunReport, error_chain, execute, execute_with_host};
 use crate::governance::hooks_file;
 use crate::host::HeadlessHost;
@@ -52,7 +54,7 @@ pub struct A2aRunHandler {
     credentials: RunCredentialService,
     config: Arc<A2aRunnerConfig>,
     host: Option<Arc<dyn HeadlessHost>>,
-    harness: Option<Arc<dyn HarnessSource>>,
+    harness: Option<DynRevisionBundleSource>,
 }
 
 impl std::fmt::Debug for A2aRunHandler {
@@ -82,7 +84,7 @@ impl A2aRunHandler {
     }
 
     #[must_use]
-    pub fn with_harness_source(mut self, source: Arc<dyn HarnessSource>) -> Self {
+    pub fn with_harness_source(mut self, source: DynRevisionBundleSource) -> Self {
         self.harness = Some(source);
         self
     }
@@ -98,6 +100,7 @@ impl A2aRunHandler {
         source
             .revision_bundle(&claimed.row.user_id, &harness.revision_id)
             .await
+            .map_err(HarnessError::Load)
     }
 
     async fn drive(&self, claimed: &ClaimedRun) -> AgentRunsResult<()> {
