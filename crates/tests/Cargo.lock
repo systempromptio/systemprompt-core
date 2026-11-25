@@ -11661,7 +11661,6 @@ dependencies = [
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
  "systemprompt-traits",
- "systemprompt-wire",
  "tempfile",
  "tokio",
  "tower",
