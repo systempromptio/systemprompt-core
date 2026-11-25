@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, TimeZone, Utc};
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, ProvideError, Resolved,
 };
@@ -25,7 +25,9 @@ use systemprompt_scheduler::{
 use systemprompt_test_fixtures::{
     core_members, fixture_admitted_of, test_database_url, test_db_pool, unique_name,
 };
-use systemprompt_traits::{Job, JobContext, JobResult, MissedRunPolicy, StateRequirement};
+use systemprompt_traits::{
+    BackgroundTasks, Job, JobContext, JobResult, MissedRunPolicy, StateRequirement,
+};
 
 const EVERY_SECOND: &str = "* * * * * *";
 const EVERY_MINUTE: &str = "0 * * * * *";
@@ -368,18 +370,44 @@ mod missed_runs_db {
             .expect("seeded");
     }
 
+    fn month_the_wall_clock_is_not_in() -> u32 {
+        (Utc::now().month() + 5) % 12 + 1
+    }
+
+    fn every_minute_of(month: u32) -> String {
+        format!("0 * * * {month} *")
+    }
+
+    fn scheduled(jobs: &[&str], schedule: &str) -> SchedulerConfig {
+        let mut config = config(jobs);
+        for job in &mut config.jobs {
+            job.schedule = Some(schedule.to_owned());
+        }
+        config
+    }
+
     #[tokio::test]
     async fn restart_after_a_gap_honours_each_policy() {
         let pool = test_db_pool().await;
-        let last = base_instant();
+        let month = month_the_wall_clock_is_not_in();
+        let last = Utc
+            .with_ymd_and_hms(2031, month, 1, 0, 0, 0)
+            .single()
+            .expect("valid instant");
         for job in [SKIP_JOB, ONCE_JOB, CATCH_JOB] {
             seed_last(&pool, job, last).await;
         }
         let now = last + chrono::Duration::minutes(10) + chrono::Duration::seconds(5);
         let (app, schedule) = app().await;
+        let background = app
+            .kernel()
+            .state()
+            .get::<BackgroundTasks>()
+            .expect("background tasks")
+            .clone();
 
         let startup = SchedulerService::new(
-            config(&[SKIP_JOB, ONCE_JOB, CATCH_JOB]),
+            scheduled(&[SKIP_JOB, ONCE_JOB, CATCH_JOB], &every_minute_of(month)),
             &pool,
             app,
             schedule,
@@ -389,10 +417,14 @@ mod missed_runs_db {
         .start()
         .await
         .expect("scheduler starts");
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        let drained = background.drain(Duration::from_secs(30)).await;
         if let Some(handle) = startup.handle {
             handle.shutdown().await.expect("shutdown");
         }
+        assert!(
+            drained.is_drained(),
+            "the missed-run pass finishes: {drained:?}"
+        );
 
         let runs = SchedulerRepository::new(&pool).runs().clone();
         let count = |job: &'static str| {
@@ -406,6 +438,27 @@ mod missed_runs_db {
             "RunOnce runs the latest missed instant"
         );
         assert_eq!(count(CATCH_JOB).await, 4, "CatchUp {{ max: 3 }} runs three");
+    }
+
+    #[test]
+    fn the_restart_schedule_never_fires_in_the_wall_clock_month() {
+        let instants =
+            CronInstants::parse(&every_minute_of(month_the_wall_clock_is_not_in())).expect("cron");
+        let gap_end = Utc
+            .with_ymd_and_hms(2031, month_the_wall_clock_is_not_in(), 1, 0, 10, 5)
+            .single()
+            .expect("valid instant");
+        let wall_now = Utc::now();
+        assert!(
+            instants.at_or_before(wall_now).expect("instant")
+                < wall_now - chrono::Duration::days(27),
+            "the wall-clock cron loop cannot fire the restart test's schedule"
+        );
+        assert_eq!(
+            instants.at_or_before(gap_end).expect("instant"),
+            gap_end - chrono::Duration::seconds(5),
+            "under the scheduler clock the schedule fires every minute"
+        );
     }
 }
 
