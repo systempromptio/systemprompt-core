@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Messaging"
+text = "A child host (`admin mcp serve`, `admin agent-host run`) boots in a composition that admits the `slack` or `teams` member: only the API seeds the messaging dispatcher, so on a child host the two members withhold their dispatch handles (`SlackDispatch`, `TeamsDispatch`) instead of refusing the boot. The API provides both handles over its dispatcher, and the routes that read them mount only there."
+
+[[crate]]
+name = "systemprompt-slack-entry"
+section = "Fixed"
+text = "`SlackDispatch` is withheld on a host that seeds no messaging dispatcher; the member no longer requires the dispatcher cell at admission."
+
+[[crate]]
+name = "systemprompt-teams-entry"
+section = "Fixed"
+text = "`TeamsDispatch` is withheld on a host that seeds no messaging dispatcher; the member no longer requires the dispatcher cell at admission."

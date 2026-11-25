@@ -8,6 +8,11 @@
 //! store. Its route state reads only these and open values, never a host
 //! seed.
 //!
+//! Only the API host seeds the messaging dispatcher. On a host that seeds none
+//! (a child host serving MCP or an agent) the dispatch handle is withheld
+//! (`ProvideError::Withheld`): the member is admitted and the host boots, and
+//! the routes, which only the API mounts, are the one reader of the handle.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -50,22 +55,22 @@ impl Extension for TeamsExtension {
         c.config::<TeamsAppsConfig>();
         #[cfg(feature = "http")]
         {
-            c.requires::<LateRead<dyn systemprompt_traits::MessagingDispatcher>>()
-                .provide(|_: &Resolved<'_>| {
-                    crate::http::TeamsClients::build()
-                        .map_err(|e| ProvideError::Failed(Box::new(e)))
-                })
-                .provide_sealed(
-                    |r: &Resolved<'_>| -> Result<crate::http::TeamsDispatch, ProvideError> {
-                        Ok(crate::http::TeamsDispatch::over(r.get()?))
-                    },
-                )
-                .provide_sealed(
-                    |r: &Resolved<'_>| -> Result<crate::http::TeamsSecrets, ProvideError> {
-                        Ok(crate::http::TeamsSecrets::over(r.get()?))
-                    },
-                )
-                .routes(crate::http::routes());
+            c.provide(|_: &Resolved<'_>| {
+                crate::http::TeamsClients::build().map_err(|e| ProvideError::Failed(Box::new(e)))
+            })
+            .provide_sealed(
+                |r: &Resolved<'_>| -> Result<crate::http::TeamsDispatch, ProvideError> {
+                    r.optional::<LateRead<dyn systemprompt_traits::MessagingDispatcher>>()
+                        .map(crate::http::TeamsDispatch::over)
+                        .ok_or(ProvideError::Withheld)
+                },
+            )
+            .provide_sealed(
+                |r: &Resolved<'_>| -> Result<crate::http::TeamsSecrets, ProvideError> {
+                    Ok(crate::http::TeamsSecrets::over(r.get()?))
+                },
+            )
+            .routes(crate::http::routes());
         }
         Ok(())
     }

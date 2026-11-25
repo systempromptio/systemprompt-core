@@ -3,6 +3,9 @@
 //! refusals on the real mounted router of a messaging node.
 
 #[cfg(test)]
+mod child_host;
+
+#[cfg(test)]
 mod common;
 
 #[cfg(test)]
