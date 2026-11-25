@@ -5,9 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_database::{DbPool, pool_from_handle};
 use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput};
-use systemprompt_files::FileRepository;
+use systemprompt_extension::content_files::ContentFileLinks;
 use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::cli::content::types::{
@@ -24,30 +23,29 @@ pub struct ListArgs {
 }
 
 pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let pool = pool_from_handle(host.db().await?)?;
-    execute_with_pool(args, &pool, host.output()).await
+    let links = super::content_file_links(host).await?;
+    execute_with_links(args, links.as_ref(), host.output()).await
 }
 
-pub async fn execute_with_pool(
+pub async fn execute_with_links(
     args: ListArgs,
-    pool: &DbPool,
+    links: &dyn ContentFileLinks,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool);
 
     match (&args.content, &args.file) {
         (Some(content_id_str), None) => {
             let content_id = ContentId::new(content_id_str.clone());
-            let files = service.list_files_by_content(&content_id).await?;
+            let files = links.files_of(&content_id).await?;
 
             let files: Vec<ContentFileRow> = files
                 .into_iter()
-                .map(|(file, content_file)| ContentFileRow {
-                    file_id: file.id,
+                .map(|file| ContentFileRow {
+                    file_id: file.file_id,
                     path: file.path,
                     mime_type: file.mime_type,
-                    role: content_file.role.to_string(),
-                    display_order: content_file.display_order,
+                    role: file.role,
+                    display_order: file.display_order,
                 })
                 .collect();
 
@@ -61,19 +59,22 @@ pub async fn execute_with_pool(
         },
         (None, Some(file_id_str)) => {
             let file_id = parse_file_id(file_id_str)?;
-            let links = service.list_content_by_file(&file_id).await?;
+            let content_links = links.contents_of(&file_id).await?;
 
-            let links: Vec<FileContentLinkRow> = links
+            let content_links: Vec<FileContentLinkRow> = content_links
                 .into_iter()
                 .map(|cf| FileContentLinkRow {
                     content_id: cf.content_id,
-                    role: cf.role.to_string(),
+                    role: cf.role,
                     display_order: cf.display_order,
                     created_at: cf.created_at,
                 })
                 .collect();
 
-            let output = FileContentLinksOutput { file_id, links };
+            let output = FileContentLinksOutput {
+                file_id,
+                links: content_links,
+            };
 
             Ok(CommandOutput::table_of(
                 vec!["content_id", "role", "display_order", "created_at"],

@@ -59,7 +59,7 @@ use systemprompt_extension::{
 };
 use systemprompt_identifiers::{ContextId, InstanceId};
 use systemprompt_manifest::services::ServicesView;
-use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
+use systemprompt_extension::artifact_ui::DynArtifactUiRenderer;
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::DynSessionUsageCounters;
 
@@ -107,7 +107,7 @@ pub(crate) fn parse_context_id(raw: &str) -> Result<ContextId, AgentHttpError> {
 pub struct AgentHttpState {
     pub(crate) repositories: Arc<ConversationRepositories>,
     pub(crate) events: Arc<ContextEventPublisher>,
-    pub(crate) renderers: Option<Arc<UiRendererRegistry>>,
+    pub(crate) renderers: Option<DynArtifactUiRenderer>,
 }
 
 impl std::fmt::Debug for AgentHttpState {
@@ -123,7 +123,7 @@ impl AgentHttpState {
     pub const fn new(
         repositories: Arc<ConversationRepositories>,
         events: Arc<ContextEventPublisher>,
-        renderers: Option<Arc<UiRendererRegistry>>,
+        renderers: Option<DynArtifactUiRenderer>,
     ) -> Self {
         Self {
             repositories,
@@ -140,7 +140,7 @@ impl FromState for AgentHttpState {
         Ok(Self::new(
             Arc::new(ConversationRepositories::new(&db, sessions)),
             r.get::<Arc<ContextEventPublisher>>()?,
-            r.optional::<Arc<UiRendererRegistry>>(),
+            r.optional::<DynArtifactUiRenderer>(),
         ))
     }
 }

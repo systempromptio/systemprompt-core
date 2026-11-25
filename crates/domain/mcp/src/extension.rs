@@ -9,7 +9,8 @@
 //! (`Arc<ArtifactIngest>`, open: it scans with the installation's secret
 //! scanner cell and records tool results) and the same ingest as the shared
 //! `DynToolResultIngest` contract the gateway reads (open, as the ingest is),
-//! and, once governance has loaded,
+//! the built UI renderers as the shared `DynArtifactUiRenderer` the agent
+//! artifact routes read (open, after governance), and, once governance has loaded,
 //! the per-server tool executions (`DynToolExecutions`, open: an execution
 //! records usage as the request context the host hands it and reads no
 //! secret) and the tool provider the ai member's inference path reads
@@ -27,6 +28,7 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_extension::artifact_ui::DynArtifactUiRenderer;
 use systemprompt_extension::mcp::artifacts::DynToolResultIngest;
 use systemprompt_extension::mcp::{AccessRecorderSlot, DynMcpSessionStore, DynToolExecutions};
 use systemprompt_extension::prelude::*;
@@ -194,6 +196,12 @@ impl Extension for McpExtension {
 }
 
 fn contribute_tool_executions(c: &mut Contributions<'_>) {
+    c.provide_after_governance(
+        |r: &Resolved<'_>| -> Result<DynArtifactUiRenderer, ProvideError> {
+            let renderers: DynArtifactUiRenderer = r.get::<Arc<UiRendererRegistry>>()?;
+            Ok(renderers)
+        },
+    );
     c.provide_after_governance(
         |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
             let db = r.get::<DbPool>()?;

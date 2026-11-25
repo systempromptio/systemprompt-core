@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Agents"
+text = "The agent artifact UI route renders through `systemprompt_extension::artifact_ui::DynArtifactUiRenderer`, which the `mcp` member provides over its UI renderers; the MCP protocol version is `systemprompt_models::mcp::MCP_PROTOCOL_VERSION`. `systemprompt-agent-entry` no longer depends on `systemprompt-mcp`."

@@ -30,7 +30,6 @@ http = [
     "dep:systemprompt-governance",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-manifest",
-    "dep:systemprompt-mcp",
     "dep:systemprompt-models",
     "dep:systemprompt-oauth",
     "dep:systemprompt-security",
@@ -88,7 +87,6 @@ systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-loader = { workspace = true, optional = true }
 systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
-systemprompt-mcp = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-oauth = { workspace = true, optional = true }
 systemprompt-security = { workspace = true, optional = true }

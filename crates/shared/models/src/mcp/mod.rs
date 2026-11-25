@@ -7,6 +7,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub const MCP_PROTOCOL_VERSION: &str = "2026-07-28";
+
 #[cfg(feature = "mcp")]
 pub mod apps;
 pub mod capabilities;

@@ -108,7 +108,7 @@ pub const fn mcp_supported_protocol_versions() -> &'static [ProtocolVersion] {
 }
 
 pub const fn mcp_protocol_version_str() -> &'static str {
-    "2026-07-28"
+    systemprompt_models::mcp::MCP_PROTOCOL_VERSION
 }
 
 pub mod registry {

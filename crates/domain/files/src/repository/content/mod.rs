@@ -6,6 +6,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod links;
+
 use chrono::Utc;
 use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
 
