@@ -11,7 +11,7 @@ use systemprompt_runtime::KernelError;
 
 use systemprompt::{CompositionError, reference};
 
-use crate::probe::{Probe, build, build_with, kernel};
+use crate::probe::{Probe, build_with, kernel, profile};
 
 #[derive(Clone)]
 struct FreshValue;
@@ -63,16 +63,24 @@ fn an_install_cannot_replace_the_oauth_token_revocation_store() {
     );
 }
 
+const BEARER_ROUTE_MEMBERS: &[&str] = &[
+    "content-http",
+    "analytics-http",
+    "notifications-http",
+    "agent_runs_api",
+    "agent-http",
+    "brain-http",
+];
+
 #[test]
 fn an_install_cannot_provide_the_token_revocation_store_when_oauth_is_absent() {
-    let admitted = build(
-        reference()
-            .without::<systemprompt::oauth::OauthExtension>()
-            .with(Probe::new("probe-revocations-sealed", |c| {
-                c.provide_sealed(permissive_revocations);
-            })),
-    )
-    .expect("with no oauth member the sealed provide is not a duplicate");
+    let admitted = reference()
+        .without::<systemprompt::oauth::OauthExtension>()
+        .with(Probe::new("probe-revocations-sealed", |c| {
+            c.provide_sealed(permissive_revocations);
+        }))
+        .build(&profile(BEARER_ROUTE_MEMBERS))
+        .expect("with no oauth member and no bearer routes the sealed provide is not a duplicate");
     let error = kernel()
         .resolve(&admitted)
         .expect_err("only the oauth member provides the store, admitted or not");

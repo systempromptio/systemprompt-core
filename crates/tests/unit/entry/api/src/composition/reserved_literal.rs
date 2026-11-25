@@ -380,6 +380,21 @@ async fn a_byte_limit_above_the_profile_ceiling_refuses_the_mount_naming_the_rou
         .expect("negative control: a limit at the ceiling mounts");
 }
 
+#[tokio::test]
+async fn a_core_route_byte_limit_above_the_default_is_an_exemption_even_within_the_ceiling() {
+    let mib = 1024 * 1024;
+    assert!(
+        matches!(
+            mounted(vec![routed("probe-core", sized(1024, 3 * mib), vec![])]).await,
+            Err(MountError::UnlistedBodyExemption { declared, .. }) if declared == 3 * mib
+        ),
+        "the profile ceiling governs install routes only"
+    );
+    let _mounted = mounted(vec![install(sized(1024, 3 * mib))])
+        .await
+        .expect("negative control: the same limit on an install route mounts");
+}
+
 async fn site(request: Request) -> String {
     let caller = request
         .extensions()

@@ -75,16 +75,26 @@ fn agent_child_env(bootstrap: &TestBootstrap) -> BTreeMap<String, String> {
     env
 }
 
+fn agent_admit() -> systemprompt_runtime::AdmitFn {
+    Box::new(|_profile| {
+        let mut members = systemprompt_test_fixtures::fixture_core_members();
+        members.push(Box::new(
+            systemprompt_agent_entry::extension::AgentHttpExtension,
+        ));
+        std::sync::Arc::try_unwrap(systemprompt_test_fixtures::fixture_admitted_of(members))
+            .map_err(|_shared| -> systemprompt_traits::BoxedSource {
+                "the admitted agent host composition is uniquely owned".into()
+            })
+    })
+}
+
 async fn compose(env: BTreeMap<String, String>) -> HostContext {
     seed_fixture_system_admin(&test_db_pool().await)
         .await
         .expect("seed the system admin");
-    HostContext::boot(
-        move |name| env.get(name).cloned(),
-        crate::boot::core_admit(),
-    )
-    .await
-    .expect("host boots")
+    HostContext::boot(move |name| env.get(name).cloned(), agent_admit())
+        .await
+        .expect("host boots")
 }
 
 #[tokio::test]

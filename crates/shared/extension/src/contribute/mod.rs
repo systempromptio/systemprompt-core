@@ -12,7 +12,7 @@
 //! entry is the member whose sink holds it.
 //!
 //! The provide methods (open and sealed, early and after governance) are in
-//! the `provide` module.
+//! the `provide` module; the secret declarations are in the `secrets` module.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,11 +42,11 @@ mod view;
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{ExtensionId, SecretName};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::governance::GovernancePolicy;
 use systemprompt_provider_contracts::{ConfigPlane, Job};
 use systemprompt_traits::authz::SubjectAttributeProvider;
-use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService, SecretPattern, SecretReferences};
+use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService};
 
 pub use audience::{AudienceEntry, AudienceResolvers};
 pub use conferred::{ConferralDeclarations, MemberConferrals};
@@ -242,30 +242,6 @@ impl<'a> Contributions<'a> {
     }
     pub fn policy<F: Factory<Arc<dyn GovernancePolicy>>>(&mut self, f: F) -> &mut Self {
         self.sink.policies.push(Box::new(f));
-        self
-    }
-
-    pub fn secret(&mut self, name: SecretName) -> &mut Self {
-        self.sink.declared_secrets.push(SecretPattern::Exact(name));
-        self
-    }
-
-    pub fn secret_prefix(&mut self, prefix: &str) -> &mut Self {
-        match SecretPattern::prefix(prefix) {
-            Ok(pattern) => self.sink.declared_secrets.push(pattern),
-            Err(source) => self
-                .sink
-                .errors
-                .push(ContributionError::SecretPattern { source }),
-        }
-        self
-    }
-
-    pub fn secret_references<F>(&mut self, f: F) -> &mut Self
-    where
-        F: Factory<Arc<dyn SecretReferences>>,
-    {
-        self.sink.secret_references.push(Box::new(f));
         self
     }
 

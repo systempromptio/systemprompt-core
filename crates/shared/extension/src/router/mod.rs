@@ -26,6 +26,7 @@ mod body;
 mod capability;
 #[cfg(feature = "router")]
 mod fallback;
+mod gateway_def;
 #[cfg(feature = "router")]
 mod http_error;
 #[cfg(feature = "router")]
@@ -55,6 +56,7 @@ pub use body::{BodyReadError, read_body_bounded, read_request_bounded};
 pub use capability::{IntoApiError, capability_response};
 #[cfg(feature = "router")]
 pub use fallback::SiteFallback;
+pub use gateway_def::{GatewayDefRefusal, refused_gateway_def};
 #[cfg(feature = "router")]
 pub use http_error::{ApiHttpError, unreadable_body};
 #[cfg(feature = "router")]
@@ -67,8 +69,8 @@ pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };
 pub use overlap::{
-    GatewayDefRefusal, RouteOverlap, first_overlap, full_path, path_covers, refused_gateway_def,
-    refused_reservation, reserved_answering, reserved_below, shadows_reserved_literal,
+    RouteOverlap, first_overlap, full_path, path_covers, refused_reservation, reserved_answering,
+    reserved_below, shadows_reserved_literal,
 };
 pub use principal::{DynPersonalCredentialNames, GatewayPrincipal, PersonalCredentialNames};
 #[cfg(feature = "router")]

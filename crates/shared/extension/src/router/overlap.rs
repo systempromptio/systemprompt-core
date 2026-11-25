@@ -4,7 +4,11 @@
 //! are gateway-relative, so its full path joins the gateway base. Two handler
 //! defs overlap on the same method and full path; a service def
 //! ([`RouteMethod::Any`]) overlaps every def whose full path its prefix covers,
-//! and another service whose prefix covers or is covered by its own.
+//! and another service whose prefix covers or is covered by its own. Two defs
+//! of any methods also overlap when their full paths match the same requests
+//! but name a parameter differently (`/api/probe/{id}` beside
+//! `/api/probe/{slug}`): the router refuses a second spelling of one route, so
+//! admission refuses the pair rather than the router panicking at boot.
 //!
 //! The kernel's own routes are claimed by [`RESERVED_PATHS`]: every route
 //! the kernel or a core member mounts lies under one entry, owned by the core
@@ -32,20 +36,13 @@
 //! ([`reserved_answering`]), so the install's route never answers a reserved
 //! path, whether or not its owner is composed.
 //!
-//! A gateway route def is confined to the gateway path its set claims: its
-//! gateway-relative path lies within the claim, and no built-in gateway
-//! prefix covers it ([`refused_gateway_def`]).
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::base_ref::{BaseRef, GatewayPath};
+use super::base_ref::BaseRef;
 use super::shape::{RouteDef, RouteMethod};
-use systemprompt_models::modules::ApiPaths;
 
-use crate::reserved::{
-    BUILTIN_GATEWAY_PREFIXES, CoreId, RESERVED_PATHS, ReservedPath, ReservedReach,
-};
+use crate::reserved::{CoreId, RESERVED_PATHS, ReservedPath, ReservedReach};
 
 /// Two admitted defs that claim one request: the same method and full path,
 /// or a service prefix covering another def's full path.
@@ -93,7 +90,7 @@ pub fn first_overlap<'a>(
                 (RouteMethod::Any, RouteMethod::Any) => {
                     path_covers(earlier, &path) || path_covers(&path, earlier)
                 },
-            });
+            } || parameter_names_differ(earlier, &path));
         if clash {
             return Some(RouteOverlap {
                 method: def.method.clone(),
@@ -103,6 +100,10 @@ pub fn first_overlap<'a>(
         seen.push((&def.method, path));
     }
     None
+}
+
+fn parameter_names_differ(first: &str, second: &str) -> bool {
+    first != second && segments(first) == segments(second)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,31 +270,4 @@ pub(super) fn reserved_holding(path: &str) -> Option<&'static ReservedPath> {
         .iter()
         .filter(|entry| entry.reach != ReservedReach::Exact && contained(&pattern, entry))
         .max_by_key(|entry| entry.path.len())
-}
-
-/// Why a gateway route def is refused at the gateway path its set claims.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum GatewayDefRefusal {
-    UnderBuiltin { path: String, builtin: &'static str },
-    OutsideClaim { path: String, claimed: &'static str },
-}
-
-#[must_use]
-pub fn refused_gateway_def(claimed: GatewayPath, def: &RouteDef) -> Option<GatewayDefRefusal> {
-    let path = def.path.as_str();
-    if let Some(builtin) = BUILTIN_GATEWAY_PREFIXES
-        .iter()
-        .copied()
-        .find(|builtin| path_covers(builtin, path))
-    {
-        return Some(GatewayDefRefusal::UnderBuiltin {
-            path: path.to_owned(),
-            builtin,
-        });
-    }
-    let claim = ApiPaths::gateway_relative(claimed.path());
-    (!path_covers(claim, path)).then(|| GatewayDefRefusal::OutsideClaim {
-        path: path.to_owned(),
-        claimed: claim,
-    })
 }

@@ -19,11 +19,38 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_identifiers::ExtensionId;
+use systemprompt_identifiers::{ExtensionId, SecretName};
 use systemprompt_provider_contracts::MissingDependency;
 use systemprompt_traits::{DeclaredSecrets, SecretPattern, SecretReferences, SecretStore};
 
 use super::resolved::Resolved;
+use super::{ContributionError, Contributions, Factory};
+
+impl Contributions<'_> {
+    pub fn secret(&mut self, name: SecretName) -> &mut Self {
+        self.sink.declared_secrets.push(SecretPattern::Exact(name));
+        self
+    }
+
+    pub fn secret_prefix(&mut self, prefix: &str) -> &mut Self {
+        match SecretPattern::prefix(prefix) {
+            Ok(pattern) => self.sink.declared_secrets.push(pattern),
+            Err(source) => self
+                .sink
+                .errors
+                .push(ContributionError::SecretPattern { source }),
+        }
+        self
+    }
+
+    pub fn secret_references<F>(&mut self, f: F) -> &mut Self
+    where
+        F: Factory<Arc<dyn SecretReferences>>,
+    {
+        self.sink.secret_references.push(Box::new(f));
+        self
+    }
+}
 
 /// One admitted member's declared secret patterns and the patterns the
 /// operator granted it.

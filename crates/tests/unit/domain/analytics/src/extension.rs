@@ -83,10 +83,24 @@ fn the_analytics_member_provides_its_write_seams_views_repositories_and_scorer()
             TypeId::of::<DynContentPopularity>(),
             TypeId::of::<Arc<AnalyticsRepositories>>(),
             TypeId::of::<Arc<AnalyticsService>>(),
+            TypeId::of::<systemprompt_extension::profile_usage::DynProfileUsageSource>(),
             TypeId::of::<Arc<dyn systemprompt_traits::AnalyticsProvider>>(),
             TypeId::of::<Arc<dyn systemprompt_traits::FingerprintProvider>>(),
             TypeId::of::<DynSessionBehaviourScorer>(),
         ]
+    );
+    let sealed: Vec<TypeId> = sink
+        .provides()
+        .iter()
+        .filter(|p| p.is_sealed())
+        .map(|p| p.type_id())
+        .collect();
+    assert_eq!(
+        sealed,
+        [TypeId::of::<
+            systemprompt_extension::profile_usage::DynProfileUsageSource,
+        >()],
+        "only the profile-usage source, which reads any user's usage, is sealed"
     );
 }
 

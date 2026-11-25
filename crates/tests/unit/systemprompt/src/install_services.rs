@@ -5,11 +5,11 @@
 
 use axum::Router;
 use axum::routing::get;
-use systemprompt::CompositionError;
+use systemprompt::{CompositionError, reference};
 use systemprompt_extension::router::{BasePath, RouteMethod, RouteSet, WebBase};
 use systemprompt_extension::{Admitted, ContributionError, RouteGroup};
 
-use crate::probe::{EXT_BASE, PLAIN, Probe, ProbeState, build_with, ok};
+use crate::probe::{EXT_BASE, PLAIN, Probe, ProbeState, build, build_with, ok};
 
 const ROOT: BasePath = BasePath::Web(WebBase::Root);
 
@@ -78,6 +78,35 @@ fn a_service_under_a_reserved_prefix_is_refused() {
     );
     install_service(ROOT, "/api/v1/probe")
         .expect("negative control: an unreserved prefix at the web root is admitted");
+}
+
+#[test]
+fn one_route_spelled_with_two_parameter_names_is_refused_at_admission() {
+    let member = |id: &'static str, path: &'static str| {
+        Probe::new(id, move |c| {
+            c.routes(
+                RouteSet::at::<ProbeState>(ROOT, RouteGroup::Extensions)
+                    .route(http::Method::GET, path, ok, PLAIN)
+                    .build(),
+            );
+        })
+    };
+    let error = build(
+        reference()
+            .with(member("probe-by-id", "/probe-items/{id}"))
+            .with(member("probe-by-slug", "/probe-items/{slug}")),
+    )
+    .expect_err("one route under two parameter names cannot share the router");
+    assert!(
+        matches!(&error, CompositionError::RouteConflict { path, .. } if path == "/probe-items/{slug}"),
+        "{error:?}"
+    );
+    build(
+        reference()
+            .with(member("probe-by-id", "/probe-items/{id}"))
+            .with(member("probe-by-slug-detail", "/probe-items/{slug}/detail")),
+    )
+    .expect("negative control: a deeper route naming its parameter differently is admitted");
 }
 
 #[test]
