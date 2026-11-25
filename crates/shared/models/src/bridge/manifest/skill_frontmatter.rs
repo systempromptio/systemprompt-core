@@ -8,8 +8,8 @@
 //! written back after `name` and `description`, keys sorted at every depth,
 //! by every renderer —
 //! the Claude Code bundle and the bridge's Codex, `OpenCode` and Hermes skill
-//! writers alike — so they share this one implementation. [`skill_bundle_path`]
-//! and [`skill_bundle_markdown`] are where a plugin bundle carries a skill's
+//! writers alike — so they share this one implementation. `skill_bundle_path`
+//! and `skill_bundle_markdown` are where a plugin bundle carries a skill's
 //! `SKILL.md` and its exact text.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
