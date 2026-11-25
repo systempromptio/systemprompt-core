@@ -28,8 +28,8 @@ use super::wire::{build_tool_list_result, client_profile_from_peer, default_serv
 use crate::serving::middleware::hop::VerifiedHop;
 use systemprompt_extension::mcp::capabilities::WEBSITE_URL;
 use systemprompt_extension::mcp::{
-    DynToolExecution, McpAccessOutcome, McpToolset, ResourceRead, SharedMcpAccessRecorder,
-    ToolsetCall, VerifiedCaller,
+    DynToolExecution, McpAccessOutcome, McpToolset, ResourceList, ResourceRead,
+    SharedMcpAccessRecorder, ToolsetCall, VerifiedCaller,
 };
 
 /// What a [`ToolsetServer`] authorises against.
@@ -209,9 +209,22 @@ impl ServerHandler for ToolsetServer {
         ctx: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
         self.authenticate("resources/list", &ctx).await?;
+        let caller = ctx
+            .extensions
+            .get::<http::request::Parts>()
+            .and_then(|parts| parts.extensions.get::<VerifiedCaller>())
+            .cloned()
+            .ok_or_else(|| {
+                tracing::warn!("Refused a resource listing with no hop-verified caller");
+                McpError::invalid_request(
+                    "This server lists resources only for a caller the platform proxy verified.",
+                    None,
+                )
+            })?;
+        let list = ResourceList { caller: &caller };
         let mut resources = Vec::new();
         for toolset in self.inner.toolsets.iter().filter(|t| t.serves_resources()) {
-            resources.extend(toolset.list_resources().resources);
+            resources.extend(toolset.list_resources(list).await.resources);
         }
         Ok(ListResourcesResult::with_all_items(resources))
     }

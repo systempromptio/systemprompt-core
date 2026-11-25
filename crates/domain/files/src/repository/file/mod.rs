@@ -41,7 +41,6 @@ impl FileRepository {
         let id_uuid = parse_file_uuid(&request.id)?;
         let now = Utc::now();
 
-
         sqlx::query_as!(
             FileRow,
             r#"

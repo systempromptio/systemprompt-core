@@ -34,6 +34,8 @@ const MARKDOWN_ALTERNATE: &str = "the content Markdown alternate is one static r
      (sheet amendment 35)";
 const PLUGINS_REMOVED: &str = "the plugins subcommand is removed with the registration mechanism it \
      inspected";
+const RESEAL_ADDED: &str = "admin secrets reseal re-seals pre-0.88 ciphertext and gateway journal \
+     segments under each member's key (amendments 512, 545)";
 
 const ROUTE_DELTA: &[(&str, Side, &str)] = &[
     (
@@ -59,6 +61,8 @@ const COMMAND_DELTA: &[(&str, Side, &str)] = &[
         PLUGINS_REMOVED,
     ),
     ("plugins validate", Side::OnlyBaseline, PLUGINS_REMOVED),
+    ("admin secrets", Side::OnlyAdmitted, RESEAL_ADDED),
+    ("admin secrets reseal", Side::OnlyAdmitted, RESEAL_ADDED),
 ];
 const JOB_DELTA: &[(&str, Side, &str)] = &[];
 

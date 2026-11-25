@@ -21,7 +21,6 @@ pub(in crate::repository) async fn create_log(
 
     let level_str = entry.level.to_string();
 
-
     sqlx::query!(
         r"
         INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id, instance_id)
@@ -61,7 +60,6 @@ pub(in crate::repository) async fn update_log(
 
     let level_str = entry.level.to_string();
 
-
     let result = sqlx::query!(
         r"
         UPDATE logs
@@ -98,7 +96,6 @@ pub(in crate::repository) async fn delete_logs_multiple(
     if ids.is_empty() {
         return Ok(0);
     }
-
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = ANY($1)", ids as _)
         .execute(pool)

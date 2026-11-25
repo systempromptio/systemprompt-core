@@ -27,7 +27,6 @@ async fn create_table(pool: &sqlx::PgPool, table: &str) {
         .expect("create table");
 }
 
-
 async fn row_count(pool: &sqlx::PgPool, table: &str) -> i64 {
     let q = format!("SELECT COUNT(*) FROM \"{table}\"");
     sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(q))

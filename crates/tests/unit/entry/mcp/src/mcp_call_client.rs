@@ -40,7 +40,6 @@ fn block(json: serde_json::Value) -> ContentBlock {
     serde_json::from_value(json).unwrap()
 }
 
-
 #[test]
 fn convert_content_maps_text_image_audio_and_resource_link() {
     let text =

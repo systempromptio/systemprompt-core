@@ -34,7 +34,7 @@ use systemprompt_traits::{
     ShareTokenError, ShareTokenSigner,
 };
 
-use crate::at_rest::{AtRestCipher, AtRestCipherError, AtRestHashError, keyed_hmac};
+use crate::at_rest::{AtRestCipher, AtRestCipherError, AtRestHashError, MasterKey, keyed_hmac};
 
 const SHARE_TOKEN_LABEL: &[u8] = b"systemprompt.member-share-token.v1";
 const SHARE_TOKEN_PREFIX: &str = "spst1";
@@ -56,14 +56,14 @@ fn labelled(root: &Hmac<Sha256>, label: &[u8], member: &ExtensionId) -> Hmac<Sha
 
 /// The sealed issuer of every member's cipher.
 pub struct MemberCiphers {
-    master_key: Arc<[u8; 32]>,
+    master_key: MasterKey,
 }
 
 impl MemberCiphers {
-    pub fn from_master_key(master_key: &[u8; 32]) -> Result<Self, AtRestHashError> {
-        keyed(master_key)?;
+    pub fn from_master_key(master_key: &MasterKey) -> Result<Self, AtRestHashError> {
+        keyed(master_key.bytes())?;
         Ok(Self {
-            master_key: Arc::new(*master_key),
+            master_key: master_key.clone(),
         })
     }
 }

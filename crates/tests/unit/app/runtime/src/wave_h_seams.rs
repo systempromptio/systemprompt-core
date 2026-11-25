@@ -246,3 +246,43 @@ async fn a_disabled_member_removes_its_kind_and_leaves_the_others() {
         .await
         .expect("the MCP set still answers");
 }
+
+#[tokio::test]
+async fn the_secret_presence_oracle_is_sealed_to_the_agent_members_commands() {
+    let ctx = context_with_agent_http().await;
+    let state = ctx.kernel().state();
+    assert!(state.is_sealed::<Arc<dyn systemprompt_traits::SecretPresence>>());
+    let kernel = command_kernel(&ctx);
+    let anonymous = Resolved::__member_command(&kernel, kernel.state());
+    assert!(
+        anonymous
+            .optional::<Arc<dyn systemprompt_traits::SecretPresence>>()
+            .is_none()
+    );
+    let install = systemprompt_identifiers::ExtensionId::new("presence-probe");
+    let install_command =
+        Resolved::__member_command_owned(&kernel, kernel.state(), &install, StandingTag::Install);
+    assert!(
+        install_command
+            .optional::<Arc<dyn systemprompt_traits::SecretPresence>>()
+            .is_none(),
+        "an install command never asks whether a secret exists"
+    );
+    let agent = systemprompt_identifiers::ExtensionId::new(
+        systemprompt_agent_entry::extension::AGENT_HTTP_EXTENSION,
+    );
+    let agent_command =
+        Resolved::__member_command_owned(&kernel, kernel.state(), &agent, StandingTag::Core);
+    assert!(
+        agent_command
+            .optional::<Arc<dyn systemprompt_traits::SecretPresence>>()
+            .is_some(),
+        "the agent member's own validate command reads it"
+    );
+    assert!(
+        kernel
+            .runtime_state()
+            .find::<Arc<dyn systemprompt_traits::SecretPresence>>()
+            .is_none()
+    );
+}

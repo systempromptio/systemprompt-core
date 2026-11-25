@@ -14,13 +14,14 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_extension::service_process::ServiceProcessSlot;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{
     AgentRegistryProvider, DynContextDirectory, DynContextMaterializer, DynServiceProcessSet,
-    DynSessionContextIssuer,
+    DynSessionContextIssuer, SecretPresence, SecretStore,
 };
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
@@ -65,6 +66,14 @@ impl Extension for AgentExtension {
         .job(CleanupEmptyContextsJob)
         .job(UserContextCountersRollupJob);
         provide_seams(c);
+        c.provide_conferred(
+            ConferralRow::AgentSecretPresence,
+            |r: &Resolved<'_>| -> Result<Arc<dyn SecretPresence>, ProvideError> {
+                Ok(Arc::new(StoredSecretPresence(
+                    r.get::<Arc<dyn SecretStore>>()?,
+                )))
+            },
+        );
         c.user_purge(UserPurgeTable {
             table: "agent_tasks",
             column: "user_id",
@@ -97,6 +106,16 @@ impl Extension for AgentExtension {
             action: ReassignAction::UPDATE,
         });
         Ok(())
+    }
+}
+
+struct StoredSecretPresence(Arc<dyn SecretStore>);
+
+impl SecretPresence for StoredSecretPresence {
+    fn is_present(&self, name: &str) -> bool {
+        self.0
+            .secret(name)
+            .is_some_and(|secret| !secret.expose().is_empty())
     }
 }
 

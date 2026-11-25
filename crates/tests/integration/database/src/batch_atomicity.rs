@@ -27,7 +27,6 @@ fn unique_table(prefix: &str) -> String {
     )
 }
 
-
 async fn count(pool: &PgPool, table: &str) -> i64 {
     let row = sqlx::query(sqlx::AssertSqlSafe(format!(
         "SELECT COUNT(*)::bigint AS n FROM {table}"

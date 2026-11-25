@@ -20,7 +20,7 @@ use systemprompt_extension::{ResealColumn, SealedLayout};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_security::at_rest::{AtRestCipher, AtRestCipherError, pre_088};
 use systemprompt_security::conferred::MemberCiphers;
-use systemprompt_test_fixtures::ScratchSchema;
+use systemprompt_test_fixtures::{ScratchSchema, master_key_of};
 use systemprompt_traits::{ConferralIssuer, MEMBER_CIPHER_ENVELOPE, MemberCipher, MemberGrant};
 
 const MASTER: [u8; 32] = [7; 32];
@@ -104,11 +104,13 @@ fn report(column: &ResealColumn, counts: [u64; 4]) -> ColumnReport {
         member_sealed: counts[1],
         resealed: counts[2],
         undecodable: counts[3],
+        unkeyed: 0,
+        unwritten: 0,
     }
 }
 
 fn member_cipher(member: &str) -> Arc<dyn MemberCipher> {
-    MemberCiphers::from_master_key(&MASTER)
+    MemberCiphers::from_master_key(&master_key_of(MASTER))
         .expect("issuer")
         .issue(&MemberGrant {
             member: ExtensionId::new(member),
@@ -123,7 +125,7 @@ async fn a_member_column_is_resealed_once_and_reported() {
     seeded(&pool).await;
     let store = ResealStore::new(Arc::new(pool.clone()));
     let member = ExtensionId::new("acme");
-    let ciphers = ResealCiphers::new(MASTER, &member).expect("ciphers");
+    let ciphers = ResealCiphers::new(master_key_of(MASTER), &member).expect("ciphers");
 
     let before = stored(&pool).await;
     let dry = reseal_column(&store, &COLUMN, &ciphers, false)
@@ -148,7 +150,7 @@ async fn a_member_column_is_resealed_once_and_reported() {
             "{key}"
         );
         assert!(
-            pre_088::open(&MASTER, nonce, ciphertext).is_err(),
+            pre_088::open(&master_key_of(MASTER), nonce, ciphertext).is_err(),
             "{key} no longer opens under the raw scheme"
         );
     }
@@ -184,7 +186,7 @@ async fn a_core_text_column_is_resealed_under_the_core_members_cipher() {
         .expect("seed a pre-0.88 core value");
     let store = ResealStore::new(Arc::new(pool.clone()));
     let ai = ExtensionId::new("ai");
-    let ciphers = ResealCiphers::new(MASTER, &ai).expect("ciphers");
+    let ciphers = ResealCiphers::new(master_key_of(MASTER), &ai).expect("ciphers");
     let applied = reseal_column(&store, &CORE_COLUMN, &ciphers, true)
         .await
         .expect("apply");
@@ -193,7 +195,7 @@ async fn a_core_text_column_is_resealed_under_the_core_members_cipher() {
         .fetch_one(&pool)
         .await
         .expect("read back");
-    let core = AtRestCipher::for_member(&MASTER, &ai).expect("core cipher");
+    let core = AtRestCipher::for_member(&master_key_of(MASTER), &ai).expect("core cipher");
     assert_eq!(
         core.open(&value).expect("the ai member opens it"),
         "personal-key"
@@ -210,24 +212,26 @@ async fn a_core_text_column_is_resealed_under_the_core_members_cipher() {
 
 #[test]
 fn a_value_core_seals_now_is_no_reseal_source() {
-    let ai = AtRestCipher::for_member(&MASTER, &ExtensionId::new("ai")).expect("core cipher");
+    let ai = AtRestCipher::for_member(&master_key_of(MASTER), &ExtensionId::new("ai"))
+        .expect("core cipher");
     let sealed = ai.seal("provider key").expect("core seals");
     let bare = sealed
         .strip_prefix(MEMBER_CIPHER_ENVELOPE)
         .expect("enveloped");
     assert!(
-        pre_088::open_hex(&MASTER, bare).is_err(),
+        pre_088::open_hex(&master_key_of(MASTER), bare).is_err(),
         "a core value sealed now does not open under the raw scheme"
     );
-    let install = ResealCiphers::new(MASTER, &ExtensionId::new("acme")).expect("ciphers");
+    let install =
+        ResealCiphers::new(master_key_of(MASTER), &ExtensionId::new("acme")).expect("ciphers");
     for row in [
         SealedRow {
-            keys: vec!["k".to_owned()],
+            keys: vec![Some("k".to_owned())],
             ciphertext: sealed.clone().into_bytes(),
             nonce: Vec::new(),
         },
         SealedRow {
-            keys: vec!["k".to_owned()],
+            keys: vec![Some("k".to_owned())],
             ciphertext: bare.as_bytes().to_vec(),
             nonce: Vec::new(),
         },
@@ -251,11 +255,13 @@ fn a_value_core_seals_now_is_no_reseal_source() {
 
 #[test]
 fn another_members_cipher_does_not_recognise_the_envelope() {
-    let acme = ResealCiphers::new(MASTER, &ExtensionId::new("acme")).expect("ciphers");
-    let globex = ResealCiphers::new(MASTER, &ExtensionId::new("globex")).expect("ciphers");
+    let acme =
+        ResealCiphers::new(master_key_of(MASTER), &ExtensionId::new("acme")).expect("ciphers");
+    let globex =
+        ResealCiphers::new(master_key_of(MASTER), &ExtensionId::new("globex")).expect("ciphers");
     let sealed = member_cipher("acme").seal(b"secret").expect("seal");
     let row = SealedRow {
-        keys: vec!["k".to_owned()],
+        keys: vec![Some("k".to_owned())],
         ciphertext: sealed.into_bytes(),
         nonce: vec![0; 12],
     };
@@ -308,4 +314,57 @@ async fn a_table_not_recorded_to_the_member_is_refused() {
             column.table
         );
     }
+}
+
+#[tokio::test]
+async fn a_row_with_a_null_key_is_counted_unkeyed_and_left_as_it_is() {
+    let schema = ScratchSchema::create("resealnull").await;
+    let pool = schema.pool(2).await;
+    sqlx::query(
+        "CREATE TABLE reseal_credentials (user_id TEXT, provider TEXT NOT NULL, ciphertext BYTEA \
+         NOT NULL, nonce BYTEA NOT NULL)",
+    )
+    .execute(&pool)
+    .await
+    .expect("create a table whose key column is nullable");
+    for user in [Some("u1"), None] {
+        let (nonce, sealed) = raw_seal(b"token");
+        sqlx::query("INSERT INTO reseal_credentials VALUES ($1, 'github', $2, $3)")
+            .bind(user)
+            .bind(sealed)
+            .bind(nonce.to_vec())
+            .execute(&pool)
+            .await
+            .expect("seed");
+    }
+    let store = ResealStore::new(Arc::new(pool.clone()));
+    let ciphers =
+        ResealCiphers::new(master_key_of(MASTER), &ExtensionId::new("acme")).expect("ciphers");
+    let applied = reseal_column(&store, &COLUMN, &ciphers, true)
+        .await
+        .expect("apply");
+    assert_eq!(applied.total, 2);
+    assert_eq!(applied.resealed, 1);
+    assert_eq!(
+        applied.unkeyed, 1,
+        "the NULL-keyed row is reported, not silently skipped"
+    );
+    assert_eq!(
+        applied.undecided(),
+        1,
+        "the run is not complete while it remains"
+    );
+    let untouched: Vec<u8> =
+        sqlx::query_scalar("SELECT ciphertext FROM reseal_credentials WHERE user_id IS NULL")
+            .fetch_one(&pool)
+            .await
+            .expect("read back");
+    assert!(
+        !untouched.starts_with(MEMBER_CIPHER_ENVELOPE.as_bytes()),
+        "an unkeyed row is never written"
+    );
+    let again = reseal_column(&store, &COLUMN, &ciphers, true)
+        .await
+        .expect("again");
+    assert_eq!((again.resealed, again.unkeyed), (0, 1));
 }

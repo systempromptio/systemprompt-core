@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{Actor, ClientId, McpServerId, SessionId, UserId};
 
 use super::{AuthenticatedUser, JwtAudience, RegisteredClaims, TokenInteraction, UserType};
+use crate::execution::context::{RequestContext, UserInteractionMode};
 
 pub const MCP_HOP_TOKEN_TYPE: &str = "mcp-hop+jwt";
 
@@ -47,6 +48,60 @@ pub struct McpHopIdentity {
     pub interaction: Option<TokenInteraction>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mcp_session: Option<String>,
+}
+
+impl McpHopIdentity {
+    #[must_use]
+    pub fn bind(&self, context: RequestContext) -> RequestContext {
+        let mut context = context;
+        context.request.session_id = self.session_id.clone();
+        context.request.client_id.clone_from(&self.client_id);
+        let mut context = context
+            .with_actor(self.actor())
+            .with_user_type(self.user_type)
+            .with_act_chain(self.act_chain.clone());
+        if let Some(user) = self.user.clone() {
+            context = context.with_user(user);
+        }
+        if let Some(purpose) = self.purpose.clone() {
+            context = context.with_caller_purpose(purpose);
+        }
+        if let Some(mode) = self.interaction_mode() {
+            context = context.with_interaction_mode(mode);
+        }
+        context
+    }
+
+    #[must_use]
+    pub fn vouches_for(&self, context: &RequestContext) -> bool {
+        context.auth.actor == self.actor()
+            && context.auth.user_type == self.user_type
+            && context.auth.act_chain == self.act_chain
+            && context.request.session_id == self.session_id
+            && context.request.client_id == self.client_id
+            && context.user.as_ref().map(|user| &user.id) == self.user.as_ref().map(|user| &user.id)
+            && self
+                .purpose
+                .as_ref()
+                .is_none_or(|purpose| context.execution.caller_purpose.as_ref() == Some(purpose))
+            && self
+                .interaction_mode()
+                .is_none_or(|mode| context.settings.user_interaction_mode == Some(mode))
+    }
+
+    fn interaction_mode(&self) -> Option<UserInteractionMode> {
+        self.interaction.map(|interaction| match interaction {
+            TokenInteraction::Interactive => UserInteractionMode::Interactive,
+            TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
+        })
+    }
+
+    fn actor(&self) -> Actor {
+        self.user.as_ref().map_or_else(
+            || Actor::anonymous(self.user_id.clone()),
+            |user| Actor::user(user.id.clone()),
+        )
+    }
 }
 
 /// Wire claims of a hop token: the registered claims and the identity.

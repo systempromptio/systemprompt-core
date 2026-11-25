@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use systemprompt_database::admin::SealedRow;
 use systemprompt_extension::SealedLayout;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_security::at_rest::{AtRestCipher, AtRestCipherError, pre_088};
+use systemprompt_security::at_rest::{AtRestCipher, AtRestCipherError, MasterKey, pre_088};
 use systemprompt_traits::MEMBER_CIPHER_ENVELOPE;
 
 /// What one row's stored value is.
@@ -22,7 +22,7 @@ pub enum RowState {
 /// The two schemes a row is judged under: the pre-0.88 scheme directly under
 /// the master key, and the member's at-rest cipher.
 pub struct ResealCiphers {
-    master_key: [u8; 32],
+    master_key: MasterKey,
     member: AtRestCipher,
 }
 
@@ -33,7 +33,7 @@ impl std::fmt::Debug for ResealCiphers {
 }
 
 impl ResealCiphers {
-    pub fn new(master_key: [u8; 32], member: &ExtensionId) -> Result<Self> {
+    pub fn new(master_key: MasterKey, member: &ExtensionId) -> Result<Self> {
         Ok(Self {
             member: AtRestCipher::for_member(&master_key, member)
                 .context("the master key is not a usable HMAC key")?,

@@ -430,6 +430,14 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_marketplace::managed::GitSourceSyncs>(),
         ),
         (
+            type_name::<Arc<dyn systemprompt_traits::SecretPresence>>(),
+            carrier::<systemprompt_config::SecretsService>(),
+        ),
+        (
+            type_name::<systemprompt_extension::DynSealedFiles>(),
+            carrier::<systemprompt_gateway::at_rest::JournalFiles>(),
+        ),
+        (
             type_name::<systemprompt_models::auth::DynTokenRevocations>(),
             carrier::<systemprompt_oauth::repository::JtiRevocationChecker>(),
         ),

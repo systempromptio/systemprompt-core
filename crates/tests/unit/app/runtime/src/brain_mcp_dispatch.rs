@@ -2,7 +2,6 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolResult;
 use serde_json::{Value, json};
 use systemprompt_brain::mcp::{BrainMcpTools, BrainToolCall, TOOL_NAMES};
-use systemprompt_extension::mcp::VerifiedCaller;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::McpToolExecutor;
 use systemprompt_models::execution::context::RequestContext;
@@ -25,7 +24,10 @@ async fn call(
         .call(BrainToolCall {
             executor,
             request: &request,
-            caller: &VerifiedCaller::__from_hop(ctx.clone()),
+            caller: &systemprompt_test_fixtures::fixture_verified_caller(
+                executor.server_name(),
+                ctx,
+            ),
             client: &ClientProfile::unknown(),
         })
         .await

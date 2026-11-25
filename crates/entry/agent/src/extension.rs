@@ -163,7 +163,7 @@ mod commands {
     use systemprompt_agent::services::agent_orchestration::status_view::AgentStatusView;
     use systemprompt_extension::cli::{CommandClaim, CommandDecl, KernelGrant, parents};
     use systemprompt_extension::prelude::*;
-    use systemprompt_traits::{SecretPresence, SecretStore};
+    use systemprompt_traits::SecretPresence;
 
     use crate::cli::agents::AgentsCommands;
     use crate::cli::artifacts::ArtifactsCommands;
@@ -171,13 +171,7 @@ mod commands {
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<AgentStatusView>>()
-            .provide(
-                |r: &Resolved<'_>| -> Result<Arc<dyn SecretPresence>, ProvideError> {
-                    Ok(Arc::new(StoredSecretPresence(
-                        r.get::<Arc<dyn SecretStore>>()?,
-                    )))
-                },
-            )
+            .requires::<Arc<dyn SecretPresence>>()
             .command(
                 CommandDecl::group_under::<parents::Admin, AgentsCommands>()
                     .requesting(&[KernelGrant::ServicesTree, KernelGrant::CallerSession])
@@ -193,15 +187,5 @@ mod commands {
                     .requesting(&[KernelGrant::CallerSession])
                     .claiming(&[CommandClaim::PreservesData]),
             );
-    }
-
-    struct StoredSecretPresence(Arc<dyn SecretStore>);
-
-    impl SecretPresence for StoredSecretPresence {
-        fn is_present(&self, name: &str) -> bool {
-            self.0
-                .secret(name)
-                .is_some_and(|secret| !secret.expose().is_empty())
-        }
     }
 }

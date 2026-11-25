@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_config::ChildSecretEnv;
-use systemprompt_models::subprocess::{SecretGrant, VERIFICATION_KEYS_ENV};
+use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::keys::TokenVerificationKeys;
 
 use crate::McpServerConfig;
@@ -47,8 +47,5 @@ pub(super) fn child_secrets(
         VERIFICATION_KEYS_ENV.to_owned(),
         verification_keys_json(keys, config)?,
     ));
-    if config.secrets.contains(&SecretGrant::EncryptionMasterKey) {
-        tracing::info!(server = %config.name, grant = "encryption_master_key", "MCP server granted the encryption master key");
-    }
     Ok(env)
 }

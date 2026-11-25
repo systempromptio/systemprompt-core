@@ -30,7 +30,6 @@ fn listener_helper() {
     std::thread::sleep(Duration::from_secs(120));
 }
 
-
 fn unique_agent(prefix: &str) -> AgentName {
     AgentName::new(format!("{prefix}_{}", uuid::Uuid::new_v4().simple()))
 }

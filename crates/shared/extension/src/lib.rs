@@ -183,7 +183,8 @@ pub use protection::{
 pub use purge::{OrphanSweep, PurgeDeclaration, PurgeFilter, PurgePredicate, UserPurgeTable};
 pub use reassignment::{OwnerReassignment, ReassignAction};
 pub use reseal::{
-    AdmittedReseals, OwnedReseal, ResealAdmissionError, ResealClaim, ResealColumn, SealedLayout,
+    AdmittedReseals, DynSealedFiles, OwnedReseal, ResealAdmissionError, ResealClaim, ResealColumn,
+    SealedFiles, SealedFilesError, SealedFilesReport, SealedLayout,
 };
 pub use retention::{
     EffectiveCutoff, RetentionDecl, RetentionHold, RetentionHoldError, RetentionHolds,

@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use systemprompt_extension::mcp::VerifiedCaller;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
@@ -27,7 +26,10 @@ pub(crate) async fn executor(server: &str) -> McpToolExecutor {
             systemprompt_governance::policy::secrets::SecretScannerCell::default(),
         )),
         Arc::new(UiRendererRegistry::with_builtins()),
-        McpServerId::new(server),
+        systemprompt_mcp::ServerCallers {
+            server: McpServerId::new(server),
+            verification: systemprompt_test_fixtures::fixture_caller_verification(),
+        },
     )
 }
 
@@ -48,7 +50,10 @@ async fn documents(
         .call(DocumentsToolCall {
             executor,
             request: &request,
-            caller: &VerifiedCaller::__from_hop(ctx.clone()),
+            caller: &systemprompt_test_fixtures::fixture_verified_caller(
+                executor.server_name(),
+                ctx,
+            ),
             client: &ClientProfile::unknown(),
             hop: None,
         })
@@ -67,7 +72,10 @@ async fn issues(
         .call(IssuesToolCall {
             executor,
             request: &request,
-            caller: &VerifiedCaller::__from_hop(ctx.clone()),
+            caller: &systemprompt_test_fixtures::fixture_verified_caller(
+                executor.server_name(),
+                ctx,
+            ),
             client: &ClientProfile::unknown(),
             hop: None,
         })

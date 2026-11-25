@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Gateway"
+text = "A gateway journal segment written before 0.88 is never treated as torn: the journal refuses to open while one is present, and `admin secrets reseal --member gateway --apply` re-keys it so its receipts settle."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayAtRestError` gains `PreUpgradeJournal`; added `GatewayAtRest::reseal_journal` and `JournalReseal`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`SealedFiles`, `SealedFilesReport`, `SealedFilesError` and `DynSealedFiles`."

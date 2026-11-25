@@ -1,0 +1,19 @@
+[root]
+section = "Fixed"
+area = "Security"
+text = "The encryption master key never reaches a spawned MCP server or agent: the grant is refused at config validation and a child host's secret store never answers it."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`SecretGrant::EncryptionMasterKey` is removed; `encryption_master_key` as a grant is refused with `SecretGrantError::MasterKeyWithheld`."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Breaking"
+text = "`AtRestCipher::for_member`, `MemberCiphers::from_master_key` and `pre_088::{open, open_hex}` take `&MasterKey` (built with `MasterKey::from_store`); `member_key` is crate-private and `MasterKey::derive` replaces it."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayAtRest::new` takes `Option<MasterKey>`."

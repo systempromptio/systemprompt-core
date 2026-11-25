@@ -65,3 +65,39 @@ fn a_pins_query_is_neither_shown_nor_part_of_its_digest() {
         "a fetch error's text is withheld: {shown}"
     );
 }
+
+#[test]
+fn a_source_with_both_transports_is_reported_under_its_oci_reference() {
+    let root = tempfile::tempdir().expect("fixture");
+    let mut both = https_source("kit", "https://bundles.example/kit.tar", Vec::new());
+    both.oci = Some(systemprompt_manifest::profile::OciServicesSource {
+        reference: "registry.example/kit:1".to_owned(),
+        auth_secret: None,
+        verify: systemprompt_manifest::profile::BundleVerification::default(),
+    });
+    let profile = profile(
+        &root.path().join("services"),
+        &root.path().join("cache"),
+        vec![both],
+        FetchFailurePolicy::FailClosed,
+    );
+    let view = InstallServicesView::of(
+        systemprompt_test_fixtures::fixture_services_view(),
+        &ActiveServicesRoot {
+            path: root.path().to_path_buf(),
+            base: root.path().to_path_buf(),
+            provenance: ServicesProvenance::Bundled,
+        },
+        &profile,
+        root.path().join("cache"),
+    );
+    assert_eq!(
+        view.sources().len(),
+        1,
+        "the source stays in provenance reporting"
+    );
+    assert_eq!(
+        view.sources()[0].location.as_deref(),
+        Some("registry.example/kit:1")
+    );
+}

@@ -36,7 +36,6 @@ pub enum DistributionState {
     Failed,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionStatus {
     pub id: DistributionId,

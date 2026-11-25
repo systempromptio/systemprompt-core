@@ -35,12 +35,15 @@ mod index;
 mod log;
 mod ops;
 mod recovery;
+mod reseal;
 mod segment;
 mod settle;
 mod types;
 
 pub use log::{Fsync, JOURNAL_FSYNCS_TOTAL, JOURNAL_RECORDS_TOTAL, JournalSync};
 pub(crate) use ops::JournalLease;
+pub use reseal::JournalReseal;
+pub(crate) use reseal::reseal as reseal_segments;
 pub(super) use types::{CapturedToolCall, Completion, PartialUsage, Receipt};
 
 use std::num::NonZeroU32;

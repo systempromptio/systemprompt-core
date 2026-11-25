@@ -25,11 +25,8 @@ use systemprompt_traits::{
 };
 use zeroize::Zeroizing;
 
-use super::SecretsBootstrapError;
-use crate::bootstrap::master_key::decode_master_key;
 use crate::config_loader::ConfigCredentials;
 
-const ENCRYPTION_MASTER_KEY_ENV: &str = "ENCRYPTION_MASTER_KEY";
 const SOURCE: &str = "grants";
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
@@ -38,7 +35,7 @@ pub enum GrantedSecretsError {
     DatabaseUrlMissing,
     #[error("no manifest signing seed is held by a spawned server")]
     SeedNotHeld,
-    #[error("the encryption master key was not granted to this server")]
+    #[error("a spawned server or agent never holds the encryption master key")]
     MasterKeyNotGranted,
 }
 
@@ -103,18 +100,6 @@ impl GrantedSecrets {
     pub fn granted_names(&self) -> Vec<String> {
         self.secrets.keys().cloned().collect()
     }
-
-    fn master_key(&self) -> Result<[u8; SECRET_SEED_BYTES], SecretStoreError> {
-        let encoded = self.get(ENCRYPTION_MASTER_KEY_ENV).ok_or_else(|| {
-            SecretStoreError::new(
-                "reading the encryption master key",
-                GrantedSecretsError::MasterKeyNotGranted,
-            )
-        })?;
-        decode_master_key(encoded).map_err(|e: SecretsBootstrapError| {
-            SecretStoreError::new("decoding the encryption master key", e)
-        })
-    }
 }
 
 impl SecretLookup for GrantedSecrets {
@@ -157,7 +142,10 @@ impl SecretStore for GrantedSecrets {
     }
 
     fn encryption_master_key(&self) -> Result<[u8; SECRET_SEED_BYTES], SecretStoreError> {
-        self.master_key()
+        Err(SecretStoreError::new(
+            "reading the encryption master key",
+            GrantedSecretsError::MasterKeyNotGranted,
+        ))
     }
 
     fn status(&self) -> SecretsStatus {

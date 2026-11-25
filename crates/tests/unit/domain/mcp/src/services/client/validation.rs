@@ -55,7 +55,6 @@ async fn validate_connection_by_url_empty_tools_reports_no_tools() {
     );
 }
 
-
 #[tokio::test]
 async fn validate_connection_by_url_invalid_uri_returns_failure() {
     let result = validate_connection_by_url(&ServiceName::new("svc"), "not://a/valid uri").await;

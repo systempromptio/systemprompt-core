@@ -54,6 +54,7 @@ pub enum ConferralRow {
     DriveTokens,
     IdentityOwnerReassignments,
     IdentityPluginTokens,
+    AgentSecretPresence,
 }
 
 /// One sealed value its core provider confers on one core holder.
@@ -81,6 +82,7 @@ pub const SEALED_CONFERRALS: &[SealedConferral] = &[
     ConferralRow::DriveTokens.entry(),
     ConferralRow::IdentityOwnerReassignments.entry(),
     ConferralRow::IdentityPluginTokens.entry(),
+    ConferralRow::AgentSecretPresence.entry(),
 ];
 
 impl ConferralRow {
@@ -103,6 +105,7 @@ impl ConferralRow {
             Self::DriveTokens => "drive-tokens",
             Self::IdentityOwnerReassignments => "identity-owner-reassignments",
             Self::IdentityPluginTokens => "identity-plugin-tokens",
+            Self::AgentSecretPresence => "agent-secret-presence",
         }
     }
 
@@ -125,6 +128,7 @@ impl ConferralRow {
             },
             Self::IdentitySignInSessions => ("users", CoreId::IdentityHttp),
             Self::DocumentLinkTokens | Self::DriveTokens => ("documents", CoreId::FilesHttp),
+            Self::AgentSecretPresence => ("agent", CoreId::AgentHttp),
         };
         SealedConferral {
             row: self,

@@ -8,8 +8,10 @@
 //! batch of replacements is written in one transaction, each row only if its
 //! ciphertext is still the value that was read, so a concurrent writer's
 //! value is never overwritten. A `TEXT` ciphertext column (no nonce column)
-//! is read and written as its UTF-8 bytes. [`ResealStore::recorded_owner`]
-//! reads the member the installer recorded for a table.
+//! is read and written as its UTF-8 bytes. A row whose key has a NULL column
+//! cannot be named by its key, so it is read (and reported) but never written.
+//! [`ResealStore::recorded_owner`] reads the member the installer recorded for
+//! a table.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -90,10 +92,11 @@ impl ResealTable {
     }
 }
 
-/// One row's key (each column as text), ciphertext and nonce.
+/// One row's key (each column as text, `None` where the column is NULL),
+/// ciphertext and nonce.
 #[derive(Clone, PartialEq, Eq)]
 pub struct SealedRow {
-    pub keys: Vec<String>,
+    pub keys: Vec<Option<String>>,
     pub ciphertext: Vec<u8>,
     pub nonce: Vec<u8>,
 }
@@ -137,7 +140,7 @@ impl ResealStore {
     pub async fn page(
         &self,
         target: &ResealTable,
-        after: Option<&[String]>,
+        after: Option<&[Option<String>]>,
         limit: i64,
     ) -> Result<Vec<SealedRow>, sqlx::Error> {
         let keys = target.key_array();
@@ -149,7 +152,7 @@ impl ResealStore {
             table = target.table.quoted(),
         );
         let rows = sqlx::query(sqlx::AssertSqlSafe(sql.as_str()))
-            .bind(after.map(<[String]>::to_vec))
+            .bind(after.map(<[Option<String>]>::to_vec))
             .bind(limit)
             .fetch_all(self.pool.as_ref())
             .await?;

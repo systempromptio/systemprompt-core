@@ -7,7 +7,6 @@
 use std::process::Command;
 use std::time::Duration;
 
-
 #[expect(
     unsafe_code,
     reason = "std::os::unix::process::CommandExt::pre_exec is an unsafe fn; there is no safe way \

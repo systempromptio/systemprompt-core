@@ -22,7 +22,6 @@ use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
 use crate::refusal::RefusalCode;
 
-
 fn formats(tools: &DocumentsMcpTools) -> String {
     let service = tools.service();
     let mut out =

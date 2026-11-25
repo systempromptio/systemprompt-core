@@ -18,7 +18,7 @@ use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 use systemprompt_traits::DynToolCallIntentClaims;
 
-use super::McpToolExecutor;
+use super::{CallerVerification, McpToolExecutor, ServerCallers};
 use crate::models::ToolExecutionRequest;
 use crate::repository::ToolUsageRepository;
 use crate::response::{McpResponseBuilder, ResponseServices, ToolIdentity};
@@ -33,6 +33,13 @@ impl ToolExecution for McpToolExecutor {
         request: &CallToolRequestParams,
         caller: &VerifiedCaller,
     ) -> Result<ToolRun, McpError> {
+        if let Err(error) = self.callers.verify(&self.server_name, caller) {
+            tracing::warn!(tool = %tool_name, server = %self.server_name, %error, "Refused a tool execution whose caller did not verify");
+            return Err(McpError::invalid_request(
+                "This server records tool executions only for a caller a platform hop token vouches for.",
+                None,
+            ));
+        }
         let context = caller.context();
         let started_at = Utc::now();
         let input_value = serde_json::to_value(&request.arguments).map_err(|e| {
@@ -162,6 +169,7 @@ pub struct McpToolExecutions {
     intents: Option<DynToolCallIntentClaims>,
     ingest: Arc<ArtifactIngest>,
     renderers: Arc<UiRendererRegistry>,
+    callers: CallerVerification,
 }
 
 impl McpToolExecutions {
@@ -170,12 +178,14 @@ impl McpToolExecutions {
         intents: Option<DynToolCallIntentClaims>,
         ingest: Arc<ArtifactIngest>,
         renderers: Arc<UiRendererRegistry>,
+        callers: CallerVerification,
     ) -> Self {
         Self {
             tool_usage_repo,
             intents,
             ingest,
             renderers,
+            callers,
         }
     }
 }
@@ -193,7 +203,10 @@ impl ToolExecutions for McpToolExecutions {
             self.intents.clone(),
             Arc::clone(&self.ingest),
             Arc::clone(&self.renderers),
-            server,
+            ServerCallers {
+                server,
+                verification: self.callers.clone(),
+            },
         ))
     }
 }

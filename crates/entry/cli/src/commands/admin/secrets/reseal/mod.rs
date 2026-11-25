@@ -22,6 +22,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
 use schemars::JsonSchema;
@@ -29,17 +31,20 @@ use serde::{Deserialize, Serialize};
 use systemprompt_database::DbPool;
 use systemprompt_database::admin::{Replacement, ResealStore, ResealTable};
 use systemprompt_extension::cli::CommandOutput;
-use systemprompt_extension::{AdmittedReseals, ResealColumn};
-use systemprompt_governance::authz::{
-    DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
-};
-use systemprompt_identifiers::{Actor, ContextId, ExtensionId};
+use systemprompt_extension::{AdmittedReseals, DynSealedFiles, ResealColumn};
+use systemprompt_governance::authz::GovernanceDecisionRepository;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_security::at_rest::MasterKey;
+use systemprompt_traits::SecretStore;
 
 use crate::kernel::KernelHost;
 
+mod audit;
 mod ciphers;
 
+use audit::audit;
+pub use audit::{AuditPhase, files_report};
 pub use ciphers::{ResealCiphers, RowState};
 
 pub const BATCH_ROWS: i64 = 500;
@@ -67,6 +72,15 @@ pub struct ColumnReport {
     pub member_sealed: u64,
     pub resealed: u64,
     pub undecodable: u64,
+    pub unkeyed: u64,
+    pub unwritten: u64,
+}
+
+impl ColumnReport {
+    #[must_use]
+    pub const fn undecided(&self) -> u64 {
+        self.undecodable + self.unkeyed + self.unwritten
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -120,7 +134,7 @@ pub async fn reseal_column(
         column: column.ciphertext.to_owned(),
         ..ColumnReport::default()
     };
-    let mut after: Option<Vec<String>> = None;
+    let mut after: Option<Vec<Option<String>>> = None;
     loop {
         let rows = store
             .page(&target, after.as_deref(), BATCH_ROWS)
@@ -133,6 +147,10 @@ pub async fn reseal_column(
         let mut replacements = Vec::new();
         for row in &rows {
             report.total += 1;
+            if row.keys.iter().any(Option::is_none) {
+                report.unkeyed += 1;
+                continue;
+            }
             match ciphers.judge(column.layout, row) {
                 RowState::MemberSealed => report.member_sealed += 1,
                 RowState::Undecodable => report.undecodable += 1,
@@ -145,52 +163,15 @@ pub async fn reseal_column(
             }
         }
         if apply && !replacements.is_empty() {
-            report.resealed += store
+            let written = store
                 .replace(&target, &replacements)
                 .await
                 .with_context(|| format!("writing {}.{}", column.table, column.ciphertext))?;
+            report.resealed += written;
+            report.unwritten += (replacements.len() as u64).saturating_sub(written);
         }
     }
     Ok(report)
-}
-
-async fn audit(
-    repository: &GovernanceDecisionRepository,
-    operator: &SystemAdmin,
-    member: &ExtensionId,
-    planned: &[ColumnReport],
-) -> Result<()> {
-    let actor = Actor::job(operator.id().clone(), "cli:admin secrets reseal");
-    let context = ContextId::generate();
-    let id = format!("member-reseal-{}", context.as_str());
-    let reason = format!("core re-sealed the declared ciphertext of {member}");
-    let rules = serde_json::json!({
-        "member": member.as_str(),
-        "operator": operator.id().as_str(),
-        "columns": planned,
-    });
-    repository
-        .insert(&GovernanceDecisionRecord {
-            id: &id,
-            actor: &actor,
-            session_id: None,
-            tool_name: RESEAL_POLICY,
-            agent_id: None,
-            agent_scope: None,
-            decision: DecisionTag::Allow,
-            policy: RESEAL_POLICY,
-            reason: &reason,
-            evaluated_rules: &rules,
-            plugin_id: None,
-            act_chain: &[],
-            context_id: &context,
-            task_id: None,
-            trace_id: None,
-            client_id: None,
-            tool_use_id: None,
-        })
-        .await
-        .context("the re-seal could not be audited, so nothing was written")
 }
 
 async fn reseal_member(
@@ -203,33 +184,37 @@ async fn reseal_member(
     for column in columns {
         check_recorded_owner(store, column, member).await?;
     }
-    let secrets = host.secrets()?;
-    let master = secrets
-        .get("encryption_master_key")
-        .ok_or_else(|| anyhow!("the profile's secrets hold no encryption_master_key"))?;
-    let master = systemprompt_config::decode_master_key(master)
-        .context("encryption_master_key is not a 32-byte hex key")?;
+    let secrets = super::super::state::get::<Arc<dyn SecretStore>>(host).await?;
+    let master = MasterKey::from_store(&*secrets)
+        .context("the profile's secrets hold no usable encryption_master_key")?;
     let ciphers = ResealCiphers::new(master, member)?;
-    let mut planned = Vec::with_capacity(columns.len());
+    let files = host
+        .resolved()
+        .await?
+        .optional::<DynSealedFiles>()
+        .filter(|files| files.owner() == *member);
+    let mut planned = Vec::with_capacity(columns.len() + 1);
     for column in columns {
         planned.push(reseal_column(store, column, &ciphers, false).await?);
+    }
+    if let Some(files) = &files {
+        planned.push(files_report(files.as_ref(), false)?);
     }
     if !apply || planned.iter().all(|report| report.resealed == 0) {
         return Ok(planned);
     }
     let db = super::super::state::get::<DbPool>(host).await?;
     let operator = super::super::state::get::<SystemAdmin>(host).await?;
-    audit(
-        &GovernanceDecisionRepository::from_pool(db.write_pool()),
-        &operator,
-        member,
-        &planned,
-    )
-    .await?;
+    let decisions = GovernanceDecisionRepository::from_pool(db.write_pool());
+    audit(&decisions, &operator, member, AuditPhase::Planned, &planned).await?;
     let mut applied = Vec::with_capacity(columns.len());
     for column in columns {
         applied.push(reseal_column(store, column, &ciphers, true).await?);
     }
+    if let Some(files) = &files {
+        applied.push(files_report(files.as_ref(), true)?);
+    }
+    audit(&decisions, &operator, member, AuditPhase::Applied, &applied).await?;
     Ok(applied)
 }
 
@@ -251,7 +236,7 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
     let db = super::super::state::get::<DbPool>(host).await?;
     let store = ResealStore::new(db.write_pool());
     let mut outputs = Vec::with_capacity(members.len());
-    let mut undecodable: u64 = 0;
+    let mut undecided: u64 = 0;
     for member in &members {
         let columns: Vec<ResealColumn> = reseals.of_member(member).into_iter().copied().collect();
         let reports = reseal_member(host, &store, member, &columns, args.apply).await?;
@@ -264,14 +249,16 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
                 member_sealed = report.member_sealed,
                 resealed = report.resealed,
                 undecodable = report.undecodable,
+                unkeyed = report.unkeyed,
+                unwritten = report.unwritten,
                 applied = args.apply,
                 "member re-seal"
             );
         }
-        undecodable += reports.iter().map(|report| report.undecodable).sum::<u64>();
+        undecided += reports.iter().map(ColumnReport::undecided).sum::<u64>();
         let resealed: u64 = reports.iter().map(|report| report.resealed).sum();
-        let message = match (args.apply, columns.is_empty()) {
-            (_, true) => format!("member '{member}' declares no re-seal columns"),
+        let message = match (args.apply, reports.is_empty()) {
+            (_, true) => format!("member '{member}' declares no re-seal columns or sealed files"),
             (true, false) => format!("{resealed} value(s) re-sealed"),
             (false, false) => {
                 format!("{resealed} value(s) would be re-sealed. Re-run with --apply.")
@@ -284,10 +271,11 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
             message,
         });
     }
-    if undecodable > 0 {
+    if undecided > 0 {
         bail!(
-            "{undecodable} value(s) opened under neither the raw scheme nor the member cipher and \
-             were left as they are: {}",
+            "{undecided} value(s) were left as they are: they opened under neither the raw scheme \
+             nor the member cipher (undecodable), their key has a NULL column so no row can be \
+             named (unkeyed), or they changed while being re-sealed (unwritten; re-run): {}",
             serde_json::to_string(&outputs).unwrap_or_default()
         );
     }
