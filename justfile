@@ -36,11 +36,11 @@ build-offline:
 
 # Build CLI only
 cli:
-    cargo build -p systemprompt --bin systemprompt --features full
+    cargo build -p systemprompt --bin systemprompt --features reference
 
 # Build CLI offline (uses cached .sqlx metadata, no database required)
 cli-offline:
-    SQLX_OFFLINE=true cargo build -p systemprompt --bin systemprompt --features full
+    SQLX_OFFLINE=true cargo build -p systemprompt --bin systemprompt --features reference
 
 # Build the Bridge helper + sync agent (credential helper, plugin/MCP sync)
 build-bridge TARGET="":
@@ -761,7 +761,7 @@ coverage:
         CARGO_TARGET_DIR="$TDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
         RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
-        cargo build -p systemprompt --bin systemprompt --features full --jobs "$CARGO_BUILD_JOBS")
+        cargo build -p systemprompt --bin systemprompt --features reference --jobs "$CARGO_BUILD_JOBS")
     export SYSTEMPROMPT_BIN="$TDIR/debug/systemprompt"
 
     # bin/bridge is its own workspace, so neither build above produces it. The

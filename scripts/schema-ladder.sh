@@ -63,7 +63,9 @@ else
         rustup show >/dev/null
         SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
             -p systemprompt-test-migrate --target-dir "$WORK/target"
-        if grep -qE '^\[\[bin\]\]' systemprompt/Cargo.toml; then
+        if grep -qE '^reference *= *\[' systemprompt/Cargo.toml; then
+            server_build=(-p systemprompt --bin systemprompt --features reference)
+        elif grep -qE '^\[\[bin\]\]' systemprompt/Cargo.toml; then
             server_build=(-p systemprompt --bin systemprompt --features full)
         elif grep -qE '^full *= *\[' crates/entry/cli/Cargo.toml; then
             server_build=(-p systemprompt-cli --bin systemprompt --features full)

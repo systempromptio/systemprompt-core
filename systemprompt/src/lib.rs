@@ -11,7 +11,7 @@
 //! | `core` *(default)* | `traits`, `models`, `wire`, `manifest`, `identifiers`, `extension`, `template-provider` | Author extensions, share types, no I/O. |
 //! | `database` | `systemprompt-database`, `sqlx` | SQLx-backed `DbPool` and repository helpers. |
 //! | `config` | `systemprompt-config` | Profile, secrets, and credential bootstrap loaders. |
-//! | `mcp` | `rmcp` | Implement Model Context Protocol servers with `rmcp`. The `systemprompt::mcp` module (`systemprompt-mcp`) is gated on `full`, not on this flag. |
+//! | `mcp` | `rmcp` | Implement Model Context Protocol servers with `rmcp`. The `systemprompt::mcp` module (`systemprompt-mcp`) is gated on `reference`, not on this flag. |
 //! | `api` | `systemprompt-api`, `systemprompt-gateway`, `systemprompt-runtime`, `systemprompt-mcp-host`, `systemprompt-oauth-issuance`, `axum` (implies `core` + `database`) | HTTP server, AI gateway, `AppContext`, the MCP and agent child hosts (`systemprompt::system::HostContext`), Axum router, OAuth token issuance. `systemprompt-api` always compiles the runtime's `geolocation` (MaxMind) feature; Slack, Teams, agent runs, OTLP and the bridge consumer surface are their own flags. |
 //! | `cloud` | `systemprompt-cloud` | Cloud API client, credentials bootstrap, OAuth. |
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
@@ -21,23 +21,34 @@
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
-//! | `runtime` | `cli` + `systemprompt-extension` | A custom binary runs the CLI through `Composition::run`. Under `full`, `systemprompt::documents` is the document store crate (its MCP tools are `systemprompt::documents::mcp`) and `systemprompt::issues` the issue report crate. |
-//! | `analytics` | `systemprompt-analytics`, and the `/api/v1/analytics` and engagement routes and the `analytics` command group from `systemprompt-analytics-entry` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. The routes need `api`, the commands `cli`; `core content popular` also needs `content`. In `full`. |
-//! | `content` | the `systemprompt::content` module, and the `/api/v1/content` and link-redirect routes and the `core content` commands from `systemprompt-content-entry` (with `analytics`, also the `core content popular` leaf) | Content ingestion, links and campaigns without the rest of `full`. The routes need `api`, the commands `cli`. In `full`. |
-//! | `slack` | the `systemprompt::slack` module and the `/api/v1/slack` routes from `systemprompt-slack-entry` | Slack Events API, slash commands, interactivity. Not part of `full`. |
-//! | `teams` | the `systemprompt::teams` module and the `/api/v1/teams` routes from `systemprompt-teams-entry` | Microsoft Teams Bot Framework activities. Not part of `full`. |
-//! | `agent-runs` | `systemprompt-agent-runs`, the `/api/v1/agent-runs` routes and the run launcher wired into hosted agents | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
-//! | `notifications` | the `systemprompt::notifications` module, and the notification routes, `documents_inbox` tool and outbox consumer in the runtime and API | Notification streams, rules, the per-user feed and the outbox consumer. In `full`, not in `core`. Without it, comments and shares commit without recording a notification and a comment carrying `mention_options` is refused with `unsupported_op`. |
-//! | `brain` | the `systemprompt::brain` module, and the brain composition, capture consumer and gateway recall in the runtime and API (implies `notifications`) | Revisioned organisational memory: facts captured from documents and comments, recalled into gateway requests. In `full`, not in `core`. Without it the document store records no brain event and the gateway injects no team memory; with it, `brain.enabled: false` in the profile composes nothing. |
-//! | `otel` | the gateway's OTLP/HTTP ingest routes and the scheduler's `otlp_export` job | OpenTelemetry ingest from clients and export of the audit trail to a collector. In `full`. |
-//! | `bridge` | the device-credential consumer routes | The surface the bridge reports installation evidence through. In `full`. |
-//! | `files-office` | the `systemprompt::files` module with `systemprompt-files/office` | The `.docx` document codec. In `full`. |
-//! | `files-pdf` | the `systemprompt::files` module with `systemprompt-files/pdf`, forwarded to the API and CLI | PDF export of documents and its embedded fonts. In `full`. Without it a PDF export is refused with `unsupported_op`. |
-//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `agent-runs`, `notifications`, `brain`), `files-office`, `files-pdf`, `otel` and `bridge` | Building a product binary, and the composition of this crate's own `systemprompt` binary. The `slack` and `teams` modules stay opt-in. |
+//! | `runtime` | `cli` + `systemprompt-extension` | A custom binary runs the CLI through `Composition::run`. Under `reference`, `systemprompt::documents` is the document store crate (its MCP tools are `systemprompt::documents::mcp`) and `systemprompt::issues` the issue report crate. |
+//! | `analytics` | `systemprompt-analytics`, and the `/api/v1/analytics` and engagement routes and the `analytics` command group from `systemprompt-analytics-entry` | Request, conversation, agent, tool, and cost metrics without the rest of `reference`. The routes need `api`, the commands `cli`; `core content popular` also needs `content`. In `reference`. |
+//! | `content` | the `systemprompt::content` module, and the `/api/v1/content` and link-redirect routes and the `core content` commands from `systemprompt-content-entry` (with `analytics`, also the `core content popular` leaf) | Content ingestion, links and campaigns without the rest of `reference`. The routes need `api`, the commands `cli`. In `reference`. |
+//! | `slack` | the `systemprompt::slack` module and the `/api/v1/slack` routes from `systemprompt-slack-entry` | Slack Events API, slash commands, interactivity. Not part of `reference`. |
+//! | `teams` | the `systemprompt::teams` module and the `/api/v1/teams` routes from `systemprompt-teams-entry` | Microsoft Teams Bot Framework activities. Not part of `reference`. |
+//! | `agent-runs` | `systemprompt-agent-runs`, the `/api/v1/agent-runs` routes and the run launcher wired into hosted agents | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `reference`. |
+//! | `notifications` | the `systemprompt::notifications` module, and the notification routes, `documents_inbox` tool and outbox consumer in the runtime and API | Notification streams, rules, the per-user feed and the outbox consumer. In `reference`, not in `core`. Without it, comments and shares commit without recording a notification and a comment carrying `mention_options` is refused with `unsupported_op`. |
+//! | `brain` | the `systemprompt::brain` module, and the brain composition, capture consumer and gateway recall in the runtime and API (implies `notifications`) | Revisioned organisational memory: facts captured from documents and comments, recalled into gateway requests. In `reference`, not in `core`. Without it the document store records no brain event and the gateway injects no team memory; with it, `brain.enabled: false` in the profile composes nothing. |
+//! | `otel` | the gateway's OTLP/HTTP ingest routes and the scheduler's `otlp_export` job | OpenTelemetry ingest from clients and export of the audit trail to a collector. In `reference`. |
+//! | `bridge` | the device-credential consumer routes | The surface the bridge reports installation evidence through. In `reference`. |
+//! | `files-office` | the `systemprompt::files` module with `systemprompt-files/office` | The `.docx` document codec. In `reference`. |
+//! | `files-pdf` | the `systemprompt::files` module with `systemprompt-files/pdf`, forwarded to the API and CLI | PDF export of documents and its embedded fonts. In `reference`. Without it a PDF export is refused with `unsupported_op`. |
+//! | `ai` | `systemprompt-ai` | Provider dispatch, model routing and tool execution. In `reference`. |
+//! | `reference` | `api`, `mcp`, `ai`, `cloud`, `cli`, `identity`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `agent-runs`, `notifications`, `brain`, `issues`), `files-office`, `files-pdf`, `files-collab-loro`, `otel` and `bridge` | The reference composition: building a product binary, and the composition of this crate's own `systemprompt` binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.87.0", features = ["full"] }
+//! systemprompt = { version = "0.87.0", features = ["reference"] }
 //! ```
+//!
+//! # Supported compositions
+//!
+//! A feature set is supported when it is listed in
+//! `scripts/build-compositions.txt` of the source repository; CI builds every
+//! listed composition and boots the ones that link the CLI. They are:
+//! `reference`; `reference` with `slack` and `teams`; `api` alone; `cli`
+//! alone; the gateway alone (`api`, `ai`); and the minimal kernel (`core`,
+//! `database`). Every other combination of features compiles on a best-effort
+//! basis and is unsupported.
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
 //! `systemprompt::agent`, …) gated on its feature, with three exceptions:
@@ -48,9 +59,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "full")]
+#[cfg(feature = "reference")]
 pub mod composition;
-#[cfg(feature = "full")]
+#[cfg(feature = "reference")]
 pub use composition::{Composition, CompositionError, Declared, RunError, SecretsKind, reference};
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
@@ -184,36 +195,36 @@ pub mod cli {
     pub use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod documents {
     pub use systemprompt_documents::*;
 }
 
-#[cfg(all(feature = "issues", feature = "full"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "issues", feature = "full"))))]
+#[cfg(all(feature = "issues", feature = "reference"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "issues", feature = "reference"))))]
 pub mod issues {
     pub use systemprompt_issues::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod agent;
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod ai;
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod mcp;
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod oauth;
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod users;
 
 #[cfg(feature = "content")]
@@ -227,14 +238,14 @@ pub mod analytics {
     pub use systemprompt_analytics_entry as entry;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod marketplace {
     pub use systemprompt_marketplace::*;
 }
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod scheduler;
 
 #[cfg(any(
@@ -252,8 +263,8 @@ mod capabilities;
 ))]
 pub use capabilities::*;
 
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "reference")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reference")))]
 pub mod generator {
     pub use systemprompt_generator::*;
 }

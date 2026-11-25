@@ -100,7 +100,7 @@ sqlx-postgres = { version = "0.9", default-features = false, features = ["any", 
 stable_deref_trait = { version = "1" }
 subtle = { version = "2", features = ["const-generics"] }
 sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
-systemprompt = { path = "../../../../systemprompt", features = ["full", "slack", "teams"] }
+systemprompt = { path = "../../../../systemprompt", features = ["reference", "slack", "teams"] }
 systemprompt-agent-entry = { path = "../../../entry/agent", features = ["cli", "http"] }
 systemprompt-analytics = { path = "../../../domain/analytics", features = ["geolocation"] }
 systemprompt-analytics-entry = { path = "../../../entry/analytics", features = ["cli", "content-commands", "http"] }
@@ -116,7 +116,7 @@ systemprompt-logging = { path = "../../../infra/logging", features = ["cli", "ot
 systemprompt-marketplace = { path = "../../../domain/marketplace", features = ["http"] }
 systemprompt-marketplace-entry = { path = "../../../entry/marketplace", features = ["cli", "http"] }
 systemprompt-mcp-entry = { path = "../../../entry/mcp", features = ["cli", "http"] }
-systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
+systemprompt-models = { path = "../../../shared/models", features = ["mcp", "sqlx"] }
 systemprompt-provider-contracts = { path = "../../../shared/provider-contracts", default-features = false, features = ["sqlx"] }
 systemprompt-teams-entry = { path = "../../../entry/teams", features = ["http"] }
 systemprompt-traits = { path = "../../../shared/traits", features = ["sqlx"] }
@@ -212,7 +212,7 @@ syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-trai
 sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
 systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["cli", "mcp", "router", "slack", "sqlx", "teams"] }
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
-systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
+systemprompt-models = { path = "../../../shared/models", features = ["mcp", "sqlx"] }
 systemprompt-provider-contracts = { path = "../../../shared/provider-contracts", default-features = false, features = ["sqlx"] }
 systemprompt-traits = { path = "../../../shared/traits", features = ["sqlx"] }
 thiserror = { version = "2" }

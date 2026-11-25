@@ -4,8 +4,8 @@
 //! `DemoExtension::contribute` only declares; the composition admits each
 //! contribution against the profile before anything it declares runs.
 //!
-//! Run with: `cargo run -p systemprompt --example extension --features full --
-//! demo status`
+//! Run with: `cargo run -p systemprompt --example extension --features
+//! reference -- demo status`
 
 use std::process::ExitCode;
 

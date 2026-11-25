@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt = { workspace = true, features = ["full"] }
+systemprompt = { workspace = true, features = ["reference"] }
 systemprompt-cloud-entry = { workspace = true, features = ["cli"] }
 systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-cli = { workspace = true }

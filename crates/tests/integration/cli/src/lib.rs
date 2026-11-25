@@ -2,7 +2,7 @@
 //! surface (in-process tests for `presentation`, `cloud`, `shared`,
 //! `session`, `paths`) and the `systemprompt` binary itself (subprocess
 //! tests). The binary is the `systemprompt` facade crate's `[[bin]]`, built
-//! with `--features full` and located by
+//! with `--features reference` and located by
 //! [`full_bootstrap::systemprompt_bin`]; child processes inherit
 //! `LLVM_PROFILE_FILE` from the test runner so the binary's profraw lands in
 //! the merged report.

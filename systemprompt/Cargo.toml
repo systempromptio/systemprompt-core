@@ -37,7 +37,7 @@ database = ["dep:systemprompt-database", "dep:sqlx", "systemprompt-extension?/sq
 config = ["dep:systemprompt-config"]
 
 # MCP support (uses rmcp-macros from rmcp crate)
-mcp = ["dep:rmcp"]
+mcp = ["dep:rmcp", "systemprompt-models?/mcp"]
 
 # API server functionality
 api = [
@@ -70,13 +70,14 @@ api = [
 # The identity capability: the OAuth 2.0 / OIDC, SSO, self-service session and
 # API-key routes from `systemprompt-identity-entry` (served when `api` is also
 # enabled). Its own unit, not the kernel's: without it the server serves no
-# sign-in route and no OAuth discovery document. `full` implies it.
+# sign-in route and no OAuth discovery document. `reference` implies it.
 identity = ["dep:systemprompt-identity-entry"]
 
 # Cloud infrastructure (API client, credentials, OAuth)
 cloud = ["dep:systemprompt-cloud", "dep:systemprompt-cloud-entry"]
 
-# Granular infrastructure features (also bundled in `full`)
+# Infrastructure features for extension authors who need one crate without a
+# capability (also bundled in `reference`)
 logging = ["dep:systemprompt-logging"]
 loader = ["dep:systemprompt-loader"]
 events = ["dep:systemprompt-events"]
@@ -84,7 +85,7 @@ storage = ["dep:systemprompt-storage"]
 client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
-# CLI entry point for product binaries (standalone, use 'full' for everything)
+# CLI entry point for product binaries (standalone; `reference` for the reference composition)
 cli = ["config", "dep:systemprompt-cli", "dep:systemprompt-extension", "systemprompt-extension/cli", "systemprompt-cloud-entry?/cli", "systemprompt-content-entry?/cli", "systemprompt-analytics-entry?/cli", "systemprompt-marketplace-entry?/cli", "systemprompt-files-entry?/cli", "systemprompt-issues?/cli", "systemprompt-mcp-entry?/cli", "systemprompt-agent-entry?/cli", "systemprompt-identity-entry?/cli"]
 
 # Runtime builder for embedding systemprompt as a library
@@ -92,86 +93,92 @@ runtime = ["cli", "dep:systemprompt-extension"]
 
 # Granular access to the analytics domain for consumers that need request /
 # cost metrics without pulling the whole product surface — a server-rendered
-# admin extension, say. `full` implies it.
+# admin extension, say. `reference` implies it.
 analytics = ["dep:systemprompt-analytics", "dep:systemprompt-analytics-entry"]
 
 # The content capability: the domain crate with its routes and commands from
 # `systemprompt-content-entry` (served when `api` / `cli` are also enabled).
-# `full` implies it.
+# `reference` implies it.
 content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "systemprompt-analytics-entry?/content-commands"]
 
 # The marketplace capability: plugins, skills and managed resources, with its
-# routes and commands from `systemprompt-marketplace-entry`. `full` implies it.
+# routes and commands from `systemprompt-marketplace-entry`. `reference` implies it.
 marketplace = ["dep:systemprompt-marketplace", "dep:systemprompt-marketplace-entry"]
 
 # The files capability: the domain crate with its routes and commands from
-# `systemprompt-files-entry`. `full` implies it.
+# `systemprompt-files-entry`. `reference` implies it.
 files = ["dep:systemprompt-files", "dep:systemprompt-files-entry", "dep:systemprompt-documents"]
 
 # The hosted MCP capability: the domain crate with its routes and commands
-# from `systemprompt-mcp-entry`. `full` implies it.
+# from `systemprompt-mcp-entry`. `reference` implies it.
 mcp-servers = ["dep:systemprompt-mcp", "dep:systemprompt-mcp-entry"]
 
 # The agent capability: the domain crate with its A2A routes and commands
-# from `systemprompt-agent-entry`. `full` implies it.
+# from `systemprompt-agent-entry`. `reference` implies it.
 agents = ["dep:systemprompt-agent", "dep:systemprompt-agent-entry"]
 
 # Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`
-# and `full`.
+# and `reference`.
 slack = ["dep:systemprompt-slack", "dep:systemprompt-slack-entry", "systemprompt-extension?/slack"]
 
 # Microsoft Teams integration: the domain crate and the `/api/v1/teams`
-# Bot Framework activity routes. Opt-in: excluded from `default` and `full`.
+# Bot Framework activity routes. Opt-in: excluded from `default` and `reference`.
 teams = ["dep:systemprompt-teams", "dep:systemprompt-teams-entry", "systemprompt-extension?/teams"]
 
 # Headless coding-agent executor (Claude Code, Codex CLI runs with a leased
 # claim queue): the domain crate, the `/api/v1/agent-runs` routes and the agent
-# run launcher wired into hosted agents. `full` implies it.
+# run launcher wired into hosted agents. `reference` implies it.
 agent-runs = ["dep:systemprompt-agent-runs", "dep:systemprompt-agent-runs-entry"]
 
 # OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the live OTLP
-# export of the tracing pipeline to a collector. `full` implies it.
+# export of the tracing pipeline to a collector. `reference` implies it.
 otel = ["systemprompt-logging?/otel", "systemprompt-api?/otel", "systemprompt-gateway-entry?/otel"]
 
 # The device-credential consumer surface the bridge reports installation
-# evidence through. `full` implies it.
+# evidence through. `reference` implies it.
 bridge = ["systemprompt-api?/bridge"]
 
-# Office document codecs (.docx) for the files domain. `full` implies it.
+# Office document codecs (.docx) for the files domain. `reference` implies it.
 files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
 
 # The PDF renderer for document export and its embedded fonts. Without it a
-# PDF export is refused as an unsupported operation. `full` implies it.
+# PDF export is refused as an unsupported operation. `reference` implies it.
 files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf"]
 
 # Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
-# routes. `full` implies it.
+# routes. `reference` implies it.
 files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "dep:systemprompt-documents", "systemprompt-documents/collab", "dep:systemprompt-files-entry", "systemprompt-files-entry/collab"]
 
 # The Loro CRDT engine for live sessions. Without it `files-collab` mounts the
 # routes and every session answers `collab_engine_unavailable`.
 files-collab-loro = ["files-collab", "systemprompt-documents/engine-loro"]
 
-# The notifications domain: streams, rules, feed and the outbox consumer. `full` implies it.
+# The notifications domain: streams, rules, feed and the outbox consumer. `reference` implies it.
 # Without it the server mounts no notification routes and comments record no notification.
 notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notifications-entry", "systemprompt-documents?/notifications"]
 
-# The brain: revisioned organisational memory, its capture consumer and gateway recall. `full` implies it.
+# The brain: revisioned organisational memory, its capture consumer and gateway recall. `reference` implies it.
 # Without it the documents store records no brain event and the gateway injects no team memory.
 brain = ["dep:systemprompt-brain", "dep:systemprompt-brain-entry", "notifications"]
 
-# Issue reports: intake, triage and their jobs. `full` implies it.
+# Issue reports: intake, triage and their jobs. `reference` implies it.
 issues = ["dep:systemprompt-issues"]
 
-# Full functionality including all domain modules and CLI
-full = [
+# The AI capability: provider dispatch, model routing and tool execution.
+# `reference` implies it.
+ai = ["dep:systemprompt-ai", "systemprompt-models?/mcp"]
+
+# The reference composition: every core capability, the API and the CLI. The
+# only supported compositions are those listed in scripts/build-compositions.txt;
+# Slack and Teams stay opt-in.
+reference = [
     "api",
     "mcp",
     "cloud",
     "cli",
     "agents",
-    "dep:systemprompt-ai",
+    "ai",
     "mcp-servers",
     "dep:systemprompt-oauth",
     "dep:systemprompt-users",
@@ -289,17 +296,17 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 # The in-repo `systemprompt` binary. It is the reference composition: every
-# capability in `full` is a member of its composition. `doc = false`:
+# capability in `reference` is a member of its composition. `doc = false`:
 # the library of the same name is the documented target.
 [[bin]]
 name = "systemprompt"
 path = "src/main.rs"
-required-features = ["full"]
+required-features = ["reference"]
 doc = false
 
 [[example]]
 name = "extension"
-required-features = ["full"]
+required-features = ["reference"]
 
 [[example]]
 name = "database"
@@ -311,7 +318,7 @@ required-features = ["api"]
 
 [[example]]
 name = "cli"
-required-features = ["full"]
+required-features = ["reference"]
 
 [package.metadata.cargo-machete]
 ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry"]

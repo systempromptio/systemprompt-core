@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
-systemprompt = { workspace = true, features = ["full"] }
+systemprompt = { workspace = true, features = ["reference"] }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true, features = ["bridge"] }
 systemprompt-gateway-entry = { workspace = true, features = ["http", "otel"] }

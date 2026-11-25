@@ -8,7 +8,7 @@ For what the platform is and why it exists, see the [repository README](https://
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.87.0", features = ["full"] }
+systemprompt = { version = "0.87.0", features = ["reference"] }
 ```
 
 A product binary is a composition of the core members and your own:
@@ -23,7 +23,7 @@ fn main() -> Result<ExitCode, RunError> {
 }
 ```
 
-`MyExtension` implements `Extension` (`metadata` and `contribute`); `systemprompt/examples/extension.rs` is the smallest complete member, and [authoring extensions](https://github.com/systempromptio/systemprompt-core/blob/main/documentation/guides/authoring-extensions.md) is the guide. `Composition` and `reference()` need the `full` feature.
+`MyExtension` implements `Extension` (`metadata` and `contribute`); `systemprompt/examples/extension.rs` is the smallest complete member, and [authoring extensions](https://github.com/systempromptio/systemprompt-core/blob/main/documentation/guides/authoring-extensions.md) is the guide. `Composition` and `reference()` need the `reference` feature.
 
 | Feature | Includes |
 |---------|----------|
@@ -31,11 +31,13 @@ fn main() -> Result<ExitCode, RunError> {
 | `database` | PostgreSQL abstraction (`DbPool`) |
 | `api` | HTTP server, `AppContext` and OAuth token issuance (requires `core` + `database`) |
 | `cli` | CLI entry point and the command contract member commands implement |
-| `full` | Everything: all domain modules, CLI, and `Composition` / `reference()` |
-| `slack` | `systemprompt::slack` module (not in `full`; `api` compiles the crate regardless) |
-| `teams` | `systemprompt::teams` module (not in `full`; `api` compiles the crate regardless) |
+| `reference` | The reference composition: every core capability, the CLI, and `Composition` / `reference()` |
+| `slack` | `systemprompt::slack` module (not in `reference`; `api` compiles the crate regardless) |
+| `teams` | `systemprompt::teams` module (not in `reference`; `api` compiles the crate regardless) |
 
-The full per-feature matrix, including the finer-grained flags (`config`, `mcp`, `events`, `security`, `runtime`, `content`, `analytics`, `notifications`, `brain`, and the rest), is on the [docs.rs crate root](https://docs.rs/systemprompt).
+Supported compositions are `reference`, `reference` with `slack` and `teams`, `api` alone, `cli` alone, the gateway alone (`api`, `ai`) and the minimal kernel (`core`, `database`); CI builds each one. Any other feature combination is unsupported.
+
+The per-feature matrix, including the finer-grained flags (`config`, `mcp`, `events`, `security`, `runtime`, `content`, `analytics`, `notifications`, `brain`, and the rest), is on the [docs.rs crate root](https://docs.rs/systemprompt).
 
 ## Requirements
 

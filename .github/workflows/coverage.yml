@@ -220,7 +220,7 @@ jobs:
       # bin/bridge/src/cli measured 66%.
       - name: Build
         run: |
-          cargo build -p systemprompt --bin systemprompt --features full
+          cargo build -p systemprompt --bin systemprompt --features reference
           cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
           cp /mnt/coverage-target/debug/systemprompt /mnt/coverage-target/debug/systemprompt-bridge /mnt/out/
           ls -lh /mnt/out

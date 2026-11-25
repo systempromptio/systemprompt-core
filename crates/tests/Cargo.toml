@@ -283,9 +283,9 @@ systemprompt-provider-contracts = { path = "../shared/provider-contracts" }
 umya-spreadsheet = { version = "=4.0.0-beta.1", default-features = false }
 loro = { version = "=1.17.1", default-features = false }
 systemprompt-traits = { path = "../shared/traits" }
-systemprompt = { path = "../../systemprompt", features = ["full"] }
+systemprompt = { path = "../../systemprompt", features = ["reference"] }
 systemprompt-extension = { path = "../shared/extension" }
-systemprompt-models = { path = "../shared/models" }
+systemprompt-models = { path = "../shared/models", features = ["mcp"] }
 systemprompt-wire = { path = "../shared/wire" }
 systemprompt-manifest = { path = "../shared/manifest" }
 systemprompt-client = { path = "../shared/client" }

@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Facade"
+text = "The facade's `full` feature is removed; `reference` is the reference composition (every core capability, the API and the CLI; `slack` and `teams` stay opt-in) and admits the same members `full` did. The new `ai` feature carries `systemprompt-ai`. The supported compositions are `reference`, `reference` with `slack` and `teams`, `api`, `core` with `cli`, the gateway (`api`, `ai`), the minimal kernel (`core`, `database`) and `core`; CI builds each and boots the two that link the `systemprompt` binary, and any other feature combination is unsupported. Migrate by replacing `features = [\"full\"]` with `features = [\"reference\"]`."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "The `full` feature is removed; `reference` replaces it with the same member set, and the binary, `Composition`, `reference()` and the modules gated on `full` are gated on `reference`. The `ai` feature is added, and `mcp` also enables `systemprompt-models/mcp`."

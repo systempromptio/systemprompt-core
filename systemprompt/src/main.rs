@@ -1,4 +1,4 @@
-//! The `systemprompt` binary: the CLI with every capability in `full`.
+//! The `systemprompt` binary: the CLI with every capability in `reference`.
 //!
 //! The capability crates are linked through this crate's library, which
 //! re-exports each of them, so their link-time registrations are present.

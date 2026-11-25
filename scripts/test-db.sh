@@ -115,7 +115,7 @@ SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
 if [ "$editor" -eq 1 ]; then
     target_dir="$(cargo metadata --offline --no-deps --format-version 1 | jq -r .target_directory)"
     bin="${target_dir}/debug/systemprompt"
-    [ -x "$bin" ] || echo "test-db: ${bin} is not built yet; the lifecycle tests need it: cargo build -p systemprompt --bin systemprompt --features full" >&2
+    [ -x "$bin" ] || echo "test-db: ${bin} is not built yet; the lifecycle tests need it: cargo build -p systemprompt --bin systemprompt --features reference" >&2
     url="postgres://${user}:${password}@${hostport}/${name}"
     printf 'export TEST_DATABASE_URL=%q\n' "$url"
     printf 'export DATABASE_URL=%q\n' "$url"
