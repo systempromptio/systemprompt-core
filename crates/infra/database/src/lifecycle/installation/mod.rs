@@ -39,7 +39,8 @@ pub use migration_owners::{
 };
 pub use migration_refs::check_migration_references;
 pub use report::{
-    ForeignKeyDrift, HeldBackMember, SchemaAhead, SchemaInstallReport, SupersededInstall,
+    ForeignKeyDrift, HeldBackMember, InstallRefusal, SchemaAhead, SchemaInstallReport,
+    SupersededInstall,
 };
 pub use routine_refs::check_trigger_routines;
 pub use undeclared::{

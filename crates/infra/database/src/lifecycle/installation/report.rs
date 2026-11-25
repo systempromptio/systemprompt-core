@@ -1,8 +1,16 @@
 //! Outcome of a schema installation that succeeded but left typed drift
 //! behind: a declared foreign key an established database could not create,
 //! or a member held back because the database records migrations for it that
-//! this binary does not know ([`HeldBackMember`]; none of its schema is
-//! applied).
+//! this binary does not know while this binary's own migrations for it are
+//! still pending ([`HeldBackMember`]; none of its schema is applied).
+//!
+//! A member whose ledger is only *ahead* (a newer release migrated it past
+//! every migration this binary declares, and nothing of this binary's is
+//! pending) is not held back: the newer schema stays readable under the
+//! expand/contract contract, so the report lists it in `ahead` for a warning.
+//! [`SchemaInstallReport::refusal`] is the verdict `infra db migrate` exits
+//! on: a held-back member, or an ahead row the newer release marked
+//! `@compat: breaking`.
 //! Callers surface the report — health endpoints, `infra db migrate` — rather
 //! than reading it from the log. `superseded` is set when a newer release
 //! installed the database and this one applied nothing (see
@@ -40,7 +48,16 @@ pub struct SchemaInstallReport {
     pub foreign_key_drift: Vec<ForeignKeyDrift>,
     pub residue: SchemaResidue,
     pub ahead: Vec<SchemaAhead>,
+    pub held_back: Vec<HeldBackMember>,
     pub superseded: Option<SupersededInstall>,
+}
+
+/// Why an install's outcome refuses to call the database at this binary's
+/// schema.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstallRefusal<'a> {
+    HeldBack(&'a [HeldBackMember]),
+    BreaksOlder(&'a [SchemaAhead]),
 }
 
 /// A newer release installed this database; this release applied nothing.
@@ -159,17 +176,45 @@ impl SchemaInstallReport {
     }
 
     #[must_use]
-    pub fn held_back(&self) -> Vec<HeldBackMember> {
-        let mut held: Vec<HeldBackMember> = Vec::new();
-        for migration in &self.ahead {
-            match held.iter_mut().find(|m| m.extension == migration.extension) {
+    pub fn held_back(&self) -> &[HeldBackMember] {
+        &self.held_back
+    }
+
+    #[must_use]
+    pub fn unmarked_ahead(&self) -> Vec<&SchemaAhead> {
+        self.ahead
+            .iter()
+            .filter(|m| !m.breaks_older)
+            .filter(|m| !self.held_back.iter().any(|h| h.extension == m.extension))
+            .collect()
+    }
+
+    #[must_use]
+    pub fn refusal(&self) -> Option<InstallRefusal<'_>> {
+        if !self.held_back.is_empty() {
+            return Some(InstallRefusal::HeldBack(&self.held_back));
+        }
+        self.breaks_this_release()
+            .then_some(InstallRefusal::BreaksOlder(&self.ahead))
+    }
+}
+
+impl HeldBackMember {
+    #[must_use]
+    pub fn of(ahead: &[SchemaAhead], held: impl Fn(&ExtensionId) -> bool) -> Vec<Self> {
+        let mut members: Vec<Self> = Vec::new();
+        for migration in ahead.iter().filter(|m| held(&m.extension)) {
+            match members
+                .iter_mut()
+                .find(|m| m.extension == migration.extension)
+            {
                 Some(member) => member.ahead.push(migration.clone()),
-                None => held.push(HeldBackMember {
+                None => members.push(Self {
                     extension: migration.extension.clone(),
                     ahead: vec![migration.clone()],
                 }),
             }
         }
-        held
+        members
     }
 }

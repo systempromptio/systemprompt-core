@@ -16,6 +16,7 @@ mod admin_migrate_mark_applied;
 mod admin_migrate_plan;
 mod admin_migrate_repair;
 mod admin_migrate_status;
+mod admin_migrate_verdict;
 mod admin_migrations;
 mod commands;
 mod dispatch;

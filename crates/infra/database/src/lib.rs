@@ -93,7 +93,7 @@ pub use lifecycle::{
     AbsentMemberTable, AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement,
     BaselineStamp, BootstrapLockGuard, BootstrapLockTimeout, ChecksumDrift, DeferredForeignKey,
     ExpensiveStatement, ExtensionMigrationStatus, FkDeferralError, ForeignKeyDrift, FreshnessCheck,
-    HOT_TABLES, HeldBackMember, MarkAppliedOutcome, MigrationConfig, MigrationCost,
+    HOT_TABLES, HeldBackMember, InstallRefusal, MarkAppliedOutcome, MigrationConfig, MigrationCost,
     MigrationResult, MigrationService, MigrationStatus, OrphanMigrationLedger, OrphanedMigration,
     PROJECTION_BACKLOG, PendingMigration, RETRYABLE_SQLSTATES, RepairResult, ReplicaStatus,
     SCHEMA_INSTALL_RELEASE, SCHEMA_INSTALL_STAMP, SchemaAhead, SchemaCurrency, SchemaInstallReport,
