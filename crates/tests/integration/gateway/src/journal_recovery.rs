@@ -50,8 +50,10 @@ pub(crate) fn repos_over(db: &DbPool, journal: GatewayJournal) -> GatewayReposit
     GatewayRepositories::new(
         db,
         journal,
-        Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db),
+        Some(Arc::new(
+            systemprompt_agent::services::ContextProviderService::new(
+                systemprompt_agent::repository::ContextRepository::new(db),
+            ),
         )),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),

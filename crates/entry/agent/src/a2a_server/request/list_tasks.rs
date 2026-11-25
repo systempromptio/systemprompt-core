@@ -8,9 +8,9 @@
 use systemprompt_identifiers::{TaskId, UserId};
 use systemprompt_models::api::{KeysetCursor, KeysetCursorError};
 
-use crate::models::a2a::Task;
-use crate::models::a2a::protocol::{ListTasksParams, ListTasksResult};
-use crate::repository::task::{ListTasksFilter, TaskRepository};
+use systemprompt_agent::models::a2a::Task;
+use systemprompt_agent::models::a2a::protocol::{ListTasksParams, ListTasksResult};
+use systemprompt_agent::repository::task::{ListTasksFilter, TaskRepository};
 
 pub const DEFAULT_PAGE_SIZE: u32 = 50;
 pub const MAX_PAGE_SIZE: u32 = 100;

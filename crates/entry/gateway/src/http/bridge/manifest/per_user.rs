@@ -5,8 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::bridge_catalog::ResolvedBridgeCatalog;
 use systemprompt_identifiers::{ApiKeyId, ManagedResourceId, UserId};
-use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_models::bridge::manifest::UserInfo;
 
@@ -18,23 +18,17 @@ use super::super::{BridgeRouteState, data};
 pub(super) async fn record_catalog_grants(
     state: &BridgeRouteState,
     user_id: &UserId,
-    candidate: &MarketplaceCandidate,
+    resolved: &dyn ResolvedBridgeCatalog,
 ) -> Result<(), BridgeError> {
     let owner = state.settings.system_admin();
     if user_id == owner {
         return Ok(());
     }
     let started = std::time::Instant::now();
-    let resources: Vec<ManagedResourceId> = candidate
-        .skills
-        .iter()
-        .filter_map(|skill| skill.publication.as_ref())
-        .map(|publication| publication.resource_id.clone())
-        .collect();
+    let resources: Vec<ManagedResourceId> = resolved.skill_publications();
     state
-        .marketplace
-        .managed
-        .retain_consumer_catalog_grants(owner, &resources, user_id)
+        .catalog
+        .retain_catalog_grants(owner, &resources, user_id)
         .await
         .map_err(|source| BridgeError::CatalogGrants {
             count: resources.len(),

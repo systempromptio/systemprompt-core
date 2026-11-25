@@ -63,10 +63,9 @@ pub type McpResult<T> = Result<T, McpError>;
 pub use client_profile::client_profile_from_stored;
 pub use progress::{ProgressCallback, create_progress_callback};
 pub use repository::{
-    ArtifactCorrelation, ArtifactFinding, ArtifactFindingRecord, ArtifactFindingRepository,
+    ArtifactCorrelation, ArtifactFindingRecord, ArtifactFindingRepository,
     ArtifactIngestRepositories, ArtifactPayloadRecord, ArtifactPayloadRepository, ArtifactShape,
-    CreateMcpArtifact, IngestMark, IngestMarkKey, McpArtifactRecord, McpArtifactRepository,
-    PHASE_TOOL_RESULT, ToolResultIngestMarkRepository,
+    CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository, ToolResultIngestMarkRepository,
 };
 pub use resources::{
     ArtifactViewerConfig, build_artifact_viewer_resource, build_resource_template_list_result,
@@ -77,8 +76,7 @@ pub use response::{
     terse_execution_meta,
 };
 pub use services::artifact_ingest::{
-    ArtifactIngest, ArtifactScanner, FINGERPRINT_WINDOW_SECONDS, IngestOutcome, IngestRequest,
-    MAX_PAYLOAD_BYTES, ScanOutcome, from_canonical_tool_result, from_hook_failure,
+    ArtifactIngest, FINGERPRINT_WINDOW_SECONDS, MAX_PAYLOAD_BYTES, ScanOutcome, from_hook_failure,
     from_hook_response, from_wire_value,
 };
 pub use services::intent_claim::IntentClaimService;
@@ -110,7 +108,7 @@ pub const fn mcp_supported_protocol_versions() -> &'static [ProtocolVersion] {
 }
 
 pub const fn mcp_protocol_version_str() -> &'static str {
-    "2026-07-28"
+    systemprompt_models::mcp::MCP_PROTOCOL_VERSION
 }
 
 pub mod registry {

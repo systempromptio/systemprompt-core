@@ -23,7 +23,7 @@ pub mod spawn_target;
 pub mod tool_provider;
 pub mod ui_renderer;
 
-pub use artifact_ingest::{ArtifactIngest, ArtifactScanner, IngestOutcome, IngestRequest};
+pub use artifact_ingest::ArtifactIngest;
 pub use database::{DatabaseService, ServiceInfo};
 pub use deployment::DeploymentService;
 pub use intent_claim::IntentClaimService;

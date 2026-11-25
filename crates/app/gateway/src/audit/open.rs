@@ -97,8 +97,10 @@ impl GatewayAudit {
             tracing::debug!(request_id = %self.ctx.ai_request_id, "tool validators already bound");
         }
 
-        if !self.ctx.context_bound {
-            self.context_materializer
+        if !self.ctx.context_bound
+            && let Some(materializer) = &self.context_materializer
+        {
+            materializer
                 .ensure_context(systemprompt_traits::EnsureContextParams {
                     context_id: &self.ctx.context_id,
                     user_id: &self.ctx.user_id,

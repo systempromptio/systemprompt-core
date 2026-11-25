@@ -75,8 +75,13 @@ pub fn content_kernel(
         Dependencies::default()
             .with(repositories)
             .with(ContentHttpSettings::of(config))
-            .with(Arc::new(config.clone())),
+            .with(Arc::new(config.clone()))
+            .with(content_file_links(pool)),
     )
+}
+
+fn content_file_links(pool: &DbPool) -> systemprompt_extension::content_files::DynContentFileLinks {
+    Arc::new(systemprompt_files::FileRepository::new(pool))
 }
 
 pub fn mount(

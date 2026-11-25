@@ -19,7 +19,6 @@ use axum::body::{Body, Bytes};
 use axum::http::{HeaderValue, header};
 use axum::response::Response;
 use systemprompt_identifiers::{PluginId, UserId};
-use systemprompt_marketplace::PluginBundle;
 
 use super::BridgeRouteState;
 use super::error::BridgeError;
@@ -52,8 +51,7 @@ pub(super) async fn serve(
 ) -> Result<Response, ApiHttpError> {
     let resolved = resolve_entitled(state, user_id, id).await?;
     let current = resolved
-        .candidate
-        .plugins
+        .plugins()
         .iter()
         .find(|entry| &entry.id == id)
         .ok_or(BridgeError::PluginNotFound)?;
@@ -71,14 +69,13 @@ pub(super) async fn serve(
     let bytes = if let Some(bytes) = memo.get(&key) {
         bytes
     } else {
-        let bundles = Arc::clone(&resolved.bundles);
+        let catalog = Arc::clone(&resolved);
         let plugin = id.clone();
-        let packed =
-            tokio::task::spawn_blocking(move || bundles.get(&plugin).map(pack).transpose())
-                .await
-                .map_err(|e| BridgeError::internal("plugin archive: packing task failed", e))?
-                .map_err(|e| BridgeError::internal("plugin archive: packing failed", e))?
-                .ok_or(BridgeError::PluginNotFound)?;
+        let packed = tokio::task::spawn_blocking(move || catalog.pack_plugin(&plugin).transpose())
+            .await
+            .map_err(|e| BridgeError::internal("plugin archive: packing task failed", e))?
+            .map_err(|e| BridgeError::internal("plugin archive: packing failed", e))?
+            .ok_or(BridgeError::PluginNotFound)?;
         let bytes = Bytes::from(packed);
         memo.put(key.clone(), bytes.clone());
         bytes
@@ -98,16 +95,6 @@ pub(super) async fn serve(
         headers.insert(header::ETAG, etag);
     }
     Ok(response)
-}
-
-// Why: Packs a plugin bundle into the archive the route serves: one entry per
-// bundle path, mode `0755` for executables.
-pub fn pack(bundle: &PluginBundle) -> systemprompt_loader::BundleResult<Vec<u8>> {
-    systemprompt_loader::bundle::pack::create_tarball_from_memory(
-        bundle
-            .iter()
-            .map(|(path, file)| (path.as_str(), file.bytes.as_slice(), file.executable)),
-    )
 }
 
 impl ArchiveMemo {

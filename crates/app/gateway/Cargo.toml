@@ -37,6 +37,7 @@ http = { workspace = true }
 metrics = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
+rmcp = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -54,13 +55,11 @@ systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-storage = { workspace = true }
 sqlx = { workspace = true }
-systemprompt-extension = { workspace = true, features = ["sqlx"] }
+systemprompt-extension = { workspace = true, features = ["sqlx", "mcp", "router"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-marketplace = { workspace = true, features = ["http"] }
-systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true, features = ["mcp"] }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }

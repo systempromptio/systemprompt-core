@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Gateway"
+text = "The gateway reads the agent member's `DynContextMaterializer` when it is provided and otherwise serves without materialising a conversation context; `GatewayRepositories::context_materializer` is an `Option` and `systemprompt-gateway-entry` no longer depends on `systemprompt-agent`."

@@ -5,9 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_database::{DbPool, pool_from_handle};
 use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, Prompter};
-use systemprompt_files::FileRepository;
+use systemprompt_extension::content_files::ContentFileLinks;
 use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::cli::content::types::ContentUnlinkOutput;
@@ -36,14 +35,14 @@ pub(super) async fn execute(
     prompter: &dyn Prompter,
     host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let pool = pool_from_handle(host.db().await?)?;
-    execute_with_pool(args, prompter, &pool, host.output()).await
+    let links = super::content_file_links(host).await?;
+    execute_with_links(args, prompter, links.as_ref(), host.output()).await
 }
 
-pub async fn execute_with_pool(
+pub async fn execute_with_links(
     args: UnlinkArgs,
     prompter: &dyn Prompter,
-    pool: &DbPool,
+    links: &dyn ContentFileLinks,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
@@ -81,9 +80,7 @@ pub async fn execute_with_pool(
         return Ok(CommandOutput::card_value("File Unlink (Dry Run)", &output));
     }
 
-    let service = FileRepository::new(pool);
-
-    service.unlink_from_content(&content_id, &file_id).await?;
+    links.unlink(&content_id, &file_id).await?;
 
     let output = ContentUnlinkOutput {
         file_id,

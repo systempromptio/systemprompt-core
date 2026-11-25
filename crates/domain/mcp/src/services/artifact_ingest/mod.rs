@@ -15,21 +15,18 @@
 mod classify;
 mod normalize;
 mod persist;
+mod port;
 mod resolve;
 mod scan;
 
 use std::sync::{Arc, RwLock};
 
-use chrono::{DateTime, Utc};
-use rmcp::model::CallToolResult;
 use serde_json::Value as JsonValue;
 use systemprompt_governance::policy::secrets::SecretScannerCell;
-use systemprompt_identifiers::{
-    AiToolCallId, ArtifactId, McpExecutionId, McpServerId, McpToolName, SkillId, SkillName,
-};
-use systemprompt_models::RequestContext;
+use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::artifacts::payload_digest;
-use systemprompt_models::mcp::{Correlation, ExecutionSource};
+
+use systemprompt_extension::mcp::artifacts::{ArtifactScanner, IngestOutcome, IngestRequest};
 
 use crate::error::McpDomainResult;
 use crate::repository::{
@@ -38,54 +35,14 @@ use crate::repository::{
 };
 
 pub use classify::Classified;
-pub use normalize::{
-    from_canonical_tool_result, from_hook_failure, from_hook_response, from_wire_value,
-};
-pub use scan::{ArtifactScanner, ScanOutcome};
+pub use normalize::{from_hook_failure, from_hook_response, from_wire_value};
+pub use scan::ScanOutcome;
 
 pub const MAX_PAYLOAD_BYTES: usize = 8 * 1024 * 1024;
 
 pub const FINGERPRINT_WINDOW_SECONDS: i64 = 120;
 
 pub const PROXIMITY_WINDOW_SECONDS: i64 = 30;
-
-#[derive(Debug)]
-pub struct IngestRequest {
-    pub result: CallToolResult,
-    pub tool_name: McpToolName,
-    pub server_name: Option<McpServerId>,
-    pub ai_tool_call_id: Option<AiToolCallId>,
-    pub mcp_execution_id: Option<McpExecutionId>,
-    pub ctx: RequestContext,
-    pub skill: Option<(SkillId, SkillName)>,
-    pub source: ExecutionSource,
-    pub started_at: Option<DateTime<Utc>>,
-    // JSON: the tool's own arguments, when the vantage point had them.
-    pub input: Option<JsonValue>,
-}
-
-/// What the ingest stored and, when the scanner rewrote the body, what the
-/// caller must put on the wire in place of its own copy.
-///
-/// `stored_body` is the artifact body as persisted (the header alone for a
-/// result over [`MAX_PAYLOAD_BYTES`]); `redacted_body` is `Some` only when
-/// `secret_redactions > 0` and then carries the whole scanned body, so a
-/// caller never has to re-read the row to learn whether its unredacted copy
-/// is safe to send.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IngestOutcome {
-    pub mcp_execution_id: McpExecutionId,
-    pub artifact_id: ArtifactId,
-    pub created: bool,
-    pub is_structured: bool,
-    pub correlation: Correlation,
-    pub findings: usize,
-    pub secret_redactions: usize,
-    // JSON: the persisted artifact body.
-    pub stored_body: JsonValue,
-    // JSON: the scanned body when the scanner rewrote it.
-    pub redacted_body: Option<JsonValue>,
-}
 
 pub struct ArtifactIngest {
     artifacts: Arc<McpArtifactRepository>,
@@ -175,7 +132,7 @@ impl ArtifactIngest {
             .await?
         {
             resolve::enrich_existing(self, &request, &resolved, &existing).await?;
-            return Ok(IngestOutcome::existing(resolved, existing));
+            return Ok(existing_outcome(resolved, existing));
         }
 
         let redacted =
@@ -230,7 +187,7 @@ impl ArtifactIngest {
             "Artifact ingested"
         );
 
-        Ok(IngestOutcome::created(
+        Ok(created_outcome(
             resolved,
             artifact_id,
             classified.is_structured,
@@ -240,51 +197,52 @@ impl ArtifactIngest {
     }
 }
 
-impl IngestOutcome {
-    fn existing(resolved: resolve::ResolvedExecution, existing: McpArtifactRecord) -> Self {
-        let secret_redactions = usize::try_from(existing.secret_redactions).unwrap_or(0);
-        let stored_body = existing
-            .data
-            .get("artifact")
-            .cloned()
-            .unwrap_or(JsonValue::Null);
-        Self {
-            mcp_execution_id: resolved.mcp_execution_id,
-            artifact_id: existing.artifact_id,
-            created: false,
-            is_structured: existing.is_structured,
-            correlation: resolved.correlation,
-            findings: 0,
-            secret_redactions,
-            redacted_body: (secret_redactions > 0).then(|| stored_body.clone()),
-            stored_body,
-        }
+fn existing_outcome(
+    resolved: resolve::ResolvedExecution,
+    existing: McpArtifactRecord,
+) -> IngestOutcome {
+    let secret_redactions = usize::try_from(existing.secret_redactions).unwrap_or(0);
+    let stored_body = existing
+        .data
+        .get("artifact")
+        .cloned()
+        .unwrap_or(JsonValue::Null);
+    IngestOutcome {
+        mcp_execution_id: resolved.mcp_execution_id,
+        artifact_id: existing.artifact_id,
+        created: false,
+        is_structured: existing.is_structured,
+        correlation: resolved.correlation,
+        findings: 0,
+        secret_redactions,
+        redacted_body: (secret_redactions > 0).then(|| stored_body.clone()),
+        stored_body,
     }
+}
 
-    // JSON: artifact ingest payload — redacted MCP structured content, schema-less.
-    fn created(
-        resolved: resolve::ResolvedExecution,
-        artifact_id: ArtifactId,
-        is_structured: bool,
-        scanned: ScanOutcome,
-        redacted_body: Option<JsonValue>,
-    ) -> Self {
-        let ScanOutcome {
-            body: stored_body,
-            findings,
-            secret_redactions,
-        } = scanned;
-        Self {
-            mcp_execution_id: resolved.mcp_execution_id,
-            artifact_id,
-            created: true,
-            is_structured,
-            correlation: resolved.correlation,
-            findings: findings.len(),
-            secret_redactions,
-            redacted_body: (secret_redactions > 0)
-                .then(|| redacted_body.unwrap_or_else(|| stored_body.clone())),
-            stored_body,
-        }
+// JSON: artifact ingest payload — redacted MCP structured content, schema-less.
+fn created_outcome(
+    resolved: resolve::ResolvedExecution,
+    artifact_id: ArtifactId,
+    is_structured: bool,
+    scanned: ScanOutcome,
+    redacted_body: Option<JsonValue>,
+) -> IngestOutcome {
+    let ScanOutcome {
+        body: stored_body,
+        findings,
+        secret_redactions,
+    } = scanned;
+    IngestOutcome {
+        mcp_execution_id: resolved.mcp_execution_id,
+        artifact_id,
+        created: true,
+        is_structured,
+        correlation: resolved.correlation,
+        findings: findings.len(),
+        secret_redactions,
+        redacted_body: (secret_redactions > 0)
+            .then(|| redacted_body.unwrap_or_else(|| stored_body.clone())),
+        stored_body,
     }
 }

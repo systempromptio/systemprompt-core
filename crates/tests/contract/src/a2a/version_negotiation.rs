@@ -1,6 +1,6 @@
 use http::{HeaderMap, HeaderValue, Uri};
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
-use systemprompt_agent::services::a2a_server::version::negotiate;
+use systemprompt_agent_entry::a2a_server::version::negotiate;
 use systemprompt_models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 
 use super::schema::assert_error_info_envelope;

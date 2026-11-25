@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Marketplace"
+text = "The bridge routes resolve a user's catalogue, record its catalogue grants and issue device consumer credentials through `systemprompt_extension::bridge_catalog::DynBridgeCatalogSource`, which the `managed_resources` member provides; a composition without that member builds no bridge route. The managed consumer surface contract (`ManagedSurface`, `ManagedRouteState`, `ManagedRoutes`, `ConsumerCatalog`) is `systemprompt_extension::router`, and `ConsumerCatalog::granted_skills` replaces `candidate`. `ManifestEntries` and `IssuedConsumerCredential` live in `systemprompt_extension::bridge_catalog`, `skill_bundle_path` and `skill_bundle_markdown` in `systemprompt_models::bridge::manifest::skill_frontmatter`. `systemprompt-marketplace` drops its `http` feature and `surface` module, and neither `systemprompt-gateway` nor `systemprompt-gateway-entry` depends on it."

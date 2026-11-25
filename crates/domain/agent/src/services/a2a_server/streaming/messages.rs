@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use axum::response::sse::Event;
+use super::StreamFrame;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
@@ -49,7 +49,7 @@ pub struct StreamRejected;
 
 pub async fn create_sse_stream(
     params: CreateSseStreamParams,
-) -> Result<ReceiverStream<Event>, StreamRejected> {
+) -> Result<ReceiverStream<StreamFrame>, StreamRejected> {
     let registry = AgentRegistry::new(params.state.agent_state.services());
     create_sse_stream_with_registry(params, Ok(registry)).await
 }
@@ -57,7 +57,7 @@ pub async fn create_sse_stream(
 pub async fn create_sse_stream_with_registry(
     params: CreateSseStreamParams,
     registry: AgentResult<AgentRegistry>,
-) -> Result<ReceiverStream<Event>, StreamRejected> {
+) -> Result<ReceiverStream<StreamFrame>, StreamRejected> {
     let CreateSseStreamParams {
         message,
         agent_name,
@@ -96,7 +96,7 @@ pub async fn create_sse_stream_with_registry(
     Ok(ReceiverStream::new(rx))
 }
 
-async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
+async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<StreamFrame>) {
     let active_tasks = input.state.active_tasks.clone();
     let webhooks = input.state.agent_state.webhooks();
     let Ok(setup) = setup_stream(input, &tx).await else {

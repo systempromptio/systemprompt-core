@@ -23,11 +23,11 @@ pub mod origin;
 use std::sync::Arc;
 
 use systemprompt_extension::MissingDependency;
-use systemprompt_manifest::services::ServicesView;
-use systemprompt_marketplace::managed::ManagedRepository;
-use systemprompt_marketplace::surface::{
+use systemprompt_extension::router::{
     DynConsumerCatalog, ManagedRouteState, ManagedRoutes, ManagedSurface,
 };
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_marketplace::managed::ManagedRepository;
 
 use super::MarketplaceHttpSettings;
 

@@ -107,7 +107,7 @@ pub fn create_mcp_extensions_from_config(
         })
         .collect();
 
-    let mcp_protocol_version = systemprompt_mcp::mcp_protocol_version();
+    let mcp_protocol_version = systemprompt_models::mcp::MCP_PROTOCOL_VERSION;
 
     vec![AgentExtension {
         uri: "systemprompt:mcp-tools".to_owned(),

@@ -12,7 +12,7 @@
 use axum::http::{HeaderMap, Uri};
 use systemprompt_models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 
-use super::errors::JsonRpcErrorBuilder;
+use systemprompt_agent::services::a2a_server::errors::JsonRpcErrorBuilder;
 
 pub fn negotiate(headers: &HeaderMap, uri: &Uri) -> Result<(), JsonRpcErrorBuilder> {
     let requested = requested_version(headers, uri).unwrap_or_default();

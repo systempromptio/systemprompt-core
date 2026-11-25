@@ -56,4 +56,6 @@ pub use outcome::{ErrorClass, RunOutcome, RunStatus};
 pub use repository::{AgentRunRepository, AgentRunRow};
 pub use request::{HarnessRef, HostKind, McpServerSpec, PermissionMode, RunRequest, TrafficClass};
 pub use retention::AgentRunRetention;
-pub use runner::{A2aRunHandler, A2aRunnerConfig, A2aRunnerService, AGENT_RUN_ORIGIN_KIND};
+pub use runner::{
+    A2aRunHandler, A2aRunnerConfig, A2aRunnerService, A2aRunnerSources, AGENT_RUN_ORIGIN_KIND,
+};

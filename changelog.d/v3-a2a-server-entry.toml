@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Agents"
+text = "The hosted A2A server (`Server`, `run_standalone`, `HostedAgentServer`, the card and JSON-RPC request handlers, the OAuth middleware and protocol version negotiation) lives in `systemprompt_agent_entry::a2a_server` behind the `http` feature, and the `agent-http` member provides `DynAgentServer`. The agent streaming engine emits `systemprompt_agent::services::a2a_server::streaming::StreamFrame`, which the HTTP edge sends as SSE `data:` events; `AGENT_RUN_ORIGIN_KIND` is `systemprompt_agent::services::a2a_server::AGENT_RUN_ORIGIN_KIND`. `systemprompt-agent` no longer depends on `axum` or `tower-http`."

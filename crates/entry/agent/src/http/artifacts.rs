@@ -3,8 +3,8 @@
 //! Handlers list artifacts by context, task, or user, fetch a single artifact,
 //! and render an artifact as MCP App UI. Every accessor enforces ownership
 //! against the authenticated [`RequestContext`] before returning data. The
-//! UI renderers are the `UiRendererRegistry` the `mcp` member builds; without
-//! it a UI request fails with the fixed 5xx body.
+//! UI renderers are the `DynArtifactUiRenderer` the `mcp` member provides;
+//! without it a UI request fails with the fixed 5xx body.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,13 +15,12 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
 
+use systemprompt_extension::artifact_ui::ArtifactUiError as RenderError;
 use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{ArtifactId, TaskId};
-use systemprompt_mcp::McpDomainError;
-use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
-use systemprompt_mcp::services::ui_renderer::registry::resolve_artifact_type;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::mcp::MCP_APP_MIME_TYPE;
 
 use super::{AgentHttpError, AgentHttpState, clamp_page_limit};
 
@@ -138,20 +137,18 @@ pub async fn get_artifact_ui(
         .await?;
     let artifact = artifact_repo.find_owned_artifact(&owned).await?;
 
-    let registry = state.renderers.as_ref().ok_or(ArtifactUiError::Renderers)?;
-    let artifact_type = resolve_artifact_type(&artifact);
-
-    if !registry.supports(artifact_type) {
-        tracing::warn!(artifact_type = %artifact_type, "No UI renderer for artifact type");
-        return Err(ApiHttpError::bad_request(format!(
-            "No UI renderer available for artifact type '{artifact_type}'"
-        ))
-        .into());
-    }
-
-    let ui_resource: systemprompt_mcp::services::ui_renderer::UiResource = registry
-        .render(&artifact)
-        .map_err(ArtifactUiError::Render)?;
+    let renderer = state.renderers.as_ref().ok_or(ArtifactUiError::Renderers)?;
+    let ui_resource = match renderer.render(&artifact) {
+        Ok(ui) => ui,
+        Err(RenderError::Unsupported { artifact_type }) => {
+            tracing::warn!(artifact_type = %artifact_type, "No UI renderer for artifact type");
+            return Err(ApiHttpError::bad_request(format!(
+                "No UI renderer available for artifact type '{artifact_type}'"
+            ))
+            .into());
+        },
+        Err(error) => return Err(ArtifactUiError::Render(error).into()),
+    };
 
     tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");
 
@@ -160,7 +157,7 @@ pub async fn get_artifact_ui(
         .header(header::CONTENT_TYPE, MCP_APP_MIME_TYPE)
         .header(
             header::CONTENT_SECURITY_POLICY,
-            ui_resource.csp.to_header_value(),
+            ui_resource.content_security_policy,
         )
         .header(header::X_FRAME_OPTIONS, "SAMEORIGIN")
         .body(axum::body::Body::from(ui_resource.html))
@@ -172,7 +169,7 @@ enum ArtifactUiError {
     #[error("no member provides the UI renderer registry")]
     Renderers,
     #[error("failed to render artifact UI")]
-    Render(#[source] McpDomainError),
+    Render(#[source] RenderError),
     #[error("failed to build artifact UI response")]
     Response(#[source] http::Error),
 }

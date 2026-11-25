@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::sse::Event;
+use super::StreamFrame;
 use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
@@ -49,13 +49,13 @@ pub struct PersistTaskInput<'a> {
     pub agent_name: &'a AgentName,
     pub context: &'a RequestContext,
     pub state: &'a Arc<AgentHandlerState>,
-    pub tx: &'a Sender<Event>,
+    pub tx: &'a Sender<StreamFrame>,
     pub request_id: &'a NumberOrString,
 }
 
 #[derive(Debug)]
 pub struct StreamContext {
-    pub tx: Sender<Event>,
+    pub tx: Sender<StreamFrame>,
     pub task_id: TaskId,
     pub context_id: ContextId,
     pub message_id: MessageId,

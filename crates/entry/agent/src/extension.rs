@@ -15,9 +15,13 @@
 //! mounts the webhook broadcasts, the SSE streams and the well-known agent
 //! cards through; the [`StreamFeeds`](crate::http::stream::StreamFeeds) those
 //! streams subscribe through **sealed** (only its own route state reads it);
-//! and the chat-platform messaging dispatcher **sealed**, built here from the
+//! the chat-platform messaging dispatcher **sealed**, built here from the
 //! host's authz hook cell, signing keys, issuer and agent dispatch cell, which
-//! the kernel binds into the messaging cell while it builds its routes.
+//! the kernel binds into the messaging cell while it builds its routes; and
+//! the `DynAgentServer` the kernel's `admin agent-host run` child host serves
+//! one agent through, **sealed** after governance (it reads the AI provider).
+//! A composition without `agent-http` has no agent server: an agent child
+//! host refuses to serve, naming this member.
 //!
 //! With `cli` it contributes `admin agents` (grants `services-tree` and
 //! `caller-session`), `core contexts` (`caller-session`, `session-context`)
@@ -27,7 +31,8 @@
 //!
 //! The `/api/v1/agents/{service}` proxy, the agent dispatch it sends
 //! through, agent supervision and the `admin agent-host run` child host are
-//! the kernel's.
+//! the kernel's; the A2A server that child host runs is this crate's
+//! [`crate::a2a_server`].
 //!
 //! | profile disables | routes | commands |
 //! |---|---|---|
@@ -87,9 +92,10 @@ mod routes {
     use systemprompt_manifest::Config;
     use systemprompt_models::a2a::dispatch::AgentDispatchCell;
     use systemprompt_security::keys::SigningKeys;
-    use systemprompt_traits::MessagingDispatcher;
+    use systemprompt_traits::{DynAgentServer, MessagingDispatcher};
     use systemprompt_users::UserRepository;
 
+    use crate::a2a_server::serve::HostedAgentServer;
     use crate::http::stream::StreamFeeds;
     use crate::http::{
         AgentHttpSurface, ContextEventPublisher, artifacts_routes, contexts_routes,
@@ -118,6 +124,11 @@ mod routes {
             },
         )
         .provide_sealed(messaging_dispatcher)
+        .provide_sealed_after_governance(
+            |r: &Resolved<'_>| -> Result<DynAgentServer, ProvideError> {
+                Ok(Arc::new(HostedAgentServer::from_resolved(r)?))
+            },
+        )
         .routes(contexts_routes())
         .routes(tasks_routes())
         .routes(artifacts_routes())

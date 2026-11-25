@@ -8,14 +8,15 @@ use axum::extract::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::sse::{KeepAlive, Sse};
+use futures_util::StreamExt;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
 
-use super::super::state::AgentHandlerState;
 use super::streaming::handle_streaming_request;
-use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::models::a2a::{A2aJsonRpcRequest, A2aParseError, A2aRequestParams};
-use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
+use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
+use systemprompt_agent::models::a2a::{A2aJsonRpcRequest, A2aParseError, A2aRequestParams};
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::a2a_server::errors::JsonRpcErrorBuilder;
 
 pub async fn parse_a2a_request(
     jsonrpc_request: &A2aJsonRpcRequest,
@@ -83,7 +84,7 @@ pub async fn handle_streaming_path(
     let latency_ms = start_time.elapsed().as_millis();
     tracing::info!(latency_ms = %latency_ms, "SSE stream initialized for SendStreamingMessage");
 
-    Sse::new(stream)
+    Sse::new(stream.map(|frame| frame.map(crate::a2a_server::sse_event)))
         .keep_alive(KeepAlive::default())
         .into_response()
 }

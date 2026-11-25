@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::http::{HeaderMap, StatusCode};
+use http::{HeaderMap, StatusCode};
 use serde::Serialize;
 use std::str::FromStr;
 use systemprompt_identifiers::{JwtToken, UserId};

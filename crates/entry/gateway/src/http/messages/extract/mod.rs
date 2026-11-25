@@ -237,8 +237,10 @@ async fn ensure_owned_context(
     context_id: &ContextId,
     session_id: &SessionId,
 ) -> Result<(), RejectionError> {
-    rc.repos
-        .context_materializer
+    let Some(materializer) = &rc.repos.context_materializer else {
+        return Ok(());
+    };
+    materializer
         .ensure_context(systemprompt_traits::EnsureContextParams {
             context_id,
             user_id,

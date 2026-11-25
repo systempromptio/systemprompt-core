@@ -1,9 +1,11 @@
-//! Repository assembly of verified revision closures.
+//! Repository assembly of verified revision closures, and the repository as
+//! the shared `RevisionBundleSource` contract.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
+use systemprompt_extension::revision_bundles::{RevisionBundleLoadError, RevisionBundleSource};
 use systemprompt_identifiers::{ResourceRevisionId, UserId};
 use systemprompt_models::managed::{
     ASSEMBLER_VERSION, AssetDigest, MAX_BYTES, MAX_FILES, MAX_REVISIONS, RevisionBundle,
@@ -63,5 +65,18 @@ impl ManagedRepository {
         }
         bundle.verify()?;
         Ok(bundle)
+    }
+}
+
+#[async_trait::async_trait]
+impl RevisionBundleSource for ManagedRepository {
+    async fn revision_bundle(
+        &self,
+        owner: &UserId,
+        revision: &ResourceRevisionId,
+    ) -> std::result::Result<RevisionBundle, RevisionBundleLoadError> {
+        self.get_revision_bundle(owner, revision)
+            .await
+            .map_err(|e| RevisionBundleLoadError(Box::new(e)))
     }
 }

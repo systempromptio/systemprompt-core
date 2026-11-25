@@ -3,11 +3,13 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_agent_runs::credentials::RunCredentialService;
-use systemprompt_agent_runs::execute::harness::{HarnessError, HarnessSource};
 use systemprompt_agent_runs::repository::{AgentRunRow, NewAgentRun, RunCredentialRepositories};
 use systemprompt_agent_runs::runner::{A2aRunHandler, A2aRunnerConfig};
 use systemprompt_agent_runs::service::{ClaimedRun, RunHandler};
 use systemprompt_agent_runs::{HarnessRef, RunRequest};
+use systemprompt_extension::revision_bundles::{
+    DynRevisionBundleSource, RevisionBundleLoadError, RevisionBundleSource,
+};
 use systemprompt_identifiers::{AgentRunId, ResourceRevisionId, UserId};
 use systemprompt_models::managed::RevisionBundle;
 use systemprompt_test_fixtures::test_db_pool;
@@ -23,17 +25,17 @@ pub(crate) enum Source {
 }
 
 #[async_trait]
-impl HarnessSource for Source {
+impl RevisionBundleSource for Source {
     async fn revision_bundle(
         &self,
         _owner: &UserId,
         _revision: &ResourceRevisionId,
-    ) -> Result<RevisionBundle, HarnessError> {
+    ) -> Result<RevisionBundle, RevisionBundleLoadError> {
         match self {
             Self::Bundle(bundle) => Ok(bundle.clone()),
-            Self::Fails => Err(HarnessError::MissingAsset {
-                path: "AGENTS.md".to_owned(),
-            }),
+            Self::Fails => Err(RevisionBundleLoadError(
+                "the fixture source refuses every revision".into(),
+            )),
         }
     }
 }
@@ -72,7 +74,7 @@ pub(crate) async fn handler(r: &Rig, script: &str, source: Option<Source>) -> A2
         keep: &[],
     }));
     match source {
-        Some(source) => handler.with_harness_source(Arc::new(source)),
+        Some(source) => handler.with_harness_source(Arc::new(source) as DynRevisionBundleSource),
         None => handler,
     }
 }
@@ -178,7 +180,11 @@ async fn a_harness_that_fails_to_load_is_unavailable() {
     );
     assert_eq!(
         row.error.as_deref(),
-        Some("harness path AGENTS.md has no bytes in the bundle")
+        Some(
+            "harness revision could not be loaded: the managed revision bundle could not be \
+             loaded: the fixture source refuses every revision: the fixture source refuses \
+             every revision"
+        )
     );
 }
 

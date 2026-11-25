@@ -21,6 +21,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::keys::SigningKeys;
@@ -29,7 +30,7 @@ use systemprompt_traits::{DynAgentRunLauncher, RunnerService};
 use crate::launcher::RepositoryRunLauncher;
 use crate::repository::AgentRunRepository;
 use crate::retention::{AgentRunDirsCleanupJob, AgentRunRetention};
-use crate::runner::A2aRunnerService;
+use crate::runner::{A2aRunnerService, A2aRunnerSources};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentRunsExtension;
@@ -86,7 +87,10 @@ impl Extension for AgentRunsExtension {
                     r.get::<Arc<OAuthRepositories>>()?.as_ref(),
                     &r.get::<Arc<Config>>()?,
                     r.get::<Arc<AppPaths>>()?.as_ref(),
-                    r.get::<SigningKeys>()?,
+                    A2aRunnerSources {
+                        signing_keys: r.get::<SigningKeys>()?,
+                        harness: r.optional::<DynRevisionBundleSource>(),
+                    },
                 )))
             },
         )

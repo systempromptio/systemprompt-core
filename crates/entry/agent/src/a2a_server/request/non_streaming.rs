@@ -23,15 +23,17 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::a2a::methods;
 use systemprompt_traits::BoxedSource;
 
-use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::models::a2a::protocol::SendMessageParams;
-use crate::models::a2a::{A2aRequestParams, A2aResponse, SendMessageResult, Task, TaskState};
-use crate::repository::OwnedTask;
-use crate::repository::task::TaskRepository;
-use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
-use crate::services::a2a_server::handlers::state::AgentHandlerState;
-use crate::services::a2a_server::processing::message::MessageHandler;
-use crate::services::shared::AgentServiceError;
+use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
+use systemprompt_agent::models::a2a::protocol::SendMessageParams;
+use systemprompt_agent::models::a2a::{
+    A2aRequestParams, A2aResponse, SendMessageResult, Task, TaskState,
+};
+use systemprompt_agent::repository::OwnedTask;
+use systemprompt_agent::repository::task::TaskRepository;
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
+use systemprompt_agent::services::a2a_server::processing::message::MessageHandler;
+use systemprompt_agent::services::shared::AgentServiceError;
 
 use super::list_tasks::{ListTasksError, list_caller_tasks, trim_history};
 use super::validation::{ContextValidationError, owned_task_for, validate_message_context};

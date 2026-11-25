@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Agent runs"
+text = "`A2aRunnerService::new` takes an `A2aRunnerSources` (the signing keys and the optional `DynRevisionBundleSource`) in place of the signing keys; `ResolvedBridgeCatalog::plugin_file` answers a `PluginFile`."

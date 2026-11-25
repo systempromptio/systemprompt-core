@@ -19,16 +19,18 @@ use systemprompt_models::modules::ApiPaths;
 use tokio::sync::{RwLock, Semaphore};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use super::active_tasks::ActiveTasks;
-use super::auth::{AgentOAuthConfig, AgentOAuthState, agent_oauth_middleware_wrapper};
-use super::handlers::{AgentHandlerState, handle_agent_card, handle_agent_request};
-use crate::state::AgentState;
+use super::card::handle_agent_card;
+use super::middleware::agent_oauth_middleware_wrapper;
+use super::request::handle_agent_request;
+use systemprompt_agent::AgentState;
+use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
+use systemprompt_agent::services::a2a_server::{ActiveTasks, AgentHandlerState};
 
 // Why: A2A file parts travel inline as base64, so the JSON-RPC body cap is
 // deliberately wider than the API's default request limit.
 pub const A2A_MAX_REQUEST_BODY_BYTES: usize = 8 * 1024 * 1024;
 
-fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError> {
+fn cors_layer(origins: &[String]) -> Result<CorsLayer, systemprompt_agent::AgentError> {
     let mut allowed = Vec::new();
     for origin in origins {
         let trimmed = origin.trim();
@@ -36,7 +38,7 @@ fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError>
             continue;
         }
         let value = trimmed.parse::<HeaderValue>().map_err(|e| {
-            crate::error::AgentError::invalid_config(
+            systemprompt_agent::AgentError::invalid_config(
                 format!("invalid cors_allowed_origins entry {origin:?}"),
                 e,
             )
@@ -44,7 +46,7 @@ fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError>
         allowed.push(value);
     }
     if allowed.is_empty() {
-        return Err(crate::error::AgentError::EmptyCorsAllowlist);
+        return Err(systemprompt_agent::AgentError::EmptyCorsAllowlist);
     }
     Ok(CorsLayer::new()
         .allow_origin(AllowOrigin::list(allowed))
@@ -92,8 +94,8 @@ impl Server {
         ai_service: DynAiProvider,
         agent_name: &AgentName,
         port: u16,
-    ) -> Result<Self, crate::error::AgentError> {
-        use crate::services::registry::AgentRegistry;
+    ) -> Result<Self, systemprompt_agent::AgentError> {
+        use systemprompt_agent::services::registry::AgentRegistry;
 
         let registry = AgentRegistry::new(agent_state.services());
         let mut config = registry.get_agent(agent_name.as_str())?;
@@ -156,7 +158,7 @@ impl Server {
     // Why: the listener stops accepting on `shutdown`, then the server waits
     // for every stream worker it spawned so an in-flight task is persisted
     // rather than torn down mid-write.
-    pub async fn run<F>(self, shutdown: F) -> Result<(), crate::error::AgentError>
+    pub async fn run<F>(self, shutdown: F) -> Result<(), systemprompt_agent::AgentError>
     where
         F: Future<Output = ()> + Send + 'static,
     {

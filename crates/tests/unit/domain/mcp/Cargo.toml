@@ -17,13 +17,12 @@ systemprompt-mcp-host = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
-systemprompt-wire = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-storage = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["mcp"] }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-governance = { workspace = true }

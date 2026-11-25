@@ -12,15 +12,15 @@
 use std::time::Duration;
 use tokio_util::task::TaskTracker;
 
-use axum::response::sse::Event;
+use systemprompt_agent::services::a2a_server::streaming::StreamFrame;
 use systemprompt_identifiers::AgentRunId;
 use systemprompt_traits::DynAgentRunLauncher;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::models::a2a::{StreamResponse, Task};
-use crate::services::a2a_server::streaming::stream_response_event;
+use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
+use systemprompt_agent::models::a2a::{StreamResponse, Task};
+use systemprompt_agent::services::a2a_server::streaming::stream_response_event;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -30,7 +30,7 @@ pub(super) fn follow_run(
     run_id: Option<AgentRunId>,
     request_id: NumberOrString,
     tracker: &TaskTracker,
-) -> ReceiverStream<Event> {
+) -> ReceiverStream<StreamFrame> {
     let (tx, rx) = tokio::sync::mpsc::channel(64);
     tracker.spawn(async move {
         let submitted = stream_response_event(StreamResponse::Task(task), &request_id);
@@ -45,7 +45,7 @@ pub(super) fn follow_run(
 }
 
 async fn forward_updates(
-    tx: &Sender<Event>,
+    tx: &Sender<StreamFrame>,
     launcher: &DynAgentRunLauncher,
     run_id: &AgentRunId,
     request_id: &NumberOrString,
@@ -86,7 +86,7 @@ enum Sent {
 }
 
 async fn send_frame(
-    tx: &Sender<Event>,
+    tx: &Sender<StreamFrame>,
     // JSON: a stored A2A `StreamResponse` frame, parsed here before sending.
     value: serde_json::Value,
     request_id: &NumberOrString,

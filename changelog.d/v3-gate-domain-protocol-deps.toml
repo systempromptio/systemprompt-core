@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Build"
+text = "`just lint-domain-protocol-deps` is a registered source gate: a domain crate links `axum`, `tower`, `tower-http` or `clap` only as an optional dependency a `router`, `http` or `cli` feature enables."

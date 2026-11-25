@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
 use sqlx::PgPool;
+use systemprompt_extension::profile_usage::{ProfileUsageError, ProfileUsageSource};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::api::cloud::{
     BridgeProfileUsage, ConversationGroup, ConversationSummary, ModelShare,
@@ -154,5 +155,18 @@ impl ProfileUsageService {
                 cost_microdollars: r.cost,
             })
             .collect())
+    }
+}
+
+#[async_trait::async_trait]
+impl ProfileUsageSource for ProfileUsageService {
+    async fn profile_usage(
+        &self,
+        user: &UserId,
+        now: DateTime<Utc>,
+    ) -> std::result::Result<BridgeProfileUsage, ProfileUsageError> {
+        self.get_profile_usage(user, now)
+            .await
+            .map_err(|e| ProfileUsageError(Box::new(e)))
     }
 }

@@ -8,7 +8,7 @@ use systemprompt_identifiers::AgentName;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use systemprompt_agent::services::a2a_server::Server;
+use systemprompt_agent_entry::a2a_server::Server;
 use tower::ServiceExt;
 
 use super::a2a_helpers::{StubAiProvider, make_agent_state};

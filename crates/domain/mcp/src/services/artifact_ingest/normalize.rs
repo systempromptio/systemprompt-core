@@ -1,7 +1,7 @@
 //! Turning what each vantage point saw into one MCP `CallToolResult`.
 //!
-//! The proxy tap and in-process executor already hold a wire result. A gateway
-//! history carries a canonical `tool_result` block; a client hook carries
+//! The proxy tap and in-process executor already hold a wire result; a client
+//! hook carries
 //! whatever the host put in `tool_response`, which for an MCP tool is the
 //! result object itself and for a builtin tool is free-form. Everything is
 //! normalised here so classification and storage see one shape.
@@ -9,9 +9,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
+use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::Value as JsonValue;
-use systemprompt_wire::canonical::{CanonicalContent, ImageSource};
 
 /// An MCP-shaped value (`content` / `structuredContent` / `isError` /
 /// `_meta`), if that is what the value is.
@@ -56,45 +55,4 @@ pub fn from_hook_response(value: &JsonValue) -> CallToolResult {
 #[must_use]
 pub fn from_hook_failure(error: &str) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(error.to_owned())])
-}
-
-// JSON: MCP `structuredContent` and `_meta` — both schema-less per the spec.
-#[must_use]
-pub fn from_canonical_tool_result(
-    content: &[CanonicalContent],
-    structured_content: Option<&JsonValue>,
-    meta: Option<&JsonValue>,
-    is_error: bool,
-) -> CallToolResult {
-    let blocks = content.iter().filter_map(canonical_block).collect();
-    let mut result = if is_error {
-        CallToolResult::error(blocks)
-    } else {
-        CallToolResult::success(blocks)
-    };
-    result.structured_content = structured_content.cloned();
-    result.meta = meta
-        .and_then(JsonValue::as_object)
-        .map(|map| MetaObject(map.clone()));
-    result
-}
-
-fn canonical_block(content: &CanonicalContent) -> Option<ContentBlock> {
-    match content {
-        CanonicalContent::Text { text, .. } => Some(ContentBlock::text(text.clone())),
-        CanonicalContent::Image {
-            source: ImageSource::Base64 {
-                media_type, data, ..
-            },
-            ..
-        } => Some(ContentBlock::image(data.clone(), media_type.clone())),
-        CanonicalContent::Image {
-            source: ImageSource::Url { url, .. },
-            ..
-        } => Some(ContentBlock::text(url.clone())),
-        CanonicalContent::ToolUse { .. }
-        | CanonicalContent::ToolResult { .. }
-        | CanonicalContent::Thinking { .. }
-        | CanonicalContent::AnthropicToolBlock { .. } => None,
-    }
 }

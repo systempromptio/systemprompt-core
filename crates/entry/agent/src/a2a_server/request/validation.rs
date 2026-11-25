@@ -4,9 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::repository::OwnedTask;
-use crate::repository::task::TaskRepository;
-use crate::services::a2a_server::handlers::state::AgentHandlerState;
+use systemprompt_agent::repository::OwnedTask;
+use systemprompt_agent::repository::task::TaskRepository;
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
 use systemprompt_identifiers::{TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -23,9 +23,9 @@ pub enum ContextValidationError {
 }
 
 pub async fn validate_message_context(
-    message: &crate::models::a2a::Message,
+    message: &systemprompt_agent::models::a2a::Message,
     user_id: &UserId,
-    context_repo: &crate::repository::ContextRepository,
+    context_repo: &systemprompt_agent::repository::ContextRepository,
 ) -> Result<(), ContextValidationError> {
     if user_id.as_str().is_empty() {
         return Err(ContextValidationError::Unauthenticated);

@@ -23,6 +23,8 @@ mod canonical_request;
 #[cfg(test)]
 mod canonical_response;
 #[cfg(test)]
+mod canonical_tool_result;
+#[cfg(test)]
 mod chain_plan;
 #[cfg(test)]
 mod credentials_resolve;

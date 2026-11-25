@@ -13,7 +13,8 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_test_fixtures::AppContextSeeds as _;
 
 use axum::http::{HeaderMap, header};
-use systemprompt_gateway_entry::http::bridge::resolved::Freshness;
+use systemprompt_extension::bridge_catalog::CatalogFreshness as Freshness;
+use systemprompt_gateway_entry::http::bridge::resolved::freshness_from_headers;
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
 use systemprompt_runtime::AppContext;
@@ -114,14 +115,14 @@ async fn fetch(harness: &Harness, cache_control: Option<&str>) {
 #[test]
 fn no_cache_is_read_from_any_cache_control_directive_list() {
     let mut headers = HeaderMap::new();
-    assert_eq!(Freshness::from_headers(&headers), Freshness::Memo);
+    assert_eq!(freshness_from_headers(&headers), Freshness::Memo);
     headers.insert(header::CACHE_CONTROL, "max-age=0".parse().unwrap());
-    assert_eq!(Freshness::from_headers(&headers), Freshness::Memo);
+    assert_eq!(freshness_from_headers(&headers), Freshness::Memo);
     headers.insert(
         header::CACHE_CONTROL,
         "max-age=0, No-Cache".parse().unwrap(),
     );
-    assert_eq!(Freshness::from_headers(&headers), Freshness::Fresh);
+    assert_eq!(freshness_from_headers(&headers), Freshness::Fresh);
 }
 
 #[tokio::test]

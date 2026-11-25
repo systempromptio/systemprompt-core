@@ -51,9 +51,32 @@ async fn the_agent_dispatch_cell_is_sealed_from_member_code() {
     );
 }
 
+async fn context_with_agent_http() -> Arc<AppContext> {
+    ensure_test_bootstrap();
+    let mut members = systemprompt_test_fixtures::fixture_core_members();
+    members.push(Box::new(
+        systemprompt_agent_entry::extension::AgentHttpExtension,
+    ));
+    systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        systemprompt_test_fixtures::fixture_config(&test_database_url()),
+        systemprompt_test_fixtures::fixture_admitted_of(members),
+    )
+    .await
+    .expect("a context with agent-http builds")
+}
+
+#[tokio::test]
+async fn without_agent_http_no_member_provides_the_agent_server() {
+    let ctx = context().await;
+    assert!(
+        ctx.kernel().state().find::<DynAgentServer>().is_none(),
+        "the agent member alone serves no agent process"
+    );
+}
+
 #[tokio::test]
 async fn the_agent_server_is_sealed_from_member_code() {
-    let ctx = context().await;
+    let ctx = context_with_agent_http().await;
     let state = ctx.kernel().state();
     assert!(state.is_sealed::<DynAgentServer>());
     assert!(

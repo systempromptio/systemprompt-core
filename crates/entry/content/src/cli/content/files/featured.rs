@@ -5,9 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_database::{DbPool, pool_from_handle};
 use systemprompt_extension::cli::{CliConfig, CommandHost, CommandOutput, FileSummary};
-use systemprompt_files::FileRepository;
+use systemprompt_extension::content_files::ContentFileLinks;
 use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::cli::content::types::FeaturedImageOutput;
@@ -22,23 +21,21 @@ pub struct FeaturedArgs {
 }
 
 pub(super) async fn execute(args: FeaturedArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let pool = pool_from_handle(host.db().await?)?;
-    execute_with_pool(args, &pool, host.output()).await
+    let links = super::content_file_links(host).await?;
+    execute_with_links(args, links.as_ref(), host.output()).await
 }
 
-pub async fn execute_with_pool(
+pub async fn execute_with_links(
     args: FeaturedArgs,
-    pool: &DbPool,
+    links: &dyn ContentFileLinks,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool);
-
     let content_id = ContentId::new(args.content.clone());
 
     if let Some(file_id_str) = args.set {
         let file_id = FileId::try_new(&file_id_str)
             .map_err(|e| anyhow!("Invalid file ID '{}': {}", file_id_str, e))?;
-        service.set_featured(&file_id, &content_id).await?;
+        links.set_featured(&content_id, &file_id).await?;
 
         let output = FeaturedImageOutput {
             content_id,
@@ -49,10 +46,10 @@ pub async fn execute_with_pool(
         return Ok(CommandOutput::card_value("Featured Image Set", &output));
     }
 
-    let file = service.find_featured_image(&content_id).await?;
+    let file = links.featured(&content_id).await?;
 
     let file_summary = file.map(|f| FileSummary {
-        id: f.id,
+        id: f.file_id,
         path: f.path,
         public_url: f.public_url,
         mime_type: f.mime_type,

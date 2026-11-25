@@ -11,7 +11,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use serde_json::{Value, json};
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
-use systemprompt_agent::services::a2a_server::handlers::request::handle_agent_request;
+use systemprompt_agent_entry::a2a_server::request::handle_agent_request;
 use systemprompt_models::RequestContext;
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};

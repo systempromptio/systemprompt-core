@@ -24,6 +24,8 @@ use systemprompt_models::bridge::manifest::{
     RuleEntry, SkillEntry,
 };
 
+use systemprompt_extension::bridge_catalog::ManifestEntries;
+
 use crate::membership::MarketplaceMembership;
 
 /// Per-kind allow-lists for [`MarketplaceCandidate::retain_entries`].
@@ -54,20 +56,6 @@ pub struct MarketplaceCandidate {
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub membership: MarketplaceMembership,
-    pub diagnostics: Vec<String>,
-}
-
-/// The entry lists a candidate contributes to the signed wire manifest.
-#[derive(Debug, Clone, Default)]
-pub struct ManifestEntries {
-    pub plugins: Vec<PluginEntry>,
-    pub skills: Vec<SkillEntry>,
-    pub rules: Vec<RuleEntry>,
-    pub agents: Vec<AgentEntry>,
-    pub hooks: Vec<HookEntry>,
-    pub managed_mcp_servers: Vec<ManagedMcpServer>,
-    pub artifacts: Vec<ArtifactEntry>,
-    pub marketplaces: Vec<ManifestMarketplace>,
     pub diagnostics: Vec<String>,
 }
 

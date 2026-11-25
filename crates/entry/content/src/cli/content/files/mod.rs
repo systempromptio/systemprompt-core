@@ -2,7 +2,8 @@
 //!
 //! Dispatches the [`ContentFilesCommands`] subcommands (link, unlink, list,
 //! featured) that manage the content-to-file relationships and the featured
-//! image for a content item.
+//! image for a content item, over the `DynContentFileLinks` the `files`
+//! member provides.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +17,7 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_extension::content_files::DynContentFileLinks;
 
 #[derive(Debug, Subcommand)]
 pub enum ContentFilesCommands {
@@ -47,4 +49,8 @@ pub async fn execute(cmd: ContentFilesCommands, host: &dyn CommandHost) -> Resul
             .await
             .context("Failed to get/set featured image"),
     }
+}
+
+async fn content_file_links(host: &dyn CommandHost) -> Result<DynContentFileLinks> {
+    Ok(host.resolved().await?.get::<DynContentFileLinks>()?)
 }

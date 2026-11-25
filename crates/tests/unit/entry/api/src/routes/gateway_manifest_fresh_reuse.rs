@@ -9,9 +9,9 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use systemprompt_gateway_entry::http::bridge::resolved::FRESH_REVALIDATE_AFTER;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_marketplace::catalog::FRESH_REVALIDATE_AFTER;
 use systemprompt_marketplace::{
     CatalogContent, MarketplaceCache, MarketplaceCandidate, ResolvedCatalog, ResolvedKey,
 };

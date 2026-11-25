@@ -17,24 +17,10 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiToolCallId, UserId};
+use systemprompt_extension::mcp::artifacts::{IngestMark, IngestMarkKey};
+use systemprompt_identifiers::AiToolCallId;
 
 use crate::error::McpDomainResult;
-
-/// Which replayed conversation a mark belongs to.
-#[derive(Debug, Clone)]
-pub struct IngestMarkKey {
-    pub user: UserId,
-    pub scope: String,
-    pub conversation: String,
-}
-
-/// The boundary a later turn resumes after.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IngestMark {
-    pub last_message_index: usize,
-    pub boundary_tool_use_id: AiToolCallId,
-}
 
 #[derive(Debug, Clone)]
 pub struct ToolResultIngestMarkRepository {

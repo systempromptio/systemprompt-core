@@ -7,32 +7,32 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::sse::Event;
 use std::sync::Arc;
+use systemprompt_agent::services::a2a_server::streaming::StreamFrame;
 use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::validation::validate_message_context;
-use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::models::a2a::{StreamResponse, Task};
-use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
-use crate::services::a2a_server::handlers::state::AgentHandlerState;
-use crate::services::a2a_server::streaming::{
+use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
+use systemprompt_agent::models::a2a::{StreamResponse, Task};
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
+use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, StreamRejected, create_sse_stream, jsonrpc_error_event,
     stream_response_event,
 };
 
 pub(super) async fn handle_streaming_request(
-    request: crate::models::a2a::A2aRequestParams,
+    request: systemprompt_agent::models::a2a::A2aRequestParams,
     state: Arc<AgentHandlerState>,
     request_id: NumberOrString,
     context: RequestContext,
 ) -> Result<
-    impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send,
+    impl futures_util::stream::Stream<Item = Result<StreamFrame, std::convert::Infallible>> + Send,
     StreamRejected,
 > {
-    use crate::models::a2a::A2aRequestParams;
-    use futures::StreamExt;
+    use futures_util::StreamExt;
+    use systemprompt_agent::models::a2a::A2aRequestParams;
 
     let request_type = match &request {
         A2aRequestParams::SendStreamingMessage(_) => "SendStreamingMessage",
@@ -100,7 +100,7 @@ async fn run_stream(
     task: Task,
     state: &AgentHandlerState,
     request_id: NumberOrString,
-) -> ReceiverStream<Event> {
+) -> ReceiverStream<StreamFrame> {
     let Some(launcher) = state.agent_state.agent_run_launcher().cloned() else {
         let frame = stream_response_event(StreamResponse::Task(task), &request_id);
         return single_event_stream(frame);
@@ -121,13 +121,16 @@ async fn run_stream(
     )
 }
 
-fn error_stream(error: JsonRpcErrorBuilder, request_id: &NumberOrString) -> ReceiverStream<Event> {
+fn error_stream(
+    error: JsonRpcErrorBuilder,
+    request_id: &NumberOrString,
+) -> ReceiverStream<StreamFrame> {
     single_event_stream(jsonrpc_error_event(error, request_id))
 }
 
-fn jsonrpc_failure_event(response: &JsonRpcErrorResponse) -> Event {
+fn jsonrpc_failure_event(response: &JsonRpcErrorResponse) -> StreamFrame {
     match serde_json::to_string(response) {
-        Ok(data) => Event::default().data(data),
+        Ok(data) => StreamFrame::data(data),
         Err(e) => {
             tracing::error!(error = %e, "Failed to serialise A2A error frame");
             jsonrpc_error_event(JsonRpcErrorBuilder::internal_error(), &response.id)
@@ -135,7 +138,7 @@ fn jsonrpc_failure_event(response: &JsonRpcErrorResponse) -> Event {
     }
 }
 
-fn single_event_stream(event: Event) -> ReceiverStream<Event> {
+fn single_event_stream(event: StreamFrame) -> ReceiverStream<StreamFrame> {
     let (tx, rx) = tokio::sync::mpsc::channel(1);
     if let Err(e) = tx.try_send(event) {
         tracing::warn!(error = %e, "Failed to send error event to SSE client - client may have disconnected");

@@ -10,14 +10,15 @@ use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
-use axum::response::sse::Event;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::message::{
     MessageHandler, MessageStream, StreamEvent,
 };
-use systemprompt_agent::services::a2a_server::streaming::{ProcessEventsParams, process_events};
+use systemprompt_agent::services::a2a_server::streaming::{
+    ProcessEventsParams, StreamFrame, process_events,
+};
 use systemprompt_agent::services::shared::AgentServiceError;
 use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{
@@ -59,7 +60,7 @@ fn user_message(ctx: &ContextId, task_id: &TaskId) -> Message {
 
 struct Loop {
     event_tx: mpsc::Sender<StreamEvent>,
-    sse_rx: mpsc::Receiver<Event>,
+    sse_rx: mpsc::Receiver<StreamFrame>,
     handle: tokio::task::JoinHandle<()>,
     task_id: TaskId,
     context_id: ContextId,
@@ -115,7 +116,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let request = request_context(&ctx, &session, &user, "loop-agent");
 
-    let (sse_tx, sse_rx) = mpsc::channel::<Event>(64);
+    let (sse_tx, sse_rx) = mpsc::channel::<StreamFrame>(64);
     let (event_tx, events) = mpsc::channel::<StreamEvent>(64);
     let stream = MessageStream {
         events,
@@ -170,7 +171,7 @@ fn agui_all(rec: &RecordingWebhookBroadcaster) -> Vec<String> {
         .collect()
 }
 
-fn drain_frames(rx: &mut mpsc::Receiver<Event>) -> Vec<String> {
+fn drain_frames(rx: &mut mpsc::Receiver<StreamFrame>) -> Vec<String> {
     let mut frames = Vec::new();
     while let Ok(frame) = rx.try_recv() {
         frames.push(format!("{frame:?}"));

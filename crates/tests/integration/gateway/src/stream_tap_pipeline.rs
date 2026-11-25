@@ -58,7 +58,7 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Ga
     systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
-        materializer(db),
+        Some(materializer(db)),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new().view(),

@@ -17,13 +17,11 @@ mod tool_usage;
 pub use artifact::{
     ArtifactCorrelation, ArtifactShape, CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository,
 };
-pub use artifact_finding::{
-    ArtifactFinding, ArtifactFindingRecord, ArtifactFindingRepository, PHASE_TOOL_RESULT,
-};
+pub use artifact_finding::{ArtifactFindingRecord, ArtifactFindingRepository};
 pub use artifact_ingest::ArtifactIngestRepositories;
 pub use artifact_payload::{ArtifactPayloadRecord, ArtifactPayloadRepository};
 pub use external_session::ExternalSessionBinding;
-pub use ingest_mark::{IngestMark, IngestMarkKey, ToolResultIngestMarkRepository};
+pub use ingest_mark::ToolResultIngestMarkRepository;
 pub use proxy_session::McpProxySessionRepository;
 pub use session::{McpSessionRecord, McpSessionRepository, McpSessionStatus};
 pub use tool_usage::{IntentStamp, ProximityProbe, ToolCallSubject, ToolUsageRepository};

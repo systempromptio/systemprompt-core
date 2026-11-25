@@ -210,8 +210,10 @@ async fn replay() -> Result<()> {
     let repos = GatewayRepositories::new(
         &db,
         journal,
-        Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(&db),
+        Some(Arc::new(
+            systemprompt_agent::services::ContextProviderService::new(
+                systemprompt_agent::repository::ContextRepository::new(&db),
+            ),
         )),
         systemprompt_gateway::GatewayHandles {
             background: background.clone(),

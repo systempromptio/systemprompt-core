@@ -3,8 +3,10 @@
 //!
 //! The files contributions (`contribute_files`) are the `files` and
 //! `content_files` schemas, the `files` user-purge row, the
-//! `file_ingestion` job and the provided `Arc<FileRepository>`, which the
-//! `files-http` member's commands resolve. The document and issue
+//! `file_ingestion` job, the provided `Arc<FileRepository>`, which the
+//! `files-http` member's commands resolve, and the same repository as the
+//! shared `DynContentFileLinks` the `content files` commands read (open, as
+//! the repository is). The document and issue
 //! contributions (`contribute_documents_and_issues`) are the document store
 //! schemas, the `report_document_revisions` and `report_document_sharing`
 //! views, the document and issue jobs, the document-actor job run scope and
@@ -36,6 +38,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{SourceAccess, SourceContent};
+use systemprompt_extension::content_files::DynContentFileLinks;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::{NotificationAudienceResolver, ResourceVisibility};
 use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
@@ -160,6 +163,12 @@ fn contribute_files(c: &mut Contributions<'_>) {
     .provide(
         |r: &Resolved<'_>| -> Result<Arc<FileRepository>, ProvideError> {
             Ok(Arc::new(FileRepository::new(&r.get::<DbPool>()?)))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<DynContentFileLinks, ProvideError> {
+            let links: DynContentFileLinks = r.get::<Arc<FileRepository>>()?;
+            Ok(links)
         },
     );
 }

@@ -14,6 +14,7 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository, UserProviderCredentialRepository,
 };
 use systemprompt_database::DbPool;
+use systemprompt_extension::mcp::artifacts::DynToolResultIngest;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::RateWindowRepository;
 use systemprompt_logging::LoggingRuntime;
@@ -51,8 +52,8 @@ pub struct GatewayRepositories {
     pub gateway_policies: AiGatewayPolicyRepository,
     pub policy_resolver: PolicyResolver,
     pub thought_signatures: Arc<ThoughtSignatureCache>,
-    pub context_materializer: DynContextMaterializer,
-    pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
+    pub context_materializer: Option<DynContextMaterializer>,
+    pub artifact_ingest: Option<DynToolResultIngest>,
     pub sessions: Option<systemprompt_traits::DynSessionUsageCounters>,
     pub payload_cap_bytes: usize,
     pub quota_sharding: QuotaConfig,
@@ -78,7 +79,7 @@ impl GatewayRepositories {
     pub fn new(
         db: &DbPool,
         journal: GatewayJournal,
-        context_materializer: DynContextMaterializer,
+        context_materializer: Option<DynContextMaterializer>,
         handles: GatewayHandles,
     ) -> Self {
         let GatewayHandles {
@@ -144,7 +145,7 @@ impl GatewayRepositories {
     }
 
     #[must_use]
-    pub fn with_artifact_ingest(mut self, ingest: Arc<systemprompt_mcp::ArtifactIngest>) -> Self {
+    pub fn with_artifact_ingest(mut self, ingest: DynToolResultIngest) -> Self {
         self.artifact_ingest = Some(ingest);
         self
     }

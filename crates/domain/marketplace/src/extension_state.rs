@@ -1,5 +1,8 @@
 //! The runtime state `ManagedResourcesExtension` provides:
-//! the managed repository with its publication policy, the catalogue cache,
+//! the managed repository with its publication policy (and, open as it is,
+//! the same repository as the shared `DynRevisionBundleSource` the agent-run
+//! harness installs from, and the shared `DynBridgeCatalogSource` the bridge
+//! routes resolve a user's catalogue through), the catalogue cache,
 //! the publish guard, the sealed inventory refreshers and the owner-bound
 //! skill views. What each value is for, and why the refreshers and the
 //! organization skill resolver are sealed, is the extension module's head.
@@ -10,7 +13,9 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
@@ -18,7 +23,7 @@ use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_traits::{DynInventoryPublisher, DynManagedSkillResolver};
 use tokio::sync::Mutex;
 
-use crate::catalog::MarketplaceCache;
+use crate::catalog::{MarketplaceBridgeCatalog, MarketplaceCache};
 use crate::contract::MarketplaceSeams;
 use crate::inventory::{InventoryRefresher, InventoryRefresherParts, PublishGuard};
 use crate::managed::{
@@ -67,6 +72,18 @@ pub(crate) fn provide_state(c: &mut Contributions<'_>) {
                 Ok(Arc::new(InventoryRefresher::new(refresher_parts(r)?)))
             },
         )
+        .provide_after_governance(|r: &Resolved<'_>| {
+            let source: DynRevisionBundleSource = r.get::<Arc<ManagedRepository>>()?;
+            Ok(source)
+        })
+        .provide_after_governance(|r: &Resolved<'_>| {
+            let catalog: DynBridgeCatalogSource = Arc::new(MarketplaceBridgeCatalog::new(
+                r.get::<Arc<ManagedRepository>>()?,
+                r.get::<Arc<MarketplaceCache>>()?,
+                r.get::<Arc<MarketplaceSeams>>()?,
+            ));
+            Ok(catalog)
+        })
         .provide_after_governance(GitSourceDirectory::provide)
         .provide_after_governance(|r: &Resolved<'_>| {
             let repository = r.get::<Arc<ManagedRepository>>()?;

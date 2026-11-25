@@ -58,7 +58,6 @@ mod skills;
 pub(crate) use agents::resolve_agents;
 pub(crate) use rules::resolve_rule_ids;
 pub(crate) use skills::resolve_skill_ids;
-pub use skills::{skill_bundle_markdown, skill_bundle_path};
 
 #[derive(Debug, Clone)]
 pub struct BundleFile {
@@ -67,6 +66,16 @@ pub struct BundleFile {
 }
 
 pub type PluginBundle = BTreeMap<String, BundleFile>;
+
+// Why: the plugin archive the bridge downloads: one tar entry per bundle path,
+// mode `0755` for executables.
+pub fn pack_plugin_bundle(bundle: &PluginBundle) -> systemprompt_loader::BundleResult<Vec<u8>> {
+    systemprompt_loader::bundle::pack::create_tarball_from_memory(
+        bundle
+            .iter()
+            .map(|(path, file)| (path.as_str(), file.bytes.as_slice(), file.executable)),
+    )
+}
 
 #[derive(Debug)]
 pub struct BundleContent<'a> {

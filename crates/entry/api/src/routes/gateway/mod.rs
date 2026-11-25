@@ -118,7 +118,7 @@ pub(crate) fn gateway_repositories(
         &host_handles(ctx)?,
         ctx.kernel()
             .resolved()
-            .get::<systemprompt_traits::DynContextMaterializer>()?,
+            .optional::<systemprompt_traits::DynContextMaterializer>(),
         ctx.kernel().state().get::<DbPool>()?,
     )
 }

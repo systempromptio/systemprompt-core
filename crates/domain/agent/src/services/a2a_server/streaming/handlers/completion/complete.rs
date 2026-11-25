@@ -13,7 +13,7 @@
 
 use std::sync::Arc;
 
-use axum::response::sse::Event;
+use crate::services::a2a_server::streaming::StreamFrame;
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 use systemprompt_traits::BoxedSource;
@@ -32,7 +32,7 @@ use crate::services::a2a_server::streaming::frames::send_stream_response;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
 pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
-    pub tx: &'a Sender<Event>,
+    pub tx: &'a Sender<StreamFrame>,
     pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub full_text: String,

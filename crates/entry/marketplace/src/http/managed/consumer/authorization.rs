@@ -55,16 +55,15 @@ pub(super) async fn resource(
     {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
-    let candidate = state
+    let skills = state
         .catalog
-        .candidate(&identity.consumer_id)
+        .granted_skills(&identity.consumer_id)
         .await
         .map_err(|error| {
             tracing::warn!(%error, "consumer: candidate assembly failed");
             ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
         })?;
-    let (entries, _) = candidate.into_manifest_parts();
-    if !entries.skills.iter().any(|skill| {
+    if !skills.iter().any(|skill| {
         skill
             .publication
             .as_ref()

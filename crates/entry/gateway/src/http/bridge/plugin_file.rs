@@ -11,14 +11,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Component, Path};
-use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
+use systemprompt_extension::bridge_catalog::{
+    CatalogFreshness, DynResolvedBridgeCatalog, PluginFile,
+};
 use systemprompt_identifiers::{PluginId, UserId};
-use systemprompt_marketplace::ResolvedCatalog;
 
 use super::error::{BridgeError, authenticate_bridge};
 use super::plugin_archive::ArchiveMemo;
@@ -53,15 +54,13 @@ pub async fn handle(
 
     let resolved = resolve_entitled(&state, &user.id, &id).await?;
 
-    let bundle = resolved
-        .bundles
-        .get(&id)
-        .ok_or(BridgeError::PluginNotFound)?;
-    let file = bundle
-        .get(relative_path.as_str())
-        .ok_or(BridgeError::FileNotFound)?;
+    let file = match resolved.plugin_file(&id, relative_path.as_str()) {
+        PluginFile::Bytes(bytes) => bytes,
+        PluginFile::NoPlugin => return Err(BridgeError::PluginNotFound.into()),
+        PluginFile::NoFile => return Err(BridgeError::FileNotFound.into()),
+    };
 
-    let mut response = Response::new(Body::from(file.bytes.clone()));
+    let mut response = Response::new(Body::from(file.to_vec()));
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         header::HeaderValue::from_static(content_type(&relative_path)),
@@ -76,17 +75,16 @@ pub(super) async fn resolve_entitled(
     state: &BridgeRouteState,
     user_id: &UserId,
     id: &PluginId,
-) -> Result<Arc<ResolvedCatalog>, BridgeError> {
+) -> Result<DynResolvedBridgeCatalog, BridgeError> {
     let grants =
-        |resolved: &ResolvedCatalog| resolved.candidate.plugins.iter().any(|p| &p.id == id);
-    let cache = &state.marketplace.cache;
-    if let Some(latest) = cache.latest_resolved(user_id)
+        |resolved: &DynResolvedBridgeCatalog| resolved.plugins().iter().any(|p| &p.id == id);
+    if let Some(latest) = state.catalog.latest(user_id)
         && grants(&latest)
     {
         return Ok(latest);
     }
     let services = state.host.services.view().config();
-    let resolved = resolved::resolve_for_user(state, &services, user_id, resolved::Freshness::Memo)
+    let resolved = resolved::resolve_for_user(state, &services, user_id, CatalogFreshness::Memo)
         .await
         .map_err(|e| BridgeError::internal("plugin bundle: catalogue resolution failed", e))?;
     if !grants(&resolved) {

@@ -30,7 +30,6 @@ http = [
     "dep:systemprompt-governance",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-manifest",
-    "dep:systemprompt-mcp",
     "dep:systemprompt-models",
     "dep:systemprompt-oauth",
     "dep:systemprompt-security",
@@ -46,6 +45,8 @@ http = [
     "dep:thiserror",
     "dep:tokio",
     "dep:tokio-stream",
+    "dep:tokio-util",
+    "dep:tower-http",
     "dep:tracing",
     "dep:uuid",
 ]
@@ -86,7 +87,6 @@ systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-loader = { workspace = true, optional = true }
 systemprompt-logging = { workspace = true, optional = true }
 systemprompt-manifest = { workspace = true, optional = true }
-systemprompt-mcp = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-oauth = { workspace = true, optional = true }
 systemprompt-security = { workspace = true, optional = true }
@@ -109,5 +109,7 @@ sse-stream = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }

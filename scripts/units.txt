@@ -43,7 +43,7 @@ systemprompt-templates             capability:content
 systemprompt-generator             capability:content
 systemprompt-mcp                   capability:mcp
 systemprompt-mcp-entry             capability:mcp
-systemprompt-ai                    capability:ai
+systemprompt-ai                    capability:gateway
 systemprompt-gateway               capability:gateway
 systemprompt-gateway-entry         capability:gateway
 systemprompt-agent                 capability:agents
@@ -58,11 +58,11 @@ systemprompt-notifications         capability:notifications
 systemprompt-notifications-entry   capability:notifications
 systemprompt-brain                 capability:brain
 systemprompt-brain-entry           capability:brain
-systemprompt-documents             capability:documents
-systemprompt-issues                capability:issues
+systemprompt-documents             capability:files
+systemprompt-issues                capability:files
 systemprompt-scheduler              kernel
-systemprompt-agent-runs            capability:agent-runs
-systemprompt-agent-runs-entry      capability:agent-runs
+systemprompt-agent-runs            capability:agents
+systemprompt-agent-runs-entry      capability:agents
 systemprompt-bridge                capability:bridge
 # Tooling
 rust-contracts                     tooling

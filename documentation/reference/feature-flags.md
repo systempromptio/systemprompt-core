@@ -76,6 +76,8 @@ Cargo enables the transitive dependencies of each selected feature.
 
 `slack` and `teams` link the Slack and Teams entry crates, whose members contribute the `/api/v1/slack` and `/api/v1/teams` inbound routes; each route verifies its platform's signature or bot token in the handler, and a profile that disables the `slack` or `teams` member leaves its routes unmounted. `agent-runs` mounts `/api/v1/agent-runs` and wires the run launcher into hosted agents. `otel` mounts the gateway's OTLP/HTTP ingest routes and enables the live OTLP export of the server's own logs and spans. `bridge` mounts the device-credential consumer routes the bridge reports installation evidence through. Without a feature its member is not in `reference()`: its routes are not mounted and its job does not exist.
 
+`agents` serves agent processes only together with `api`, which enables the `agent-http` member and with it the hosted A2A server that every agent child process runs; with `agents` and no `api`, an agent child host refuses to serve and names `agent-http`. `agent-runs` belongs to the agents capability and `issues` to the files capability, and `ai` holds the gateway's storage: each reaches no other capability except through the shared contracts the members provide.
+
 `notifications` adds notification streams, rules, the per-user feed and their outbox consumer. `brain` adds the brain: its capture consumer, gateway recall, routes and jobs (see [the brain](../brain.md)); it implies `notifications`, and a profile with `brain.enabled: false` composes none of it.
 
 The `mcp` feature exposes `rmcp` and the `rmcp`-typed items of `systemprompt-models` (its `mcp` feature); the `systemprompt-mcp` domain crate is included by

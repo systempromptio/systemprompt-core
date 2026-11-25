@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::http::StatusCode;
+use http::StatusCode;
 
 pub const TASK_NOT_FOUND: i32 = -32001;
 pub const TASK_NOT_CANCELABLE: i32 = -32002;

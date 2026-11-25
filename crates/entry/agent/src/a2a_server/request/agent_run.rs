@@ -10,21 +10,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_agent::services::a2a_server::AGENT_RUN_ORIGIN_KIND;
 use systemprompt_identifiers::{AgentName, AgentRunOriginId};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::AgentRunLaunch;
 
 use super::non_streaming::RequestFailure;
-use crate::models::a2a::{Message, Task};
-use crate::repository::OwnedTask;
-use crate::repository::task::RepoCreateTaskParams;
-use crate::services::a2a_server::handlers::state::AgentHandlerState;
-use crate::services::a2a_server::processing::message::extract_message_content;
-use crate::services::a2a_server::processing::message::message_handler::{
+use systemprompt_agent::models::a2a::{Message, Task};
+use systemprompt_agent::repository::OwnedTask;
+use systemprompt_agent::repository::task::RepoCreateTaskParams;
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::a2a_server::processing::message::extract_message_content;
+use systemprompt_agent::services::a2a_server::processing::message::message_handler::{
     new_submitted_task, resolve_task_id,
 };
-
-pub const AGENT_RUN_ORIGIN_KIND: &str = "a2a";
 
 pub(super) async fn launch_if_configured(
     message: &Message,

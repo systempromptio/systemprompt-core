@@ -72,9 +72,11 @@ pub mod admitted_migrations;
 pub mod admitted_purge;
 pub mod admitted_reassignment;
 pub mod admitted_schedule;
+pub mod artifact_ui;
 mod asset;
 pub mod authz;
 pub mod brain;
+pub mod bridge_catalog;
 #[expect(
     clippy::panic,
     clippy::print_stdout,
@@ -85,6 +87,7 @@ pub mod build;
 pub mod capabilities;
 pub mod cli;
 pub mod compat;
+pub mod content_files;
 pub mod contribute;
 pub mod cost;
 pub mod error;
@@ -96,12 +99,14 @@ pub mod mcp;
 pub mod metadata;
 pub mod migration;
 pub mod notifications;
+pub mod profile_usage;
 pub mod projection;
 pub mod protection;
 pub mod purge;
 pub mod reassignment;
 pub mod reserved;
 pub mod retention;
+pub mod revision_bundles;
 pub mod router;
 pub mod seed;
 pub mod service_process;

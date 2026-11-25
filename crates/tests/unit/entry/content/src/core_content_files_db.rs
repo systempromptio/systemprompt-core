@@ -1,6 +1,6 @@
 //! DB-backed tests for the pool-seamed `core content files` command tree
-//! (list/link/unlink/featured), driving `execute_with_pool` against a fixture
-//! pool with real content and file rows.
+//! (list/link/unlink/featured), driving `execute_with_links` over the files
+//! repository against a fixture pool with real content and file rows.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -11,6 +11,7 @@ use systemprompt_content::models::CreateContentParams;
 use systemprompt_content_entry::cli::content::files::{featured, link, list, unlink};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::content_files::ContentFileRole;
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
 use systemprompt_test_fixtures::test_db_pool;
@@ -61,7 +62,7 @@ async fn seed_file(pool: &DbPool) -> String {
     id.to_string()
 }
 
-fn link_args(file: &str, content: &ContentId, role: link::FileRoleArg) -> link::LinkArgs {
+fn link_args(file: &str, content: &ContentId, role: ContentFileRole) -> link::LinkArgs {
     link::LinkArgs {
         file: file.to_owned(),
         content: content.as_str().to_owned(),
@@ -86,9 +87,9 @@ async fn link_attaches_file_to_content() {
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
 
-    let out = link::execute_with_pool(
-        link_args(&file, &content, link::FileRoleArg::Attachment),
-        &pool,
+    let out = link::execute_with_links(
+        link_args(&file, &content, ContentFileRole::Attachment),
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -103,32 +104,32 @@ async fn list_by_content_and_by_file_reflect_link() {
     let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
-    link::execute_with_pool(
-        link_args(&file, &content, link::FileRoleArg::Inline),
-        &pool,
+    link::execute_with_links(
+        link_args(&file, &content, ContentFileRole::Inline),
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    let by_content = list::execute_with_pool(
+    let by_content = list::execute_with_links(
         list::ListArgs {
             content: Some(content.as_str().to_owned()),
             file: None,
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap();
     assert!(contains(&by_content, &file));
 
-    let by_file = list::execute_with_pool(
+    let by_file = list::execute_with_links(
         list::ListArgs {
             content: None,
             file: Some(file.clone()),
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -140,24 +141,24 @@ async fn list_by_content_and_by_file_reflect_link() {
 async fn list_requires_exactly_one_filter() {
     let pool = test_db_pool().await;
 
-    let none = list::execute_with_pool(
+    let none = list::execute_with_links(
         list::ListArgs {
             content: None,
             file: None,
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap_err();
     assert!(none.to_string().contains("Either --content or --file"));
 
-    let both = list::execute_with_pool(
+    let both = list::execute_with_links(
         list::ListArgs {
             content: Some("c".to_owned()),
             file: Some("f".to_owned()),
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -168,12 +169,12 @@ async fn list_requires_exactly_one_filter() {
 #[tokio::test]
 async fn list_by_file_rejects_bad_uuid() {
     let pool = test_db_pool().await;
-    let err = list::execute_with_pool(
+    let err = list::execute_with_links(
         list::ListArgs {
             content: None,
             file: Some("nope".to_owned()),
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -195,18 +196,18 @@ async fn unlink_with_yes_removes_link() {
     let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
-    link::execute_with_pool(
-        link_args(&file, &content, link::FileRoleArg::Attachment),
-        &pool,
+    link::execute_with_links(
+        link_args(&file, &content, ContentFileRole::Attachment),
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    unlink::execute_with_pool(
+    unlink::execute_with_links(
         unlink_args(&file, &content, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -220,18 +221,18 @@ async fn unlink_dry_run_preserves_link() {
     let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
-    link::execute_with_pool(
-        link_args(&file, &content, link::FileRoleArg::Attachment),
-        &pool,
+    link::execute_with_links(
+        link_args(&file, &content, ContentFileRole::Attachment),
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    unlink::execute_with_pool(
+    unlink::execute_with_links(
         unlink_args(&file, &content, true, true),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -245,18 +246,18 @@ async fn unlink_non_interactive_without_yes_errors() {
     let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
-    link::execute_with_pool(
-        link_args(&file, &content, link::FileRoleArg::Attachment),
-        &pool,
+    link::execute_with_links(
+        link_args(&file, &content, ContentFileRole::Attachment),
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    let err = unlink::execute_with_pool(
+    let err = unlink::execute_with_links(
         unlink_args(&file, &content, false, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -271,18 +272,18 @@ async fn unlink_interactive_confirm_no_preserves_link() {
     let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
-    link::execute_with_pool(
-        link_args(&file, &content, link::FileRoleArg::Attachment),
-        &pool,
+    link::execute_with_links(
+        link_args(&file, &content, ContentFileRole::Attachment),
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    let err = unlink::execute_with_pool(
+    let err = unlink::execute_with_links(
         unlink_args(&file, &content, false, false),
         &ScriptedPrompter::new(vec!["n"]),
-        &pool,
+        &FileRepository::new(&pool),
         &CliConfig::new()
             .with_interactive(true)
             .with_assume_terminal(true),
@@ -299,20 +300,20 @@ async fn featured_set_then_get_returns_image() {
     let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
-    link::execute_with_pool(
-        link_args(&file, &content, link::FileRoleArg::Attachment),
-        &pool,
+    link::execute_with_links(
+        link_args(&file, &content, ContentFileRole::Attachment),
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    featured::execute_with_pool(
+    featured::execute_with_links(
         featured::FeaturedArgs {
             content: content.as_str().to_owned(),
             set: Some(file.clone()),
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -320,12 +321,12 @@ async fn featured_set_then_get_returns_image() {
 
     assert_eq!(linked_roles(&pool, &file).await, vec![FileRole::Featured]);
 
-    let out = featured::execute_with_pool(
+    let out = featured::execute_with_links(
         featured::FeaturedArgs {
             content: content.as_str().to_owned(),
             set: None,
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -338,12 +339,12 @@ async fn featured_get_none_reports_absence() {
     let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
 
-    let out = featured::execute_with_pool(
+    let out = featured::execute_with_links(
         featured::FeaturedArgs {
             content: content.as_str().to_owned(),
             set: None,
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -358,12 +359,12 @@ async fn featured_set_unlinked_file_errors() {
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
 
-    let err = featured::execute_with_pool(
+    let err = featured::execute_with_links(
         featured::FeaturedArgs {
             content: content.as_str().to_owned(),
             set: Some(file),
         },
-        &pool,
+        &FileRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -384,6 +385,7 @@ mod dispatch {
         ContentFilesCommands, execute, featured, list, unlink,
     };
     use systemprompt_extension::cli::OutputFormat;
+    use systemprompt_extension::content_files::ContentFileRole;
     use systemprompt_files::FileRole;
     use systemprompt_test_fixtures::{test_app_context, test_database_url};
 
@@ -409,7 +411,7 @@ mod dispatch {
         dispatch(ContentFilesCommands::Link(link::LinkArgs {
             file: file.clone(),
             content: content.as_str().to_owned(),
-            role: link::FileRoleArg::Attachment,
+            role: ContentFileRole::Attachment,
             order: 0,
         }))
         .await
@@ -431,7 +433,7 @@ mod dispatch {
         dispatch(ContentFilesCommands::Link(link::LinkArgs {
             file: file.clone(),
             content: content.as_str().to_owned(),
-            role: link::FileRoleArg::Attachment,
+            role: ContentFileRole::Attachment,
             order: 0,
         }))
         .await
@@ -464,7 +466,7 @@ mod dispatch {
         dispatch(ContentFilesCommands::Link(link::LinkArgs {
             file: file.clone(),
             content: content.as_str().to_owned(),
-            role: link::FileRoleArg::Inline,
+            role: ContentFileRole::Inline,
             order: 0,
         }))
         .await
@@ -499,7 +501,7 @@ mod dispatch {
         .expect("listing a content item with no files is not a failure");
     }
 
-    async fn link(file: &str, content: &str, role: link::FileRoleArg) {
+    async fn link(file: &str, content: &str, role: ContentFileRole) {
         dispatch(ContentFilesCommands::Link(link::LinkArgs {
             file: file.to_owned(),
             content: content.to_owned(),
@@ -515,7 +517,7 @@ mod dispatch {
         let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
-        link(&file, content.as_str(), link::FileRoleArg::Attachment).await;
+        link(&file, content.as_str(), ContentFileRole::Attachment).await;
 
         dispatch(ContentFilesCommands::Featured(featured::FeaturedArgs {
             content: content.as_str().to_owned(),
@@ -563,8 +565,8 @@ mod dispatch {
         let content = seed_content(&pool).await;
         let first = seed_file(&pool).await;
         let second = seed_file(&pool).await;
-        link(&first, content.as_str(), link::FileRoleArg::Attachment).await;
-        link(&second, content.as_str(), link::FileRoleArg::Attachment).await;
+        link(&first, content.as_str(), ContentFileRole::Attachment).await;
+        link(&second, content.as_str(), ContentFileRole::Attachment).await;
 
         for file in [&first, &second] {
             dispatch(ContentFilesCommands::Featured(featured::FeaturedArgs {

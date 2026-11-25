@@ -30,8 +30,10 @@ pub(crate) fn repos(db: &DbPool) -> GatewayRepositories {
                 .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
-        std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db),
+        Some(std::sync::Arc::new(
+            systemprompt_agent::services::ContextProviderService::new(
+                systemprompt_agent::repository::ContextRepository::new(db),
+            ),
         )),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),

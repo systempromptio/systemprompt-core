@@ -31,7 +31,7 @@
 
 mod wire;
 
-use crate::services::artifact_ingest::{ArtifactIngest, IngestOutcome, IngestRequest};
+use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::ui_renderer::UiRendererRegistry;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock};
@@ -39,6 +39,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use systemprompt_extension::mcp::McpOutputSchema;
+use systemprompt_extension::mcp::artifacts::{IngestOutcome, IngestRequest};
 use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::ExecutionMetadata;

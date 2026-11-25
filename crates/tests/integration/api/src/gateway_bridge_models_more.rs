@@ -51,8 +51,10 @@ fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Gateway
     systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
-        std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db),
+        Some(std::sync::Arc::new(
+            systemprompt_agent::services::ContextProviderService::new(
+                systemprompt_agent::repository::ContextRepository::new(db),
+            ),
         )),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),

@@ -2,8 +2,8 @@
 //!
 //! A spawned agent boots the host context the API granted it (it never loads
 //! the profile's secrets source) and serves through the `DynAgentServer` the
-//! agent member provides sealed on that host. A host without the agent member
-//! admitted refuses with a typed missing dependency; a host whose agent server
+//! `agent-http` member provides sealed on that host. A host without the
+//! `agent-http` member admitted refuses, naming it; a host whose agent server
 //! lacks a collaborator (the `ai` member disabled) refuses to serve, naming
 //! it.
 //!
@@ -33,12 +33,9 @@ pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> 
     let context = HostContext::from_process_env(host.take_admit()?)
         .await
         .context("Failed to boot the agent host")?;
-    let server = Arc::clone(
-        context
-            .state()
-            .get::<DynAgentServer>()
-            .context("The agent member is not admitted on this host")?,
-    );
+    let server = Arc::clone(context.state().get::<DynAgentServer>().context(
+        "The agent-http member is not admitted on this host; it provides the agent server",
+    )?);
     server
         .serve(&args.agent_name, args.port)
         .await

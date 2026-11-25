@@ -50,6 +50,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::{get, post};
 use systemprompt_database::DbPool;
+use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
@@ -59,9 +60,9 @@ use systemprompt_gateway::surface::repositories::gateway_repositories;
 use systemprompt_gateway::{
     GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
 };
-use systemprompt_traits::DynGatewaySessionMint;
+use systemprompt_traits::{DynContextMaterializer, DynGatewaySessionMint};
 
-use self::bridge::{BridgeMarketplace, BridgeRouteState};
+use self::bridge::BridgeRouteState;
 use self::state::{GatewayHttpRepositories, GatewayHttpState};
 use systemprompt_gateway::surface::views::{
     BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsView,
@@ -79,7 +80,8 @@ impl GatewaySurface for GatewayHttpSurface {
         let GatewayRouteState { resolved, host } = state;
         let own = resolved.get::<Arc<GatewayHttpRepositories>>()?;
         let db = resolved.get::<DbPool>()?;
-        let repos = gateway_repositories(&resolved, &host, Arc::clone(&own.contexts), &db)?;
+        let contexts = resolved.optional::<DynContextMaterializer>();
+        let repos = gateway_repositories(&resolved, &host, contexts, &db)?;
         let credentials = resolved.optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>();
         let bridge = bridge_state(&resolved, &own, &host)?;
         let session_mint = resolved.get::<DynGatewaySessionMint>()?;
@@ -152,6 +154,13 @@ fn bridge_state(
         tracing::info!("this host seeds no bridge views; no bridge route is built");
         return Ok(None);
     };
+    let Some(catalog) = resolved.optional::<DynBridgeCatalogSource>() else {
+        tracing::info!(
+            reason = "managed_resources_member_not_admitted",
+            "no bridge catalogue source; no bridge route is built"
+        );
+        return Ok(None);
+    };
     let personal_credentials = resolved
         .optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>()
         .map(
@@ -162,11 +171,7 @@ fn bridge_state(
     Ok(Some(BridgeRouteState {
         authenticator: resolved.get()?,
         repos: own.bridge.clone(),
-        marketplace: BridgeMarketplace {
-            managed: resolved.get()?,
-            cache: resolved.get()?,
-            seams: resolved.get()?,
-        },
+        catalog,
         signer,
         releases,
         settings,

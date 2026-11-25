@@ -13,7 +13,7 @@ use axum::response::IntoResponse;
 use serde_json::{Value, json};
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
-use systemprompt_agent::services::a2a_server::handlers::request::handle_agent_request;
+use systemprompt_agent_entry::a2a_server::request::handle_agent_request;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, UserId};
 use systemprompt_models::RequestContext;
 

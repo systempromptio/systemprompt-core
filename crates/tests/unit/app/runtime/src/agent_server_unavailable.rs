@@ -2,7 +2,7 @@
 //! agent needs: building it never fails, and serving refuses with the typed
 //! reason naming the first missing collaborator.
 
-use systemprompt_agent::services::a2a_server::serve::{AgentServerUnavailable, HostedAgentServer};
+use systemprompt_agent_entry::a2a_server::serve::{AgentServerUnavailable, HostedAgentServer};
 use systemprompt_identifiers::AgentName;
 use systemprompt_runtime::Kernel;
 use systemprompt_traits::{AgentServeError, AgentServer, BackgroundTasks, Dependencies};

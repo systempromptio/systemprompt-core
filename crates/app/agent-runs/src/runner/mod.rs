@@ -30,6 +30,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
+use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
 use systemprompt_identifiers::{AgentRunId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepositories;
@@ -41,7 +42,7 @@ use systemprompt_users::ApiKeyLifetime;
 use tokio_util::sync::CancellationToken;
 
 pub use handler::A2aRunHandler;
-pub use systemprompt_agent::services::a2a_server::handlers::request::agent_run::AGENT_RUN_ORIGIN_KIND;
+pub use systemprompt_agent::services::a2a_server::AGENT_RUN_ORIGIN_KIND;
 
 use crate::credentials::{IssueRunCredentials, RunCredentialLimits, RunCredentialService};
 use crate::governance::HookBases;
@@ -111,6 +112,22 @@ pub fn credential_request(
     }
 }
 
+/// The signing authority a runner mints run credentials with, and the
+/// revision source it installs harnesses from when one is provided.
+#[derive(Clone)]
+pub struct A2aRunnerSources {
+    pub signing_keys: SigningKeys,
+    pub harness: Option<DynRevisionBundleSource>,
+}
+
+impl std::fmt::Debug for A2aRunnerSources {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("A2aRunnerSources")
+            .field("harness", &self.harness.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Clone)]
 pub struct A2aRunnerService {
     handler: Arc<A2aRunHandler>,
@@ -133,8 +150,12 @@ impl A2aRunnerService {
         oauth: &OAuthRepositories,
         config: &Arc<Config>,
         paths: &AppPaths,
-        signing_keys: SigningKeys,
+        sources: A2aRunnerSources,
     ) -> Self {
+        let A2aRunnerSources {
+            signing_keys,
+            harness,
+        } = sources;
         let runner = A2aRunnerConfig::new(
             &config.api_internal_url,
             &config.jwt_issuer,
@@ -152,8 +173,11 @@ impl A2aRunnerService {
                 config,
             ),
             runner,
-        )
-        .with_harness_source(Arc::new(repos.managed));
+        );
+        let handler = match harness {
+            Some(source) => handler.with_harness_source(source),
+            None => handler,
+        };
         Self {
             handler: Arc::new(handler),
             runs: repos.runs,

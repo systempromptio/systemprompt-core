@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Gateway"
+text = "The bridge profile usage route reads the `systemprompt_extension::profile_usage::DynProfileUsageSource` the `analytics` member provides sealed, and answers 503 `profile_usage_withheld` when that member is not admitted; `systemprompt-gateway-entry` no longer depends on `systemprompt-analytics`."

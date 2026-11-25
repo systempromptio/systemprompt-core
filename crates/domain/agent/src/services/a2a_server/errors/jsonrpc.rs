@@ -13,7 +13,7 @@
 use crate::models::a2a::jsonrpc::{
     JSON_RPC_VERSION_2_0, JsonRpcError, JsonRpcResponse, NumberOrString,
 };
-use axum::http::StatusCode;
+use http::StatusCode;
 use serde::Serialize;
 use systemprompt_identifiers::TaskId;
 use systemprompt_logging::LogLevel;

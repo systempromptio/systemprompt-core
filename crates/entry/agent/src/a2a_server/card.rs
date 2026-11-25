@@ -12,9 +12,9 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 
-use super::state::AgentHandlerState;
-use crate::error::AgentResult;
-use crate::services::registry::{AgentRegistry, CardSite};
+use systemprompt_agent::AgentResult;
+use systemprompt_agent::services::a2a_server::AgentHandlerState;
+use systemprompt_agent::services::registry::{AgentRegistry, CardSite};
 
 pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> impl IntoResponse {
     let config = state.config.read().await;

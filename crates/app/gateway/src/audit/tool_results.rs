@@ -19,17 +19,18 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{Actor, AgentName, AiToolCallId, McpToolName};
-use systemprompt_mcp::{
-    ArtifactIngest, CallToolResult, IngestMark, IngestMarkKey, IngestRequest,
-    from_canonical_tool_result,
+use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
+use serde_json::Value as JsonValue;
+use systemprompt_extension::mcp::artifacts::{
+    IngestMark, IngestMarkKey, IngestRequest, ToolResultIngest,
 };
+use systemprompt_identifiers::{Actor, AgentName, AiToolCallId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
 
 use super::{GatewayAudit, GatewayRequestContext};
-use crate::protocol::canonical::{CanonicalContent, CanonicalRequest};
+use crate::protocol::canonical::{CanonicalContent, CanonicalRequest, ImageSource};
 
 impl GatewayAudit {
     pub(super) fn ingest_tool_results(&self, request: &CanonicalRequest) {
@@ -53,20 +54,19 @@ impl GatewayAudit {
         let requests = Arc::clone(&self.requests);
         self.background
             .spawn("gateway_tool_result_ingest", async move {
-                ingest_new(&ingest, &requests, &ctx, &key, results).await;
+                ingest_new(ingest.as_ref(), &requests, &ctx, &key, results).await;
             });
     }
 }
 
 async fn ingest_new(
-    ingest: &ArtifactIngest,
+    ingest: &dyn ToolResultIngest,
     requests: &systemprompt_ai::repository::AiRequestRepository,
     ctx: &RequestContext,
     key: &IngestMarkKey,
     results: Vec<ReplayedResult>,
 ) {
-    let marks = ingest.ingest_marks();
-    let mark = match marks.find_mark(key).await {
+    let mark = match ingest.find_mark(key).await {
         Ok(mark) => mark,
         Err(e) => {
             tracing::warn!(error = %e, "tool_result ingest mark lookup failed");
@@ -85,7 +85,7 @@ async fn ingest_new(
         return;
     };
     let ids: Vec<String> = fresh.iter().map(|r| r.tool_use_id.to_string()).collect();
-    let settled = marks
+    let settled = ingest
         .list_settled_gateway_call_ids(&ids)
         .await
         .unwrap_or_else(|e| {
@@ -102,7 +102,7 @@ async fn ingest_new(
     if !all_ingested || mark.as_ref() == Some(&boundary) {
         return;
     }
-    if let Err(e) = marks.set_mark(key, &boundary).await {
+    if let Err(e) = ingest.set_mark(key, &boundary).await {
         tracing::warn!(error = %e, "tool_result ingest mark could not be advanced");
     }
 }
@@ -156,7 +156,7 @@ impl ReplayedResult {
         Some(Self {
             message_index,
             tool_use_id: AiToolCallId::new(tool_use_id.clone()),
-            result: from_canonical_tool_result(
+            result: canonical_tool_result(
                 content,
                 structured_content.as_ref(),
                 meta.as_ref(),
@@ -182,7 +182,7 @@ fn request_context(ctx: &GatewayRequestContext) -> Option<RequestContext> {
 }
 
 async fn ingest_one(
-    ingest: &ArtifactIngest,
+    ingest: &dyn ToolResultIngest,
     requests: &systemprompt_ai::repository::AiRequestRepository,
     ctx: &RequestContext,
     replayed: ReplayedResult,
@@ -224,4 +224,45 @@ async fn ingest_one(
         return false;
     }
     true
+}
+
+// JSON: MCP `structuredContent` and `_meta` — both schema-less per the spec.
+#[must_use]
+pub fn canonical_tool_result(
+    content: &[CanonicalContent],
+    structured_content: Option<&JsonValue>,
+    meta: Option<&JsonValue>,
+    is_error: bool,
+) -> CallToolResult {
+    let blocks = content.iter().filter_map(canonical_block).collect();
+    let mut result = if is_error {
+        CallToolResult::error(blocks)
+    } else {
+        CallToolResult::success(blocks)
+    };
+    result.structured_content = structured_content.cloned();
+    result.meta = meta
+        .and_then(JsonValue::as_object)
+        .map(|map| MetaObject(map.clone()));
+    result
+}
+
+fn canonical_block(content: &CanonicalContent) -> Option<ContentBlock> {
+    match content {
+        CanonicalContent::Text { text, .. } => Some(ContentBlock::text(text.clone())),
+        CanonicalContent::Image {
+            source: ImageSource::Base64 {
+                media_type, data, ..
+            },
+            ..
+        } => Some(ContentBlock::image(data.clone(), media_type.clone())),
+        CanonicalContent::Image {
+            source: ImageSource::Url { url, .. },
+            ..
+        } => Some(ContentBlock::text(url.clone())),
+        CanonicalContent::ToolUse { .. }
+        | CanonicalContent::ToolResult { .. }
+        | CanonicalContent::Thinking { .. }
+        | CanonicalContent::AnthropicToolBlock { .. } => None,
+    }
 }

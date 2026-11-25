@@ -14,9 +14,10 @@ use sha2::{Digest, Sha256};
 use axum::http::{HeaderMap, header};
 use chrono::{TimeZone, Utc};
 use systemprompt_gateway_entry::http::bridge::manifest::shape;
-use systemprompt_gateway_entry::http::bridge::plugin_archive::{archive_sha, pack};
+use systemprompt_gateway_entry::http::bridge::plugin_archive::archive_sha;
 use systemprompt_identifiers::PluginId;
-use systemprompt_marketplace::{BundleFile, PluginBundle, skill_bundle_markdown};
+use systemprompt_marketplace::{BundleFile, PluginBundle, pack_plugin_bundle as pack};
+use systemprompt_models::bridge::manifest::skill_frontmatter::skill_bundle_markdown;
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_HEADER, SignedManifest, SkillSource};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 

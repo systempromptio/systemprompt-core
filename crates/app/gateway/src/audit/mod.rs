@@ -55,6 +55,7 @@ use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 
 pub use access_log::GatewayAccessLog;
 use clock::UpstreamClock;
+pub use tool_results::canonical_tool_result;
 
 impl GatewayRequestContext {
     pub fn open_on(&mut self, hop: &ResolvedHop) {
@@ -105,8 +106,8 @@ pub struct GatewayAudit {
     pricing_snapshot: Mutex<Option<systemprompt_manifest::services::ModelPricing>>,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
-    context_materializer: systemprompt_traits::DynContextMaterializer,
-    artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
+    context_materializer: Option<systemprompt_traits::DynContextMaterializer>,
+    artifact_ingest: Option<systemprompt_extension::mcp::artifacts::DynToolResultIngest>,
     pub ctx: GatewayRequestContext,
     payload_cap_bytes: usize,
     served_model: Mutex<Option<String>>,
@@ -138,7 +139,7 @@ impl GatewayAudit {
             pricing_snapshot: Mutex::new(None),
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
-            context_materializer: Arc::clone(&repos.context_materializer),
+            context_materializer: repos.context_materializer.clone(),
             artifact_ingest: repos.artifact_ingest.clone(),
             ctx,
             payload_cap_bytes: repos.payload_cap_bytes,

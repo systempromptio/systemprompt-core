@@ -25,8 +25,10 @@ pub(super) fn repos(db: &DbPool) -> GatewayRepositories {
                 .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
-        Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db),
+        Some(Arc::new(
+            systemprompt_agent::services::ContextProviderService::new(
+                systemprompt_agent::repository::ContextRepository::new(db),
+            ),
         )),
         systemprompt_gateway::GatewayHandles {
             background: systemprompt_traits::BackgroundTasks::new(),
