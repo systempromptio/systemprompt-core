@@ -25,7 +25,8 @@ pub use postgres::budget::{
 };
 pub use postgres::connection::{PoolConfig, SchemaEpoch};
 pub use postgres::listener::{
-    HubEvent, HubNotification, HubSubscription, ListenLink, NotificationHub, PollWake, WakeReason,
+    DrainNext, HubEvent, HubNotification, HubSubscription, ListenLink, NotificationHub, PollWake,
+    WakeReason,
 };
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::DatabaseProvider;

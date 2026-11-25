@@ -53,15 +53,16 @@ use systemprompt_models::brain::{BRAIN_CONSUMER, BrainEvent};
 
 use super::decode::decode_all;
 use super::pass::{Pass, PassInput, Round};
-use super::{BrainConsumer, Counters, Next};
+use super::{BrainConsumer, Counters};
 use crate::error::{BrainError, BrainResult};
 use crate::index::Reindex;
 use crate::pipeline::{BatchContext, RoundCache, metrics};
+use systemprompt_database::DrainNext;
 
 pub const MAX_ROUND_TRANSIENTS: usize = 3;
 
 impl BrainConsumer {
-    pub(super) async fn drain_round(&self) -> BrainResult<Next> {
+    pub(super) async fn drain_round(&self) -> BrainResult<DrainNext> {
         let started = Instant::now();
         let held = self.round_state.held();
         let limit = i64::try_from(self.batch()).unwrap_or(i64::MAX);
@@ -71,7 +72,7 @@ impl BrainConsumer {
             .await?;
         self.round_state.ran();
         let Some(mut batch) = claimed else {
-            return Ok(Next::Listen);
+            return Ok(DrainNext::Listen);
         };
         let events = batch.len();
         let round = match self.process_batch(&mut batch).await {
@@ -111,7 +112,7 @@ impl BrainConsumer {
         {
             tracing::warn!(error = %error, "Brain store gauges could not be refreshed");
         }
-        Ok(Next::after(!round.done.is_empty(), round.cut_short))
+        Ok(DrainNext::after(!round.done.is_empty(), round.cut_short))
     }
 
     async fn process_batch(&self, batch: &mut DeliveryBatch) -> BrainResult<Round> {

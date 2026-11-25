@@ -83,7 +83,7 @@ pub use services::{
 };
 
 pub use services::{
-    BudgetError, CHILD_POOL_CONNECTIONS, ConnectionBudget, HubEvent, HubNotification,
+    BudgetError, CHILD_POOL_CONNECTIONS, ConnectionBudget, DrainNext, HubEvent, HubNotification,
     HubSubscription, ListenLink, MIN_SESSION_CONNECTIONS, NotificationHub, PinnedPools, PollWake,
     PoolSeat, PoolShape, PoolSizes, WakeReason,
 };

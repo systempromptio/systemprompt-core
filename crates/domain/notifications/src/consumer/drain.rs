@@ -21,10 +21,11 @@ use systemprompt_events::services::durable::DeliveryBatch;
 use systemprompt_identifiers::{EventOutboxId, NotificationId};
 use systemprompt_models::notifications::NOTIFICATIONS_CONSUMER;
 
+use super::NotificationsConsumer;
 use super::handle::Handled;
-use super::{Next, NotificationsConsumer};
 use crate::error::NotificationsResult;
 use crate::pipeline::{BatchContext, metrics};
+use systemprompt_database::DrainNext;
 
 pub const MAX_ROUND_TRANSIENTS: usize = 3;
 
@@ -37,7 +38,7 @@ struct Round {
 }
 
 impl NotificationsConsumer {
-    pub(super) async fn drain_round(&self) -> NotificationsResult<Next> {
+    pub(super) async fn drain_round(&self) -> NotificationsResult<DrainNext> {
         let started = Instant::now();
         let held = self.hold.held();
         let limit = i64::try_from(self.batch()).unwrap_or(i64::MAX);
@@ -46,7 +47,7 @@ impl NotificationsConsumer {
             .claim_batch(NOTIFICATIONS_CONSUMER, limit, &held)
             .await?
         else {
-            return Ok(Next::Listen);
+            return Ok(DrainNext::Listen);
         };
         let mut ctx = match BatchContext::load(batch.connection()).await {
             Ok(ctx) => ctx,
@@ -70,7 +71,7 @@ impl NotificationsConsumer {
         }
         metrics::batch_seconds(started.elapsed().as_secs_f64());
         self.report_backlog().await;
-        Ok(Next::after(round.acknowledged > 0, round.cut_short))
+        Ok(DrainNext::after(round.acknowledged > 0, round.cut_short))
     }
 
     async fn process_batch(

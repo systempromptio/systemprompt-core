@@ -47,7 +47,7 @@ use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use systemprompt_database::NotificationHub;
+use systemprompt_database::{DrainNext, NotificationHub};
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_manifest::profile::BrainConsumerProfile;
 use systemprompt_models::brain::BRAIN_CONSUMER;
@@ -58,25 +58,6 @@ use self::round_state::RoundState;
 use self::wake::Wake;
 use crate::error::BrainResult;
 use crate::pipeline::BrainPipeline;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Next {
-    Drain,
-    Listen,
-    BackOff,
-}
-
-impl Next {
-    const fn after(worked: bool, cut_short: bool) -> Self {
-        if cut_short {
-            Self::BackOff
-        } else if worked {
-            Self::Drain
-        } else {
-            Self::Listen
-        }
-    }
-}
 
 /// What the consumer is doing right now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -227,22 +208,20 @@ impl RunnerService for BrainConsumer {
         let mut next_sweep = Instant::now();
         while !shutdown.is_cancelled() {
             self.state.set(ConsumerState::Draining);
-            let next = match self.drain_round().await {
-                Ok(next) => next,
-                Err(error) => {
-                    tracing::error!(error = %error, "Brain drain round failed");
-                    Next::Listen
-                },
-            };
+            let round = self.drain_round().await;
+            if let Err(error) = &round {
+                tracing::error!(error = %error, "Brain drain round failed");
+            }
+            let next = DrainNext::of(&round);
             if Instant::now() >= next_sweep {
                 self.sweep().await;
                 next_sweep = Instant::now() + sweep_every;
             }
             let until_sweep = next_sweep.saturating_duration_since(Instant::now());
             let carry_on = match next {
-                Next::Drain => true,
-                Next::Listen => wake.wait(poll.min(until_sweep), &shutdown).await,
-                Next::BackOff => wake.back_off(poll.min(until_sweep), &shutdown).await,
+                DrainNext::Drain => true,
+                DrainNext::Listen => wake.wait(poll.min(until_sweep), &shutdown).await,
+                DrainNext::BackOff => wake.back_off(poll.min(until_sweep), &shutdown).await,
             };
             if !carry_on {
                 break;

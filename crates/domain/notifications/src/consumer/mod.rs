@@ -53,7 +53,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
 use sqlx::PgPool;
-use systemprompt_database::NotificationHub;
+use systemprompt_database::{DrainNext, NotificationHub};
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_manifest::profile::ConsumerProfile;
 use systemprompt_traits::{JobContext, RunnerService};
@@ -63,25 +63,6 @@ use self::hold::RetryHold;
 use self::wake::Wake;
 use crate::error::NotificationsResult;
 use crate::pipeline::{NotificationPipeline, metrics};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Next {
-    Drain,
-    Listen,
-    BackOff,
-}
-
-impl Next {
-    const fn after(worked: bool, cut_short: bool) -> Self {
-        if cut_short {
-            Self::BackOff
-        } else if worked {
-            Self::Drain
-        } else {
-            Self::Listen
-        }
-    }
-}
 
 /// What the consumer is doing right now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -209,13 +190,11 @@ impl RunnerService for NotificationsConsumer {
         let mut next_sweep = Instant::now();
         while !shutdown.is_cancelled() {
             self.state.set(ConsumerState::Draining);
-            let next = match self.drain_round().await {
-                Ok(next) => next,
-                Err(error) => {
-                    tracing::error!(error = %error, "Notification drain round failed");
-                    Next::Listen
-                },
-            };
+            let round = self.drain_round().await;
+            if let Err(error) = &round {
+                tracing::error!(error = %error, "Notification drain round failed");
+            }
+            let next = DrainNext::of(&round);
             if Instant::now() >= next_sweep {
                 self.sweep().await;
                 self.report_backlog().await;
@@ -223,9 +202,9 @@ impl RunnerService for NotificationsConsumer {
             }
             let until_sweep = next_sweep.saturating_duration_since(Instant::now());
             let carry_on = match next {
-                Next::Drain => true,
-                Next::Listen => wake.wait(poll.min(until_sweep), &shutdown).await,
-                Next::BackOff => wake.back_off(poll.min(until_sweep), &shutdown).await,
+                DrainNext::Drain => true,
+                DrainNext::Listen => wake.wait(poll.min(until_sweep), &shutdown).await,
+                DrainNext::BackOff => wake.back_off(poll.min(until_sweep), &shutdown).await,
             };
             if !carry_on {
                 break;
