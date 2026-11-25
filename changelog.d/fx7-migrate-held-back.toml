@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Database"
+text = "`infra db migrate` exits non-zero when it holds a member back because the database records migrations for that member which the binary does not know. The error names each held-back member with those migrations and lists the members it installed; a held-back member is never reported as installed, and none of its schema is applied. Operator action: run the release that wrote those migrations, or add a tombstone for a migration no release ships, then migrate again."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`SchemaInstallReport::held_back` returns each held-back member as a `HeldBackMember` (its id and the ledger rows this binary does not know)."

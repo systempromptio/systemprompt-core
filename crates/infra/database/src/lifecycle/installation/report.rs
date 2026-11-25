@@ -1,5 +1,8 @@
 //! Outcome of a schema installation that succeeded but left typed drift
-//! behind: a declared foreign key an established database could not create.
+//! behind: a declared foreign key an established database could not create,
+//! or a member held back because the database records migrations for it that
+//! this binary does not know ([`HeldBackMember`]; none of its schema is
+//! applied).
 //! Callers surface the report — health endpoints, `infra db migrate` — rather
 //! than reading it from the log. `superseded` is set when a newer release
 //! installed the database and this one applied nothing (see
@@ -102,6 +105,29 @@ impl SchemaAhead {
     }
 }
 
+/// A schema member the install held back: the database records migrations
+/// for it that this binary does not know, so none of its schema was applied
+/// and the database is not at this binary's schema for it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct HeldBackMember {
+    pub extension: ExtensionId,
+    pub ahead: Vec<SchemaAhead>,
+}
+
+impl std::fmt::Display for HeldBackMember {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: the database records migration(s) this binary does not know:",
+            self.extension
+        )?;
+        for migration in &self.ahead {
+            write!(f, " {} {}", migration.version, migration.name)?;
+        }
+        Ok(())
+    }
+}
+
 /// A ledger row a newer release wrote: the database is ahead of this binary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SchemaAhead {
@@ -130,5 +156,20 @@ impl SchemaInstallReport {
     #[must_use]
     pub fn breaks_this_release(&self) -> bool {
         self.ahead.iter().any(|m| m.breaks_older)
+    }
+
+    #[must_use]
+    pub fn held_back(&self) -> Vec<HeldBackMember> {
+        let mut held: Vec<HeldBackMember> = Vec::new();
+        for migration in &self.ahead {
+            match held.iter_mut().find(|m| m.extension == migration.extension) {
+                Some(member) => member.ahead.push(migration.clone()),
+                None => held.push(HeldBackMember {
+                    extension: migration.extension.clone(),
+                    ahead: vec![migration.clone()],
+                }),
+            }
+        }
+        held
     }
 }

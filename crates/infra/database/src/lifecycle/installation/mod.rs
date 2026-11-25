@@ -38,7 +38,9 @@ pub use migration_owners::{
     migration_ownership_findings,
 };
 pub use migration_refs::check_migration_references;
-pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport, SupersededInstall};
+pub use report::{
+    ForeignKeyDrift, HeldBackMember, SchemaAhead, SchemaInstallReport, SupersededInstall,
+};
 pub use routine_refs::check_trigger_routines;
 pub use undeclared::{
     AbsentMemberTable, OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue,

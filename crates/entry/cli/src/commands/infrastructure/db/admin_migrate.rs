@@ -96,6 +96,28 @@ fn refuse_foreign_key_drift(report: &SchemaInstallReport) -> Result<()> {
     ))
 }
 
+fn refuse_held_back(built: &BuiltState, report: &SchemaInstallReport) -> Result<()> {
+    let held_back = report.held_back();
+    if held_back.is_empty() {
+        return Ok(());
+    }
+    let installed: Vec<String> = install_set(built)
+        .iter()
+        .map(|ext| ext.id().to_owned())
+        .filter(|id| !held_back.iter().any(|held| held.extension.as_str() == id))
+        .collect();
+    let held: Vec<String> = held_back.iter().map(ToString::to_string).collect();
+    Err(anyhow!(
+        "Schema installation held back {} extension(s); the database is not at this binary's \
+         schema for them and none of their schema was applied:\n{}\nInstalled: {}\nHint: run \
+         the release that wrote those migrations, or add a tombstone for a migration that \
+         was never released",
+        held.len(),
+        held.join("\n"),
+        installed.join(", ")
+    ))
+}
+
 async fn run_install(
     built: &BuiltState,
     database: &Database,
@@ -152,6 +174,7 @@ async fn run_install(
     }
     database.mark_schema_changed();
     refuse_foreign_key_drift(&report)?;
+    refuse_held_back(built, &report)?;
 
     let installed_extensions: Vec<String> = install_set(built)
         .iter()
