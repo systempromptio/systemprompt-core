@@ -3961,7 +3961,6 @@ name = "systemprompt-mcp"
 version = "0.87.0"
 dependencies = [
  "async-trait",
- "axum",
  "bytes",
  "chrono",
  "futures",
@@ -3991,7 +3990,6 @@ dependencies = [
  "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",
- "tower-http 0.7.1",
  "tracing",
  "url",
  "uuid",
