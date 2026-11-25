@@ -10,4 +10,5 @@ mod forged_mcp_registry;
 mod forged_reserved;
 mod forged_services;
 mod full_path;
+mod reserved_literal;
 mod root_fallback;

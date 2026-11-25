@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Route admission"
+text = "A composition may claim one site fallback (`Contributions::site_fallback`, `router::SiteFallback`), mounted as the web root fallback under the public policy only and never answering a reserved path; a second claimant is refused with `CompositionError::SecondSiteFallback`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`AdmittedParts` gains `site_fallback`; `Admitted::site_fallback`, `AdmittedSiteFallback` and `router::SiteFallback` are added."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`protect_site_fallback`, `RootFallback::beside` and `SITE_FALLBACK_RATE`."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`CompositionError` gains `SecondSiteFallback`."

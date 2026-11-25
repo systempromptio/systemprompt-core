@@ -16,6 +16,10 @@ use systemprompt_manifest::ExtensionsConfig;
 use systemprompt_extension::admitted::AdmittedCommand;
 
 use super::admit::{disabled_members, granted_members, withhold_dependants};
+#[cfg(feature = "api")]
+use super::http_admission::{
+    OAUTH_MEMBER_ID, admit_site_fallback, refuse_bearer_routes_without_oauth,
+};
 use super::providers::check_providers;
 #[cfg(feature = "api")]
 use super::routes::{
@@ -104,6 +108,12 @@ impl Declared {
         let mut routes = Vec::new();
         #[cfg(feature = "api")]
         let mut gateway_routes = Vec::new();
+        #[cfg(feature = "api")]
+        let mut site_fallback = None;
+        #[cfg(feature = "api")]
+        let oauth_composed = enabled
+            .iter()
+            .any(|member| member.id.as_str() == OAUTH_MEMBER_ID);
         for mut member in enabled {
             #[cfg(feature = "api")]
             {
@@ -113,6 +123,9 @@ impl Declared {
                 }
                 for decl in gateways {
                     gateway_routes.push(admit_gateway_route(&member, decl)?);
+                }
+                for fallback in member.sink.take_site_fallbacks() {
+                    site_fallback = Some(admit_site_fallback(site_fallback, &member, fallback)?);
                 }
             }
             members.push(AdmittedMember {
@@ -127,6 +140,9 @@ impl Declared {
         {
             check_route_conflicts(&routes)?;
             check_gateway_overlaps(&gateway_routes)?;
+            if !oauth_composed {
+                refuse_bearer_routes_without_oauth(&routes, &gateway_routes)?;
+            }
         }
         Ok(Admitted::__from_facade(AdmittedParts {
             members,
@@ -135,6 +151,8 @@ impl Declared {
             routes,
             #[cfg(feature = "api")]
             gateway_routes,
+            #[cfg(feature = "api")]
+            site_fallback,
         }))
     }
 }

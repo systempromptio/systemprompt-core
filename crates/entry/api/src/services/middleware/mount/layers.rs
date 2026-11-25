@@ -3,12 +3,24 @@
 //! the context middleware and authorization gate, and the outer protection
 //! layers with the frame-options stamp.
 //!
+//! A declared body limit is enforced twice: `DefaultBodyLimit` for the
+//! `Json`/`Bytes` extractors, and [`limit_streamed`] for every reader of
+//! the raw body, which refuses a declared `Content-Length` above the limit
+//! with `413` before the handler runs and bounds a streamed body so a read
+//! past the limit fails.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use axum::extract::DefaultBodyLimit;
+use axum::body::Body;
+use axum::extract::{DefaultBodyLimit, Request};
+use axum::http::StatusCode;
+use axum::http::header::CONTENT_LENGTH;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use systemprompt_extension::{ContextKind, ProtectionLayer, RouteProtection};
+use systemprompt_models::api::ApiError;
 
 use super::{MountError, MountLayers};
 use crate::services::middleware::rate_limit::{LayerReach, RateWindow, RouterExt, layer_with};
@@ -22,6 +34,11 @@ pub(super) fn inner_layers(
 ) -> Result<Router, MountError> {
     if let Some(bytes) = protection.body_limit {
         router = layer_with(router, reach, DefaultBodyLimit::max(bytes));
+        router = layer_with(
+            router,
+            reach,
+            axum::middleware::from_fn(move |request, next| limit_streamed(bytes, request, next)),
+        );
     }
     if protection
         .layers
@@ -130,4 +147,23 @@ pub(super) fn outer_layers(
     }
 
     Ok(router)
+}
+
+async fn limit_streamed(limit: usize, request: Request, next: Next) -> Response {
+    let declared = request
+        .headers()
+        .get(CONTENT_LENGTH)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.trim().parse::<u64>().ok());
+    if declared.is_some_and(|length| length > u64::try_from(limit).unwrap_or(u64::MAX)) {
+        return (
+            StatusCode::PAYLOAD_TOO_LARGE,
+            axum::Json(ApiError::payload_too_large(format!(
+                "request body exceeds {limit} bytes"
+            ))),
+        )
+            .into_response();
+    }
+    let request = request.map(|body| Body::new(http_body_util::Limited::new(body, limit)));
+    next.run(request).await
 }

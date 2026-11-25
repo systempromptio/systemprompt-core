@@ -106,6 +106,8 @@ impl ContributionSink {
                 routes: _,
             #[cfg(feature = "router")]
                 gateway_routes: _,
+            #[cfg(feature = "router")]
+                site_fallbacks: _,
             #[cfg(feature = "cli")]
                 commands: _,
             errors: _,

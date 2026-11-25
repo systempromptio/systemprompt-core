@@ -32,6 +32,8 @@ mod secrets;
 mod sink;
 mod sink_kinds;
 mod sink_push;
+#[cfg(feature = "router")]
+mod site_fallback;
 mod slot;
 mod slot_insert;
 mod standing;

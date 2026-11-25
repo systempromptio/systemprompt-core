@@ -37,8 +37,17 @@
 //! handler-resolved context with a gated policy), or that names a bearer
 //! window or protection layer the server has no primitive for, is refused
 //! with a typed [`MountError`] at boot. A body limit above
-//! [`DEFAULT_BODY_LIMIT_BYTES`] mounts only at the base and with the limit of
-//! the kernel's body-limit privileged shape (the agent proxy).
+//! [`DEFAULT_BODY_LIMIT_BYTES`] mounts when it is within
+//! [`MountLayers::body_ceiling`] (the profile's `server.max_route_body_bytes`),
+//! or at the base and with the limit of the kernel's body-limit privileged
+//! shape (the agent proxy).
+//!
+//! The composition's site fallback ([`protect_site_fallback`]) takes the
+//! tree's one fallback in place of the static group's: public policy, public
+//! context and [`SITE_FALLBACK_RATE`] only (no authenticated context, no sealed
+//! state), behind the site-auth layer when a member declares site auth
+//! ([`site_fallback_protection`]), layered whole, and answering `404`
+//! for any path under a reserved entry, so it never answers a reserved path.
 //!
 //! The body-limit check sees only the group-level limit a declaration
 //! carries. A few routes set their own `DefaultBodyLimit` inside their
@@ -60,12 +69,15 @@ mod guards;
 mod kernel_routes;
 mod layers;
 mod recheck;
+mod reserved_guard;
+mod site_fallback;
 
 pub use admitted::{MountedGatewayRoute, gateway_routes, mount_admitted, protection_of};
 pub use error::MountError;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 pub use kernel_routes::{KernelRoutes, gateway_protection, path_under};
 pub use recheck::recheck;
+pub use site_fallback::{SITE_FALLBACK_RATE, protect_site_fallback, site_fallback_protection};
 
 use std::sync::Arc;
 
@@ -94,6 +106,7 @@ pub struct MountLayers {
     pub mcp: McpContextMiddleware,
     pub bearer: Option<Arc<JwtContextExtractor>>,
     pub guards: ProtectionGuards,
+    pub body_ceiling: usize,
 }
 
 impl std::fmt::Debug for MountLayers {
@@ -102,6 +115,7 @@ impl std::fmt::Debug for MountLayers {
             .field("limits", &self.limits)
             .field("guards", &self.guards)
             .field("bearer_window_available", &self.bearer.is_some())
+            .field("body_ceiling", &self.body_ceiling)
             .finish_non_exhaustive()
     }
 }
@@ -113,7 +127,7 @@ pub fn protect(
     base_path: &'static str,
 ) -> Result<Router, MountError> {
     check_coherence(protection, base_path)?;
-    check_body_limit(protection, base_path)?;
+    check_body_limit(protection, layers, base_path)?;
     let (router, reach) = if base_path == WEB_ROOT_BASE_PATH {
         if !router.has_routes() {
             return Ok(Router::new());
@@ -140,7 +154,7 @@ pub fn protect_root_fallback(
     group: RouteGroup,
 ) -> Result<RootFallback, MountError> {
     check_coherence(protection, WEB_ROOT_BASE_PATH)?;
-    check_body_limit(protection, WEB_ROOT_BASE_PATH)?;
+    check_body_limit(protection, layers, WEB_ROOT_BASE_PATH)?;
     let router = apply(
         router,
         protection,
@@ -201,11 +215,14 @@ fn check_coherence(
 
 fn check_body_limit(
     protection: &RouteProtection,
+    layers: &MountLayers,
     base_path: &'static str,
 ) -> Result<(), MountError> {
     match protection.body_limit {
         Some(declared)
-            if declared > DEFAULT_BODY_LIMIT_BYTES && !admits_body_limit(base_path, declared) =>
+            if declared > DEFAULT_BODY_LIMIT_BYTES
+                && declared > layers.body_ceiling
+                && !admits_body_limit(base_path, declared) =>
         {
             Err(MountError::UnlistedBodyExemption {
                 base_path,

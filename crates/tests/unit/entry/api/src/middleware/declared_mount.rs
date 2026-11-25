@@ -78,6 +78,7 @@ pub(super) async fn layers(rate_limits: RateLimitsConfig, caller: UserType) -> M
         mcp: McpContextMiddleware::new(extractor),
         bearer: None,
         guards: ProtectionGuards::default(),
+        body_ceiling: systemprompt_manifest::profile::DEFAULT_MAX_ROUTE_BODY_BYTES,
     }
 }
 

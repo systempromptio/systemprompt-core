@@ -35,6 +35,15 @@ fn with_dependants(member: &str) -> Result<Vec<ExtensionId>, CompositionError> {
             ) if !disabled.contains(&owner) => {
                 disabled.push(owner);
             },
+            Err(CompositionError::BearerRoutesWithoutOauth { members })
+                if members.iter().any(|member| !disabled.contains(member)) =>
+            {
+                let fresh: Vec<ExtensionId> = members
+                    .into_iter()
+                    .filter(|member| !disabled.contains(member))
+                    .collect();
+                disabled.extend(fresh);
+            },
             Err(error) => return Err(error),
             Ok(_) => return Ok(disabled),
         }
@@ -42,7 +51,10 @@ fn with_dependants(member: &str) -> Result<Vec<ExtensionId>, CompositionError> {
 }
 
 async fn mount(disabled: &[ExtensionId]) -> Result<(), String> {
-    let admitted = admit(disabled).map_err(|e| format!("admission: {e}"))?;
+    mount_admitted(admit(disabled).map_err(|e| format!("admission: {e}"))?).await
+}
+
+async fn mount_admitted(admitted: systemprompt_extension::Admitted) -> Result<(), String> {
     let bootstrap = ensure_test_bootstrap();
     let ctx = fixture_app_context_with_extensions(
         fixture_config(&bootstrap.database_url),
@@ -100,44 +112,62 @@ async fn each_disableable_member_disabled_in_turn_still_builds_the_api_applicati
     assert!(failed.is_empty(), "{failed:#?}");
 }
 
-#[tokio::test]
-async fn oauth_disabled_withholds_identity_http_and_the_api_still_mounts() {
-    let oauth = ExtensionId::new("oauth");
-    let admitted = admit(std::slice::from_ref(&oauth)).expect("oauth is optional");
-    let withheld = admitted.withheld();
-    assert!(
-        withheld
-            .iter()
-            .any(|member| member.owner.as_str() == "identity-http"
-                && member.dependency == oauth
-                && member.because == AbsentDependency::Disabled),
-        "identity-http is withheld with oauth: {withheld:?}"
-    );
-    assert!(
-        !admitted
-            .built()
-            .contains(&ExtensionId::new("identity-http"))
-    );
-    if let Err(error) = mount(&[oauth]).await {
-        panic!("the API application builds with oauth disabled: {error}");
-    }
-}
-
 #[test]
-fn oauth_removed_from_the_composition_withholds_identity_http() {
-    let admitted = reference()
+fn oauth_disabled_with_bearer_routes_is_refused_naming_their_members() {
+    let error =
+        admit(&[ExtensionId::new("oauth")]).expect_err("bearer-authenticated routes need oauth");
+    let CompositionError::BearerRoutesWithoutOauth { members } = &error else {
+        panic!("expected the oauth refusal, got {error:?}");
+    };
+    assert!(
+        members
+            .iter()
+            .any(|member| member.as_str() == "content-http"),
+        "{members:?}"
+    );
+    let error = reference()
         .without::<systemprompt::oauth::OauthExtension>()
         .build(&test_boot_profile())
-        .expect("a composition without oauth admits");
+        .expect_err("removing oauth is refused the same way");
+    assert!(
+        matches!(error, CompositionError::BearerRoutesWithoutOauth { .. }),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn oauth_disabled_without_bearer_routes_admits_and_mounts() {
+    let disabled = with_dependants("oauth").expect("a composition without bearer routes admits");
+    let admitted = admit(&disabled).expect("oauth and the bearer members disabled admit");
+    let oauth = ExtensionId::new("oauth");
     assert!(
         admitted
             .withheld()
             .iter()
             .any(|member| member.owner.as_str() == "identity-http"
-                && member.because == AbsentDependency::Removed),
-        "{:?}",
+                && member.dependency == oauth
+                && member.because == AbsentDependency::Disabled),
+        "identity-http is withheld with oauth: {:?}",
         admitted.withheld()
     );
+    assert!(
+        admitted
+            .routes()
+            .iter()
+            .all(|set| set.set.defs().iter().all(|def| def
+                .spec
+                .policy
+                .handler_verifier()
+                .is_some()
+                || def
+                    .spec
+                    .policy
+                    .permits(systemprompt_models::auth::UserType::Anon))),
+        "no bearer-authenticated route is admitted without oauth"
+    );
+    if let Err(error) = mount(&disabled).await {
+        panic!("the API application builds with oauth disabled: {error}");
+    }
 }
 
 #[test]
@@ -149,4 +179,38 @@ fn oauth_enabled_withholds_nothing() {
             .built()
             .contains(&ExtensionId::new("identity-http"))
     );
+}
+
+struct SiteClaimant;
+
+impl systemprompt_extension::Extension for SiteClaimant {
+    fn metadata(&self) -> systemprompt_extension::ExtensionMetadata {
+        systemprompt_extension::ExtensionMetadata {
+            id: "probe-site",
+            name: "probe-site",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(
+        &self,
+        c: &mut systemprompt_extension::Contributions<'_>,
+    ) -> Result<(), systemprompt_extension::ContributionError> {
+        c.site_fallback(systemprompt_extension::router::SiteFallback::service(
+            systemprompt::prelude::Router::new(),
+        ));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn a_claimed_site_fallback_boots_through_the_real_mount_beside_static_content() {
+    let admitted = reference()
+        .with(SiteClaimant)
+        .build(&test_boot_profile())
+        .expect("one site fallback claim admits");
+    assert!(admitted.site_fallback().is_some());
+    if let Err(error) = mount_admitted(admitted).await {
+        panic!("the API application builds with a site fallback claimed: {error}");
+    }
 }

@@ -43,8 +43,8 @@ pub enum MountError {
     IncoherentHandlerVerification { base_path: &'static str },
 
     #[error(
-        "route group at '{base_path}' declares a {declared}-byte body limit above the 2 MiB \
-         server default that no core allowance names for that base path"
+        "route group at '{base_path}' declares a {declared}-byte body limit above the profile \
+         ceiling that no core allowance names for that base path"
     )]
     UnlistedBodyExemption {
         base_path: &'static str,
@@ -101,6 +101,17 @@ pub enum MountError {
 
     #[error("route {method} {path} declared twice")]
     RouteConflict { method: RouteMethod, path: String },
+
+    #[error(
+        "route {method} {path} declares a {declared}-byte body limit; a route's own limit is \
+         1 to {ceiling} bytes (server.max_route_body_bytes)"
+    )]
+    RouteBodyLimit {
+        method: RouteMethod,
+        path: String,
+        declared: usize,
+        ceiling: usize,
+    },
 
     #[error("dependency resolution failed")]
     Resolve(#[from] MissingDependency),

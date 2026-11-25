@@ -74,6 +74,7 @@ async fn layers() -> MountLayers {
         mcp: McpContextMiddleware::new(NoContext),
         bearer: None,
         guards: ProtectionGuards::default(),
+        body_ceiling: systemprompt_manifest::profile::DEFAULT_MAX_ROUTE_BODY_BYTES,
     }
 }
 

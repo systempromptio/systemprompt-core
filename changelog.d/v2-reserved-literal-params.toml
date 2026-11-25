@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Route admission"
+text = "An install parameter route at the place of a reserved literal, as deep as the reserved path and with no catch-all, is admitted (`/api/public/{short_code}` beside `/api/public/gateway`); the reserved route keeps answering with its own policy, and the install route answers `404` for any percent-decoded path under a reserved entry."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`router::shadows_reserved_literal` and `router::reserved_answering`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "An install route admitted beside a reserved literal is wrapped to answer `404` for a request under a reserved entry."

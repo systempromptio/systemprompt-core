@@ -22,9 +22,8 @@
 //! disabled in the profile, or itself withheld is withheld with it (its
 //! contributions dropped exactly as a disabled member's) and listed in
 //! [`Admitted::withheld`]; withholding a required member refuses the
-//! composition (`RequiredDisabled`). No
-//! provide fn, factory, slot build or asset closure runs here; the runtime
-//! runs them over the [`Admitted`] handoff.
+//! composition (`RequiredDisabled`). No provide fn, factory, slot build or
+//! asset closure runs here; the runtime runs them over [`Admitted`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -48,6 +47,7 @@ pub use error::{CompositionError, RunError};
 mod admit;
 mod declared;
 mod error;
+mod http_admission;
 mod providers;
 mod reference;
 mod routes;

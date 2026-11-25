@@ -22,6 +22,16 @@
 //! beside `/api/v1/agents/registry`) is not refused, because the literal route
 //! takes precedence and the nested owner's row holds it.
 //!
+//! A parameter route of an install is refused only where it reaches inside
+//! a reserved entry: a parameter segment at the place of a reserved literal,
+//! in a pattern exactly as deep as that entry and with no catch-all
+//! (`/api/public/{short_code}` beside `/api/public/gateway`), is admitted
+//! ([`shadows_reserved_literal`]). The reserved literal takes precedence in
+//! the router, and the API mount answers `404` from such a route for any
+//! request whose percent-decoded path falls under a reserved entry
+//! ([`reserved_answering`]), so the install's route never answers a reserved
+//! path, whether or not its owner is composed.
+//!
 //! A gateway route def is confined to the gateway path its set claims: its
 //! gateway-relative path lies within the claim, and no built-in gateway
 //! prefix covers it ([`refused_gateway_def`]).
@@ -186,6 +196,13 @@ fn nested_param(pattern: &[Segment<'_>], entry: &ReservedPath, own: &[&ReservedP
         })
 }
 
+fn literal_wins(pattern: &[Segment<'_>], entry: &ReservedPath) -> bool {
+    let held = held_segments(entry);
+    pattern.len() == held.len()
+        && !pattern.contains(&Segment::CatchAll)
+        && pattern.contains(&Segment::Param)
+}
+
 fn first_unheld(
     patterns: &[Vec<Segment<'_>>],
     holder: Option<CoreId>,
@@ -198,10 +215,36 @@ fn first_unheld(
         RESERVED_PATHS.iter().find(|entry| {
             Some(entry.owner) != holder
                 && reaches(pattern, entry)
+                && !literal_wins(pattern, entry)
                 && !own.iter().any(|held| encloses(entry, held))
                 && !nested_param(pattern, entry, &own)
         })
     })
+}
+
+#[must_use]
+pub fn shadows_reserved_literal(base: BaseRef, def: &RouteDef) -> bool {
+    let path = full_path(base, def.path.as_str());
+    let pattern = segments(&path);
+    RESERVED_PATHS
+        .iter()
+        .any(|entry| reaches(&pattern, entry) && literal_wins(&pattern, entry))
+}
+
+#[must_use]
+pub fn reserved_answering(
+    request_segments: &[&str],
+    holder: Option<CoreId>,
+) -> Option<&'static ReservedPath> {
+    let pattern: Vec<Segment<'_>> = request_segments
+        .iter()
+        .copied()
+        .filter(|segment| !segment.is_empty())
+        .map(Segment::Literal)
+        .collect();
+    RESERVED_PATHS
+        .iter()
+        .find(|entry| Some(entry.owner) != holder && contained(&pattern, entry))
 }
 
 #[must_use]

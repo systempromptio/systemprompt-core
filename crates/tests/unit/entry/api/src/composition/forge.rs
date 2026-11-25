@@ -91,6 +91,7 @@ pub(super) fn forged(
         members: Vec::new(),
         routes,
         gateway_routes,
+        site_fallback: None,
     })
 }
 

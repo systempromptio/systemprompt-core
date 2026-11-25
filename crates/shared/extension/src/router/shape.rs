@@ -107,10 +107,17 @@ pub enum Allowance {
 }
 
 /// The request body ceiling a route carries.
+///
+/// `Default` is the server's 2 MiB limit and `Agent` the agent proxy's
+/// privileged limit. `Bytes(n)` is a route's own limit, smaller or larger
+/// than the default; the API mount refuses the boot when `n` is zero or above
+/// the profile's `server.max_route_body_bytes` ceiling, and enforces it on the
+/// declared `Content-Length` and on a streamed body alike.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BodyLimit {
     Default,
     Agent,
+    Bytes(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
