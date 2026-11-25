@@ -30,13 +30,13 @@ pub mod ops_metrics;
 mod otlp_boot;
 #[cfg(not(feature = "otel"))]
 mod otlp_boot {
-    #[expect(
-        clippy::unnecessary_wraps,
-        reason = "the export starts only with the otel feature; the boot step keeps one shape"
-    )]
-    pub(super) const fn start_otlp_export(
-        _ctx: &systemprompt_runtime::AppContext,
-    ) -> anyhow::Result<()> {
+    pub(super) fn start_otlp_export(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<()> {
+        let boot = ctx
+            .kernel()
+            .state()
+            .get::<systemprompt_loader::BootContext>()?;
+        systemprompt_logging::ExportCapability::COMPILED
+            .admit(boot.profile().observability.otlp())?;
         Ok(())
     }
 }

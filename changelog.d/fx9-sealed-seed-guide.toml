@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Documentation"
+text = "The 0.88 upgrade guide states which kernel seeds a resolution can read. Core provide fns, factories and slot builds read the host-sealed seeds. An install member reads only the `reserved::INSTALL_SEEDS` allow-list (`Arc<Config>`, `SystemAdmin`). A route set's state reads no host-sealed seed."

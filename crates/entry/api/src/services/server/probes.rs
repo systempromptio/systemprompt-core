@@ -43,7 +43,7 @@ use systemprompt_traits::ConfigWatch;
 use super::extension_readiness::ExtensionReadiness;
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
 use super::readiness::ReadinessState;
-use crate::services::middleware::LoadShed;
+use crate::services::middleware::load_shed::LoadShed;
 
 // JSON: an outgoing probe/discovery body is an open JSON document.
 pub(crate) async fn handle_livez(

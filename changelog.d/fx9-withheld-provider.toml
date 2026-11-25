@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Composition"
+text = "When a requirement's only provider is withheld because one of its dependencies is disabled, admission refuses it with `CompositionError::DisabledDependency` naming that provider. Previously the kernel failed later with a missing dependency."

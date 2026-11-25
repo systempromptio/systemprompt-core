@@ -14,6 +14,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod export_capability;
+#[cfg(test)]
 mod extension;
 #[cfg(test)]
 mod layer;

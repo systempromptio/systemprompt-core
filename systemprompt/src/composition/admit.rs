@@ -50,9 +50,10 @@ pub(super) fn withhold_dependants(
     members: &mut Vec<DeclaredMember>,
     absent: Vec<AbsentMember>,
     because: AbsentDependency,
-) -> Result<Vec<MemberWithheld>, CompositionError> {
+) -> Result<(Vec<MemberWithheld>, Vec<DeclaredMember>), CompositionError> {
     let mut absent = absent;
     let mut withheld = Vec::new();
+    let mut held_back = Vec::new();
     loop {
         let Some(position) = members.iter().position(|member| {
             member
@@ -61,7 +62,7 @@ pub(super) fn withhold_dependants(
                 .iter()
                 .any(|dependency| absent.iter().any(|(ty, _)| *ty == dependency.type_id()))
         }) else {
-            return Ok(withheld);
+            return Ok((withheld, held_back));
         };
         let member = members.remove(position);
         if member.standing.required() {
@@ -89,10 +90,11 @@ pub(super) fn withhold_dependants(
             .ok_or_else(|| CompositionError::RequiredDisabled(member.id.clone()))?;
         absent.push((member.type_id, member.id.clone()));
         withheld.push(MemberWithheld {
-            owner: member.id,
+            owner: member.id.clone(),
             dependency,
             because: reason,
         });
+        held_back.push(member);
     }
 }
 

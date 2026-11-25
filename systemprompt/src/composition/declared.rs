@@ -78,7 +78,7 @@ impl Declared {
     fn admit_with(self, extensions: &ExtensionsConfig) -> Result<Admitted, CompositionError> {
         let disabled = disabled_members(&self.members, &extensions.disabled)?;
         granted_members(&self.members, extensions)?;
-        let (mut enabled, dropped): (Vec<DeclaredMember>, Vec<DeclaredMember>) = self
+        let (mut enabled, mut dropped): (Vec<DeclaredMember>, Vec<DeclaredMember>) = self
             .members
             .into_iter()
             .partition(|member| !disabled.contains(&member.id));
@@ -87,8 +87,10 @@ impl Declared {
             .map(|member| (member.type_id, member.id.clone()))
             .collect();
         let mut withheld = self.withheld;
-        let cascaded = withhold_dependants(&mut enabled, absent, AbsentDependency::Disabled)?;
+        let (cascaded, held_back) =
+            withhold_dependants(&mut enabled, absent, AbsentDependency::Disabled)?;
         withheld.extend(cascaded);
+        dropped.extend(held_back);
         check_providers(&enabled, &dropped)?;
         drop(dropped);
         let mut members = Vec::with_capacity(enabled.len());

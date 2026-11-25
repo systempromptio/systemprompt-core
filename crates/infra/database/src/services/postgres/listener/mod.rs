@@ -36,7 +36,10 @@ use systemprompt_traits::BackgroundTasks;
 use tokio::sync::{Notify, broadcast, watch};
 use tokio_util::sync::CancellationToken;
 
+mod drain_next;
 mod session;
+
+pub use drain_next::DrainNext;
 
 const FAN_OUT_CAPACITY: usize = 4096;
 

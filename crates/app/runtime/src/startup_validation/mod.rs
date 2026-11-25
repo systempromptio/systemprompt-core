@@ -20,7 +20,7 @@ use systemprompt_loader::BootContext;
 use systemprompt_logging::services::cli::{
     BrandColors, render_phase_success, render_phase_warning,
 };
-use systemprompt_logging::{CliService, OutputState};
+use systemprompt_logging::{CliService, ExportCapability, OutputState};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::validators::{
@@ -74,6 +74,17 @@ impl StartupValidator {
         let verbose = OutputState::current().is_startup_mode();
 
         report = report.with_profile_path(self.boot.profile_path());
+        if let Err(error) =
+            ExportCapability::COMPILED.admit(self.boot.profile().observability.otlp())
+        {
+            let mut observability = ValidationReport::new("observability");
+            observability.add_error(ValidationIssue::new(
+                "observability.otlp",
+                error.to_string(),
+            ));
+            report.add_domain(observability);
+            return report;
+        }
         for member in built.members() {
             for validator in member.sink.domain_configs() {
                 self.registry.register(validator(&self.services));

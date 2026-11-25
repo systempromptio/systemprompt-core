@@ -1,12 +1,16 @@
 //! A core member's requirement is met only by core members: an install
 //! cannot substitute for a disabled core provider (T6). A requirement is
 //! also met by the value an enabled member's slot builds, and refused when
-//! the only member opening that slot is disabled.
+//! the only member opening that slot is disabled. A requirement whose only
+//! provider is withheld with its disabled dependency names that provider.
 
 use std::sync::Arc;
 
 use systemprompt::{CompositionError, reference};
-use systemprompt_extension::{ProvideError, Resolved, Slot, SlotEntry, SlotError, SlotOrder};
+use systemprompt_extension::{
+    ContributionError, Contributions, Extension, ExtensionMetadata, ProvideError, Resolved, Slot,
+    SlotEntry, SlotError, SlotOrder,
+};
 use systemprompt_traits::content::DynContentCatalogStats;
 
 use crate::probe::{Probe, profile};
@@ -109,4 +113,61 @@ fn unknown_and_required_disables_are_refused() {
         reference().build(&profile(&["users"])),
         Err(CompositionError::RequiredDisabled(id)) if id.as_str() == "users"
     ));
+}
+
+struct Upstream;
+
+impl Extension for Upstream {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "probe-upstream",
+            name: "probe-upstream",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, _c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        Ok(())
+    }
+}
+
+struct Carried;
+
+struct Downstream;
+
+impl Extension for Downstream {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "probe-downstream",
+            name: "probe-downstream",
+            version: "0.0.0",
+        }
+    }
+
+    fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.depends_on::<Upstream>();
+        c.provide::<Arc<Carried>, _>(|_: &Resolved<'_>| Ok(Arc::new(Carried)));
+        Ok(())
+    }
+}
+
+#[test]
+fn a_requirement_met_only_by_a_member_withheld_with_its_dependency_names_it() {
+    let error = reference()
+        .with(Upstream)
+        .with(Downstream)
+        .with(Probe::new("probe-carried-reader", |c| {
+            c.requires::<Arc<Carried>>();
+        }))
+        .build(&profile(&["probe-upstream"]))
+        .expect_err("the only provider is withheld with its disabled dependency");
+    assert!(
+        matches!(
+            &error,
+            CompositionError::DisabledDependency { owner, provider, .. }
+                if owner.as_str() == "probe-carried-reader"
+                    && provider.as_str() == "probe-downstream"
+        ),
+        "{error:?}"
+    );
 }

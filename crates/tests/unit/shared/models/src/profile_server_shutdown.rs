@@ -116,3 +116,24 @@ fn the_total_budget_includes_the_stream_drain_deadline() {
             + shutdown.forced_exit_grace_secs
     );
 }
+
+const CONFIGURATION_REFERENCE: &str =
+    include_str!("../../../../../../documentation/reference/configuration.md");
+
+#[test]
+fn the_configuration_reference_states_the_default_shutdown_budget() {
+    let total = ShutdownConfig::default().total_budget().as_secs();
+    assert_eq!(total, 612);
+    assert!(
+        CONFIGURATION_REFERENCE.contains(
+            "pre_stop_delay_secs + min(max(drain_grace_secs, longest_stream_secs), 86400) + 2 \
+             + forced_exit_grace_secs"
+        ),
+        "the reference states the total_budget formula"
+    );
+    assert!(
+        CONFIGURATION_REFERENCE.contains(&format!("= {total} s")),
+        "the reference states the default total of {total} s"
+    );
+    assert!(CONFIGURATION_REFERENCE.contains("terminationGracePeriodSeconds"));
+}

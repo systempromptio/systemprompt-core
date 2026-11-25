@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Outbox consumers"
+text = "A brain or notifications drain round that fails outright, for example because the claim itself errors during a database outage, backs off for the poll interval in the same way as a cut-short round. Previously it went back to listening for wakes."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`DrainNext` (`Drain`, `Listen`, `BackOff`): the step an outbox consumer takes after a drain round. `DrainNext::of` maps a failed round to `BackOff`."
