@@ -125,7 +125,6 @@ impl Secrets {
             }
             let value = match grant {
                 SecretGrant::Custom(name) => self.custom_secret(name),
-                SecretGrant::EncryptionMasterKey => self.custom_secret("encryption_master_key"),
                 other => self.get(other.secret_key()),
             }
             .filter(|v| !v.is_empty());
@@ -141,10 +140,7 @@ impl Secrets {
             if env.iter().any(|(name, _)| *name == env_name) {
                 continue;
             }
-            if matches!(
-                grant,
-                SecretGrant::Custom(_) | SecretGrant::EncryptionMasterKey
-            ) {
+            if matches!(grant, SecretGrant::Custom(_)) {
                 custom_names.insert(env_name.clone());
             }
             env.push((env_name, value.clone()));

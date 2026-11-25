@@ -13,7 +13,7 @@ use systemprompt_extension::prelude::*;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::ai::DynAiProvider;
-use systemprompt_security::at_rest::AtRestCipher;
+use systemprompt_security::at_rest::{AtRestCipher, MasterKey};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{
     DynAiSessionProvider, DynContextMaterializer, ProviderTokenCache, SecretLookup, SecretStore,
@@ -27,7 +27,7 @@ use crate::{AiService, AiServiceProviders, PersonalProviderCredentials};
 
 pub(crate) fn repositories(r: &Resolved<'_>) -> Result<Arc<AiRepositories>, ProvideError> {
     let db = r.get::<DbPool>()?;
-    let cipher = match r.get::<Arc<dyn SecretStore>>()?.encryption_master_key() {
+    let cipher = match MasterKey::from_store(&*r.get::<Arc<dyn SecretStore>>()?) {
         Ok(key) => AtRestCipher::for_member(
             &key,
             &systemprompt_identifiers::ExtensionId::new(crate::repository::CREDENTIALS_OWNER),

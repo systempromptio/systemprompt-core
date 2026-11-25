@@ -18,15 +18,12 @@ fn a_server_without_secrets_parses_to_an_empty_grant_list() {
 }
 
 #[test]
-fn provider_encryption_and_custom_grants_parse() {
-    let deployment =
-        internal("secrets: [anthropic, encryption_master_key, \"custom:serp_api_key\"]\n")
-            .expect("parses");
+fn provider_and_custom_grants_parse() {
+    let deployment = internal("secrets: [anthropic, \"custom:serp_api_key\"]\n").expect("parses");
     assert_eq!(
         deployment.secrets,
         vec![
             SecretGrant::Provider(ProviderSecret::Anthropic),
-            SecretGrant::EncryptionMasterKey,
             SecretGrant::Custom("serp_api_key".to_owned()),
         ]
     );
@@ -74,10 +71,24 @@ fn a_custom_grant_naming_a_reserved_secret_resolves_to_that_secret() {
         "custom:anthropic".parse::<SecretGrant>(),
         Ok(SecretGrant::Provider(ProviderSecret::Anthropic))
     );
-    assert_eq!(
-        "custom:ENCRYPTION_MASTER_KEY".parse::<SecretGrant>(),
-        Ok(SecretGrant::EncryptionMasterKey)
-    );
+}
+
+#[test]
+fn the_master_key_is_never_a_grant() {
+    for raw in [
+        "encryption_master_key",
+        "ENCRYPTION_MASTER_KEY",
+        "custom:encryption_master_key",
+        "custom:ENCRYPTION_MASTER_KEY",
+    ] {
+        assert_eq!(
+            raw.parse::<SecretGrant>(),
+            Err(SecretGrantError::MasterKeyWithheld),
+            "{raw}"
+        );
+    }
+    let err = internal("secrets: [encryption_master_key]\n").expect_err("refused");
+    assert!(err.to_string().contains("member cipher"), "{err}");
 }
 
 #[test]
@@ -137,7 +148,7 @@ fn grants_on_an_external_server_are_refused() {
 
 #[test]
 fn a_grant_round_trips_through_its_manifest_spelling() {
-    for raw in ["anthropic", "encryption_master_key", "custom:serp_api_key"] {
+    for raw in ["anthropic", "custom:serp_api_key"] {
         let grant: SecretGrant = raw.parse().expect(raw);
         assert_eq!(grant.to_string(), raw);
     }

@@ -77,8 +77,8 @@ async fn a_child_host_withholds_every_conferral_and_still_boots() {
     let state = parts.kernel_state();
 
     assert!(
-        parts.secrets.encryption_master_key().is_ok(),
-        "the grant reached the child"
+        parts.secrets.encryption_master_key().is_err(),
+        "a child host never holds the master key, even from a planted variable"
     );
     assert!(state.find::<ConferralsWithheld>().is_some());
     assert!(

@@ -29,13 +29,16 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_security::at_rest::{AtRestCipher, member_key};
+use systemprompt_security::at_rest::{AtRestCipher, MasterKey};
 
 const JOURNAL_LABEL: &[u8] = b"systemprompt.gateway-journal.v1";
 const GATEWAY_MEMBER: &str = "gateway";
-use systemprompt_traits::SECRET_SEED_BYTES;
+const JOURNAL_DIR: &str = "gateway-journal";
 
-use crate::audit::journal::GatewayJournal;
+use chacha20poly1305::ChaCha20Poly1305;
+use chacha20poly1305::aead::KeyInit;
+
+use crate::audit::journal::{GatewayJournal, JournalReseal, reseal_segments};
 use crate::error::GatewayAuditError;
 
 #[derive(Debug, thiserror::Error)]
@@ -48,6 +51,12 @@ pub enum GatewayAtRestError {
     Journal(#[source] GatewayAuditError),
     #[error("the gateway journal handle is poisoned")]
     Poisoned,
+    #[error(
+        "the gateway journal holds {segments} segment(s) sealed before 0.88 with receipts not yet \
+         settled; run `systemprompt admin secrets reseal --member gateway --apply` before \
+         starting the gateway"
+    )]
+    PreUpgradeJournal { segments: u64 },
 }
 
 /// The accounting journal and the at-rest cipher, keyed once from the
@@ -55,7 +64,7 @@ pub enum GatewayAtRestError {
 #[derive(Clone)]
 pub struct GatewayAtRest {
     state_dir: Option<PathBuf>,
-    key: Option<[u8; SECRET_SEED_BYTES]>,
+    key: Option<MasterKey>,
     journal: Arc<Mutex<Option<GatewayJournal>>>,
 }
 
@@ -70,7 +79,7 @@ impl std::fmt::Debug for GatewayAtRest {
 
 impl GatewayAtRest {
     #[must_use]
-    pub fn new(state_dir: Option<PathBuf>, key: Option<[u8; SECRET_SEED_BYTES]>) -> Self {
+    pub fn new(state_dir: Option<PathBuf>, key: Option<MasterKey>) -> Self {
         Self {
             state_dir,
             key,
@@ -79,7 +88,7 @@ impl GatewayAtRest {
     }
 
     pub fn journal(&self) -> Result<GatewayJournal, GatewayAtRestError> {
-        let key = self.key.ok_or(GatewayAtRestError::KeyNotHeld)?;
+        let key = self.key.as_ref().ok_or(GatewayAtRestError::KeyNotHeld)?;
         let state_dir = self
             .state_dir
             .as_ref()
@@ -91,24 +100,94 @@ impl GatewayAtRest {
         if let Some(journal) = opened.as_ref() {
             return Ok(journal.clone());
         }
-        let key = member_key(&key, JOURNAL_LABEL, &ExtensionId::new(GATEWAY_MEMBER))
+        let master = key;
+        let key = master
+            .derive(JOURNAL_LABEL, &ExtensionId::new(GATEWAY_MEMBER))
             .map_err(|_unkeyable| GatewayAtRestError::KeyNotHeld)?;
+        let pending = reseal_segments(
+            &state_dir.join(JOURNAL_DIR),
+            &ChaCha20Poly1305::new(&key.into()),
+            master,
+            false,
+        )
+        .map_err(GatewayAtRestError::Journal)?;
+        if pending.pre_088 > 0 {
+            return Err(GatewayAtRestError::PreUpgradeJournal {
+                segments: pending.pre_088,
+            });
+        }
         let journal = GatewayJournal::open(state_dir, key).map_err(GatewayAtRestError::Journal)?;
         *opened = Some(journal.clone());
         drop(opened);
         Ok(journal)
     }
 
+    pub fn reseal_journal(&self, apply: bool) -> Result<JournalReseal, GatewayAtRestError> {
+        let master = self.key.as_ref().ok_or(GatewayAtRestError::KeyNotHeld)?;
+        let state_dir = self
+            .state_dir
+            .as_ref()
+            .ok_or(GatewayAtRestError::NoStateDir)?;
+        let key = master
+            .derive(JOURNAL_LABEL, &ExtensionId::new(GATEWAY_MEMBER))
+            .map_err(|_unkeyable| GatewayAtRestError::KeyNotHeld)?;
+        reseal_segments(
+            &state_dir.join(JOURNAL_DIR),
+            &ChaCha20Poly1305::new(&key.into()),
+            master,
+            apply,
+        )
+        .map_err(GatewayAtRestError::Journal)
+    }
+
     #[must_use]
     pub fn cipher(&self) -> AtRestCipher {
         self.key
+            .as_ref()
             .and_then(|key| {
                 AtRestCipher::for_member(
-                    &key,
+                    key,
                     &ExtensionId::new(systemprompt_ai::repository::CREDENTIALS_OWNER),
                 )
                 .ok()
             })
             .unwrap_or_else(AtRestCipher::withheld)
+    }
+}
+
+/// The gateway journal's segments as files `admin secrets reseal` re-keys.
+#[derive(Debug)]
+pub struct JournalFiles(pub Arc<GatewayAtRest>);
+
+impl systemprompt_extension::SealedFiles for JournalFiles {
+    fn owner(&self) -> ExtensionId {
+        ExtensionId::new(GATEWAY_MEMBER)
+    }
+
+    fn label(&self) -> &'static str {
+        JOURNAL_DIR
+    }
+
+    fn reseal(
+        &self,
+        apply: bool,
+    ) -> Result<systemprompt_extension::SealedFilesReport, systemprompt_extension::SealedFilesError>
+    {
+        let report = self.0.reseal_journal(apply).map_err(|error| {
+            systemprompt_extension::SealedFilesError {
+                owner: self.owner(),
+                source: Box::new(error),
+            }
+        })?;
+        Ok(systemprompt_extension::SealedFilesReport {
+            total: report.segments,
+            current: report.current,
+            resealed: if apply {
+                report.resealed
+            } else {
+                report.pre_088
+            },
+            undecodable: report.undecodable,
+        })
     }
 }

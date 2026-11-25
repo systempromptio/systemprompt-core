@@ -1,0 +1,19 @@
+[root]
+section = "Fixed"
+area = "MCP"
+text = "A tool execution is recorded only for a caller whose hop token verifies again at the executor and vouches for the caller's context; a caller assembled outside the toolset host records nothing."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`VerifiedCaller::__from_hop` is removed; `VerifiedCaller::presented(hop, context)` carries the hop token and `hop_token()` reads it."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpToolExecutor::new` and `McpToolExecutions::new` take a `CallerVerification`; `begin` refuses a caller whose hop token does not verify for the server or does not vouch for its context. Added `CallerVerification`, `CallerRefused` and `McpToolExecutor::server_name`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`McpHopIdentity::bind` and `McpHopIdentity::vouches_for`."

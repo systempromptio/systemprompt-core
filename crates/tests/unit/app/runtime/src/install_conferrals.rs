@@ -339,8 +339,8 @@ async fn a_member_cipher_opens_only_its_own_ciphertext() {
         .kernel()
         .state()
         .get::<Arc<dyn SecretStore>>()
+        .map(|store| systemprompt_security::at_rest::MasterKey::from_store(&**store))
         .expect("seeded")
-        .encryption_master_key()
         .expect("the test secrets hold a master key");
     let core =
         systemprompt_security::at_rest::AtRestCipher::for_member(&master, &ExtensionId::new("ai"))

@@ -103,7 +103,6 @@ impl ProviderSecret {
 #[serde(try_from = "String", into = "String")]
 pub enum SecretGrant {
     Provider(ProviderSecret),
-    EncryptionMasterKey,
     Storage,
     Custom(String),
 }
@@ -113,7 +112,6 @@ impl SecretGrant {
     pub fn env_name(&self) -> String {
         match self {
             Self::Provider(provider) => provider.env_name().to_owned(),
-            Self::EncryptionMasterKey => "ENCRYPTION_MASTER_KEY".to_owned(),
             Self::Storage => "STORAGE".to_owned(),
             Self::Custom(name) => name.to_ascii_uppercase(),
         }
@@ -123,7 +121,6 @@ impl SecretGrant {
     pub fn secret_key(&self) -> &str {
         match self {
             Self::Provider(provider) => provider.as_str(),
-            Self::EncryptionMasterKey => "encryption_master_key",
             Self::Storage => "storage",
             Self::Custom(name) => name,
         }
@@ -140,7 +137,6 @@ impl fmt::Display for SecretGrant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Provider(provider) => f.write_str(provider.as_str()),
-            Self::EncryptionMasterKey => f.write_str("encryption_master_key"),
             Self::Storage => f.write_str("storage"),
             Self::Custom(name) => write!(f, "{CUSTOM_PREFIX}{name}"),
         }
@@ -162,11 +158,17 @@ pub enum SecretGrantError {
     ApiHeld { name: String },
     #[error(
         "secret '{name}' is not grantable: name a provider (anthropic, openai, gemini, moonshot, \
-         qwen, github), encryption_master_key, storage, or custom:<name>"
+         qwen, github), storage, or custom:<name>"
     )]
     Unknown { name: String },
     #[error("custom secret name '{name}' must be non-empty lowercase ASCII letters, digits or '_'")]
     InvalidCustomName { name: String },
+    #[error(
+        "the encryption master key is never granted to a spawned server or agent: a member seals \
+         at rest through its conferred member cipher (`MemberCipher`), and pre-0.88 values move \
+         with `systemprompt admin secrets reseal --member <id> --apply`"
+    )]
+    MasterKeyWithheld,
     #[error(
         "the database URLs and verification keys are granted to every child; remove '{name}' from \
          secrets"
@@ -200,7 +202,7 @@ impl std::str::FromStr for SecretGrant {
                 return Err(SecretGrantError::ApiHeld { name });
             }
             if name == "encryption_master_key" {
-                return Ok(Self::EncryptionMasterKey);
+                return Err(SecretGrantError::MasterKeyWithheld);
             }
             return Ok(ProviderSecret::from_name(&name).map_or(Self::Custom(name), Self::Provider));
         }
@@ -212,7 +214,7 @@ impl std::str::FromStr for SecretGrant {
             return Err(SecretGrantError::AlwaysGranted { name });
         }
         if name == "encryption_master_key" {
-            return Ok(Self::EncryptionMasterKey);
+            return Err(SecretGrantError::MasterKeyWithheld);
         }
         if name == "storage" {
             return Ok(Self::Storage);

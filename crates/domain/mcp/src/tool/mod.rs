@@ -19,8 +19,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod caller;
 mod execution;
 
+pub use caller::{CallerRefused, CallerVerification, ServerCallers};
 pub use execution::McpToolExecutions;
 
 use crate::models::{McpToolExecutionStatus, ToolExecutionResult};
@@ -47,16 +49,26 @@ pub struct McpToolExecutor {
     ingest: Arc<ArtifactIngest>,
     renderers: Arc<UiRendererRegistry>,
     server_name: McpServerId,
+    callers: CallerVerification,
 }
 
 impl McpToolExecutor {
+    #[must_use]
+    pub const fn server_name(&self) -> &McpServerId {
+        &self.server_name
+    }
+
     pub fn new(
         tool_usage_repo: Arc<ToolUsageRepository>,
         intents: Option<DynToolCallIntentClaims>,
         ingest: Arc<ArtifactIngest>,
         renderers: Arc<UiRendererRegistry>,
-        server_name: McpServerId,
+        server: ServerCallers,
     ) -> Self {
+        let ServerCallers {
+            server: server_name,
+            verification: callers,
+        } = server;
         Self {
             intent_claims: intents
                 .map(|intents| IntentClaimService::new(intents, Arc::clone(&tool_usage_repo))),
@@ -64,6 +76,7 @@ impl McpToolExecutor {
             ingest,
             renderers,
             server_name,
+            callers,
         }
     }
 

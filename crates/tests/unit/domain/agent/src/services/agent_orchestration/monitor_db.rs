@@ -35,7 +35,6 @@ fn db_service_with(
     AgentDatabaseService::with_registry(repo, registry)
 }
 
-
 #[tokio::test]
 async fn health_check_reports_not_running_for_unknown_agent() {
     let pool = test_db_pool().await;

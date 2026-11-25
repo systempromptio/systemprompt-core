@@ -76,24 +76,12 @@ pub(super) fn seal(cipher: &ChaCha20Poly1305, entry: &Record<'_>) -> Result<Vec<
         plain.len() <= MAX_PLAIN,
         "Gateway completion exceeds journal capacity",
     )?;
-    let nonce: [u8; NONCE] = rand::random();
-    let sealed = cipher
-        .encrypt(&Nonce::from(nonce), plain.as_slice())
-        .map_err(GatewayAuditError::Encrypt)?;
-    let body = u32::try_from(NONCE + sealed.len())
-        .map_err(|_overflow| GatewayAuditError::Invariant("Journal frame too large"))?;
-    let mut frame = Vec::with_capacity(4 + NONCE + sealed.len());
-    frame.extend_from_slice(&body.to_le_bytes());
-    frame.extend_from_slice(&nonce);
-    frame.extend_from_slice(&sealed);
-    Ok(frame)
+    seal_plain(cipher, &plain)
 }
 
 fn open_body(cipher: &ChaCha20Poly1305, body: &[u8]) -> Result<Entry> {
-    ensure(body.len() > NONCE, "Truncated journal frame")?;
-    let (nonce, sealed) = body.split_at(NONCE);
-    let mut fixed = [0u8; NONCE];
-    fixed.copy_from_slice(nonce);
+    let (fixed, sealed) =
+        split_body(body).ok_or(GatewayAuditError::Invariant("Truncated journal frame"))?;
     let plain = cipher
         .decrypt(&Nonce::from(fixed), sealed)
         .map_err(GatewayAuditError::Authenticate)?;
@@ -119,13 +107,20 @@ pub(super) struct Scanned {
     pub torn: Option<(u64, GatewayAuditError)>,
 }
 
-pub(super) fn scan(cipher: &ChaCha20Poly1305, path: &Path) -> Result<Scanned> {
-    let bytes = fs::read(path)?;
-    let mut entries = Vec::new();
+pub(super) struct Frames<'a> {
+    pub bodies: Vec<(usize, &'a [u8])>,
+    pub cut: Option<(usize, &'static str)>,
+}
+
+pub(super) fn frames(bytes: &[u8]) -> Frames<'_> {
+    let mut bodies = Vec::new();
     let mut at = 0usize;
     while at < bytes.len() {
         let Some(header) = bytes.get(at..at + 4) else {
-            return Ok(torn(entries, at, "Journal frame header cut short"));
+            return Frames {
+                bodies,
+                cut: Some((at, "Journal frame header cut short")),
+            };
         };
         let mut raw = [0u8; 4];
         raw.copy_from_slice(header);
@@ -134,9 +129,52 @@ pub(super) fn scan(cipher: &ChaCha20Poly1305, path: &Path) -> Result<Scanned> {
             .get(at + 4..at + 4 + body)
             .filter(|_| body <= MAX_BODY)
         else {
-            return Ok(torn(entries, at, "Journal frame body cut short"));
+            return Frames {
+                bodies,
+                cut: Some((at, "Journal frame body cut short")),
+            };
         };
-        match open_body(cipher, frame) {
+        bodies.push((at, frame));
+        at += 4 + body;
+    }
+    Frames { bodies, cut: None }
+}
+
+pub(super) fn frame_of(body: &[u8]) -> Result<Vec<u8>> {
+    let len = u32::try_from(body.len())
+        .map_err(|_overflow| GatewayAuditError::Invariant("Journal frame too large"))?;
+    let mut frame = Vec::with_capacity(4 + body.len());
+    frame.extend_from_slice(&len.to_le_bytes());
+    frame.extend_from_slice(body);
+    Ok(frame)
+}
+
+pub(super) fn split_body(body: &[u8]) -> Option<([u8; NONCE], &[u8])> {
+    (body.len() > NONCE).then(|| {
+        let (nonce, sealed) = body.split_at(NONCE);
+        let mut fixed = [0u8; NONCE];
+        fixed.copy_from_slice(nonce);
+        (fixed, sealed)
+    })
+}
+
+pub(super) fn seal_plain(cipher: &ChaCha20Poly1305, plain: &[u8]) -> Result<Vec<u8>> {
+    let nonce: [u8; NONCE] = rand::random();
+    let sealed = cipher
+        .encrypt(&Nonce::from(nonce), plain)
+        .map_err(GatewayAuditError::Encrypt)?;
+    let mut body = Vec::with_capacity(NONCE + sealed.len());
+    body.extend_from_slice(&nonce);
+    body.extend_from_slice(&sealed);
+    frame_of(&body)
+}
+
+pub(super) fn scan(cipher: &ChaCha20Poly1305, path: &Path) -> Result<Scanned> {
+    let bytes = fs::read(path)?;
+    let framed = frames(&bytes);
+    let mut entries = Vec::new();
+    for (at, body) in framed.bodies {
+        match open_body(cipher, body) {
             Ok(entry) => entries.push(entry),
             Err(error) => {
                 return Ok(Scanned {
@@ -145,17 +183,11 @@ pub(super) fn scan(cipher: &ChaCha20Poly1305, path: &Path) -> Result<Scanned> {
                 });
             },
         }
-        at += 4 + body;
     }
     Ok(Scanned {
         entries,
-        torn: None,
+        torn: framed
+            .cut
+            .map(|(at, why)| (at as u64, GatewayAuditError::Invariant(why))),
     })
-}
-
-const fn torn(entries: Vec<Entry>, at: usize, why: &'static str) -> Scanned {
-    Scanned {
-        entries,
-        torn: Some((at as u64, GatewayAuditError::Invariant(why))),
-    }
 }

@@ -33,6 +33,7 @@ use systemprompt_models::auth::{
 };
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::AuthError;
+use systemprompt_security::at_rest::MasterKey;
 use systemprompt_security::conferred::{MemberCiphers, MemberShareTokens};
 use systemprompt_security::jwt::decode_scoped_token;
 use systemprompt_security::keys::VerificationKeyring;
@@ -47,8 +48,7 @@ pub(super) fn with_secret_issuers(
     mut state: Dependencies,
     secrets: &dyn SecretStore,
 ) -> Dependencies {
-    if let Some(ciphers) = secrets
-        .encryption_master_key()
+    if let Some(ciphers) = MasterKey::from_store(secrets)
         .ok()
         .and_then(|key| MemberCiphers::from_master_key(&key).ok())
     {

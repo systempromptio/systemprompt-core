@@ -120,11 +120,11 @@ impl InstallServicesView {
             .iter()
             .filter_map(|source| {
                 let (transport, location) = match (&source.https, &source.oci) {
+                    (_, Some(oci)) => (SourceTransport::Oci, Some(oci.reference.clone())),
                     (Some(https), None) => {
                         (SourceTransport::Https, credential_free_url(&https.url))
                     },
-                    (None, Some(oci)) => (SourceTransport::Oci, Some(oci.reference.clone())),
-                    _ => return None,
+                    (None, None) => return None,
                 };
                 Some(ServicesSourceView {
                     name: source.name.clone(),

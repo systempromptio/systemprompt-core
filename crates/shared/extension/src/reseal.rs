@@ -31,6 +31,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_identifiers::ExtensionId;
 use thiserror::Error;
 
@@ -227,3 +229,36 @@ impl AdmittedReseals {
         members
     }
 }
+
+/// The counts of one member's sealed files, judged by the scheme each opens
+/// under.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SealedFilesReport {
+    pub total: u64,
+    pub current: u64,
+    pub resealed: u64,
+    pub undecodable: u64,
+}
+
+#[derive(Debug, Error)]
+#[error("the sealed files of {owner} could not be re-sealed")]
+pub struct SealedFilesError {
+    pub owner: ExtensionId,
+    #[source]
+    pub source: Box<dyn std::error::Error + Send + Sync>,
+}
+
+/// Files a core member seals at rest that `admin secrets reseal` re-keys
+/// alongside its declared columns (the gateway journal's segments).
+///
+/// Provided sealed by the member that owns the files, so only core reads it.
+/// `reseal(false)` writes nothing.
+pub trait SealedFiles: Send + Sync + std::fmt::Debug {
+    fn owner(&self) -> ExtensionId;
+
+    fn label(&self) -> &'static str;
+
+    fn reseal(&self, apply: bool) -> Result<SealedFilesReport, SealedFilesError>;
+}
+
+pub type DynSealedFiles = Arc<dyn SealedFiles>;

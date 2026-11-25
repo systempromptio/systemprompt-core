@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "MCP"
+text = "A hosted toolset lists resources for the hop-verified caller; the host refuses a listing without one."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`McpToolset::list_resources` is async and takes `ResourceList { caller }`."

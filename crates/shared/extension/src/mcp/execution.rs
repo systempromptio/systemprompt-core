@@ -3,7 +3,8 @@
 //!
 //! [`execute`] runs one typed [`McpToolHandler`] against a
 //! [`ToolExecution`]: [`ToolExecution::begin`] records the start of the
-//! execution for the hop-verified [`VerifiedCaller`] it is handed and returns
+//! execution for the [`VerifiedCaller`] it is handed, once its hop token
+//! verifies again, and returns
 //! the context
 //! the handler runs with (an AI tool-call intent claimed when one matches);
 //! the handler runs; [`ToolExecution::finish`] persists the output as an
@@ -57,8 +58,10 @@ pub struct ToolOutput {
 /// Records and shapes one tool execution for one MCP server.
 ///
 /// The executor records usage and audit for the [`VerifiedCaller`] it is
-/// handed, which only the toolset host's hop admission builds, so the seam is
-/// open (rule 111): it reads no secret and acts for no subject of its own.
+/// handed only after re-verifying the caller's hop token and that the token
+/// vouches for the caller's context, so the seam is open (rule 111): a forged
+/// caller records nothing, and the executor reads no secret and acts for no
+/// subject of its own.
 /// Injected as `dyn ToolExecution`, hence `#[async_trait]`.
 #[async_trait]
 pub trait ToolExecution: Send + Sync + Debug {

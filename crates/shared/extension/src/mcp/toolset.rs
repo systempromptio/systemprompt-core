@@ -35,6 +35,14 @@ pub struct ResourceRead<'a> {
     pub caller: &'a VerifiedCaller,
 }
 
+/// One resource listing, already authenticated by the host, with the caller
+/// the platform proxy verified, so a toolset lists only what it would read
+/// for that caller.
+#[derive(Debug, Clone, Copy)]
+pub struct ResourceList<'a> {
+    pub caller: &'a VerifiedCaller,
+}
+
 /// One tool call, already authenticated and authorised by the host.
 #[derive(Debug, Clone, Copy)]
 pub struct ToolsetCall<'a> {
@@ -51,8 +59,9 @@ pub struct ToolsetCall<'a> {
 /// A toolset that serves resources answers `true` from `serves_resources`, so
 /// the host advertises the capability; its `read_resource` answers `None` for
 /// a URI it does not own, so the host asks the next toolset. The host reads a
-/// resource only for a caller the platform proxy verified, and hands that
-/// caller to `read_resource`, so a toolset scopes what it serves to it.
+/// resource, and lists resources, only for a caller the platform proxy
+/// verified, and hands that caller to `list_resources` and `read_resource`, so
+/// a toolset scopes what it lists and serves to it.
 ///
 /// `#[async_trait]` because the host holds toolsets as `Box<dyn McpToolset>`,
 /// which native `async fn` in traits cannot be.
@@ -72,7 +81,7 @@ pub trait McpToolset: Send + Sync + Debug {
         false
     }
 
-    fn list_resources(&self) -> ListResourcesResult {
+    async fn list_resources(&self, _list: ResourceList<'_>) -> ListResourcesResult {
         ListResourcesResult::default()
     }
 

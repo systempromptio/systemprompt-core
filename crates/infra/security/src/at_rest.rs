@@ -73,7 +73,38 @@ pub enum AtRestCipherError {
 
 pub const MEMBER_CIPHER_LABEL: &[u8] = b"systemprompt.member-cipher.v1";
 
-pub fn member_key(
+/// The deployment's `encryption_master_key`, read from the secret store.
+///
+/// The one way to hold it is [`MasterKey::from_store`]: no derivation in this
+/// module takes key bytes, so a crate that obtained bytes some other way has
+/// no entry point here. The raw key never enters a child's environment (a
+/// service cannot grant it), so a child or install process holds none.
+#[derive(Clone)]
+pub struct MasterKey(std::sync::Arc<[u8; 32]>);
+
+impl std::fmt::Debug for MasterKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("MasterKey(<redacted>)")
+    }
+}
+
+impl MasterKey {
+    pub fn from_store(
+        store: &dyn systemprompt_traits::SecretStore,
+    ) -> Result<Self, systemprompt_traits::SecretStoreError> {
+        Ok(Self(std::sync::Arc::new(store.encryption_master_key()?)))
+    }
+
+    pub fn derive(&self, label: &[u8], member: &ExtensionId) -> Result<[u8; 32], AtRestHashError> {
+        member_key(&self.0, label, member)
+    }
+
+    pub(crate) fn bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+pub(crate) fn member_key(
     master_key: &[u8; 32],
     label: &[u8],
     member: &ExtensionId,
@@ -105,12 +136,12 @@ impl std::fmt::Debug for AtRestCipher {
 
 impl AtRestCipher {
     pub fn for_member(
-        master_key: &[u8; 32],
+        master_key: &MasterKey,
         member: &ExtensionId,
     ) -> Result<Self, AtRestHashError> {
         Ok(Self {
             key: Some(std::sync::Arc::new(member_key(
-                master_key,
+                master_key.bytes(),
                 MEMBER_CIPHER_LABEL,
                 member,
             )?)),
@@ -183,21 +214,21 @@ fn open_with(
 pub mod pre_088 {
     use chacha20poly1305::{ChaCha20Poly1305, KeyInit};
 
-    use super::{AtRestCipherError, open_with, split_hex};
+    use super::{AtRestCipherError, MasterKey, open_with, split_hex};
 
     pub fn open(
-        master_key: &[u8; 32],
+        master_key: &MasterKey,
         nonce: &[u8],
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, AtRestCipherError> {
         open_with(
-            &ChaCha20Poly1305::new(&(*master_key).into()),
+            &ChaCha20Poly1305::new(&(*master_key.bytes()).into()),
             nonce,
             ciphertext,
         )
     }
 
-    pub fn open_hex(master_key: &[u8; 32], sealed: &str) -> Result<Vec<u8>, AtRestCipherError> {
+    pub fn open_hex(master_key: &MasterKey, sealed: &str) -> Result<Vec<u8>, AtRestCipherError> {
         let (nonce, ciphertext) = split_hex(sealed)?;
         open(master_key, &nonce, &ciphertext)
     }

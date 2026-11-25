@@ -104,12 +104,6 @@ pub fn agent_child_secrets(
                 e,
             )
         })?;
-    if agent
-        .secrets
-        .contains(&systemprompt_models::subprocess::SecretGrant::EncryptionMasterKey)
-    {
-        tracing::info!(agent = %agent_name, grant = "encryption_master_key", "agent granted the encryption master key");
-    }
     let keys = serde_json::to_string(&environment.verification_keys).map_err(|e| {
         OrchestrationError::spawn(
             format!("Failed to serialise the verification keys for agent {agent_name}"),

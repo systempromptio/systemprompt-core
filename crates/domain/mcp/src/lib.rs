@@ -82,7 +82,10 @@ pub use services::artifact_ingest::{
 pub use services::intent_claim::IntentClaimService;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
-pub use tool::{INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutions, McpToolExecutor};
+pub use tool::{
+    CallerRefused, CallerVerification, INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutions,
+    McpToolExecutor, ServerCallers,
+};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings,

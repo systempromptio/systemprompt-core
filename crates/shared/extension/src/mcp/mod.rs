@@ -34,4 +34,4 @@ pub use schema::McpOutputSchema;
 pub use session_store::{
     DynMcpSessionStore, McpSessionStore, McpSessionStoreError, McpSessionStoreResult,
 };
-pub use toolset::{McpToolset, ResourceRead, ToolsetCall};
+pub use toolset::{McpToolset, ResourceList, ResourceRead, ToolsetCall};

@@ -66,7 +66,6 @@ pub enum WithdrawalStatus {
     Rejected,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithdrawalProposal {
     pub id: WithdrawalProposalId,
