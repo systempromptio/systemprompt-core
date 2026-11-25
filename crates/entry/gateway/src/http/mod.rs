@@ -59,9 +59,10 @@ use systemprompt_gateway::surface::repositories::gateway_repositories;
 use systemprompt_gateway::{
     GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
 };
+use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
 use systemprompt_traits::{DynContextMaterializer, DynGatewaySessionMint};
 
-use self::bridge::{BridgeMarketplace, BridgeRouteState};
+use self::bridge::BridgeRouteState;
 use self::state::{GatewayHttpRepositories, GatewayHttpState};
 use systemprompt_gateway::surface::views::{
     BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsView,
@@ -153,6 +154,13 @@ fn bridge_state(
         tracing::info!("this host seeds no bridge views; no bridge route is built");
         return Ok(None);
     };
+    let Some(catalog) = resolved.optional::<DynBridgeCatalogSource>() else {
+        tracing::info!(
+            reason = "managed_resources_member_not_admitted",
+            "no bridge catalogue source; no bridge route is built"
+        );
+        return Ok(None);
+    };
     let personal_credentials = resolved
         .optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>()
         .map(
@@ -163,11 +171,7 @@ fn bridge_state(
     Ok(Some(BridgeRouteState {
         authenticator: resolved.get()?,
         repos: own.bridge.clone(),
-        marketplace: BridgeMarketplace {
-            managed: resolved.get()?,
-            cache: resolved.get()?,
-            seams: resolved.get()?,
-        },
+        catalog,
         signer,
         releases,
         settings,

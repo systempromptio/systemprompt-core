@@ -29,7 +29,6 @@ http = [
     "dep:systemprompt-identifiers",
     "dep:systemprompt-manifest",
     "dep:systemprompt-marketplace",
-    "systemprompt-marketplace/http",
     "dep:systemprompt-models",
     "dep:axum",
     "dep:serde",

@@ -4,13 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod credentials;
 mod plan;
 mod receipts;
 mod repository;
 mod sessions;
 
-pub use credentials::IssuedConsumerCredential;
 pub use receipts::verify_readback;
 pub use sessions::ConsumerSessionBinding;
 

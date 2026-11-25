@@ -27,7 +27,9 @@ use crate::managed::RevisionFiles;
 use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::host::{COWORK_TARGET, HostKind};
 use systemprompt_models::bridge::manifest::SkillEntry;
-use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
+use systemprompt_models::bridge::manifest::skill_frontmatter::{
+    skill_bundle_markdown, skill_bundle_path,
+};
 use systemprompt_models::plugin::ComponentSource;
 
 use super::{BundleContent, BundleFile, PluginBundle};
@@ -72,7 +74,7 @@ pub(super) fn append_skill_files(
         bundle.insert(
             skill_bundle_path(&skill.id),
             BundleFile {
-                bytes: skill_md(&kebab, skill)?.into_bytes(),
+                bytes: skill_md(skill)?.into_bytes(),
                 executable: false,
             },
         );
@@ -82,12 +84,6 @@ pub(super) fn append_skill_files(
         }
     }
     Ok(())
-}
-
-// Why: Where a plugin bundle carries a skill's `SKILL.md`.
-#[must_use]
-pub fn skill_bundle_path(id: &SkillId) -> String {
-    format!("skills/{}/SKILL.md", id.as_str().replace('_', "-"))
 }
 
 pub(crate) fn resolve_skill_ids(
@@ -136,20 +132,10 @@ fn insert_skill_id(ids: &mut BTreeSet<SkillId>, raw: &str) {
     }
 }
 
-// Why: The exact `SKILL.md` text a bundle carries for `skill`.
-pub fn skill_bundle_markdown(skill: &SkillEntry) -> Result<String, MarketplaceError> {
-    skill_md(&skill.id.as_str().replace('_', "-"), skill)
-}
-
-fn skill_md(kebab: &str, skill: &SkillEntry) -> Result<String, MarketplaceError> {
-    let passthrough = render_passthrough_frontmatter(skill.frontmatter.as_ref()).map_err(|e| {
+fn skill_md(skill: &SkillEntry) -> Result<String, MarketplaceError> {
+    skill_bundle_markdown(skill).map_err(|e| {
         MarketplaceError::catalog(format!("skill {} frontmatter", skill.id.as_str()), e)
-    })?;
-    Ok(format!(
-        "---\nname: {kebab}\ndescription: \"{}\"\n{passthrough}---\n\n{}\n",
-        skill.description.replace('"', "\\\""),
-        skill.instructions.as_deref().unwrap_or_default().trim()
-    ))
+    })
 }
 
 fn append_disk_aux_files(

@@ -1,8 +1,9 @@
 //! Bridge manifest endpoint.
 //!
-//! Loads auth, version, tenant, and per-user context, then delegates catalogue
-//! assembly, marketplace scoping, per-user filtering, and signing to
-//! `systemprompt_marketplace`.
+//! Loads auth, version, tenant, and per-user context, resolves the user's
+//! catalogue through the `DynBridgeCatalogSource` the `managed_resources`
+//! member provides (catalogue assembly, marketplace scoping and per-user
+//! filtering), and signs the manifest.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,7 +20,7 @@ use chrono::{DateTime, Duration, Utc};
 use systemprompt_gateway::surface::views::GatewayManifestSigner;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::{BridgePolicyConfig, BridgeReleasesSpec};
-use systemprompt_marketplace::MarketplaceCandidate;
+use systemprompt_extension::bridge_catalog::{CatalogFreshness, ManifestEntries};
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_INLINE_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope,
@@ -45,16 +46,15 @@ pub async fn manifest(
     let desktop_policy = desktop_policy(&services);
     let (branding, bridge_versions) = instance_presentation(&services);
 
-    let (candidate, bridge_policy) = assemble_candidate(
+    let (entries, bridge_policy) = assemble_candidate(
         &state,
         &claims.user_id,
         (*services).clone(),
-        resolved::Freshness::from_headers(&headers),
+        resolved::freshness_from_headers(&headers),
     )
     .await?;
     let resolved_at = Instant::now();
-    let (entries, _filter_context) = candidate.into_manifest_parts();
-    let systemprompt_marketplace::ManifestEntries {
+    let ManifestEntries {
         plugins,
         skills,
         rules,
@@ -203,14 +203,14 @@ pub async fn assemble_candidate(
     state: &BridgeRouteState,
     user_id: &UserId,
     services: systemprompt_manifest::services::ServicesConfig,
-    freshness: resolved::Freshness,
-) -> Result<(MarketplaceCandidate, BridgePolicyConfig), BridgeError> {
+    freshness: CatalogFreshness,
+) -> Result<(ManifestEntries, BridgePolicyConfig), BridgeError> {
     let bridge_policy = services.bridge_policy.unwrap_or_default();
     let resolved = resolved::resolve_for_user(state, &services, user_id, freshness)
         .await
         .map_err(|e| BridgeError::internal("manifest: catalogue resolution failed", e))?;
-    record_catalog_grants(state, user_id, &resolved.candidate).await?;
-    Ok(((*resolved.candidate).clone(), bridge_policy))
+    record_catalog_grants(state, user_id, resolved.as_ref()).await?;
+    Ok((resolved.manifest_entries(), bridge_policy))
 }
 
 struct ManifestStamp {

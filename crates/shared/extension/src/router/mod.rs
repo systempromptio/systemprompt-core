@@ -27,6 +27,8 @@ mod capability;
 #[cfg(feature = "router")]
 mod http_error;
 #[cfg(feature = "router")]
+mod managed_surface;
+#[cfg(feature = "router")]
 mod negotiation;
 mod overlap;
 mod principal;
@@ -75,6 +77,11 @@ pub use shape::{
 pub use sse::{
     HEARTBEAT_INTERVAL, HEARTBEAT_JSON, frame_event, sse_response, standard_keep_alive,
     subscription_refused,
+};
+#[cfg(feature = "router")]
+pub use managed_surface::{
+    ConsumerCatalog, ConsumerNormalizer, DynConsumerCatalog, DynManagedSurface, ManagedRouteState,
+    ManagedRoutes, ManagedSurface,
 };
 #[cfg(feature = "router")]
 pub use surface::{DynMcpSurface, DynSyncSurface, McpRoutes, McpSurface, SyncSurface};

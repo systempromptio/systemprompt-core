@@ -12,7 +12,7 @@
 //! provide fn builds from the configuration and the system admin.
 //!
 //! It also provides the open
-//! [`DynManagedSurface`](systemprompt_marketplace::surface::DynManagedSurface)
+//! [`DynManagedSurface`](systemprompt_extension::router::DynManagedSurface)
 //! the API builds the device-credential consumer routes under `/api/v1`
 //! from; the API keeps their protection (handler-verified by the managed
 //! device credential, the `consumer_evidence` limit) between the member's
@@ -77,7 +77,7 @@ mod routes {
     use systemprompt_marketplace::MarketplaceCache;
     use systemprompt_marketplace::managed::ManagedRepository;
 
-    use systemprompt_marketplace::surface::DynManagedSurface;
+    use systemprompt_extension::router::DynManagedSurface;
 
     use crate::http::{ManagedHttpSurface, MarketplaceHttpSettings, public_routes};
 

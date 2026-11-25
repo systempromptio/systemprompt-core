@@ -114,7 +114,7 @@ systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["
 systemprompt-identity-entry = { path = "../../../entry/identity", features = ["cli", "http"] }
 systemprompt-issues = { path = "../../../app/issues", features = ["cli"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli", "otel"] }
-systemprompt-marketplace = { path = "../../../domain/marketplace", features = ["http"] }
+systemprompt-marketplace = { path = "../../../domain/marketplace" }
 systemprompt-marketplace-entry = { path = "../../../entry/marketplace", features = ["cli", "http"] }
 systemprompt-mcp-entry = { path = "../../../entry/mcp", features = ["cli", "http"] }
 systemprompt-models = { path = "../../../shared/models", features = ["mcp", "sqlx"] }

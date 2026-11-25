@@ -44,10 +44,9 @@ use systemprompt_gateway::surface::views::{
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::UserId;
-use systemprompt_marketplace::contract::MarketplaceSeams;
-use systemprompt_marketplace::managed::ManagedRepository;
-use systemprompt_marketplace::surface::{ConsumerCatalog, DynConsumerCatalog};
-use systemprompt_marketplace::{MarketplaceCache, MarketplaceCandidate};
+use systemprompt_extension::bridge_catalog::{CatalogFreshness, DynBridgeCatalogSource};
+use systemprompt_extension::router::{ConsumerCatalog, DynConsumerCatalog};
+use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_oauth::repository::{BridgeHostPrefsRepository, BridgeSessionRepository};
@@ -75,26 +74,12 @@ impl std::fmt::Debug for BridgeRepositories {
     }
 }
 
-/// The marketplace state the `managed_resources` member provides.
-#[derive(Clone)]
-pub struct BridgeMarketplace {
-    pub managed: Arc<ManagedRepository>,
-    pub cache: Arc<MarketplaceCache>,
-    pub seams: Arc<MarketplaceSeams>,
-}
-
-impl std::fmt::Debug for BridgeMarketplace {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BridgeMarketplace").finish_non_exhaustive()
-    }
-}
-
 /// What every bridge handler reads.
 #[derive(Clone)]
 pub struct BridgeRouteState {
     pub authenticator: DynRequestAuthenticator,
     pub repos: BridgeRepositories,
-    pub marketplace: BridgeMarketplace,
+    pub catalog: DynBridgeCatalogSource,
     pub signer: Arc<GatewayManifestSigner>,
     pub releases: Arc<BridgeReleaseSource>,
     pub settings: Arc<GatewaySettingsView>,
@@ -246,17 +231,17 @@ struct BridgeConsumerCatalog {
 
 #[async_trait::async_trait]
 impl ConsumerCatalog for BridgeConsumerCatalog {
-    async fn candidate(&self, consumer: &UserId) -> Result<MarketplaceCandidate, BoxedSource> {
+    async fn granted_skills(&self, consumer: &UserId) -> Result<Vec<SkillEntry>, BoxedSource> {
         let services = self.state.host.services.view().config();
-        let (candidate, _) = manifest::assemble_candidate(
+        let (entries, _) = manifest::assemble_candidate(
             &self.state,
             consumer,
             (*services).clone(),
-            resolved::Freshness::Memo,
+            CatalogFreshness::Memo,
         )
         .await
         .map_err(|error| -> BoxedSource { Box::new(error) })?;
-        Ok(candidate)
+        Ok(entries.skills)
     }
 }
 

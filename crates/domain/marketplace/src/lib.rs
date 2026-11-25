@@ -72,16 +72,13 @@ mod manifest;
 mod membership;
 mod scope;
 mod service;
-#[cfg(feature = "http")]
-pub mod surface;
 pub mod trace;
 mod view;
 
 pub use bundle::{
     BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
-    skill_bundle_markdown, skill_bundle_path,
 };
-pub use candidate::{EntryKeepSets, FilterContext, ManifestEntries, MarketplaceCandidate};
+pub use candidate::{EntryKeepSets, FilterContext, MarketplaceCandidate};
 pub use catalog::{
     BundleMap, CatalogContent, MarketplaceCache, RESOLVED_CAPACITY, RESOLVED_TTL, ResolvedCatalog,
     ResolvedKey, plugin_bundles,

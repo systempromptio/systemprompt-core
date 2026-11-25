@@ -8,12 +8,17 @@
 //! written back after `name` and `description`, keys sorted at every depth,
 //! by every renderer —
 //! the Claude Code bundle and the bridge's Codex, `OpenCode` and Hermes skill
-//! writers alike — so they share this one implementation.
+//! writers alike — so they share this one implementation. [`skill_bundle_path`]
+//! and [`skill_bundle_markdown`] are where a plugin bundle carries a skill's
+//! `SKILL.md` and its exact text.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_yaml::{Mapping, Value};
+use systemprompt_identifiers::SkillId;
+
+use super::SkillEntry;
 
 pub const PLATFORM_OWNED_SKILL_KEYS: [&str; 7] = [
     "name",
@@ -76,4 +81,19 @@ fn sort_key(key: &Value) -> String {
         || serde_yaml::to_string(key).unwrap_or_default(),
         str::to_owned,
     )
+}
+
+#[must_use]
+pub fn skill_bundle_path(id: &SkillId) -> String {
+    format!("skills/{}/SKILL.md", id.as_str().replace('_', "-"))
+}
+
+pub fn skill_bundle_markdown(skill: &SkillEntry) -> Result<String, serde_yaml::Error> {
+    let kebab = skill.id.as_str().replace('_', "-");
+    let passthrough = render_passthrough_frontmatter(skill.frontmatter.as_ref())?;
+    Ok(format!(
+        "---\nname: {kebab}\ndescription: \"{}\"\n{passthrough}---\n\n{}\n",
+        skill.description.replace('"', "\\\""),
+        skill.instructions.as_deref().unwrap_or_default().trim()
+    ))
 }

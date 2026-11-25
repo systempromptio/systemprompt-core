@@ -11,8 +11,10 @@
 //! refusal from any inner layer is normalised too.
 //!
 //! [`ConsumerCatalog`] is the one read the handlers take from the host: the
-//! marketplace candidate a consumer's bridge manifest resolves to, which the
-//! resource authorization matches the requested publication against.
+//! skills a consumer's bridge manifest grants, which the resource
+//! authorization matches the requested publication against. The
+//! `gateway-http` member builds it over the bridge catalogue; the
+//! `marketplace-http` member contributes the surface.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,11 +22,11 @@
 use std::sync::Arc;
 
 use axum::Router;
-use systemprompt_extension::prelude::{MissingDependency, Resolved};
 use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_traits::BoxedSource;
 
-use crate::MarketplaceCandidate;
+use crate::{MissingDependency, Resolved};
 
 /// Builds the managed consumer routes from the `marketplace-http` route
 /// state.
@@ -34,13 +36,13 @@ pub trait ManagedSurface: Send + Sync + std::fmt::Debug {
 
 pub type DynManagedSurface = Arc<dyn ManagedSurface>;
 
-/// The marketplace candidate a consumer's bridge manifest resolves to.
+/// The skills a consumer's bridge manifest grants.
 ///
 /// Injected as `dyn ConsumerCatalog` into the route state, hence
 /// `#[async_trait]`.
 #[async_trait::async_trait]
 pub trait ConsumerCatalog: Send + Sync {
-    async fn candidate(&self, consumer: &UserId) -> Result<MarketplaceCandidate, BoxedSource>;
+    async fn granted_skills(&self, consumer: &UserId) -> Result<Vec<SkillEntry>, BoxedSource>;
 }
 
 pub type DynConsumerCatalog = Arc<dyn ConsumerCatalog>;

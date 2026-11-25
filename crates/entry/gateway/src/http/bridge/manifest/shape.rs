@@ -24,7 +24,9 @@ use axum::http::HeaderMap;
 use axum::http::header::IF_NONE_MATCH;
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::PluginId;
-use systemprompt_marketplace::{skill_bundle_markdown, skill_bundle_path};
+use systemprompt_models::bridge::manifest::skill_frontmatter::{
+    skill_bundle_markdown, skill_bundle_path,
+};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_INLINE_SCHEMA_VERSION, MANIFEST_SCHEMA_HEADER, MANIFEST_SCHEMA_VERSION,
     SignedManifest, SkillEntry, SkillSource,

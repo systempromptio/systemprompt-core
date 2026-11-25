@@ -16,7 +16,7 @@
 use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{JwtToken, ManagedResourceId, UserId};
-use systemprompt_marketplace::managed::ManagedError;
+use systemprompt_extension::bridge_catalog::BridgeCatalogError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::execution::ContextExtractionError;
@@ -77,13 +77,13 @@ pub enum BridgeError {
     CatalogGrant {
         resource: ManagedResourceId,
         #[source]
-        source: ManagedError,
+        source: BridgeCatalogError,
     },
     #[error("manifest: {count} catalogue grants not recorded")]
     CatalogGrants {
         count: usize,
         #[source]
-        source: ManagedError,
+        source: BridgeCatalogError,
     },
     #[error("{context}")]
     Unavailable {

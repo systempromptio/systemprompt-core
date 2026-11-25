@@ -38,8 +38,7 @@ pub async fn enroll_self(
         .map_err(classify_enrolment_error)?;
 
     let issued = state
-        .marketplace
-        .managed
+        .catalog
         .issue_consumer_credential(&cert.id)
         .await
         .map_err(|e| BridgeError::unavailable("device credential issue failed", e))?;

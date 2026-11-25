@@ -74,6 +74,7 @@ pub mod admitted_reassignment;
 pub mod admitted_schedule;
 pub mod artifact_ui;
 mod asset;
+pub mod bridge_catalog;
 pub mod authz;
 pub mod brain;
 #[expect(

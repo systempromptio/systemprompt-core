@@ -34,15 +34,15 @@ use std::sync::Arc;
 
 use axum::Router;
 use systemprompt_extension::prelude::{Dependencies, MissingDependency, Resolved};
+use systemprompt_extension::router::{
+    DynConsumerCatalog, DynManagedSurface, ManagedRouteState, ManagedRoutes,
+};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_identifiers::{SessionId, TenantId, TraceId, UserId};
 use systemprompt_loader::ServicesState;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::profile::{BrainProfile, QuotaConfig, UnappliedPlaneMode};
-use systemprompt_marketplace::surface::{
-    DynConsumerCatalog, DynManagedSurface, ManagedRouteState, ManagedRoutes,
-};
 use systemprompt_traits::{AnalyticsProvider, ConfigWatch};
 
 /// Builds the gateway's handler routes from the `gateway-http` route state.
@@ -60,7 +60,7 @@ pub trait GatewaySurface: Send + Sync + std::fmt::Debug {
 /// [`GatewayPrincipal`](systemprompt_extension::router::GatewayPrincipal)
 /// before a handler runs. `public_sessions` is the API-key session mint the
 /// mount places under the public gateway base with its own rate scope.
-/// `managed_consumer` is the bridge manifest's candidate resolution the
+/// `managed_consumer` is the bridge manifest's granted-skill resolution the
 /// `marketplace-http` consumer routes read; absent when `gateway-http` is not
 /// admitted, and those routes are then not mounted.
 #[derive(Default)]
@@ -81,7 +81,7 @@ impl std::fmt::Debug for GatewaySurfaceRoutes {
 
 pub type DynGatewaySurface = Arc<dyn GatewaySurface>;
 
-/// The bridge manifest's candidate resolution, and the build of the
+/// The bridge manifest's granted-skill resolution, and the build of the
 /// `marketplace-http` consumer routes over it.
 ///
 /// The API mount hands it the `marketplace-http` route state; the consumer

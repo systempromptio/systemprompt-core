@@ -9,7 +9,7 @@ use systemprompt_identifiers::{DeviceCertId, DeviceId, InstallationReceiptId, Us
 use systemprompt_models::feedback::ContentDigest;
 use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 
-use crate::managed::consumer::IssuedConsumerCredential;
+use systemprompt_extension::bridge_catalog::IssuedConsumerCredential;
 use crate::managed::error::integrity;
 use crate::managed::{ManagedError, ManagedRepository, Result};
 

@@ -7135,7 +7135,6 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
- "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-storage",
@@ -7175,7 +7174,6 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-manifest",
- "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-security",
@@ -7418,7 +7416,6 @@ name = "systemprompt-marketplace"
 version = "0.87.0"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
  "globset",
  "hex",
