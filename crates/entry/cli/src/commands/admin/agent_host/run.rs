@@ -30,9 +30,12 @@ pub struct RunArgs {
 }
 
 pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<()> {
-    let context = HostContext::from_process_env(host.take_admit()?)
-        .await
-        .context("Failed to boot the agent host")?;
+    let context = HostContext::from_process_env(
+        systemprompt_extension::artifact_ui::HostRole::Agent,
+        host.take_admit()?,
+    )
+    .await
+    .context("Failed to boot the agent host")?;
     let server = Arc::clone(context.state().get::<DynAgentServer>().context(
         "The agent-http member is not admitted on this host; it provides the agent server",
     )?);

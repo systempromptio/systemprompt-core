@@ -216,6 +216,20 @@ impl ScopedTokenMinter for MemberTokenMinter {
     }
 
     fn verify(&self, audience: &str, token: &str) -> Result<ScopedClaims, ScopedVerifyError> {
+        let claims = self.verify_claims(audience, token)?;
+        if claims.subject == self.minters.system_admin {
+            return Err(ScopedVerifyError::ReservedSubject);
+        }
+        Ok(claims)
+    }
+}
+
+impl MemberTokenMinter {
+    fn verify_claims(
+        &self,
+        audience: &str,
+        token: &str,
+    ) -> Result<ScopedClaims, ScopedVerifyError> {
         let grant = self
             .grants
             .iter()

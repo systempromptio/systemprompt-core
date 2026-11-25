@@ -59,10 +59,14 @@ fn processors(pool: &systemprompt_database::DbPool) -> Vec<Arc<dyn FrontmatterPr
     let mut builder = ContentSlotBuilder::default();
     builder
         .frontmatter_processor(|_: &Resolved<'_>| {
-            Ok(Arc::new(SkippedProcessor) as Arc<dyn FrontmatterProcessor>)
+            Ok(Some(
+                Arc::new(SkippedProcessor) as Arc<dyn FrontmatterProcessor>
+            ))
         })
         .frontmatter_processor(|_: &Resolved<'_>| {
-            Ok(Arc::new(FailingProcessor) as Arc<dyn FrontmatterProcessor>)
+            Ok(Some(
+                Arc::new(FailingProcessor) as Arc<dyn FrontmatterProcessor>
+            ))
         });
     let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(pool);
     let kernel = Kernel::new(handle, BackgroundTasks::new(), Dependencies::default());

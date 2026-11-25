@@ -229,102 +229,102 @@ impl PagePrerenderer for GenPrerenderer {
 pub fn fixture_hooks(db: &DbPool) -> ContentHooks {
     let mut builder = ContentSlotBuilder::default();
     builder
-        .page_prerenderer(|_: &Resolved<'_>| Ok(default_homepage_prerenderer()))
-        .page_data_provider(|_: &Resolved<'_>| Ok(default_branding_provider()))
-        .page_data_provider(|_: &Resolved<'_>| Ok(default_list_branding_provider()))
-        .component_renderer(|_: &Resolved<'_>| Ok(default_list_items_renderer()));
+        .page_prerenderer(|_: &Resolved<'_>| Ok(Some(default_homepage_prerenderer())))
+        .page_data_provider(|_: &Resolved<'_>| Ok(Some(default_branding_provider())))
+        .page_data_provider(|_: &Resolved<'_>| Ok(Some(default_list_branding_provider())))
+        .component_renderer(|_: &Resolved<'_>| Ok(Some(default_list_items_renderer())));
     builder.component_renderer(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenComponent {
+        Ok(Some(Arc::new(GenComponent {
             id: "gen_comp_hi",
             variable: "GEN_COMPONENT",
             priority: 10,
             fails: false,
             partial: false,
-        }) as Arc<dyn ComponentRenderer>)
+        }) as Arc<dyn ComponentRenderer>))
     });
     builder.component_renderer(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenComponent {
+        Ok(Some(Arc::new(GenComponent {
             id: "gen_comp_lo",
             variable: "GEN_COMPONENT",
             priority: 200,
             fails: false,
             partial: false,
-        }) as Arc<dyn ComponentRenderer>)
+        }) as Arc<dyn ComponentRenderer>))
     });
     builder.component_renderer(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenComponent {
+        Ok(Some(Arc::new(GenComponent {
             id: "gen_comp_partial",
             variable: "GEN_PARTIAL",
             priority: 20,
             fails: false,
             partial: true,
-        }) as Arc<dyn ComponentRenderer>)
+        }) as Arc<dyn ComponentRenderer>))
     });
     builder.component_renderer(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenComponent {
+        Ok(Some(Arc::new(GenComponent {
             id: "gen_comp_fail",
             variable: "GEN_FAILING",
             priority: 30,
             fails: true,
             partial: false,
-        }) as Arc<dyn ComponentRenderer>)
+        }) as Arc<dyn ComponentRenderer>))
     });
     builder.template_data_extender(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenExtender {
+        Ok(Some(Arc::new(GenExtender {
             id: "gen_ext_ok",
             fails: false,
-        }) as Arc<dyn TemplateDataExtender>)
+        }) as Arc<dyn TemplateDataExtender>))
     });
     builder.template_data_extender(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenExtender {
+        Ok(Some(Arc::new(GenExtender {
             id: "gen_ext_fail",
             fails: true,
-        }) as Arc<dyn TemplateDataExtender>)
+        }) as Arc<dyn TemplateDataExtender>))
     });
     builder.page_data_provider(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenPageData) as Arc<dyn PageDataProvider>)
+        Ok(Some(Arc::new(GenPageData) as Arc<dyn PageDataProvider>))
     });
     builder.page_prerenderer(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenPrerenderer {
+        Ok(Some(Arc::new(GenPrerenderer {
             page_type: "covgenpage",
             priority: 10,
             returns_none: false,
-        }) as Arc<dyn PagePrerenderer>)
+        }) as Arc<dyn PagePrerenderer>))
     });
     builder.page_prerenderer(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenPrerenderer {
+        Ok(Some(Arc::new(GenPrerenderer {
             page_type: "covgenpage",
             priority: 200,
             returns_none: false,
-        }) as Arc<dyn PagePrerenderer>)
+        }) as Arc<dyn PagePrerenderer>))
     });
     builder.page_prerenderer(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenPrerenderer {
+        Ok(Some(Arc::new(GenPrerenderer {
             page_type: "covgennone",
             priority: 100,
             returns_none: true,
-        }) as Arc<dyn PagePrerenderer>)
+        }) as Arc<dyn PagePrerenderer>))
     });
     builder.content_data_provider(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenContentData {
+        Ok(Some(Arc::new(GenContentData {
             id: "gen_cd_all",
             sources: vec!["blog".to_owned()],
             fails: false,
-        }) as Arc<dyn ContentDataProvider>)
+        }) as Arc<dyn ContentDataProvider>))
     });
     builder.content_data_provider(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenContentData {
+        Ok(Some(Arc::new(GenContentData {
             id: "gen_cd_never",
             sources: vec!["never_matches_source".to_owned()],
             fails: false,
-        }) as Arc<dyn ContentDataProvider>)
+        }) as Arc<dyn ContentDataProvider>))
     });
     builder.content_data_provider(|_: &Resolved<'_>| {
-        Ok(Arc::new(GenContentData {
+        Ok(Some(Arc::new(GenContentData {
             id: "gen_cd_fail",
             sources: vec![],
             fails: true,
-        }) as Arc<dyn ContentDataProvider>)
+        }) as Arc<dyn ContentDataProvider>))
     });
     let handle: Arc<dyn DatabaseHandle> = Arc::<systemprompt_database::Database>::clone(db);
     let kernel = Kernel::new(handle, BackgroundTasks::new(), Dependencies::default());

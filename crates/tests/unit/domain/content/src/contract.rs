@@ -44,7 +44,9 @@ impl ContentDataProvider for Ranked {
 fn ranked(id: &'static str, priority: u32) -> ContentSlotBuilder {
     let mut builder = ContentSlotBuilder::default();
     builder.content_data_provider(move |_: &Resolved<'_>| {
-        Ok(Arc::new(Ranked { id, priority }) as Arc<dyn ContentDataProvider>)
+        Ok(Some(
+            Arc::new(Ranked { id, priority }) as Arc<dyn ContentDataProvider>
+        ))
     });
     builder
 }
@@ -84,11 +86,36 @@ async fn an_empty_slot_builds_empty_hooks() {
 }
 
 #[tokio::test]
+async fn a_factory_that_declines_contributes_nothing_and_the_slot_builds() {
+    let mut declining = ContentSlotBuilder::default();
+    declining
+        .content_data_provider(|_: &Resolved<'_>| Ok(None))
+        .page_prerenderer(|_: &Resolved<'_>| Ok(None));
+    let hooks = build(vec![
+        entry("declining-member", declining),
+        entry("present-member", ranked("present", 5)),
+    ])
+    .await
+    .expect("a declined factory does not refuse the slot");
+    let ids: Vec<&str> = hooks
+        .content_data_providers()
+        .iter()
+        .map(|p| p.provider_id())
+        .collect();
+    assert_eq!(
+        ids,
+        ["present"],
+        "the declined provider is absent, not defaulted"
+    );
+    assert!(hooks.page_prerenderers().is_empty());
+}
+
+#[tokio::test]
 async fn a_factory_missing_a_dependency_is_the_slots_missing() {
     let mut builder = ContentSlotBuilder::default();
     builder.content_data_provider(|r: &Resolved<'_>| {
         let ranked = r.get::<Arc<Ranked>>()?;
-        Ok(ranked as Arc<dyn ContentDataProvider>)
+        Ok(Some(ranked as Arc<dyn ContentDataProvider>))
     });
     let error = build(vec![entry("needy-member", builder)])
         .await

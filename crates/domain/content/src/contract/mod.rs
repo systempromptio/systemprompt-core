@@ -13,13 +13,19 @@
 //! sitemap providers. Content data providers are ordered by their priority;
 //! the template registry orders the rest it holds by theirs.
 //!
+//! Every factory returns an `Option`: a factory whose member cannot build
+//! its hook (its own configuration is absent, say) answers `Ok(None)` and
+//! contributes nothing, so the composition still boots and the hook's
+//! consumers see the hook absent from [`ContentHooks`]. A factory that fails
+//! (`Err`) still refuses the build.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    Factory, MemberScope, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
+    Factory, MemberScope, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_present_factories,
 };
 use systemprompt_provider_contracts::{
     ComponentRenderer, ContentDataProvider, FrontmatterProcessor, PageDataProvider,
@@ -56,7 +62,7 @@ impl Slot for ContentSlot {
     }
 }
 
-type Factories<T> = Vec<Box<dyn Factory<Arc<T>>>>;
+type Factories<T> = Vec<Box<dyn Factory<Option<Arc<T>>>>>;
 
 /// One member's content hook factories.
 #[derive(Default)]
@@ -92,37 +98,49 @@ impl std::fmt::Debug for ContentSlotBuilder {
 }
 
 impl ContentSlotBuilder {
-    pub fn template_provider(&mut self, f: impl Factory<Arc<dyn TemplateProvider>>) -> &mut Self {
+    pub fn template_provider(
+        &mut self,
+        f: impl Factory<Option<Arc<dyn TemplateProvider>>>,
+    ) -> &mut Self {
         self.template_providers.push(Box::new(f));
         self
     }
 
-    pub fn component_renderer(&mut self, f: impl Factory<Arc<dyn ComponentRenderer>>) -> &mut Self {
+    pub fn component_renderer(
+        &mut self,
+        f: impl Factory<Option<Arc<dyn ComponentRenderer>>>,
+    ) -> &mut Self {
         self.component_renderers.push(Box::new(f));
         self
     }
 
     pub fn template_data_extender(
         &mut self,
-        f: impl Factory<Arc<dyn TemplateDataExtender>>,
+        f: impl Factory<Option<Arc<dyn TemplateDataExtender>>>,
     ) -> &mut Self {
         self.template_data_extenders.push(Box::new(f));
         self
     }
 
-    pub fn page_data_provider(&mut self, f: impl Factory<Arc<dyn PageDataProvider>>) -> &mut Self {
+    pub fn page_data_provider(
+        &mut self,
+        f: impl Factory<Option<Arc<dyn PageDataProvider>>>,
+    ) -> &mut Self {
         self.page_data_providers.push(Box::new(f));
         self
     }
 
-    pub fn page_prerenderer(&mut self, f: impl Factory<Arc<dyn PagePrerenderer>>) -> &mut Self {
+    pub fn page_prerenderer(
+        &mut self,
+        f: impl Factory<Option<Arc<dyn PagePrerenderer>>>,
+    ) -> &mut Self {
         self.page_prerenderers.push(Box::new(f));
         self
     }
 
     pub fn frontmatter_processor(
         &mut self,
-        f: impl Factory<Arc<dyn FrontmatterProcessor>>,
+        f: impl Factory<Option<Arc<dyn FrontmatterProcessor>>>,
     ) -> &mut Self {
         self.frontmatter_processors.push(Box::new(f));
         self
@@ -130,18 +148,24 @@ impl ContentSlotBuilder {
 
     pub fn content_data_provider(
         &mut self,
-        f: impl Factory<Arc<dyn ContentDataProvider>>,
+        f: impl Factory<Option<Arc<dyn ContentDataProvider>>>,
     ) -> &mut Self {
         self.content_data_providers.push(Box::new(f));
         self
     }
 
-    pub fn rss_feed_provider(&mut self, f: impl Factory<Arc<dyn RssFeedProvider>>) -> &mut Self {
+    pub fn rss_feed_provider(
+        &mut self,
+        f: impl Factory<Option<Arc<dyn RssFeedProvider>>>,
+    ) -> &mut Self {
         self.rss_feed_providers.push(Box::new(f));
         self
     }
 
-    pub fn sitemap_provider(&mut self, f: impl Factory<Arc<dyn SitemapProvider>>) -> &mut Self {
+    pub fn sitemap_provider(
+        &mut self,
+        f: impl Factory<Option<Arc<dyn SitemapProvider>>>,
+    ) -> &mut Self {
         self.sitemap_providers.push(Box::new(f));
         self
     }
@@ -152,48 +176,62 @@ impl ContentSlotBuilder {
         r: &Resolved<'_>,
         hooks: &mut ContentHooks,
     ) -> Result<(), SlotError> {
-        hooks
-            .template_providers
-            .extend(build_factories(SLOT, scope, &self.template_providers, r)?);
-        hooks.component_renderers.extend(build_factories(
+        hooks.template_providers.extend(build_present_factories(
+            SLOT,
+            scope,
+            &self.template_providers,
+            r,
+        )?);
+        hooks.component_renderers.extend(build_present_factories(
             SLOT,
             scope,
             &self.component_renderers,
             r,
         )?);
-        hooks.template_data_extenders.extend(build_factories(
-            SLOT,
-            scope,
-            &self.template_data_extenders,
-            r,
-        )?);
-        hooks.page_data_providers.extend(build_factories(
+        hooks
+            .template_data_extenders
+            .extend(build_present_factories(
+                SLOT,
+                scope,
+                &self.template_data_extenders,
+                r,
+            )?);
+        hooks.page_data_providers.extend(build_present_factories(
             SLOT,
             scope,
             &self.page_data_providers,
             r,
         )?);
-        hooks
-            .page_prerenderers
-            .extend(build_factories(SLOT, scope, &self.page_prerenderers, r)?);
-        hooks.frontmatter_processors.extend(build_factories(
+        hooks.page_prerenderers.extend(build_present_factories(
+            SLOT,
+            scope,
+            &self.page_prerenderers,
+            r,
+        )?);
+        hooks.frontmatter_processors.extend(build_present_factories(
             SLOT,
             scope,
             &self.frontmatter_processors,
             r,
         )?);
-        hooks.content_data_providers.extend(build_factories(
+        hooks.content_data_providers.extend(build_present_factories(
             SLOT,
             scope,
             &self.content_data_providers,
             r,
         )?);
-        hooks
-            .rss_feed_providers
-            .extend(build_factories(SLOT, scope, &self.rss_feed_providers, r)?);
-        hooks
-            .sitemap_providers
-            .extend(build_factories(SLOT, scope, &self.sitemap_providers, r)?);
+        hooks.rss_feed_providers.extend(build_present_factories(
+            SLOT,
+            scope,
+            &self.rss_feed_providers,
+            r,
+        )?);
+        hooks.sitemap_providers.extend(build_present_factories(
+            SLOT,
+            scope,
+            &self.sitemap_providers,
+            r,
+        )?);
         Ok(())
     }
 }

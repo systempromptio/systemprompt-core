@@ -3,7 +3,7 @@ use std::path::Path;
 
 use chrono::Utc;
 use systemprompt_loader::bundle::{
-    BaseTreeHashMemo, BundleCache, BundleSources, owning_bundle_hashes, sources_provenance,
+    BaseTreeHashMemo, BundleCache, owning_bundle_hashes, sources_provenance,
 };
 use systemprompt_manifest::profile::{FetchFailurePolicy, Profile};
 use systemprompt_manifest::services::bundle::{
@@ -74,8 +74,11 @@ fn assert_provenance_survives_manifest_damage(
     manifest_path: &Path,
     manifest_backup: &Path,
 ) {
-    let provenance =
-        sources_provenance(&BundleSources::of(profile), None, &BaseTreeHashMemo::new());
+    let provenance = sources_provenance(
+        &crate::bundle_profile::bundle_sources(profile),
+        None,
+        &BaseTreeHashMemo::new(),
+    );
     assert_eq!(
         provenance.composed_hash.as_deref(),
         Some("composed-fixture-hash")
@@ -89,18 +92,18 @@ fn assert_provenance_survives_manifest_damage(
     assert_eq!(bundle.version.as_deref(), Some("4.2.0"));
     let hash = bundle.content_hash.clone().expect("active content hash");
     assert_eq!(
-        owning_bundle_hashes(&BundleSources::of(profile)).get("owned-skill"),
+        owning_bundle_hashes(&crate::bundle_profile::bundle_sources(profile)).get("owned-skill"),
         Some(&hash)
     );
 
     std::fs::remove_file(manifest_path).expect("remove cached manifest");
-    assert!(owning_bundle_hashes(&BundleSources::of(profile)).is_empty());
+    assert!(owning_bundle_hashes(&crate::bundle_profile::bundle_sources(profile)).is_empty());
     std::fs::write(manifest_path, b"{ corrupt").expect("corrupt cached manifest");
-    assert!(owning_bundle_hashes(&BundleSources::of(profile)).is_empty());
+    assert!(owning_bundle_hashes(&crate::bundle_profile::bundle_sources(profile)).is_empty());
     let bytes = std::fs::read(manifest_backup).expect("read manifest recovery fixture");
     std::fs::write(manifest_path, bytes).expect("restore cached manifest");
     assert_eq!(
-        owning_bundle_hashes(&BundleSources::of(profile)).get("owned-skill"),
+        owning_bundle_hashes(&crate::bundle_profile::bundle_sources(profile)).get("owned-skill"),
         Some(&hash)
     );
 }

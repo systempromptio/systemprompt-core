@@ -6,7 +6,9 @@
 //! is ChaCha20-Poly1305 (the [`AtRestCipher`]) under
 //! HMAC-SHA-256(master key, `systemprompt.member-cipher.v1` NUL member id):
 //! a separate key per member and separate from the key core seals with, so a
-//! member's handle opens only its own ciphertext.
+//! member's handle opens only its own ciphertext. A sealed value carries the
+//! `spmc1.` envelope, which is how `admin secrets reseal` tells a value
+//! already under a member cipher from raw-master-key ciphertext.
 //!
 //! [`MemberShareTokens`] holds the `manifest_signing_secret_seed`. A token is
 //! `spst1.<base64url(expiry ‖ payload)>.<base64url(tag)>`, where the tag is
@@ -34,7 +36,6 @@ use systemprompt_traits::{
 
 use crate::at_rest::{AtRestCipher, AtRestCipherError, AtRestHashError, keyed_hmac};
 
-const CIPHER_LABEL: &[u8] = b"systemprompt.member-cipher.v1";
 const SHARE_TOKEN_LABEL: &[u8] = b"systemprompt.member-share-token.v1";
 const SHARE_TOKEN_PREFIX: &str = "spst1";
 const EXPIRY_BYTES: usize = 8;
@@ -55,13 +56,14 @@ fn labelled(root: &Hmac<Sha256>, label: &[u8], member: &ExtensionId) -> Hmac<Sha
 
 /// The sealed issuer of every member's cipher.
 pub struct MemberCiphers {
-    root: Hmac<Sha256>,
+    master_key: Arc<[u8; 32]>,
 }
 
 impl MemberCiphers {
     pub fn from_master_key(master_key: &[u8; 32]) -> Result<Self, AtRestHashError> {
+        keyed(master_key)?;
         Ok(Self {
-            root: keyed(master_key)?,
+            master_key: Arc::new(*master_key),
         })
     }
 }
@@ -74,11 +76,9 @@ impl std::fmt::Debug for MemberCiphers {
 
 impl ConferralIssuer<dyn MemberCipher> for MemberCiphers {
     fn issue(&self, grant: &MemberGrant) -> Arc<dyn MemberCipher> {
-        let key: [u8; 32] = labelled(&self.root, CIPHER_LABEL, &grant.member)
-            .finalize()
-            .into_bytes()
-            .into();
-        Arc::new(MemberCipherHandle(AtRestCipher::from_master_key(key)))
+        let cipher = AtRestCipher::for_member(&self.master_key, &grant.member)
+            .unwrap_or_else(|_unkeyable| AtRestCipher::withheld());
+        Arc::new(MemberCipherHandle(cipher))
     }
 }
 
@@ -87,7 +87,9 @@ struct MemberCipherHandle(AtRestCipher);
 
 const fn cipher_error(error: AtRestCipherError) -> MemberCipherError {
     match error {
-        AtRestCipherError::Malformed => MemberCipherError::Malformed,
+        AtRestCipherError::Malformed | AtRestCipherError::Unresealed => {
+            MemberCipherError::Malformed
+        },
         AtRestCipherError::NotAuthentic
         | AtRestCipherError::KeyUnavailable
         | AtRestCipherError::KeyInvalid => MemberCipherError::NotAuthentic,
@@ -95,12 +97,12 @@ const fn cipher_error(error: AtRestCipherError) -> MemberCipherError {
 }
 
 impl MemberCipher for MemberCipherHandle {
-    fn seal(&self, plaintext: &str) -> Result<String, MemberCipherError> {
-        self.0.seal(plaintext).map_err(cipher_error)
+    fn seal(&self, plaintext: &[u8]) -> Result<String, MemberCipherError> {
+        self.0.seal_bytes(plaintext).map_err(cipher_error)
     }
 
-    fn open(&self, sealed: &str) -> Result<String, MemberCipherError> {
-        self.0.open(sealed).map_err(cipher_error)
+    fn open(&self, sealed: &str) -> Result<Vec<u8>, MemberCipherError> {
+        self.0.open_bytes(sealed).map_err(cipher_error)
     }
 }
 

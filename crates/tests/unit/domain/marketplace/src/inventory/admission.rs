@@ -12,9 +12,7 @@ async fn adopted(f: &Fixture) -> (ManagedResourceId, ResourceRevisionId) {
             &BaselineScope {
                 owner: &f.owner,
                 actor: &f.owner,
-                root: f.root.path(),
-                services: &ServicesConfig::default(),
-                sources: sources(),
+                view: &view(f.root.path()),
             },
             &mut PublishGuard::default(),
         )

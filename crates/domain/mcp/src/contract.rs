@@ -14,12 +14,14 @@
 //! present exactly when that member is admitted.
 //!
 //! [`UiSlot`] builds a [`UiRendererRegistry`]: core's renderers, then every
-//! contributed renderer (a contributed renderer for an artifact type with a
-//! built-in replaces it; two contributed renderers for one artifact type are
-//! refused with [`SlotError::DuplicateTag`]), and at most one theme (a second
-//! is refused with [`SlotError::MultipleEntries`], because two themes have no
-//! meaningful winner). A factory that fails, or reads a value nothing
-//! provides, refuses the build.
+//! contributed renderer whose [`RenderOn`] covers the kernel's [`HostRole`]
+//! (the other renderer factories never run in that process; a contributed
+//! renderer for an artifact type with a built-in replaces it; two contributed
+//! renderers for one artifact type are refused with
+//! [`SlotError::DuplicateTag`]), and at most one theme (a second is refused
+//! with [`SlotError::MultipleEntries`], because two themes have no meaningful
+//! winner). A factory that fails, or reads a value nothing provides, refuses
+//! the build.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,6 +30,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
+use systemprompt_extension::artifact_ui::{HostRole, RenderOn};
 use systemprompt_extension::{
     Factory, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
 };
@@ -38,17 +41,18 @@ use crate::services::ui_renderer::{ArtifactTheme, UiRenderer, UiRendererRegistry
 const UI_SLOT: &str = "mcp_ui";
 
 type Factories<T> = Vec<Box<dyn Factory<Arc<T>>>>;
+type ScopedRenderers = Vec<(RenderOn, Box<dyn Factory<Arc<dyn UiRenderer>>>)>;
 
 /// The artifact UI contribution point, owned by the `mcp` capability.
 #[derive(Debug, Clone, Copy)]
 pub struct UiSlot;
 
 /// One member's artifact themes and UI renderers, stored until the slot is
-/// built.
+/// built; each renderer with the hosts it renders on.
 #[derive(Default)]
 pub struct UiSlotBuilder {
     themes: Vec<ArtifactTheme>,
-    renderers: Factories<dyn UiRenderer>,
+    renderers: ScopedRenderers,
 }
 
 impl UiSlotBuilder {
@@ -57,8 +61,8 @@ impl UiSlotBuilder {
         self
     }
 
-    pub fn renderer<F: Factory<Arc<dyn UiRenderer>>>(&mut self, f: F) -> &mut Self {
-        self.renderers.push(Box::new(f));
+    pub fn renderer<F: Factory<Arc<dyn UiRenderer>>>(&mut self, on: RenderOn, f: F) -> &mut Self {
+        self.renderers.push((on, Box::new(f)));
         self
     }
 }
@@ -81,13 +85,21 @@ impl Slot for UiSlot {
         entries: Vec<SlotEntry<Self::Builder>>,
         r: &Resolved<'_>,
     ) -> Result<Self::Built, SlotError> {
+        let role = r.get::<HostRole>()?;
         let mut registry = UiRendererRegistry::with_builtins();
         let mut themes: Vec<ArtifactTheme> = Vec::new();
         let mut contributed: HashMap<String, ExtensionId> = HashMap::new();
         for entry in entries {
             let scope = entry.scope();
             themes.extend(entry.builder.themes);
-            for renderer in build_factories(UI_SLOT, &scope, &entry.builder.renderers, r)? {
+            let here: Factories<dyn UiRenderer> = entry
+                .builder
+                .renderers
+                .into_iter()
+                .filter(|(on, _)| on.covers(role))
+                .map(|(_, factory)| factory)
+                .collect();
+            for renderer in build_factories(UI_SLOT, &scope, &here, r)? {
                 let artifact_type = renderer.artifact_type().to_string();
                 if contributed
                     .insert(artifact_type.clone(), entry.owner.clone())

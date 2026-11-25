@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Inventory"
+text = "An install refreshes managed inventory over the read-only `InstallServicesView`: `InventoryService::refresh(&owner, &view)`, `SourcesContext::of(&view)` and `BaselineScope { owner, actor, view }`. The view carries the active root with its provenance, the base tree and the bundle cache, and the sealed `BundleSources` seed is removed."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`InventoryService::refresh`, `SourcesContext`, `BaselineScope` and `InventoryRefresherParts` take the `InstallServicesView`."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "`BundleSources::of` takes the `InstallServicesView`; a pinned source's reference is its credential-free location."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`InstallServicesView::of` takes the bundle cache root; adds `active_root`, `base_tree` and `cache_root`."

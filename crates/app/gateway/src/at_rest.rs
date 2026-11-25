@@ -6,8 +6,11 @@
 //! its own provide and provides [`GatewayAtRest`] **sealed**, conferred on
 //! `gateway-http` under the `gateway-at-rest` row. No route state reads the
 //! secret store; the gateway routes and the boot-time journal recovery read
-//! this value instead. It opens the journal under the storage data directory
-//! and seals and opens values under the master key; it reads no other secret.
+//! this value instead. It opens the journal under the storage data directory,
+//! keyed for the `gateway` member under the journal's own label, and seals
+//! and opens personal provider keys under the `ai` member's at-rest cipher
+//! (the owner of `user_provider_credentials`); nothing is sealed under the
+//! master key itself, and it reads no other secret.
 //!
 //! A host that does not hold the key (a child host the key was not granted
 //! to, a CLI without the secret) still resolves: its cipher is withheld and
@@ -25,7 +28,11 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use systemprompt_security::at_rest::AtRestCipher;
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_security::at_rest::{AtRestCipher, member_key};
+
+const JOURNAL_LABEL: &[u8] = b"systemprompt.gateway-journal.v1";
+const GATEWAY_MEMBER: &str = "gateway";
 use systemprompt_traits::SECRET_SEED_BYTES;
 
 use crate::audit::journal::GatewayJournal;
@@ -84,6 +91,8 @@ impl GatewayAtRest {
         if let Some(journal) = opened.as_ref() {
             return Ok(journal.clone());
         }
+        let key = member_key(&key, JOURNAL_LABEL, &ExtensionId::new(GATEWAY_MEMBER))
+            .map_err(|_unkeyable| GatewayAtRestError::KeyNotHeld)?;
         let journal = GatewayJournal::open(state_dir, key).map_err(GatewayAtRestError::Journal)?;
         *opened = Some(journal.clone());
         drop(opened);
@@ -93,6 +102,13 @@ impl GatewayAtRest {
     #[must_use]
     pub fn cipher(&self) -> AtRestCipher {
         self.key
-            .map_or_else(AtRestCipher::withheld, AtRestCipher::from_master_key)
+            .and_then(|key| {
+                AtRestCipher::for_member(
+                    &key,
+                    &ExtensionId::new(systemprompt_ai::repository::CREDENTIALS_OWNER),
+                )
+                .ok()
+            })
+            .unwrap_or_else(AtRestCipher::withheld)
     }
 }

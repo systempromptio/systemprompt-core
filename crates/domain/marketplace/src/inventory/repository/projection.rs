@@ -53,8 +53,8 @@ impl ManagedRepository {
             source: Box::new(error),
         })?;
         let sources = serde_json::to_value(systemprompt_loader::bundle::sources_provenance(
-            sources.bundles,
-            sources.active_root,
+            &sources.bundles,
+            Some(sources.active_root),
             self.base_tree_hash_memo(),
         ))?;
         sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,sources=$5,last_error=NULL WHERE owner_id=$1",owner as _,generation,observed,count,sources).execute(&mut *tx).await?;

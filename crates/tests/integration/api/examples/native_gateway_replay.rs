@@ -221,10 +221,7 @@ async fn replay() -> Result<()> {
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(&db),
-            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
-                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
-            )
-            .expect("at-rest cipher"),
+            at_rest: systemprompt_test_fixtures::fixture_at_rest_cipher(),
             unapplied_plane: Default::default(),
         },
     );

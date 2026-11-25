@@ -11,12 +11,7 @@ async fn failed_complete_scan_preserves_membership_and_records_health() {
         .await
         .expect("status");
     let result = InventoryService::new(f.repository.clone())
-        .refresh(
-            &f.owner,
-            &f.root.path().join("missing"),
-            &ServicesConfig::default(),
-            sources(),
-        )
+        .refresh(&f.owner, &view(f.root.path().join("missing")))
         .await;
     assert!(result.is_err());
     let status = f

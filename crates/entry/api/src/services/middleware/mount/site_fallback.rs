@@ -7,7 +7,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use systemprompt_extension::router::SiteFallback;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
 };
@@ -18,16 +17,11 @@ use crate::services::middleware::rate_limit::LayerReach;
 pub const SITE_FALLBACK_RATE: RateLimit = RateLimit::new("site_fallback", RateBudget::Content);
 
 pub fn protect_site_fallback(
-    fallback: SiteFallback,
+    fallback: Router,
     layers: &MountLayers,
 ) -> Result<RootFallback, MountError> {
     let protection = site_fallback_protection(layers.guards.site_auth.is_some());
-    let owned = protect_root_fallback(
-        fallback.into_router(),
-        &protection,
-        layers,
-        RouteGroup::Extensions,
-    )?;
+    let owned = protect_root_fallback(fallback, &protection, layers, RouteGroup::Extensions)?;
     Ok(RootFallback {
         router: reserved_guard::guarded(owned.router, LayerReach::Router),
         group: owned.group,

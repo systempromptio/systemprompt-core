@@ -11,12 +11,9 @@ use systemprompt_ai::{PersonalKeyError, PersonalKeyRequest, credential_label, st
 use systemprompt_identifiers::{CredentialId, UserId};
 use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
 use systemprompt_models::providers::ClientFamily;
-use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_test_fixtures::catalog::{CatalogFixture, model, personal, priced};
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, seed_user_row, test_db_pool, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 use systemprompt_traits::ProviderTokenCache;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -88,8 +85,7 @@ fn the_label_falls_back_to_the_credential_id() {
 }
 
 async fn repo_and_user(prefix: &str) -> (UserProviderCredentialRepository, UserId) {
-    let secrets = ensure_test_secrets_bootstrap();
-    let cipher = AtRestCipher::from_secrets(&secrets.get()).expect("cipher");
+    let cipher = systemprompt_test_fixtures::fixture_at_rest_cipher();
     let pool = test_db_pool().await;
     let user = unique_user_id(prefix);
     seed_user_row(&pool, &user, &format!("{}@personal.invalid", user.as_str()))

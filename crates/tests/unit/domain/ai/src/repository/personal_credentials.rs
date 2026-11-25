@@ -4,15 +4,11 @@
 
 use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_identifiers::CredentialId;
-use systemprompt_security::at_rest::AtRestCipher;
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, seed_user_row, test_db_pool, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 
 #[tokio::test]
 async fn a_key_is_stored_found_listed_and_deleted_per_credential() {
-    let secrets = ensure_test_secrets_bootstrap();
-    let cipher = AtRestCipher::from_secrets(&secrets.get()).expect("cipher");
+    let cipher = systemprompt_test_fixtures::fixture_at_rest_cipher();
     let pool = test_db_pool().await;
     let user = unique_user_id("personal-cred");
     seed_user_row(&pool, &user, &format!("{}@personal.invalid", user.as_str()))

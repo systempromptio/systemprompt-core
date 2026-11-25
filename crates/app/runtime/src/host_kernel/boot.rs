@@ -29,10 +29,14 @@ use crate::error::RuntimeError;
 use crate::kernel::Kernel;
 
 use super::{AdmitFn, HostBootError, HostKernel, HostParts, PROFILE_ENV};
+use systemprompt_extension::artifact_ui::HostRole;
 
 impl HostKernel {
-    pub async fn from_process_env(admit: AdmitFn) -> Result<HostParts, HostBootError> {
-        Self::boot(|name| std::env::var(name).ok(), admit).await
+    pub async fn from_process_env(
+        role: HostRole,
+        admit: AdmitFn,
+    ) -> Result<HostParts, HostBootError> {
+        Self::boot(role, |name| std::env::var(name).ok(), admit).await
     }
 
     #[expect(
@@ -40,6 +44,7 @@ impl HostKernel {
         reason = "the one assembly sequence of a child host; splitting it threads a dozen handles through helper signatures"
     )]
     pub async fn boot(
+        role: HostRole,
         lookup: impl Fn(&str) -> Option<String> + Send + Sync,
         admit: AdmitFn,
     ) -> Result<HostParts, HostBootError> {
@@ -127,6 +132,7 @@ impl HostKernel {
             event_router: &event_router,
             catalog_roles: crate::builder::composition::catalog_roles(&admitted),
             escalation: systemprompt_traits::EscalationDelivery::Consumer,
+            role,
             audit_spans: Arc::new(log_sink.clone()),
         });
         let seed = seed.with_sealed(systemprompt_extension::ConferralsWithheld);

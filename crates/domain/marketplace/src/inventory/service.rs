@@ -5,9 +5,8 @@
 
 use super::{InventoryStatus, SourcesContext, scan_configured_inventory};
 use crate::managed::{ManagedError, ManagedRepository, Result};
-use std::path::Path;
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::InstallServicesView;
 
 #[derive(Debug, Clone)]
 pub struct InventoryService {
@@ -22,12 +21,11 @@ impl InventoryService {
     pub async fn refresh(
         &self,
         owner: &UserId,
-        root: &Path,
-        services: &ServicesConfig,
-        sources: SourcesContext<'_>,
+        view: &InstallServicesView,
     ) -> Result<InventoryStatus> {
-        let root = root.to_path_buf();
-        let services = services.clone();
+        let root = view.root().to_path_buf();
+        let services = view.config();
+        let sources = SourcesContext::of(view);
         let configured =
             tokio::task::spawn_blocking(move || scan_configured_inventory(&root, &services))
                 .await

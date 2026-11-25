@@ -7,6 +7,12 @@
 //! their route state; a composition without the `mcp` member provides no
 //! renderer, and an artifact UI request then fails with the fixed 5xx body.
 //!
+//! Every kernel is seeded with the [`HostRole`] of the process it serves. A
+//! contributed renderer names where it renders ([`RenderOn`]); the `UiSlot`
+//! build runs only the renderer factories whose [`RenderOn`] covers the
+//! kernel's role, so a process that does not render a member's artifacts
+//! neither builds nor applies that member's renderer.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -36,3 +42,34 @@ pub trait ArtifactUiRenderer: Send + Sync {
 }
 
 pub type DynArtifactUiRenderer = Arc<dyn ArtifactUiRenderer>;
+
+/// The process a kernel serves: the API (and the CLI that boots its context),
+/// a hosted MCP server child, or an agent child.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostRole {
+    Api,
+    McpServer,
+    Agent,
+}
+
+/// Where a contributed renderer renders.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderOn {
+    Api,
+    McpServers,
+    ApiAndMcpServers,
+}
+
+impl RenderOn {
+    #[must_use]
+    pub const fn covers(self, role: HostRole) -> bool {
+        matches!(
+            (self, role),
+            (Self::Api | Self::ApiAndMcpServers, HostRole::Api)
+                | (
+                    Self::McpServers | Self::ApiAndMcpServers,
+                    HostRole::McpServer
+                )
+        )
+    }
+}

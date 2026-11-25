@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "At-rest encryption"
+text = "Every at-rest value is sealed under its owning member's derived cipher with the `spmc1.` envelope; nothing is sealed under `encryption_master_key` itself. A runtime reader refuses a pre-0.88 value with `AtRestCipherError::Unresealed`, naming `admin secrets reseal`; run it after `infra db migrate` for every member it lists, core members included. The gateway journal is keyed for the `gateway` member."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Breaking"
+text = "`AtRestCipher::from_master_key` and `from_secrets` are removed; `AtRestCipher::for_member`, `member_key`, `MEMBER_CIPHER_LABEL`, `AtRestCipherError::Unresealed` and the reseal-only `at_rest::pre_088` are added."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ResealColumn` carries a `SealedLayout` (`SplitBytea { nonce }` or `HexText`)."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Changed"
+text = "The `ai` member declares `user_provider_credentials` for re-sealing; a pre-0.88 stored key is refused with a typed error, not treated as absent."

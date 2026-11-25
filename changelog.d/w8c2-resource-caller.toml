@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "MCP"
+text = "A hosted toolset reads a resource for the hop-verified caller, as it runs a tool call; the host refuses a resource read without one."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`McpToolset::read_resource` is async and takes `ResourceRead { request, caller }`."

@@ -2,12 +2,13 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use rmcp::model::{
-    CallToolResult, ListResourcesResult, ReadResourceRequestParams, ReadResourceResult, Resource,
-    ResourceContents, Tool,
+    CallToolResult, ListResourcesResult, ReadResourceResult, Resource, ResourceContents, Tool,
 };
 use rmcp::{ErrorData as McpError, ServerHandler};
 use systemprompt_extension::StandingTag;
-use systemprompt_extension::mcp::{McpAccessEvent, McpAccessRecorder, McpToolset, ToolsetCall};
+use systemprompt_extension::mcp::{
+    McpAccessEvent, McpAccessRecorder, McpToolset, ResourceRead, ToolsetCall,
+};
 use systemprompt_governance::authz::{
     AllowAllHook, DenyAllHook, SharedAuthzHook, SubjectAttributeError, SubjectAttributeProvider,
     SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
@@ -82,14 +83,20 @@ impl McpToolset for FakeToolset {
         ListResourcesResult::with_all_items(vec![Resource::new("issues://open", "open")])
     }
 
-    fn read_resource(
+    async fn read_resource(
         &self,
-        request: &ReadResourceRequestParams,
+        read: ResourceRead<'_>,
     ) -> Option<Result<ReadResourceResult, McpError>> {
-        (request.uri == "issues://open").then(|| {
+        let reader = read
+            .caller
+            .context()
+            .user
+            .as_ref()
+            .map_or_else(|| "-".to_owned(), |user| user.email.clone());
+        (read.request.uri == "issues://open").then(|| {
             Ok(ReadResourceResult::new(vec![ResourceContents::text(
-                "none open",
-                request.uri.clone(),
+                format!("none open:{reader}"),
+                read.request.uri.clone(),
             )]))
         })
     }

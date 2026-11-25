@@ -2,9 +2,9 @@
 //! the services tree and the profile's bundle sources.
 //!
 //! The `managed_resources` member builds one refresher in its provide fn
-//! from the provided repository and publish guard, the sealed system admin,
-//! active services root and [`BundleSources`] kernel seeds, and the open
-//! services view, and provides it sealed. The member's
+//! from the provided repository and publish guard, the sealed system admin
+//! and the read-only [`InstallServicesView`] kernel seeds, and provides it
+//! sealed. The member's
 //! `managed_inventory_refresh` job resolves it because a job context keeps
 //! the sealed values its own member provided, and calls only
 //! [`InventoryRefresher::fingerprint`] and
@@ -13,26 +13,24 @@
 //! caller-chosen actor. A kernel route reaches a refresher only as the sealed
 //! `DynInventoryPublisher` (`publish_latest` with the authenticated request's
 //! user as the actor), a separate instance. Neither reads the
-//! profile, the configuration or a secret: everything a refresh reads from
-//! the profile is the [`BundleSources`] value inside it.
+//! profile, the configuration or a secret: everything a refresh reads is the
+//! [`InstallServicesView`], the same view an install member reads to call
+//! [`InventoryService::refresh`] itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
-use systemprompt_loader::bundle::BundleSources;
-use systemprompt_manifest::services::ServicesView;
-use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_manifest::services::InstallServicesView;
 use systemprompt_traits::{InventoryPublishError, InventoryPublisher};
 use tokio::sync::Mutex;
 
 use super::{
     BaselineScope, InventoryService, InventoryStatus, LatestPublication, LatestPublicationStatus,
-    PublishGuard, SourcesContext, configured_inventory_fingerprint,
+    PublishGuard, configured_inventory_fingerprint,
 };
 use crate::managed::{ManagedRepository, Result};
 
@@ -41,9 +39,7 @@ use crate::managed::{ManagedRepository, Result};
 pub struct InventoryRefresherParts {
     pub repository: Arc<ManagedRepository>,
     pub guard: Arc<Mutex<PublishGuard>>,
-    pub bundles: BundleSources,
-    pub active_root: ActiveServicesRoot,
-    pub services: ServicesView,
+    pub services: InstallServicesView,
     pub owner: UserId,
 }
 
@@ -52,9 +48,7 @@ pub struct InventoryRefresherParts {
 pub struct InventoryRefresher {
     service: InventoryService,
     guard: Arc<Mutex<PublishGuard>>,
-    bundles: BundleSources,
-    active_root: ActiveServicesRoot,
-    services: ServicesView,
+    services: InstallServicesView,
     owner: UserId,
 }
 
@@ -64,8 +58,6 @@ impl InventoryRefresher {
         Self {
             service: InventoryService::new(parts.repository.as_ref().clone()),
             guard: parts.guard,
-            bundles: parts.bundles,
-            active_root: parts.active_root,
             services: parts.services,
             owner: parts.owner,
         }
@@ -76,26 +68,12 @@ impl InventoryRefresher {
         &self.owner
     }
 
-    fn root(&self) -> PathBuf {
-        self.active_root.path.clone()
-    }
-
-    const fn sources(&self) -> SourcesContext<'_> {
-        SourcesContext {
-            bundles: &self.bundles,
-            active_root: Some(&self.active_root),
-        }
-    }
-
     pub fn fingerprint(&self) -> Result<[u8; 32]> {
-        configured_inventory_fingerprint(&self.root(), &self.services.config())
+        configured_inventory_fingerprint(self.services.root(), &self.services.config())
     }
 
     pub async fn refresh(&self) -> Result<InventoryStatus> {
-        let services = self.services.config();
-        self.service
-            .refresh(&self.owner, &self.root(), &services, self.sources())
-            .await
+        self.service.refresh(&self.owner, &self.services).await
     }
 
     pub async fn publish_as_owner(&self) -> Result<Vec<LatestPublication>> {
@@ -104,20 +82,14 @@ impl InventoryRefresher {
     }
 
     pub async fn publish_latest(&self, actor: &UserId) -> Result<Vec<LatestPublication>> {
-        let services = self.services.config();
-        let root = self.root();
-        self.service
-            .refresh(&self.owner, &root, &services, self.sources())
-            .await?;
+        self.service.refresh(&self.owner, &self.services).await?;
         let mut guard = self.guard.lock().await;
         self.service
             .publish_latest(
                 &BaselineScope {
                     owner: &self.owner,
                     actor,
-                    root: &root,
-                    services: &services,
-                    sources: self.sources(),
+                    view: &self.services,
                 },
                 &mut guard,
             )

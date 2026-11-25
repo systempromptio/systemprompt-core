@@ -31,13 +31,12 @@ use crate::services::middleware::{
 use crate::services::static_content::{
     StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
 };
-use systemprompt_extension::router::SiteFallback;
 
 pub(super) fn build_static_router(
     ctx: &AppContext,
     layers: &MountLayers,
     events: Option<&StartupEventSender>,
-    site_fallback: Option<SiteFallback>,
+    site_fallback: Option<Router>,
 ) -> Result<RootFallback, MountError> {
     let state = ctx.kernel().state();
     let path = state
@@ -118,7 +117,7 @@ fn owned_fallback(
     static_router: Router,
     protection: &RouteProtection,
     layers: &MountLayers,
-    site_fallback: Option<SiteFallback>,
+    site_fallback: Option<Router>,
 ) -> Result<RootFallback, MountError> {
     match site_fallback {
         Some(fallback) => Ok(protect_site_fallback(fallback, layers)?.beside(protect(

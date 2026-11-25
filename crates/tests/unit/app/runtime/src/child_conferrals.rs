@@ -67,9 +67,13 @@ async fn a_child_host_withholds_every_conferral_and_still_boots() {
         systemprompt_manifest::paths::constants::env_vars::CUSTOM_SECRETS.to_owned(),
         "ENCRYPTION_MASTER_KEY".to_owned(),
     );
-    let parts = HostKernel::boot(move |name| env.get(name).cloned(), admit())
-        .await
-        .unwrap_or_else(|e| panic!("a child host with a declared conferral boots: {e:#}"));
+    let parts = HostKernel::boot(
+        systemprompt_extension::artifact_ui::HostRole::McpServer,
+        move |name| env.get(name).cloned(),
+        admit(),
+    )
+    .await
+    .unwrap_or_else(|e| panic!("a child host with a declared conferral boots: {e:#}"));
     let state = parts.kernel_state();
 
     assert!(

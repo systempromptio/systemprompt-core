@@ -61,10 +61,7 @@ pub(crate) fn repos_over(db: &DbPool, journal: GatewayJournal) -> GatewayReposit
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
-            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
-                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
-            )
-            .expect("at-rest cipher from the fixture secrets"),
+            at_rest: systemprompt_test_fixtures::fixture_at_rest_cipher(),
             unapplied_plane: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
         },
     )

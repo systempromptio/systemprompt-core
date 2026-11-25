@@ -16,6 +16,25 @@ use systemprompt_manifest::{
 };
 use systemprompt_models::auth::JwtAudience;
 
+// The bundle sources provenance reads, built the way the kernel builds them:
+// through the read-only install services view over the profile.
+pub fn bundle_sources(profile: &Profile) -> systemprompt_loader::bundle::BundleSources {
+    use systemprompt_manifest::services::InstallServicesView;
+    use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
+    let base = std::path::PathBuf::from(&profile.paths.services);
+    let view = InstallServicesView::of(
+        systemprompt_test_fixtures::fixture_services_view(),
+        &ActiveServicesRoot {
+            path: base.clone(),
+            base,
+            provenance: ServicesProvenance::Bundled,
+        },
+        profile,
+        systemprompt_loader::bundle::cache_root(profile),
+    );
+    systemprompt_loader::bundle::BundleSources::of(&view)
+}
+
 pub fn https_source(name: &str, url: &str, keys: Vec<String>) -> ServicesSource {
     ServicesSource {
         name: name.to_owned(),

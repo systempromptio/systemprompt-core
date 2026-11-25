@@ -41,6 +41,7 @@ pub(super) fn admit_site_fallback(
     }
     Ok(AdmittedSiteFallback {
         owner: member.id.clone(),
+        standing: member.standing.tag(),
         fallback,
     })
 }

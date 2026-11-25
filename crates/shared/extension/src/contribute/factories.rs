@@ -95,6 +95,25 @@ where
     }
 }
 
+pub fn build_present_factories<T: 'static>(
+    slot: &'static str,
+    scope: &MemberScope,
+    factories: &[Box<dyn Factory<Option<T>>>],
+    r: &Resolved<'_>,
+) -> Result<Vec<T>, SlotError> {
+    let built = build_factories(slot, scope, factories, r)?;
+    let declined = built.iter().filter(|value| value.is_none()).count();
+    if declined > 0 {
+        tracing::info!(
+            slot,
+            owner = %scope.owner(),
+            declined,
+            "slot factories declined; the slot holds nothing from them"
+        );
+    }
+    Ok(built.into_iter().flatten().collect())
+}
+
 pub fn build_factories<T: 'static>(
     slot: &'static str,
     scope: &MemberScope,

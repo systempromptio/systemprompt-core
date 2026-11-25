@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Scoped tokens"
+text = "`ScopedTokenMinter::verify` refuses the system-admin subject, a scoped token must carry the plain `JWT` type so no typed hop token decodes as one, and admission refuses the `owner-hop` and `mcp` namespaces as member audiences."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`ScopedVerifyError::ReservedSubject`."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`jwt::SCOPED_TOKEN_TYPE`."

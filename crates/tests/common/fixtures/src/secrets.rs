@@ -72,9 +72,20 @@ pub fn ensure_test_secrets_bootstrap() -> Arc<SecretsService> {
     Arc::clone(crate::bootstrap::ensure_test_bootstrap().boot.secrets())
 }
 
+// The `ai` member's at-rest cipher (the owner of `user_provider_credentials`)
+// under the bootstrap secrets' master key.
 pub fn fixture_at_rest_cipher() -> systemprompt_security::at_rest::AtRestCipher {
-    systemprompt_security::at_rest::AtRestCipher::from_secrets(
-        &ensure_test_secrets_bootstrap().get(),
+    systemprompt_security::at_rest::AtRestCipher::for_member(
+        &fixture_master_key(),
+        &systemprompt_identifiers::ExtensionId::new("ai"),
     )
-    .expect("the bootstrap secrets carry an encryption master key")
+    .expect("the bootstrap master key keys an HMAC")
+}
+
+pub fn fixture_master_key() -> [u8; 32] {
+    let secrets = ensure_test_secrets_bootstrap().get();
+    let encoded = secrets
+        .get("encryption_master_key")
+        .expect("the bootstrap secrets carry an encryption master key");
+    systemprompt_config::decode_master_key(encoded).expect("a 32-byte hex master key")
 }

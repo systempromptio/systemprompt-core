@@ -15,7 +15,9 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CredentialId, UserId};
-use systemprompt_security::at_rest::AtRestCipher;
+use systemprompt_security::at_rest::{AtRestCipher, AtRestCipherError};
+
+pub const CREDENTIALS_OWNER: &str = "ai";
 use systemprompt_traits::RepositoryError;
 
 /// What is known about a stored key without opening it.
@@ -54,7 +56,11 @@ impl UserProviderCredentialRepository {
         sealed: &str,
         label: Option<&str>,
     ) -> Result<UserProviderCredentialMeta, RepositoryError> {
-        let nonce = sealed.get(..NONCE_HEX_CHARS).unwrap_or_default();
+        let nonce = sealed
+            .strip_prefix(systemprompt_traits::MEMBER_CIPHER_ENVELOPE)
+            .unwrap_or(sealed)
+            .get(..NONCE_HEX_CHARS)
+            .unwrap_or_default();
         let row = sqlx::query_as!(
             UserProviderCredentialMeta,
             r#"
@@ -103,6 +109,12 @@ impl UserProviderCredentialRepository {
         };
         match self.cipher.open(&sealed) {
             Ok(key) => Ok(Some(key)),
+            Err(error @ AtRestCipherError::Unresealed) => Err(RepositoryError::InvalidData {
+                field: "user_provider_credentials.ciphertext",
+                reason: error
+                    .to_string()
+                    .replace("<owning member>", CREDENTIALS_OWNER),
+            }),
             Err(error) => {
                 tracing::warn!(
                     user_id = %user_id,

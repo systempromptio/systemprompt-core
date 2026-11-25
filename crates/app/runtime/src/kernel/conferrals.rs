@@ -28,8 +28,13 @@ use super::KernelError;
 
 const NAME_MAX: usize = 64;
 
+const RESERVED_HOP_NAMESPACES: &[&str] = &["owner-hop", "mcp"];
+
 fn audience_refusal(owner: &str, audience: &str, config: Option<&Config>) -> Option<&'static str> {
-    if is_core_audience(owner) || CoreId::ALL.iter().any(|core| core.id() == owner) {
+    if is_core_audience(owner)
+        || CoreId::ALL.iter().any(|core| core.id() == owner)
+        || RESERVED_HOP_NAMESPACES.contains(&owner)
+    {
         return Some("a core audience or core member id is never an audience namespace");
     }
     let Some(name) = audience

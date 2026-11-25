@@ -60,6 +60,12 @@ impl Extension for AiExtension {
         for schema in request_schemas().into_iter().chain(gateway_schemas()) {
             c.schema(schema);
         }
+        c.reseal_column(systemprompt_extension::ResealColumn {
+            table: "user_provider_credentials",
+            keys: &["user_id", "credential"],
+            ciphertext: "ciphertext",
+            layout: systemprompt_extension::SealedLayout::HexText,
+        });
         c.migrations(extension_migrations!())
             .provide(
                 |r: &Resolved<'_>| -> Result<DynRequestAttributionLookup, ProvideError> {
