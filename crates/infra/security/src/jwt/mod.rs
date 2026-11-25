@@ -28,6 +28,7 @@ pub mod hop;
 pub mod lifetime;
 pub mod mint;
 pub mod owner_hop;
+pub mod scoped;
 pub mod validate;
 pub mod verifying;
 
@@ -47,6 +48,7 @@ pub use owner_hop::{
     OWNER_HOP_TOKEN_TYPE, OWNER_HOP_TTL, OwnerHopClaims, mint_owner_hop, owner_hop_audience,
     verify_owner_hop,
 };
+pub use scoped::{ScopedTokenClaims, decode_scoped_token};
 pub use validate::{
     JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims, decode_session_claims,
     reject_critical_header,

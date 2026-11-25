@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Install views and conferred capabilities"
+text = "`ScopedTokenMinter` gains `verify(audience, token) -> Result<ScopedClaims, ScopedVerifyError>`: a member's minter verifies its own tokens for an audience it declared, with `aud` exactly that audience, `azp` the member, declared scopes and no expiry leeway. Core verifiers are unchanged. Migrate an implementation of the trait by adding `verify`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`ScopedTokenMinter::verify`, `ScopedClaims` and `ScopedVerifyError`."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`jwt::decode_scoped_token` and `ScopedTokenClaims`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelTokenMinters::new` takes the `VerificationKeyring`."
