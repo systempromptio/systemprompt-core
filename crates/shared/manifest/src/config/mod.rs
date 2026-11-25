@@ -44,8 +44,8 @@ pub fn stable_instance_id(lookup: impl Fn(&str) -> Option<String>) -> Option<Str
 // one id, because the service registry, scheduler claims and outbox origin are
 // keyed by it; a per-process id hides the host's rows from the CLI.
 #[must_use]
-pub fn local_instance_id(profile_name: &str) -> InstanceId {
-    InstanceId::new(format!("local-{profile_name}"))
+pub fn local_instance_id(profile: &crate::profile::Profile) -> InstanceId {
+    InstanceId::new(format!("local-{}", profile.name))
 }
 
 #[derive(Clone)]

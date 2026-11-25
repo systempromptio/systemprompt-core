@@ -88,8 +88,9 @@ pub use brain::{
     seed_brain_fact,
 };
 pub use composed::{
-    authz_probe_admitted, empty_resolved_kernel, gateway_kernel_seed, gateway_probe_admitted, gateway_resolved_kernel,
-    offline_resolved_kernel, probe_admitted, resolved_kernel, ComposedParts, Probe,
+    authz_probe_admitted, empty_resolved_kernel, gateway_kernel_seed, gateway_probe_admitted,
+    gateway_resolved_kernel, offline_resolved_kernel, probe_admitted, resolved_kernel,
+    ComposedParts, Probe,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_client_credential, seed_bridge_credential,

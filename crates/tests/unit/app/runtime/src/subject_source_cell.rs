@@ -119,7 +119,10 @@ async fn install_factories_read_the_subject_set_through_the_cell_once_resolved()
     let user = UserId::new("fx-user");
     for cell in [&seen.guard, &seen.hook, &seen.provider] {
         let cell = cell.as_ref().expect("every factory ran");
-        assert!(cell.is_bound(), "the kernel binds the cell once it resolves");
+        assert!(
+            cell.is_bound(),
+            "the kernel binds the cell once it resolves"
+        );
         let names: Vec<&str> = cell
             .dimensions()
             .iter()
@@ -128,7 +131,9 @@ async fn install_factories_read_the_subject_set_through_the_cell_once_resolved()
         assert!(names.contains(&DIMENSION), "{names:?}");
         assert!(names.contains(&"traffic"), "{names:?}");
         assert_eq!(
-            cell.values_for(&user, &dimension()).await.expect("resolves"),
+            cell.values_for(&user, &dimension())
+                .await
+                .expect("resolves"),
             vec!["cc-7".to_owned()]
         );
     }

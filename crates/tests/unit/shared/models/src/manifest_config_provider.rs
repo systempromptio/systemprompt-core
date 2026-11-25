@@ -129,4 +129,3 @@ fn debug_output_redacts_credentials() {
     assert!(!rendered.contains("hunter2"), "{rendered}");
     assert!(rendered.contains("<redacted>"), "{rendered}");
 }
-

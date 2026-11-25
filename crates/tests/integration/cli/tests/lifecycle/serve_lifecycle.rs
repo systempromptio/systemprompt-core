@@ -184,7 +184,10 @@ fn leave_instance_id_unset(
         systemprompt_cli_integration_tests::full_bootstrap::fixture_instance_id()
     );
     let unset = profile.replace(&explicit, "instance_id: null");
-    assert_ne!(unset, profile, "fixture profile instance_id was not present");
+    assert_ne!(
+        unset, profile,
+        "fixture profile instance_id was not present"
+    );
     std::fs::write(&fixture.profile_path, unset).expect("write fixture profile");
 }
 
