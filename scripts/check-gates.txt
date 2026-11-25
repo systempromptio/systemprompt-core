@@ -37,6 +37,8 @@ check-headers
 lint-layers
 lint-kernel-deps
 lint-capability-cfg
+lint-domain-protocol-deps
+lint-capability-deps
 lint-kernel-identity
 lint-contributions-surface
 lint-hidden-constructors

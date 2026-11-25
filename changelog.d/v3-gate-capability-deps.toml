@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Build"
+text = "`just lint-capability-deps` is a registered source gate: no package of one capability unit of `scripts/units.txt` depends on a package of another; capabilities reach each other through shared-layer contracts."

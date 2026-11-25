@@ -171,6 +171,14 @@ lint-kernel-deps:
 lint-capability-cfg:
     python3 ./scripts/lint-capability-cfg.py
 
+# Reject an HTTP or CLI stack a domain crate links outside a router, http or cli feature
+lint-domain-protocol-deps:
+    python3 ./scripts/lint-domain-protocol-deps.py
+
+# Reject a dependency from one capability unit of units.txt on another
+lint-capability-deps:
+    python3 ./scripts/lint-capability-deps.py
+
 # Reject hidden handoff constructors called outside their owners, and facade re-exports of handoff fns
 lint-hidden-constructors:
     python3 ./scripts/lint-hidden-constructors.py
