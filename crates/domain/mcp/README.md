@@ -13,7 +13,7 @@ Provides MCP server orchestration, per-server authentication, authorization midd
 
 **Capabilities** · [MCP Governance](https://systemprompt.io/features/mcp-governance)
 
-Native MCP server lifecycle, orchestration, and governance. Manages MCP process spawning, port allocation, proxy routing, RBAC middleware, schema validation, tool execution, artifact persistence, and UI rendering across systemprompt.io.
+Native MCP server lifecycle, orchestration, and governance. Manages MCP process spawning, port allocation, RBAC middleware, schema validation, tool execution, artifact persistence, and UI rendering across systemprompt.io.
 
 ## Usage
 
@@ -42,7 +42,7 @@ systemprompt-mcp = "0.87"
 | `repository/` | Compile-time-verified persistence for MCP sessions, artifacts, and tool-usage stats. |
 | `services/client/` | MCP client with context-propagating HTTP transport and connection validation. |
 | `services/lifecycle/` | Server startup, restart, graceful shutdown, and health. |
-| `services/network/` | Port allocation, HTTP proxy, and router/CORS routing. |
+| `services/network/` | Port allocation and release. |
 | `services/orchestrator/` | `McpOrchestrator`: daemon, event bus, reconciliation, schema sync, and event handlers. |
 | `services/process/` | Subprocess spawning, PID tracking, monitoring, and cleanup. |
 | `services/registry/` | `RegistryManager` and the `McpRegistry`/`McpDeploymentProvider` trait impls. |

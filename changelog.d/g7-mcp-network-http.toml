@@ -1,0 +1,9 @@
+[root]
+section = "Removed"
+area = "MCP"
+text = "`systemprompt-mcp` links no HTTP server stack: the unused `services::network::{proxy, routing}` modules and `NetworkService::{create_router, apply_cors, create_proxy}` are removed, with the crate's `axum` and `tower-http` dependencies. Port allocation and release are unchanged."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`services::network::{proxy, routing}` and `NetworkService::{create_router, apply_cors, create_proxy}` are removed; nothing in the platform served them. The crate no longer depends on `axum` or `tower-http`."

@@ -16,8 +16,6 @@ mod monitoring_live;
 mod network;
 mod network_live;
 mod network_port_and_cleanup;
-mod network_proxy;
-mod network_proxy_forward;
 mod orchestrator;
 mod orchestrator_extended;
 mod orchestrator_handlers;

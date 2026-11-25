@@ -48,9 +48,7 @@ sqlx = { workspace = true }
 rmcp = { workspace = true, features = ["client", "elicitation", "request-state", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
 
 # HTTP for MCP servers
-axum = { workspace = true }
 reqwest = { workspace = true }
-tower-http = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
 sse-stream = { workspace = true }
