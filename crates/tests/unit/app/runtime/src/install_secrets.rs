@@ -195,19 +195,21 @@ fn with_connector(base: &ServicesConfig) -> ServicesConfig {
 }
 
 fn reference_services(ctx: &AppContext) -> ServicesView {
+    reference_services_watched(ctx).0
+}
+
+fn reference_services_watched(ctx: &AppContext) -> (ServicesView, ConfigWatch<ServicesConfig>) {
     let base = ctx
         .kernel()
         .state()
         .get::<ServicesView>()
         .expect("the services view is a kernel seed")
         .clone();
-    ServicesView {
-        config: ConfigWatch::new(with_connector(&with_slack(
-            &base.config(),
-            SLACK_SIGNING_REF,
-        ))),
-        catalog: base.catalog,
-    }
+    let watch = ConfigWatch::new(with_connector(&with_slack(
+        &base.config(),
+        SLACK_SIGNING_REF,
+    )));
+    (ServicesView::over(watch.clone(), base.catalog), watch)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -442,11 +444,11 @@ impl ConfigVersionSource for Version {
 #[tokio::test]
 async fn a_name_a_services_reload_starts_to_reference_is_refused_from_then_on() {
     let ctx = context().await;
-    let services = reference_services(&ctx);
+    let (services, watch) = reference_services_watched(&ctx);
     let reloaded = with_slack(&services.config(), LATE);
     let epochs = CacheEpochs::new();
     let tasks = BackgroundTasks::new();
-    services.config.spawn(
+    watch.spawn(
         &tasks,
         WatchSignals {
             domain: CacheDomain::GatewayRoutes,
@@ -482,16 +484,13 @@ async fn a_name_a_services_reload_starts_to_reference_is_refused_from_then_on() 
     );
 
     for _ in 0..200 {
-        if services.config.reloads() > 0 {
+        if services.reloads() > 0 {
             break;
         }
         epochs.advance(CacheDomain::GatewayRoutes);
         tokio::time::sleep(Duration::from_millis(5)).await;
     }
-    assert!(
-        services.config.reloads() > 0,
-        "the services config reloaded"
-    );
+    assert!(services.reloads() > 0, "the services config reloaded");
     assert!(
         secrets.secret(LATE).is_none(),
         "a name the reloaded config references is refused to the install's held view"

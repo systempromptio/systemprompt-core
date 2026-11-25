@@ -18,6 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod audience;
+mod conferred;
 mod config;
 mod doctor;
 mod entries;
@@ -46,6 +47,7 @@ use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService, SecretPattern, SecretReferences};
 
 pub use audience::{AudienceEntry, AudienceResolvers};
+pub use conferred::{ConferralDeclarations, MemberConferrals};
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidePhase, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
@@ -254,6 +256,24 @@ impl<'a> Contributions<'a> {
                 .errors
                 .push(ContributionError::SecretPattern { source }),
         }
+        self
+    }
+
+    pub fn conferral(&mut self, row: crate::reserved::InstallConferral) -> &mut Self {
+        if !self.sink.conferrals.contains(&row) {
+            self.sink.conferrals.push(row);
+        }
+        self
+    }
+
+    pub fn token_audience(&mut self, audience: &str, scopes: &[&str]) -> &mut Self {
+        self.conferral(crate::reserved::InstallConferral::ScopedTokens);
+        self.sink
+            .token_audiences
+            .push(systemprompt_traits::TokenAudienceGrant {
+                audience: audience.to_owned(),
+                scopes: scopes.iter().map(|scope| (*scope).to_owned()).collect(),
+            });
         self
     }
 

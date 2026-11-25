@@ -82,6 +82,7 @@ use systemprompt_traits::{BackgroundTasks, DatabaseHandle};
 
 use self::reserved::{refuse_core_only_provides, refuse_kernel_types, refuse_unlisted_conferrals};
 
+mod conferrals;
 mod error;
 mod factories;
 mod phases;
@@ -147,6 +148,9 @@ impl Kernel {
         let declarations =
             secrets::declarations(admitted.built(), &Resolved::__new(&*self, &self.state))?;
         self.state.insert_sealed(Arc::new(declarations));
+        let conferrals =
+            conferrals::declarations(admitted.built(), &Resolved::__new(&*self, &self.state))?;
+        self.state.insert_sealed(Arc::new(conferrals));
         self.provide_all(admitted, ProvidePhase::Early)?;
         let audiences = AudienceResolvers::from_admitted(admitted.built(), &self.resolved())?;
         self.state.insert(Arc::new(audiences));

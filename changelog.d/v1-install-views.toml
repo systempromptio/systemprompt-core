@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Install views"
+text = "An install member reads four host-sealed seeds: `SystemAdmin`, `Arc<ConfigView>` (the runtime configuration without the database URLs and the signing key path), `Arc<ProfileView>` (profile name, target, environment, judge mode, cloud tenant id, OTLP target without credentials, `paths.bin`) and `InstallServicesView` (active services root, services config and catalog, credential-free source list). `InstallSeed::Config` is removed; `ServicesView`'s config watch is private (`ServicesView::over`, `ServicesView::config`)."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`InstallSeed::Config` is replaced by `InstallSeed::ConfigView`, `ProfileView` and `ServicesView`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Added"
+text = "`ConfigView`, `profile::ProfileView`, `profile::OtlpTargetView`, `profile::credential_free_url` and `services::InstallServicesView`; `ServicesView::over` and `ServicesView::reloads`. The `ServicesView::config` field is private."

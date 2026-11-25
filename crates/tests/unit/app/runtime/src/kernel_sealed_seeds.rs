@@ -23,12 +23,14 @@ use systemprompt_events::EventRouter;
 use systemprompt_extension::{LateRead, ProvideError, Resolved, StandingTag};
 use systemprompt_identifiers::{ExtensionId, InstanceId};
 use systemprompt_loader::subprocess::Spawner;
-use systemprompt_manifest::Config;
-use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_manifest::profile::ProfileView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_manifest::services::{InstallServicesView, SystemAdmin};
+use systemprompt_manifest::{Config, ConfigView};
 use systemprompt_marketplace::inventory::InventoryRefresher;
 use systemprompt_marketplace::managed::{OrganizationSkillResolver, OwnerSkillView};
 use systemprompt_models::a2a::dispatch::AgentDispatchCell;
+use systemprompt_models::auth::ScopedTokenMinter;
 use systemprompt_runtime::{AppContext, Kernel, KernelError};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{
@@ -36,8 +38,8 @@ use systemprompt_test_fixtures::{
     test_database_url,
 };
 use systemprompt_traits::{
-    AppContext as AppContextTrait, BackgroundTasks, DynInventoryPublisher, DynManagedSkillResolver,
-    MessagingDispatcher, SecretStore,
+    AppContext as AppContextTrait, BackgroundTasks, DynConferralIssuer, DynInventoryPublisher,
+    DynManagedSkillResolver, MemberCipher, MessagingDispatcher, SecretStore, ShareTokenSigner,
 };
 
 async fn context() -> Arc<AppContext> {
@@ -68,6 +70,12 @@ async fn the_kernel_state_seals_the_secret_and_boot_only_seeds() {
         "the JWT signing keys are sealed"
     );
     assert!(!state.is_sealed::<InstanceId>(), "the instance id is open");
+    assert!(state.is_sealed::<Arc<ConfigView>>());
+    assert!(state.is_sealed::<Arc<ProfileView>>());
+    assert!(state.is_sealed::<InstallServicesView>());
+    assert!(state.is_sealed::<DynConferralIssuer<dyn MemberCipher>>());
+    assert!(state.is_sealed::<DynConferralIssuer<dyn ShareTokenSigner>>());
+    assert!(state.is_sealed::<DynConferralIssuer<dyn ScopedTokenMinter>>());
 }
 
 #[tokio::test]
@@ -82,6 +90,26 @@ async fn a_member_command_resolver_refuses_every_sealed_seed() {
     assert!(member.get::<ActiveServicesRoot>().is_err());
     assert!(member.get::<Arc<EventRouter>>().is_err());
     assert!(member.get::<SigningKeys>().is_err());
+    assert!(member.get::<Arc<ConfigView>>().is_err());
+    assert!(member.get::<Arc<ProfileView>>().is_err());
+    assert!(member.get::<InstallServicesView>().is_err());
+    assert!(
+        member
+            .get::<DynConferralIssuer<dyn MemberCipher>>()
+            .is_err()
+    );
+    assert!(
+        member
+            .get::<DynConferralIssuer<dyn ShareTokenSigner>>()
+            .is_err()
+    );
+    assert!(
+        member
+            .get::<DynConferralIssuer<dyn ScopedTokenMinter>>()
+            .is_err()
+    );
+    assert!(member.member_cipher().is_err());
+    assert!(member.token_minter().is_err());
     assert!(member.optional::<Arc<Config>>().is_none());
     let missing = member.get::<SystemAdmin>().expect_err("sealed");
     assert_eq!(
@@ -104,6 +132,9 @@ async fn the_provide_and_kernel_resolver_serves_every_sealed_seed() {
     assert!(provide.get::<ActiveServicesRoot>().is_ok());
     assert!(provide.get::<Arc<EventRouter>>().is_ok());
     assert!(provide.get::<SigningKeys>().is_ok());
+    assert!(provide.get::<Arc<ConfigView>>().is_ok());
+    assert!(provide.get::<Arc<ProfileView>>().is_ok());
+    assert!(provide.get::<InstallServicesView>().is_ok());
 }
 
 #[tokio::test]
@@ -393,6 +424,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         (
             type_name::<Option<Arc<systemprompt_gateway::surface::views::BridgeEventStream>>>(),
             carrier::<systemprompt_events::AgUiBroadcaster>(),
+        ),
+        (
+            type_name::<DynConferralIssuer<dyn systemprompt_traits::GitSourceSync>>(),
+            carrier::<systemprompt_marketplace::managed::GitSourceSyncs>(),
         ),
         (
             type_name::<systemprompt_models::auth::DynTokenRevocations>(),

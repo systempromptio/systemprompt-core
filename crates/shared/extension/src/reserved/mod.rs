@@ -40,7 +40,8 @@ mod shapes;
 
 pub use cli::{RESERVED_CLI_PATHS, ReservedCliPath};
 pub use conferrals::{
-    ConferralRow, SEALED_CONFERRALS, SealedConferral, conferral_admits, conferral_named,
+    ConferralRow, INSTALL_CONFERRALS, InstallConferral, SEALED_CONFERRALS, SealedConferral,
+    conferral_admits, conferral_named,
 };
 pub use install_seeds::{INSTALL_SEEDS, InstallSeed, install_reads};
 pub use nesting::{nested_rows_are_bounded, nested_under_another_owner};

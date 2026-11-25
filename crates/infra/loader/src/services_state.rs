@@ -91,10 +91,7 @@ impl ServicesState {
 
     #[must_use]
     pub fn view(&self) -> ServicesView {
-        ServicesView {
-            config: self.watch.clone(),
-            catalog: Arc::clone(&self.catalog),
-        }
+        ServicesView::over(self.watch.clone(), Arc::clone(&self.catalog))
     }
 
     #[must_use]

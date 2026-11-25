@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Conferred capabilities"
+text = "A member that declares it in `contribute` reads a handle bound to itself in place of a sealed key: a cipher under a per-member key derived from `encryption_master_key`, a purpose-bound share-token signer, a Git source sync that uses the source's stored credential without returning it, and a token minter limited to the audiences and scopes it declared, at most one hour, each mint written to `governance_decisions` before the token is returned. The table is `reserved::INSTALL_CONFERRALS`; admission refuses a core audience, an audience outside the member's namespace and a core scope."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`ConferralIssuer`, `MemberGrant`, `MemberCipher`, `ShareTokenSigner`, `GitSourceSync` and their request, outcome and error types."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`auth::ScopedTokenMinter`, `ScopedTokenRequest`, `ScopedToken`, `ScopedMintError`, `is_core_audience` and `is_core_scope`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelError` gains `ConferredAudience` and `ConferredScope`."

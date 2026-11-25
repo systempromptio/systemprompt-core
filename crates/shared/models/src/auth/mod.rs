@@ -47,3 +47,8 @@ pub use token_authority::{TokenAuthority, TokenError, TokenResult, UserJwtReques
 pub use types::{
     API_KEY_PREFIX, AuthRequestError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType,
 };
+pub mod scoped_minter;
+pub use scoped_minter::{
+    SCOPED_TOKEN_MAX_TTL_SECS, ScopedMintError, ScopedToken, ScopedTokenMinter, ScopedTokenRequest,
+    is_core_audience, is_core_scope,
+};

@@ -128,8 +128,12 @@ impl AtRestCipher {
 #[error("at-rest pepper was rejected as an HMAC-SHA256 key")]
 pub struct AtRestHashError(#[source] hmac::digest::InvalidLength);
 
+pub fn keyed_hmac(key: &[u8]) -> Result<HmacSha256, AtRestHashError> {
+    HmacSha256::new_from_slice(key).map_err(AtRestHashError)
+}
+
 pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> Result<[u8; 32], AtRestHashError> {
-    let mut mac = HmacSha256::new_from_slice(pepper).map_err(AtRestHashError)?;
+    let mut mac = keyed_hmac(pepper)?;
     mac.update(value);
     let result = mac.finalize().into_bytes();
     let mut out = [0u8; 32];

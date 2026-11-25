@@ -13,8 +13,25 @@
 //! reading owner and its standing ([`conferral_admits`]), so a forged row, a
 //! forged provider or an install holder reads nothing.
 //!
+//! The second table, [`INSTALL_CONFERRALS`], names the capabilities core
+//! confers on any admitted member, install standing included, that declared
+//! the row (`Contributions::conferral`, `Contributions::token_audience`). A
+//! row names its issuer's core provider; the issuer is sealed, no member
+//! reads it, and the kernel refuses any other member's provide of its type.
+//! A member reads only its own handle, through its provide fns, factories and
+//! slot builds (`Resolved::member_cipher`, `Resolved::share_tokens`,
+//! `Resolved::git_source_sync`, `Resolved::token_minter`); a command's or a
+//! route set's resolution reads none, and an undeclared row, an absent issuer
+//! or an issuer from another provider is the `MissingDependency` of the
+//! handle type, so the provide fails typed and boot names the grant.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::any::{TypeId, type_name};
+
+use systemprompt_models::auth::ScopedTokenMinter;
+use systemprompt_traits::{DynConferralIssuer, GitSourceSync, MemberCipher, ShareTokenSigner};
 
 use super::CoreId;
 
@@ -128,4 +145,60 @@ pub fn conferral_named(name: &str) -> Option<&'static SealedConferral> {
 pub fn conferral_admits(name: &str, provider: &str, holder: &str) -> bool {
     conferral_named(name)
         .is_some_and(|entry| entry.provider == provider && entry.holder.id() == holder)
+}
+
+/// One capability of [`INSTALL_CONFERRALS`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InstallConferral {
+    MemberCipher,
+    ShareTokens,
+    GitSourceSync,
+    ScopedTokens,
+}
+
+pub const INSTALL_CONFERRALS: &[InstallConferral] = &[
+    InstallConferral::MemberCipher,
+    InstallConferral::ShareTokens,
+    InstallConferral::GitSourceSync,
+    InstallConferral::ScopedTokens,
+];
+
+impl InstallConferral {
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::MemberCipher => "member-cipher",
+            Self::ShareTokens => "share-tokens",
+            Self::GitSourceSync => "git-source-sync",
+            Self::ScopedTokens => "scoped-tokens",
+        }
+    }
+
+    #[must_use]
+    pub const fn provider(self) -> &'static str {
+        match self {
+            Self::MemberCipher | Self::ShareTokens | Self::ScopedTokens => CoreId::Kernel.id(),
+            Self::GitSourceSync => "managed_resources",
+        }
+    }
+
+    #[must_use]
+    pub fn issuer_type_id(self) -> TypeId {
+        match self {
+            Self::MemberCipher => TypeId::of::<DynConferralIssuer<dyn MemberCipher>>(),
+            Self::ShareTokens => TypeId::of::<DynConferralIssuer<dyn ShareTokenSigner>>(),
+            Self::GitSourceSync => TypeId::of::<DynConferralIssuer<dyn GitSourceSync>>(),
+            Self::ScopedTokens => TypeId::of::<DynConferralIssuer<dyn ScopedTokenMinter>>(),
+        }
+    }
+
+    #[must_use]
+    pub fn issuer_type_name(self) -> &'static str {
+        match self {
+            Self::MemberCipher => type_name::<DynConferralIssuer<dyn MemberCipher>>(),
+            Self::ShareTokens => type_name::<DynConferralIssuer<dyn ShareTokenSigner>>(),
+            Self::GitSourceSync => type_name::<DynConferralIssuer<dyn GitSourceSync>>(),
+            Self::ScopedTokens => type_name::<DynConferralIssuer<dyn ScopedTokenMinter>>(),
+        }
+    }
 }

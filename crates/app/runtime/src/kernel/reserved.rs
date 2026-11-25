@@ -1,8 +1,9 @@
 //! The kernel's own resolution steps over the admitted members: the
 //! reservation of the types only the kernel inserts, the refusal of a
-//! core-only type (the token revocation store, `oauth` alone) provided by any
-//! other member, the refusal of a conferred provide its reserved row does not
-//! name, and the gateway guard
+//! core-only type (the token revocation store, `oauth` alone; the Git source
+//! sync issuer, `managed_resources` alone) provided by any other member, the
+//! refusal of a provided conferral issuer the kernel seeds, the refusal of a
+//! conferred provide its reserved row does not name, and the gateway guard
 //! set it builds.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,9 +13,10 @@ use std::any::TypeId;
 use std::sync::Arc;
 
 use systemprompt_extension::contribute::ProvideEntry;
+use systemprompt_extension::reserved::InstallConferral;
 use systemprompt_extension::{
-    AdmittedOwnerReassignments, AudienceResolvers, BuiltState, GatewayGuards, MemberResolved,
-    Resolved, SecretDeclarations, StandingTag,
+    AdmittedOwnerReassignments, AudienceResolvers, BuiltState, ConferralDeclarations,
+    GatewayGuards, MemberResolved, Resolved, SecretDeclarations, StandingTag,
 };
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
@@ -23,8 +25,12 @@ use systemprompt_models::auth::DynTokenRevocations;
 
 use super::KernelError;
 
-const fn kernel_inserted() -> [TypeId; 6] {
+fn kernel_inserted() -> [TypeId; 10] {
     [
+        TypeId::of::<Arc<ConferralDeclarations>>(),
+        InstallConferral::MemberCipher.issuer_type_id(),
+        InstallConferral::ShareTokens.issuer_type_id(),
+        InstallConferral::ScopedTokens.issuer_type_id(),
         TypeId::of::<Arc<SecretDeclarations>>(),
         TypeId::of::<Arc<AudienceResolvers>>(),
         TypeId::of::<Arc<AdmittedOwnerReassignments>>(),
@@ -60,8 +66,14 @@ pub(super) fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError>
     Ok(())
 }
 
-const fn core_only_provides() -> [(TypeId, &'static str); 1] {
-    [(TypeId::of::<DynTokenRevocations>(), "oauth")]
+fn core_only_provides() -> [(TypeId, &'static str); 2] {
+    [
+        (TypeId::of::<DynTokenRevocations>(), "oauth"),
+        (
+            InstallConferral::GitSourceSync.issuer_type_id(),
+            InstallConferral::GitSourceSync.provider(),
+        ),
+    ]
 }
 
 pub(super) fn refuse_core_only_provides(built: &BuiltState) -> Result<(), KernelError> {

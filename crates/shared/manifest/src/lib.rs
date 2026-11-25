@@ -37,7 +37,7 @@ pub mod secrets;
 pub mod services;
 pub mod validators;
 
-pub use config::{Config, PathNotConfiguredError};
+pub use config::{Config, ConfigView, PathNotConfiguredError};
 pub use env::{
     INTERPOLATED_TAG, InterpolationError, PROVENANCE_KEYWORD, UNRESOLVED_TAG, UnsetVariable,
     contains_placeholder, interpolate, interpolate_yaml, interpolate_yaml_available,
