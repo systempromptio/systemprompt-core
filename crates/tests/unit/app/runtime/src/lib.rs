@@ -159,6 +159,8 @@ mod ext_fixtures;
 #[cfg(test)]
 mod factory_scope;
 #[cfg(test)]
+mod install_conferrals;
+#[cfg(test)]
 mod install_secrets;
 #[cfg(test)]
 mod issues_mcp_refusals;

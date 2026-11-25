@@ -27,8 +27,8 @@ use crate::catalog::{MarketplaceBridgeCatalog, MarketplaceCache};
 use crate::contract::MarketplaceSeams;
 use crate::inventory::{InventoryRefresher, InventoryRefresherParts, PublishGuard};
 use crate::managed::{
-    GitSourceDirectory, ManagedRepository, OrganizationSkillResolver, OwnerSkillView,
-    PublicationPolicy,
+    GitSourceDirectory, GitSourceSyncs, ManagedRepository, OrganizationSkillResolver,
+    OwnerSkillView, PublicationPolicy,
 };
 
 fn refresher_parts(r: &Resolved<'_>) -> Result<InventoryRefresherParts, ProvideError> {
@@ -85,6 +85,7 @@ pub(crate) fn provide_state(c: &mut Contributions<'_>) {
             Ok(catalog)
         })
         .provide_after_governance(GitSourceDirectory::provide)
+        .provide_sealed_after_governance(GitSourceSyncs::provide)
         .provide_after_governance(|r: &Resolved<'_>| {
             let repository = r.get::<Arc<ManagedRepository>>()?;
             let owner = r.get::<SystemAdmin>()?;

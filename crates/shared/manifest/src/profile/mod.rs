@@ -52,6 +52,7 @@ mod storage;
 mod style;
 mod validation;
 mod vault;
+mod view;
 
 pub use brain::{
     AutoConfirm, AutoConfirmPolicy, BrainCaptureProfile, BrainConsolidationProfile,
@@ -122,6 +123,7 @@ pub use vault::{
     DEFAULT_VAULT_RETRIES, DEFAULT_VAULT_TIMEOUT_SECS, MAX_VAULT_RETRIES, MAX_VAULT_TIMEOUT_SECS,
     VaultAuth, VaultKeyRef, VaultSecretsConfig,
 };
+pub use view::{OtlpTargetView, ProfileView, credential_free_url};
 
 use serde::{Deserialize, Serialize};
 

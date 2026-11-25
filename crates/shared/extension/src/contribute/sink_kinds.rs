@@ -57,6 +57,16 @@ impl ContributionSink {
     }
 
     #[must_use]
+    pub fn declared_conferrals(&self) -> &[crate::reserved::InstallConferral] {
+        &self.conferrals
+    }
+
+    #[must_use]
+    pub fn declared_token_audiences(&self) -> &[systemprompt_traits::TokenAudienceGrant] {
+        &self.token_audiences
+    }
+
+    #[must_use]
     pub fn secret_references(&self) -> &[SecretReferenceFactory] {
         &self.secret_references
     }
@@ -98,6 +108,8 @@ impl ContributionSink {
             audience_resolvers,
             policies,
             declared_secrets: _,
+            conferrals: _,
+            token_audiences: _,
             secret_references,
             slots: _,
             late_cells: _,

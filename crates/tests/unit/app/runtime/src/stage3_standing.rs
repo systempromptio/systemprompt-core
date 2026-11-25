@@ -17,8 +17,9 @@ use systemprompt_files::contract::AgentAccessSlot;
 use systemprompt_files::documents::agents::AgentAccessPolicy;
 use systemprompt_identifiers::{ExtensionId, InstanceId};
 use systemprompt_loader::subprocess::Spawner;
-use systemprompt_manifest::Config;
-use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_manifest::profile::ProfileView;
+use systemprompt_manifest::services::{InstallServicesView, SystemAdmin};
+use systemprompt_manifest::{Config, ConfigView};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::{AppContext, Kernel, KernelError};
 use systemprompt_security::keys::SigningKeys;
@@ -170,7 +171,9 @@ async fn an_install_governance_factory_reading_the_spawner_fails_typed() {
 
 #[derive(Clone)]
 struct AllowListed {
-    config: Arc<Config>,
+    config: Arc<ConfigView>,
+    profile: Arc<ProfileView>,
+    services: InstallServicesView,
     admin: SystemAdmin,
     instance: InstanceId,
 }
@@ -180,7 +183,12 @@ async fn an_install_provide_reads_every_allow_listed_seed() {
     let ctx = context().await;
     assert_eq!(
         INSTALL_SEEDS,
-        &[InstallSeed::Config, InstallSeed::SystemAdmin],
+        &[
+            InstallSeed::SystemAdmin,
+            InstallSeed::ConfigView,
+            InstallSeed::ProfileView,
+            InstallSeed::ServicesView,
+        ],
         "a row added to the table is a reviewed decision: extend this case with it"
     );
     for seed in INSTALL_SEEDS {
@@ -197,6 +205,8 @@ async fn an_install_provide_reads_every_allow_listed_seed() {
         c.provide(|r: &Resolved<'_>| -> Result<AllowListed, ProvideError> {
             Ok(AllowListed {
                 config: r.get()?,
+                profile: r.get()?,
+                services: r.get()?,
                 admin: r.get()?,
                 instance: r.get()?,
             })
@@ -208,6 +218,16 @@ async fn an_install_provide_reads_every_allow_listed_seed() {
         .get::<AllowListed>()
         .expect("the install's value is provided");
     assert_eq!(read.config.instance_id, read.instance);
+    let profile = systemprompt_test_fixtures::test_boot_profile();
+    assert_eq!(read.profile.name, profile.name);
+    let root = ctx
+        .kernel()
+        .state()
+        .get::<systemprompt_manifest::services::root::ActiveServicesRoot>()
+        .expect("seeded")
+        .path
+        .clone();
+    assert_eq!(read.services.root(), root.as_path());
     assert_eq!(
         read.admin.id(),
         ctx.kernel()
@@ -223,6 +243,7 @@ async fn an_install_provide_reads_every_allow_listed_seed() {
         "the secret store is sealed and not a row: an install reads only its declared secrets"
     );
     assert_install_provide_refused::<Arc<dyn systemprompt_traits::SecretStore>>(&ctx).await;
+    assert_install_provide_refused::<Arc<Config>>(&ctx).await;
 }
 
 #[derive(Clone)]
@@ -277,8 +298,12 @@ async fn rescoping_an_install_resolution_never_widens_it() {
         MissingDependency::of::<SigningKeys>()
     );
     assert!(
-        rescoped.get::<Arc<Config>>().is_ok(),
+        rescoped.get::<Arc<ConfigView>>().is_ok(),
         "an allow-listed seed stays readable"
+    );
+    assert!(
+        rescoped.get::<Arc<Config>>().is_err(),
+        "the whole config is not a row"
     );
     let core_resolved = kernel.member_resolved(&core);
     assert!(
@@ -330,8 +355,8 @@ fn the_upgrade_guide_states_what_the_kernel_enforces_for_sealed_seeds() {
         UPGRADE_GUIDE.contains("A route set's state, core or install, reads no host-sealed seed")
     );
     assert!(UPGRADE_GUIDE.contains(
-        "read only the host-sealed seeds `reserved::INSTALL_SEEDS` lists (`Arc<Config>` and \
-         `SystemAdmin`)"
+        "read only the host-sealed seeds `reserved::INSTALL_SEEDS` lists (`SystemAdmin`, \
+         `Arc<ConfigView>`, `Arc<ProfileView>` and `InstallServicesView`)"
     ));
-    assert_eq!(INSTALL_SEEDS.len(), 2, "extend the guide with a new row");
+    assert_eq!(INSTALL_SEEDS.len(), 4, "extend the guide with a new row");
 }

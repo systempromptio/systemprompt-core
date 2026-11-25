@@ -31,6 +31,7 @@ pub mod trace;
 mod validation;
 
 pub use admin_bootstrap::{ADMIN_BOOTSTRAP_OWNER, AdminBootstrapUnavailable, admin_bootstrap};
+pub use builder::conferred::KernelTokenMinters;
 pub use builder::kernel_binders::{
     ApiKernelBinders, ApiLateBinders, KernelBinders, PendingBinders,
 };

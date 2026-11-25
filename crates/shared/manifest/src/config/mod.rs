@@ -19,10 +19,12 @@ use systemprompt_models::auth::JwtAudience;
 mod machine;
 mod paths;
 mod validation;
+mod view;
 
 pub use machine::MachineIdentity;
 pub use paths::PathNotConfiguredError;
 pub use validation::validate_postgres_url;
+pub use view::ConfigView;
 
 pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
 

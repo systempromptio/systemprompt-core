@@ -7427,6 +7427,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "sqlx",
+ "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-governance",

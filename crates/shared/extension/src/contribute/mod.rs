@@ -18,6 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod audience;
+mod conferred;
 mod config;
 mod doctor;
 mod entries;
@@ -48,6 +49,7 @@ use systemprompt_traits::authz::SubjectAttributeProvider;
 use systemprompt_traits::{JobRunScope, RunOrigin, RunnerService, SecretPattern, SecretReferences};
 
 pub use audience::{AudienceEntry, AudienceResolvers};
+pub use conferred::{ConferralDeclarations, MemberConferrals};
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidePhase, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};

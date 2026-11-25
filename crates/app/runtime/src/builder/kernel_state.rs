@@ -44,6 +44,18 @@
 //! other seed is open. A member whose runtime code needs a capability derived
 //! from a sealed seed builds a narrow handle in its provide fn or factory.
 //!
+//! Every host also seeds the three install views, sealed, each copied here
+//! from the profile, the runtime `Config` and the services view: the
+//! `ConfigView` (no database URL, no signing key path), the `ProfileView`
+//! (no OTLP credentials) and the `InstallServicesView` (no source
+//! credentials, no reload handle). They are the rows of `INSTALL_SEEDS` next
+//! to the system admin; no route set's state reads them. Each host seeds the
+//! member cipher issuer when its secret store holds the
+//! `encryption_master_key` and the share-token issuer when it holds the
+//! `manifest_signing_secret_seed`; the API seeds the scoped token minter
+//! issuer over its token authority. The issuers are sealed and no member
+//! reads one: a member reads its own handle (`INSTALL_CONFERRALS`).
+//!
 //! The API also seeds the one `Arc<dyn TokenAuthority>` built over its signing
 //! keys and issuer, sealed and recorded under the `identity-token-authority`
 //! conferral row; host code reads the same value from the kernel state. The
@@ -105,16 +117,25 @@ use systemprompt_manifest::profile::ProfileSecretReferences;
 use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::{ContentConfigRaw, late_pair};
 
+use super::conferred::{KernelTokenMinters, with_secret_issuers};
 use super::kernel_binders::{ApiKernelBinders, ApiLateBinders, KernelBinders};
 use systemprompt_extension::reserved::ConferralRow;
+use systemprompt_governance::authz::GovernanceDecisionRepository;
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_manifest::ConfigView;
+use systemprompt_manifest::profile::ProfileView;
+use systemprompt_manifest::services::InstallServicesView;
+use systemprompt_models::auth::ScopedTokenMinter;
 use systemprompt_provider_contracts::{Conferred, Dependencies};
-use systemprompt_traits::MessagingDispatcher;
+use systemprompt_traits::{DynConferralIssuer, MessagingDispatcher};
 
 pub use super::kernel_seed::{ApiKernelSeed, KernelCoordination, KernelSeed};
 
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) {
     let (scanner, secret_scanner) = late_pair::<SecretScanner>();
+    let install_services =
+        InstallServicesView::of(seed.services.clone(), &seed.services_root, seed.profile);
+    let secrets = Arc::clone(&seed.secrets);
     let (authz_cell, authz_hook) = late_pair::<dyn AuthzDecisionHook>();
     let state = Dependencies::new()
         .with(scanner)
@@ -130,6 +151,9 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with(seed.coordination.leases)
         .with(seed.coordination.locks)
         .with_sealed(Arc::clone(seed.config))
+        .with_sealed(Arc::new(ConfigView::of(seed.config)))
+        .with_sealed(Arc::new(ProfileView::of(seed.profile)))
+        .with_sealed(install_services)
         .with_sealed(seed.cache_epochs.clone())
         .with(seed.cache_epochs.view())
         .with(seed.verification.clone())
@@ -148,7 +172,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with(seed.escalation)
         .with_sealed(seed.audit_spans);
     (
-        state,
+        with_secret_issuers(state, &*secrets),
         KernelBinders {
             secret_scanner,
             authz_hook,
@@ -156,9 +180,19 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
     )
 }
 
+fn minter_issuer(seed: &ApiKernelSeed<'_>) -> DynConferralIssuer<dyn ScopedTokenMinter> {
+    Arc::new(KernelTokenMinters::new(
+        Arc::clone(seed.token_authority),
+        seed.base.config.jwt_issuer.clone(),
+        GovernanceDecisionRepository::from_pool(seed.base.database.write_pool()),
+        seed.base.system_admin.id().clone(),
+    ))
+}
+
 pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders) {
     let (agent_dispatch_cell, agent_dispatch) = late_pair::<dyn AgentDispatch>();
     let (messaging_cell, messaging) = late_pair::<dyn MessagingDispatcher>();
+    let minter = minter_issuer(&seed);
     let (base, base_binders) = base_kernel_state(seed.base);
     let mut state = base
         .with_sealed_conferred(
@@ -179,6 +213,7 @@ pub fn kernel_state(seed: ApiKernelSeed<'_>) -> (Dependencies, ApiKernelBinders)
         .with_sealed(seed.child_secrets)
         .with(seed.signing_keys.verification_keys().clone())
         .with_sealed(seed.at_rest_pepper)
+        .with_sealed(minter)
         .with_sealed(messaging_cell)
         .with_sealed(agent_dispatch_cell);
     match seed.content_config {

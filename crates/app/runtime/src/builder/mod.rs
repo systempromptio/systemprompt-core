@@ -23,6 +23,7 @@
 pub(crate) mod assembly;
 pub(crate) mod authz;
 pub(crate) mod composition;
+pub(crate) mod conferred;
 pub(crate) mod core_layer;
 pub(crate) mod database;
 mod debug_impl;

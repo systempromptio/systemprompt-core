@@ -76,6 +76,8 @@ pub struct ContributionSink {
     pub(crate) audience_resolvers: Vec<AudienceResolverFactory>,
     pub(crate) policies: Vec<PolicyFactory>,
     pub(crate) declared_secrets: Vec<SecretPattern>,
+    pub(crate) conferrals: Vec<crate::reserved::InstallConferral>,
+    pub(crate) token_audiences: Vec<systemprompt_traits::TokenAudienceGrant>,
     pub(crate) secret_references: Vec<SecretReferenceFactory>,
     pub(crate) slots: Vec<SlotRecord>,
     pub(crate) late_cells: Vec<super::late_cell::LateCellEntry>,

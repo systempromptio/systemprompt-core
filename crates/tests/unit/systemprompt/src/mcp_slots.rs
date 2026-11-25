@@ -167,10 +167,7 @@ fn services_hosting(toolset: &str) -> ServicesView {
     config
         .mcp_servers
         .insert("probe-hosted".to_owned(), deployment);
-    ServicesView {
-        config: ConfigWatch::new(config),
-        catalog: Arc::clone(&base.catalog),
-    }
+    ServicesView::over(ConfigWatch::new(config), Arc::clone(&base.catalog))
 }
 
 #[test]

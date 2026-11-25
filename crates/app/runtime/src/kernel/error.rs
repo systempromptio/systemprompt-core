@@ -98,6 +98,19 @@ pub enum KernelError {
         owner: ExtensionId,
         pattern: SecretPattern,
     },
+    #[error("{owner} declares token audience {audience}, refused: {reason}")]
+    ConferredAudience {
+        owner: ExtensionId,
+        audience: String,
+        reason: &'static str,
+    },
+    #[error("{owner} declares scope {scope} for token audience {audience}, refused: {reason}")]
+    ConferredScope {
+        owner: ExtensionId,
+        audience: String,
+        scope: String,
+        reason: &'static str,
+    },
     #[error("gateway guard factory of {owner} failed")]
     GatewayGuard {
         owner: ExtensionId,

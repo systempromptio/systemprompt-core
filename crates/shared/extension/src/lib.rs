@@ -142,11 +142,11 @@ pub use brain::{
 #[cfg(feature = "sqlx")]
 pub use brain::{BrainSink, DynBrainSink};
 pub use contribute::{
-    AudienceEntry, AudienceResolvers, ContributionError, Contributions, ExtensionConfig, Factory,
-    FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle, LateCell, MemberResolved,
-    MemberScope, MemberSecrets, ProvideError, ProvideFn, ProvidePhase, Resolved,
-    SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
-    handles,
+    AudienceEntry, AudienceResolvers, ConferralDeclarations, ContributionError, Contributions,
+    ExtensionConfig, Factory, FactoryError, FactoryKind, FromState, Handed, HandleId, KernelHandle,
+    LateCell, MemberConferrals, MemberResolved, MemberScope, MemberSecrets, ProvideError,
+    ProvideFn, ProvidePhase, Resolved, SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder,
+    StandingTag, build_factories, handles,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{

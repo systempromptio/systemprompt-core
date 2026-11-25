@@ -51,7 +51,7 @@ mod validation;
 pub mod view;
 
 pub use includable::IncludableString;
-pub use view::ServicesView;
+pub use view::{InstallServicesView, ServicesSourceView, ServicesView, SourceTransport};
 
 pub use agent_config::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,

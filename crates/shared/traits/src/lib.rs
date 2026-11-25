@@ -260,3 +260,10 @@ pub use session_issuer::{
 };
 pub use session_store::{DynSessionStore, DynSessionTelemetry, SessionStore, SessionTelemetry};
 pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};
+
+pub mod conferred;
+pub use conferred::{
+    ConferralIssuer, DynConferralIssuer, GitSourceSync, GitSourceSyncError, GitSourceSyncRequest,
+    GitSourceSynced, MemberCipher, MemberCipherError, MemberGrant, SHARE_TOKEN_MAX_TTL,
+    ShareTokenError, ShareTokenSigner, TokenAudienceGrant,
+};
