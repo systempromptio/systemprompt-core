@@ -7,10 +7,10 @@
 //! back, its attempt is recorded, its row stays unacknowledged and the
 //! consumer holds it back for the poll interval. More than
 //! [`MAX_ROUND_TRANSIENTS`] transient failures cut the round short; the
-//! facts not reached are released at commit and the consumer waits before
-//! the next round. A failed acknowledgement or commit rolls back the whole
-//! round, nothing from it is delivered, and every fact in it is claimed
-//! again.
+//! facts not reached are released at commit and the consumer waits out the
+//! poll interval before the next round, deaf to wakes. A failed acknowledgement
+//! or commit rolls back the whole round, nothing from it is delivered, and
+//! every fact in it is claimed again.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,8 +21,8 @@ use systemprompt_events::services::durable::DeliveryBatch;
 use systemprompt_identifiers::{EventOutboxId, NotificationId};
 use systemprompt_models::notifications::NOTIFICATIONS_CONSUMER;
 
-use super::NotificationsConsumer;
 use super::handle::Handled;
+use super::{Next, NotificationsConsumer};
 use crate::error::NotificationsResult;
 use crate::pipeline::{BatchContext, metrics};
 
@@ -37,7 +37,7 @@ struct Round {
 }
 
 impl NotificationsConsumer {
-    pub(super) async fn drain_round(&self) -> NotificationsResult<bool> {
+    pub(super) async fn drain_round(&self) -> NotificationsResult<Next> {
         let started = Instant::now();
         let held = self.hold.held();
         let limit = i64::try_from(self.batch()).unwrap_or(i64::MAX);
@@ -46,7 +46,7 @@ impl NotificationsConsumer {
             .claim_batch(NOTIFICATIONS_CONSUMER, limit, &held)
             .await?
         else {
-            return Ok(false);
+            return Ok(Next::Listen);
         };
         let mut ctx = match BatchContext::load(batch.connection()).await {
             Ok(ctx) => ctx,
@@ -70,7 +70,7 @@ impl NotificationsConsumer {
         }
         metrics::batch_seconds(started.elapsed().as_secs_f64());
         self.report_backlog().await;
-        Ok(round.acknowledged > 0 && !round.cut_short)
+        Ok(Next::after(round.acknowledged > 0, round.cut_short))
     }
 
     async fn process_batch(

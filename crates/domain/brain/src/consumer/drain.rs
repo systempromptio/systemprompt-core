@@ -10,14 +10,15 @@
 //! consumer holds it back for the poll interval. More than
 //! [`MAX_ROUND_TRANSIENTS`] transient failures cut the round short, since
 //! that many points at an outage rather than a bad event; the events not
-//! reached are released at commit and the consumer waits before the next
-//! round. The ledger claims of every event the round did not finish are
-//! deleted before commit, so a retried event is claimed again by the round
-//! that retries it. A failed ledger statement, a failed attempt record or
-//! a failed commit rolls back the whole round and every event in it is
-//! claimed again. Each event's result row is claimed on the same
-//! transaction, so a lost round leaves no result behind and an event is
-//! still processed at most once per pipeline version.
+//! reached are released at commit and the consumer waits out the poll
+//! interval before the next round, deaf to wakes, so a notification during
+//! an outage does not start a round that spends attempts on it. The ledger
+//! claims of every event the round did not finish are deleted before commit, so
+//! a retried event is claimed again by the round that retries it. A failed
+//! ledger statement, a failed attempt record or a failed commit rolls back the
+//! whole round and every event in it is claimed again. Each event's result row
+//! is claimed on the same transaction, so a lost round leaves no result behind
+//! and an event is still processed at most once per pipeline version.
 //!
 //! The set statements after the loop ([`crate::index::reindex_facts`], the
 //! ledger finish, the acknowledgement) replace what each event used to run
@@ -52,7 +53,7 @@ use systemprompt_models::brain::{BRAIN_CONSUMER, BrainEvent};
 
 use super::decode::decode_all;
 use super::pass::{Pass, PassInput, Round};
-use super::{BrainConsumer, Counters};
+use super::{BrainConsumer, Counters, Next};
 use crate::error::{BrainError, BrainResult};
 use crate::index::Reindex;
 use crate::pipeline::{BatchContext, RoundCache, metrics};
@@ -60,7 +61,7 @@ use crate::pipeline::{BatchContext, RoundCache, metrics};
 pub const MAX_ROUND_TRANSIENTS: usize = 3;
 
 impl BrainConsumer {
-    pub(super) async fn drain_round(&self) -> BrainResult<bool> {
+    pub(super) async fn drain_round(&self) -> BrainResult<Next> {
         let started = Instant::now();
         let held = self.round_state.held();
         let limit = i64::try_from(self.batch()).unwrap_or(i64::MAX);
@@ -70,7 +71,7 @@ impl BrainConsumer {
             .await?;
         self.round_state.ran();
         let Some(mut batch) = claimed else {
-            return Ok(false);
+            return Ok(Next::Listen);
         };
         let events = batch.len();
         let round = match self.process_batch(&mut batch).await {
@@ -110,7 +111,7 @@ impl BrainConsumer {
         {
             tracing::warn!(error = %error, "Brain store gauges could not be refreshed");
         }
-        Ok(!round.done.is_empty() && !round.cut_short)
+        Ok(Next::after(!round.done.is_empty(), round.cut_short))
     }
 
     async fn process_batch(&self, batch: &mut DeliveryBatch) -> BrainResult<Round> {

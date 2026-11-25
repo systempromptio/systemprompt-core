@@ -34,4 +34,11 @@ impl Wake {
         });
         self.wake.wait(poll, shutdown).await != WakeReason::Shutdown
     }
+
+    pub(super) async fn back_off(&self, wait: Duration, shutdown: &CancellationToken) -> bool {
+        tokio::select! {
+            () = shutdown.cancelled() => false,
+            () = tokio::time::sleep(wait) => true,
+        }
+    }
 }

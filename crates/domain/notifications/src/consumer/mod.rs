@@ -64,6 +64,25 @@ use self::wake::Wake;
 use crate::error::NotificationsResult;
 use crate::pipeline::{NotificationPipeline, metrics};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Next {
+    Drain,
+    Listen,
+    BackOff,
+}
+
+impl Next {
+    const fn after(worked: bool, cut_short: bool) -> Self {
+        if cut_short {
+            Self::BackOff
+        } else if worked {
+            Self::Drain
+        } else {
+            Self::Listen
+        }
+    }
+}
+
 /// What the consumer is doing right now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -190,11 +209,11 @@ impl RunnerService for NotificationsConsumer {
         let mut next_sweep = Instant::now();
         while !shutdown.is_cancelled() {
             self.state.set(ConsumerState::Draining);
-            let worked = match self.drain_round().await {
-                Ok(worked) => worked,
+            let next = match self.drain_round().await {
+                Ok(next) => next,
                 Err(error) => {
                     tracing::error!(error = %error, "Notification drain round failed");
-                    false
+                    Next::Listen
                 },
             };
             if Instant::now() >= next_sweep {
@@ -202,11 +221,14 @@ impl RunnerService for NotificationsConsumer {
                 self.report_backlog().await;
                 next_sweep = Instant::now() + sweep_every;
             }
-            if !worked {
-                let until_sweep = next_sweep.saturating_duration_since(Instant::now());
-                if !wake.wait(poll.min(until_sweep), &shutdown).await {
-                    break;
-                }
+            let until_sweep = next_sweep.saturating_duration_since(Instant::now());
+            let carry_on = match next {
+                Next::Drain => true,
+                Next::Listen => wake.wait(poll.min(until_sweep), &shutdown).await,
+                Next::BackOff => wake.back_off(poll.min(until_sweep), &shutdown).await,
+            };
+            if !carry_on {
+                break;
             }
         }
         self.state.set(ConsumerState::Idle);

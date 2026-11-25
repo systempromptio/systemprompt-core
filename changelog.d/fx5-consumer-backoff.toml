@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Outbox consumers"
+text = "A brain or notifications drain round cut short by repeated transient failures now waits out the poll interval before the next round; a wake (a facts notification or the listener coming up) no longer starts a round that reaches the events the cut-short round left behind."
+
+[[crate]]
+name = "systemprompt-brain"
+section = "Fixed"
+text = "A drain round cut short after `MAX_ROUND_TRANSIENTS` transient failures backs off for the poll interval instead of waking on the next facts notification."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Fixed"
+text = "A drain round cut short after `MAX_ROUND_TRANSIENTS` transient failures backs off for the poll interval instead of waking on the next facts notification."
