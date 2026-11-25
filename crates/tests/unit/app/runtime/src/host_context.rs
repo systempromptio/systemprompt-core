@@ -58,6 +58,7 @@ async fn boot_with(
         .await
         .expect("seed the system admin");
     HostContext::boot(
+        systemprompt_extension::artifact_ui::HostRole::McpServer,
         move |name| env.get(name).cloned(),
         crate::boot::host_admit(),
     )

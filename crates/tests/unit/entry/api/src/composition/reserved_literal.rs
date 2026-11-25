@@ -27,7 +27,7 @@ use systemprompt_api::services::middleware::{
 use systemprompt_api::services::server::routes::Composed;
 use systemprompt_extension::admitted::AdmittedRouteSet;
 use systemprompt_extension::router::{
-    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec, SiteFallback, WebBase,
+    ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec, WebBase,
 };
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, HandleId, RateBudget, RateLimit, RouteGroup, StandingTag,
@@ -409,7 +409,7 @@ async fn with_site_fallback() -> Router {
         .await
         .expect("the reserved owner mounts");
     let fallback = protect_site_fallback(
-        SiteFallback::service(axum::routing::any(site).with_state(())),
+        Router::new().fallback_service(axum::routing::any(site).with_state(())),
         &layers,
     )
     .expect("the site fallback mounts");
@@ -478,13 +478,19 @@ async fn the_site_fallback_is_public_and_never_answers_a_reserved_path() {
 async fn a_second_site_fallback_claim_is_refused() {
     let layers = layers().await;
     let mut owner = RootFallbackOwner::default();
-    let first = protect_site_fallback(SiteFallback::service(get(ok).with_state(())), &layers)
-        .expect("the first fallback protects");
+    let first = protect_site_fallback(
+        Router::new().fallback_service(get(ok).with_state(())),
+        &layers,
+    )
+    .expect("the first fallback protects");
     let tree = owner
         .place(Router::new(), first)
         .expect("the first claim is placed");
-    let second = protect_site_fallback(SiteFallback::service(get(ok).with_state(())), &layers)
-        .expect("the second fallback protects");
+    let second = protect_site_fallback(
+        Router::new().fallback_service(get(ok).with_state(())),
+        &layers,
+    )
+    .expect("the second fallback protects");
     assert!(matches!(
         owner.place(tree, second),
         Err(MountError::SecondRootFallback { .. })

@@ -693,10 +693,14 @@ async fn consumer_http_flow_binds_receipts_and_refuses_another_device() {
         .reconcile_inventory(
             &owner,
             &[],
-            systemprompt_marketplace::inventory::SourcesContext {
-                bundles: &systemprompt_loader::bundle::BundleSources::of(harness.ctx.profile()),
-                active_root: harness.ctx.boot().services_root(),
-            },
+            systemprompt_marketplace::inventory::SourcesContext::of(
+                harness
+                    .ctx
+                    .kernel()
+                    .state()
+                    .get::<systemprompt_manifest::services::InstallServicesView>()
+                    .expect("the kernel seeds the install services view"),
+            ),
         )
         .await
         .expect("managed inventory projection");

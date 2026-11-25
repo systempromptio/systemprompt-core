@@ -8,16 +8,12 @@ use systemprompt_ai::PersonalProviderCredentials;
 use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_extension::router::GatewayPrincipal;
 use systemprompt_identifiers::CredentialId;
-use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_security::credential::TokenCache;
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, seed_user_row, test_db_pool, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 
 #[tokio::test]
 async fn the_view_never_reads_or_removes_another_users_credential() {
-    let secrets = ensure_test_secrets_bootstrap();
-    let cipher = AtRestCipher::from_secrets(&secrets.get()).expect("cipher");
+    let cipher = systemprompt_test_fixtures::fixture_at_rest_cipher();
     let pool = test_db_pool().await;
     let owner = unique_user_id("view-owner");
     let other = unique_user_id("view-other");

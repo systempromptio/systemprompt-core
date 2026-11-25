@@ -9,7 +9,7 @@ use axum::routing::get;
 use systemprompt::{CompositionError, reference};
 use systemprompt_extension::router::SiteFallback;
 
-use crate::probe::{Probe, build, ok, profile};
+use crate::probe::{Probe, ProbeState, build, ok, profile};
 
 fn claimant(id: &'static str, claims: usize) -> Probe {
     Probe::new(id, move |c| {
@@ -30,6 +30,38 @@ fn one_site_fallback_claim_is_admitted_with_its_owner() {
     assert!(
         none.site_fallback().is_none(),
         "negative control: no claimant, no slot"
+    );
+}
+
+fn stateful_claimant(id: &'static str) -> Probe {
+    Probe::new(id, move |c| {
+        c.site_fallback(SiteFallback::with_state(|_: ProbeState| {
+            get(ok).with_state(())
+        }));
+    })
+}
+
+#[test]
+fn a_fallback_built_from_member_state_is_still_the_one_slot() {
+    let admitted =
+        build(reference().with(stateful_claimant("probe-stateful"))).expect("one claimant admits");
+    assert_eq!(
+        admitted.site_fallback().map(|site| site.owner.as_str()),
+        Some("probe-stateful")
+    );
+    let error = build(
+        reference()
+            .with(stateful_claimant("probe-stateful"))
+            .with(claimant("probe-site", 1)),
+    )
+    .expect_err("a second claimant is refused, typed");
+    assert!(
+        matches!(
+            &error,
+            CompositionError::SecondSiteFallback { first, second }
+                if first.as_str() == "probe-stateful" && second.as_str() == "probe-site"
+        ),
+        "{error:?}"
     );
 }
 

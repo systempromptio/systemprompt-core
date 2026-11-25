@@ -49,6 +49,7 @@ pub struct ContributionSink {
     pub(crate) cross_tables: Vec<&'static str>,
     pub(crate) user_purges: Vec<UserPurgeTable>,
     pub(crate) orphan_sweeps: Vec<OrphanSweep>,
+    pub(crate) reseal_columns: Vec<crate::reseal::ResealColumn>,
     pub(crate) owner_reassignments: Vec<OwnerReassignment>,
     pub(crate) doctor_checks: Vec<DoctorCheckRef>,
     #[cfg(feature = "sqlx")]
@@ -127,6 +128,11 @@ impl ContributionSink {
     #[must_use]
     pub fn orphan_sweeps(&self) -> &[OrphanSweep] {
         &self.orphan_sweeps
+    }
+
+    #[must_use]
+    pub fn reseal_columns(&self) -> &[crate::reseal::ResealColumn] {
+        &self.reseal_columns
     }
 
     #[must_use]

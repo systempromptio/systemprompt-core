@@ -70,9 +70,10 @@ pub use app_context::{
     fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_kernel_seed,
     fixture_secret_store, fixture_services_state, fixture_services_view, fixture_session_store,
     fixture_session_usage, fixture_subject_providers, fixture_upstream_issuer, host_admitted,
-    oauth_repositories, offline_kernel, offline_rate_windows, seed_fixture_system_admin_at,
-    test_app_context, test_app_context_on, test_app_context_on_with, test_config, test_config_with,
-    user_repository, FixtureSeedParts, FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
+    install_services_view_at, oauth_repositories, offline_kernel, offline_rate_windows,
+    seed_fixture_system_admin_at, test_app_context, test_app_context_on, test_app_context_on_with,
+    test_config, test_config_with, user_repository, FixtureSeedParts, FIXTURE_JWT_ISSUER,
+    FIXTURE_UPSTREAM_ISSUER,
 };
 pub use bootstrap::{
     enabled_documents, ensure_messaging_bootstrap, ensure_test_bootstrap, init_documents_bootstrap,

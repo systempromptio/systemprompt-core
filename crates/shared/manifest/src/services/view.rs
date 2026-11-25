@@ -9,10 +9,16 @@
 //! A [`ServicesView`] reads the live config and catalog and holds no handle
 //! that writes or reloads them: the config watch it reads is private, and
 //! only the services state that built it spawns the reload. An
-//! [`InstallServicesView`] adds the active (synced) services root and the
+//! [`InstallServicesView`] adds the active (synced) services root with its
+//! provenance, the base services tree, the bundle cache directory and the
 //! profile's bundle source list, each source as its name, transport and
 //! location without user info, query or fragment; the name of the secret a
-//! source authenticates with is not in it.
+//! source authenticates with is not in it. It is everything an inventory
+//! refresh reads (`systemprompt_marketplace::inventory::SourcesContext`), so
+//! an install refreshes inventory without the profile. A fetch failure's text
+//! never reaches the view: the provenance keeps its kind and composed hash,
+//! and its error is a fixed sentence, since a fetch error can quote a source
+//! URL.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -71,17 +77,43 @@ pub struct ServicesSourceView {
     pub location: Option<String>,
 }
 
+fn install_root(root: &ActiveServicesRoot) -> ActiveServicesRoot {
+    use super::root::ServicesProvenance;
+    const WITHHELD: &str = "the bundle fetch failed; the server log has the cause";
+    ActiveServicesRoot {
+        path: root.path.clone(),
+        base: root.base.clone(),
+        provenance: match &root.provenance {
+            ServicesProvenance::LastGood { composed_hash, .. } => ServicesProvenance::LastGood {
+                composed_hash: composed_hash.clone(),
+                error: WITHHELD.to_owned(),
+            },
+            ServicesProvenance::BundledFallback { .. } => ServicesProvenance::BundledFallback {
+                error: WITHHELD.to_owned(),
+            },
+            other => other.clone(),
+        },
+    }
+}
+
 /// The read-only services facts an install member may read.
 #[derive(Debug, Clone)]
 pub struct InstallServicesView {
     services: ServicesView,
-    root: PathBuf,
+    root: ActiveServicesRoot,
+    base_tree: PathBuf,
+    cache_root: PathBuf,
     sources: Arc<[ServicesSourceView]>,
 }
 
 impl InstallServicesView {
     #[must_use]
-    pub fn of(services: ServicesView, root: &ActiveServicesRoot, profile: &Profile) -> Self {
+    pub fn of(
+        services: ServicesView,
+        root: &ActiveServicesRoot,
+        profile: &Profile,
+        cache_root: PathBuf,
+    ) -> Self {
         let sources = profile
             .services
             .sources
@@ -103,14 +135,31 @@ impl InstallServicesView {
             .collect();
         Self {
             services,
-            root: root.path.clone(),
+            root: install_root(root),
+            base_tree: PathBuf::from(&profile.paths.services),
+            cache_root,
             sources,
         }
     }
 
     #[must_use]
     pub fn root(&self) -> &Path {
+        &self.root.path
+    }
+
+    #[must_use]
+    pub const fn active_root(&self) -> &ActiveServicesRoot {
         &self.root
+    }
+
+    #[must_use]
+    pub fn base_tree(&self) -> &Path {
+        &self.base_tree
+    }
+
+    #[must_use]
+    pub fn cache_root(&self) -> &Path {
+        &self.cache_root
     }
 
     #[must_use]

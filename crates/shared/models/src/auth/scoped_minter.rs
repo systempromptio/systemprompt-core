@@ -85,6 +85,8 @@ pub enum ScopedVerifyError {
     UndeclaredScope(String),
     #[error("the token did not verify for this audience")]
     NotAuthentic(#[source] BoxedSource),
+    #[error("the system admin is never the subject of a member's token")]
+    ReservedSubject,
 }
 
 /// Mints and verifies one member's tokens for its declared audiences.

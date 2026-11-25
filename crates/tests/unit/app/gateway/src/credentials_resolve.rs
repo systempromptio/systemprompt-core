@@ -8,7 +8,6 @@ use systemprompt_identifiers::{CredentialId, UserId};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ProviderConfig, ResolvedCatalog, ResolvedHop,
 };
-use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 use systemprompt_test_fixtures::{
     ensure_test_secrets_bootstrap, seed_user_row, test_db_pool, unique_user_id,
@@ -38,13 +37,13 @@ fn hop(catalog: &ResolvedCatalog) -> ResolvedHop {
 struct Rig {
     engines: GatewayEngines,
     owner: KeyOwner,
-    cipher: AtRestCipher,
+    cipher: systemprompt_security::at_rest::AtRestCipher,
 }
 
 async fn rig() -> Rig {
-    let pool = test_db_pool().await;
     let secrets = ensure_test_secrets_bootstrap();
-    let cipher = AtRestCipher::from_secrets(&secrets.get()).expect("cipher");
+    let pool = test_db_pool().await;
+    let cipher = systemprompt_test_fixtures::fixture_at_rest_cipher();
     let user: UserId = unique_user_id("gw-cred");
     seed_user_row(&pool, &user, &format!("{}@gw.invalid", user.as_str()))
         .await

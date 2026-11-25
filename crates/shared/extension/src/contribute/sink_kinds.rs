@@ -81,6 +81,7 @@ impl ContributionSink {
             cross_tables: _,
             user_purges: _,
             orphan_sweeps: _,
+            reseal_columns: _,
             owner_reassignments: _,
             doctor_checks: _,
             #[cfg(feature = "sqlx")]

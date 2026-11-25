@@ -198,6 +198,8 @@ fn every_destructive_command_demands_an_explicit_cloud_profile() {
         vec!["admin", "users", "session", "cleanup"],
         vec!["admin", "users", "ban", "cleanup"],
         vec!["admin", "bootstrap"],
+        vec!["admin", "secrets", "reseal", "--member", "web"],
+        vec!["admin", "secrets", "reseal", "--member", "web", "--apply"],
         vec!["core", "services", "refresh"],
         vec![
             "core",

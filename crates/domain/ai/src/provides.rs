@@ -28,7 +28,11 @@ use crate::{AiService, AiServiceProviders, PersonalProviderCredentials};
 pub(crate) fn repositories(r: &Resolved<'_>) -> Result<Arc<AiRepositories>, ProvideError> {
     let db = r.get::<DbPool>()?;
     let cipher = match r.get::<Arc<dyn SecretStore>>()?.encryption_master_key() {
-        Ok(key) => AtRestCipher::from_master_key(key),
+        Ok(key) => AtRestCipher::for_member(
+            &key,
+            &systemprompt_identifiers::ExtensionId::new(crate::repository::CREDENTIALS_OWNER),
+        )
+        .unwrap_or_else(|_unkeyable| AtRestCipher::withheld()),
         Err(error) => {
             tracing::warn!(
                 error = %error,

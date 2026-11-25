@@ -17,9 +17,7 @@ use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::revision_bundles::DynRevisionBundleSource;
 use systemprompt_governance::authz::SubjectProviderSet;
-use systemprompt_loader::bundle::BundleSources;
-use systemprompt_manifest::services::root::ActiveServicesRoot;
-use systemprompt_manifest::services::{ServicesView, SystemAdmin};
+use systemprompt_manifest::services::{InstallServicesView, ServicesView, SystemAdmin};
 use systemprompt_traits::{DynInventoryPublisher, DynManagedSkillResolver};
 use tokio::sync::Mutex;
 
@@ -35,9 +33,7 @@ fn refresher_parts(r: &Resolved<'_>) -> Result<InventoryRefresherParts, ProvideE
     Ok(InventoryRefresherParts {
         repository: r.get::<Arc<ManagedRepository>>()?,
         guard: r.get::<Arc<Mutex<PublishGuard>>>()?,
-        bundles: r.get::<BundleSources>()?,
-        active_root: r.get::<ActiveServicesRoot>()?,
-        services: r.get::<ServicesView>()?,
+        services: r.get::<InstallServicesView>()?,
         owner: r.get::<SystemAdmin>()?.id().clone(),
     })
 }

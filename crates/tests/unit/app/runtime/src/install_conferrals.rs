@@ -325,28 +325,41 @@ async fn a_member_cipher_opens_only_its_own_ciphertext() {
     let ctx = context().await;
     let first = cipher_of(&ctx, "cipher-first");
     let second = cipher_of(&ctx, "cipher-second");
-    let sealed = first.seal("connector token").expect("seals");
+    let sealed = first.seal(b"connector token").expect("seals");
+    assert!(sealed.starts_with(systemprompt_traits::MEMBER_CIPHER_ENVELOPE));
     assert_eq!(
         first.open(&sealed).expect("opens its own"),
-        "connector token"
+        b"connector token"
     );
     assert!(matches!(
         second.open(&sealed),
         Err(MemberCipherError::NotAuthentic)
     ));
-    let core = systemprompt_security::at_rest::AtRestCipher::from_master_key(
-        ctx.kernel()
-            .state()
-            .get::<Arc<dyn SecretStore>>()
-            .expect("seeded")
-            .encryption_master_key()
-            .expect("the test secrets hold a master key"),
-    );
+    let master = ctx
+        .kernel()
+        .state()
+        .get::<Arc<dyn SecretStore>>()
+        .expect("seeded")
+        .encryption_master_key()
+        .expect("the test secrets hold a master key");
+    let core =
+        systemprompt_security::at_rest::AtRestCipher::for_member(&master, &ExtensionId::new("ai"))
+            .expect("a core member's cipher");
     assert!(
         core.open(&sealed).is_err(),
-        "the master key itself does not open it"
+        "a core member's cipher does not open an install's value"
     );
-    assert!(first.open(&core.seal("core").expect("seals")).is_err());
+    assert!(
+        first.open(&core.seal("core").expect("seals")).is_err(),
+        "an install's conferred cipher does not open a core member's value"
+    );
+    let bare = sealed
+        .strip_prefix(systemprompt_traits::MEMBER_CIPHER_ENVELOPE)
+        .expect("enveloped");
+    assert!(
+        systemprompt_security::at_rest::pre_088::open_hex(&master, bare).is_err(),
+        "the master key itself does not open the bare ciphertext"
+    );
 }
 
 #[tokio::test]
@@ -510,6 +523,33 @@ async fn admission_refuses_a_core_audience_a_foreign_audience_and_a_core_scope()
             "{scope}: {error:?}"
         );
     }
+}
+
+#[tokio::test]
+async fn a_minted_token_carries_no_session_or_device_claim() {
+    use base64::Engine as _;
+    let ctx = context().await;
+    let minted = minter_of(&ctx)
+        .mint(&ScopedTokenRequest {
+            subject: UserId::new("claims-subject"),
+            ..mint_request(&ctx, AUDIENCE, &["reports.read"], 60)
+        })
+        .await
+        .expect("a declared audience and scope mint");
+    let payload = minted.token.split('.').nth(1).expect("a JWT payload");
+    let claims: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(
+        &base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(payload)
+            .expect("base64url payload"),
+    )
+    .expect("a JSON claim set");
+    let mut names: Vec<&str> = claims.keys().map(String::as_str).collect();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        ["aud", "azp", "exp", "iat", "iss", "jti", "scope", "sub"],
+        "no session, device or client-session claim"
+    );
 }
 
 #[tokio::test]
@@ -711,4 +751,45 @@ async fn the_minter_refuses_an_expired_token() {
         minter.verify(AUDIENCE, &minted.token),
         Err(ScopedVerifyError::Expired)
     ));
+}
+
+#[tokio::test]
+async fn verify_refuses_the_system_admin_subject() {
+    let ctx = context().await;
+    let minter = minter_of(&ctx);
+    let now = chrono::Utc::now().timestamp();
+    let forged = ctx
+        .kernel()
+        .state()
+        .get::<Arc<dyn TokenAuthority>>()
+        .expect("the API seeds the token authority")
+        .sign_claims(&serde_json::json!({
+            "iss": ctx.kernel().state().get::<Arc<Config>>().expect("config").jwt_issuer,
+            "sub": admin_of(&ctx).as_str(),
+            "aud": [AUDIENCE],
+            "scope": "reports.read",
+            "azp": MINTER,
+            "jti": "forged-admin-subject",
+            "iat": now,
+            "exp": now + 60,
+        }))
+        .expect("the authority signs");
+    assert!(matches!(
+        minter.verify(AUDIENCE, &forged),
+        Err(ScopedVerifyError::ReservedSubject)
+    ));
+}
+
+#[tokio::test]
+async fn a_hop_namespace_is_never_a_member_audience() {
+    let ctx = context().await;
+    for (owner, audience) in [("owner-hop", "owner-hop:svc"), ("mcp", "mcp:server")] {
+        let probe = Probe::new(owner, move |c| {
+            c.token_audience(audience, &["x.read"]);
+        });
+        assert!(
+            resolve(&ctx, probe).is_err(),
+            "{audience} collides with a core hop audience"
+        );
+    }
 }

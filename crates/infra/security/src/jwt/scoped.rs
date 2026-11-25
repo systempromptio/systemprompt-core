@@ -30,6 +30,8 @@ pub struct ScopedTokenClaims {
     pub exp: i64,
 }
 
+pub const SCOPED_TOKEN_TYPE: &str = "JWT";
+
 pub fn decode_scoped_token(
     keys: &VerificationKeyring,
     issuer: &str,
@@ -42,6 +44,11 @@ pub fn decode_scoped_token(
         return Err(AuthError::UnsupportedAlgorithm {
             got: format!("{:?}", header.alg),
         });
+    }
+    if header.typ.as_deref() != Some(SCOPED_TOKEN_TYPE) {
+        return Err(AuthError::InvalidToken(
+            jsonwebtoken::errors::ErrorKind::InvalidToken.into(),
+        ));
     }
     let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
     let key = keys

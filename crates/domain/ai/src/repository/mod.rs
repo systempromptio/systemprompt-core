@@ -42,7 +42,9 @@ pub use ai_safety_findings::{AiSafetyFindingRepository, InsertSafetyFinding};
 pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
 pub use catalog_migration::CatalogMigrationRepository;
 pub use thought_signatures::AiThoughtSignatureRepository;
-pub use user_provider_credentials::{UserProviderCredentialMeta, UserProviderCredentialRepository};
+pub use user_provider_credentials::{
+    CREDENTIALS_OWNER, UserProviderCredentialMeta, UserProviderCredentialRepository,
+};
 
 #[derive(Debug, Clone)]
 pub struct AiRepositories {

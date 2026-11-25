@@ -393,6 +393,72 @@ Core owns these contracts so a member never reimplements them against core table
 - **Readiness:** a check contributed with `c.readiness` runs on every `/readyz`; a check that fails, errors or overruns the probe timeout answers 503 with the failing check under `extensions`.
 - **Metrics:** emit through the `metrics` facade and declare each metric with `c.metric(MetricDescriptor)`, so a histogram renders as buckets and its help text appears on `/metrics`.
 
+## Install seams (0.88)
+
+Each seam below is what an install member reads in place of a sealed core handle.
+
+- **Re-sealing pre-0.88 ciphertext.** No value is sealed under `encryption_master_key` itself. Every at-rest value, core's included, is sealed under its owning member's cipher (HMAC-derived per member id, the `spmc1.` envelope). A runtime reader that meets a value without the envelope refuses it with `AtRestCipherError::Unresealed`, which names the command below. A member, core or install, declares each column that may still hold pre-0.88 ciphertext with `c.reseal_column(ResealColumn { table, keys, ciphertext, layout })`. The layout is `SealedLayout::SplitBytea { nonce }`, with the 12-byte nonce and the ciphertext in `BYTEA` columns, or `SealedLayout::HexText`, with the hex nonce and ciphertext in one `TEXT` column; the `ai` member declares `user_provider_credentials` this way. Admission (`AdmittedReseals`) refuses a table the member's own schema SQL does not create, or that another member also creates. At run time the command also refuses a table that `schema_table_owners` does not record to the member. `systemprompt admin secrets reseal` with no `--member` reports every declaring member and its counts and writes nothing. `--member <id>` reports that member's columns: the rows in total, the rows already re-sealed, the rows it would re-seal and the undecodable rows. Add `--apply` to write: the command writes one `governance_decisions` row (policy `member_reseal`) and then rewrites rows in batches of 500, one transaction per batch, each row only while it still holds the value that was read. A value already enveloped is skipped, so a second `--apply` changes nothing. A value that opens under neither scheme is left as it is and makes the command exit non-zero. A value core sealed after the upgrade never opens under the old scheme, so planting it in an install's table re-seals nothing. The command refuses an implicitly selected cloud profile.
+
+  ```rust
+  c.conferral(InstallConferral::MemberCipher)
+      .reseal_column(ResealColumn {
+          table: "acme_credentials", keys: &["user_id", "provider"],
+          ciphertext: "ciphertext", nonce: "nonce",
+      });
+  // then: systemprompt admin secrets reseal            # every declaring member, report only
+  //       systemprompt admin secrets reseal --member acme --apply
+  ```
+- **Member cipher values.** `MemberCipher::seal(&[u8]) -> String` returns `spmc1.` followed by the hex nonce and ciphertext. `open(&str) -> Vec<u8>` refuses a value without that envelope, so binary plaintext such as a data key needs no extra encoding.
+- **Inventory refresh.** `InventoryService::refresh(&owner, &view)` takes the `InstallServicesView` an install reads in a provide fn: the active root and its provenance, the base tree, the bundle cache and the sources without credentials. `SourcesContext::of(&view)` and `BaselineScope { owner, actor, view }` are built from the same view. The repository is the open `Arc<ManagedRepository>`.
+
+  ```rust
+  c.provide_after_governance(|r: &Resolved<'_>| Ok(Arc::new(MyInventory {
+      service: InventoryService::new(r.get::<Arc<ManagedRepository>>()?.as_ref().clone()),
+      view: r.get::<InstallServicesView>()?,
+      owner: r.get::<SystemAdmin>()?.id().clone(),
+  })));
+  // in the job: inventory.service.refresh(&inventory.owner, &inventory.view).await?
+  ```
+- **A service built from member state.** `RouteSetBuilder::service_with(prefix, |state: &S| service, spec)` builds the nested service from the route set's own state `S` when the API materialises the set. `SiteFallback::with_state(|state: S| service)` does the same for the composition's one site fallback, so an install's main web app can be the fallback. `S` resolves through the member-scoped route resolution, so it reads what the member provided and never a host-sealed seed or an install view (Rule C). A second fallback claimant is still `CompositionError::SecondSiteFallback`.
+
+  ```rust
+  c.routes(RouteSet::at::<WebState>(base, RouteGroup::Extensions)
+      .service_with("/app", |s: &WebState| s.app.clone(), spec)
+      .build());
+  c.site_fallback(SiteFallback::with_state(|s: WebState| s.app));
+  ```
+- **Content factories may decline.** Every `ContentSlot` factory returns `Result<Option<Arc<dyn T>>, FactoryError>`. `Ok(None)` contributes nothing, and the hook is absent from `ContentHooks`, never replaced by a default. `Err` still refuses the slot.
+- **Resource reads carry the caller.** `McpToolset::read_resource(ResourceRead { request, caller })` is async and receives the same hop-verified `VerifiedCaller` a tool call receives. The host refuses a read with no verified caller before any toolset is asked.
+- **Renderers are scoped to the processes that render.** `c.slot::<UiSlot>().renderer(RenderOn::Api | RenderOn::McpServers | RenderOn::ApiAndMcpServers, factory)`. Every kernel is seeded with its `HostRole` (`Api`, `McpServer` or `Agent`). A renderer factory runs, and replaces a built-in, only on the roles its `RenderOn` covers. An agent child builds none.
+- **Scoped tokens.** A token from `ScopedTokenMinter` carries only `iss`, `sub`, `aud`, `scope`, `azp`, `jti`, `iat` and `exp`. It has no session, device or client-session claim, and nothing in the request can add one. The subject is any user the member names except the system admin; the minter refuses that subject. The audience is the member's own declared audience, and no core verifier accepts the token.
+
+## Handles an install does not get, and what to use instead
+
+An install is granted a sealed core handle only if it already exists as a narrow, read-only trait. Every other handle stays sealed.
+
+| Handle | Asked for by | Why it stays sealed | Use instead |
+|---|---|---|---|
+| `TokenAuthority` / `SessionCreationService` (browser session mint, ADFS, dev login) | template, astound, dynapps | Mints core-audience session tokens | Contribute an `SsoProvider` to `SsoSlot`; core mints the session |
+| A per-server identity-token signer (external MCP identity tokens with email and name claims) | template, astound, dynapps | No narrow trait exists; it would sign operator-chosen audiences with user claims | `ScopedTokenMinter` for a `<member>:` audience; identity-backed servers stay core's |
+| Core-audience tokens for workflow runners (`mcp` audience) | astound | Core audience | Core's own runner path |
+| `mcp_credential_broker_secret` | template, dynapps | A platform secret | Not readable; the broker is core's |
+| A keyed HMAC over the master key (login tracker) | astound | Would export a deterministic key oracle | Generate a key and keep it sealed with `MemberCipher` in your own table |
+| `DynAiProvider` / `AiService` | template, dynapps | Spends credentials and quota on the caller's behalf; not read-only | None in 0.88; the consuming job stays idle |
+| `AiRepositories` (personal provider credentials) | dynapps | Holds credential rows | None in 0.88 |
+| `DocumentsHandles` / `DocumentService` | dynapps | Read and write across every owner | None in 0.88 |
+| `SharedAuthzHook` | dynapps | Evaluating writes decision rows; it is the core decision point | Contribute an authz hook to `AuthzHookSlot`; core composes it |
+| `ConfigPlaneSet` | dynapps | Applies core config planes | `admin config apply` |
+| `InventoryPublisher` / `InventoryRefresher` | template, dynapps | Publishes under the system admin | `InventoryService::refresh` over `InstallServicesView`; core's `inventory_refresh` job publishes |
+| `ProviderTokenCache` | dynapps | Caches connector bearers of every user | None in 0.88 |
+| Secret key enumeration, status and reload | dynapps | Lists core secret names | Declare and read your own names with `c.secret` |
+| `Arc<Config>`, `SecretStore`, signing keys | all | Host-sealed | `ConfigView`, declared secrets, the conferred capabilities |
+| An in-process API host exposing the token authority and the documents service | astound | Hands out core minting and cross-owner document access | Drive the HTTP surface of a composed test server |
+| Overriding the external URL on `ConfigView` | astound | The view is read-only by design; the URL is what core's verifiers pin | Set `server.external_url` in the test profile |
+
+### Testing an MCP toolset with a verified caller
+
+A toolset receives a `VerifiedCaller` only from the host's hop admission. To keep dispatch coverage, a test follows the host's own path: it mints a hop token with `TokenAuthority::mint_mcp_hop(&server, &identity)` under the test signing keys, then calls `systemprompt_mcp_host::serving::middleware::admit_request(&HopVerifier::new(keyring, external_url, server), &headers, &mut parts.extensions)`, which inserts the `VerifiedCaller`. It then serves the `ToolsetServer` over an in-memory transport, as `crates/tests/unit/domain/mcp/src/toolset_server_gate.rs` does. Do not call `VerifiedCaller::__from_hop`: it is hidden, and the core gate `lint-hidden-constructors` refuses it outside the toolset host.
+
 ## Upgrading from 0.82
 
 - Move each defaulted hook body (`schemas`, `migrations`, `routers`, `jobs`, `provide`, `requires`, the seam hooks) into `contribute`, and replace each `register_*!`/`submit_*!` registration with the matching `Contributions` method or the owning crate's `contract` slot. Drop the `inventory` dependency.

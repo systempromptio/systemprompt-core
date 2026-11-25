@@ -63,6 +63,8 @@ pub enum KernelError {
     Slot(#[from] SlotError),
     #[error("user purge declarations refused")]
     Purge(#[from] systemprompt_extension::PurgeAdmissionError),
+    #[error("re-seal declarations refused")]
+    Reseal(#[from] systemprompt_extension::ResealAdmissionError),
     #[error("owner reassignments refused")]
     Reassignment(#[from] systemprompt_extension::ReassignmentAdmissionError),
     #[error("{owner} declares reserved subject dimension {dimension}")]

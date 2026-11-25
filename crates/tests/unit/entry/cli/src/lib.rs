@@ -76,6 +76,8 @@ mod secret_check;
 #[cfg(test)]
 mod secret_check_flows;
 #[cfg(test)]
+mod secrets_reseal_db;
+#[cfg(test)]
 mod services_bundle;
 #[cfg(test)]
 mod services_command_parsing;

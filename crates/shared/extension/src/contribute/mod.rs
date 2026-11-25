@@ -53,7 +53,9 @@ pub use conferred::{ConferralDeclarations, ConferralError, ConferralsWithheld, M
 pub use config::{ConfigDecl, ExtensionConfig};
 pub use entries::{ContributedJob, MemberDependency, ProvideEntry, ProvidePhase, ProvidedValue};
 pub use error::{ContributionError, FactoryError, ProvideError, SlotError};
-pub use factories::{Factory, FactoryKind, SecretReferenceFactory, build_factories};
+pub use factories::{
+    Factory, FactoryKind, SecretReferenceFactory, build_factories, build_present_factories,
+};
 pub use handles::{Handed, HandleId, KernelHandle};
 pub use late_cell::{LateCell, LateCellEntry, PendingBind};
 pub use member::{MemberResolved, MemberScope};
@@ -137,6 +139,11 @@ impl<'a> Contributions<'a> {
 
     pub fn orphan_sweep(&mut self, s: OrphanSweep) -> &mut Self {
         self.sink.orphan_sweeps.push(s);
+        self
+    }
+
+    pub fn reseal_column(&mut self, column: crate::reseal::ResealColumn) -> &mut Self {
+        self.sink.reseal_columns.push(column);
         self
     }
 

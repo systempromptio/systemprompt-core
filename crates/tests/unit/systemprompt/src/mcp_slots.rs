@@ -15,6 +15,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt::reference;
 use systemprompt_agent_runs::origin::AdmittedRunOrigins;
+use systemprompt_extension::artifact_ui::{HostRole, RenderOn};
 use systemprompt_extension::contribute::build_slot;
 use systemprompt_extension::mcp::{
     AccessRecorderSlot, AccessRecorders, McpAccessEvent, McpAccessRecorder, SharedMcpAccessRecorder,
@@ -66,10 +67,15 @@ fn unavailable(_: &HostContext, _: &McpServerId) -> ToolsetBuildResult {
 }
 
 fn renderer_probe(id: &'static str, hits: &Arc<Counter>) -> Probe {
+    renderer_probe_on(id, hits, RenderOn::ApiAndMcpServers)
+}
+
+fn renderer_probe_on(id: &'static str, hits: &Arc<Counter>, on: RenderOn) -> Probe {
     let hits = Arc::clone(hits);
     Probe::new(id, move |c| {
         let hits = Arc::clone(&hits);
         c.slot::<UiSlot>().renderer(
+            on,
             move |_: &Resolved<'_>| -> Result<Arc<dyn UiRenderer>, FactoryError> {
                 hits.hit();
                 Ok(Arc::new(ProbeRenderer))
@@ -149,7 +155,7 @@ fn built_with<S: Slot>(
 }
 
 fn built<S: Slot>(admitted: &Admitted) -> Result<Option<Arc<S::Built>>, SlotError> {
-    built_with::<S>(admitted, Dependencies::default())
+    built_with::<S>(admitted, Dependencies::default().with(HostRole::Api))
 }
 
 fn services_hosting(toolset: &str) -> ServicesView {
@@ -188,6 +194,31 @@ fn mcp_opens_the_ui_and_access_recorder_slots() {
         recorders.to_vec().is_empty(),
         "core contributes no recorder"
     );
+}
+
+#[test]
+fn a_renderer_is_built_only_on_the_hosts_it_renders_on() {
+    for (on, role, applies) in [
+        (RenderOn::McpServers, HostRole::Api, false),
+        (RenderOn::McpServers, HostRole::McpServer, true),
+        (RenderOn::Api, HostRole::McpServer, false),
+        (RenderOn::Api, HostRole::Api, true),
+        (RenderOn::ApiAndMcpServers, HostRole::Agent, false),
+        (RenderOn::ApiAndMcpServers, HostRole::McpServer, true),
+    ] {
+        let hits = Arc::new(Counter::default());
+        let admitted = build(reference().with(renderer_probe_on("probe-scoped", &hits, on)))
+            .expect("the composition admits");
+        let ui = built_with::<UiSlot>(&admitted, Dependencies::default().with(role))
+            .expect("the ui slot builds")
+            .expect("the mcp member's slot is built");
+        assert_eq!(ui.supports(PROBE_TYPE), applies, "{on:?} on {role:?}");
+        assert_eq!(
+            hits.get(),
+            usize::from(applies),
+            "{on:?} on {role:?}: factory runs"
+        );
+    }
 }
 
 #[test]

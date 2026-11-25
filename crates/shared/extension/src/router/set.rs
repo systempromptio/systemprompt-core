@@ -5,12 +5,15 @@
 //! in place of the base, for a [`GatewayRouteDecl`]; [`RouteSetBuilder::route`]
 //! adds one method and path with its [`RouteSpec`];
 //! [`RouteSetBuilder::service`] nests one opaque service under a prefix,
-//! recorded as a single [`RouteMethod::Any`] def. The set stores the handlers
-//! type-erased; the API mount resolves `S` through its hand-written
-//! [`FromState`] impl only after admission, and builds one router per declared
-//! route so it can apply each route's own spec. A malformed path, an
-//! unsupported method or an invalid extension base is recorded on the set and
-//! refused when the composition reads the member's contributions.
+//! recorded as a single [`RouteMethod::Any`] def, and
+//! [`RouteSetBuilder::service_with`] does the same with a service built
+//! from the set's state `S` when the set is materialised, so a member's
+//! plane that needs its own provided values is mounted without a late cell. The
+//! set stores the handlers type-erased; the API mount resolves `S` through its
+//! hand-written [`FromState`] impl only after admission, and builds one router
+//! per declared route so it can apply each route's own spec. A malformed path,
+//! an unsupported method or an invalid extension base is recorded on the set
+//! and refused when the composition reads the member's contributions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,6 +36,13 @@ use crate::protection::RouteGroup;
 
 type Materialize =
     Arc<dyn Fn(&Resolved<'_>) -> Result<Vec<Router>, MissingDependency> + Send + Sync>;
+
+type LateService<S> = Arc<dyn Fn(&S) -> Router + Send + Sync>;
+
+enum Mounted<S> {
+    Built(Router<S>),
+    Late(LateService<S>),
+}
 
 pub struct RouteSet {
     base: BaseRef,
@@ -102,11 +112,11 @@ impl std::fmt::Debug for RouteSet {
 pub struct RouteSetBuilder<S> {
     base: BaseRef,
     group: RouteGroup,
-    routes: Vec<(RouteDef, Router<S>)>,
+    routes: Vec<(RouteDef, Mounted<S>)>,
     error: Option<ContributionError>,
 }
 
-impl<S: FromState + Clone> RouteSetBuilder<S> {
+impl<S: FromState + Clone + Send + Sync + 'static> RouteSetBuilder<S> {
     pub fn route<H, T>(self, m: http::Method, p: &'static str, h: H, spec: RouteSpec) -> Self
     where
         H: Handler<T, S>,
@@ -155,16 +165,41 @@ impl<S: FromState + Clone> RouteSetBuilder<S> {
             spec,
             openapi,
         };
-        self.routes.push((def, router));
+        self.routes.push((def, Mounted::Built(router)));
         self
     }
 
-    pub fn service<T>(mut self, prefix: &'static str, service: T, spec: RouteSpec) -> Self
+    pub fn service<T>(self, prefix: &'static str, service: T, spec: RouteSpec) -> Self
     where
         T: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         T::Response: IntoResponse,
         T::Future: Send + 'static,
     {
+        self.push_service(prefix, spec, |prefix| {
+            Mounted::Built(Router::new().nest_service(prefix, service))
+        })
+    }
+
+    pub fn service_with<T, F>(self, prefix: &'static str, build: F, spec: RouteSpec) -> Self
+    where
+        F: Fn(&S) -> T + Send + Sync + 'static,
+        T: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
+        T::Response: IntoResponse,
+        T::Future: Send + 'static,
+    {
+        self.push_service(prefix, spec, move |prefix| {
+            Mounted::Late(Arc::new(move |state: &S| {
+                Router::new().nest_service(prefix, build(state))
+            }))
+        })
+    }
+
+    fn push_service(
+        mut self,
+        prefix: &'static str,
+        spec: RouteSpec,
+        mount: impl FnOnce(&'static str) -> Mounted<S>,
+    ) -> Self {
         if self.error.is_some() {
             return self;
         }
@@ -185,18 +220,20 @@ impl<S: FromState + Clone> RouteSetBuilder<S> {
             spec,
             openapi: None,
         };
-        self.routes
-            .push((def, Router::new().nest_service(prefix, service)));
+        self.routes.push((def, mount(prefix)));
         self
     }
 
     pub fn build(self) -> RouteSet {
-        let (defs, routers): (Vec<RouteDef>, Vec<Router<S>>) = self.routes.into_iter().unzip();
+        let (defs, routers): (Vec<RouteDef>, Vec<Mounted<S>>) = self.routes.into_iter().unzip();
         let materialize: Materialize = Arc::new(move |r: &Resolved<'_>| {
             let state = S::from_state(r)?;
             Ok(routers
                 .iter()
-                .map(|router| router.clone().with_state::<()>(state.clone()))
+                .map(|mounted| match mounted {
+                    Mounted::Built(router) => router.clone().with_state::<()>(state.clone()),
+                    Mounted::Late(build) => build(&state),
+                })
                 .collect())
         });
         RouteSet {

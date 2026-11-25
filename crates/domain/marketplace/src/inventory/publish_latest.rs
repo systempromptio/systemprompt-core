@@ -63,13 +63,15 @@ impl InventoryService {
         let owner = scope.owner;
         let provenance = PassProvenance {
             composed_hash: systemprompt_loader::bundle::sources_provenance(
-                scope.sources.bundles,
-                scope.sources.active_root,
+                &scope.sources().bundles,
+                Some(scope.view.active_root()),
                 self.repository.base_tree_hash_memo(),
             )
             .composed_hash,
             inventory_generation: self.repository.inventory_status(owner).await?.generation,
-            bundle_hashes: systemprompt_loader::bundle::owning_bundle_hashes(scope.sources.bundles),
+            bundle_hashes: systemprompt_loader::bundle::owning_bundle_hashes(
+                &scope.sources().bundles,
+            ),
         };
         let mut outcomes = Vec::new();
         let mut after: Option<InventoryEntryId> = None;
@@ -96,8 +98,7 @@ impl InventoryService {
             }
             after = Some(last);
         }
-        self.refresh(owner, scope.root, scope.services, scope.sources)
-            .await?;
+        self.refresh(owner, scope.view).await?;
         Ok(outcomes)
     }
 
@@ -112,7 +113,7 @@ impl InventoryService {
         if let Some(status) = self.unavailable_status(scope, entry).await? {
             return Ok(outcome(entry, status));
         }
-        let canonical = std::fs::canonicalize(scope.root)?;
+        let canonical = std::fs::canonicalize(scope.root())?;
         let tree = match configured_files(&canonical, entry) {
             Ok(files) => AssetDigest::of(&serde_jcs::to_vec(&files)?),
             Err(error) => return Ok(blocked(entry, &error)),

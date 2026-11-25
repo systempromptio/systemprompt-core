@@ -249,7 +249,15 @@ fn finish_router(
             .composed
             .admitted
             .site_fallback()
-            .map(|site| site.fallback.clone());
+            .map(|site| {
+                site.fallback
+                    .materialize(&mount.composed.kernel.route_scoped(
+                        &site.owner,
+                        site.standing,
+                        &[],
+                    ))
+            })
+            .transpose()?;
         router = RootFallbackOwner::default().place(
             router,
             static_setup::build_static_router(ctx, mount.layers, events, site_fallback)?,

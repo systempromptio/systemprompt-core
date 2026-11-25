@@ -203,6 +203,7 @@ pub struct AdmittedGatewayRoute {
 #[derive(Debug, Clone)]
 pub struct AdmittedSiteFallback {
     pub owner: ExtensionId,
+    pub standing: StandingTag,
     pub fallback: crate::router::SiteFallback,
 }
 

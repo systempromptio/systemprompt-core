@@ -47,13 +47,13 @@ impl InventoryService {
         {
             return self.retained_baseline(owner, entry).await;
         }
-        let canonical = std::fs::canonicalize(scope.root)?;
+        let canonical = std::fs::canonicalize(scope.root())?;
         if let Some(SourceSpec::LocalTree { root: bound }) = source_spec
             && !binding_names_active_root(
                 Path::new(&bound),
-                scope.root,
+                scope.root(),
                 &canonical,
-                scope.sources.active_root,
+                Some(scope.view.active_root()),
             )
         {
             return Err(invalid(
@@ -112,7 +112,7 @@ impl InventoryService {
         let AuthoringCapture { files, previous } = capture;
         let owner = scope.owner;
         let (source, resource) = self
-            .bind_authoring_resource(owner, scope.actor, entry, scope.root)
+            .bind_authoring_resource(owner, scope.actor, entry, scope.root())
             .await?;
         let snapshot = self
             .repository

@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use systemprompt_identifiers::{Actor, ExtensionId, UserId};
-use systemprompt_loader::bundle::BundleSources;
-use systemprompt_manifest::services::root::ActiveServicesRoot;
-use systemprompt_manifest::services::{ServicesView, SystemAdmin};
+use systemprompt_manifest::services::{InstallServicesView, SystemAdmin};
 use systemprompt_marketplace::inventory::{
     InventoryRefreshJob, InventoryRefresher, InventoryRefresherParts, LatestPublicationStatus,
     PublishGuard,
@@ -29,17 +27,9 @@ fn refresher(ctx: &AppContext) -> InventoryRefresher {
                 .get::<Arc<tokio::sync::Mutex<PublishGuard>>>()
                 .expect("the managed_resources member provides the publish guard"),
         ),
-        bundles: state
-            .get::<BundleSources>()
-            .expect("the kernel seeds the bundle sources")
-            .clone(),
-        active_root: state
-            .get::<ActiveServicesRoot>()
-            .expect("the kernel seeds the active services root")
-            .clone(),
         services: state
-            .get::<ServicesView>()
-            .expect("the kernel seeds the services view")
+            .get::<InstallServicesView>()
+            .expect("the kernel seeds the install services view")
             .clone(),
         owner: state
             .get::<SystemAdmin>()

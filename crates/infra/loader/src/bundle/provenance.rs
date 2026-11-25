@@ -18,10 +18,9 @@ use std::sync::{Mutex, PoisonError};
 use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_manifest::profile::Profile;
+use systemprompt_manifest::services::InstallServicesView;
 use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, ServicesBundleManifest};
 
-use super::bootstrap::cache_root;
 use super::cache::BundleCache;
 use systemprompt_identifiers::ContentHash;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
@@ -56,11 +55,11 @@ pub struct PinnedSource {
     pub reference: String,
 }
 
-/// What provenance reads from a profile: the pinned bundle sources, the
-/// bundle cache they are fetched into and the base services tree.
+/// What provenance reads: the pinned bundle sources, the bundle cache they
+/// are fetched into and the base services tree.
 ///
-/// Built once from the profile with [`BundleSources::of`]; it carries no
-/// secret and no other profile value.
+/// Built from the [`InstallServicesView`] with [`BundleSources::of`], so it
+/// carries no secret, no source credential and no other profile value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BundleSources {
     pinned: Vec<PinnedSource>,
@@ -70,28 +69,18 @@ pub struct BundleSources {
 
 impl BundleSources {
     #[must_use]
-    pub fn of(profile: &Profile) -> Self {
+    pub fn of(view: &InstallServicesView) -> Self {
         Self {
-            pinned: profile
-                .services
-                .sources
+            pinned: view
+                .sources()
                 .iter()
                 .map(|source| PinnedSource {
                     name: source.name.clone(),
-                    reference: source.oci.as_ref().map_or_else(
-                        || {
-                            source
-                                .https
-                                .as_ref()
-                                .map(|h| h.url.clone())
-                                .unwrap_or_default()
-                        },
-                        |oci| oci.reference.clone(),
-                    ),
+                    reference: source.location.clone().unwrap_or_default(),
                 })
                 .collect(),
-            cache_root: cache_root(profile),
-            base_tree: PathBuf::from(&profile.paths.services),
+            cache_root: view.cache_root().to_path_buf(),
+            base_tree: view.base_tree().to_path_buf(),
         }
     }
 

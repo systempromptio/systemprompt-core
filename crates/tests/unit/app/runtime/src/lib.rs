@@ -163,6 +163,8 @@ mod factory_scope;
 #[cfg(test)]
 mod install_conferrals;
 #[cfg(test)]
+mod install_route_state;
+#[cfg(test)]
 mod install_secrets;
 #[cfg(test)]
 mod issues_mcp_refusals;
