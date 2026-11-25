@@ -1,4 +1,5 @@
-//! Mounts for the route groups that sit behind a cargo feature.
+//! Mounts for the route groups that sit behind a cargo feature: the managed
+//! consumer routes of the `bridge` feature.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,27 +8,15 @@ use axum::Router;
 
 use super::{RouteMountError, protocol};
 
-#[cfg_attr(
-    not(feature = "bridge"),
-    expect(
-        unused_mut,
-        unused_variables,
-        clippy::unnecessary_wraps,
-        clippy::needless_pass_by_value,
-        reason = "every route group mounted here is behind a cargo feature"
-    )
-)]
 pub(super) fn mount_feature_routes(
-    mut router: Router,
+    router: Router,
     mount: &protocol::MountCtx<'_>,
     managed_consumer: Option<systemprompt_gateway::surface::ManagedConsumer>,
 ) -> Result<Router, RouteMountError> {
-    let serves = mount.serves;
-    #[cfg(feature = "bridge")]
-    if serves(systemprompt_extension::RouteGroup::Managed)
-        && let Some(managed_consumer) = managed_consumer
-    {
-        router = super::managed::mount(router, mount, managed_consumer)?;
+    match managed_consumer {
+        Some(managed_consumer) if (mount.serves)(systemprompt_extension::RouteGroup::Managed) => {
+            super::managed::mount(router, mount, managed_consumer)
+        },
+        _ => Ok(router),
     }
-    Ok(router)
 }

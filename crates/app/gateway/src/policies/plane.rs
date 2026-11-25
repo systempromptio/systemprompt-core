@@ -24,12 +24,12 @@ use systemprompt_extension::prelude::{
     ApplyOutcome, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, DeclaredState, PlaneContext,
     PlaneSnapshot, PlaneTx, ResolvedEntities,
 };
+use systemprompt_models::ai::GATEWAY_POLICIES_PLANE;
 
 use super::config::{GatewayPolicyConfig, GatewayPolicyEntry};
 use super::spec::GatewayPolicySpec;
 
 pub const GATEWAY_POLICIES_FILE: &str = "gateway/policies.yaml";
-pub const GATEWAY_POLICIES_PLANE: &str = "gateway_policies";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PolicyValue {

@@ -42,7 +42,7 @@ use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_traits::{CacheDomain, CacheEpochView};
 
 use super::GatewayPolicySpec;
-use super::plane::GATEWAY_POLICIES_PLANE;
+use systemprompt_models::ai::GATEWAY_POLICIES_PLANE;
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
 const UNRELAYED_CACHE_TTL: Duration = Duration::from_secs(5);

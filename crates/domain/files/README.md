@@ -106,7 +106,6 @@ files:
 | `systemprompt-identifiers` | `FileId`, `UserId`, `ContentId`, `SessionId`, `TraceId`, `ContextId` |
 | `systemprompt-traits` | `Job` trait for background jobs |
 | `systemprompt-models` | `AppPaths`, `ProfileBootstrap`, shared models |
-| `systemprompt-cloud` | Storage path constants and cloud integration |
 | `systemprompt-config` | Profile and YAML configuration loading |
 | `systemprompt-extension` | `Extension` trait, `Contributions` and slots |
 | `systemprompt-provider-contracts` | Provider trait contracts implemented by this crate |

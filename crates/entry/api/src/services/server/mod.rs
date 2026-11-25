@@ -26,6 +26,20 @@ mod identity;
 pub mod lifecycle;
 pub mod metrics;
 pub mod ops_metrics;
+#[cfg(feature = "otel")]
+mod otlp_boot;
+#[cfg(not(feature = "otel"))]
+mod otlp_boot {
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "the export starts only with the otel feature; the boot step keeps one shape"
+    )]
+    pub(super) const fn start_otlp_export(
+        _ctx: &systemprompt_runtime::AppContext,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
 mod phases;
 mod pool_metrics;
 mod probes;

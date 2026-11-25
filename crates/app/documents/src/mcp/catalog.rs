@@ -4,7 +4,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "notifications")]
 pub const TOOL_NAMES: [&str; 21] = [
     "documents_list",
     "documents_search",
@@ -29,30 +28,6 @@ pub const TOOL_NAMES: [&str; 21] = [
     "documents_inbox",
 ];
 
-#[cfg(not(feature = "notifications"))]
-pub const TOOL_NAMES: [&str; 20] = [
-    "documents_list",
-    "documents_search",
-    "documents_create",
-    "documents_read",
-    "documents_edit",
-    "documents_comment",
-    "documents_history",
-    "documents_proposals",
-    "documents_share",
-    "documents_access",
-    "documents_copy",
-    "documents_update",
-    "documents_folder",
-    "documents_trash",
-    "documents_untrash",
-    "documents_export",
-    "documents_upload",
-    "documents_import",
-    "documents_guide",
-    "documents_people",
-];
-
 macro_rules! core_instructions {
     () => {
         "Shared documents (Word, Excel, PowerPoint, OpenDocument, HTML, \
@@ -71,13 +46,11 @@ documents_proposals.
     };
 }
 
-#[cfg(feature = "notifications")]
-pub const INSTRUCTIONS: &str = concat!(
+pub const INBOX_INSTRUCTIONS: &str = concat!(
     core_instructions!(),
     "
 8. Your user's notifications are documents_inbox; attention=agent items are your backlog \
 (guide topic inbox)."
 );
 
-#[cfg(not(feature = "notifications"))]
 pub const INSTRUCTIONS: &str = core_instructions!();

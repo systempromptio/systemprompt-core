@@ -37,7 +37,8 @@ pub use event::{
 };
 pub use kind::{NotificationKind, NotificationKindError};
 pub use notification::{
-    DeliveryState, Escalate, MarkRead, MarkSeen, Notification, NotificationPage,
+    DeliveryState, Escalate, FeedQuery, MarkRead, MarkReadOutcome, MarkSeen, Notification,
+    NotificationPage,
 };
 pub use realtime::{
     NOTIFICATION_CREATED, NOTIFICATION_ESCALATED, NOTIFICATION_READ, NotificationCreatedPayload,

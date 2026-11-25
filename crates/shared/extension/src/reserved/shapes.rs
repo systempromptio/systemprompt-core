@@ -15,14 +15,18 @@ use crate::router::{
     Allowance, ApiBase, BasePath, BaseRef, BodyLimit, GatewayPath, RouteLimits, RouteShape, WebBase,
 };
 
-const fn limits(rate: RateLimit) -> RouteLimits {
+pub(super) const fn limits(rate: RateLimit) -> RouteLimits {
     RouteLimits {
         rate,
         body: BodyLimit::Default,
     }
 }
 
-const fn shape(policy: AuthzPolicy, context: ContextKind, limits: RouteLimits) -> RouteShape {
+pub(super) const fn shape(
+    policy: AuthzPolicy,
+    context: ContextKind,
+    limits: RouteLimits,
+) -> RouteShape {
     RouteShape {
         policy,
         context,
@@ -33,7 +37,7 @@ const fn shape(policy: AuthzPolicy, context: ContextKind, limits: RouteLimits) -
 const CONTENT_LIMITS: RouteLimits = limits(RateLimit::new("content", RateBudget::Content));
 const NOTIFICATIONS_LIMITS: RouteLimits =
     limits(RateLimit::new("notifications", RateBudget::Notifications));
-const AGENTS_RATE: RateLimit = RateLimit::new("agents", RateBudget::Agents);
+pub(super) const AGENTS_RATE: RateLimit = RateLimit::new("agents", RateBudget::Agents);
 
 const fn agent_user(base: ApiBase, rate: RateLimit) -> PrivilegedShape {
     PrivilegedShape {
@@ -250,49 +254,27 @@ const ALWAYS: [PrivilegedShape; 20] = [
     },
 ];
 
-#[cfg(feature = "slack")]
-const SLACK: PrivilegedShape = PrivilegedShape {
-    owner: CoreId::Slack,
-    base: BaseRef::Path(BasePath::Api(ApiBase::Slack)),
-    group: RouteGroup::Messaging,
-    allowance: Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
-    shape: shape(
-        AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-        ContextKind::HandlerResolved,
-        limits(AGENTS_RATE),
-    ),
-    routes: None,
-};
+use super::messaging_shapes::{slack, teams};
 
-#[cfg(feature = "teams")]
-const TEAMS: PrivilegedShape = PrivilegedShape {
-    owner: CoreId::Teams,
-    base: BaseRef::Path(BasePath::Api(ApiBase::Teams)),
-    group: RouteGroup::Messaging,
-    allowance: Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
-    shape: shape(
-        AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
-        ContextKind::HandlerResolved,
-        limits(AGENTS_RATE),
-    ),
-    routes: None,
-};
+const SHAPE_COUNT: usize = ALWAYS.len() + slack::SHAPES.len() + teams::SHAPES.len();
 
-macro_rules! privileged_shapes {
-    ($($extra:expr),*) => {
-        &[
-            ALWAYS[0], ALWAYS[1], ALWAYS[2], ALWAYS[3], ALWAYS[4], ALWAYS[5], ALWAYS[6],
-            ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10], ALWAYS[11], ALWAYS[12], ALWAYS[13],
-            ALWAYS[14], ALWAYS[15], ALWAYS[16], ALWAYS[17], ALWAYS[18], ALWAYS[19] $(, $extra)*
-        ]
-    };
+const fn joined() -> [PrivilegedShape; SHAPE_COUNT] {
+    let mut out = [ALWAYS[0]; SHAPE_COUNT];
+    let mut at = 0;
+    let parts: [&[PrivilegedShape]; 3] = [&ALWAYS, slack::SHAPES, teams::SHAPES];
+    let mut part = 0;
+    while part < parts.len() {
+        let mut i = 0;
+        while i < parts[part].len() {
+            out[at] = parts[part][i];
+            at += 1;
+            i += 1;
+        }
+        part += 1;
+    }
+    out
 }
 
-#[cfg(all(feature = "slack", feature = "teams"))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!(SLACK, TEAMS);
-#[cfg(all(feature = "slack", not(feature = "teams")))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!(SLACK);
-#[cfg(all(not(feature = "slack"), feature = "teams"))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!(TEAMS);
-#[cfg(not(any(feature = "slack", feature = "teams")))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!();
+const JOINED: [PrivilegedShape; SHAPE_COUNT] = joined();
+
+pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = &JOINED;

@@ -84,7 +84,7 @@ impl McpToolset for DocumentsToolset {
     }
 
     fn instructions(&self) -> &'static str {
-        systemprompt_documents::mcp::INSTRUCTIONS
+        self.0.instructions()
     }
 
     fn tools(&self) -> Vec<Tool> {

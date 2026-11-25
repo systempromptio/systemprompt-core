@@ -115,7 +115,6 @@ document. {action: edit, document_id, comment_id, body, mentions?} rewrites your
 own comment; {action: delete, document_id, comment_id} deletes yours (or any, with share \
 access) and returns the remaining threads.";
 
-#[cfg(feature = "notifications")]
 pub(super) const INBOX: &str = "\
 documents_inbox {action: list, since?, limit?, attention?, unread?} pages your user's \
 notifications newest first; pass next_cursor as since for the next page. Items at attention \

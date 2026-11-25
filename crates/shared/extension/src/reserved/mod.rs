@@ -34,6 +34,7 @@ use crate::router::{Allowance, BaseRef, RouteShape};
 mod cli;
 mod conferrals;
 mod install_seeds;
+mod messaging_shapes;
 mod nesting;
 mod shapes;
 

@@ -3,19 +3,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(feature = "sqlx")]
 use std::sync::Arc;
 
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{NotificationId, UserId};
 use systemprompt_models::notifications::{
-    Attention, AudienceSubject, Notification, NotificationEvent, RoutePlan, StreamDecl, SubjectRef,
+    Attention, AudienceSubject, Escalate, FeedQuery, MarkRead, MarkReadOutcome, Notification,
+    NotificationEvent, NotificationPage, RoutePlan, StreamDecl, SubjectRef,
 };
 
 #[cfg(feature = "sqlx")]
 use super::errors::NotificationSinkError;
 use super::errors::{
-    ChannelError, NotificationAudienceError, NotificationRouterError, PublishPolicyError,
-    VisibilityError,
+    ChannelError, InboxError, NotificationAudienceError, NotificationRouterError,
+    PublishPolicyError, VisibilityError,
 };
 
 /// Appends a notification event to the outbox on the caller's connection;
@@ -153,3 +153,33 @@ pub trait NotificationChannel: Send + Sync {
 
     async fn deliver(&self, notification: &Notification, unread: i64) -> Result<(), ChannelError>;
 }
+
+/// A user's notification feed, as another capability's surface works it.
+///
+/// It lists a page, marks read and escalates to the person. The notifications
+/// member provides it as [`DynNotificationInbox`]; a surface offers its inbox
+/// only while one is provided.
+///
+/// `#[async_trait]` keeps the trait dyn-compatible: surfaces hold it as
+/// `Arc<dyn NotificationInbox>`.
+#[async_trait::async_trait]
+pub trait NotificationInbox: Send + Sync {
+    async fn feed(&self, user: &UserId, query: FeedQuery) -> Result<NotificationPage, InboxError>;
+
+    async fn mark_read(
+        &self,
+        user: &UserId,
+        mark: MarkRead,
+        surface: &'static str,
+    ) -> Result<MarkReadOutcome, InboxError>;
+
+    async fn escalate(
+        &self,
+        user: &UserId,
+        id: &NotificationId,
+        escalate: Escalate,
+        surface: &'static str,
+    ) -> Result<Notification, InboxError>;
+}
+
+pub type DynNotificationInbox = Arc<dyn NotificationInbox>;

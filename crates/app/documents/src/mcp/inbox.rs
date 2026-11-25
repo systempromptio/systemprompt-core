@@ -8,15 +8,13 @@ use rmcp::ErrorData as McpError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_extension::mcp::{McpOutputSchema, McpToolHandler};
+use systemprompt_extension::{InboxError, NotificationInbox};
 use systemprompt_identifiers::{McpExecutionId, NotificationId};
 use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::notifications::{
-    Attention, Escalate, MarkRead, Notification, NotificationPage, SURFACE_MCP,
+    Attention, Escalate, FeedQuery, MarkRead, Notification, NotificationPage, SURFACE_MCP,
 };
-use systemprompt_notifications::NotificationsError;
-use systemprompt_notifications::service::{FeedQuery, NotificationsService};
-use systemprompt_traits::RepositoryError;
 
 use super::DocumentsMcpTools;
 use super::refusal::refusal;
@@ -82,46 +80,27 @@ pub struct InboxHandler<'a> {
     pub tools: &'a DocumentsMcpTools,
 }
 
-fn inbox_error(error: NotificationsError) -> McpError {
+fn inbox_error(error: InboxError) -> McpError {
     match error {
-        NotificationsError::NotFound { .. }
-        | NotificationsError::SubscriptionNotFound { .. }
-        | NotificationsError::StreamNotFound { .. } => {
-            refusal(RefusalCode::NotFound, error.to_string())
-        },
-        NotificationsError::Repository(ref repo @ RepositoryError::NotFound { .. }) => {
-            refusal(RefusalCode::NotFound, repo.to_string())
-        },
-        NotificationsError::PublishRefused { .. } => {
-            refusal(RefusalCode::Forbidden, error.to_string())
-        },
-        NotificationsError::NotEscalatable { .. }
-        | NotificationsError::InvalidDeclaration(_)
-        | NotificationsError::Kind(_) => refusal(RefusalCode::InvalidParams, error.to_string()),
-        NotificationsError::Repository(
-            ref repo @ (RepositoryError::Conflict { .. }
-            | RepositoryError::InvalidArgument { .. }
-            | RepositoryError::InvalidData { .. }),
-        ) => refusal(RefusalCode::InvalidParams, repo.to_string()),
-        other => {
-            tracing::error!(
-                error = %other,
-                cause = ?std::error::Error::source(&other),
-                "inbox tool failed"
-            );
+        InboxError::Unavailable => refusal(
+            RefusalCode::InvalidParams,
+            "documents_inbox is not offered on this server",
+        ),
+        InboxError::NotFound(cause) => refusal(RefusalCode::NotFound, cause.to_string()),
+        InboxError::Forbidden(cause) => refusal(RefusalCode::Forbidden, cause.to_string()),
+        InboxError::InvalidParams(cause) => refusal(RefusalCode::InvalidParams, cause.to_string()),
+        InboxError::Failed(cause) => {
+            tracing::error!(error = %cause, "inbox tool failed");
             McpError::internal_error("the inbox failed; try the call again", None)
         },
     }
 }
 
 impl InboxHandler<'_> {
-    fn service(&self) -> Result<&NotificationsService, McpError> {
-        self.tools.notifications().ok_or_else(|| {
-            refusal(
-                RefusalCode::InvalidParams,
-                "documents_inbox is not offered on this server",
-            )
-        })
+    fn service(&self) -> Result<&dyn NotificationInbox, McpError> {
+        self.tools
+            .notifications()
+            .ok_or_else(|| inbox_error(InboxError::Unavailable))
     }
 
     async fn list(&self, ctx: &RequestContext, input: InboxInput) -> Result<InboxOutput, McpError> {

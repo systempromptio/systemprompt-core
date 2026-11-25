@@ -57,57 +57,22 @@ impl LogSink {
         self.proxy.shutdown().await
     }
 
-    #[cfg(feature = "otel")]
-    pub fn start_otlp_export(
-        &self,
-        config: &systemprompt_manifest::profile::OtlpExportConfig,
-        tasks: &systemprompt_traits::BackgroundTasks,
-    ) -> bool {
-        let slot = &self.proxy.shared().otlp;
-        if slot.get().is_some() {
-            return false;
-        }
-        let feed = crate::otlp::OtlpFeed::spawn(config, self.instance_id().cloned(), tasks);
-        slot.set(feed).is_ok()
-    }
-
-    #[cfg(feature = "otel")]
-    #[must_use]
-    pub fn otlp_dropped(&self) -> Option<u64> {
-        self.proxy
-            .shared()
-            .otlp
-            .get()
-            .map(crate::otlp::OtlpFeed::dropped)
+    pub(crate) fn export(&self) -> &crate::layer::export::ExportSlot {
+        &self.proxy.shared().export
     }
 }
 
 impl systemprompt_models::audit_spans::AuditSpanSink for LogSink {
     fn request(&self, span: systemprompt_models::audit_spans::RequestSpanRecord) {
-        #[cfg(feature = "otel")]
-        if let Some(feed) = self.proxy.shared().otlp.get() {
-            feed.audit_span(crate::otlp::request_span(&span));
-        }
-        #[cfg(not(feature = "otel"))]
-        drop(span);
+        self.export().request(&span);
     }
 
     fn tool_call(&self, span: systemprompt_models::audit_spans::ToolCallSpanRecord) {
-        #[cfg(feature = "otel")]
-        if let Some(feed) = self.proxy.shared().otlp.get() {
-            feed.audit_span(crate::otlp::tool_call_span(&span));
-        }
-        #[cfg(not(feature = "otel"))]
-        drop(span);
+        self.export().tool_call(&span);
     }
 
     fn governance(&self, span: systemprompt_models::audit_spans::GovernanceSpanRecord) {
-        #[cfg(feature = "otel")]
-        if let Some(feed) = self.proxy.shared().otlp.get() {
-            feed.audit_span(crate::otlp::governance_span(&span));
-        }
-        #[cfg(not(feature = "otel"))]
-        drop(span);
+        self.export().governance(&span);
     }
 }
 

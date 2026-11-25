@@ -167,6 +167,10 @@ lint-layers:
 lint-kernel-deps:
     python3 ./scripts/lint-kernel-deps.py
 
+# Reject a capability feature cfg anywhere but a mod declaration or the facade
+lint-capability-cfg:
+    python3 ./scripts/lint-capability-cfg.py
+
 # Reject hidden handoff constructors called outside their owners, and facade re-exports of handoff fns
 lint-hidden-constructors:
     python3 ./scripts/lint-hidden-constructors.py

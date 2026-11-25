@@ -114,7 +114,6 @@ Business logic layer. Services coordinate repositories and implement domain oper
 **Internal (infra/):**
 - `systemprompt-database` - Database pool abstraction
 - `systemprompt-logging` - Logging infrastructure
-- `systemprompt-cloud` - Cloud integration types
 - `systemprompt-extension` - Extension framework
 
 ## Traits Implemented

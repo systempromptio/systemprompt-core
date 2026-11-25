@@ -23,6 +23,8 @@ pub mod template_validation;
 pub mod tool_result_formatter;
 pub mod tools;
 
+pub const GATEWAY_POLICIES_PLANE: &str = "gateway_policies";
+
 pub use embedding::{EmbeddingRequest, EmbeddingResponse, EmbeddingUsage};
 pub use execution_plan::{
     ExecutionState, PlannedToolCall, PlannedToolResult, PlanningResult, TemplateRef,

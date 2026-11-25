@@ -28,7 +28,7 @@
 //! ## Layering
 //!
 //! `systemprompt-content` is a **domain** crate. It depends downward on
-//! `systemprompt-database`, `systemprompt-cloud`, `systemprompt-extension`,
+//! `systemprompt-database`, `systemprompt-manifest`, `systemprompt-extension`,
 //! `systemprompt-models`, `systemprompt-traits`,
 //! `systemprompt-provider-contracts`, `systemprompt-logging`, and
 //! `systemprompt-identifiers`.

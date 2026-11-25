@@ -25,7 +25,6 @@ systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core modules
-systemprompt-cloud = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }

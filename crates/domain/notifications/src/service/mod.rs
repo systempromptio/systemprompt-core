@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod feed;
+mod inbox;
 mod publish;
 mod rules;
 mod streams;
@@ -29,7 +30,7 @@ use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPa
 use systemprompt_models::notifications::{SimulateRequest, SimulateResponse};
 use systemprompt_traits::EscalationDelivery;
 
-pub use feed::{FeedQuery, MarkReadOutcome};
+pub use inbox::SlotInbox;
 pub use publish::{PublishOutcome, PublishRequest};
 
 pub use crate::models::SubscriptionView;

@@ -6,6 +6,7 @@ use systemprompt_documents::mcp::{
     ReadHandler,
 };
 use systemprompt_documents::views::{ReadInput, ReadOutput, ReadView};
+use systemprompt_extension::DynNotificationInbox;
 use systemprompt_extension::mcp::McpToolHandler;
 use systemprompt_governance::authz::{AllowAllHook, SharedAuthzHook};
 use systemprompt_identifiers::{
@@ -50,7 +51,7 @@ pub(crate) fn harness_on(pool: &systemprompt_database::DbPool) -> McpHarness {
         systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &runtime);
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
-        notifications: Some(Arc::clone(&notifications)),
+        notifications: Some(Arc::clone(&notifications) as DynNotificationInbox),
         uploads: Some(Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
         links: crate::link_rig::in_process_links(

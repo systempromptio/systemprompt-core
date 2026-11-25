@@ -323,7 +323,7 @@ systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
-systemprompt-documents = { path = "../app/documents", features = ["engine-loro", "notifications"] }
+systemprompt-documents = { path = "../app/documents", features = ["engine-loro"] }
 systemprompt-issues = { path = "../app/issues", features = ["cli"] }
 systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }

@@ -220,3 +220,18 @@ fn bind_identity(
 fn count_export(signal: &'static str) {
     metrics::counter!("gateway_desktop_telemetry_exports_total", "signal" => signal).increment(1);
 }
+
+pub(super) fn routes(router: axum::Router, state: &GatewayHttpState) -> axum::Router {
+    use systemprompt_models::ApiPaths;
+    router
+        .route(ApiPaths::OTEL, ingest_route(state))
+        .route(ApiPaths::OTEL_REST_ROUTE, ingest_route(state))
+}
+
+fn ingest_route(state: &GatewayHttpState) -> axum::routing::MethodRouter {
+    let state = state.clone();
+    axum::routing::post(move |request| {
+        let state = state.clone();
+        async move { handle(state, request).await }
+    })
+}

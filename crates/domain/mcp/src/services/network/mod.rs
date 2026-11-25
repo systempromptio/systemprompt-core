@@ -1,14 +1,11 @@
 //! Network plumbing for MCP servers.
 //!
-//! Port allocation and release, the base Axum router with CORS, and
-//! reverse-proxy routers to upstream services.
+//! Port allocation and release for MCP server processes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod port;
-pub mod proxy;
-pub mod routing;
 
 use crate::error::McpDomainResult;
 pub use port::PortHolderClaim;
@@ -50,24 +47,5 @@ impl NetworkService {
         max_attempts: u32,
     ) -> McpDomainResult<()> {
         port::wait_for_port_release_with_retry(port, holder, max_attempts).await
-    }
-
-    pub fn create_router() -> axum::Router {
-        routing::create_base_router()
-    }
-
-    pub fn apply_cors(
-        router: axum::Router,
-        config: &systemprompt_manifest::Config,
-    ) -> axum::Router {
-        routing::apply_cors_layer(router, config)
-    }
-
-    pub fn create_proxy(
-        client: reqwest::Client,
-        target_host: &str,
-        target_port: u16,
-    ) -> axum::Router {
-        proxy::create_proxy_router(client, target_host, target_port)
     }
 }

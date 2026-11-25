@@ -43,7 +43,6 @@ cli = [
     "dep:systemprompt-client",
     "dep:systemprompt-config",
     "dep:systemprompt-database",
-    "dep:systemprompt-gateway",
     "dep:systemprompt-governance",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-loader",
@@ -77,7 +76,6 @@ systemprompt-client = { workspace = true, optional = true }
 systemprompt-config = { workspace = true, optional = true }
 systemprompt-database = { workspace = true, optional = true }
 systemprompt-extension = { workspace = true }
-systemprompt-gateway = { workspace = true, optional = true }
 systemprompt-governance = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-loader = { workspace = true, optional = true }

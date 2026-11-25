@@ -5,13 +5,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{NotificationId, UserId};
 use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::notifications::{
-    Attention, Escalate, MarkRead, NOTIFICATION_ESCALATED, NOTIFICATION_READ, Notification,
-    NotificationEscalatedPayload, NotificationPage, NotificationReadPayload, ReceiptState,
-    SURFACE_API,
+    Attention, Escalate, FeedQuery, MarkRead, MarkReadOutcome, NOTIFICATION_ESCALATED,
+    NOTIFICATION_READ, Notification, NotificationEscalatedPayload, NotificationPage,
+    NotificationReadPayload, ReceiptState, SURFACE_API,
 };
 
 use systemprompt_traits::{EscalationDelivery, RepositoryError};
@@ -20,36 +19,7 @@ use super::NotificationsService;
 use crate::error::{NotificationsError, NotificationsResult};
 use crate::models::FeedFilter;
 
-const DEFAULT_PAGE: u32 = 50;
 const MAX_PAGE: u32 = 100;
-
-/// A feed page request: newest first, after `since` when given.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct FeedQuery {
-    pub since: Option<KeysetCursor>,
-    pub limit: u32,
-    pub attention: Option<Attention>,
-    pub unread_only: bool,
-}
-
-impl Default for FeedQuery {
-    fn default() -> Self {
-        Self {
-            since: None,
-            limit: DEFAULT_PAGE,
-            attention: None,
-            unread_only: false,
-        }
-    }
-}
-
-/// The ids a mark-read changed and the caller's unread count after it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MarkReadOutcome {
-    pub ids: Vec<NotificationId>,
-    pub unread: i64,
-}
 
 impl NotificationsService {
     pub async fn feed(

@@ -19,13 +19,11 @@ use rmcp::model::Tool;
 use serde_json::{Map, Value as JsonValue, json};
 use systemprompt_extension::mcp::McpToolHandler;
 
-#[cfg(feature = "notifications")]
-use super::InboxHandler;
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
-    ExportHandler, FolderHandler, GuideHandler, HistoryHandler, ImportHandler, ListHandler,
-    PeopleHandler, ProposalsHandler, ReadHandler, SearchHandler, ShareHandler, TrashHandler,
-    UntrashHandler, UpdateHandler, UploadHandler,
+    ExportHandler, FolderHandler, GuideHandler, HistoryHandler, ImportHandler, InboxHandler,
+    ListHandler, PeopleHandler, ProposalsHandler, ReadHandler, SearchHandler, ShareHandler,
+    TrashHandler, UntrashHandler, UpdateHandler, UploadHandler,
 };
 
 const OP_NAMES: [&str; 11] = [
@@ -195,7 +193,7 @@ fn compact(mut tool: Tool) -> Tool {
 
 pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
     let server = tools.server_name();
-    let tools_list = vec![
+    let mut tools_list = vec![
         compact(ListHandler { tools }.tool_definition(server)),
         compact(SearchHandler { tools }.tool_definition(server)),
         plain_ops(compact(CreateHandler { tools }.tool_definition(server))),
@@ -217,13 +215,8 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
         compact(GuideHandler { tools }.tool_definition(server)),
         compact(PeopleHandler { tools }.tool_definition(server)),
     ];
-    #[cfg(feature = "notifications")]
-    let tools_list = {
-        let mut tools_list = tools_list;
-        if tools.notifications().is_some() {
-            tools_list.push(compact(InboxHandler { tools }.tool_definition(server)));
-        }
-        tools_list
-    };
+    if tools.notifications().is_some() {
+        tools_list.push(compact(InboxHandler { tools }.tool_definition(server)));
+    }
     tools_list
 }

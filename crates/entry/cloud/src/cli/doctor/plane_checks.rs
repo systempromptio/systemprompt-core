@@ -14,10 +14,10 @@ use std::time::Duration;
 
 use sqlx::postgres::PgPoolOptions;
 use systemprompt_database::{PLANE_NOT_APPLIED_HINT, find_config_plane_applied};
-use systemprompt_gateway::GATEWAY_POLICIES_PLANE;
 use systemprompt_governance::authz::ACCESS_CONTROL_PLANE;
 use systemprompt_governance::policy::GOVERNANCE_PLANE;
 use systemprompt_manifest::Profile;
+use systemprompt_models::ai::GATEWAY_POLICIES_PLANE;
 
 use super::CheckResult;
 

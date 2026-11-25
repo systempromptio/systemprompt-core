@@ -11,10 +11,10 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{NotificationId, NotificationSubscriptionId, UserId};
 use systemprompt_models::api::KeysetCursor;
 use systemprompt_models::notifications::{
-    Attention, Escalate, MarkRead, MarkSeen, Notification, NotificationPage, StreamDecl,
+    Attention, Escalate, FeedQuery, MarkRead, MarkSeen, Notification, NotificationPage, StreamDecl,
     SubscriptionDecl,
 };
-use systemprompt_notifications::service::{FeedQuery, NotificationsService, SubscriptionView};
+use systemprompt_notifications::service::{NotificationsService, SubscriptionView};
 
 use super::NotificationsHttpError;
 
