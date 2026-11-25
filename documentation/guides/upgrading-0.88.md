@@ -24,7 +24,7 @@ How to move a deployment and the code built on the `systemprompt` crates from 0.
 
 ## Every breaking change
 
-Each entry below is one breaking change of this release, with its migration where code must change. They are grouped by area; the same text, per crate, is under `### Breaking` in `CHANGELOG.md` and each crate's changelog. This list has 198 entries.
+Each entry below is one breaking change of this release, with its migration where code must change. They are grouped by area; the same text, per crate, is under `### Breaking` in `CHANGELOG.md` and each crate's changelog. This list has 219 entries.
 
 ## API
 
