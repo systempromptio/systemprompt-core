@@ -29,9 +29,10 @@ fn with_dependants(member: &str) -> Result<Vec<ExtensionId>, CompositionError> {
     let mut disabled = vec![ExtensionId::new(member)];
     loop {
         match admit(&disabled) {
-            Err(CompositionError::DisabledDependency { owner, .. })
-                if !disabled.contains(&owner) =>
-            {
+            Err(
+                CompositionError::DisabledDependency { owner, .. }
+                | CompositionError::WithheldDependency { owner, .. },
+            ) if !disabled.contains(&owner) => {
                 disabled.push(owner);
             },
             Err(error) => return Err(error),

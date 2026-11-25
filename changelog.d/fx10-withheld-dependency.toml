@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Composition"
+text = "A requirement whose only provider is withheld because that provider's own dependency is absent is refused with the new `CompositionError::WithheldDependency`, which names the provider and the dependency it was withheld with. `CompositionError::DisabledDependency` now means only that the provider itself is disabled in the profile."

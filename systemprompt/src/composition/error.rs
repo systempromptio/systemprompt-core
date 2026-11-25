@@ -39,14 +39,21 @@ pub enum CompositionError {
         owner: ExtensionId,
         ty: &'static str,
     },
-    #[error(
-        "{owner} requires {ty}; its provider {provider} is disabled, or withheld because a \
-         member it depends on is disabled"
-    )]
+    #[error("{owner} requires {ty}; its provider {provider} is disabled")]
     DisabledDependency {
         owner: ExtensionId,
         ty: &'static str,
         provider: ExtensionId,
+    },
+    #[error(
+        "{owner} requires {ty}; its provider {provider} is withheld because its dependency \
+         {dependency} is absent"
+    )]
+    WithheldDependency {
+        owner: ExtensionId,
+        ty: &'static str,
+        provider: ExtensionId,
+        dependency: ExtensionId,
     },
     #[error("{owner} (core) requires {ty}, provided only by install member {provider}")]
     InstallSubstitution {

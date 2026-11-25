@@ -164,10 +164,17 @@ fn a_requirement_met_only_by_a_member_withheld_with_its_dependency_names_it() {
     assert!(
         matches!(
             &error,
-            CompositionError::DisabledDependency { owner, provider, .. }
+            CompositionError::WithheldDependency { owner, provider, dependency, .. }
                 if owner.as_str() == "probe-carried-reader"
                     && provider.as_str() == "probe-downstream"
+                    && dependency.as_str() == "probe-upstream"
         ),
         "{error:?}"
+    );
+    assert!(
+        error
+            .to_string()
+            .contains("its provider probe-downstream is withheld because its dependency probe-upstream is absent"),
+        "{error}"
     );
 }

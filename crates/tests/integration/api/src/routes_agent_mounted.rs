@@ -137,7 +137,7 @@ async fn disabling_agent_while_its_routes_stay_enabled_is_refused_at_boot() -> R
         Err(error) => format!("{error:#}"),
     };
     assert!(
-        message.contains("its core provider agent is disabled"),
+        message.contains("its provider agent is disabled"),
         "{message}"
     );
     Ok(())
