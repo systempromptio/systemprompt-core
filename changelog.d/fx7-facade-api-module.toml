@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Facade"
+text = "`systemprompt::api` re-exports only `ServicesRefresh`, `EarlyServer`, `bind_and_serve`, the context middlewares and extractor, the health and process-monitor types and `error`, not the whole of `systemprompt_api`. The document actor-scope middleware (`same_origin`, `scope`) is `systemprompt_files_entry::http::documents::actor_scope`. Migrate other `systemprompt::api::routes` paths to the member crate that serves the route, or to `systemprompt_api` directly."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`api` re-exports a fixed set of `systemprompt_api` items instead of `systemprompt_api::*`."

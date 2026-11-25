@@ -26,4 +26,4 @@ text = "`jobs::InventoryRefreshJob`, `jobs::InventoryRefreshMemo` and `Scheduler
 [[crate]]
 name = "systemprompt-runtime"
 section = "Breaking"
-text = "`managed` (`managed::inventory`, `OrchestrationError`) is removed. The kernel state seeds `BundleSources` sealed."
+text = "`managed` (`managed::inventory`, `OrchestrationError`) is removed; the Git-source orchestration and its error are `systemprompt_marketplace::managed::git_sources::{GitSourceOrchestrator, GitSourceError}`. The kernel state seeds `BundleSources` sealed."

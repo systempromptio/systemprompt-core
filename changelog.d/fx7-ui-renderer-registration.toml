@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "MCP"
+text = "`UiRendererRegistration` is removed with `register_ui_renderer!` and `create_default_registry`: a member contributes a renderer through `systemprompt_mcp::contract::UiSlot`, and an entry for an artifact type that has a built-in renderer replaces it in every process that admits the member. Migrate each `register_ui_renderer!` or `inventory::submit!` of a `UiRendererRegistration` to a `UiSlot` entry in the member's `contribute`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`services::ui_renderer::UiRendererRegistration` and `registry::create_default_registry` are removed; contribute renderers through `contract::UiSlot`."

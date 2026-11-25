@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Notifications"
+text = "`NotificationAudienceResolver::dimensions` is a required method: it names every custom `Dimension` kind the resolver answers. An install resolver is consulted only for the kinds it declares, and two resolvers declaring the same kind refuse the audience set. Migrate by returning the dimension kinds the resolver handles, or `&[]` for a resolver that answers none."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`NotificationAudienceResolver::dimensions(&self) -> &'static [&'static str]` is required."

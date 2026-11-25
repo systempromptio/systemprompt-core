@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "`RuleTypeError` moves from `systemprompt_models::authz` to `systemprompt_provider_contracts::governance` and is re-exported by `systemprompt_governance::authz`. `AccessScope` is defined in `systemprompt_provider_contracts::governance` and re-exported as `systemprompt_governance::policy::AccessScope`; `systemprompt_governance::policy::types` no longer re-exports it. Migrate by importing both from those paths."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`authz::RuleTypeError` is removed; it is `systemprompt_provider_contracts::governance::RuleTypeError`."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`policy::types` no longer re-exports `AccessScope`; import `policy::AccessScope`."

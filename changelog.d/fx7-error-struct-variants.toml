@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Error types"
+text = "`AnalyticsError::InvalidArgument` is a struct variant `{ field, reason }`, built with `AnalyticsError::invalid_argument(field, reason)`; `ManagedError::Invalid` and `ManagedError::Conflict` are struct variants carrying `reason: &'static str`. Migrate each match and constructor to the struct form."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`AnalyticsError::InvalidArgument { field, reason }`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`ManagedError::Invalid { reason }` and `ManagedError::Conflict { reason }`."

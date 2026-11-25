@@ -16,9 +16,9 @@ text = "`http::MarketplaceHttpSettings`, provided by the member and read by `Mar
 [[crate]]
 name = "systemprompt-slack-entry"
 section = "Added"
-text = "`http::SlackSecrets`, the member's sealed provide over `CustomSecrets`."
+text = "`http::SlackSecrets`, the member's sealed provide over the kernel's secret store."
 
 [[crate]]
 name = "systemprompt-teams-entry"
 section = "Added"
-text = "`http::TeamsSecrets`, the member's sealed provide over `CustomSecrets`."
+text = "`http::TeamsSecrets`, the member's sealed provide over the kernel's secret store."

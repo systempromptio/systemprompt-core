@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Runtime"
+text = "`AppContext` has no per-value accessors (`db_pool`, `config`, `secrets`, `app_paths`, `profile` and the repository and service accessors): each value is a typed entry of the resolved kernel state, read with `ctx.kernel().state().get::<T>()` (for example `DbPool` or `Arc<Config>`), and a member reads it from the `Resolved` its provide fn, factory or route set is handed. `AppContext::new` takes the admitted composition. Migrate a standalone tool that needs only the database to `DatabaseContext::from_url` and `DatabaseContext::db_pool`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "The `AppContext` value accessors, `db_pool` among them, are removed; read the value from `AppContext::kernel().state()`."

@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Security"
-text = "An install member's provide fns, factories, slot entries and governance factories (gateway guards, policies, subject providers, audience resolvers, runner services) resolve with its admitted standing: they read only the host-sealed seeds the closed table `reserved::INSTALL_SEEDS` lists — `Arc<Config>`, `CustomSecrets` and `SystemAdmin` — and never a value another member provided sealed. Every other host-sealed seed (the secret store, the secret lookup, the connector token cache, the signing keys, the spawner, the child secret environment, the messaging dispatcher, the agent dispatch, the event router, the services root, the profile path, the bundle sources, the owner reassignments) is withheld with the `MissingDependency` an absent type gets, so the resolution fails with `KernelError::Provide` (or `Slot`, `GatewayGuard`, `SubjectProvider`, `Policies`) at boot. An install must read custom secrets through `CustomSecrets` instead of `Arc<dyn SecretStore>`, and replace every other sealed read with a narrow value a core member provides. Core members are not narrowed. Rescoping a resolution never widens it."
+text = "An install member's provide fns, factories, slot entries and governance factories (gateway guards, policies, subject providers, audience resolvers, runner services) resolve with its admitted standing: they read only the host-sealed seeds the closed table `reserved::INSTALL_SEEDS` lists — `Arc<Config>` and `SystemAdmin` — and never a value another member provided sealed. Every other host-sealed seed (the secret store, the secret lookup, the connector token cache, the signing keys, the spawner, the child secret environment, the messaging dispatcher, the agent dispatch, the event router, the services root, the profile path, the bundle sources, the owner reassignments) is withheld with the `MissingDependency` an absent type gets, so the resolution fails with `KernelError::Provide` (or `Slot`, `GatewayGuard`, `SubjectProvider`, `Policies`) at boot. An install reads the custom secrets it declares through `Resolved::secrets()` instead of `Arc<dyn SecretStore>`, and replaces every other sealed read with a narrow value a core member provides. Core members are not narrowed. Rescoping a resolution never widens it."
 
 [[crate]]
 name = "systemprompt-extension"
@@ -14,11 +14,6 @@ section = "Breaking"
 text = "`build_factories` takes the entry's `StandingTag` after its owner and builds the factories scoped to that owner and standing; `Slot::build` runs with the resolution scoped to the slot's owner and standing."
 
 [[crate]]
-name = "systemprompt-traits"
-section = "Added"
-text = "`CustomSecrets`: a custom secret by name over the live secret store, and nothing else of it."
-
-[[crate]]
 name = "systemprompt-runtime"
 section = "Added"
-text = "`Kernel::member_resolved`; the kernel state seeds `CustomSecrets` sealed beside the secret store."
+text = "`Kernel::member_resolved`."

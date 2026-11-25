@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Security"
+text = "`authz::AuthzHookContext`, `discover_subject_providers`, `discover_authz_hook` and `discover_role_directory` are removed. The kernel builds the subject provider set from the providers members contribute with `Contributions::subject_attributes`, the authz hook from `contract::AuthzHookSlot` and the role directory from `contract::RoleDirectorySlot`. Migrate a caller that discovered providers to read `SubjectProviderSet` from the resolved kernel state."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`authz::{AuthzHookContext, discover_subject_providers, discover_authz_hook, discover_role_directory}` are removed."
