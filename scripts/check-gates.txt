@@ -36,6 +36,7 @@ lint-no-untyped-admin
 check-headers
 lint-layers
 lint-kernel-deps
+lint-capability-cfg
 lint-kernel-identity
 lint-contributions-surface
 lint-hidden-constructors

@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Build"
+text = "`just lint-capability-cfg` is a registered source gate: a capability feature `cfg` sits only on a `mod` declaration, a re-export of a gated module, or the facade."
