@@ -88,12 +88,12 @@ Derived, never stated (`crates/shared/manifest/src/profile/derived.rs`): `api_se
 
 ### `server.shutdown`
 
-`crates/shared/manifest/src/profile/shutdown.rs`. Unknown keys are refused. The server logs `pre_stop_delay_secs + drain_grace_secs + 2 + forced_exit_grace_secs` at boot (the 2 s is the fixed flush window for streams ended by the drain); an orchestrator's termination grace must exceed it.
+`crates/shared/manifest/src/profile/shutdown.rs`. Unknown keys are refused. The server logs its total shutdown budget at boot: `pre_stop_delay_secs + min(max(drain_grace_secs, longest_stream_secs), 86400) + 2 + forced_exit_grace_secs` (the 2 s is the fixed flush window for streams ended by the drain). With the defaults that is 0 + 600 + 2 + 10 = 612 s. An orchestrator's termination grace must exceed it: on Kubernetes set `terminationGracePeriodSeconds` above the logged total (at least 613 with the defaults; the Kubernetes default of 30 s is too short for a node that serves streams), or lower `longest_stream_secs`. A process killed before the budget ends skips child termination, the background-work drain and the final gateway journal settlement.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `pre_stop_delay_secs` | u64 | no | `0` | After the termination signal `/readyz` answers `503 draining` while the listener keeps accepting for this long, so endpoints can update before connections are refused. At most `600`. |
-| `drain_grace_secs` | u64 | no | `10` | How long in-flight requests and SSE streams may run once the listener stops accepting. `1`–`86400`. A gateway stream still open when it expires ends itself with a terminal error frame in its wire format ("server is shutting down; retry the request"), counted in `gateway_streams_aborted_on_shutdown_total`, and gets 2 s to flush. |
+| `drain_grace_secs` | u64 | no | `10` | How long in-flight requests that are not response streams may run once the listener stops accepting. `1`–`86400`. While a response stream is open the drain lasts `max(drain_grace_secs, longest_stream_secs)` instead. A gateway stream still open when the drain expires ends itself with a terminal error frame in its wire format ("server is shutting down; retry the request"), counted in `gateway_streams_aborted_on_shutdown_total`, and gets 2 s to flush. |
 | `longest_stream_secs` | u64 | no | `600` | The longest response stream the node permits (an LLM stream). While a stream is open the drain lasts the larger of `drain_grace_secs` and this, capped at `86400`; it ends as soon as the last request does. |
 | `child_grace_secs` | u64 | no | `5` | How long MCP and agent children get to exit after their signal. Greater than `0`. |
 | `background_grace_secs` | u64 | no | `5` | How long owned background work, including the final gateway journal settlement, gets to finish. Greater than `0`. |

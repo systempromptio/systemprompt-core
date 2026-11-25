@@ -11,7 +11,7 @@ How to move a deployment and the code built on the `systemprompt` crates from 0.
 | Facade feature | Replace `features = ["full"]` with `features = ["reference"]` in every crate that depends on `systemprompt` | Yes, if `full` is named |
 | Supported compositions | Build one of the compositions listed in [feature flags](../reference/feature-flags.md#supported-compositions); other feature sets are unsupported | Review |
 | `server.max_in_flight` | Load shedding is on by default at 4096 concurrent requests per replica; an open response stream counts until it closes. Set a value sized for the node, or `null` for no ceiling | Review |
-| `server.shutdown.longest_stream_secs` | The drain now waits up to 600 s while a response stream is open. Raise the orchestrator's termination grace to cover the total the server logs at boot, or lower this value | Yes, on Kubernetes |
+| `server.shutdown.longest_stream_secs` | The drain now waits up to 600 s while a response stream is open, so the default shutdown budget is 612 s. Raise the orchestrator's termination grace (`terminationGracePeriodSeconds`, 30 s by default on Kubernetes) above the total the server logs at boot, or lower this value | Yes, on Kubernetes |
 | `database.connection_budget` | New, optional: the most Postgres connections one node holds, children included. Boot is refused when the pinned pool sizes exceed it | No |
 | `database.schema_install_roles` | New, optional: the roles that install the schema at boot; every other role verifies it | No |
 | `rate_limits.memory_capacity` | New, optional: callers tracked per node in per-replica windows (default 262144) | No |

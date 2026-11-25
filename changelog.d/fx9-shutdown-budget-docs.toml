@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Documentation"
+text = "The configuration reference states the shutdown budget the server logs: `pre_stop_delay_secs + min(max(drain_grace_secs, longest_stream_secs), 86400) + 2 + forced_exit_grace_secs`, which is 612 s with the defaults. It also states the termination grace an orchestrator must set to cover it. `drain_grace_secs` is documented as the drain for requests that are not streams."
