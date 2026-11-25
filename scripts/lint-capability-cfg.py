@@ -30,7 +30,7 @@ ATTRIBUTE = re.compile(r"^\s*#\[")
 ALLOWED_ITEM = re.compile(r"^\s*(pub(\([a-z]+\))?\s+)?(mod|use)\s")
 FEATURE_ROW = re.compile(r"^([A-Za-z0-9_-]+)\s*=\s*\[(.*?)\]", re.S | re.M)
 QUOTED = re.compile(r'"([^"]*)"')
-SURFACE_FEATURES = ("api", "cli", "reference")
+SURFACE_FEATURES = ("api", "cli", "runtime", "reference")
 
 
 def facade_features(text):

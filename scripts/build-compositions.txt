@@ -15,10 +15,14 @@
 # A composition without `boot` is a library composition: it is compiled, and
 # its build-report binary is a trivial `main` whose size measures only what
 # survives dead-code elimination, while its closure counts are exact.
-reference              reference              boot
-reference-slack-teams  reference,slack,teams  largest,boot
+reference              reference                                                   boot
+reference-slack-teams  reference,slack,teams                                       largest,boot
+runtime                core,runtime                                                boot
+flavour-gateway        core,runtime,identity,ai,analytics,cloud,otel,bridge        boot
+flavour-mcp            core,runtime,identity,ai,analytics,cloud,otel,bridge,mcp-servers,marketplace  boot
+flavour-agents         core,runtime,identity,ai,analytics,cloud,otel,bridge,mcp-servers,marketplace,agents,agent-runs,notifications,brain  boot
+flavour-site           core,runtime,identity,analytics,content,files,files-pdf     boot
 api                    api
-cli                    core,cli
 gateway                api,ai
 kernel                 core,database
 extension              core

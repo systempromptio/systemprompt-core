@@ -74,6 +74,8 @@ mod install_reserved;
 #[cfg(test)]
 mod install_services;
 #[cfg(test)]
+mod kernel_floor;
+#[cfg(test)]
 mod kernel_reserved;
 #[cfg(test)]
 mod marketplace_http;

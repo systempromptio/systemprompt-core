@@ -18,6 +18,7 @@ UNITS = "systemprompt-runtime kernel\nsystemprompt-brain capability:brain\nsyste
 FACADE = """\
 [features]
 api = ["dep:systemprompt-brain"]
+runtime = ["api", "dep:systemprompt-brain"]
 otel = ["systemprompt-otel?/export"]
 logging = ["dep:systemprompt-logging"]
 
@@ -56,6 +57,9 @@ class CapabilityCfg(unittest.TestCase):
 
     def test_surface_and_infra_features_are_not_capabilities(self):
         self.check('#[cfg(feature = "api")]\nfn a() {}\n#[cfg(feature = "logging")]\nfn b() {}\n', [])
+
+    def test_runtime_is_a_surface_feature(self):
+        self.check('#[cfg(feature = "runtime")]\nfn compose() {}\n', [])
 
     def test_attribute_stack_is_skipped_to_the_item(self):
         self.check('#[cfg(feature = "brain")]\n#[cfg_attr(docsrs, doc(cfg(feature = "brain")))]\npub mod brain;\n', [])

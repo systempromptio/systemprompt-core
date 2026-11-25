@@ -10,17 +10,46 @@ systemprompt = { version = "0.87", features = ["api"] }
 
 ## Supported compositions
 
-A composition is a feature set of the facade. The supported ones are listed in `scripts/build-compositions.txt` of the source repository, and CI builds every one of them on each change; the two that link the `systemprompt` binary are also booted (`systemprompt --help` declares every member and builds the command tree):
+A composition is a feature set of the facade. The supported ones are listed in `scripts/build-compositions.txt` of the source repository, and CI builds every one of them on each change; those that link the `systemprompt` binary are also booted (`systemprompt --help` declares every member and builds the command tree):
 
 | Composition | Features | Booted |
 |---|---|---|
 | reference | `reference` | yes |
 | reference with Slack and Teams | `reference`, `slack`, `teams` | yes |
+| runtime (the kernel alone) | `core`, `runtime` | yes |
+| gateway flavour | `core`, `runtime`, `identity`, `ai`, `analytics`, `cloud`, `otel`, `bridge` | yes |
+| MCP flavour | the gateway flavour, `mcp-servers`, `marketplace` | yes |
+| agents flavour | the MCP flavour, `agents`, `agent-runs`, `notifications`, `brain` | yes |
+| site flavour | `core`, `runtime`, `identity`, `analytics`, `content`, `files`, `files-pdf` | yes |
 | API | `api` | no |
-| CLI | `core`, `cli` | no |
-| gateway | `api`, `ai` | no |
+| gateway library | `api`, `ai` | no |
 | minimal kernel | `core`, `database` | no |
 | extension authoring | `core` | no |
+
+A binary needs `runtime`: `Composition`, `reference()` and the `systemprompt` binary are gated on it. `reference()` holds every core member the build links, so a composition is chosen by its features alone.
+
+### The kernel floor
+
+`runtime` always links the crates below; no feature removes them. Their members are in every composition's `reference()`, and a member marked REQUIRED cannot be disabled in the profile when it is linked (the profile is refused with `RequiredDisabled`):
+
+| Crate | Member | Standing |
+|---|---|---|
+| `systemprompt-database` | `database` | optional |
+| `systemprompt-events` | `events` | optional |
+| `systemprompt-users` | `users` | REQUIRED |
+| `systemprompt-logging` | `logging` | REQUIRED |
+| `systemprompt-governance` | `authz` | REQUIRED |
+| `systemprompt-oauth` | `oauth` | optional |
+| `systemprompt-oauth-issuance` | `identity` | optional |
+| `systemprompt-mcp-host` | `mcp_host` | optional |
+| `systemprompt-documents` | `documents` | REQUIRED |
+| `systemprompt-files` | `files` | REQUIRED |
+| `systemprompt-gateway` | `gateway` | optional |
+| `systemprompt-scheduler` | `scheduler` | optional |
+| `systemprompt-gateway-entry` | `gateway-http` | optional |
+| `systemprompt-api`, `systemprompt-runtime`, `systemprompt-cli`, `systemprompt-config`, `systemprompt-security` | (none) | the server, the application context and the CLI |
+
+The kernel crates link some capability crates themselves (`systemprompt-api` and `systemprompt-cli` depend on, among others, `systemprompt-ai`, `systemprompt-agent-runs`, `systemprompt-issues` and `systemprompt-cloud`), so dropping a capability's feature removes its members, routes and commands but not always its code from the binary. The flavours above drop the members, routes and commands of the capabilities they omit.
 
 Any other combination of features is unsupported: it may compile, but it is not built or tested.
 
@@ -36,7 +65,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `database` | `dep:systemprompt-database`, `dep:sqlx`, `systemprompt-extension?/sqlx` |
 | `config` | `dep:systemprompt-config` |
 | `mcp` | `dep:rmcp`, `systemprompt-models?/mcp` |
-| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-gateway`, `dep:systemprompt-runtime`, `dep:systemprompt-mcp-host`, `dep:systemprompt-oauth-issuance`, `dep:systemprompt-gateway-entry`, `dep:axum`, `systemprompt-extension?/router`, `systemprompt-slack-entry?/http`, `systemprompt-teams-entry?/http`, `systemprompt-agent-runs-entry?/http`, `systemprompt-notifications-entry?/http`, `systemprompt-content-entry?/http`, `systemprompt-analytics-entry?/http`, `systemprompt-marketplace-entry?/http`, `systemprompt-files-entry?/http`, `systemprompt-mcp-entry?/http`, `systemprompt-cloud-entry?/http`, `systemprompt-agent-entry?/http`, `systemprompt-brain-entry?/http`, `systemprompt-gateway-entry/http`, `systemprompt-identity-entry?/http` |
+| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-gateway`, `dep:systemprompt-runtime`, `dep:systemprompt-mcp-host`, `dep:systemprompt-oauth-issuance`, `dep:systemprompt-gateway-entry`, `dep:systemprompt-users`, `dep:systemprompt-oauth`, `dep:systemprompt-scheduler`, `dep:systemprompt-documents`, `dep:systemprompt-files`, `dep:axum`, `systemprompt-extension?/router`, `systemprompt-slack-entry?/http`, `systemprompt-teams-entry?/http`, `systemprompt-agent-runs-entry?/http`, `systemprompt-notifications-entry?/http`, `systemprompt-content-entry?/http`, `systemprompt-analytics-entry?/http`, `systemprompt-marketplace-entry?/http`, `systemprompt-files-entry?/http`, `systemprompt-mcp-entry?/http`, `systemprompt-cloud-entry?/http`, `systemprompt-agent-entry?/http`, `systemprompt-brain-entry?/http`, `systemprompt-gateway-entry/http`, `systemprompt-identity-entry?/http` |
 | `identity` | `dep:systemprompt-identity-entry` |
 | `cloud` | `dep:systemprompt-cloud`, `dep:systemprompt-cloud-entry` |
 | `logging` | `dep:systemprompt-logging` |
@@ -46,9 +75,9 @@ Cargo enables the transitive dependencies of each selected feature.
 | `client` | `dep:systemprompt-client` |
 | `security` | `dep:systemprompt-security`, `dep:systemprompt-governance` |
 | `cli` | `config`, `dep:systemprompt-cli`, `dep:systemprompt-extension`, `systemprompt-extension/cli`, `systemprompt-cloud-entry?/cli`, `systemprompt-content-entry?/cli`, `systemprompt-analytics-entry?/cli`, `systemprompt-marketplace-entry?/cli`, `systemprompt-files-entry?/cli`, `systemprompt-issues?/cli`, `systemprompt-mcp-entry?/cli`, `systemprompt-agent-entry?/cli`, `systemprompt-identity-entry?/cli` |
-| `runtime` | `cli`, `dep:systemprompt-extension` |
+| `runtime` | `api`, `cli`, `logging`, `systemprompt-logging/cli`, `security`, `events`, `config` |
 | `analytics` | `dep:systemprompt-analytics`, `dep:systemprompt-analytics-entry` |
-| `content` | `dep:systemprompt-content`, `dep:systemprompt-content-entry`, `systemprompt-analytics-entry?/content-commands` |
+| `content` | `dep:systemprompt-content`, `dep:systemprompt-content-entry`, `dep:systemprompt-generator`, `systemprompt-analytics-entry?/content-commands` |
 | `marketplace` | `dep:systemprompt-marketplace`, `dep:systemprompt-marketplace-entry` |
 | `files` | `dep:systemprompt-files`, `dep:systemprompt-files-entry`, `dep:systemprompt-documents` |
 | `mcp-servers` | `dep:systemprompt-mcp`, `dep:systemprompt-mcp-entry` |
@@ -66,7 +95,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `brain` | `dep:systemprompt-brain`, `dep:systemprompt-brain-entry`, `notifications` |
 | `issues` | `dep:systemprompt-issues` |
 | `ai` | `dep:systemprompt-ai`, `systemprompt-models?/mcp` |
-| `reference` | `api`, `mcp`, `cloud`, `cli`, `agents`, `ai`, `mcp-servers`, `dep:systemprompt-oauth`, `dep:systemprompt-users`, `content`, `analytics`, `marketplace`, `dep:systemprompt-scheduler`, `dep:systemprompt-generator`, `logging`, `systemprompt-logging/cli`, `config`, `files`, `files-office`, `files-pdf`, `files-collab-loro`, `agent-runs`, `otel`, `bridge`, `notifications`, `brain`, `issues`, `identity`, `loader`, `events`, `storage`, `client`, `security` |
+| `reference` | `runtime`, `mcp`, `cloud`, `agents`, `ai`, `mcp-servers`, `content`, `analytics`, `marketplace`, `files`, `files-office`, `files-pdf`, `files-collab-loro`, `agent-runs`, `otel`, `bridge`, `notifications`, `brain`, `issues`, `identity`, `loader`, `storage`, `client` |
 
 `dep:` selects an optional dependency; an unprefixed name selects another feature.
 `dependency/feature` enables a feature on that dependency. `reference` excludes the opt-in
@@ -80,8 +109,7 @@ Cargo enables the transitive dependencies of each selected feature.
 
 `notifications` adds notification streams, rules, the per-user feed and their outbox consumer. `brain` adds the brain: its capture consumer, gateway recall, routes and jobs (see [the brain](../brain.md)); it implies `notifications`, and a profile with `brain.enabled: false` composes none of it.
 
-The `mcp` feature exposes `rmcp` and the `rmcp`-typed items of `systemprompt-models` (its `mcp` feature); the `systemprompt-mcp` domain crate is included by
-`reference`. `ai` adds `systemprompt-ai`, the provider dispatch and tool execution, and is part of `reference`. `runtime` enables `cli` and the extension framework. `Composition` and `reference()`, which build a binary, need `reference`; `reference()` holds the core members of the features the build enables. The `api` dependency on
+The `mcp` feature exposes `rmcp` and the `rmcp`-typed items of `systemprompt-models` (its `mcp` feature); the `systemprompt-mcp` domain crate, its `mcp` and `mcp-http` members and its re-export in `systemprompt::mcp` come with `mcp-servers`. `ai` adds the `ai` member, the provider dispatch and tool execution, and is part of `reference`. `runtime` is the kernel: `api`, `cli` and the infrastructure the kernel members need. `Composition` and `reference()`, which build a binary, need `runtime`; `reference()` holds the core members of the features the build enables. Without `content`, analytics events are recorded with no content id. The `api` dependency on
 `systemprompt-runtime` enables its `geolocation` feature.
 
 ## Panic strategy
@@ -90,7 +118,7 @@ A build with `panic = "abort"` ends the process on any panic. A build with unwin
 
 ## Examples and API documentation
 
-The bundled `extension` and `cli` examples require `reference`; the `database` and `api` examples require
+The bundled `extension` example requires `reference` and the `cli` example `runtime`; the `database` and `api` examples require
 `database` and `api`. Published docs.rs documentation enables all features,
 including integrations excluded from `reference`.
 
