@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Build"
+text = "Capability features (`otel`, `bridge`, `slack`, `teams`) switch whole modules in or out; no function body, field or constant carries a capability `cfg`. Behaviour with and without each feature is unchanged."

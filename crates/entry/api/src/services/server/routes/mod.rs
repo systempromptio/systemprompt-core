@@ -23,7 +23,22 @@
 mod documents;
 mod error;
 mod extension_mount;
+#[cfg(feature = "bridge")]
 mod feature_mount;
+#[cfg(not(feature = "bridge"))]
+mod feature_mount {
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "every route group mounted here is behind a cargo feature"
+    )]
+    pub(super) fn mount_feature_routes(
+        router: axum::Router,
+        _mount: &super::protocol::MountCtx<'_>,
+        _managed_consumer: Option<systemprompt_gateway::surface::ManagedConsumer>,
+    ) -> Result<axum::Router, super::RouteMountError> {
+        Ok(router)
+    }
+}
 mod gateway;
 #[cfg(feature = "bridge")]
 mod managed;

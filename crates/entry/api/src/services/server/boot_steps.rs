@@ -1,7 +1,6 @@
 //! One-shot boot steps the run loop takes before it serves: registering the
-//! document folders as access-control entities, starting the live OTLP export
-//! the profile names (feature `otel`), and recovering gateway accounting
-//! receipts left unsettled by a previous process.
+//! document folders as access-control entities and recovering gateway
+//! accounting receipts left unsettled by a previous process.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,27 +23,6 @@ pub(super) async fn reconcile_document_folders(ctx: &AppContext) -> Result<()> {
         .await
         .context("document folder entities")?;
     tracing::debug!(registered, "document folder entities reconciled");
-    Ok(())
-}
-
-#[cfg(feature = "otel")]
-pub(super) fn start_otlp_export(ctx: &AppContext) -> Result<()> {
-    let state = ctx.kernel().state();
-    let Some(config) = state
-        .get::<systemprompt_loader::BootContext>()?
-        .profile()
-        .observability
-        .otlp()
-    else {
-        return Ok(());
-    };
-    if state
-        .get::<systemprompt_logging::LoggingRuntime>()?
-        .sink()
-        .start_otlp_export(config, state.get::<BackgroundTasks>()?)
-    {
-        tracing::info!(endpoint = %config.endpoint, "OTLP export started");
-    }
     Ok(())
 }
 

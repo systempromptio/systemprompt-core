@@ -251,48 +251,78 @@ const ALWAYS: [PrivilegedShape; 20] = [
 ];
 
 #[cfg(feature = "slack")]
-const SLACK: PrivilegedShape = PrivilegedShape {
-    owner: CoreId::Slack,
-    base: BaseRef::Path(BasePath::Api(ApiBase::Slack)),
-    group: RouteGroup::Messaging,
-    allowance: Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
-    shape: shape(
-        AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
-        ContextKind::HandlerResolved,
-        limits(AGENTS_RATE),
-    ),
-    routes: None,
-};
-
-#[cfg(feature = "teams")]
-const TEAMS: PrivilegedShape = PrivilegedShape {
-    owner: CoreId::Teams,
-    base: BaseRef::Path(BasePath::Api(ApiBase::Teams)),
-    group: RouteGroup::Messaging,
-    allowance: Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
-    shape: shape(
-        AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
-        ContextKind::HandlerResolved,
-        limits(AGENTS_RATE),
-    ),
-    routes: None,
-};
-
-macro_rules! privileged_shapes {
-    ($($extra:expr),*) => {
-        &[
-            ALWAYS[0], ALWAYS[1], ALWAYS[2], ALWAYS[3], ALWAYS[4], ALWAYS[5], ALWAYS[6],
-            ALWAYS[7], ALWAYS[8], ALWAYS[9], ALWAYS[10], ALWAYS[11], ALWAYS[12], ALWAYS[13],
-            ALWAYS[14], ALWAYS[15], ALWAYS[16], ALWAYS[17], ALWAYS[18], ALWAYS[19] $(, $extra)*
-        ]
+mod slack {
+    use super::{
+        AGENTS_RATE, ApiBase, AuthzPolicy, BasePath, BaseRef, ContextKind, CoreId,
+        HandlerVerifier, PrivilegedShape, RouteGroup, limits, shape,
     };
+    use crate::router::Allowance;
+
+    pub(super) const SHAPES: &[PrivilegedShape] = &[PrivilegedShape {
+        owner: CoreId::Slack,
+        base: BaseRef::Path(BasePath::Api(ApiBase::Slack)),
+        group: RouteGroup::Messaging,
+        allowance: Allowance::HandlerVerified(HandlerVerifier::SlackSignature),
+        shape: shape(
+            AuthzPolicy::handler_verified(HandlerVerifier::SlackSignature),
+            ContextKind::HandlerResolved,
+            limits(AGENTS_RATE),
+        ),
+        routes: None,
+    }];
 }
 
-#[cfg(all(feature = "slack", feature = "teams"))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!(SLACK, TEAMS);
-#[cfg(all(feature = "slack", not(feature = "teams")))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!(SLACK);
-#[cfg(all(not(feature = "slack"), feature = "teams"))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!(TEAMS);
-#[cfg(not(any(feature = "slack", feature = "teams")))]
-pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = privileged_shapes!();
+#[cfg(not(feature = "slack"))]
+mod slack {
+    pub(super) const SHAPES: &[super::PrivilegedShape] = &[];
+}
+
+#[cfg(feature = "teams")]
+mod teams {
+    use super::{
+        AGENTS_RATE, ApiBase, AuthzPolicy, BasePath, BaseRef, ContextKind, CoreId,
+        HandlerVerifier, PrivilegedShape, RouteGroup, limits, shape,
+    };
+    use crate::router::Allowance;
+
+    pub(super) const SHAPES: &[PrivilegedShape] = &[PrivilegedShape {
+        owner: CoreId::Teams,
+        base: BaseRef::Path(BasePath::Api(ApiBase::Teams)),
+        group: RouteGroup::Messaging,
+        allowance: Allowance::HandlerVerified(HandlerVerifier::TeamsBotToken),
+        shape: shape(
+            AuthzPolicy::handler_verified(HandlerVerifier::TeamsBotToken),
+            ContextKind::HandlerResolved,
+            limits(AGENTS_RATE),
+        ),
+        routes: None,
+    }];
+}
+
+#[cfg(not(feature = "teams"))]
+mod teams {
+    pub(super) const SHAPES: &[super::PrivilegedShape] = &[];
+}
+
+const SHAPE_COUNT: usize = ALWAYS.len() + slack::SHAPES.len() + teams::SHAPES.len();
+
+const fn joined() -> [PrivilegedShape; SHAPE_COUNT] {
+    let mut out = [ALWAYS[0]; SHAPE_COUNT];
+    let mut at = 0;
+    let parts: [&[PrivilegedShape]; 3] = [&ALWAYS, slack::SHAPES, teams::SHAPES];
+    let mut part = 0;
+    while part < parts.len() {
+        let mut i = 0;
+        while i < parts[part].len() {
+            out[at] = parts[part][i];
+            at += 1;
+            i += 1;
+        }
+        part += 1;
+    }
+    out
+}
+
+const JOINED: [PrivilegedShape; SHAPE_COUNT] = joined();
+
+pub const PRIVILEGED_SHAPES: &[PrivilegedShape] = &JOINED;

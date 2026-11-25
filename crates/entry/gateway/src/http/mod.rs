@@ -32,6 +32,15 @@ pub mod messages;
 pub mod models;
 #[cfg(feature = "otel")]
 pub mod otel;
+#[cfg(not(feature = "otel"))]
+mod otel {
+    pub(super) const fn routes(
+        router: axum::Router,
+        _state: &super::state::GatewayHttpState,
+    ) -> axum::Router {
+        router
+    }
+}
 pub mod provider_credentials;
 pub mod sessions;
 pub mod state;
@@ -183,9 +192,7 @@ fn routes(state: &GatewayHttpState) -> Router {
             inference(state, Arc::new(OpenAiChatInbound)),
         )
         .route("/messages/count_tokens", token_count(state));
-    #[cfg(feature = "otel")]
-    let router = otel_routes(router, state);
-    router
+    otel::routes(router, state)
 }
 
 fn token_count(state: &GatewayHttpState) -> axum::routing::MethodRouter {
@@ -205,22 +212,5 @@ fn inference(
         let state = state.clone();
         let inbound = Arc::clone(&inbound);
         async move { messages::handle(inbound, state, request).await }
-    })
-}
-
-#[cfg(feature = "otel")]
-fn otel_routes(router: Router, state: &GatewayHttpState) -> Router {
-    use systemprompt_models::ApiPaths;
-    router
-        .route(ApiPaths::OTEL, otel_ingest(state))
-        .route(ApiPaths::OTEL_REST_ROUTE, otel_ingest(state))
-}
-
-#[cfg(feature = "otel")]
-fn otel_ingest(state: &GatewayHttpState) -> axum::routing::MethodRouter {
-    let state = state.clone();
-    post(move |request| {
-        let state = state.clone();
-        async move { otel::handle(state, request).await }
     })
 }

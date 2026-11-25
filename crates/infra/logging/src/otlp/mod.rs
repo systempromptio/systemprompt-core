@@ -33,3 +33,19 @@ pub use ids::{span_id_bytes, trace_id_bytes, unix_nanos};
 pub(crate) use records::ClosedSpan;
 pub use records::{SPAN_KIND, severity_number, to_log_record};
 pub use transport::{BATCHES_TOTAL, RETRY_DELAYS, is_retryable};
+
+impl crate::LogSink {
+    pub fn start_otlp_export(
+        &self,
+        config: &systemprompt_manifest::profile::OtlpExportConfig,
+        tasks: &systemprompt_traits::BackgroundTasks,
+    ) -> bool {
+        self.export()
+            .bind(|| OtlpFeed::spawn(config, self.instance_id().cloned(), tasks))
+    }
+
+    #[must_use]
+    pub fn otlp_dropped(&self) -> Option<u64> {
+        self.export().dropped()
+    }
+}

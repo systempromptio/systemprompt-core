@@ -13,6 +13,38 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[cfg(feature = "otel")]
+pub(crate) mod export;
+#[cfg(not(feature = "otel"))]
+pub(crate) mod export {
+    use systemprompt_models::audit_spans::{
+        GovernanceSpanRecord, RequestSpanRecord, ToolCallSpanRecord,
+    };
+    use tracing_subscriber::layer::Context;
+
+    use crate::models::LogEntry;
+
+    #[derive(Debug, Clone, Copy, Default)]
+    pub(crate) struct ExportSlot;
+
+    #[expect(
+        clippy::unused_self,
+        reason = "without the otel feature there is no feed; the slot keeps the exporting shape"
+    )]
+    impl ExportSlot {
+        pub(crate) const fn log(self, _entry: &LogEntry) {}
+
+        pub(crate) const fn open<S>(self, _id: &tracing::span::Id, _ctx: &Context<'_, S>) {}
+
+        pub(crate) const fn close<S>(self, _id: &tracing::span::Id, _ctx: &Context<'_, S>) {}
+
+        pub(crate) const fn request(self, _span: &RequestSpanRecord) {}
+
+        pub(crate) const fn tool_call(self, _span: &ToolCallSpanRecord) {}
+
+        pub(crate) const fn governance(self, _span: &GovernanceSpanRecord) {}
+    }
+}
+#[cfg(feature = "otel")]
 mod otlp_span;
 mod proxy;
 mod visitor;
@@ -60,8 +92,7 @@ impl InstanceLabel {
 pub(crate) struct LayerShared {
     pub(crate) instance: InstanceLabel,
     dropped: Arc<AtomicU64>,
-    #[cfg(feature = "otel")]
-    pub(crate) otlp: Arc<std::sync::OnceLock<crate::otlp::OtlpFeed>>,
+    pub(crate) export: export::ExportSlot,
 }
 
 impl LayerShared {
@@ -108,10 +139,7 @@ impl DatabaseLayer {
         if entry.instance_id.is_none() {
             entry.instance_id = self.shared.instance.get().cloned();
         }
-        #[cfg(feature = "otel")]
-        if let Some(feed) = self.shared.otlp.get() {
-            feed.log(&entry);
-        }
+        self.shared.export.log(&entry);
         let is_error = entry.level == LogLevel::Error;
         if self
             .sender
