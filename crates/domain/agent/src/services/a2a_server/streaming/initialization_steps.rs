@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use axum::response::sse::Event;
+use super::StreamFrame;
 use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_models::TaskMetadata;
 use tokio::sync::mpsc::Sender;
@@ -26,7 +26,7 @@ pub(super) async fn validate_context(
     context_id: &ContextId,
     user_id: &UserId,
     state: &Arc<AgentHandlerState>,
-    tx: &Sender<Event>,
+    tx: &Sender<StreamFrame>,
     request_id: &NumberOrString,
 ) -> Result<(), ()> {
     state

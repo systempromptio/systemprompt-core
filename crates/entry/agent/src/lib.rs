@@ -12,6 +12,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "http")]
+pub mod a2a_server;
 #[cfg(feature = "cli")]
 pub mod cli;
 pub mod extension;

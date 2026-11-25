@@ -33,7 +33,7 @@ use systemprompt_identifiers::{AgentName, ContextId};
 use systemprompt_models::RequestContext;
 
 impl MessageHandler {
-    pub(in crate::services::a2a_server) async fn handle_message(
+    pub async fn handle_message(
         &self,
         message: Message,
         agent_name: &AgentName,

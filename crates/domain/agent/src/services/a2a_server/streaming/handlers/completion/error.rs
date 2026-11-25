@@ -6,7 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::sse::Event;
+use crate::services::a2a_server::streaming::StreamFrame;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
@@ -36,7 +36,7 @@ pub(in crate::services::a2a_server::streaming) async fn record_failure(
 }
 
 pub(in crate::services::a2a_server::streaming) struct AnnounceFailureParams<'a> {
-    pub tx: &'a Sender<Event>,
+    pub tx: &'a Sender<StreamFrame>,
     pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub error: String,
@@ -82,7 +82,7 @@ pub(in crate::services::a2a_server::streaming) async fn announce_failure(
 }
 
 pub(in crate::services::a2a_server::streaming) async fn announce_cancelled(
-    tx: &Sender<Event>,
+    tx: &Sender<StreamFrame>,
     request_id: &NumberOrString,
     webhook_context: &WebhookContext,
     task_id: &TaskId,

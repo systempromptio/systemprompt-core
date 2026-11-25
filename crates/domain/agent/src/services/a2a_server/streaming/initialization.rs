@@ -9,7 +9,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::response::sse::Event;
+use super::StreamFrame;
 use systemprompt_identifiers::{AgentName, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use tokio::sync::mpsc::Sender;
@@ -41,7 +41,7 @@ pub(super) fn resolve_task_id(message: &Message) -> TaskId {
 
 pub(super) async fn setup_stream(
     input: StreamInput,
-    tx: &Sender<Event>,
+    tx: &Sender<StreamFrame>,
 ) -> Result<StreamSetupResult, ()> {
     let StreamInput {
         message,

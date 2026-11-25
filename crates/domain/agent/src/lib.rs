@@ -50,7 +50,7 @@ pub use error::{AgentError, AgentResult, ArtifactError, ExecutionStepTarget};
 pub use systemprompt_models::a2a::PROTOCOL_VERSION as A2A_PROTOCOL_VERSION;
 
 pub use services::{
-    AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus, ContextService, SkillService,
+    AgentHandlerState, AgentOrchestrator, AgentStatus, ContextService, SkillService,
 };
 
 pub use repository::content::ArtifactRepository;

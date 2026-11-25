@@ -1,6 +1,6 @@
-//! Streaming surface — SSE channel construction, lifecycle event broadcasting,
+//! Streaming surface — stream channel construction, lifecycle event broadcasting,
 //! and the per-task event loop that fans the model's stream out to A2A,
-//! AG-UI webhooks, and SSE clients.
+//! AG-UI webhooks, and stream clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,7 +23,7 @@ pub use event_loop::{ProcessEventsParams, process_events};
 pub use event_loop_lifecycle::{
     EmitRunStartedParams, emit_run_started, handle_stream_creation_error,
 };
-pub use frames::{jsonrpc_error_event, stream_response_event, stream_response_frame};
+pub use frames::{StreamFrame, jsonrpc_error_event, stream_response_event, stream_response_frame};
 pub use messages::{
     CreateSseStreamParams, StreamRejected, create_sse_stream, create_sse_stream_with_registry,
 };

@@ -41,7 +41,7 @@ use systemprompt_users::ApiKeyLifetime;
 use tokio_util::sync::CancellationToken;
 
 pub use handler::A2aRunHandler;
-pub use systemprompt_agent::services::a2a_server::handlers::request::agent_run::AGENT_RUN_ORIGIN_KIND;
+pub use systemprompt_agent::services::a2a_server::AGENT_RUN_ORIGIN_KIND;
 
 use crate::credentials::{IssueRunCredentials, RunCredentialLimits, RunCredentialService};
 use crate::governance::HookBases;

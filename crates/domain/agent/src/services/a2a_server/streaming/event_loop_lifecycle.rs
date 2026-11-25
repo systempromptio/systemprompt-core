@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::AgentServiceError;
-use axum::response::sse::Event;
+use super::StreamFrame;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
@@ -23,7 +23,7 @@ use super::frames::send_stream_response;
 use super::webhook_client::WebhookContext;
 
 pub(super) async fn send_a2a_status_event(
-    tx: &Sender<Event>,
+    tx: &Sender<StreamFrame>,
     request_id: &NumberOrString,
     task_id: &TaskId,
     context_id: &ContextId,
@@ -35,7 +35,7 @@ pub(super) async fn send_a2a_status_event(
 
 #[derive(Debug)]
 pub struct EmitRunStartedParams<'a> {
-    pub tx: &'a Sender<Event>,
+    pub tx: &'a Sender<StreamFrame>,
     pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub task: &'a RuntimeTask,

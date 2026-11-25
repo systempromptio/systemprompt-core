@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use axum::response::sse::Event;
+use super::StreamFrame;
 use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{AgUiEventBuilder, CallToolResult, RequestContext, ToolCall};
 use tokio::sync::mpsc::Sender;
@@ -30,7 +30,7 @@ use super::handlers::{
 use super::webhook_client::WebhookContext;
 
 pub struct ProcessEventsParams {
-    pub tx: Sender<Event>,
+    pub tx: Sender<StreamFrame>,
     pub request_id: NumberOrString,
     pub stream: MessageStream,
     pub task: RuntimeTask,
@@ -105,7 +105,7 @@ pub async fn process_events(params: ProcessEventsParams) {
 }
 
 struct EventLoopCtx<'a> {
-    tx: &'a Sender<Event>,
+    tx: &'a Sender<StreamFrame>,
     request_id: &'a NumberOrString,
     webhook_context: &'a WebhookContext,
     task: &'a RuntimeTask,

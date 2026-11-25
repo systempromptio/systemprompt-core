@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::sse::Event;
+use super::StreamFrame;
 use systemprompt_identifiers::AgentName;
 use tokio::sync::mpsc::Sender;
 
@@ -22,7 +22,7 @@ pub(super) struct LoadAgentRuntimeParams<'a> {
     pub agent_name: &'a AgentName,
     pub task: &'a RuntimeTask,
     pub task_repo: &'a TaskRepository,
-    pub tx: &'a Sender<Event>,
+    pub tx: &'a Sender<StreamFrame>,
     pub request_id: &'a NumberOrString,
 }
 

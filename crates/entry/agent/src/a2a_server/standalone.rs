@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::shared::{AgentServiceError, Result};
+use systemprompt_agent::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::ai::DynAiProvider;
 
 use super::Server;
-use crate::state::AgentState;
+use systemprompt_agent::AgentState;
 
 pub async fn run_standalone(
     agent_state: Arc<AgentState>,

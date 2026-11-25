@@ -6362,7 +6362,6 @@ name = "systemprompt-agent"
 version = "0.87.0"
 dependencies = [
  "async-trait",
- "axum",
  "base64 0.23.1",
  "chrono",
  "futures",
@@ -6392,7 +6391,6 @@ dependencies = [
  "tokio-stream",
  "tokio-test",
  "tokio-util",
- "tower-http 0.7.1",
  "tracing",
 ]
 
@@ -6433,6 +6431,8 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tokio-stream",
+ "tokio-util",
+ "tower-http 0.7.1",
  "tracing",
  "uuid",
 ]

@@ -20,7 +20,7 @@ pub mod registry_provider;
 pub mod shared;
 pub mod skills;
 
-pub use a2a_server::{AgentHandlerState, Server as AgentServer};
+pub use a2a_server::AgentHandlerState;
 
 pub use agent_orchestration::{
     AgentOrchestrator, AgentStatus, OrchestrationError, OrchestrationResult,

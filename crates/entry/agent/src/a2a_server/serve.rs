@@ -31,9 +31,9 @@ use systemprompt_traits::{
 };
 
 use super::run_standalone;
-use super::streaming::webhook_client::HttpWebhookBroadcaster;
-use crate::repository::{A2ARepositories, A2aDependencies};
-use crate::{AgentAuth, AgentState};
+use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
+use systemprompt_agent::repository::{A2ARepositories, A2aDependencies};
+use systemprompt_agent::{AgentAuth, AgentState};
 
 /// Why this host cannot serve an agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

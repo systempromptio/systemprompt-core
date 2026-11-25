@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::response::sse::Event;
+use crate::services::a2a_server::streaming::StreamFrame;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
@@ -16,7 +16,7 @@ use crate::services::a2a_server::streaming::broadcast_task_completed;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
 pub(super) struct BroadcastTaskSuccessParams<'a> {
-    pub tx: &'a Sender<Event>,
+    pub tx: &'a Sender<StreamFrame>,
     pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub task_id: &'a TaskId,

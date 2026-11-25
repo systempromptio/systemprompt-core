@@ -46,6 +46,8 @@ http = [
     "dep:thiserror",
     "dep:tokio",
     "dep:tokio-stream",
+    "dep:tokio-util",
+    "dep:tower-http",
     "dep:tracing",
     "dep:uuid",
 ]
@@ -109,5 +111,7 @@ sse-stream = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
