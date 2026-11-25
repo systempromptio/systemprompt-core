@@ -31,7 +31,8 @@
 
 mod wire;
 
-use crate::services::artifact_ingest::{ArtifactIngest, IngestOutcome, IngestRequest};
+use crate::services::artifact_ingest::ArtifactIngest;
+use systemprompt_extension::mcp::artifacts::{IngestOutcome, IngestRequest};
 use crate::services::ui_renderer::UiRendererRegistry;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock};

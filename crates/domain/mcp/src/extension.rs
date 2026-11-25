@@ -7,7 +7,9 @@
 //! restore lookup takes the server and user to match, so only the toolset host
 //! reads it, with the principal it verified), the artifact ingest
 //! (`Arc<ArtifactIngest>`, open: it scans with the installation's secret
-//! scanner cell and records tool results), and, once governance has loaded,
+//! scanner cell and records tool results) and the same ingest as the shared
+//! `DynToolResultIngest` contract the gateway reads (open, as the ingest is),
+//! and, once governance has loaded,
 //! the per-server tool executions (`DynToolExecutions`, open: an execution
 //! records usage as the request context the host hands it and reads no
 //! secret) and the tool provider the ai member's inference path reads
@@ -25,6 +27,7 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_extension::mcp::artifacts::DynToolResultIngest;
 use systemprompt_extension::mcp::{AccessRecorderSlot, DynMcpSessionStore, DynToolExecutions};
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::service_process::ServiceProcessSlot;
@@ -248,6 +251,12 @@ fn contribute_stores(c: &mut Contributions<'_>) {
                     .with_audit_spans(r.optional::<DynAuditSpanSink>()),
                 r.get::<SecretScannerCell>()?,
             )))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<DynToolResultIngest, ProvideError> {
+            let ingest: DynToolResultIngest = r.get::<Arc<ArtifactIngest>>()?;
+            Ok(ingest)
         },
     );
 }

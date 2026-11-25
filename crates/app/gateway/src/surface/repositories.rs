@@ -17,7 +17,7 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::DynBrainSink;
 use systemprompt_extension::prelude::Resolved;
 use systemprompt_governance::authz::SubjectProviderSet;
-use systemprompt_mcp::ArtifactIngest;
+use systemprompt_extension::mcp::artifacts::DynToolResultIngest;
 use systemprompt_traits::{CacheEpochView, DynContextMaterializer, DynSessionUsageCounters};
 
 use super::{GatewayHostHandles, GatewaySurfaceError};
@@ -27,7 +27,7 @@ use crate::{GatewayAtRest, GatewayHandles, GatewayRepositories};
 pub fn gateway_repositories(
     r: &Resolved<'_>,
     host: &GatewayHostHandles,
-    contexts: DynContextMaterializer,
+    contexts: Option<DynContextMaterializer>,
     db: &DbPool,
 ) -> Result<GatewayRepositories, GatewaySurfaceError> {
     let at_rest = r.get::<Arc<GatewayAtRest>>()?;
@@ -50,7 +50,7 @@ pub fn gateway_repositories(
     .with_quota_sharding(host.quota)
     .with_session_usage(r.get::<DynSessionUsageCounters>()?)
     .with_brain_recall(host.brain.recall.clone());
-    let repos = match r.optional::<Arc<ArtifactIngest>>() {
+    let repos = match r.optional::<DynToolResultIngest>() {
         Some(ingest) => repos.with_artifact_ingest(ingest),
         None => repos,
     };

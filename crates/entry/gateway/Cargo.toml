@@ -25,7 +25,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 http = [
     "systemprompt-extension/router",
-    "dep:systemprompt-agent",
     "dep:systemprompt-ai",
     "dep:systemprompt-analytics",
     "dep:systemprompt-events",
@@ -62,7 +61,6 @@ otel = ["http", "dep:opentelemetry-proto", "dep:prost", "dep:metrics"]
 
 [dependencies]
 systemprompt-extension = { workspace = true }
-systemprompt-agent = { workspace = true, optional = true }
 systemprompt-ai = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-events = { workspace = true, optional = true }

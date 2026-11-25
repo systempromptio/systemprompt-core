@@ -54,8 +54,6 @@ impl Extension for GatewayHttpExtension {
 mod surface {
     use std::sync::Arc;
 
-    use systemprompt_agent::repository::ContextRepository;
-    use systemprompt_agent::services::ContextProviderService;
     use systemprompt_database::DbPool;
     use systemprompt_extension::prelude::*;
     use systemprompt_gateway::DynGatewaySurface;
@@ -87,7 +85,6 @@ mod surface {
                 Arc::clone(&users),
                 ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
             )),
-            contexts: Arc::new(ContextProviderService::new(ContextRepository::new(&db))),
             bridge: BridgeRepositories {
                 users,
                 host_prefs: BridgeHostPrefsRepository::new(&db),

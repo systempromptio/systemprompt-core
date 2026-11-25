@@ -8,20 +8,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_extension::mcp::artifacts::ArtifactFinding;
 use systemprompt_identifiers::ArtifactId;
-
-pub const PHASE_TOOL_RESULT: &str = "tool_result";
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ArtifactFinding {
-    pub phase: &'static str,
-    pub severity: String,
-    pub category: String,
-    pub scanner: String,
-    pub path: Option<String>,
-    pub excerpt: Option<String>,
-    pub redacted: bool,
-}
 
 #[derive(Debug, Clone)]
 pub struct ArtifactFindingRecord {

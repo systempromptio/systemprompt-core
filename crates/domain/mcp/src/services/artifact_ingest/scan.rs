@@ -13,33 +13,17 @@
 
 use std::collections::BTreeMap;
 
-use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_governance::policy::GovernedInput;
 use systemprompt_governance::policy::secrets::{SecretScanner, redact_spans};
 use systemprompt_models::artifacts::PayloadDigest;
-use systemprompt_traits::BoxedSource;
 
 use super::{ArtifactIngest, IngestRequest};
 use crate::error::{McpDomainError, McpDomainResult};
-use crate::repository::{ArtifactFinding, PHASE_TOOL_RESULT};
+use systemprompt_extension::mcp::artifacts::{ArtifactFinding, PHASE_TOOL_RESULT};
 
 pub(super) const SECRET_SCANNER_NAME: &str = "secret_scanner";
 pub(super) const SECRET_CATEGORY: &str = "secret";
-
-/// A content scanner run over the text surfaces of an artifact body.
-///
-/// `#[async_trait]` because scanners are registered as `Arc<dyn
-/// ArtifactScanner>`.
-#[async_trait]
-pub trait ArtifactScanner: Send + Sync {
-    fn name(&self) -> &'static str;
-
-    async fn scan(
-        &self,
-        surfaces: &[(String, String)],
-    ) -> Result<Vec<ArtifactFinding>, BoxedSource>;
-}
 
 #[derive(Debug)]
 pub struct ScanOutcome {

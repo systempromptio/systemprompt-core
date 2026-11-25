@@ -59,7 +59,7 @@ use systemprompt_gateway::surface::repositories::gateway_repositories;
 use systemprompt_gateway::{
     GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
 };
-use systemprompt_traits::DynGatewaySessionMint;
+use systemprompt_traits::{DynContextMaterializer, DynGatewaySessionMint};
 
 use self::bridge::{BridgeMarketplace, BridgeRouteState};
 use self::state::{GatewayHttpRepositories, GatewayHttpState};
@@ -79,7 +79,8 @@ impl GatewaySurface for GatewayHttpSurface {
         let GatewayRouteState { resolved, host } = state;
         let own = resolved.get::<Arc<GatewayHttpRepositories>>()?;
         let db = resolved.get::<DbPool>()?;
-        let repos = gateway_repositories(&resolved, &host, Arc::clone(&own.contexts), &db)?;
+        let contexts = resolved.optional::<DynContextMaterializer>();
+        let repos = gateway_repositories(&resolved, &host, contexts, &db)?;
         let credentials = resolved.optional::<Arc<systemprompt_ai::PersonalProviderCredentials>>();
         let bridge = bridge_state(&resolved, &own, &host)?;
         let session_mint = resolved.get::<DynGatewaySessionMint>()?;

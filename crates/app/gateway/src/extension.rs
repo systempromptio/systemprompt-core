@@ -49,7 +49,7 @@ use systemprompt_extension::prelude::*;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{BrainProfile, UnappliedPlaneMode};
 use systemprompt_manifest::services::SystemAdmin;
-use systemprompt_mcp::ArtifactIngest;
+use systemprompt_extension::mcp::artifacts::DynToolResultIngest;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{CacheEpochView, SecretLookup, SecretStore};
@@ -154,7 +154,7 @@ fn register_artifact_scanner(
     r: &Resolved<'_>,
     engines: &GatewayEngines,
 ) -> Result<(), ProvideError> {
-    let Some(ingest) = r.optional::<Arc<ArtifactIngest>>() else {
+    let Some(ingest) = r.optional::<DynToolResultIngest>() else {
         tracing::info!(
             reason = "mcp_member_not_admitted",
             "No artifact ingest; the gateway scanner is not registered"
