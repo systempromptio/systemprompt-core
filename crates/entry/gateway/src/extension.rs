@@ -56,6 +56,7 @@ mod surface {
 
     use systemprompt_database::DbPool;
     use systemprompt_extension::prelude::*;
+    use systemprompt_extension::profile_usage::DynProfileUsageSource;
     use systemprompt_gateway::DynGatewaySurface;
     use systemprompt_manifest::Config;
     use systemprompt_users::{ApiKeyLifetime, ApiKeyService, UserRepository};
@@ -63,7 +64,6 @@ mod surface {
     use crate::http::GatewayHttpSurface;
     use crate::http::bridge::BridgeRepositories;
     use crate::http::state::{GatewayApiKeys, GatewayHttpRepositories};
-    use systemprompt_analytics::{CostAnalyticsRepository, ProfileUsageService};
     use systemprompt_oauth::repository::{BridgeHostPrefsRepository, BridgeSessionRepository};
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
@@ -72,14 +72,13 @@ mod surface {
                 Ok(Arc::new(GatewayHttpSurface))
             },
         )
-        .provide_sealed(repositories);
+        .provide_sealed_after_governance(repositories);
     }
 
     fn repositories(r: &Resolved<'_>) -> Result<Arc<GatewayHttpRepositories>, ProvideError> {
         let db = r.get::<DbPool>()?;
         let config = r.get::<Arc<Config>>()?;
         let users = Arc::new(UserRepository::new(&db));
-        let cost = CostAnalyticsRepository::new(&db);
         Ok(Arc::new(GatewayHttpRepositories {
             api_keys: GatewayApiKeys::new(ApiKeyService::new(
                 Arc::clone(&users),
@@ -89,7 +88,7 @@ mod surface {
                 users,
                 host_prefs: BridgeHostPrefsRepository::new(&db),
                 sessions: BridgeSessionRepository::new(&db),
-                profile_usage: Arc::new(ProfileUsageService::new(cost)),
+                profile_usage: r.optional::<DynProfileUsageSource>(),
             },
         }))
     }

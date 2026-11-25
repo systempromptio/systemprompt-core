@@ -28,6 +28,9 @@ use systemprompt_extension::router::{ApiHttpError, unreadable_body};
 use systemprompt_models::auth::{DynRequestAuthenticator, JwtUserContext};
 use systemprompt_security::extraction::extract_credential;
 
+const PROFILE_USAGE_WITHHELD: &str =
+    "profile usage requires the analytics member, which is not admitted on this installation";
+
 #[derive(Debug, thiserror::Error)]
 pub enum BridgeError {
     #[error("Missing Authorization or x-api-key credential")]
@@ -46,6 +49,8 @@ pub enum BridgeError {
     LastHostDisabled(HostKind),
     #[error("Gateway not enabled")]
     GatewayDisabled,
+    #[error("{PROFILE_USAGE_WITHHELD}")]
+    ProfileUsageWithheld,
     #[error("credential '{0}' does not take a personal key")]
     NotPersonalCredential(String),
     #[error("{0} rejected the key; check it was copied whole and the subscription is active")]
@@ -164,6 +169,10 @@ impl From<BridgeError> for ApiHttpError {
             },
             err @ (BridgeError::CatalogGrant { .. } | BridgeError::CatalogGrants { .. }) => {
                 ApiError::internal("manifest: catalogue grant not recorded", err)
+            },
+            BridgeError::ProfileUsageWithheld => {
+                ApiError::service_unavailable(PROFILE_USAGE_WITHHELD)
+                    .with_error_key("profile_usage_withheld")
             },
             BridgeError::Unavailable { context, source } => {
                 ApiError::service_unavailable(context).with_source(source)

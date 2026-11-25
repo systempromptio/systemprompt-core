@@ -20,7 +20,9 @@
 //! [`DynSessionBehaviourScorer`]
 //! the request-analytics middleware hands each tracked request's session to,
 //! and the open request-analytics write (`DynRequestAnalytics`) that
-//! middleware records each tracked request through.
+//! middleware records each tracked request through. It provides the profile
+//! usage derivation **sealed** as `DynProfileUsageSource` (a read names any
+//! user), which the gateway's bridge profile usage route reads.
 //!
 //! It contributes the analytics jobs (session classification, the on-demand
 //! geo backfill, the two detectors that feed the IP ban list, and the
@@ -38,6 +40,10 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::profile_usage::DynProfileUsageSource;
+
+use crate::repository::CostAnalyticsRepository;
+use crate::services::ProfileUsageService;
 use systemprompt_traits::{
     DynContentPopularity, DynIpBanStore, DynSessionBehaviourScorer, DynSessionTelemetry,
 };
@@ -98,6 +104,12 @@ impl Extension for AnalyticsExtension {
                     routing,
                     &repositories,
                 )))
+            })
+            .provide_sealed(|r: &Resolved<'_>| {
+                let usage: DynProfileUsageSource = Arc::new(ProfileUsageService::new(
+                    CostAnalyticsRepository::new(&r.get::<DbPool>()?),
+                ));
+                Ok(usage)
             })
             .provide(crate::provides::analytics_provider)
             .provide(crate::provides::fingerprint_provider)

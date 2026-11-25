@@ -26,7 +26,6 @@ default = []
 http = [
     "systemprompt-extension/router",
     "dep:systemprompt-ai",
-    "dep:systemprompt-analytics",
     "dep:systemprompt-events",
     "dep:systemprompt-loader",
     "dep:systemprompt-marketplace",
@@ -62,7 +61,6 @@ otel = ["http", "dep:opentelemetry-proto", "dep:prost", "dep:metrics"]
 [dependencies]
 systemprompt-extension = { workspace = true }
 systemprompt-ai = { workspace = true, optional = true }
-systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-events = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-oauth = { workspace = true, optional = true }

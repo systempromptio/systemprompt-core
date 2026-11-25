@@ -37,7 +37,6 @@ use std::sync::Arc;
 use axum::Router;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
-use systemprompt_analytics::ProfileUsageService;
 use systemprompt_extension::router::{DynPersonalCredentialNames, GatewayPrincipal};
 use systemprompt_gateway::GatewayHostHandles;
 use systemprompt_gateway::surface::views::{
@@ -53,6 +52,7 @@ use systemprompt_models::ApiPaths;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_oauth::repository::{BridgeHostPrefsRepository, BridgeSessionRepository};
 use systemprompt_security::http::resolve_client_ip;
+use systemprompt_extension::profile_usage::DynProfileUsageSource;
 use systemprompt_traits::BoxedSource;
 use systemprompt_users::UserRepository;
 
@@ -66,7 +66,7 @@ pub struct BridgeRepositories {
     pub users: Arc<UserRepository>,
     pub host_prefs: BridgeHostPrefsRepository,
     pub sessions: BridgeSessionRepository,
-    pub profile_usage: Arc<ProfileUsageService>,
+    pub profile_usage: Option<DynProfileUsageSource>,
 }
 
 impl std::fmt::Debug for BridgeRepositories {

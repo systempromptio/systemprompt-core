@@ -98,6 +98,7 @@ pub mod mcp;
 pub mod metadata;
 pub mod migration;
 pub mod notifications;
+pub mod profile_usage;
 pub mod projection;
 pub mod protection;
 pub mod purge;

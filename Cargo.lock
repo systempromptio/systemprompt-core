@@ -7167,7 +7167,6 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "systemprompt-ai",
- "systemprompt-analytics",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",

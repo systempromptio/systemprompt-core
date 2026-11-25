@@ -4,8 +4,9 @@
 //! subject, the top 5 models by token share, and a conversation summary
 //! grouped by model and by agent. Powers the bridge dashboard's profile tab.
 //!
-//! The derivation itself lives in `ProfileUsageService` so this route and the
-//! server-rendered admin profile page cannot report different numbers.
+//! The derivation is the `analytics` member's `DynProfileUsageSource`, so this
+//! route and the server-rendered admin profile page cannot report different
+//! numbers; without that member the route answers 503 naming it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,10 +26,13 @@ pub async fn handle(
 ) -> Result<Json<BridgeProfileUsage>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
 
-    let usage = state
+    let source = state
         .repos
         .profile_usage
-        .get_profile_usage(&claims.user_id, Utc::now())
+        .as_ref()
+        .ok_or(BridgeError::ProfileUsageWithheld)?;
+    let usage = source
+        .profile_usage(&claims.user_id, Utc::now())
         .await
         .map_err(|e| BridgeError::internal("profile usage lookup failed", e))?;
 
