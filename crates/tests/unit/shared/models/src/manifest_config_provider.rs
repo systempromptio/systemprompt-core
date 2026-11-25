@@ -1,5 +1,4 @@
 use systemprompt_manifest::Config;
-use systemprompt_manifest::config::{is_random_instance_id, random_instance_id};
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
@@ -131,22 +130,3 @@ fn debug_output_redacts_credentials() {
     assert!(rendered.contains("<redacted>"), "{rendered}");
 }
 
-#[test]
-fn random_instance_ids_are_recognised_and_stable_ones_are_not() {
-    let id = random_instance_id();
-    assert!(is_random_instance_id(id.as_str()), "{id}");
-    assert_ne!(random_instance_id().as_str(), id.as_str());
-    for stable in [
-        "web-1",
-        "instance-",
-        "instance-0123",
-        "instance-0123456789ABCDEF0123456789abcdef",
-        "instance-0123456789abcdef0123456789abcdeg",
-        "xinstance-0123456789abcdef0123456789abcdef",
-    ] {
-        assert!(!is_random_instance_id(stable), "{stable}");
-    }
-    assert!(is_random_instance_id(
-        "instance-0123456789abcdef0123456789abcdef"
-    ));
-}

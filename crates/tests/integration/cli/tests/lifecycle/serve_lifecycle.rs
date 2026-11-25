@@ -131,6 +131,9 @@ fn cli(profile: &std::path::Path, database_url: &str) -> Command {
     command
         .env_remove("RUST_LOG")
         .env_remove("SYSTEMPROMPT_PROFILE")
+        .env_remove("POD_NAME")
+        .env_remove("HOSTNAME")
+        .env_remove("FLY_MACHINE_ID")
         .env("DATABASE_URL", database_url)
         .env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER)
         .env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED)
@@ -170,6 +173,19 @@ fn isolate_fixture_agent(
     std::fs::write(path, renamed).expect("write uniquely named agent config");
 
     complete_fixture_web_paths(fixture);
+}
+
+fn leave_instance_id_unset(
+    fixture: &systemprompt_cli_integration_tests::full_bootstrap::FullBootstrap,
+) {
+    let profile = std::fs::read_to_string(&fixture.profile_path).expect("read fixture profile");
+    let explicit = format!(
+        "instance_id: {}",
+        systemprompt_cli_integration_tests::full_bootstrap::fixture_instance_id()
+    );
+    let unset = profile.replace(&explicit, "instance_id: null");
+    assert_ne!(unset, profile, "fixture profile instance_id was not present");
+    std::fs::write(&fixture.profile_path, unset).expect("write fixture profile");
 }
 
 fn complete_fixture_web_paths(
@@ -426,6 +442,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     let fixture = isolated_fixture(api_port);
     systemprompt_cli_integration_tests::full_bootstrap::enable_fixture_agent(&fixture, agent_port);
     isolate_fixture_agent(&fixture, &agent_name);
+    leave_instance_id_unset(&fixture);
     drop(agent_reservation);
     drop(api_reservation);
 

@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Runtime"
+text = "A local profile with no `server.instance_id` and no platform hostname resolves the instance id `local-<profile name>` instead of a random id per process, so a CLI run on the same profile sees the services the running server started: `plugins mcp tools`, `plugins mcp status` and `infra services status` listed none, or reported the server's own agents as orphaned. Markers named `instance-<32 hex>` that earlier releases left under `<storage root>/.systemprompt/instances/` are no longer pruned; delete them once."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`config::random_instance_id` and `config::is_random_instance_id` are removed; `config::local_instance_id` names the id a local profile resolves when it sets none."

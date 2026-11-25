@@ -1,6 +1,7 @@
 //! A replica's identity must be stable across restarts on cloud targets: an
 //! explicit `server.instance_id` wins, `HOSTNAME` is accepted, and a random
-//! per-boot id is only tolerated for local profiles.
+//! local profile with neither resolves one id per profile, so the host and a
+//! CLI on the same profile share it.
 
 use systemprompt_config::{ConfigError, resolve_instance_id};
 use systemprompt_manifest::Profile;
@@ -45,10 +46,13 @@ fn cloud_profile_without_any_stable_id_is_refused() {
 }
 
 #[test]
-fn local_profile_may_use_a_random_id() {
+fn local_profile_without_an_id_resolves_one_id_per_profile() {
     fixture::remove_env("HOSTNAME");
-    let id = resolve_instance_id(&profile("local", None)).unwrap();
-    assert!(id.as_str().starts_with("instance-"), "{id}");
+    let local = profile("local", None);
+    let host = resolve_instance_id(&local).unwrap();
+    let cli = resolve_instance_id(&local).unwrap();
+    assert_eq!(host, cli);
+    assert_eq!(host.as_str(), format!("local-{}", local.name));
 }
 
 #[test]

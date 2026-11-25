@@ -39,21 +39,13 @@ pub fn stable_instance_id(lookup: impl Fn(&str) -> Option<String>) -> Option<Str
         })
 }
 
+// Why: every process that boots a local profile — the host, the MCP servers
+// and agents it spawns, and a CLI run against the same profile — must resolve
+// one id, because the service registry, scheduler claims and outbox origin are
+// keyed by it; a per-process id hides the host's rows from the CLI.
 #[must_use]
-pub fn random_instance_id() -> InstanceId {
-    InstanceId::new(format!("instance-{}", uuid::Uuid::new_v4().simple()))
-}
-
-// Why: an id of the shape `random_instance_id` produces names one process and
-// can never be claimed again after that process exits.
-#[must_use]
-pub fn is_random_instance_id(id: &str) -> bool {
-    id.strip_prefix("instance-").is_some_and(|hex| {
-        hex.len() == 32
-            && hex
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-    })
+pub fn local_instance_id(profile_name: &str) -> InstanceId {
+    InstanceId::new(format!("local-{profile_name}"))
 }
 
 #[derive(Clone)]
