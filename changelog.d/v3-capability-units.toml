@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Build"
+text = "The unit table (`scripts/units.txt`) places `systemprompt-documents` and `systemprompt-issues` in `capability:files`, `systemprompt-ai` in `capability:gateway`, and `systemprompt-agent-runs` and `systemprompt-agent-runs-entry` in `capability:agents`; the affected-crate plan and the capability gates read those units."
