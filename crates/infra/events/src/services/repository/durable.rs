@@ -111,7 +111,8 @@ impl DurableOutboxRepository {
              WHERE o.consumer = $1 AND o.processed_at IS NULL AND o.id <> ALL($3)
                AND (o.aggregate_key = '' OR NOT EXISTS (
                    SELECT 1 FROM event_outbox e
-                   WHERE e.consumer = o.consumer AND e.aggregate_key = o.aggregate_key
+                   WHERE e.aggregate_key <> '' AND e.consumer = o.consumer
+                     AND e.aggregate_key = o.aggregate_key
                      AND e.processed_at IS NULL
                      AND (e.aggregate_seq, e.created_at, e.id)
                          < (o.aggregate_seq, o.created_at, o.id)))
@@ -134,7 +135,8 @@ impl DurableOutboxRepository {
              WHERE o.consumer = $1 AND o.processed_at IS NULL
                AND (o.aggregate_key = '' OR NOT EXISTS (
                    SELECT 1 FROM event_outbox e
-                   WHERE e.consumer = o.consumer AND e.aggregate_key = o.aggregate_key
+                   WHERE e.aggregate_key <> '' AND e.consumer = o.consumer
+                     AND e.aggregate_key = o.aggregate_key
                      AND e.processed_at IS NULL
                      AND (e.aggregate_seq, e.created_at, e.id)
                          < (o.aggregate_seq, o.created_at, o.id)))
