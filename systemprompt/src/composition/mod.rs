@@ -258,7 +258,8 @@ impl Composition {
                 sink,
             });
         }
-        let withheld = withhold_dependants(&mut declared, removed, AbsentDependency::Removed)?;
+        let (withheld, _removed_with_dependency) =
+            withhold_dependants(&mut declared, removed, AbsentDependency::Removed)?;
         check_member_dependencies(&declared)?;
         check_job_names(&declared)?;
         #[cfg(feature = "cli")]
