@@ -245,7 +245,7 @@ impl ScopedTokenMinter for MemberTokenMinter {
             subject: UserId::new(claims.sub),
             audience: audience.to_owned(),
             scopes,
-            jti: AccessTokenId::new(claims.jti),
+            jti: claims.jti,
             issued_at: claims.iat,
             expires_at: claims.exp,
         })

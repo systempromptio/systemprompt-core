@@ -11,6 +11,7 @@
 
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use serde::Deserialize;
+use systemprompt_identifiers::AccessTokenId;
 
 use super::validate::reject_critical_header;
 use crate::error::{AuthError, AuthResult};
@@ -24,7 +25,7 @@ pub struct ScopedTokenClaims {
     pub aud: Vec<String>,
     pub scope: String,
     pub azp: String,
-    pub jti: String,
+    pub jti: AccessTokenId,
     pub iat: i64,
     pub exp: i64,
 }

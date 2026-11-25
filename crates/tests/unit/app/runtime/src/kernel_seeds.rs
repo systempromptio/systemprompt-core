@@ -187,6 +187,9 @@ const API_ONLY_SEEDS: &[&str] = &[
     "systemprompt_models::late_bound::LateRead<dyn systemprompt_traits::messaging::MessagingDispatcher>",
     "systemprompt_models::late_bound::LateRead<dyn systemprompt_models::a2a::dispatch::AgentDispatch>",
     "alloc::sync::Arc<systemprompt_models::content_config::ContentConfigRaw>",
+    "systemprompt_extension::contribute::conferred::ConferralsWithheld",
+    "alloc::sync::Arc<dyn systemprompt_traits::conferred::ConferralIssuer<dyn systemprompt_traits::conferred::MemberCipher>>",
+    "alloc::sync::Arc<dyn systemprompt_traits::conferred::ConferralIssuer<dyn systemprompt_traits::conferred::ShareTokenSigner>>",
 ];
 
 fn host_seed_names(state: &Dependencies) -> (BTreeSet<&'static str>, BTreeSet<&'static str>) {
