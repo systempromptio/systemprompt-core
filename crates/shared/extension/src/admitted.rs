@@ -116,6 +116,8 @@ pub struct AdmittedParts {
     pub routes: Vec<AdmittedRouteSet>,
     #[cfg(feature = "router")]
     pub gateway_routes: Vec<AdmittedGatewayRoute>,
+    #[cfg(feature = "router")]
+    pub site_fallback: Option<AdmittedSiteFallback>,
 }
 
 #[derive(Debug)]
@@ -126,6 +128,8 @@ pub struct Admitted {
     routes: Vec<AdmittedRouteSet>,
     #[cfg(feature = "router")]
     gateway_routes: Vec<AdmittedGatewayRoute>,
+    #[cfg(feature = "router")]
+    site_fallback: Option<AdmittedSiteFallback>,
 }
 
 impl Admitted {
@@ -141,7 +145,15 @@ impl Admitted {
             routes: parts.routes,
             #[cfg(feature = "router")]
             gateway_routes: parts.gateway_routes,
+            #[cfg(feature = "router")]
+            site_fallback: parts.site_fallback,
         }
+    }
+
+    #[cfg(feature = "router")]
+    #[must_use]
+    pub const fn site_fallback(&self) -> Option<&AdmittedSiteFallback> {
+        self.site_fallback.as_ref()
     }
 
     #[cfg(feature = "router")]
@@ -184,6 +196,14 @@ pub struct AdmittedRouteSet {
 pub struct AdmittedGatewayRoute {
     pub owner: ExtensionId,
     pub decl: crate::router::GatewayRouteDecl,
+}
+
+/// The composition's one site fallback, with its stamped owner.
+#[cfg(feature = "router")]
+#[derive(Debug, Clone)]
+pub struct AdmittedSiteFallback {
+    pub owner: ExtensionId,
+    pub fallback: crate::router::SiteFallback,
 }
 
 /// One admitted CLI command, with the owner the composition stamped.

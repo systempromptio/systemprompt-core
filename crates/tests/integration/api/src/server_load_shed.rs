@@ -17,7 +17,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use futures::SinkExt as _;
 use futures::channel::mpsc;
-use systemprompt_api::services::middleware::load_shed::outermost;
+use systemprompt_api::services::middleware::load_shed::{InFlightLimits, outermost};
 use systemprompt_api::services::server::metrics::{MetricsState, install_recorder, metrics_router};
 use systemprompt_api::services::server::{ReadinessState, discovery_router};
 use systemprompt_identifiers::InstanceId;
@@ -62,7 +62,13 @@ async fn app(
         }))
         .route("/slow", slow)
         .route("/stream", stream);
-    outermost(router, NonZeroU32::new(1))
+    outermost(
+        router,
+        InFlightLimits {
+            requests: NonZeroU32::new(1),
+            probes: NonZeroU32::new(64).expect("non-zero"),
+        },
+    )
 }
 
 async fn in_flight(app: &Router) -> serde_json::Value {

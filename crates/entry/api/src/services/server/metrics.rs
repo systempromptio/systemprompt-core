@@ -95,6 +95,7 @@ fn describe_extension_metrics(extension_metrics: &[MetricDescriptor]) {
 fn describe_metrics() {
     use crate::services::middleware::load_shed::{
         HTTP_IN_FLIGHT_LIMIT, HTTP_IN_FLIGHT_SATURATION, HTTP_LOAD_SHED_TOTAL,
+        HTTP_PROBE_SHED_TOTAL,
     };
     super::pool_metrics::describe();
     super::ops_metrics::describe();
@@ -102,6 +103,11 @@ fn describe_metrics() {
     metrics::describe_counter!(
         HTTP_LOAD_SHED_TOTAL,
         "Requests refused with 503 because the in-flight ceiling was reached"
+    );
+    metrics::describe_counter!(
+        HTTP_PROBE_SHED_TOTAL,
+        "Health, readiness and metrics requests refused with 503 because the probe ceiling was \
+         reached"
     );
     metrics::describe_gauge!(
         HTTP_IN_FLIGHT_LIMIT,

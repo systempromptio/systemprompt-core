@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Database"
+text = "`infra db migrate` exits non-zero only for a held-back member or a migration marked `@compat: breaking`; an unmarked ahead migration and a database a newer release installed exit 0 with a warning naming them."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`SchemaInstallReport::held_back` is a field holding only members with a pending migration of this binary; `held_back()` returns a slice; `refusal()`, `unmarked_ahead()`, `InstallRefusal` and `HeldBackMember::of` are added."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Changed"
+text = "`infra db migrate` reports an unmarked ahead migration and a superseded install as warnings."

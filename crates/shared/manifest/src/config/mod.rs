@@ -62,6 +62,8 @@ pub struct Config {
     pub role: crate::profile::NodeRole,
     pub advertise_url: Option<String>,
     pub max_in_flight: Option<std::num::NonZeroU32>,
+    pub max_probe_in_flight: std::num::NonZeroU32,
+    pub max_route_body_bytes: usize,
     pub shutdown: crate::profile::ShutdownConfig,
     pub sitename: String,
     pub database_type: String,
@@ -124,6 +126,8 @@ impl std::fmt::Debug for Config {
             .field("role", &self.role)
             .field("advertise_url", &self.advertise_url)
             .field("max_in_flight", &self.max_in_flight)
+            .field("max_probe_in_flight", &self.max_probe_in_flight)
+            .field("max_route_body_bytes", &self.max_route_body_bytes)
             .field("shutdown", &self.shutdown)
             .field("sitename", &self.sitename)
             .field("database_type", &self.database_type)

@@ -198,7 +198,13 @@ fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, RouteMo
     } else {
         RateLimitState::from_context(ctx)?
     };
+    let body_ceiling = ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_manifest::Config>>()?
+        .max_route_body_bytes;
     Ok(MountLayers {
+        body_ceiling,
         limits,
         public: PublicContextMiddleware::new(),
         user: UserOnlyContextMiddleware::new(jwt_extractor.clone()),
@@ -239,9 +245,14 @@ fn finish_router(
     }));
 
     if (mount.serves)(RouteGroup::Static) {
+        let site_fallback = mount
+            .composed
+            .admitted
+            .site_fallback()
+            .map(|site| site.fallback.clone());
         router = RootFallbackOwner::default().place(
             router,
-            static_setup::build_static_router(ctx, mount.layers, events)?,
+            static_setup::build_static_router(ctx, mount.layers, events, site_fallback)?,
         )?;
     }
 

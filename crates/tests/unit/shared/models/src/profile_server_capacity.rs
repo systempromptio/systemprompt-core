@@ -1,10 +1,16 @@
 //! `server.max_in_flight`: an omitted key is the default ceiling, an explicit
 //! `null` is no ceiling, a positive value parses, and zero, which would refuse
-//! every request, is rejected at parse time.
+//! every request, is rejected at parse time. `server.max_probe_in_flight`
+//! and `server.max_route_body_bytes` default when omitted; a zero probe
+//! ceiling and a route-body ceiling of zero or above the hard limit are
+//! rejected at parse time.
 
 use serde_yaml::Value;
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::profile::DEFAULT_MAX_IN_FLIGHT;
+use systemprompt_manifest::profile::{
+    DEFAULT_MAX_IN_FLIGHT, DEFAULT_MAX_PROBE_IN_FLIGHT, DEFAULT_MAX_ROUTE_BODY_BYTES,
+    MAX_ROUTE_BODY_BYTES_LIMIT,
+};
 
 use crate::profile_services_sources::local_profile;
 
@@ -56,4 +62,38 @@ fn a_positive_ceiling_parses() {
 fn zero_is_rejected() {
     let err = with_server_key("max_in_flight", "0").expect_err("zero refused");
     assert!(err.to_string().contains("nonzero"), "{err}");
+}
+
+#[test]
+fn the_probe_and_route_body_ceilings_default_when_omitted() {
+    let profile = server_block(|server| {
+        server.remove(Value::String("max_probe_in_flight".to_owned()));
+        server.remove(Value::String("max_route_body_bytes".to_owned()));
+    })
+    .expect("parses");
+    assert_eq!(
+        profile.server.max_probe_in_flight,
+        DEFAULT_MAX_PROBE_IN_FLIGHT
+    );
+    assert_eq!(
+        profile.server.max_route_body_bytes,
+        DEFAULT_MAX_ROUTE_BODY_BYTES
+    );
+}
+
+#[test]
+fn explicit_probe_and_route_body_ceilings_parse() {
+    let profile = with_server_key("max_probe_in_flight", "8").expect("parses");
+    assert_eq!(profile.server.max_probe_in_flight.get(), 8);
+    let profile = with_server_key("max_route_body_bytes", "65536").expect("parses");
+    assert_eq!(profile.server.max_route_body_bytes, 65_536);
+}
+
+#[test]
+fn invalid_probe_and_route_body_ceilings_are_rejected() {
+    with_server_key("max_probe_in_flight", "0").expect_err("a zero probe ceiling is refused");
+    let err = with_server_key("max_route_body_bytes", "0").expect_err("zero refused");
+    assert!(err.to_string().contains("max_route_body_bytes"), "{err}");
+    let above = (MAX_ROUTE_BODY_BYTES_LIMIT + 1).to_string();
+    with_server_key("max_route_body_bytes", &above).expect_err("above the hard limit refused");
 }

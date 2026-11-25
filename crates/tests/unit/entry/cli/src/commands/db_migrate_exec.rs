@@ -138,10 +138,7 @@ async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
     db.drop_now().await;
 }
 
-#[tokio::test]
-async fn migrate_refuses_when_a_member_is_held_back_and_names_it_with_its_reason() {
-    ensure_test_bootstrap();
-    let db = DisposableDb::with_schema("cli_migrate_held_back").await;
+async fn record_ahead(db: &DisposableDb) {
     let pool = db.test_pool().await;
     sqlx::query(
         "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) \
@@ -150,6 +147,67 @@ async fn migrate_refuses_when_a_member_is_held_back_and_names_it_with_its_reason
     .execute(pool.pool().as_ref())
     .await
     .expect("record a migration this binary does not know");
+}
+
+#[tokio::test]
+async fn migrate_succeeds_with_a_warning_when_a_member_is_only_ahead() {
+    ensure_test_bootstrap();
+    let db = DisposableDb::with_schema("cli_migrate_ahead").await;
+    record_ahead(&db).await;
+    let ctx = standalone(&db, text_config()).await;
+
+    let output = execute(command(&["migrate"]), &ctx)
+        .await
+        .expect("an unmarked ahead row exits 0");
+    let notes = format!("{:?}", output.notes());
+    assert!(notes.contains("warning"), "{notes}");
+    assert!(
+        notes.contains("logging") && notes.contains("990") && notes.contains("unreleased_change"),
+        "the warning names the ahead row: {notes}"
+    );
+
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn migrate_refuses_an_ahead_row_marked_breaking_older() {
+    ensure_test_bootstrap();
+    let db = DisposableDb::with_schema("cli_migrate_breaking").await;
+    record_ahead(&db).await;
+    let pool = db.test_pool().await;
+    sqlx::query(
+        "INSERT INTO extension_migration_compat (extension_id, version, breaks_older) \
+         VALUES ('logging', 990, TRUE)",
+    )
+    .execute(pool.pool().as_ref())
+    .await
+    .expect("mark the ahead migration breaking");
+    let ctx = standalone(&db, text_config()).await;
+
+    let err = execute(command(&["migrate"]), &ctx)
+        .await
+        .expect_err("a breaking-older row fails the migrate");
+    let text = err.to_string();
+    assert!(text.contains("@compat: breaking"), "{text}");
+    assert!(text.contains("logging 990 unreleased_change"), "{text}");
+
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn migrate_refuses_when_a_member_is_held_back_and_names_it_with_its_reason() {
+    ensure_test_bootstrap();
+    let db = DisposableDb::with_schema("cli_migrate_held_back").await;
+    record_ahead(&db).await;
+    let pool = db.test_pool().await;
+    sqlx::query(
+        "DELETE FROM extension_migrations WHERE extension_id = 'logging' AND version = \
+         (SELECT MAX(version) FROM extension_migrations WHERE extension_id = 'logging' \
+         AND version < 990)",
+    )
+    .execute(pool.pool().as_ref())
+    .await
+    .expect("leave one of this binary's logging migrations pending");
     let ctx = standalone(&db, text_config()).await;
 
     let err = execute(command(&["migrate"]), &ctx)

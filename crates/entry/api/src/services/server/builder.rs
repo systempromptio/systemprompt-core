@@ -176,6 +176,9 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     )));
     Ok(crate::services::middleware::load_shed::outermost(
         router,
-        config.max_in_flight,
+        crate::services::middleware::load_shed::InFlightLimits {
+            requests: config.max_in_flight,
+            probes: config.max_probe_in_flight,
+        },
     ))
 }

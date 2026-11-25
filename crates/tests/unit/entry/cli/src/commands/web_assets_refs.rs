@@ -55,6 +55,8 @@ fn profile_with_services(services: &Path) -> Profile {
             role: Default::default(),
             advertise_url: None,
             max_in_flight: None,
+            max_probe_in_flight: std::num::NonZeroU32::new(64).expect("non-zero"),
+            max_route_body_bytes: 16 * 1024 * 1024,
             analytics_queue: Default::default(),
             shutdown: Default::default(),
             trusted_proxies: Vec::new(),

@@ -1,5 +1,11 @@
 //! `infra db migrate` command installing schemas and migrations.
 //!
+//! The command fails when the install fails, when a declared foreign key could
+//! not be created, when a member is held back, or when the database records a
+//! migration a newer release marked `@compat: breaking`. A migration a newer
+//! release wrote without that mark, and a database a newer release installed,
+//! leave the command successful with a warning naming them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,6 +24,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 
+use super::admin_migrate_verdict::{ahead_warnings, refuse_incompatible};
 use super::types::DbMigrateOutput;
 
 #[derive(Debug, Clone, Copy)]
@@ -96,28 +103,6 @@ fn refuse_foreign_key_drift(report: &SchemaInstallReport) -> Result<()> {
     ))
 }
 
-fn refuse_held_back(built: &BuiltState, report: &SchemaInstallReport) -> Result<()> {
-    let held_back = report.held_back();
-    if held_back.is_empty() {
-        return Ok(());
-    }
-    let installed: Vec<String> = install_set(built)
-        .iter()
-        .map(|ext| ext.id().to_owned())
-        .filter(|id| !held_back.iter().any(|held| held.extension.as_str() == id))
-        .collect();
-    let held: Vec<String> = held_back.iter().map(ToString::to_string).collect();
-    Err(anyhow!(
-        "Schema installation held back {} extension(s); the database is not at this binary's \
-         schema for them and none of their schema was applied:\n{}\nInstalled: {}\nHint: run \
-         the release that wrote those migrations, or add a tombstone for a migration that \
-         was never released",
-        held.len(),
-        held.join("\n"),
-        installed.join(", ")
-    ))
-}
-
 async fn run_install(
     built: &BuiltState,
     database: &Database,
@@ -164,17 +149,10 @@ async fn run_install(
             },
             Err(e) => return Err(failure(&e)),
         };
-    if let Some(superseded) = &report.superseded {
-        return Err(anyhow!(
-            "Schema install refused: release {} is older than release {}, which installed this \
-             database; run the migration with the newer release",
-            superseded.release,
-            superseded.recorded
-        ));
-    }
     database.mark_schema_changed();
     refuse_foreign_key_drift(&report)?;
-    refuse_held_back(built, &report)?;
+    refuse_incompatible(built, &report)?;
+    notes.extend(ahead_warnings(&report));
 
     let installed_extensions: Vec<String> = install_set(built)
         .iter()

@@ -1,7 +1,9 @@
 //! An install's every def is compared, by its full path, with the kernel's
-//! reserved paths at admission: a literal, parameter or catch-all def that
-//! reaches a kernel or core namespace, and a service prefix or extension base
-//! that covers one, are refused; the core owners still hold their own paths.
+//! reserved paths at admission: a literal, a catch-all, or a parameter def
+//! that reaches inside a kernel or core namespace, and a service prefix or
+//! extension base that covers one, are refused; a parameter segment at the
+//! place of a reserved literal, as deep as that entry, is admitted (the
+//! literal takes precedence); the core owners still hold their own paths.
 
 use axum::Router;
 use axum::routing::get;
@@ -80,14 +82,14 @@ fn an_install_parameter_or_catch_all_reaching_a_kernel_namespace_is_refused() {
         "/api/v1/mcp"
     );
     assert_eq!(
-        refused_at(install_page("/api/public/{short_code}")),
+        refused_at(install_page("/api/public/{short_code}/{rest}")),
         "/api/public/gateway"
     );
     for path in [
-        "/{slug}",
         "/{section}/agent-card.json",
         "/{*path}",
         "/api/{*rest}",
+        "/api/public/{*rest}",
     ] {
         refused_at(install_page(path));
     }
@@ -95,6 +97,8 @@ fn an_install_parameter_or_catch_all_reaching_a_kernel_namespace_is_refused() {
         "/pages/{slug}",
         "/pages/{*rest}",
         "/api/public/s/{short_code}",
+        "/api/public/{short_code}",
+        "/{slug}",
     ] {
         install_page(path).unwrap_or_else(|error| {
             panic!("negative control: {path} reaches no reserved path: {error:?}")

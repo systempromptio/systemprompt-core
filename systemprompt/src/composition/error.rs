@@ -187,6 +187,18 @@ pub enum CompositionError {
     #[cfg(feature = "api")]
     #[error("kernel resolution failed")]
     Kernel(#[source] systemprompt_runtime::KernelError),
+    #[cfg(feature = "api")]
+    #[error("the site fallback is claimed by {first}; {second} claims it too")]
+    SecondSiteFallback {
+        first: ExtensionId,
+        second: ExtensionId,
+    },
+    #[cfg(feature = "api")]
+    #[error(
+        "oauth is not composed, but {members:?} declare bearer-authenticated routes no token \
+         issuer would serve"
+    )]
+    BearerRoutesWithoutOauth { members: Vec<ExtensionId> },
 }
 
 #[cfg(feature = "api")]

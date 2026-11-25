@@ -3,6 +3,12 @@
 //! `max_in_flight` is the API's admission ceiling: an omitted key is
 //! [`DEFAULT_MAX_IN_FLIGHT`] in-flight requests per replica (the gateway's
 //! default admission limit), an explicit `null` is no ceiling.
+//! `max_probe_in_flight` is the separate, smaller ceiling the health,
+//! readiness and metrics routes share ([`DEFAULT_MAX_PROBE_IN_FLIGHT`]), so a
+//! flood of probes cannot exhaust the server and a saturated main ceiling
+//! never fails liveness. `max_route_body_bytes` is the ceiling a route's own
+//! byte limit may declare ([`DEFAULT_MAX_ROUTE_BODY_BYTES`]); zero and values
+//! above [`MAX_ROUTE_BODY_BYTES_LIMIT`] are refused at parse.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -67,6 +73,15 @@ pub struct ServerConfig {
 
     #[serde(default = "default_max_in_flight")]
     pub max_in_flight: Option<std::num::NonZeroU32>,
+
+    #[serde(default = "default_max_probe_in_flight")]
+    pub max_probe_in_flight: std::num::NonZeroU32,
+
+    #[serde(
+        default = "default_max_route_body_bytes",
+        deserialize_with = "deserialize_route_body_ceiling"
+    )]
+    pub max_route_body_bytes: usize,
 
     #[serde(
         default,
@@ -139,6 +154,8 @@ impl ServerConfig {
             role: super::NodeRole::default(),
             advertise_url: None,
             max_in_flight: default_max_in_flight(),
+            max_probe_in_flight: default_max_probe_in_flight(),
+            max_route_body_bytes: default_max_route_body_bytes(),
             trusted_proxies: Vec::new(),
             analytics_queue: AnalyticsQueueConfig::default(),
             shutdown: super::ShutdownConfig::default(),
@@ -156,6 +173,38 @@ pub const DEFAULT_MAX_IN_FLIGHT: std::num::NonZeroU32 =
 )]
 const fn default_max_in_flight() -> Option<std::num::NonZeroU32> {
     Some(DEFAULT_MAX_IN_FLIGHT)
+}
+
+pub const DEFAULT_MAX_PROBE_IN_FLIGHT: std::num::NonZeroU32 =
+    std::num::NonZeroU32::new(64).expect("the default probe in-flight ceiling is non-zero");
+
+const fn default_max_probe_in_flight() -> std::num::NonZeroU32 {
+    DEFAULT_MAX_PROBE_IN_FLIGHT
+}
+
+pub const DEFAULT_MAX_ROUTE_BODY_BYTES: usize = 16 * 1024 * 1024;
+
+pub const MAX_ROUTE_BODY_BYTES_LIMIT: usize = 1024 * 1024 * 1024;
+
+const fn default_max_route_body_bytes() -> usize {
+    DEFAULT_MAX_ROUTE_BODY_BYTES
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "server.max_route_body_bytes is {0}; it must be between 1 and {MAX_ROUTE_BODY_BYTES_LIMIT}"
+)]
+struct InvalidRouteBodyCeiling(usize);
+
+fn deserialize_route_body_ceiling<'de, D>(deserializer: D) -> Result<usize, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let ceiling = usize::deserialize(deserializer)?;
+    if ceiling == 0 || ceiling > MAX_ROUTE_BODY_BYTES_LIMIT {
+        return Err(serde::de::Error::custom(InvalidRouteBodyCeiling(ceiling)));
+    }
+    Ok(ceiling)
 }
 
 #[derive(Debug, thiserror::Error)]

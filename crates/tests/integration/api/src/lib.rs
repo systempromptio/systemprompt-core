@@ -46,6 +46,9 @@ mod gateway_overhead_metrics;
 mod load_shed_outermost;
 
 #[cfg(test)]
+mod load_shed_probe_cap;
+
+#[cfg(test)]
 mod server_load_shed;
 
 #[cfg(test)]

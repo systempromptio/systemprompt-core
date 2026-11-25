@@ -14,7 +14,7 @@ use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use systemprompt_api::services::middleware::load_shed::outermost;
+use systemprompt_api::services::middleware::load_shed::{InFlightLimits, outermost};
 use tokio::sync::Notify;
 use tower::ServiceExt;
 
@@ -41,7 +41,14 @@ fn app(ceiling: Option<NonZeroU32>, release: Arc<Notify>, entered: Arc<Notify>) 
         .route("/private", axum::routing::post(|| async { "private" }))
         .layer(axum::middleware::from_fn(refuse_unauthenticated))
         .layer(axum::extract::DefaultBodyLimit::max(16));
-    outermost(inner, ceiling)
+    outermost(inner, limits(ceiling))
+}
+
+fn limits(requests: Option<NonZeroU32>) -> InFlightLimits {
+    InFlightLimits {
+        requests,
+        probes: systemprompt_manifest::profile::DEFAULT_MAX_PROBE_IN_FLIGHT,
+    }
 }
 
 async fn send(app: &Router, method: &str, uri: &str, auth: bool) -> (StatusCode, Option<String>) {
@@ -111,7 +118,7 @@ async fn p99_under_load(ceiling: Option<NonZeroU32>, rps: u32, seconds: u32) -> 
         tokio::time::sleep(Duration::from_millis(50)).await;
         "ok"
     });
-    let app = outermost(Router::new().route("/work", handler), ceiling);
+    let app = outermost(Router::new().route("/work", handler), limits(ceiling));
     let interval = Duration::from_secs(1) / rps;
     let mut tasks = Vec::new();
     let mut ticker = tokio::time::interval(interval);

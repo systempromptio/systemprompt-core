@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Route admission"
+text = "`BodyLimit::Bytes(usize)` declares a route's own request-body limit, bounded by the new `server.max_route_body_bytes` profile ceiling (default 16 MiB) and enforced on streamed bodies; a limit of zero or above the ceiling refuses the boot naming the route."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`BodyLimit` gains `Bytes(usize)`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`MountLayers` gains `body_ceiling`; `MountError` gains `RouteBodyLimit`; a declared body limit is also enforced on a streamed body."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`ServerConfig` and `Config` gain `max_route_body_bytes` (`DEFAULT_MAX_ROUTE_BODY_BYTES`, `MAX_ROUTE_BODY_BYTES_LIMIT`)."

@@ -156,8 +156,16 @@ async fn install_in_release_order(
     if held_back.is_empty() {
         release_order::record(db).await?;
     }
+    let ahead = super::report::SchemaAhead::from_currency(&currency);
+    let held_back = super::report::HeldBackMember::of(&ahead, |extension| {
+        currency
+            .pending
+            .iter()
+            .any(|m| &m.extension_id == extension)
+    });
     Ok(SchemaInstallReport {
-        ahead: super::report::SchemaAhead::from_currency(&currency),
+        ahead,
+        held_back,
         ..report
     })
 }

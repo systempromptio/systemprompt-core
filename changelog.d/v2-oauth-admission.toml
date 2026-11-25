@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Composition"
+text = "A composition without the `oauth` member that admits any bearer-authenticated route is refused at admission with `CompositionError::BearerRoutesWithoutOauth`, naming the members that declare such routes."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`CompositionError` gains `BearerRoutesWithoutOauth`."

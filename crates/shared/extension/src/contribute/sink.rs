@@ -84,6 +84,8 @@ pub struct ContributionSink {
     pub(crate) routes: Vec<crate::router::RouteSet>,
     #[cfg(feature = "router")]
     pub(crate) gateway_routes: Vec<crate::router::GatewayRouteDecl>,
+    #[cfg(feature = "router")]
+    pub(crate) site_fallbacks: Vec<crate::router::SiteFallback>,
     #[cfg(feature = "cli")]
     pub(crate) commands: Vec<crate::cli::CommandDecl>,
     pub(crate) errors: Vec<ContributionError>,
@@ -244,6 +246,12 @@ impl ContributionSink {
             std::mem::take(&mut self.routes),
             std::mem::take(&mut self.gateway_routes),
         )
+    }
+
+    #[cfg(feature = "router")]
+    #[doc(hidden)]
+    pub fn take_site_fallbacks(&mut self) -> Vec<crate::router::SiteFallback> {
+        std::mem::take(&mut self.site_fallbacks)
     }
 
     #[cfg(feature = "cli")]
