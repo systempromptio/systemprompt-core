@@ -18,7 +18,8 @@ use systemprompt_manifest::profile::{ProfileView, credential_free_url};
 use systemprompt_manifest::services::{InstallServicesView, SystemAdmin};
 use systemprompt_manifest::{Config, ConfigView};
 use systemprompt_models::auth::{
-    JwtAudience, ScopedMintError, ScopedTokenMinter, ScopedTokenRequest, TokenAuthority,
+    JwtAudience, ScopedMintError, ScopedTokenMinter, ScopedTokenRequest, ScopedVerifyError,
+    TokenAuthority,
 };
 use systemprompt_runtime::{AppContext, Kernel, KernelError, KernelTokenMinters};
 use systemprompt_security::keys::SigningKeys;
@@ -595,6 +596,11 @@ async fn a_failed_audit_write_fails_the_mint() {
         .expect("a lazy pool");
     let issuer = KernelTokenMinters::new(
         authority(&ctx),
+        ctx.kernel()
+            .state()
+            .get::<systemprompt_security::keys::VerificationKeyring>()
+            .expect("seeded")
+            .clone(),
         "test-issuer".to_owned(),
         GovernanceDecisionRepository::from_pool(Arc::new(unreachable)),
         admin_of(&ctx),
@@ -614,5 +620,95 @@ async fn a_failed_audit_write_fails_the_mint() {
             })
             .await,
         Err(ScopedMintError::Audit(_))
+    ));
+}
+
+fn signed(ctx: &AppContext, audience: &str, azp: &str, scope: &str) -> String {
+    let issuer = ctx
+        .kernel()
+        .state()
+        .get::<Arc<ConfigView>>()
+        .expect("seeded")
+        .jwt_issuer
+        .clone();
+    let now = chrono::Utc::now().timestamp();
+    authority(ctx)
+        .sign_claims(&serde_json::json!({
+            "iss": issuer,
+            "sub": "conferred-subject",
+            "aud": [audience],
+            "scope": scope,
+            "azp": azp,
+            "jti": "forged-jti",
+            "iat": now,
+            "exp": now + 60,
+        }))
+        .expect("signs")
+}
+
+#[tokio::test]
+async fn the_minter_verifies_its_own_token_for_its_declared_audience() {
+    let ctx = context().await;
+    let minter = minter_of(&ctx);
+    let minted = minter
+        .mint(&mint_request(&ctx, AUDIENCE, &["reports.read"], 60))
+        .await
+        .expect("mints");
+    let claims = minter.verify(AUDIENCE, &minted.token).expect("verifies");
+    assert_eq!(claims.subject.as_str(), "conferred-subject");
+    assert_eq!(claims.audience, AUDIENCE);
+    assert_eq!(claims.scopes, vec!["reports.read".to_owned()]);
+    assert_eq!(claims.jti, minted.jti);
+    assert_eq!(claims.expires_at, minted.expires_at);
+}
+
+#[tokio::test]
+async fn the_minter_refuses_a_core_audience_and_a_core_token() {
+    let ctx = context().await;
+    let minter = minter_of(&ctx);
+    let core = signed(&ctx, "api", MINTER, "reports.read");
+    assert!(matches!(
+        minter.verify("api", &core),
+        Err(ScopedVerifyError::UndeclaredAudience(_))
+    ));
+    assert!(matches!(
+        minter.verify(AUDIENCE, &core),
+        Err(ScopedVerifyError::NotAuthentic(_))
+    ));
+}
+
+#[tokio::test]
+async fn the_minter_refuses_another_members_audience_and_token() {
+    let ctx = context().await;
+    let minter = minter_of(&ctx);
+    let other = signed(&ctx, "other-probe:reports", "other-probe", "reports.read");
+    assert!(matches!(
+        minter.verify("other-probe:reports", &other),
+        Err(ScopedVerifyError::UndeclaredAudience(_))
+    ));
+    let impostor = signed(&ctx, AUDIENCE, "other-probe", "reports.read");
+    assert!(matches!(
+        minter.verify(AUDIENCE, &impostor),
+        Err(ScopedVerifyError::OtherMember)
+    ));
+    let widened = signed(&ctx, AUDIENCE, MINTER, "reports.read reports.write");
+    assert!(matches!(
+        minter.verify(AUDIENCE, &widened),
+        Err(ScopedVerifyError::UndeclaredScope(_))
+    ));
+}
+
+#[tokio::test]
+async fn the_minter_refuses_an_expired_token() {
+    let ctx = context().await;
+    let minter = minter_of(&ctx);
+    let minted = minter
+        .mint(&mint_request(&ctx, AUDIENCE, &["reports.read"], 1))
+        .await
+        .expect("mints");
+    tokio::time::sleep(Duration::from_millis(2100)).await;
+    assert!(matches!(
+        minter.verify(AUDIENCE, &minted.token),
+        Err(ScopedVerifyError::Expired)
     ));
 }

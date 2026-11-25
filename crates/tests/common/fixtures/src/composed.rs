@@ -78,6 +78,29 @@ pub fn probe_admitted(parts: ComposedParts) -> Admitted {
     admitted_over(Vec::new(), parts)
 }
 
+// The members a child host admits (`host_admitted`) under core standing,
+// with the probes beside them under install standing.
+pub fn host_probe_admitted(probes: Vec<Probe>) -> Admitted {
+    let mut core = systemprompt_test_migrate::core_members();
+    core.push(Box::new(
+        systemprompt_documents::extension::DocumentsExtension,
+    ));
+    let members = core
+        .iter()
+        .map(|ext| {
+            systemprompt_test_migrate::admitted_member(ext.as_ref(), StandingTag::Core)
+                .unwrap_or_else(|e| panic!("{} contributes: {e}", ext.metadata().id))
+        })
+        .collect();
+    admitted_over(
+        members,
+        ComposedParts {
+            probes,
+            ..ComposedParts::default()
+        },
+    )
+}
+
 pub fn authz_probe_admitted(parts: ComposedParts) -> Admitted {
     let authz = systemprompt_test_migrate::admitted_member(
         &systemprompt_governance::authz::AuthzExtension,

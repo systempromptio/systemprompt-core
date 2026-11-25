@@ -210,7 +210,7 @@ async fn generate_sitemap_emits_per_slug_urls_with_hreflang_alternates() {
 
     generate_sitemap(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -266,7 +266,7 @@ async fn generate_sitemap_emits_parent_route_urls_for_each_locale() {
 
     generate_sitemap(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -325,7 +325,7 @@ async fn generate_sitemap_excludes_non_public_rows() {
 
     generate_sitemap(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await

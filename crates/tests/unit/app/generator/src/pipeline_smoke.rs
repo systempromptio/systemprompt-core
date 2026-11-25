@@ -9,7 +9,11 @@ use systemprompt_test_fixtures::ensure_test_bootstrap;
 #[tokio::test]
 async fn generate_feed_with_providers_empty_slice_errors() {
     let _ = ensure_test_bootstrap();
-    let r = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &[]).await;
+    let r = generate_feed_with_providers(
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
+        &[],
+    )
+    .await;
     assert!(r.is_err(), "expected error when no providers registered");
 }
 

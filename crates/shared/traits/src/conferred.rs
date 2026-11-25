@@ -21,8 +21,8 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{
-    ExtensionId, ManagedResourceId, ManagedSourceId, ResourceRevisionId, SourceSnapshotId,
-    WithdrawalProposalId,
+    ExtensionId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId, ResourceRevisionId,
+    SourceSnapshotId, WithdrawalProposalId,
 };
 
 use crate::BoxedSource;
@@ -99,13 +99,15 @@ pub struct GitSourceSyncRequest {
     pub upstream_base_revision_id: Option<ResourceRevisionId>,
 }
 
-/// What a sync recorded.
+/// What a sync recorded. An incoming revision that conflicted with local
+/// edits names the reconciliation it opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GitSourceSynced {
     Incoming {
         snapshot_id: SourceSnapshotId,
         revision_id: ResourceRevisionId,
         commit: String,
+        reconciliation_id: Option<ManagedReconciliationId>,
     },
     WithdrawalProposed {
         snapshot_id: SourceSnapshotId,

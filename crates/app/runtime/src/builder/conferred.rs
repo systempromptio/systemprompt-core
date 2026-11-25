@@ -3,8 +3,9 @@
 //! built from the sealed seeds they use: the member cipher over the
 //! `encryption_master_key`, the share-token signer over the
 //! `manifest_signing_secret_seed`, and (on the API) the scoped token minter
-//! over the token authority. A host whose secret store lacks a key seeds no
-//! issuer for it, so a member that declared the row is refused at its read.
+//! over the token authority. Only the API seeds them; a child host confers
+//! nothing. An API whose secret store lacks a key seeds no issuer for it, so a
+//! member that declared the row is refused at its read.
 //!
 //! [`KernelTokenMinters`] mints a member's tokens: an RS256 JWT under the
 //! deployment's issuer whose `aud` is exactly one audience the member
@@ -27,11 +28,14 @@ use systemprompt_governance::authz::{
 };
 use systemprompt_identifiers::{AccessTokenId, Actor, ContextId, ExtensionId, UserId};
 use systemprompt_models::auth::{
-    SCOPED_TOKEN_MAX_TTL_SECS, ScopedMintError, ScopedToken, ScopedTokenMinter, ScopedTokenRequest,
-    TokenAuthority,
+    SCOPED_TOKEN_MAX_TTL_SECS, ScopedClaims, ScopedMintError, ScopedToken, ScopedTokenMinter,
+    ScopedTokenRequest, ScopedVerifyError, TokenAuthority, is_core_audience,
 };
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_security::AuthError;
 use systemprompt_security::conferred::{MemberCiphers, MemberShareTokens};
+use systemprompt_security::jwt::decode_scoped_token;
+use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{
     ConferralIssuer, DynConferralIssuer, MemberCipher, MemberGrant, SecretStore, ShareTokenSigner,
     TokenAudienceGrant,
@@ -66,6 +70,7 @@ pub(super) fn with_secret_issuers(
 #[derive(Clone)]
 pub struct KernelTokenMinters {
     authority: Arc<dyn TokenAuthority>,
+    keyring: VerificationKeyring,
     issuer: String,
     audit: GovernanceDecisionRepository,
     system_admin: UserId,
@@ -81,12 +86,14 @@ impl KernelTokenMinters {
     #[must_use]
     pub const fn new(
         authority: Arc<dyn TokenAuthority>,
+        keyring: VerificationKeyring,
         issuer: String,
         audit: GovernanceDecisionRepository,
         system_admin: UserId,
     ) -> Self {
         Self {
             authority,
+            keyring,
             issuer,
             audit,
             system_admin,
@@ -205,6 +212,42 @@ impl ScopedTokenMinter for MemberTokenMinter {
             token,
             jti,
             expires_at,
+        })
+    }
+
+    fn verify(&self, audience: &str, token: &str) -> Result<ScopedClaims, ScopedVerifyError> {
+        let grant = self
+            .grants
+            .iter()
+            .find(|grant| grant.audience == audience && !is_core_audience(audience))
+            .ok_or_else(|| ScopedVerifyError::UndeclaredAudience(audience.to_owned()))?;
+        let claims =
+            decode_scoped_token(&self.minters.keyring, &self.minters.issuer, audience, token)
+                .map_err(|error| match error {
+                    AuthError::InvalidToken(inner)
+                        if matches!(
+                            inner.kind(),
+                            jsonwebtoken::errors::ErrorKind::ExpiredSignature
+                        ) =>
+                    {
+                        ScopedVerifyError::Expired
+                    },
+                    other => ScopedVerifyError::NotAuthentic(Box::new(other)),
+                })?;
+        if claims.azp != self.member.as_str() {
+            return Err(ScopedVerifyError::OtherMember);
+        }
+        let scopes: Vec<String> = claims.scope.split_whitespace().map(str::to_owned).collect();
+        if scopes.iter().any(|scope| !grant.scopes.contains(scope)) {
+            return Err(ScopedVerifyError::UndeclaredScope(audience.to_owned()));
+        }
+        Ok(ScopedClaims {
+            subject: UserId::new(claims.sub),
+            audience: audience.to_owned(),
+            scopes,
+            jti: AccessTokenId::new(claims.jti),
+            issued_at: claims.iat,
+            expires_at: claims.exp,
         })
     }
 }

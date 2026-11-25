@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Content"
+text = "`generate_sitemap`, `generate_feed`, `generate_feed_with_providers` and `DefaultRssFeedProvider::new` take `&ConfigView`, so an install job can call them. Migrate by passing `&ConfigView::of(&config)`."
+
+[[crate]]
+name = "systemprompt-generator"
+section = "Breaking"
+text = "The sitemap and RSS generators take `&ConfigView` instead of `&Config`."

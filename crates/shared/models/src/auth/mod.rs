@@ -49,6 +49,6 @@ pub use types::{
 };
 pub mod scoped_minter;
 pub use scoped_minter::{
-    SCOPED_TOKEN_MAX_TTL_SECS, ScopedMintError, ScopedToken, ScopedTokenMinter, ScopedTokenRequest,
-    is_core_audience, is_core_scope,
+    SCOPED_TOKEN_MAX_TTL_SECS, ScopedClaims, ScopedMintError, ScopedToken, ScopedTokenMinter,
+    ScopedTokenRequest, ScopedVerifyError, is_core_audience, is_core_scope,
 };

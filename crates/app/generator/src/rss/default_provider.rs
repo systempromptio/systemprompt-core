@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_manifest::{ConfigView, WebConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{
     ProviderError, ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
@@ -44,7 +44,7 @@ impl std::fmt::Debug for DefaultRssFeedProvider {
 impl DefaultRssFeedProvider {
     pub async fn new(
         content_repo: ContentRepository,
-        config: &Config,
+        config: &ConfigView,
         paths: &AppPaths,
     ) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;

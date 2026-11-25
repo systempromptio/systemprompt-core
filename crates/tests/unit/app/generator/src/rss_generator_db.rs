@@ -105,7 +105,7 @@ async fn generate_feed_writes_xml_with_seeded_item() {
 
     generate_feed(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -144,7 +144,7 @@ async fn rss_provider_branding_falls_back_to_web_branding() {
 
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -175,7 +175,7 @@ async fn rss_provider_partial_branding_mixes_source_and_web_defaults() {
 
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -203,7 +203,7 @@ async fn rss_provider_feed_specs_skip_sources_without_enabled_sitemap() {
 
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -233,7 +233,7 @@ async fn rss_provider_fetch_items_maps_slug_through_url_pattern() {
 
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -309,9 +309,12 @@ async fn generate_feed_with_providers_builds_feed_from_stub() {
         metadata_fails: false,
         items_fail: false,
     })];
-    let feeds = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &providers)
-        .await
-        .expect("feeds");
+    let feeds = generate_feed_with_providers(
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
+        &providers,
+    )
+    .await
+    .expect("feeds");
     assert_eq!(feeds.len(), 1);
     assert_eq!(feeds[0].filename, "stub.xml");
     assert_eq!(feeds[0].item_count, 1);
@@ -326,9 +329,12 @@ async fn generate_feed_with_providers_propagates_metadata_failure() {
         metadata_fails: true,
         items_fail: false,
     })];
-    let err = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &providers)
-        .await
-        .expect_err("metadata failure");
+    let err = generate_feed_with_providers(
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
+        &providers,
+    )
+    .await
+    .expect_err("metadata failure");
     assert!(
         matches!(err, PublishError::ProviderFailed { ref provider_id, .. } if provider_id == "stub-rss"),
         "unexpected error: {err:?}"
@@ -342,9 +348,12 @@ async fn generate_feed_with_providers_propagates_fetch_failure() {
         metadata_fails: false,
         items_fail: true,
     })];
-    let err = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &providers)
-        .await
-        .expect_err("fetch failure");
+    let err = generate_feed_with_providers(
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
+        &providers,
+    )
+    .await
+    .expect_err("fetch failure");
     assert!(
         matches!(err, PublishError::ProviderFailed { ref source, .. } if source.to_string().contains("items boom")),
         "unexpected error: {err:?}"
@@ -378,7 +387,7 @@ async fn rss_provider_missing_content_config_is_read_error() {
     let tmp = tempfile::TempDir::new().unwrap();
     let err = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &tempdir_paths(&tmp),
     )
     .await
@@ -400,7 +409,7 @@ async fn rss_provider_malformed_content_config_is_parse_error() {
     fs::write(&cfg, "content_sources: [broken").unwrap();
     let err = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &paths,
     )
     .await
@@ -422,7 +431,7 @@ async fn rss_provider_fetch_items_with_closed_pool_is_render_failed() {
     let closed = systemprompt_test_fixtures::closed_db_pool().await;
     let p = DefaultRssFeedProvider::new(
         content_repo(&closed),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -456,7 +465,7 @@ async fn rss_provider_fetch_items_defaults_url_pattern_without_sitemap() {
 
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await

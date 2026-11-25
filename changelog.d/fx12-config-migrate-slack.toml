@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`admin config migrate` renames retired keys (the Slack `authz.link_by_workspace_email`, plugin `hooks.evaluation`) before it plans and loads the catalog migration, so a tree carrying the retired Slack key migrates in one run instead of failing to load its own output."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Fixed"
+text = "`admin config migrate` applies key renames before the catalog plan."

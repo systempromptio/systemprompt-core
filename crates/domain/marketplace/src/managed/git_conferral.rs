@@ -11,7 +11,9 @@
 //! from the sealed secret store by the source's own host and label; the
 //! credential goes to `git` and never to the caller, and a credential that
 //! cannot be resolved is reported as unavailable without its secret name.
-//! No handle's `Debug` prints the orchestrator or the secret store.
+//! No handle's `Debug` prints the orchestrator or the secret store. A child
+//! host confers nothing (`ConferralsWithheld`), so the issuer is withheld
+//! there.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -66,6 +68,11 @@ impl GitSourceSyncs {
     pub(crate) fn provide(
         r: &Resolved<'_>,
     ) -> Result<DynConferralIssuer<dyn GitSourceSync>, ProvideError> {
+        if r.optional::<systemprompt_extension::ConferralsWithheld>()
+            .is_some()
+        {
+            return Err(ProvideError::Withheld);
+        }
         let repository = r.get::<Arc<ManagedRepository>>()?;
         let secrets = r.get::<Arc<dyn SecretStore>>()?;
         let paths = r.get::<Arc<AppPaths>>()?;
@@ -186,11 +193,12 @@ impl GitSourceSync for MemberGitSourceSync {
                 snapshot_id,
                 revision_id,
                 commit,
-                ..
+                reconciliation_id,
             } => GitSourceSynced::Incoming {
                 snapshot_id,
                 revision_id,
                 commit,
+                reconciliation_id,
             },
             GitSyncResult::WithdrawalProposed {
                 snapshot_id,

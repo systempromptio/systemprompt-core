@@ -115,6 +115,8 @@ mod wave_h_seams;
 #[cfg(test)]
 mod brain_live;
 #[cfg(test)]
+mod child_conferrals;
+#[cfg(test)]
 mod core_secret_names;
 #[cfg(test)]
 mod document_token_views;

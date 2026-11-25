@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`plugins mcp tools` exits non-zero and names each server and reason when a running server refuses or fails `tools/list`, instead of printing an empty table and exiting 0."
+
+[[crate]]
+name = "systemprompt-mcp-entry"
+section = "Fixed"
+text = "`plugins mcp tools` fails on a refused or failed `tools/list`."

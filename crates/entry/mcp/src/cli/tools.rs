@@ -4,7 +4,10 @@
 //! session ([`super::probe`]); the command never starts a server and never
 //! connects to a server's own port. `--agent <name>` restricts the query to
 //! the servers that agent's definition includes, and reports each included
-//! server that is not running.
+//! server that is not running. A server that is running but refuses or fails
+//! the `tools/list` call (a denied call included) fails the command with a
+//! non-zero exit naming each server and its reason; no partial table is
+//! printed for it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -84,7 +87,7 @@ pub(super) async fn execute(args: ToolsArgs, host: &dyn CommandHost) -> Result<C
             &args,
             &mut collected,
         )
-        .await
+        .await?
     };
     let Collected {
         tools: mut all_tools,
@@ -179,8 +182,9 @@ async fn collect_tools(
     session: &CallerSession,
     args: &ToolsArgs,
     collected: &mut Collected,
-) -> usize {
+) -> Result<usize> {
     let mut servers_queried = 0;
+    let mut failures = Vec::new();
     for server in servers {
         let target = McpTarget::through_proxy(api_url, server.server_id(), session);
         match list_tools(&target, args.timeout).await {
@@ -195,13 +199,13 @@ async fn collect_tools(
                 servers_queried += 1;
             },
             Err(error) => {
-                tracing::warn!(server = %server.name, error = %error, "Failed to list tools from server");
-                collected.unavailable.push(McpUnavailableServer {
-                    name: server.name.clone(),
-                    reason: error.to_string(),
-                });
+                failures.push(format!("{}: {:#}", server.name, anyhow::Error::new(error)));
             },
         }
     }
-    servers_queried
+    if failures.is_empty() {
+        Ok(servers_queried)
+    } else {
+        Err(anyhow!("listing tools failed on {}", failures.join("; ")))
+    }
 }

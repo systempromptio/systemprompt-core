@@ -159,7 +159,7 @@ async fn generate_sitemap_malformed_content_config_is_parse_error() {
     write_content_config(boot, ": not yaml [");
     let err = generate_sitemap(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await

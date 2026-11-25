@@ -12,8 +12,13 @@
 //! not the subject. The mint re-checks
 //! the request against the grant and records every mint in the governance
 //! decision audit before the token is returned; a failed audit write fails
-//! the mint. Verification paths are unchanged: core verifiers accept only
-//! core audiences.
+//! the mint. Core verifiers are unchanged and accept only core audiences;
+//! the member's own minter is the one verifier of its tokens
+//! ([`ScopedTokenMinter::verify`]): it accepts a token only for an audience
+//! that member declared, signed under the deployment's keys and issuer, whose
+//! `aud` is exactly that audience, whose `azp` is that member, whose scopes
+//! were declared for it, and which has not expired (no leeway). A core token,
+//! another member's token and an expired token are refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -57,11 +62,38 @@ pub enum ScopedMintError {
     Audit(#[source] BoxedSource),
 }
 
-/// Mints one member's tokens for its declared audiences. `#[async_trait]`
-/// keeps the trait `dyn`-compatible for its issuer.
+/// What a verified scoped token carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScopedClaims {
+    pub subject: UserId,
+    pub audience: String,
+    pub scopes: Vec<String>,
+    pub jti: AccessTokenId,
+    pub issued_at: i64,
+    pub expires_at: i64,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ScopedVerifyError {
+    #[error("audience {0} is not one this member declared")]
+    UndeclaredAudience(String),
+    #[error("the token has expired")]
+    Expired,
+    #[error("the token was not minted by this member")]
+    OtherMember,
+    #[error("the token carries a scope not declared for audience {0}")]
+    UndeclaredScope(String),
+    #[error("the token did not verify for this audience")]
+    NotAuthentic(#[source] BoxedSource),
+}
+
+/// Mints and verifies one member's tokens for its declared audiences.
+/// `#[async_trait]` keeps the trait `dyn`-compatible for its issuer.
 #[async_trait]
 pub trait ScopedTokenMinter: Send + Sync + std::fmt::Debug {
     async fn mint(&self, request: &ScopedTokenRequest) -> Result<ScopedToken, ScopedMintError>;
+
+    fn verify(&self, audience: &str, token: &str) -> Result<ScopedClaims, ScopedVerifyError>;
 }
 
 const CORE_AUDIENCES: &[JwtAudience] = &[
