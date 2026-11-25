@@ -1,5 +1,7 @@
-//! [`ServicesView`]: the owned services config and its resolved catalog, the
-//! one handle every consumer and extension factory receives; and
+//! The read-only services views.
+//!
+//! [`ServicesView`] is the owned services config and its resolved catalog,
+//! the one handle every consumer and extension factory receives;
 //! [`InstallServicesView`], the read-only services facts an install member
 //! reads, a host-sealed seed listed in
 //! `systemprompt_extension::reserved::INSTALL_SEEDS`.

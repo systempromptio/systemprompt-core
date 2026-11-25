@@ -25,7 +25,7 @@ use systemprompt_models::auth::DynTokenRevocations;
 
 use super::KernelError;
 
-fn kernel_inserted() -> [TypeId; 10] {
+const fn kernel_inserted() -> [TypeId; 10] {
     [
         TypeId::of::<Arc<ConferralDeclarations>>(),
         InstallConferral::MemberCipher.issuer_type_id(),
@@ -66,7 +66,7 @@ pub(super) fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError>
     Ok(())
 }
 
-fn core_only_provides() -> [(TypeId, &'static str); 2] {
+const fn core_only_provides() -> [(TypeId, &'static str); 2] {
     [
         (TypeId::of::<DynTokenRevocations>(), "oauth"),
         (

@@ -259,24 +259,6 @@ impl<'a> Contributions<'a> {
         self
     }
 
-    pub fn conferral(&mut self, row: crate::reserved::InstallConferral) -> &mut Self {
-        if !self.sink.conferrals.contains(&row) {
-            self.sink.conferrals.push(row);
-        }
-        self
-    }
-
-    pub fn token_audience(&mut self, audience: &str, scopes: &[&str]) -> &mut Self {
-        self.conferral(crate::reserved::InstallConferral::ScopedTokens);
-        self.sink
-            .token_audiences
-            .push(systemprompt_traits::TokenAudienceGrant {
-                audience: audience.to_owned(),
-                scopes: scopes.iter().map(|scope| (*scope).to_owned()).collect(),
-            });
-        self
-    }
-
     pub fn secret_references<F>(&mut self, f: F) -> &mut Self
     where
         F: Factory<Arc<dyn SecretReferences>>,

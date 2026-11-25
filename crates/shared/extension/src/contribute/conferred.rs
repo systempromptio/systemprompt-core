@@ -26,6 +26,7 @@ use systemprompt_traits::{
     TokenAudienceGrant,
 };
 
+use super::Contributions;
 use super::resolved::Resolved;
 use crate::reserved::InstallConferral;
 
@@ -55,6 +56,24 @@ impl ConferralDeclarations {
             member: owner.clone(),
             token_audiences: Arc::clone(&member.token_audiences),
         })
+    }
+}
+
+impl Contributions<'_> {
+    pub fn conferral(&mut self, row: InstallConferral) -> &mut Self {
+        if !self.sink.conferrals.contains(&row) {
+            self.sink.conferrals.push(row);
+        }
+        self
+    }
+
+    pub fn token_audience(&mut self, audience: &str, scopes: &[&str]) -> &mut Self {
+        self.conferral(InstallConferral::ScopedTokens);
+        self.sink.token_audiences.push(TokenAudienceGrant {
+            audience: audience.to_owned(),
+            scopes: scopes.iter().map(|scope| (*scope).to_owned()).collect(),
+        });
+        self
     }
 }
 

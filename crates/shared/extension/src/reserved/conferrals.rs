@@ -183,7 +183,7 @@ impl InstallConferral {
     }
 
     #[must_use]
-    pub fn issuer_type_id(self) -> TypeId {
+    pub const fn issuer_type_id(self) -> TypeId {
         match self {
             Self::MemberCipher => TypeId::of::<DynConferralIssuer<dyn MemberCipher>>(),
             Self::ShareTokens => TypeId::of::<DynConferralIssuer<dyn ShareTokenSigner>>(),

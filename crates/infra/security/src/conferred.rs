@@ -173,7 +173,7 @@ impl ShareTokenSigner for MemberShareTokenSigner {
         if ttl < Duration::from_secs(1) || ttl > SHARE_TOKEN_MAX_TTL {
             return Err(ShareTokenError::Lifetime);
         }
-        let ttl_secs = i64::try_from(ttl.as_secs()).map_err(|_| ShareTokenError::Lifetime)?;
+        let ttl_secs = i64::try_from(ttl.as_secs()).map_err(|_e| ShareTokenError::Lifetime)?;
         let expiry = chrono::Utc::now().timestamp().saturating_add(ttl_secs);
         let mut body = Vec::with_capacity(EXPIRY_BYTES + payload.len());
         body.extend_from_slice(&expiry.to_be_bytes());
@@ -196,18 +196,19 @@ impl ShareTokenSigner for MemberShareTokenSigner {
         };
         let body = URL_SAFE_NO_PAD
             .decode(body)
-            .map_err(|_| ShareTokenError::Malformed)?;
+            .map_err(|_e| ShareTokenError::Malformed)?;
         let tag = URL_SAFE_NO_PAD
             .decode(tag)
-            .map_err(|_| ShareTokenError::Malformed)?;
+            .map_err(|_e| ShareTokenError::Malformed)?;
         if body.len() < EXPIRY_BYTES {
             return Err(ShareTokenError::Malformed);
         }
         self.mac(purpose, &body)
             .verify_slice(&tag)
-            .map_err(|_| ShareTokenError::NotAuthentic)?;
+            .map_err(|_e| ShareTokenError::NotAuthentic)?;
         let (expiry, payload) = body.split_at(EXPIRY_BYTES);
-        let expiry = i64::from_be_bytes(expiry.try_into().map_err(|_| ShareTokenError::Malformed)?);
+        let expiry =
+            i64::from_be_bytes(expiry.try_into().map_err(|_e| ShareTokenError::Malformed)?);
         if chrono::Utc::now().timestamp() >= expiry {
             return Err(ShareTokenError::Expired);
         }

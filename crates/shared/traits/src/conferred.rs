@@ -1,5 +1,6 @@
-//! The capabilities the kernel confers on an admitted member in place of a
-//! sealed seed: an encrypt/decrypt handle over the deployment's master key
+//! The capabilities the kernel confers on a member in place of a sealed seed.
+//!
+//! They are an encrypt/decrypt handle over the deployment's master key
 //! ([`MemberCipher`]), a share-token signer ([`ShareTokenSigner`]) and a
 //! Git source sync handle ([`GitSourceSync`]); the scoped token minter is
 //! beside the token authority in `systemprompt_models::auth`.
@@ -64,7 +65,7 @@ pub trait MemberCipher: Send + Sync + std::fmt::Debug {
     fn open(&self, sealed: &str) -> Result<String, MemberCipherError>;
 }
 
-pub const SHARE_TOKEN_MAX_TTL: Duration = Duration::from_secs(365 * 24 * 60 * 60);
+pub const SHARE_TOKEN_MAX_TTL: Duration = Duration::from_hours(365 * 24);
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 pub enum ShareTokenError {
@@ -125,9 +126,10 @@ pub enum GitSourceSyncError {
     Failed(#[source] BoxedSource),
 }
 
-/// Syncs a Git source the system admin registered (the owner installs
-/// attribute managed inventory to) with the credential core holds for it;
-/// the credential is never returned, and every sync is audited first.
+/// Syncs a Git source the system admin registered.
+///
+/// The owner is the one installs attribute managed inventory to; the
+/// credential core holds is never returned, and every sync is audited first.
 /// `#[async_trait]` keeps the trait `dyn`-compatible for its issuer.
 #[async_trait]
 pub trait GitSourceSync: Send + Sync + std::fmt::Debug {
