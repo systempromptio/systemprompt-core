@@ -14,7 +14,8 @@
 //! `access-control/roles.yaml` is folded into `rules.yaml` ([`roles`]), and
 //! the retired plugin `hooks.evaluation` key becomes `hooks.judge` ([`hooks`]),
 //! and a Slack app's `authz.link_by_workspace_email` becomes
-//! `authz.link.link_by_email` ([`slack`]).
+//! `authz.link.link_by_email` ([`slack`]). The key renames run before the
+//! catalog plan, so the migrated tree loads with the keys it is renamed to.
 //! `--profiles <dir>` instead rewrites the pre-0.73 profiles in that directory
 //! ([`profiles`]) without loading one.
 //!
@@ -184,6 +185,9 @@ fn apply_renames(steps: &mut MigrationSteps, services: &std::path::Path) -> Resu
 async fn execute_services(args: &MigrateArgs, host: &dyn KernelHost) -> Result<CommandOutput> {
     let mut steps = MigrationSteps::default();
     let services = services_dir(args, host)?;
+    if !args.check {
+        apply_renames(&mut steps, &services)?;
+    }
     let pending = plan(&services)?;
     if args.check {
         if roles::pending(&services) {
@@ -224,7 +228,6 @@ async fn execute_services(args: &MigrateArgs, host: &dyn KernelHost) -> Result<C
             "nothing to migrate: the services tree is already in the 0.73 shape".to_owned(),
         ),
     }
-    apply_renames(&mut steps, &services)?;
     if let Some(rules) = roles::migrate(&services)? {
         steps.push(
             "access_control",

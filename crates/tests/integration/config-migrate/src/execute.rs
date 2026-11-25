@@ -153,3 +153,21 @@ async fn the_data_step_names_the_absent_ai_member() {
         "{error}"
     );
 }
+
+#[tokio::test]
+async fn a_legacy_tree_with_the_retired_slack_key_migrates_in_one_run() {
+    let tree = from_fixture("core-default");
+    let slack = write(
+        tree.services.join("slack/example.yaml"),
+        "slack_apps:\n  support:\n    workspace_id: \"T1\"\n    authz:\n      link_by_workspace_email: false\n",
+    );
+    run(&args(Some(&tree.services), None, false))
+        .await
+        .expect("the renames run before the migrated tree is loaded");
+    let migrated = std::fs::read_to_string(&slack).expect("slack");
+    assert!(migrated.contains("link_by_email: false"), "{migrated}");
+    assert!(!migrated.contains("link_by_workspace_email"), "{migrated}");
+    run(&args(Some(&tree.services), None, true))
+        .await
+        .expect("nothing pending");
+}
