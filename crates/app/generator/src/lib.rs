@@ -10,7 +10,8 @@
 //! - [`BuildOrchestrator`] / [`BuildMode`] — drives the whole build (CSS
 //!   organisation + validation) with progress reporting.
 //! - [`generate_sitemap`], [`generate_feed`] — emit `sitemap.xml` and
-//!   per-source RSS feeds.
+//!   per-source RSS feeds, over the install-readable `ConfigView`, so an
+//!   install's own job can call them.
 //! - [`organize_dist_assets`] — post-build CSS/JS file reorganisation.
 //! - [`write_atomic`] / [`copy_atomic`] — temp-file-and-rename publication used
 //!   for every file written into `dist/`.

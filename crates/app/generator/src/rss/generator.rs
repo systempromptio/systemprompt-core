@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
-use systemprompt_manifest::Config;
+use systemprompt_manifest::ConfigView;
 use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
 use tokio::fs;
 
@@ -25,7 +25,7 @@ pub struct GeneratedFeed {
 
 pub async fn generate_feed(
     content_repo: ContentRepository,
-    config: &Config,
+    config: &ConfigView,
     paths: &AppPaths,
 ) -> Result<()> {
     let provider = DefaultRssFeedProvider::new(content_repo, config, paths).await?;
@@ -49,7 +49,7 @@ pub async fn generate_feed(
 }
 
 pub async fn generate_feed_with_providers(
-    config: &Config,
+    config: &ConfigView,
     providers: &[Arc<dyn RssFeedProvider>],
 ) -> Result<Vec<GeneratedFeed>> {
     let base_url = &config.api_external_url;

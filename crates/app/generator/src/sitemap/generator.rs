@@ -9,7 +9,7 @@ use std::path::Path;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 
-use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_manifest::{ConfigView, WebConfig};
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
@@ -30,7 +30,7 @@ struct SitemapContext {
 
 pub async fn generate_sitemap(
     content_repo: ContentRepository,
-    config: &Config,
+    config: &ConfigView,
     paths: &AppPaths,
 ) -> Result<()> {
     let ctx = load_sitemap_context(content_repo, config, paths).await?;
@@ -42,7 +42,7 @@ pub async fn generate_sitemap(
 
 async fn load_sitemap_context(
     content_repo: ContentRepository,
-    config: &Config,
+    config: &ConfigView,
     paths: &AppPaths,
 ) -> Result<SitemapContext> {
     let config_path = paths.system().content_config();

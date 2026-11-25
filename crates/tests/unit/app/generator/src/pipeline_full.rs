@@ -171,7 +171,7 @@ async fn generate_sitemap_with_empty_sources_writes_sitemap_xml() {
     let db = test_db_pool().await;
     generate_sitemap(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &paths,
     )
     .await
@@ -185,7 +185,7 @@ async fn generate_feed_with_empty_sources_runs() {
     let db = test_db_pool().await;
     let _ = generate_feed(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &paths,
     )
     .await;
@@ -198,7 +198,7 @@ async fn default_rss_feed_provider_full_config_constructs() {
     let db = test_db_pool().await;
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &paths,
     )
     .await
@@ -211,7 +211,11 @@ async fn default_rss_feed_provider_full_config_constructs() {
 #[tokio::test]
 async fn generate_feed_with_providers_empty_providers_errors() {
     let _ = ensure_app_paths();
-    let r = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &[]).await;
+    let r = generate_feed_with_providers(
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
+        &[],
+    )
+    .await;
     assert!(r.is_err());
 }
 
@@ -294,7 +298,7 @@ async fn generate_sitemap_with_source_writes_xml() {
     let db = test_db_pool().await;
     generate_sitemap(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -309,7 +313,7 @@ async fn rss_provider_with_source_emits_feed_specs() {
     let db = test_db_pool().await;
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -325,7 +329,7 @@ async fn generate_feed_with_source_runs_pipeline() {
     let db = test_db_pool().await;
     let _ = generate_feed(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await;
@@ -338,7 +342,7 @@ async fn rss_provider_fetch_items_for_unknown_source_errors() {
     let db = test_db_pool().await;
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -358,7 +362,7 @@ async fn rss_provider_feed_metadata_returns_branding() {
     let db = test_db_pool().await;
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await
@@ -377,7 +381,7 @@ async fn rss_provider_fetch_items_for_blog_source_runs_repo() {
     let db = test_db_pool().await;
     let p = DefaultRssFeedProvider::new(
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
+        &systemprompt_manifest::ConfigView::of(ensure_test_bootstrap().boot_config()),
         &boot.app_paths,
     )
     .await

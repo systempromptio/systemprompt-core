@@ -138,9 +138,10 @@ async fn generate_feed_with_single_provider_emits_xml() {
     });
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![provider];
 
-    let feeds = generate_feed_with_providers(&config, &providers)
-        .await
-        .expect("generate_feed_with_providers must succeed");
+    let feeds =
+        generate_feed_with_providers(&systemprompt_manifest::ConfigView::of(&config), &providers)
+            .await
+            .expect("generate_feed_with_providers must succeed");
 
     assert_eq!(feeds.len(), 1);
     let feed = &feeds[0];
@@ -183,9 +184,10 @@ async fn generate_feed_with_multiple_specs_and_providers() {
     });
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![p1, p2];
 
-    let feeds = generate_feed_with_providers(&config, &providers)
-        .await
-        .expect("multi-provider generation must succeed");
+    let feeds =
+        generate_feed_with_providers(&systemprompt_manifest::ConfigView::of(&config), &providers)
+            .await
+            .expect("multi-provider generation must succeed");
 
     assert_eq!(feeds.len(), 3, "three feed specs across two providers");
     let names: Vec<_> = feeds.iter().map(|f| f.filename.as_str()).collect();
@@ -205,9 +207,10 @@ async fn generate_feed_errors_when_no_providers() {
     let config = test_config();
 
     let providers: Vec<Arc<dyn RssFeedProvider>> = Vec::new();
-    let err = generate_feed_with_providers(&config, &providers)
-        .await
-        .expect_err("no providers must error");
+    let err =
+        generate_feed_with_providers(&systemprompt_manifest::ConfigView::of(&config), &providers)
+            .await
+            .expect_err("no providers must error");
     assert!(err.to_string().to_lowercase().contains("rss"));
 }
 
@@ -222,8 +225,9 @@ async fn generate_feed_errors_when_provider_yields_no_specs() {
     });
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![provider];
 
-    let err = generate_feed_with_providers(&config, &providers)
-        .await
-        .expect_err("provider returning no specs must error");
+    let err =
+        generate_feed_with_providers(&systemprompt_manifest::ConfigView::of(&config), &providers)
+            .await
+            .expect_err("provider returning no specs must error");
     assert!(err.to_string().to_lowercase().contains("rss"));
 }
