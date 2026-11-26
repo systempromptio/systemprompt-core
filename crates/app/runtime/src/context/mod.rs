@@ -75,6 +75,7 @@ impl AppContext {
         host::require_kernel_seeds(kernel.state())?;
         let route_classifier = Arc::clone(&planes.cfg.route_classifier);
         host::seal_context_seeds(&mut kernel, planes);
+        kernel.provide_after_host_seeds(&admitted)?;
         let state = kernel.state();
         let config = Arc::clone(state.get::<Arc<Config>>()?);
         let database = Arc::clone(state.get::<systemprompt_database::DbPool>()?);

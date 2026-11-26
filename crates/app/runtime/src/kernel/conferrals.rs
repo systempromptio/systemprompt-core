@@ -10,7 +10,9 @@
 //! `allowed_resource_audiences`); a declared scope is refused when it is a
 //! core permission (`admin` among them) or is not 1 to 64 characters of
 //! `[a-z0-9._:-]`. Each refusal names the member, the value and the reason,
-//! so boot reports it before any provide fn runs.
+//! so boot reports it before any provide fn runs. A member that declares the
+//! `broker-calls` row on a host that confers it, while the secrets carry no
+//! usable `mcp_credential_broker_secret`, is refused naming that secret.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,11 +20,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_extension::reserved::CoreId;
-use systemprompt_extension::{BuiltState, ConferralDeclarations, MemberConferrals, Resolved};
+use systemprompt_extension::reserved::{CoreId, InstallConferral};
+use systemprompt_extension::{
+    BuiltState, ConferralDeclarations, ConferralsWithheld, MemberConferrals, Resolved,
+};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{is_core_audience, is_core_scope};
-use systemprompt_traits::TokenAudienceGrant;
+use systemprompt_traits::{
+    BrokerCallVerifier, DynConferralIssuer, MCP_CREDENTIAL_BROKER_SECRET, TokenAudienceGrant,
+};
 
 use super::KernelError;
 
@@ -114,7 +120,22 @@ pub(super) fn declarations(
 ) -> Result<ConferralDeclarations, KernelError> {
     let config = r.optional::<Arc<Config>>();
     let mut declared = HashMap::new();
+    let broker_unserved = r.optional::<ConferralsWithheld>().is_none()
+        && r.optional::<DynConferralIssuer<dyn BrokerCallVerifier>>()
+            .is_none();
     for member in built.members() {
+        if broker_unserved
+            && member
+                .sink
+                .declared_conferrals()
+                .contains(&InstallConferral::BrokerCalls)
+        {
+            return Err(KernelError::ConferralSecretMissing {
+                owner: member.owner.clone(),
+                row: InstallConferral::BrokerCalls.name(),
+                secret: MCP_CREDENTIAL_BROKER_SECRET,
+            });
+        }
         let audiences = member.sink.declared_token_audiences();
         admitted_audiences(&member.owner, audiences, config.as_deref())?;
         declared.insert(

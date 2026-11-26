@@ -22,6 +22,9 @@
 //! kernel seed is: the kernel, provide fns, factories and slot builds read it;
 //! a job, runner-service or config-plane context, a member's command and the
 //! route state of any member but its provider are refused it as missing.
+//! [`Contributions::provide_sealed_after_host_seeds`] provides a sealed value
+//! built from the API context's host seeds, once that context has sealed
+//! them; a host that never seals them never runs it.
 //! [`Contributions::provide_conferred`] provides it sealed and confers it on
 //! the one core holder its reserved row names (`reserved::SEALED_CONFERRALS`).
 //! [`Contributions::late_cell`] is not a provide either: it declares a cell
@@ -84,6 +87,14 @@ impl Contributions<'_> {
         F: ProvideFn<T>,
     {
         self.push_provide(ProvidePhase::AfterGovernance, true, f)
+    }
+
+    pub fn provide_sealed_after_host_seeds<T, F>(&mut self, f: F) -> &mut Self
+    where
+        T: Clone + Send + Sync + 'static,
+        F: ProvideFn<T>,
+    {
+        self.push_provide(ProvidePhase::AfterHostSeeds, true, f)
     }
 
     pub fn provide_conferred<T, F>(&mut self, row: ConferralRow, f: F) -> &mut Self

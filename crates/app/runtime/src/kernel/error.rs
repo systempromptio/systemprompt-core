@@ -37,6 +37,15 @@ pub enum KernelError {
         owner: ExtensionId,
         row: &'static str,
     },
+    #[error(
+        "{owner} declares the {row} conferral, which needs the secret {secret}; the secrets \
+         carry no usable value for it"
+    )]
+    ConferralSecretMissing {
+        owner: ExtensionId,
+        row: &'static str,
+        secret: &'static str,
+    },
     #[error("{owner} declares late cell {ty}, which only a core member may declare")]
     InstallLateCell {
         owner: ExtensionId,

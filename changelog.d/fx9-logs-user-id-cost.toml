@@ -1,4 +1,0 @@
-[root]
-section = "Changed"
-area = "Database"
-text = "The `logs_user_id_not_null` migration's cost was measured on a 20 000 000-row `logs` table: about 5 s, nearly all of it the `VALIDATE CONSTRAINT` scan. The scan time grows linearly with table size and holds SHARE UPDATE EXCLUSIVE, which blocks VACUUM and other schema changes but not writes."

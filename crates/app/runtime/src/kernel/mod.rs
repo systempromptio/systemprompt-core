@@ -50,6 +50,11 @@
 //! dispatcher, the spawner or the signing keys fails the resolution with
 //! [`KernelError::Provide`] before any of its values exists.
 //!
+//! [`Kernel::provide_after_host_seeds`] runs every admitted member's provide
+//! fns declared to run after the host seeds, once the API context has sealed
+//! them; a provide that cannot read a seed refuses the context with
+//! [`KernelError::Provide`] naming the missing type.
+//!
 //! [`Kernel::runtime_state`] is the one base every context handed to member
 //! runtime code is built from — a job, a runner service and a config plane:
 //! the resolved state with every sealed seed and every sealed provide
@@ -176,6 +181,10 @@ impl Kernel {
             bind(&self.state)?;
         }
         Ok(())
+    }
+
+    pub fn provide_after_host_seeds(&mut self, admitted: &Admitted) -> Result<(), KernelError> {
+        self.provide_all(admitted, ProvidePhase::AfterHostSeeds)
     }
 
     fn seed_late_cells(&mut self, admitted: &Admitted) -> Result<Vec<PendingBind>, KernelError> {

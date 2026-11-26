@@ -287,7 +287,7 @@ fn a_withheld_provide_reserves_its_type_and_resolves() {
         .unwrap_or_else(|e| panic!("a withheld provide does not fail the resolve: {e:#}"));
     assert_eq!(
         kernel.resolved().get::<HostOnly>().err(),
-        Some(MissingDependency::of::<HostOnly>())
+        Some(MissingDependency::withheld::<HostOnly>())
     );
     assert!(kernel.state().find::<HostOnly>().is_none());
 }

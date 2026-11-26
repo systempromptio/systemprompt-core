@@ -4,8 +4,9 @@
 //! [`GatewaySurface`](systemprompt_extension::router::GatewaySurface) (open: a
 //! builder that holds nothing) and, sealed, the
 //! [`GatewayHostHandles`](systemprompt_gateway::GatewayHostHandles) it builds
-//! from the host seeds (absent on a host that does not seed them, and the
-//! surface then refuses to build) and the
+//! from the host seeds once the API context has sealed them (a seed that is
+//! missing then refuses the context, naming the type; a child host seals no
+//! context seeds, builds no handles and mounts no gateway surface) and the
 //! [`GatewayHttpRepositories`](crate::http::state::GatewayHttpRepositories) it
 //! builds here — the API-key check over the user repository, with the key
 //! lifetime the runtime config sets, and the context materializer over the
@@ -80,21 +81,12 @@ mod surface {
             },
         )
         .provide_sealed_after_governance(repositories)
-        .provide_sealed_after_governance(host_handles)
+        .provide_sealed_after_host_seeds(host_handles)
         .provide_sealed_after_governance(AdmittedModelsIssuer::provide);
     }
 
-    fn host_handles(r: &Resolved<'_>) -> Result<Option<Arc<GatewayHostHandles>>, ProvideError> {
-        match GatewayHostHandles::resolve(r) {
-            Ok(host) => Ok(Some(Arc::new(host))),
-            Err(missing) => {
-                tracing::info!(
-                    missing = %missing,
-                    "this host does not seed the gateway host handles; the gateway surface is not built"
-                );
-                Ok(None)
-            },
-        }
+    fn host_handles(r: &Resolved<'_>) -> Result<Arc<GatewayHostHandles>, ProvideError> {
+        Ok(Arc::new(GatewayHostHandles::resolve(r)?))
     }
 
     fn repositories(r: &Resolved<'_>) -> Result<Arc<GatewayHttpRepositories>, ProvideError> {

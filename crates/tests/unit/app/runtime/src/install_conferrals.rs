@@ -194,7 +194,8 @@ fn the_install_tables_are_exactly_the_ruled_rows() {
             "share-tokens",
             "git-source-sync",
             "scoped-tokens",
-            "broker-calls"
+            "broker-calls",
+            "admitted-models"
         ]
     );
 }

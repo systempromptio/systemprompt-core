@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Gateway"
+text = "The API boots again with the gateway composed: the gateway host handles are built once the API context has sealed its host seeds (a new `provide_sealed_after_host_seeds` provide phase), and a seed missing then refuses the context naming the type. The admitted-models issuer reads the services view and the host authz cell, so it is issued on every host that admits `gateway-http`."

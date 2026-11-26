@@ -31,10 +31,16 @@ type ReserveFn = fn(&mut Dependencies);
 /// entry, gateway guard or subject provider that needs subject attributes
 /// holds the governance `SubjectSourceCell` late cell instead, which the
 /// kernel binds to the subject provider set once the composition resolves.
+/// `AfterHostSeeds` provide fns run once the API context has sealed its
+/// host seeds (the boot context, services state, logging runtime, authz hook
+/// and governance watch, built after the composition resolves), so they may
+/// read those seeds; they run only on a host that seals them, and nothing
+/// resolved earlier may read their values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProvidePhase {
     Early,
     AfterGovernance,
+    AfterHostSeeds,
 }
 
 /// One deferred state value: its type, the provide fn, the phase it runs in

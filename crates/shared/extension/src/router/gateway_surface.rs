@@ -81,8 +81,6 @@ impl std::fmt::Debug for GatewaySurfaceRoutes {
 pub enum GatewaySurfaceError {
     #[error(transparent)]
     Resolve(#[from] MissingDependency),
-    #[error("this host does not seed the gateway host handles")]
-    HostUnseeded,
     #[error("the gateway journal does not open")]
     Journal(#[source] BoxedSource),
     #[error("the bridge release feed does not build")]

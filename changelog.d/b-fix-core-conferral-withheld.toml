@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Extension"
+text = "A declared conferral whose core issuer was withheld on this host reads as `ConferralError::Withheld`, so the install provide reading it is withheld in turn instead of refusing the whole context."

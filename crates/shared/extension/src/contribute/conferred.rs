@@ -163,6 +163,9 @@ impl Resolved<'_> {
         {
             return Err(ConferralError::Withheld(row));
         }
+        if state.is_withheld::<DynConferralIssuer<C>>() {
+            return Err(ConferralError::Withheld(row));
+        }
         let from_provider = match state.provider_of::<DynConferralIssuer<C>>() {
             Some(DependencyProvider::Host) => {
                 row.provider() == crate::reserved::CoreId::Kernel.id()

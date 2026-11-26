@@ -438,6 +438,16 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_gateway::at_rest::JournalFiles>(),
         ),
         (
+            type_name::<Arc<systemprompt_gateway::GatewayHostHandles>>(),
+            carrier::<systemprompt_gateway::GatewayHostHandles>(),
+        ),
+        (
+            type_name::<DynConferralIssuer<dyn systemprompt_traits::AdmittedModels>>(),
+            carrier::<
+                systemprompt_gateway_entry::http::bridge::admitted_models::AdmittedModelsIssuer,
+            >(),
+        ),
+        (
             type_name::<systemprompt_models::auth::DynTokenRevocations>(),
             carrier::<systemprompt_oauth::repository::JtiRevocationChecker>(),
         ),

@@ -22,8 +22,7 @@
 //! The gateway repositories are built per mount from the route-scoped state
 //! ([`gateway_repositories`]), with the at-rest material conferred on
 //! `gateway-http` and the [`GatewayHostHandles`] the member built from the
-//! host seeds in its own sealed provide; a host that does not seed them
-//! refuses the build (`HostUnseeded`).
+//! host seeds in its own sealed provide.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -81,9 +80,7 @@ impl GatewaySurface for GatewayHttpSurface {
     ) -> Result<GatewaySurfaceRoutes, GatewaySurfaceError> {
         let GatewayRouteState { resolved } = state;
         let own = resolved.get::<Arc<GatewayHttpRepositories>>()?;
-        let host = resolved
-            .get::<Option<Arc<GatewayHostHandles>>>()?
-            .ok_or(GatewaySurfaceError::HostUnseeded)?;
+        let host: Arc<GatewayHostHandles> = resolved.get()?;
         let host = GatewayHostHandles::clone(&host);
         let db = resolved.get::<DbPool>()?;
         let contexts = resolved.optional::<DynContextMaterializer>();

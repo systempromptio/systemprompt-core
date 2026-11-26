@@ -8,11 +8,12 @@
 //! verified by the request authenticator (`decode_for_gateway`, as the
 //! bridge profile does), the catalog's advertised models are narrowed to
 //! those with a configured provider key, then to those the authz hook allows
-//! this principal ([`ModelAdmission`]). The answer is a subset of the
-//! caller's candidates; no hook, secret name or principal leaves core. A
-//! bearer core does not verify is refused, never answered with a default.
-//! A child host confers nothing (`ConferralsWithheld`), so the issuer is
-//! withheld there.
+//! this principal ([`ModelAdmission`]), decided through the host's sealed
+//! authz hook cell, which denies until the host binds it. The answer is a
+//! subset of the caller's candidates; no hook, secret name or principal leaves
+//! core. A bearer core does not verify is refused, never answered with a
+//! default. A child host confers nothing (`ConferralsWithheld`), so the issuer
+//! is withheld there.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,10 +23,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_extension::prelude::{ProvideError, Resolved};
-use systemprompt_gateway::GatewayHostHandles;
 use systemprompt_gateway::surface::views::GatewaySettingsView;
+use systemprompt_governance::authz::{AuthzHookCell, LateAuthzHook, SharedAuthzHook};
 use systemprompt_identifiers::{ExtensionId, JwtToken, ModelId};
 use systemprompt_manifest::bridge_profile;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::auth::DynRequestAuthenticator;
 use systemprompt_traits::{
     AdmittedModels, AdmittedModelsError, ConferralIssuer, DynConferralIssuer, MemberGrant,
@@ -37,7 +39,8 @@ use super::admission::{AdmissionPrincipal, ModelAdmission};
 #[derive(Clone)]
 pub struct AdmittedModelsIssuer {
     authenticator: DynRequestAuthenticator,
-    host: Arc<GatewayHostHandles>,
+    services: ServicesView,
+    authz_hook: SharedAuthzHook,
     settings: Arc<GatewaySettingsView>,
 }
 
@@ -56,15 +59,13 @@ impl AdmittedModelsIssuer {
         {
             return Err(ProvideError::Withheld);
         }
-        let host = r
-            .get::<Option<Arc<GatewayHostHandles>>>()?
-            .ok_or(ProvideError::Withheld)?;
         let settings = r
             .get::<Option<Arc<GatewaySettingsView>>>()?
             .ok_or(ProvideError::Withheld)?;
         Ok(Arc::new(Self {
             authenticator: r.get::<DynRequestAuthenticator>()?,
-            host,
+            services: r.get::<ServicesView>()?,
+            authz_hook: Arc::new(LateAuthzHook::new(r.get::<AuthzHookCell>()?)),
             settings,
         }))
     }
@@ -79,9 +80,9 @@ impl AdmittedModelsIssuer {
             .decode_for_gateway(bearer)
             .await
             .map_err(|source| AdmittedModelsError::Unauthenticated(Box::new(source)))?;
-        let view = self.host.services.view();
-        let catalog = &view.catalog;
-        view.config()
+        let catalog = &self.services.catalog;
+        self.services
+            .config()
             .gateway_config()
             .filter(|gateway| gateway.enabled)
             .ok_or(AdmittedModelsError::GatewayDisabled)?;
@@ -111,7 +112,7 @@ impl AdmittedModelsIssuer {
         };
         Ok(ModelAdmission {
             catalog,
-            hook: &self.host.authz_hook,
+            hook: &self.authz_hook,
             principal: &principal,
         }
         .retain(models)
