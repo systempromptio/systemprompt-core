@@ -557,6 +557,7 @@ fn manifest() -> SignedManifest {
         revocations: vec![],
         enabled_hosts: vec![HostKind::OpenCode],
         host_model_protocols: Default::default(),
+        host_extensions: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),

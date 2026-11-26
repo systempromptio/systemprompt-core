@@ -39,11 +39,11 @@ M0-A1 closes the unconfirmed and assumed items.
 | 7 | The approval step is new authorization surface | A flaw lets the wrong person, or no one, allow a tool | Owner only; timeout denies; first decision wins; policy before people; independent review; property tests |
 | 8 | Hosts that cannot pause | A run could be executed permissively without anyone deciding | Refused at queue time; never downgraded silently |
 | 9 | Two apps drift apart | Each screen is written twice | One brief per screen group; a shared screen-and-state list; scenarios must pass on both; the tour side by side |
-| 10 | Behaviour leaks into the apps | Fixes would need making three times | Screen models in Rust hold all state and stream handling; a lint rule against networking, token handling and cursor logic in app code |
+| 10 | Behaviour leaks into the apps | Fixes would need making three times | State machines in Rust hold all domain state and stream handling; a lint rule against networking, token handling and cursor logic in app code |
 | 11 | Binding generator limits | An unsupported construct forces a redesign of the surface | M0 confirms the pinned version; the surface is small; M2 wave A proves async and listeners before the surface is filled in |
 | 12 | Secrets across the boundary | A token exposed to the native side can be logged or leaked | No secret type is exported; reviewed; a gate on the surface |
 | 13 | Runner time and reliability | Simulator and emulator tests are slow and can be unstable | UI tests only at stage gates; scenarios through the core catch most defects first; a repeating failure gets its own lane |
-| 14 | Dependence on harness stages | M2 needs the device crate in core; M3's assets need the brand and theme data | M1 needs nothing and starts first; M3-C7 can begin from the schema before harness S3 |
+| 14 | Dependence on harness stages | M2 needs the device crate in core; M3's assets need the brand and theme data | M1 needs nothing and starts first; M3-C7 can begin from the schema before harness S5 |
 | 15 | Three languages to maintain | More skills and tooling in the template and every install | Core stays Rust; the apps hold presentation only; structure and lint rules are the same shape on both |
 | 16 | Phones cannot take contributed screens | The desktop's mount-point model does not carry over | Stated plainly; forks edit their native code; three generic server-driven layouts are proposed (open decision O1) |
 | 17 | Signing secrets in release workflows | A leaked key lets someone ship as the publisher | Secrets only in release environments; push runs unsigned; each publisher holds its own |
@@ -52,11 +52,11 @@ M0-A1 closes the unconfirmed and assumed items.
 
 | # | Decision | Alternative declined |
 |---|---|---|
-| M1 | The phone is a client of server-side runs only | Attaching to a desktop session; an on-device agent loop |
+| M1 | A phone uses the `Remote` execution mode only: sessions it starts run in the instance's sandbox. It sees, steers and approves sessions in every mode, because the instance records them all | Running the runtime on a phone |
 | M2 | A shared Rust core with SwiftUI and Jetpack Compose | One cross-platform UI codebase; a Rust-only UI on an early phone port of the desktop toolkit |
 | M3 | iOS through custom apps and the beta channel; Android as a self-hosted APK | Enterprise in-house per install; a web app on iOS; supporting every route |
 | M4 | Each instance sends its own push | A relay operated centrally; no push |
-| M5 | One new core crate, `systemprompt-mobile`; everything else extends existing crates | A feature of an existing crate (not possible: the binding layer needs its own library build) |
+| M5 | One new core crate, `systemprompt-mobile`, annotating the shared surface; everything else extends existing crates | Annotating existing crates directly, which would make them depend on the binding generator |
 | M6 | No new host; the existing iOS and Android client ids identify the apps | A host variant per platform |
 | M7 | Register as a verified Android developer now | Rely on sideloading staying uncovered |
 | M8 | Pairing reuses the existing device-link exchange, shown as a QR code | A new pairing protocol |
@@ -65,17 +65,21 @@ M0-A1 closes the unconfirmed and assumed items.
 | M11 | A timed-out approval is denied | Allow on timeout; wait forever |
 | M12 | Evidence on a real Mac by an attached agent session; hosted runs store nothing | Stored artefacts from hosted runs |
 | M13 | Generated Swift and Kotlin are build outputs, not committed | Committing bindings in core or the template |
-| M14 | Screen models live in Rust, one per feature, shared by the desktop harness and both phone apps; only drawing is per platform | The core handing raw facts to each app, with screen logic written three times |
+| M14 | The shared client layer is state machines (stream reduction and resume, the approval queue, notification routing), used by the desktop and both phones. Each surface shapes its own screens | Screen-shaped models in core, which would have fixed every surface's layout and needed a core change for a fork to redraw a screen. Sharing the Rust layer with the web console, which is rendered on the server and needs only the stream |
+| M18 | The final binding library is built by a crate in the extension, so a fork can expose its own Rust logic to Swift and Kotlin | Building it from a core crate |
 | M15 | Every feature (chat, runs, approvals, inbox, documents, preferences) is an opt-in slice: chosen at build, switchable by the instance, with navigation built from what is admitted | A fixed feature set |
 | M16 | No administration on the phone; settings are the user's own preferences only | Admin and governance screens on the phone |
 | M17 | The full feature set is the scope; there is no reduced first cut | Shipping a subset first |
+| M19 | Dictation is on-device speech recognition into the composer; no audio leaves the phone | A voice conversation mode; a network speech service |
+| M20 | Camera, photo and file attachments use the instance's existing upload routes, with its limits | A separate attachment service |
+| M21 | Schedules are part of the runs feature on the phone | A separate feature |
 
 ## 4. Decisions still open
 
 | # | Decision | Recommendation | Needed by |
 |---|---|---|---|
 | O1 | Whether to include three generic server-driven layouts (list, detail, form) so a new instance capability can appear on phones without an app release | Yes, but after M5: it is new scope | After M5 |
-| O2 | The default approval timeout | Fifteen minutes, configurable per instance | M1 |
+| O2 | The default approval timeout | Fifteen minutes, configurable per instance | M1 | A phone uses the `Remote` execution mode only: sessions it starts run in the instance's sandbox. It sees, steers and approves sessions in every mode, because the instance records them all | Running the runtime on a phone |
 | O3 | The reference app's name, icon, bundle identifier and package name | From the owner | M0 |
 | O4 | Who holds the developer accounts and signing secrets for the reference app | The maintainers; each install its own | M0 |
 | O5 | Whether tablets get an adapted layout | Not in these stages; the phone layout runs on them | After M5 |

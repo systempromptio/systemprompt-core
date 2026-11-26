@@ -51,7 +51,6 @@ hashbrown = { version = "0.17" }
 hybrid-array = { version = "0.4", default-features = false, features = ["alloc", "serde", "subtle", "zeroize"] }
 hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["server-auto", "service", "tokio"] }
-idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
 inout = { version = "0.2", default-features = false, features = ["block-padding"] }
 lazy_static = { version = "1", default-features = false, features = ["spin_no_std"] }
@@ -169,7 +168,6 @@ hashbrown = { version = "0.17" }
 hybrid-array = { version = "0.4", default-features = false, features = ["alloc", "serde", "subtle", "zeroize"] }
 hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["server-auto", "service", "tokio"] }
-idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
 inout = { version = "0.2", default-features = false, features = ["block-padding"] }
 lazy_static = { version = "1", default-features = false, features = ["spin_no_std"] }

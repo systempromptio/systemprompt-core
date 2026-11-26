@@ -9,22 +9,24 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
-use validator::Validate;
 
 use super::StoredTenant;
 use crate::api_client::CloudTenantInfo;
-use crate::error::{CloudError, CloudResult};
+use crate::error::{CloudError, CloudResult, CloudStoreValidationError};
 use crate::private_dir::write_private_json;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TenantStore {
-    #[validate(nested)]
     pub tenants: Vec<StoredTenant>,
 
     pub synced_at: DateTime<Utc>,
 }
 
 impl TenantStore {
+    pub fn validate(&self) -> Result<(), CloudStoreValidationError> {
+        self.tenants.iter().try_for_each(StoredTenant::validate)
+    }
+
     #[must_use]
     pub fn new(tenants: Vec<StoredTenant>) -> Self {
         Self {

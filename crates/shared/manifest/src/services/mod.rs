@@ -79,7 +79,7 @@ pub use catalog::{
     ModelRegistry, ModelRequest, ProviderRegistry, ResolvedCatalog,
 };
 pub use enforcement::{EnforcementMode, UnknownEnforcementMode};
-pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
+pub use external_agent::{ExternalAgentConfig, ExternalAgentKind, external_agent_host};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
     BridgeBrandingSpec, BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec,
@@ -261,6 +261,10 @@ impl ServicesConfig {
 
         for (name, app) in &self.teams_apps {
             app.validate(name)?;
+        }
+
+        for (key, agent) in &self.external_agents {
+            agent.validate(key)?;
         }
 
         self.resolve_catalog(&CatalogContext::default())

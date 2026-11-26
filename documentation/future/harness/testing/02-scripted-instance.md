@@ -88,3 +88,20 @@ A script is an ordered list of turns. Each turn matches the next model request a
 ## 5. Its own tests
 
 The scripted instance is tested against the linked core wire types: a manifest it signs verifies with the production verifier; a stream it encodes decodes with the production decoder to the scripted turn. If core changes a wire type, these tests fail before any scenario does.
+
+## 6. Doubles for the three execution modes
+
+From S3 (local modes) and S4 (`Remote`) a scenario runs in each mode against the same expected trace.
+
+| Mode | What runs | What is scripted |
+|---|---|---|
+| `Unrestricted`, `Sandboxed` | The real runtime on the test machine, publishing its session to the scripted instance | The model, the verdicts, and the instance's side of publish and control |
+| `Remote` | The real runtime started by a real runner in the Linux sandbox | The model behind the real gateway pipeline; the workspace source (none, a fixture repository, a bundle) |
+
+Additional doubles:
+
+| Double | Role |
+|---|---|
+| Second client | Opens the same session mid-turn and asserts it reconstructs the same state from snapshot and deltas |
+| Flaky link | Drops the local runtime's connection mid-upload and asserts the session log resumes with no gap and no duplicate |
+| Sandbox probes | The conformance cases: write outside a root, read outside scope, reach a disallowed destination, escape the process limits, read a filtered environment variable |

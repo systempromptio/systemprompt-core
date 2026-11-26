@@ -58,7 +58,7 @@ pub use memory::MemoryPreference;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bridge::host::{HostAppKind, HostKind, HostProduct};
+use crate::bridge::host::{HostKind, HostProduct};
 
 /// The client that produced an AI request.
 ///
@@ -76,6 +76,7 @@ pub enum ClientKind {
     #[serde(rename = "opencode")]
     OpenCode,
     Hermes,
+    Harness,
     Pi,
     Other,
     Internal,
@@ -122,12 +123,13 @@ pub enum OriginParseError {
 }
 
 impl ClientKind {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::ClaudeCode,
         Self::ClaudeDesktop,
         Self::Codex,
         Self::OpenCode,
         Self::Hermes,
+        Self::Harness,
         Self::Pi,
         Self::Other,
         Self::Internal,
@@ -136,12 +138,13 @@ impl ClientKind {
 
     // Why: the vocabulary a client may declare excludes the two server-only
     // values; `other` is declarable so a client can say "nothing you know".
-    pub const DECLARABLE: [Self; 7] = [
+    pub const DECLARABLE: [Self; 8] = [
         Self::ClaudeCode,
         Self::ClaudeDesktop,
         Self::Codex,
         Self::OpenCode,
         Self::Hermes,
+        Self::Harness,
         Self::Pi,
         Self::Other,
     ];
@@ -154,6 +157,7 @@ impl ClientKind {
             Self::Codex => "codex",
             Self::OpenCode => "opencode",
             Self::Hermes => "hermes",
+            Self::Harness => "harness",
             Self::Pi => "pi",
             Self::Other => "other",
             Self::Internal => "internal",
@@ -169,6 +173,7 @@ impl ClientKind {
             Self::Codex => "Codex",
             Self::OpenCode => "OpenCode",
             Self::Hermes => "Hermes",
+            Self::Harness => "Harness",
             Self::Pi => "Pi",
             Self::Other => "API client",
             Self::Internal => "Internal",
@@ -198,6 +203,7 @@ impl ClientKind {
             Self::Codex => Some(HostProduct::Codex),
             Self::OpenCode => Some(HostProduct::OpenCode),
             Self::Hermes => Some(HostProduct::Hermes),
+            Self::Harness => Some(HostProduct::Harness),
             Self::Pi | Self::Other | Self::Internal | Self::Unknown => None,
         }
     }
@@ -212,6 +218,7 @@ impl ClientKind {
             "codex_cli_rs" => Some(Self::Codex),
             "opencode" => Some(Self::OpenCode),
             "hermes-agent" => Some(Self::Hermes),
+            "harness" => Some(Self::Harness),
             _ => None,
         }
     }
@@ -227,20 +234,6 @@ impl ClientKind {
                 (self.product(), other.product()),
                 (Some(HostProduct::Claude), Some(HostProduct::Claude))
             )
-    }
-}
-
-impl From<HostKind> for ClientKind {
-    fn from(host: HostKind) -> Self {
-        match host.product() {
-            HostProduct::Claude => match host.kind() {
-                HostAppKind::DesktopApp => Self::ClaudeDesktop,
-                HostAppKind::CliTool => Self::ClaudeCode,
-            },
-            HostProduct::Codex => Self::Codex,
-            HostProduct::OpenCode => Self::OpenCode,
-            HostProduct::Hermes => Self::Hermes,
-        }
     }
 }
 

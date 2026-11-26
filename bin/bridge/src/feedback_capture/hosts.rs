@@ -34,6 +34,7 @@ pub(super) fn roots(
         HostKind::ClaudeCode => {
             crate::integration::claude_code_cli::feedback_skill_roots(ctx.manifest, skill)
         },
+        HostKind::Harness => Vec::new(),
         HostKind::ClaudeDesktop => {
             if crate::integration::cowork_plugins::resolve_target()
                 .map_err(|error| FeedbackError::Io(std::io::Error::other(error)))?

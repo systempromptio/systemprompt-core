@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.87.0] - 2026-11-24
+
+### Breaking
+
+- `McpDomainError` gains `ExternalReauthRequired { server, message }`. Migrate an exhaustive `match` by adding the arm.
+
+### Fixed
+
+- `fetch_external_bearer`: a `401` from the token accessor is `ExternalReauthRequired` instead of `ExternalAuthUnavailable`.
+
 ## [0.82.0] - 2026-11-16
 
 ### Breaking

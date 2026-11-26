@@ -1,12 +1,12 @@
 # M3. Native apps
 
-**Goal.** A SwiftUI app and a Jetpack Compose app that draw the shared screen models, with every feature an opt-in module and navigation built from the admitted features.
+**Goal.** A SwiftUI app and a Jetpack Compose app that are drawn from the shared client state machines, with every feature an opt-in module and navigation built from the admitted features.
 
 **Entry.** M2 closed.
 
 **Specification.** `../architecture/05-native-apps.md`, `../architecture/04-shared-core-and-bindings.md` section 7.
 
-**Rule for this stage.** Every feature is two lanes, one per platform, opened together from one brief. The brief names the feature's screen model, its snapshot states (loading, empty, content, error, stale) and its actions. Both lanes draw the same snapshot and forward the same actions; neither holds state of its own. The two lanes own disjoint trees (`extensions/mobile/ios/**` and `extensions/mobile/android/**`) and never wait on each other.
+**Rule for this stage.** Every feature is two lanes, one per platform, opened together from one brief. The brief names the feature's state machine, the domain states it reports (loading, empty, content, error, stale, waiting), its actions, and the screens to draw. Both lanes draw from the same state and forward the same actions; neither holds domain state of its own, and each shapes its own screens. The two lanes own disjoint trees (`extensions/mobile/ios/**` and `extensions/mobile/android/**`) and never wait on each other.
 
 ## Wave A — app shells, two lanes, parallel
 
@@ -21,20 +21,20 @@ Serial before the rest: every later lane builds on the shell and the design comp
 
 ## Wave B — three features, six lanes
 
-| Feature | iOS lane | Android lane | Screen model |
+| Feature | iOS lane | Android lane | State machine |
 |---|---|---|---|
-| Runs | **M3-B1** `ios/Features/Runs/**` | **M3-B2** `android/feature/runs/**` | `RunsModel` |
-| Approvals | **M3-B3** `ios/Features/Approvals/**` | **M3-B4** `android/feature/approvals/**` | `ApprovalsModel`; notification actions |
-| Chat | **M3-B5** `ios/Features/Chat/**` | **M3-B6** `android/feature/chat/**` | `ChatModel` |
+| Runs | **M3-B1** `ios/Features/Runs/**` | **M3-B2** `android/feature/runs/**` | Session stream; lists; schedules |
+| Approvals | **M3-B3** `ios/Features/Approvals/**` | **M3-B4** `android/feature/approvals/**` | Approval queue; notification actions |
+| Chat | **M3-B5** `ios/Features/Chat/**` | **M3-B6** `android/feature/chat/**` | Session stream; the composer with on-device dictation, camera, photo and file attachments, and the share-into-app entry point |
 
 Six lanes exceed the cap of four: open Runs and Approvals first, Chat as lanes free up.
 
 ## Wave C — two features and assets, five lanes
 
-| Feature | iOS lane | Android lane | Screen model |
+| Feature | iOS lane | Android lane | State machine |
 |---|---|---|---|
-| Inbox | **M3-C1** `ios/Features/Inbox/**` | **M3-C2** `android/feature/inbox/**` | `InboxModel`; push registration; opening from a notification |
-| Documents and preferences | **M3-C3** `ios/Features/{Documents,Preferences}/**` | **M3-C4** `android/feature/{documents,preferences}/**` | `DocumentsModel`, `PreferencesModel` |
+| Inbox | **M3-C1** `ios/Features/Inbox/**` | **M3-C2** `android/feature/inbox/**` | Inbox; push registration; opening from a notification |
+| Documents and preferences | **M3-C3** `ios/Features/{Documents,Preferences}/**` | **M3-C4** `android/feature/{documents,preferences}/**` | Documents; preferences |
 
 | Lane | Owned paths | Work |
 |---|---|---|
@@ -57,7 +57,7 @@ Behavioural proof is M5's; this gate proves the apps build, are structured as sp
 
 1. Stage gate green.
 2. Every feature in `05-native-apps.md` section 2 exists on both platforms and is reachable when included.
-3. No networking, token handling, stream-cursor logic or screen state lives in Swift or Kotlin.
+3. No networking, token handling, stream-cursor logic or domain state lives in Swift or Kotlin.
 4. There is no administration screen.
 
 ## Decisions reserved to people

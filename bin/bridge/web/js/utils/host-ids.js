@@ -11,6 +11,7 @@ export const HOST_ID = Object.freeze({
   opencode: "opencode",
   opencodeCli: "opencode-cli",
   hermes: "hermes",
+  harness: "harness",
 });
 
 export const HOST_IDS = Object.freeze(Object.values(HOST_ID));

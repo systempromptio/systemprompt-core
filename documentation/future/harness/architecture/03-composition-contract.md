@@ -1,6 +1,6 @@
 # 03. The device composition contract
 
-Status: specification draft. The Rust below is shape, not final signatures; S3 fixes them against the `future` contract as it stands then.
+Status: specification draft. The Rust below is shape, not final signatures; S5 fixes them against the `future` contract as it stands then.
 
 ## 1. Shared machinery with the server
 
@@ -17,6 +17,8 @@ Why not a feature split of `systemprompt-extension`: cargo merges features acros
 One untangling is required: the state type currently names a database handle. That reference moves to the server side.
 
 Acceptance: `systemprompt-harness` and everything it depends on link no SQL parser, database driver or HTTP-server crate. The closure gate proves it.
+
+The engine runs in one of three typed execution modes (`11-execution-modes.md`). A member's tools are written once against the execution environment and run unchanged in all three; a member never asks which mode it is in.
 
 ## 2. The member trait
 

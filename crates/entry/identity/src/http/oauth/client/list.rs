@@ -8,7 +8,6 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
 use serde::Deserialize;
 use tracing::instrument;
-use validator::Validate;
 
 use super::super::extractors::OAuthRepo;
 use super::super::{OAuthHttpError, internal};
@@ -16,13 +15,29 @@ use super::ownership::listing_scope;
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{PaginationInfo, RequestContext};
 
-#[derive(Debug, Deserialize, Validate)]
+const STATUS_MAX_CHARS: usize = 50;
+
+#[derive(Debug, thiserror::Error)]
+#[error("status must be 1 to {STATUS_MAX_CHARS} characters, got {0}")]
+struct StatusLengthError(usize);
+
+#[derive(Debug, Deserialize)]
 pub struct ListClientsQuery {
     #[serde(flatten)]
     pub pagination: PaginationParams,
 
-    #[validate(length(min = 1, max = 50))]
     pub status: Option<String>,
+}
+
+impl ListClientsQuery {
+    fn validate(&self) -> Result<(), StatusLengthError> {
+        match self.status.as_deref().map(|status| status.chars().count()) {
+            Some(chars) if !(1..=STATUS_MAX_CHARS).contains(&chars) => {
+                Err(StatusLengthError(chars))
+            },
+            _ => Ok(()),
+        }
+    }
 }
 
 fn paginated_response<T: serde::Serialize>(items: &[T], pagination: &PaginationInfo) -> Response {

@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::gateway::model_view::{
-    HostClients, HostModelView, catalog_models, claude_models, host_client, host_model_view,
+    HostClients, HostModelView, catalog_models, claude_models, host_clients, host_model_view,
 };
 use systemprompt_bridge::gateway::types::ProviderHealth;
 use systemprompt_models::bridge::host::HostKind;
@@ -49,11 +49,30 @@ fn models_for(host: HostKind) -> Vec<String> {
 
 #[test]
 fn each_host_maps_to_its_client_family() {
-    assert_eq!(host_client(HostKind::ClaudeCode), ClientFamily::Claude);
-    assert_eq!(host_client(HostKind::ClaudeDesktop), ClientFamily::Claude);
-    assert_eq!(host_client(HostKind::CodexCli), ClientFamily::OpenAi);
-    assert_eq!(host_client(HostKind::OpenCode), ClientFamily::OpenAi);
-    assert_eq!(host_client(HostKind::Hermes), ClientFamily::OpenAi);
+    assert_eq!(host_clients(HostKind::ClaudeCode), [ClientFamily::Claude]);
+    assert_eq!(
+        host_clients(HostKind::ClaudeDesktop),
+        [ClientFamily::Claude]
+    );
+    assert_eq!(host_clients(HostKind::CodexCli), [ClientFamily::OpenAi]);
+    assert_eq!(host_clients(HostKind::OpenCode), [ClientFamily::OpenAi]);
+    assert_eq!(host_clients(HostKind::Hermes), [ClientFamily::OpenAi]);
+    assert_eq!(
+        host_clients(HostKind::Harness),
+        [ClientFamily::Claude, ClientFamily::OpenAi]
+    );
+}
+
+#[test]
+fn harness_lists_the_models_of_both_wires() {
+    let models = models_for(HostKind::Harness);
+    assert!(models.contains(&"claude-sonnet-5".to_owned()), "{models:?}");
+    assert!(
+        models_for(HostKind::CodexCli)
+            .iter()
+            .all(|model| models.contains(model)),
+        "{models:?}"
+    );
 }
 
 #[test]

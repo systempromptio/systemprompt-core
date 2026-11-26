@@ -108,17 +108,21 @@ fn render_skill(bundle: &RevisionBundle, host: EvaluatorClient, key: &str) -> Re
     };
     let instructions = systemprompt_manifest::strip_frontmatter(raw);
     let (rendered_name, passthrough) = match host {
-        EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop => (
-            key.replace('_', "-"),
-            render_passthrough_frontmatter(frontmatter.as_ref()).map_err(integrity)?,
-        ),
+        EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop | EvaluatorClient::Harness => {
+            (
+                key.replace('_', "-"),
+                render_passthrough_frontmatter(frontmatter.as_ref()).map_err(integrity)?,
+            )
+        },
         EvaluatorClient::OpenCode => (kebab_dir(key), String::new()),
         EvaluatorClient::Codex | EvaluatorClient::Hermes => (name, String::new()),
     };
     let rendered_name = serde_json::to_string(&rendered_name).map_err(integrity)?;
     let description = serde_json::to_string(&description).map_err(integrity)?;
     let instructions = match host {
-        EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop => instructions.trim(),
+        EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop | EvaluatorClient::Harness => {
+            instructions.trim()
+        },
         _ => instructions.trim_end(),
     };
     Ok(format!(

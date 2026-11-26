@@ -471,7 +471,11 @@ fn every_fixture_host_entry_carries_exactly_the_wire_key_set() {
 // `no-models.json` and `proxy-down.json` had quietly dropped `codex-cli`.
 #[test]
 fn every_fixture_lists_exactly_the_known_hosts() {
-    let mut expected: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
+    let mut expected: Vec<&str> = HostKind::ALL
+        .into_iter()
+        .filter(|kind| !systemprompt_bridge::integration::sync_only::is_unmanaged(*kind))
+        .map(HostKind::as_str)
+        .collect();
     expected.sort_unstable();
     let mut checked = 0_usize;
 

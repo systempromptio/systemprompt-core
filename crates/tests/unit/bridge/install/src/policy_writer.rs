@@ -94,6 +94,7 @@ pub(crate) fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: BTreeMap::default(),
+        host_extensions: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),

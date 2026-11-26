@@ -309,7 +309,7 @@ Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts on
 | GET | `/v1/bridge/pubkey` | Server signing public key. |
 | GET | `/v1/bridge/profile` | Bridge profile descriptor. |
 | GET | `/v1/bridge/whoami` | Identify the authenticated bridge principal. |
-| GET | `/v1/bridge/manifest` | Bridge manifest (agents, hooks, skills). |
+| GET | `/v1/bridge/manifest` | Signed bridge manifest (agents, hooks, skills, enabled hosts, per-host model protocols and extensions). |
 | POST | `/v1/bridge/profile/enabled_hosts` | Set per-host enable state. |
 | GET | `/v1/bridge/profile/usage` | Profile usage report. |
 | POST | `/v1/bridge/heartbeat` | Bridge heartbeat. |

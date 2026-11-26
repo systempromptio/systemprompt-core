@@ -80,6 +80,7 @@ pub fn native_session(
             }
         },
         EvaluatorClient::Hermes => value.get("session_id")?.as_str()?.to_owned(),
+        EvaluatorClient::Harness => return None,
     };
     if session.is_empty() || session.len() > 512 || session.chars().any(char::is_control) {
         return None;

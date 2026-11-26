@@ -11,17 +11,15 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CloudAuthToken, Email};
 use systemprompt_logging::CliService;
 use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_CONNECT_TIMEOUT};
-use validator::Validate;
 
 use crate::auth;
-use crate::error::{CloudError, CloudResult};
+use crate::error::{CloudError, CloudResult, CloudStoreValidationError};
 use crate::private_dir::write_private_json;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudCredentials {
     pub api_token: CloudAuthToken,
 
-    #[validate(url(message = "API URL must be a valid URL"))]
     pub api_url: String,
 
     pub authenticated_at: DateTime<Utc>,
@@ -58,6 +56,12 @@ impl CloudCredentials {
     #[must_use]
     pub fn expires_within(&self, duration: Duration) -> bool {
         auth::expires_within(self.token(), duration)
+    }
+
+    pub fn validate(&self) -> Result<(), CloudStoreValidationError> {
+        url::Url::parse(&self.api_url)
+            .map(|_| ())
+            .map_err(CloudStoreValidationError::InvalidApiUrl)
     }
 
     pub fn load_and_validate_from_path(path: &Path) -> CloudResult<Self> {

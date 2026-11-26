@@ -225,8 +225,8 @@ fn the_hermes_host_describes_itself_as_a_yaml_cli_tool() {
         HERMES_HOST.description()
     );
     assert_eq!(
-        systemprompt_bridge::gateway::model_view::host_client(HERMES_HOST.id()),
-        systemprompt_models::providers::ClientFamily::OpenAi,
+        systemprompt_bridge::gateway::model_view::host_clients(HERMES_HOST.id()),
+        [systemprompt_models::providers::ClientFamily::OpenAi],
         "Hermes lists the models the catalog advertises to openai clients"
     );
     assert!(HERMES_HOST.can_open(), "a desktop app can be opened");

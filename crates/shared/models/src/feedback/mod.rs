@@ -22,6 +22,7 @@ pub enum EvaluatorClient {
     Codex,
     Hermes,
     ClaudeDesktop,
+    Harness,
 }
 
 impl EvaluatorClient {
@@ -41,6 +42,7 @@ impl From<HostKind> for EvaluatorClient {
             HostProduct::Codex => Self::Codex,
             HostProduct::OpenCode => Self::OpenCode,
             HostProduct::Hermes => Self::Hermes,
+            HostProduct::Harness => Self::Harness,
         }
     }
 }

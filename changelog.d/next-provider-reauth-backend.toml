@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`router::ProxyBackendError` gains `ProviderReauthRequired`, which the API proxy answers `409` `needs_reauth`. Migrate an exhaustive `match` by adding the arm."
