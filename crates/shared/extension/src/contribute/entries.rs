@@ -98,7 +98,7 @@ impl ProvideEntry {
             } else {
                 insert_provided::<T>
             },
-            reserve: Dependencies::reserve::<T>,
+            reserve: Dependencies::withhold::<T>,
         }
     }
 

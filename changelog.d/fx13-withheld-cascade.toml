@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "Extensions"
+text = "On a child host, a provide fn that reads a value whose own provide was withheld is withheld too, transitively, instead of failing the boot with a missing dependency; a dependency nothing provides still refuses the boot."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::withhold`, `Dependencies::is_withheld`, `MissingDependency::withheld` and `MissingDependency::is_withheld`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Changed"
+text = "`From<MissingDependency> for ProvideError` maps a withheld dependency to `ProvideError::Withheld`."

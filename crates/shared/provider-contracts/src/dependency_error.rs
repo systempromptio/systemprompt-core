@@ -1,6 +1,7 @@
 //! Why a [`Dependencies`](crate::Dependencies) read or provide failed: an
-//! absent (or withheld) type ([`MissingDependency`]), or a second provider of
-//! one type ([`DuplicateDependency`]), which names both
+//! absent (or withheld) type ([`MissingDependency`], which says which: a
+//! type whose provide was withheld on this host reads as withheld), or a second
+//! provider of one type ([`DuplicateDependency`]), which names both
 //! [`DependencyProvider`]s.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -29,9 +30,18 @@ impl fmt::Display for DependencyProvider {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-#[error("provider context has no {type_name} dependency")]
+#[error("provider context has no {type_name} dependency{}", withheld_note(.withheld))]
 pub struct MissingDependency {
     type_name: &'static str,
+    withheld: bool,
+}
+
+const fn withheld_note(withheld: &bool) -> &'static str {
+    if *withheld {
+        " (withheld on this host)"
+    } else {
+        ""
+    }
 }
 
 impl MissingDependency {
@@ -39,7 +49,21 @@ impl MissingDependency {
     pub fn of<T: Any>() -> Self {
         Self {
             type_name: type_name::<T>(),
+            withheld: false,
         }
+    }
+
+    #[must_use]
+    pub fn withheld<T: Any>() -> Self {
+        Self {
+            type_name: type_name::<T>(),
+            withheld: true,
+        }
+    }
+
+    #[must_use]
+    pub const fn is_withheld(&self) -> bool {
+        self.withheld
     }
 
     #[must_use]
