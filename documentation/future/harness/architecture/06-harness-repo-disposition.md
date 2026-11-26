@@ -4,6 +4,8 @@
 
 Ref: `0839a31`. 81,661 production lines, 24,717 test lines.
 
+**The lift pins `c0eb14f`, one commit later.** It holds 30 production crates and 94,446 production lines, 30 test crates and 31,344 test lines, and 1,141 test attributes. The tables below do not yet place what that commit added: `sp-extension`, `sp-brain`, `sp-notifications`, `sp-slack`, `harness-shell`, `harness-brain-ui`, `harness-drive-ui`, `harness-notifications-ui` and `packaging/macos`. The lift manifest (lane S0-A4) recommends a destination for each; those are decisions still to take. Two placements below cannot hold under the layer gate as written: `sp-sync` depends on governance and projection, and the agent tools in `sp-drive` depend on the engine.
+
 ## 1. Summary
 
 | Destination | Lines | What |

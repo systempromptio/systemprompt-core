@@ -93,7 +93,7 @@ A second fix round is allowed. A third means a defect class was misjudged: stop 
 | Template, Linux | Formatting; gates; supply-chain checks |
 | Template's existing workflows | Unchanged and green |
 
-The combined test count equals the harness repository's at the pinned commit (942), less any test the manifest retired with a reason. A lower count without a reason fails the gate.
+The combined test count equals the harness repository's at the pinned commit (1,141 test attributes at `c0eb14f`), less any test the manifest retired with a reason. A lower count without a reason fails the gate.
 
 ## Exit criteria
 

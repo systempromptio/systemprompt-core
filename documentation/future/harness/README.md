@@ -69,7 +69,7 @@ D10 to D26 (crate list, publishing, contract placement, layout, naming, Linux, d
 
 | Stage | State |
 |---|---|
-| S0 Foundations | Not started |
+| S0 Foundations | In progress: the eight crate skeletons, the closure gate, the scripted-instance interface, the template scaffold and both inventories exist; host `harness` is on `future` with its review findings open |
 | S1 Lift | Not started |
 | S2 Parity and proof | Not started |
 | S3 Execution environment and sandbox | Not started |
