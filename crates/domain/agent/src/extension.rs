@@ -103,39 +103,43 @@ impl Extension for AgentExtension {
                 )))
             },
         );
-        c.user_purge(UserPurgeTable {
-            table: "agent_tasks",
-            column: "user_id",
-            predicate: None,
-        });
-        c.user_purge(UserPurgeTable {
-            table: "task_messages",
-            column: "user_id",
-            predicate: None,
-        });
-        c.owner_reassignment(OwnerReassignment {
-            table: "user_contexts",
-            column: "user_id",
-            action: ReassignAction::Update {
-                touch: Some("updated_at"),
-                keep_target_on: &[],
-            },
-        });
-        c.owner_reassignment(OwnerReassignment {
-            table: "agent_tasks",
-            column: "user_id",
-            action: ReassignAction::Update {
-                touch: Some("updated_at"),
-                keep_target_on: &[],
-            },
-        });
-        c.owner_reassignment(OwnerReassignment {
-            table: "task_messages",
-            column: "user_id",
-            action: ReassignAction::UPDATE,
-        });
+        contribute_user_lifecycle(c);
         Ok(())
     }
+}
+
+fn contribute_user_lifecycle(c: &mut Contributions<'_>) {
+    c.user_purge(UserPurgeTable {
+        table: "agent_tasks",
+        column: "user_id",
+        predicate: None,
+    });
+    c.user_purge(UserPurgeTable {
+        table: "task_messages",
+        column: "user_id",
+        predicate: None,
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "user_contexts",
+        column: "user_id",
+        action: ReassignAction::Update {
+            touch: Some("updated_at"),
+            keep_target_on: &[],
+        },
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "agent_tasks",
+        column: "user_id",
+        action: ReassignAction::Update {
+            touch: Some("updated_at"),
+            keep_target_on: &[],
+        },
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "task_messages",
+        column: "user_id",
+        action: ReassignAction::UPDATE,
+    });
 }
 
 struct StoredSecretPresence(Arc<dyn SecretStore>);

@@ -43,9 +43,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::ProjectionDrain;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::projection::kernel::BackfillRollups;
-use systemprompt_extension::ProjectionDrain;
 
 use crate::repository::ContentAudienceRepository;
 use systemprompt_traits::usage_reports::content::DynContentAudienceCounts;
@@ -127,20 +127,9 @@ impl Extension for AnalyticsExtension {
             .job(BehavioralAnalysisJob)
             .job(MaliciousIpBlacklistJob)
             .job(LinkFactsRollupJob)
-            .projection::<BackfillRollups>(ProjectionDrain {
-                projection: "content_engagement_rollup_hourly",
-                projector: "refresh_content_engagement_rollup_hourly",
-                batch: ROLLUP_BATCH,
-                budget: ROLLUP_BUDGET,
-            })
-            .projection::<BackfillRollups>(ProjectionDrain {
-                projection: "analytics_page_view_rollup_hourly",
-                projector: "refresh_analytics_page_view_rollup_hourly",
-                batch: ROLLUP_BATCH,
-                budget: ROLLUP_BUDGET,
-            })
             .retention(RetentionDecl::Purge(Arc::new(EngagementEventsPurge)))
             .retention(RetentionDecl::Purge(Arc::new(FingerprintReputationPurge)));
+        contribute_rollups(c);
         c.owner_reassignment(OwnerReassignment {
             table: "engagement_events",
             column: "user_id",
@@ -160,6 +149,21 @@ impl Extension for AnalyticsExtension {
         });
         Ok(())
     }
+}
+
+fn contribute_rollups(c: &mut Contributions<'_>) {
+    c.projection::<BackfillRollups>(ProjectionDrain {
+        projection: "content_engagement_rollup_hourly",
+        projector: "refresh_content_engagement_rollup_hourly",
+        batch: ROLLUP_BATCH,
+        budget: ROLLUP_BUDGET,
+    })
+    .projection::<BackfillRollups>(ProjectionDrain {
+        projection: "analytics_page_view_rollup_hourly",
+        projector: "refresh_analytics_page_view_rollup_hourly",
+        batch: ROLLUP_BATCH,
+        budget: ROLLUP_BUDGET,
+    });
 }
 
 fn schemas() -> Vec<SchemaDefinition> {

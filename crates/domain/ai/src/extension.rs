@@ -116,39 +116,43 @@ impl Extension for AiExtension {
             .provide_sealed_after_governance(crate::provides::inference);
         contribute_usage_reports(c);
         crate::jobs::contribute(c);
-        c.user_purge(UserPurgeTable {
-            table: "ai_requests",
-            column: "user_id",
-            predicate: None,
-        });
-        c.owner_reassignment(OwnerReassignment {
-            table: "ai_requests",
-            column: "user_id",
-            action: ReassignAction::Update {
-                touch: Some("updated_at"),
-                keep_target_on: &[],
-            },
-        });
-        c.owner_reassignment(OwnerReassignment {
-            table: "ai_quota_buckets",
-            column: "subject_id",
-            action: ReassignAction::Delete {
-                predicate: Some(PurgePredicate {
-                    column: "subject_kind",
-                    any_of: &["user"],
-                }),
-            },
-        });
-        c.owner_reassignment(OwnerReassignment {
-            table: "ai_gateway_thought_signatures",
-            column: "user_id",
-            action: ReassignAction::Update {
-                touch: None,
-                keep_target_on: &["conversation_id", "tool_use_id"],
-            },
-        });
+        contribute_user_lifecycle(c);
         Ok(())
     }
+}
+
+fn contribute_user_lifecycle(c: &mut Contributions<'_>) {
+    c.user_purge(UserPurgeTable {
+        table: "ai_requests",
+        column: "user_id",
+        predicate: None,
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "ai_requests",
+        column: "user_id",
+        action: ReassignAction::Update {
+            touch: Some("updated_at"),
+            keep_target_on: &[],
+        },
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "ai_quota_buckets",
+        column: "subject_id",
+        action: ReassignAction::Delete {
+            predicate: Some(PurgePredicate {
+                column: "subject_kind",
+                any_of: &["user"],
+            }),
+        },
+    });
+    c.owner_reassignment(OwnerReassignment {
+        table: "ai_gateway_thought_signatures",
+        column: "user_id",
+        action: ReassignAction::Update {
+            touch: None,
+            keep_target_on: &["conversation_id", "tool_use_id"],
+        },
+    });
 }
 
 fn contribute_usage_reports(c: &mut Contributions<'_>) {

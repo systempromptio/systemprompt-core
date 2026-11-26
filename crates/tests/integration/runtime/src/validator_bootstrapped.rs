@@ -1,9 +1,9 @@
 //! Drives `StartupValidator::validate` past the services-config early-bail
 //! using the process-wide bootstrap fixture, so the domain-validator,
 //! MCP-manifest, and extension passes actually execute. The member domain
-//! validators reach the pass the way a composed member registers them. The sibling
-//! `validator.rs` covers only the uninitialised-profile bail; this module
-//! covers the initialised happy path.
+//! validators reach the pass the way a composed member registers them. The
+//! sibling `validator.rs` covers only the uninitialised-profile bail; this
+//! module covers the initialised happy path.
 
 use std::sync::Mutex;
 

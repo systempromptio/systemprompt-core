@@ -49,8 +49,8 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_security::credential::TokenCache;
-use systemprompt_traits::usage_reports::mcp::DynToolUsageReport;
 use systemprompt_security::keys::VerificationKeyring;
+use systemprompt_traits::usage_reports::mcp::DynToolUsageReport;
 use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
     SecretLookup, ToolProvider,
