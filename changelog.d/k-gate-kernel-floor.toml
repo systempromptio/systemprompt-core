@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Build"
+text = "`just lint-kernel-deps` judges the transitive closure of every `kernel` package of `scripts/units.txt` (optional dependencies included; the facade with the features of the `floor` line of `scripts/build-compositions.txt`) and fails on any capability package, printing the shortest path. `scripts/compositions.sh` builds every composition, boots and checks the member set of each `boot` line, records workspace, total and capability crate counts per line in the build report, and fails when the `floor` line links a capability crate; the CI Compositions job runs it. `systemprompt-identity-entry` is the `capability:identity` unit and `systemprompt-scheduler` is listed with the kernel."

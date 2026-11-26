@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Build report: per supported composition (a facade feature set of the
 # `systemprompt` crate, listed in scripts/build-compositions.txt) it
-# reports the crate closure and, unless --closure-only, the stripped release
+# reports the crate closure (total packages, workspace packages, and the
+# capability-unit packages of scripts/units.txt among them) and, unless
+# --closure-only, the stripped release
 # binary size. The composition marked `largest` also gets `cargo bloat --crates`
 # and `cargo build --timings`. A measurement, never a gate.
 #
@@ -57,7 +59,7 @@ while [ "$#" -gt 0 ]; do
         --units) units_mode=true ;;
         --offline) offline=(--offline) ;;
         --only) only="${2:?--only needs a composition name}"; shift ;;
-        -h|--help) sed -n '2,42p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,44p' "$0"; exit 0 ;;
         -*) echo "unknown flag: $1" >&2; exit 2 ;;
         *) out="$1" ;;
     esac
@@ -229,6 +231,7 @@ for row in "${rows[@]}"; do
     host_meta="$(cd "$dir" && cargo metadata "${offline[@]}" --format-version 1 --filter-platform "$host")"
     check_lock "$dir" "$pkg"
     read -r packages members < <(python3 -B "$root/scripts/lib/cargo_graph.py" closure <<<"$host_meta")
+    capabilities="$(python3 -B "$root/scripts/lib/cargo_graph.py" capabilities "$root/scripts/units.txt" <<<"$host_meta" | jq -Rsc 'split("\n") | map(select(length > 0))')"
 
     size=null
     if ! $closure_only; then
@@ -255,9 +258,11 @@ for row in "${rows[@]}"; do
 
     results="$(jq -c --arg n "$name" --arg f "$features" --arg l "${flag:-}" \
         --argjson p "$packages" --argjson m "$members" --argjson a "$all_platforms" --argjson s "$size" \
-        --argjson d "$loop" \
+        --argjson d "$loop" --argjson k "$capabilities" --arg fl "${flags:-}" \
         '. + [{name: $n, features: ($f | split(",")), largest: ($l == "largest"),
-               packages: $p, workspace_packages: $m, all_platform_packages: $a, stripped_bytes: $s,
+               flags: ($fl | split(",") | map(select(length > 0))),
+               packages: $p, workspace_packages: $m, capability_packages: $k,
+               all_platform_packages: $a, stripped_bytes: $s,
                dev_loop: $d}]' <<<"$results")"
 done
 
@@ -268,11 +273,11 @@ jq -n --arg rev "$rev" --argjson closure_only "$closure_only" --argjson c "$resu
 {
     echo "# Build report ($rev)"
     echo
-    echo "Packages: resolved normal+build closure for the host target, excluding the composition crate. Workspace: path packages from this repository. All platforms: \`cargo metadata\` resolve nodes for every target."
+    echo "Packages: resolved normal+build closure for the host target, excluding the composition crate. Workspace: path packages from this repository. Capability: the workspace packages whose unit in scripts/units.txt is \`capability:*\`. All platforms: \`cargo metadata\` resolve nodes for every target."
     echo
-    echo "| Composition | Features | Packages | Workspace | All platforms | Stripped binary |"
-    echo "|---|---|---:|---:|---:|---:|"
-    jq -r '.compositions[] | "| \(.name)\(if .largest then " (largest)" else "" end) | `\(.features | join(","))` | \(.packages) | \(.workspace_packages) | \(.all_platform_packages) | \(if .stripped_bytes == null then "n/a" else "\(.stripped_bytes / 1048576 * 10 | round / 10) MiB" end) |"' "$json"
+    echo "| Composition | Features | Packages | Workspace | Capability | All platforms | Stripped binary |"
+    echo "|---|---|---:|---:|---:|---:|---:|"
+    jq -r '.compositions[] | "| \(.name)\(if .largest then " (largest)" else "" end) | `\(.features | join(","))` | \(.packages) | \(.workspace_packages) | \(.capability_packages | length) | \(.all_platform_packages) | \(if .stripped_bytes == null then "n/a" else "\(.stripped_bytes / 1048576 * 10 | round / 10) MiB" end) |"' "$json"
     if $dev_loop; then
         echo
         echo "## Developer loop"
@@ -283,6 +288,12 @@ jq -n --arg rev "$rev" --argjson closure_only "$closure_only" --argjson c "$resu
         echo "|---|---:|---:|---:|---:|"
         jq -r '.compositions[] | select(.dev_loop != null) | "| \(.name) | \(.dev_loop.check_clean_seconds) | \(.dev_loop.check_touched_seconds) | \(.dev_loop.clippy_clean_seconds) | \(.dev_loop.clippy_touched_seconds) |"' "$json"
     fi
+    echo
+    echo "## Capability crates per composition"
+    echo
+    echo "| Composition | Capability crates in the closure |"
+    echo "|---|---|"
+    jq -r '.compositions[] | "| \(.name) | \(if (.capability_packages | length) == 0 then "none" else (.capability_packages | join(", ")) end) |"' "$json"
     if [ -n "$bloat_md" ]; then
         echo
         echo "## cargo bloat --crates (largest composition)"

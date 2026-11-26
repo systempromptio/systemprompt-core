@@ -68,6 +68,18 @@ class Closure(unittest.TestCase):
                                 input=json.dumps(METADATA), capture_output=True, text=True, check=True)
         self.assertEqual(result.stdout.split(), ["4", "1"])
 
+    def test_capability_packages_are_the_capability_path_packages(self):
+        metadata = json.loads(json.dumps(METADATA))
+        metadata["packages"] = [dict(p, name=p["id"]) for p in metadata["packages"]]
+        closure = cargo_graph.resolved_closure(metadata)
+        units = {"facade": "capability:files", "serde": "capability:gateway"}
+        self.assertEqual(cargo_graph.capability_packages(metadata, closure, units), ["facade"])
+
+    def test_report_records_capability_packages(self):
+        text = (ROOT / "scripts" / "build-report.sh").read_text()
+        self.assertIn("cargo_graph.py\" capabilities", text)
+        self.assertIn("capability_packages", text)
+
     def test_report_reads_the_closure_from_the_resolve(self):
         text = (ROOT / "scripts" / "build-report.sh").read_text()
         self.assertIn("cargo_graph.py\" closure", text)

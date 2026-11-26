@@ -219,7 +219,9 @@ jobs:
   # `systemprompt` binary and runs `systemprompt --help`, which declares every
   # member and builds the command tree before any profile is read, and compares
   # the member ids its reference composition declares (the facade's `members`
-  # example) with scripts/composition-members.txt. A feature set not in that
+  # example) with scripts/composition-members.txt; the line flagged `floor`
+  # links no capability-unit crate (scripts/units.txt). scripts/compositions.sh
+  # is the whole job, the same script run locally. A feature set not in that
   # file is unsupported.
   compositions:
     name: Compositions
@@ -234,31 +236,9 @@ jobs:
       - run: rustup show
       - uses: ./.github/actions/sccache
       - name: Build and boot every supported composition
-        run: |
-          mapfile -t rows < <(grep -vE '^\s*(#|$)' scripts/build-compositions.txt)
-          [ "${#rows[@]}" -gt 0 ] || { echo "::error::scripts/build-compositions.txt lists no composition"; exit 1; }
-          for row in "${rows[@]}"; do
-            read -r name features flags <<<"$row"
-            echo "::group::$name ($features)"
-            case ",${flags:-}," in
-              *,boot,*)
-                cargo build -p systemprompt --no-default-features --features "$features" --bin systemprompt --locked
-                ./target/debug/systemprompt --help >/dev/null
-                expected=$(awk -v name="$name" '$1 == name { print $2 }' scripts/composition-members.txt)
-                [ -n "$expected" ] || { echo "::error::scripts/composition-members.txt lists no members for $name"; exit 1; }
-                actual=$(cargo run -q -p systemprompt --no-default-features --features "$features" --example members --locked | paste -sd, -)
-                if [ "$actual" != "$expected" ]; then
-                  echo "::error::$name declares members other than scripts/composition-members.txt lists"
-                  diff <(tr , '\n' <<<"$expected") <(tr , '\n' <<<"$actual") || true
-                  exit 1
-                fi
-                ;;
-              *)
-                cargo build -p systemprompt --no-default-features --features "$features" --lib --locked
-                ;;
-            esac
-            echo "::endgroup::"
-          done
+        run: bash scripts/compositions.sh target/build-report/compositions.md
+      - if: always()
+        run: cat target/build-report/compositions.md >> "$GITHUB_STEP_SUMMARY" || true
       - if: env.RUSTC_WRAPPER == 'sccache'
         run: sccache --show-stats
 

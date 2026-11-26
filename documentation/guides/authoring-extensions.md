@@ -300,6 +300,21 @@ The schema installer separately refuses, before any DDL, a pending migration of 
 
 These rules bound what a member can **declare**, and what its **commands** can read. They are not a sandbox: an install member is Rust code linked into the same process, with the same memory and system access as core.
 
+## The kernel floor
+
+The kernel is the set of crates every build links: the shared and infra foundations, `systemprompt-users`, `systemprompt-oauth`, `systemprompt-oauth-issuance`, `systemprompt-runtime`, `systemprompt-scheduler`, `systemprompt-mcp-host`, `systemprompt-api`, `systemprompt-cli` and the `systemprompt` facade built with `core,runtime`. Everything else is a capability: the AI gateway, files and documents, agents and agent runs, MCP servers, content, analytics, marketplace, notifications, brain, cloud, identity, Slack, Teams and the bridge. `scripts/units.txt` names the unit of every package.
+
+The floor rule: **no kernel crate depends on a capability crate, directly or transitively**, and an optional dependency is still a dependency. `just lint-kernel-deps` walks the closure of every kernel package's normal and build dependencies and fails on the first capability package it reaches, printing the shortest path (`systemprompt-api -> systemprompt-gateway -> systemprompt-ai`). The facade is judged with the features of the composition flagged `floor` in `scripts/build-compositions.txt`; its other optional dependencies are how capability features select members. The composition proof (`scripts/compositions.sh`, the CI Compositions job) checks the same rule on the resolved closure of that build.
+
+So a capability is never something the kernel calls by name. It contributes:
+
+- its behaviour as a member, added by its facade feature (`reference()` lists it only when the feature is on);
+- the values the kernel or another member reads, through `c.provide`, behind a trait in a shared-layer crate (`systemprompt-traits`, `systemprompt-provider-contracts`, `systemprompt-extension`), never a concrete type from the capability crate;
+- its routes as a route set, its commands as command declarations, and its tools as a toolset or tool provider;
+- an entry in a slot the kernel owns (`c.slot::<S>()`), where the kernel builds the slot from whatever entries the composition admits.
+
+A kernel path that needs a capability reads the provided trait object with `r.optional::<T>()` or the slot, and when the member is absent it refuses with a typed error naming the missing member (an error variant, a fixed-code 404 or 503, or a boot refusal), never a silent empty result. A new capability therefore needs no kernel change: add its crate, give it a unit row in `scripts/units.txt`, a facade feature and, for each supported build that links it, a line in `scripts/build-compositions.txt` and `scripts/composition-members.txt`.
+
 ## Composing the binary
 
 The binary's `main` is the composition:
