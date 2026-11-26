@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`admin secrets reseal` finds the owner the installer recorded for each declared table (schema-qualified, `public` by default) instead of refusing every table as recorded to no member, and a report that leaves values to re-seal exits non-zero."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`ResealStore::new` takes the target `SchemaName`; the owner lookup qualifies the declared table with it and every read and write names `\"schema\".\"table\"`."
