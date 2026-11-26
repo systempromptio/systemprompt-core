@@ -2,9 +2,11 @@
 //!
 //! The static router owns the tree's fallback, so it is layered whole: its
 //! protection covers `/` and every page and file the fallback serves. When the
-//! composition admits a site fallback, that fallback is the tree's instead
-//! (public policy only, reserved paths refused), and the static router keeps
-//! its routes alone under its own protection.
+//! composition admits a site fallback, static content still answers first and
+//! the site fallback (public policy only, reserved paths refused) answers what
+//! static content misses: `/` is the homepage when the web dist holds
+//! `index.html` and the fallback's otherwise, a page or file with nothing in
+//! the dist is the fallback's, and core's API paths keep their JSON `404`.
 //!
 //! The static router is a public declaration; when an extension declares a
 //! `SiteAuthConfig`, it also carries the `SiteAuth` protection layer, which
@@ -26,7 +28,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::services::middleware::{
-    MountError, MountLayers, RootFallback, protect, protect_root_fallback, protect_site_fallback,
+    MountError, MountLayers, RootFallback, protect_root_fallback, protect_site_fallback,
 };
 use crate::services::static_content::{
     StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
@@ -82,13 +84,10 @@ pub(super) fn build_static_router(
         route_classifier: Arc::clone(state.get::<Arc<systemprompt_models::RouteClassifier>>()?),
     };
 
-    let static_router = Router::new().route("/", get(serve_homepage));
-    let static_router = if site_fallback.is_some() {
-        static_router
-    } else {
-        static_router.fallback(smart_fallback_handler)
-    }
-    .with_state(static_state);
+    let static_router = Router::new()
+        .route("/", get(serve_homepage))
+        .fallback(smart_fallback_handler)
+        .with_state(static_state);
 
     let mut protection = RouteProtection::new(AuthzPolicy::public(), ContextKind::Public);
     if layers.guards.site_auth.is_some() {
@@ -119,13 +118,9 @@ fn owned_fallback(
     layers: &MountLayers,
     site_fallback: Option<Router>,
 ) -> Result<RootFallback, MountError> {
+    let statics = protect_root_fallback(static_router, protection, layers, RouteGroup::Static)?;
     match site_fallback {
-        Some(fallback) => Ok(protect_site_fallback(fallback, layers)?.beside(protect(
-            static_router,
-            protection,
-            layers,
-            systemprompt_extension::reserved::WEB_ROOT_BASE_PATH,
-        )?)),
-        None => protect_root_fallback(static_router, protection, layers, RouteGroup::Static),
+        Some(fallback) => Ok(protect_site_fallback(fallback, layers)?.behind(statics)),
+        None => Ok(statics),
     }
 }

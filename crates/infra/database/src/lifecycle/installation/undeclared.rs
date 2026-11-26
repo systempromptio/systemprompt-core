@@ -135,11 +135,7 @@ fn as_count(value: &serde_json::Value) -> i64 {
 }
 
 pub(super) fn qualify(table: &str) -> String {
-    if table.contains('.') {
-        table.to_owned()
-    } else {
-        format!("public.{table}")
-    }
+    SchemaName::public().qualify(table)
 }
 
 // Why: `extension_migrations` itself is core's ledger and `_sqlx_migrations`

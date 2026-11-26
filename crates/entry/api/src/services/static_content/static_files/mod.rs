@@ -30,6 +30,7 @@ use systemprompt_traits::DynContentCatalogStats;
 
 use super::config::StaticContentMatcher;
 use cache::serve_cached_file;
+pub(crate) use responses::missed;
 use responses::{not_found_response, not_prerendered_response};
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_models::{RouteClassifier, RouteType};
@@ -137,7 +138,7 @@ async fn serve_static_asset(
             )
             .await;
         }
-        return ApiHttpError::not_found("Asset not found").into_response();
+        return missed(ApiHttpError::not_found("Asset not found"));
     };
 
     stored::serve_files_path(
@@ -163,7 +164,7 @@ async fn serve_metadata_file(
     let trimmed_path = path.trim_start_matches('/');
     let file_path = dist_dir.join(trimmed_path);
     if !file_path.exists() {
-        return ApiHttpError::not_found("File not found").into_response();
+        return missed(ApiHttpError::not_found("File not found"));
     }
 
     let mime_type = if path == "/feed.xml" {

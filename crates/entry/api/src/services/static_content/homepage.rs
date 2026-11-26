@@ -12,7 +12,7 @@ use std::sync::Arc;
 use systemprompt_config::AppPaths;
 use systemprompt_models::api::ApiError;
 
-use super::static_files::{CACHE_HTML, StaticContentState, compute_etag};
+use super::static_files::{CACHE_HTML, StaticContentState, compute_etag, missed};
 use crate::error::ApiHttpError;
 
 pub async fn serve_homepage(
@@ -63,10 +63,9 @@ pub async fn serve_homepage(
         }
     }
 
-    (
+    missed((
         StatusCode::NOT_FOUND,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_owned())],
         "Homepage not found - index.html missing from web distribution".to_owned(),
-    )
-        .into_response()
+    ))
 }

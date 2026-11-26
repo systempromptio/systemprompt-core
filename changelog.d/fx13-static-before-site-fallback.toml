@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "API"
+text = "With a site fallback admitted, static web content (pages, assets, sitemap, feeds, `llms.txt`, `robots.txt`, the homepage) is still served; the fallback answers only what static content misses and every non-`GET`/`HEAD` request, and never a reserved path."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`RootFallback::beside` is replaced by `RootFallback::behind`, and a static miss carries the `StaticMiss` response extension."

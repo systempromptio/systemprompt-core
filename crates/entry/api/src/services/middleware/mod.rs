@@ -46,9 +46,9 @@ pub use jwt::{JwtContextExtractor, JwtUserContext};
 pub use mount::{
     ClientWritesGuard, DEFAULT_BODY_LIMIT_BYTES, KernelRoutes, MountError, MountLayers,
     MountedGatewayRoute, ProtectionGuards, RootFallback, RootFallbackOwner, SITE_FALLBACK_RATE,
-    SiteAuthGuard, gateway_protection, gateway_routes, mount, mount_admitted, path_under, place,
-    protect, protect_root_fallback, protect_site_fallback, protection_of, recheck,
-    site_fallback_protection,
+    SiteAuthGuard, StaticMiss, gateway_protection, gateway_routes, mount, mount_admitted,
+    path_under, place, protect, protect_root_fallback, protect_site_fallback, protection_of,
+    recheck, site_fallback_protection,
 };
 pub use panic_fence::panic_fence;
 pub use rate_limit::{

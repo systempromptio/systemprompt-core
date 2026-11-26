@@ -6,6 +6,8 @@
 //! cipher and no longer under the raw scheme. Core's own columns (the `TEXT`
 //! hex layout) move the same way, and a value core seals now can neither be
 //! opened under the raw scheme nor be re-sealed into an install's cipher.
+//! Every column the core members declare is recorded to its member by the
+//! real installer, and is refused for any other member.
 
 use std::sync::Arc;
 
@@ -15,12 +17,13 @@ use sqlx::{PgPool, Row};
 use systemprompt_cli::commands::admin::secrets::reseal::{
     ColumnReport, ResealCiphers, RowState, check_recorded_owner, reseal_column,
 };
+use systemprompt_database::SchemaName;
 use systemprompt_database::admin::{ResealStore, SealedRow};
-use systemprompt_extension::{ResealColumn, SealedLayout};
+use systemprompt_extension::{AdmittedReseals, ResealColumn, SealedLayout};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_security::at_rest::{AtRestCipher, AtRestCipherError, pre_088};
 use systemprompt_security::conferred::MemberCiphers;
-use systemprompt_test_fixtures::{ScratchSchema, master_key_of};
+use systemprompt_test_fixtures::{DisposableDb, ScratchSchema, master_key_of, schema_admitted};
 use systemprompt_traits::{ConferralIssuer, MEMBER_CIPHER_ENVELOPE, MemberCipher, MemberGrant};
 
 const MASTER: [u8; 32] = [7; 32];
@@ -122,7 +125,7 @@ async fn a_member_column_is_resealed_once_and_reported() {
     let schema = ScratchSchema::create("reseal").await;
     let pool = schema.pool(2).await;
     seeded(&pool).await;
-    let store = ResealStore::new(Arc::new(pool.clone()));
+    let store = ResealStore::new(Arc::new(pool.clone()), schema.schema_name());
     let member = ExtensionId::new("acme");
     let ciphers = ResealCiphers::new(master_key_of(MASTER), &member).expect("ciphers");
 
@@ -183,7 +186,7 @@ async fn a_core_text_column_is_resealed_under_the_core_members_cipher() {
         .execute(&pool)
         .await
         .expect("seed a pre-0.88 core value");
-    let store = ResealStore::new(Arc::new(pool.clone()));
+    let store = ResealStore::new(Arc::new(pool.clone()), schema.schema_name());
     let ai = ExtensionId::new("ai");
     let ciphers = ResealCiphers::new(master_key_of(MASTER), &ai).expect("ciphers");
     let applied = reseal_column(&store, &CORE_COLUMN, &ciphers, true)
@@ -273,46 +276,41 @@ fn another_members_cipher_does_not_recognise_the_envelope() {
 }
 
 #[tokio::test]
-async fn a_table_not_recorded_to_the_member_is_refused() {
-    let schema = ScratchSchema::create("resealown").await;
-    let pool = schema.pool(2).await;
-    sqlx::query(
-        "CREATE TABLE schema_table_owners (table_name TEXT PRIMARY KEY, extension_id TEXT NOT \
-         NULL, standing TEXT NOT NULL)",
-    )
-    .execute(&pool)
-    .await
-    .expect("an owners table in the scratch schema");
-    sqlx::query(
-        "INSERT INTO schema_table_owners VALUES ('reseal_credentials', 'acme', 'install'), \
-         ('reseal_core_keys', 'ai', 'core')",
-    )
-    .execute(&pool)
-    .await
-    .expect("record owners");
-    let store = ResealStore::new(Arc::new(pool));
-    check_recorded_owner(&store, &COLUMN, &ExtensionId::new("acme"))
-        .await
-        .expect("the recorded owner reseals");
-    for (column, member) in [
-        (&COLUMN, "globex"),
-        (&CORE_COLUMN, "acme"),
-        (
-            &ResealColumn {
-                table: "unrecorded_table",
-                ..COLUMN
-            },
-            "acme",
-        ),
-    ] {
-        assert!(
-            check_recorded_owner(&store, column, &ExtensionId::new(member))
+async fn every_declared_column_is_recorded_to_its_member_by_the_installer() {
+    let database = DisposableDb::with_schema("resealown").await;
+    let pool = database.test_pool().await;
+    let store = ResealStore::new(pool.write_pool(), SchemaName::public());
+    let admitted = schema_admitted().expect("core members");
+    let reseals = AdmittedReseals::of(admitted.built()).expect("admitted reseal columns");
+    let members: Vec<ExtensionId> = reseals.members().into_iter().cloned().collect();
+    assert!(!members.is_empty(), "core members declare re-seal columns");
+    for member in &members {
+        for column in reseals.of_member(member) {
+            check_recorded_owner(&store, column, member)
                 .await
-                .is_err(),
-            "{} is not {member}'s",
-            column.table
-        );
+                .unwrap_or_else(|e| panic!("{} is {member}'s: {e:#}", column.table));
+            assert!(
+                check_recorded_owner(&store, column, &ExtensionId::new("globex"))
+                    .await
+                    .is_err(),
+                "{} is not globex's",
+                column.table
+            );
+        }
     }
+    let unrecorded = ResealColumn {
+        table: "unrecorded_table",
+        ..COLUMN
+    };
+    assert!(
+        check_recorded_owner(&store, &unrecorded, &members[0])
+            .await
+            .is_err(),
+        "a table no member declares is refused"
+    );
+    drop(store);
+    drop(pool);
+    database.drop_now().await;
 }
 
 #[tokio::test]
@@ -336,7 +334,7 @@ async fn a_row_with_a_null_key_is_resealed_by_its_key_and_its_ciphertext() {
             .await
             .expect("seed");
     }
-    let store = ResealStore::new(Arc::new(pool.clone()));
+    let store = ResealStore::new(Arc::new(pool.clone()), schema.schema_name());
     let ciphers =
         ResealCiphers::new(master_key_of(MASTER), &ExtensionId::new("acme")).expect("ciphers");
     let applied = reseal_column(&store, &COLUMN, &ciphers, true)
@@ -388,7 +386,7 @@ async fn a_null_keyed_row_whose_nonce_changed_is_not_written() {
         .execute(&pool)
         .await
         .expect("seed");
-    let store = ResealStore::new(Arc::new(pool.clone()));
+    let store = ResealStore::new(Arc::new(pool.clone()), schema.schema_name());
     let target = systemprompt_database::admin::ResealTable::new(
         COLUMN.table,
         COLUMN.keys,

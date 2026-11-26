@@ -43,8 +43,8 @@
 //! [`MountLayers::body_ceiling`] (the profile's `server.max_route_body_bytes`)
 //! in the enumerating mount.
 //!
-//! The composition's site fallback ([`protect_site_fallback`]) takes the
-//! tree's one fallback in place of the static group's: public policy, public
+//! The composition's site fallback ([`protect_site_fallback`]) answers what
+//! static content misses ([`RootFallback::behind`]): public policy, public
 //! context and [`SITE_FALLBACK_RATE`] only (no authenticated context, no sealed
 //! state), behind the site-auth layer when a member declares site auth
 //! ([`site_fallback_protection`]), layered whole, and answering `404`
@@ -78,7 +78,9 @@ pub use error::MountError;
 pub use guards::{ClientWritesGuard, ProtectionGuards, SiteAuthGuard};
 pub use kernel_routes::{KernelRoutes, gateway_protection, path_under};
 pub use recheck::recheck;
-pub use site_fallback::{SITE_FALLBACK_RATE, protect_site_fallback, site_fallback_protection};
+pub use site_fallback::{
+    SITE_FALLBACK_RATE, StaticMiss, protect_site_fallback, site_fallback_protection,
+};
 
 use std::sync::Arc;
 

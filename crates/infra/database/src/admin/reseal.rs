@@ -14,7 +14,10 @@
 //! the compare-and-swap matches the row it read, and only a row still holding
 //! the ciphertext (and nonce) that was read is written.
 //! [`ResealStore::recorded_owner`] reads the member the installer recorded for
-//! a table.
+//! a table. The store targets one [`SchemaName`]: a declared table is named
+//! by that schema everywhere, qualified the way the installer records it
+//! ([`SchemaName::qualify`]) when the owner record is read and rendered
+//! `"schema"."table"` in every read and write.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +27,7 @@ use std::sync::Arc;
 use sqlx::{PgPool, Row};
 
 use super::identifier::{IdentifierError, SafeIdentifier};
+use crate::lifecycle::SchemaName;
 
 /// One declared ciphertext column, its table and the key that names a row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,19 +127,20 @@ pub struct Replacement<'a> {
 #[derive(Debug, Clone)]
 pub struct ResealStore {
     pool: Arc<PgPool>,
+    schema: SchemaName,
 }
 
 impl ResealStore {
     #[must_use]
-    pub const fn new(pool: Arc<PgPool>) -> Self {
-        Self { pool }
+    pub const fn new(pool: Arc<PgPool>, schema: SchemaName) -> Self {
+        Self { pool, schema }
     }
 
     pub async fn recorded_owner(&self, table: &str) -> Result<Option<String>, sqlx::Error> {
         sqlx::query_scalar(sqlx::AssertSqlSafe(
             "SELECT extension_id FROM schema_table_owners WHERE table_name = $1",
         ))
-        .bind(table)
+        .bind(self.schema.qualify(table))
         .fetch_optional(self.pool.as_ref())
         .await
     }
@@ -152,7 +157,7 @@ impl ResealStore {
              WHERE $1::text[] IS NULL OR {keys} > $1::text[] ORDER BY {keys} LIMIT $2",
             ciphertext = target.read_ciphertext(),
             nonce = target.read_nonce(),
-            table = target.table.quoted(),
+            table = self.relation(target),
         );
         let rows = sqlx::query(sqlx::AssertSqlSafe(sql.as_str()))
             .bind(after.map(<[Option<String>]>::to_vec))
@@ -178,7 +183,7 @@ impl ResealStore {
         let sql = format!(
             "UPDATE {table} SET {ciphertext} = {new} WHERE {keys} = $2::text[] AND {ciphertext} = \
              {old} AND {nonce} = $4",
-            table = target.table.quoted(),
+            table = self.relation(target),
             ciphertext = target.ciphertext.quoted(),
             new = target.write_value("$1"),
             old = target.write_value("$3"),
@@ -199,5 +204,9 @@ impl ResealStore {
         }
         tx.commit().await?;
         Ok(written)
+    }
+
+    fn relation(&self, target: &ResealTable) -> String {
+        format!("\"{}\".{}", self.schema.as_str(), target.table.quoted())
     }
 }

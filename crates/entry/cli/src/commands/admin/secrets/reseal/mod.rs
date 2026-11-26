@@ -11,13 +11,14 @@
 //! nowhere else) and sealed under the member's cipher. A value that opens
 //! under neither is reported, left as it is, and makes the command fail.
 //!
-//! Without `--apply` nothing is written. With it, the command first plans
-//! every column and writes one `governance_decisions` row for the run, with
-//! the policy, member, per-column counts and operator, stopping if that write
-//! fails; it then rewrites the planned rows in batches of
-//! [`BATCH_ROWS`], one transaction per batch, each row only if it still holds
-//! the ciphertext that was read. Output and logs carry counts and identifiers,
-//! never a plaintext or key material.
+//! Without `--apply` nothing is written, and a value still to be re-sealed
+//! makes the command fail, so a report with work pending never exits 0. With
+//! it, the command first plans every column and writes one
+//! `governance_decisions` row for the run, with the policy, member, per-column
+//! counts and operator, stopping if that write fails; it then rewrites the
+//! planned rows in batches of [`BATCH_ROWS`], one transaction per batch, each
+//! row only if it still holds the ciphertext that was read. Output and logs
+//! carry counts and identifiers, never a plaintext or key material.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,8 +29,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_database::DbPool;
 use systemprompt_database::admin::{Replacement, ResealStore, ResealTable};
+use systemprompt_database::{DbPool, SchemaName};
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_extension::{AdmittedReseals, DynSealedFiles, ResealColumn};
 use systemprompt_governance::authz::GovernanceDecisionRepository;
@@ -229,9 +230,10 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
         None => reseals.members().into_iter().cloned().collect(),
     };
     let db = super::super::state::get::<DbPool>(host).await?;
-    let store = ResealStore::new(db.write_pool());
+    let store = ResealStore::new(db.write_pool(), SchemaName::public());
     let mut outputs = Vec::with_capacity(members.len());
     let mut undecided: u64 = 0;
+    let mut pending: u64 = 0;
     for member in &members {
         let columns: Vec<ResealColumn> = reseals.of_member(member).into_iter().copied().collect();
         let reports = reseal_member(host, &store, member, &columns, args.apply).await?;
@@ -251,6 +253,9 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
         }
         undecided += reports.iter().map(ColumnReport::undecided).sum::<u64>();
         let resealed: u64 = reports.iter().map(|report| report.resealed).sum();
+        if !args.apply {
+            pending += resealed;
+        }
         let message = match (args.apply, reports.is_empty()) {
             (_, true) => format!("member '{member}' declares no re-seal columns or sealed files"),
             (true, false) => format!("{resealed} value(s) re-sealed"),
@@ -270,6 +275,13 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
             "{undecided} value(s) were left as they are: they opened under neither the raw scheme \
              nor the member cipher (undecodable), or they changed while being re-sealed \
              (unwritten; re-run): {}",
+            serde_json::to_string(&outputs).unwrap_or_default()
+        );
+    }
+    if pending > 0 {
+        bail!(
+            "{pending} value(s) are still sealed under the pre-0.88 scheme; re-run with --member \
+             <id> --apply: {}",
             serde_json::to_string(&outputs).unwrap_or_default()
         );
     }
