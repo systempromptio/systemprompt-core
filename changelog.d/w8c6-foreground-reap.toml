@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "Ctrl-C on a command waiting on a child it started no longer makes that wait fail with \"No child processes\": stopping the child leaves its reap, and its exit status, to the command that owns it."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Fixed"
+text = "`ForegroundChildren::stop_all` no longer reaps the children it stops; the `ForegroundChild` holding each process is its only reaper."

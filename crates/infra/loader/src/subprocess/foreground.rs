@@ -4,10 +4,12 @@
 //! Every child is spawned through the [`Spawner`] (so on Linux it also dies
 //! with this process), stamped with [`ChildKind::Command`] and a token unique
 //! to that spawn, and recorded until it is reaped.
-//! [`ForegroundChildren::stop_all`] signals each recorded pid only after
-//! [`stop_owned`] reads the token back from the live process, so a pid recycled
-//! after the child exited is never touched. A [`ForegroundChild`] dropped
-//! before it is reaped kills and reaps its process.
+//! [`ForegroundChildren::stop_all`] signals each recorded pid only after the
+//! token is read back from the live process, so a pid recycled after the child
+//! exited is never touched. The stop never reaps: the [`ForegroundChild`]
+//! holding the process is its only reaper, so a command waiting on it sees the
+//! child's real exit status. A [`ForegroundChild`] dropped before it is
+//! reaped kills and reaps its process.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,8 +25,9 @@ use systemprompt_extension::cli::ChildSupervisor;
 
 use systemprompt_identifiers::ServiceName;
 
+use super::control::stop_owned_unreaped;
 use super::spawn::stamp_marker;
-use super::{ChildClaim, ChildKind, Spawner, StopOutcome, SupervisionError, stop_owned};
+use super::{ChildClaim, ChildKind, Spawner, StopOutcome, SupervisionError};
 
 /// The registry of a CLI run's foreground children; cheap to clone, shared
 /// by the command that spawns and the interrupt handler that stops.
@@ -130,7 +133,7 @@ impl ForegroundChildren {
             .collect();
         let mut outcomes = Vec::with_capacity(recorded.len());
         for (pid, token) in recorded {
-            let outcome = stop_owned(pid, &ChildClaim::Command { token }, grace).await;
+            let outcome = stop_owned_unreaped(pid, &ChildClaim::Command { token }, grace).await;
             outcomes.push((pid, outcome));
         }
         outcomes
