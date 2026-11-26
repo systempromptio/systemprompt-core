@@ -65,7 +65,7 @@ pub(super) fn with_secret_issuers(
         state.insert_sealed(issuer);
     }
     if let Some(verifiers) = secrets
-        .secret_exact(MCP_CREDENTIAL_BROKER_SECRET)
+        .secret(MCP_CREDENTIAL_BROKER_SECRET)
         .and_then(|secret| BrokerCallVerifiers::from_secret(secret.expose()))
     {
         let issuer: DynConferralIssuer<dyn BrokerCallVerifier> = Arc::new(verifiers);

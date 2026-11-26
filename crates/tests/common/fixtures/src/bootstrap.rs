@@ -396,6 +396,19 @@ fn install_secrets_env(database_url: &str) {
         if env::var("encryption_master_key").is_err() {
             env::set_var("encryption_master_key", "11".repeat(32));
         }
+        let custom = env::var("SYSTEMPROMPT_CUSTOM_SECRETS").unwrap_or_default();
+        if !custom
+            .split(',')
+            .any(|name| name == "mcp_credential_broker_secret")
+        {
+            env::set_var(
+                "SYSTEMPROMPT_CUSTOM_SECRETS",
+                format!("{custom},mcp_credential_broker_secret"),
+            );
+        }
+        if env::var("mcp_credential_broker_secret").is_err() {
+            env::set_var("mcp_credential_broker_secret", "test-broker-secret");
+        }
     }
 }
 

@@ -282,6 +282,12 @@ impl fmt::Debug for Dependencies {
         names.sort_unstable();
         let mut reserved: Vec<&str> = self.reserved.values().copied().collect();
         reserved.sort_unstable();
+        let mut withheld: Vec<&str> = self
+            .withheld
+            .iter()
+            .filter_map(|id| self.reserved.get(id).copied())
+            .collect();
+        withheld.sort_unstable();
         let mut sealed: Vec<&str> = self.sealed_types().map(|(_, name)| name).collect();
         sealed.sort_unstable();
         let mut conferred: Vec<&str> = self.conferred.values().map(|c| c.row).collect();
@@ -289,6 +295,7 @@ impl fmt::Debug for Dependencies {
         f.debug_struct("Dependencies")
             .field("types", &names)
             .field("reserved", &reserved)
+            .field("withheld", &withheld)
             .field("sealed", &sealed)
             .field("conferred", &conferred)
             .finish()
