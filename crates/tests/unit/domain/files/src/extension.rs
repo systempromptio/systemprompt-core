@@ -35,7 +35,19 @@ fn test_files_extension_metadata() {
 
 #[test]
 fn test_files_extension_schemas_count() {
-    assert_eq!(contributed().schemas().len(), 36);
+    assert_eq!(contributed().schemas().len(), 35);
+}
+
+#[test]
+fn the_files_member_retires_the_content_file_links() {
+    let sink = contributed();
+    assert!(!table_names(&sink).contains(&"content_files"));
+    assert!(
+        sink.retirements()
+            .iter()
+            .any(|retired| retired.sql.contains("DROP TABLE IF EXISTS content_files;")),
+        "content_files is retired to the content member"
+    );
 }
 
 #[test]
@@ -44,7 +56,6 @@ fn test_files_extension_schemas_names() {
     let names = table_names(&sink);
     for table in [
         "files",
-        "content_files",
         "issue_reports",
         "issue_report_attachments",
         "document_collab_peers",
@@ -72,10 +83,6 @@ fn test_files_extension_required_columns() {
     let files = required("files");
     for column in ["id", "path", "mime_type", "created_at"] {
         assert!(files.contains(&column.to_owned()));
-    }
-    let content_files = required("content_files");
-    for column in ["id", "content_id", "file_id"] {
-        assert!(content_files.contains(&column.to_owned()));
     }
 }
 

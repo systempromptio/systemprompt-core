@@ -7,9 +7,9 @@
 //! Sealed (kernel code and core provide fns read them; no member command,
 //! job, runner, plane or route state does):
 //! - `DynToolCallIntentClaims`: claim and release take any call id and
-//!   execution, so only the mcp member's tool-executions provide and the API's
-//!   MCP proxy read it (both optionally: without the ai member no claim is
-//!   attempted);
+//!   execution, so only the mcp member's tool-executions provide (the mcp
+//!   member requires it) and the API's MCP proxy (optionally: without the ai
+//!   member no claim is attempted) read it;
 //! - `Arc<AiRepositories>`: it holds the at-rest cipher that decrypts users'
 //!   personal provider keys, keyed from the sealed secret store;
 //! - `DynSafetyFindingsReader` and `DynCatalogMigrationPort`, the two ports the
@@ -24,6 +24,11 @@
 //!   materializer (optional). When the catalog serves no default model it is
 //!   [`InferenceNotConfigured`], which answers every call with a typed
 //!   configuration error.
+//!
+//! Its schema names no table of an optional member: the tool-call intent's
+//! execution id is a soft link to the mcp member's executions, and the
+//! rollups read the agent of a task from `ai_task_agents`, which the agent
+//! member fills.
 //!
 //! [`AiService`]: crate::AiService
 //! [`InferenceNotConfigured`]: crate::services::core::InferenceNotConfigured
@@ -221,8 +226,12 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             "signature",
             "expires_at",
         ])),
-        SchemaDefinition::sql_only(include_str!("../schema/tool_call_ledger.sql")),
         SchemaDefinition::sql_only(include_str!("../schema/trace_facts_ai.sql")),
+        SchemaDefinition::new(
+            "ai_task_agents",
+            include_str!("../schema/ai_task_agents.sql"),
+        )
+        .with_required_columns(columns(&["task_id", "agent_name"])),
         SchemaDefinition::new(
             "ai_usage_rollup_hourly",
             include_str!("../schema/ai_usage_rollup_hourly.sql"),
@@ -233,6 +242,7 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/ai_context_rollup_hourly.sql"),
         )
         .with_required_columns(columns(&["bucket", "context_id", "request_count"])),
+        SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
         SchemaDefinition::new(
             "user_provider_credentials",
             include_str!("../schema/user_provider_credentials.sql"),

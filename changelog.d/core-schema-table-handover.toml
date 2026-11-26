@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Database"
+text = "A core member that retires a table hands it, its rows and its ownership record to the core member declaring it in the same install, and the object records go with it: a core-standing object record passes to the core member whose declarative schema creates the object once its recorded owner's declarative schema no longer does, and a core member's migration that created a table it has since retired is no claim on it. An owner that is held back or outside the composition hands nothing over, and an install member never takes a table this way."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Changed"
+text = "The installer hands a retired core table, with its rows, record and object records, to the core member that declares it in the same install; every table-record release runs before any record is written."

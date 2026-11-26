@@ -5,6 +5,20 @@
 # binary size. The composition marked `largest` also gets `cargo bloat --crates`
 # and `cargo build --timings`. A measurement, never a gate.
 #
+# --dev-loop also records, per composition, the developer loop in the root
+# workspace: wall seconds of `cargo check` and `cargo clippy` on the facade
+# with the composition's features, each from an empty target dir and again
+# after touching one leaf source file (systemprompt/src/lib.rs), with
+# incremental compilation on and no compiler wrapper.
+#
+# --units [OUTPUT.md] measures the test loop instead of the compositions: for
+# each unit of scripts/units.txt, the test-workspace packages that reach the
+# unit's packages (scripts/affected.py --crates), the wall seconds of
+# `cargo nextest archive` of them from an empty target dir and of
+# `cargo nextest run` of that archive. It needs DATABASE_URL naming a
+# migrated database (the test workspace has no offline sqlx cache) and writes
+# target/build-report/units.md and units.json by default.
+#
 # Each composition is generated under target/build-report/<name>/ as a crate
 # with its own empty `[workspace]`, its own target dir, the root
 # `[profile.release]` copied verbatim, a path dependency on the facade, and a
@@ -14,7 +28,8 @@
 # package version the root lock does not, so every composition builds
 # the exact dependency versions the workspace pins.
 #
-# Usage: scripts/build-report.sh [--closure-only] [--offline] [--only NAME] [OUTPUT.md]
+# Usage: scripts/build-report.sh [--closure-only] [--dev-loop] [--offline] [--only NAME] [OUTPUT.md]
+#        scripts/build-report.sh --units [--only UNIT] [OUTPUT.md]
 #   OUTPUT.md defaults to target/build-report/report.md; the JSON sidecar is
 #   written next to it as <OUTPUT>.json, the timings HTML as
 #   target/build-report/cargo-timing.html.
@@ -30,15 +45,19 @@ cd "$(dirname "$0")/.."
 root="$PWD"
 
 closure_only=false
+dev_loop=false
+units_mode=false
 offline=()
 only=""
 out=""
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --closure-only) closure_only=true ;;
+        --dev-loop) dev_loop=true ;;
+        --units) units_mode=true ;;
         --offline) offline=(--offline) ;;
         --only) only="${2:?--only needs a composition name}"; shift ;;
-        -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,42p' "$0"; exit 0 ;;
         -*) echo "unknown flag: $1" >&2; exit 2 ;;
         *) out="$1" ;;
     esac
@@ -50,6 +69,87 @@ command -v jq >/dev/null || { echo 'jq is not installed' >&2; exit 2; }
 
 table="$root/scripts/build-compositions.txt"
 base="$root/target/build-report"
+
+now() { date +%s.%N; }
+elapsed() { awk -v a="$1" -v b="$(now)" 'BEGIN {printf "%.1f", b - a}'; }
+
+timed() {
+    local start
+    start="$(now)"
+    "$@" >&2
+    elapsed "$start"
+}
+
+if $units_mode; then
+    out="${out:-$base/units.md}"
+    json="${out%.md}.json"
+    mkdir -p "$base/units" "$(dirname "$out")"
+    command -v cargo-nextest >/dev/null || { echo 'cargo-nextest is not installed' >&2; exit 2; }
+    [ -n "${DATABASE_URL:-}" ] || { echo '--units needs DATABASE_URL naming a migrated database' >&2; exit 2; }
+    export SQLX_OFFLINE=false
+    mapfile -t unit_names < <(grep -vE '^\s*(#|$)' "$root/scripts/units.txt" | awk '{print $2}' | awk '!seen[$0]++')
+    results="[]"
+    for unit in "${unit_names[@]}"; do
+        [ -n "$only" ] && [ "$unit" != "$only" ] && continue
+        mapfile -t unit_pkgs < <(grep -vE '^\s*(#|$)' "$root/scripts/units.txt" | awk -v u="$unit" '$2 == u {print $1}')
+        mapfile -t test_pkgs < <(python3 -B "$root/scripts/affected.py" --crates "${unit_pkgs[@]}" --format json | jq -r '.test_packages[]')
+        echo "== unit $unit (${#test_pkgs[@]} test packages)" >&2
+        slug="${unit//:/-}"
+        archive_s=null run_s=null run_exit=null
+        if [ "${#test_pkgs[@]}" -gt 0 ]; then
+            unit_target="$base/units/$slug-target"
+            archive="$base/units/$slug.tar.zst"
+            rm -rf "$unit_target"
+            pkg_args=()
+            for p in "${test_pkgs[@]}"; do pkg_args+=(-p "$p"); done
+            archive_s="$(timed env CARGO_TARGET_DIR="$unit_target" cargo nextest archive "${offline[@]}" --locked \
+                --manifest-path crates/tests/Cargo.toml --lib --tests "${pkg_args[@]}" --archive-file "$archive")"
+            start="$(now)"
+            run_exit=0
+            cargo nextest run --archive-file "$archive" --workspace-remap "$root/crates/tests" \
+                --config-file "$root/crates/tests/.config/nextest.toml" \
+                --extract-to "$base/units/$slug-extract" --extract-overwrite --no-fail-fast >&2 || run_exit=$?
+            run_s="$(elapsed "$start")"
+            [ "${BUILD_REPORT_KEEP_TARGET:-}" = 1 ] || rm -rf "$unit_target" "$archive" "$base/units/$slug-extract"
+        fi
+        results="$(jq -c --arg u "$unit" --argjson n "${#test_pkgs[@]}" --argjson a "$archive_s" \
+            --argjson r "$run_s" --argjson e "$run_exit" \
+            '. + [{unit: $u, test_packages: $n, archive_seconds: $a, run_seconds: $r, run_exit: $e}]' <<<"$results")"
+    done
+    rev="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    jq -n --arg rev "$rev" --argjson u "$results" '{revision: $rev, units: $u}' >"$json"
+    {
+        echo "# Test loop report ($rev)"
+        echo
+        echo "Per unit of scripts/units.txt: the test-workspace packages reaching it, \`cargo nextest archive\` seconds from an empty target dir, and \`cargo nextest run\` seconds of that archive (exit status beside it)."
+        echo
+        echo "| Unit | Test packages | Archive (s) | Run (s) | Run exit |"
+        echo "|---|---:|---:|---:|---:|"
+        jq -r '.units[] | "| \(.unit) | \(.test_packages) | \(.archive_seconds // "n/a") | \(.run_seconds // "n/a") | \(.run_exit // "n/a") |"' "$json"
+    } >"$out"
+    cat "$out"
+    exit 0
+fi
+
+dev_loop_measure() {
+    local features="$1" bin="$2" target="$base/dev-loop-target"
+    local check_clean check_touched clippy_clean clippy_touched
+    local cargo=(env -u RUSTC_WRAPPER CARGO_INCREMENTAL=1 CARGO_TARGET_DIR="$target" cargo)
+    local args=(-p systemprompt --no-default-features --features "$features" "${offline[@]}" --locked)
+    if [ "$bin" = true ]; then args+=(--bin systemprompt); else args+=(--lib); fi
+    rm -rf "$target"
+    check_clean="$(timed "${cargo[@]}" check "${args[@]}")"
+    touch "$root/systemprompt/src/lib.rs"
+    check_touched="$(timed "${cargo[@]}" check "${args[@]}")"
+    rm -rf "$target"
+    clippy_clean="$(timed "${cargo[@]}" clippy "${args[@]}" -- -D warnings)"
+    touch "$root/systemprompt/src/lib.rs"
+    clippy_touched="$(timed "${cargo[@]}" clippy "${args[@]}" -- -D warnings)"
+    rm -rf "$target"
+    jq -nc --argjson a "$check_clean" --argjson b "$check_touched" --argjson c "$clippy_clean" --argjson d "$clippy_touched" \
+        '{check_clean_seconds: $a, check_touched_seconds: $b, clippy_clean_seconds: $c, clippy_touched_seconds: $d}'
+}
+
 out="${out:-$base/report.md}"
 json="${out%.md}.json"
 mkdir -p "$base" "$(dirname "$out")"
@@ -119,7 +219,7 @@ for row in "${rows[@]}"; do
     pkg="build-report-$name"
     dir="$base/$name"
     cli=false
-    case ",$features," in *,reference,*) cli=true ;; esac
+    case ",${flags:-}," in *,boot,*) cli=true ;; esac
     generate "$features" "$cli" "$dir" "$pkg"
     echo "== $name ($features)" >&2
 
@@ -148,10 +248,17 @@ for row in "${rows[@]}"; do
         [ "${BUILD_REPORT_KEEP_TARGET:-}" = 1 ] || rm -rf "$dir/target"
     fi
 
+    loop=null
+    if $dev_loop; then
+        loop="$(dev_loop_measure "$features" "$cli")"
+    fi
+
     results="$(jq -c --arg n "$name" --arg f "$features" --arg l "${flag:-}" \
         --argjson p "$packages" --argjson m "$members" --argjson a "$all_platforms" --argjson s "$size" \
+        --argjson d "$loop" \
         '. + [{name: $n, features: ($f | split(",")), largest: ($l == "largest"),
-               packages: $p, workspace_packages: $m, all_platform_packages: $a, stripped_bytes: $s}]' <<<"$results")"
+               packages: $p, workspace_packages: $m, all_platform_packages: $a, stripped_bytes: $s,
+               dev_loop: $d}]' <<<"$results")"
 done
 
 rev="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -166,6 +273,16 @@ jq -n --arg rev "$rev" --argjson closure_only "$closure_only" --argjson c "$resu
     echo "| Composition | Features | Packages | Workspace | All platforms | Stripped binary |"
     echo "|---|---|---:|---:|---:|---:|"
     jq -r '.compositions[] | "| \(.name)\(if .largest then " (largest)" else "" end) | `\(.features | join(","))` | \(.packages) | \(.workspace_packages) | \(.all_platform_packages) | \(if .stripped_bytes == null then "n/a" else "\(.stripped_bytes / 1048576 * 10 | round / 10) MiB" end) |"' "$json"
+    if $dev_loop; then
+        echo
+        echo "## Developer loop"
+        echo
+        echo "Wall seconds in the root workspace, \`-p systemprompt\` with the composition's features (\`--bin systemprompt\` for a boot line, \`--lib\` otherwise): from an empty target dir, and after touching \`systemprompt/src/lib.rs\`. Incremental on, no compiler wrapper; clippy runs with \`-D warnings\`."
+        echo
+        echo "| Composition | check clean | check touched | clippy clean | clippy touched |"
+        echo "|---|---:|---:|---:|---:|"
+        jq -r '.compositions[] | select(.dev_loop != null) | "| \(.name) | \(.dev_loop.check_clean_seconds) | \(.dev_loop.check_touched_seconds) | \(.dev_loop.clippy_clean_seconds) | \(.dev_loop.clippy_touched_seconds) |"' "$json"
+    fi
     if [ -n "$bloat_md" ]; then
         echo
         echo "## cargo bloat --crates (largest composition)"

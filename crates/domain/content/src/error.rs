@@ -24,6 +24,22 @@ domain_error! {
 
         #[error("invalid identifier: {0}")]
         InvalidIdentifier(#[from] systemprompt_identifiers::error::IdValidationError),
+
+        #[error("invalid file id '{id}'")]
+        InvalidFileId {
+            id: systemprompt_identifiers::FileId,
+            #[source]
+            source: sqlx::types::uuid::Error,
+        },
+
+        #[error("the linked files could not be read")]
+        FileSource(#[source] systemprompt_extension::content_files::ContentFileLinksError),
+
+        #[error("file {file} is not linked to content {content}")]
+        FileNotLinked {
+            file: systemprompt_identifiers::FileId,
+            content: systemprompt_identifiers::ContentId,
+        },
     }
 }
 

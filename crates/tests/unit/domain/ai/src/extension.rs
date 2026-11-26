@@ -52,6 +52,7 @@ fn the_ai_member_declares_its_tables_in_order() {
             "ai_quota_buckets",
             "ai_gateway_policies",
             "ai_gateway_thought_signatures",
+            "ai_task_agents",
             "ai_usage_rollup_hourly",
             "ai_context_rollup_hourly",
             "user_provider_credentials",

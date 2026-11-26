@@ -1,6 +1,8 @@
 -- The read contract of the `analytics` reports: one view per source table,
--- so analytics queries only relations it declares while the rows stay where
--- their owners write them. Nothing is copied — every report is current as of
+-- so analytics queries only report relations while the rows stay where their
+-- owners write them. The views here read tables the kernel always links; a
+-- view over an optional member's table (`ai`, `agent`, `mcp`, `content`)
+-- is contributed by that member in its own report_views.sql. Nothing is copied — every report is current as of
 -- its query. Privacy is enforced here, once: rows belonging to a user whose
 -- status is `deleted` are invisible to every report; age limits come from
 -- retention deleting source rows.
@@ -109,81 +111,6 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE OR REPLACE VIEW report_ai_requests AS
-SELECT
-    src.id, src.request_id, src.user_id, src.session_id, src.task_id,
-    src.context_id, src.gateway_conversation_id, src.client_session_id,
-    src.provider_request_id, src.trace_id, src.mcp_execution_id,
-    src.provider, src.served_provider, src.model, src.requested_model,
-    src.system_prompt_override, src.route_match, src.temperature, src.top_p,
-    src.max_tokens, src.stop_sequences, src.tokens_used, src.input_tokens,
-    src.output_tokens, src.cost_microdollars, src.latency_ms,
-    src.upstream_latency_ms, src.finish_reason, src.cache_hit,
-    src.cache_read_tokens, src.cache_creation_tokens, src.reasoning_tokens,
-    src.is_streaming, src.status, src.error_message,
-    src.accounting_failed_at, src.accounting_error, src.actor_kind,
-    src.actor_id, src.traffic, src.request_kind, src.client_kind,
-    src.wire_protocol, src.client_attestation, src.message_count,
-    src.instance_id, src.created_at, src.updated_at, src.completed_at
-FROM ai_requests src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_agent_tasks AS
-SELECT
-    src.task_id, src.context_id, src.status, src.status_timestamp,
-    src.user_id, src.session_id, src.trace_id, src.agent_name,
-    src.started_at, src.completed_at, src.execution_time_ms,
-    src.error_message, src.metadata, src.version, src.created_at,
-    src.updated_at
-FROM agent_tasks src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_task_messages AS
-SELECT
-    src.id, src.task_id, src.message_id, src.client_message_id, src.role,
-    src.context_id, src.user_id, src.session_id, src.trace_id,
-    src.sequence_number, src.created_at, src.updated_at, src.metadata,
-    src.reference_task_ids
-FROM task_messages src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_user_contexts AS
-SELECT
-    src.context_id, src.user_id, src.session_id, src.name, src.kind,
-    src.created_at, src.updated_at
-FROM user_contexts src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_mcp_tool_executions AS
-SELECT
-    src.mcp_execution_id, src.tool_name, src.server_name, src.started_at,
-    src.completed_at, src.execution_time_ms, src.input, src.output,
-    src.output_schema, src.status, src.error_message, src.user_id,
-    src.session_id, src.context_id, src.task_id, src.trace_id,
-    src.request_method, src.request_source, src.actor_kind, src.actor_id,
-    src.ai_tool_call_id, src.source, src.correlation, src.payload_sha256,
-    src.created_at
-FROM mcp_tool_executions src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_markdown_content AS
-SELECT
-    src.id, src.slug, src.locale, src.title, src.description, src.body,
-    src.author, src.published_at, src.keywords, src.kind, src.image,
-    src.category_id, src.source_id, src.version_hash, src.public, src.links,
-    src.updated_at
-FROM markdown_content src;
-
 CREATE OR REPLACE VIEW report_analytics_events AS
 SELECT
     src.id, src.user_id, src.session_id, src.context_id,
@@ -196,80 +123,11 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
--- The hourly usage rollups, behind the same deleted-user filter: a rollup
--- keeps the user as a dimension so the filter applies to it unchanged, and a
--- user deleted or restored later needs no rebuild.
-CREATE OR REPLACE VIEW report_ai_usage_hourly AS
-SELECT
-    src.bucket, src.user_id, src.provider, src.model, src.agent_name,
-    src.traffic, src.request_count, src.tokens, src.input_tokens,
-    src.output_tokens, src.reasoning_tokens, src.cache_read_tokens,
-    src.cache_creation_tokens, src.cost_microdollars, src.latency_sum_ms,
-    src.latency_n, src.cache_hits, src.user_key_request_count,
-    src.user_key_tokens, src.user_key_cost_microdollars,
-    src.user_subscription_request_count, src.user_subscription_tokens,
-    src.user_subscription_cost_microdollars
-FROM ai_usage_rollup_hourly src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_ai_context_hourly AS
-SELECT
-    src.bucket, src.user_id, src.context_id, src.model, src.agent_name,
-    src.traffic, src.status, src.request_count, src.tokens,
-    src.cost_microdollars, src.last_activity
-FROM ai_context_rollup_hourly src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_tool_usage_hourly AS
-SELECT
-    src.bucket, src.user_id, src.tool_name, src.server_name, src.agent_name,
-    src.status, src.execution_count, src.exec_sum_ms, src.exec_n, src.last_at
-FROM tool_usage_rollup_hourly src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_agent_task_hourly AS
-SELECT
-    src.bucket, src.user_id, src.agent_name, src.status, src.task_count,
-    src.exec_sum_ms, src.exec_n, src.last_started_at
-FROM agent_task_rollup_hourly src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
 CREATE OR REPLACE VIEW report_link_click_hourly AS
 SELECT src.bucket, src.user_id, src.endpoint, src.target_url, src.is_external, src.clicks
 FROM analytics_link_click_rollup_hourly src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
--- A request's attribution scopes (dimension/value pairs), keyed by
--- report_ai_requests.id; visible while the request's user is.
-CREATE OR REPLACE VIEW report_ai_request_attributions AS
-SELECT src.request_id, src.dimension, src.value, src.source
-FROM ai_request_attributions src
-JOIN ai_requests r ON r.id = src.request_id
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = r.user_id AND d.status = 'deleted'
-);
-
--- The tool calls a request's model emitted, keyed by report_ai_requests.id.
--- The call's arguments and result payload stay in the source table.
-CREATE OR REPLACE VIEW report_ai_request_tool_calls AS
-SELECT
-    src.id, src.request_id, src.tool_name, src.mcp_execution_id,
-    src.ai_tool_call_id, src.sequence_number, src.args_validity,
-    src.args_error_path, src.created_at, src.updated_at
-FROM ai_request_tool_calls src
-JOIN ai_requests r ON r.id = src.request_id
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = r.user_id AND d.status = 'deleted'
 );
 
 CREATE OR REPLACE VIEW report_governance_decisions AS

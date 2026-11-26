@@ -1,9 +1,11 @@
-//! Registers analytics-owned schemas, rollups, report views and migrations.
+//! Registers analytics-owned schemas, report views and migrations.
 //!
-//! That covers the engagement and reputation schemas, the hourly tool and
-//! agent-task rollups, and the report views over source tables. It depends on
-//! `agent` (and through it `ai` and `mcp`) because the rollup triggers sit on
-//! their tables.
+//! That covers the engagement and reputation schemas and the report views
+//! over tables the kernel always links. Its schema names no table of an
+//! optional member: the hourly tool and agent-task rollups and the report
+//! views over the `ai`, `agent`, `mcp` and `content` tables are contributed
+//! by the member owning those tables, so the member installs with the kernel
+//! alone.
 //!
 //! On every host it provides the content audience ranking
 //! ([`DynContentPopularity`]) the
@@ -140,7 +142,12 @@ impl Extension for AnalyticsExtension {
             action: ReassignAction::ReplaceInArray,
         });
 
-        crate::jobs::rollups::contribute(c);
+        c.retire(SchemaDefinition {
+            table: None,
+            sql: include_str!("../schema/retirements/retired_tables.sql").to_owned(),
+            required_columns: Vec::new(),
+            schema: None,
+        });
         Ok(())
     }
 }
@@ -157,16 +164,6 @@ fn schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/fingerprint_reputation.sql"),
         )
         .with_required_columns(vec!["fingerprint_hash".into()]),
-        SchemaDefinition::new(
-            "tool_usage_rollup_hourly",
-            include_str!("../schema/usage_rollups.sql"),
-        )
-        .with_required_columns(vec!["bucket".into(), "execution_count".into()]),
-        SchemaDefinition::new(
-            "agent_task_rollup_hourly",
-            include_str!("../schema/agent_task_rollup_hourly.sql"),
-        )
-        .with_required_columns(vec!["bucket".into(), "task_count".into()]),
         SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
     ]
 }

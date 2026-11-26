@@ -41,9 +41,11 @@
 //! (its own migration chain dropped it), or names the table in its
 //! retirements and no longer declares it (its chain retired the table, which
 //! may still exist on an established database until another member's
-//! migration drops it). A database installed before the records
-//! existed is recorded at its first install over the admitted members; a
-//! table no admitted member declares at that point stays unrecorded.
+//! migration drops it). An admitted core owner retiring a table hands it, its
+//! rows and its record to the core member declaring it in that install. A
+//! database installed before the records existed is recorded at its first
+//! install over the admitted members; a table no admitted member declares at
+//! that point stays unrecorded.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -195,10 +197,9 @@ pub(super) fn check_recorded_owners(
             let owner_judged = prepared.iter().any(|owner| {
                 owner.extension_id == recorded.id && owner.standing == StandingTag::Install
             });
-            if owner_judged
-                && recorded.standing == StandingTag::Install
-                && p.standing == StandingTag::Core
-            {
+            let yields = (owner_judged && recorded.standing == StandingTag::Install)
+                || handed_over(prepared, recorded, table);
+            if yields && p.standing == StandingTag::Core {
                 continue;
             }
             if recorded.id != p.extension_id {
@@ -220,6 +221,15 @@ pub(super) fn check_recorded_owners(
     Ok(())
 }
 
+fn handed_over(prepared: &[PreparedSchema], recorded: &RecordedOwner, table: &str) -> bool {
+    recorded.standing == StandingTag::Core
+        && prepared.iter().any(|owner| {
+            owner.extension_id == recorded.id
+                && owner.standing == StandingTag::Core
+                && owner.retired_tables.contains(&qualify(table))
+        })
+}
+
 pub(super) async fn record_owners(
     db: &dyn DatabaseProvider,
     prepared: &[PreparedSchema],
@@ -236,22 +246,26 @@ pub(super) async fn record_owners(
     );
     release_stale_records(db, &stale).await?;
     record_object_owners(db, members, &owned).await?;
-    if recorded_table_owners_present(db).await? {
-        for p in prepared {
-            let declared: Vec<String> = p.owned_tables.iter().map(|t| qualify(t)).collect();
-            db.execute(
-                &RELEASE_SQL,
-                &[&p.extension_id.as_str(), &declared, &p.retired_tables],
-            )
-            .await
-            .map_err(|e| step_failed("Failed to release dropped table ownership", e))?;
-            db.execute(
-                &RECORD_SQL,
-                &[&declared, &p.extension_id.as_str(), &p.standing.as_str()],
-            )
-            .await
-            .map_err(|e| step_failed("Failed to record table ownership", e))?;
-        }
+    if !recorded_table_owners_present(db).await? {
+        return Ok(());
+    }
+    let declared =
+        |p: &PreparedSchema| -> Vec<String> { p.owned_tables.iter().map(|t| qualify(t)).collect() };
+    for p in prepared {
+        db.execute(
+            &RELEASE_SQL,
+            &[&p.extension_id.as_str(), &declared(p), &p.retired_tables],
+        )
+        .await
+        .map_err(|e| step_failed("Failed to release dropped table ownership", e))?;
+    }
+    for p in prepared {
+        db.execute(
+            &RECORD_SQL,
+            &[&declared(p), &p.extension_id.as_str(), &p.standing.as_str()],
+        )
+        .await
+        .map_err(|e| step_failed("Failed to record table ownership", e))?;
     }
     Ok(())
 }

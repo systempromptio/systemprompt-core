@@ -1,0 +1,44 @@
+[root]
+section = "Breaking"
+area = "Database"
+text = "Every booted composition installs its schema on a fresh database: a schema object that cannot exist without an optional member's table is contributed by that member. `content` owns `content_files` and provides `DynContentFileLinks` (`ContentFileRepository`, reading the stored files through the `DynLinkedFileSource` the `files` member provides; the reference composition orders `content` after `files`); `mcp` owns `tool_usage_rollup_hourly` and the `tool_call_ledger` view; `agent` owns `agent_task_rollup_hourly`; each of `ai`, `agent`, `mcp` and `content` declares the analytics `report_*` views over its own tables; `files` and `analytics` retire their records of the moved tables, so an established database hands each table, with its rows, to its new owner on the next install. The AI and tool-usage rollups read a task's agent from `ai_task_agents`, which the `agent` member keeps current from `agent_tasks` (ai migration 059; agent migration 018 queues the tasks that predate it for the `backfill_rollups` job), and `ai_request_tool_calls.mcp_execution_id` no longer carries a foreign key to `mcp_tool_executions`. The `mcp` member requires `DynToolCallIntentClaims` and the `agent` member requires `DynRequestAttributionLookup` and `DynToolExecutionLookup`, so a composition that admits either without the member it reads is refused by name; the facade's `mcp-servers` feature implies `ai` and `agents` implies `ai` and `mcp-servers`."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "`ContentFile`, `FileRole` and the `FileRepository` content-link methods (`link_to_content`, `unlink_from_content`, `list_files_by_content`, `find_featured_image`, `set_featured`, `list_content_by_file`) are removed, and `FileRepository` no longer implements `ContentFileLinks`; the member no longer declares `content_files` or provides `DynContentFileLinks`, and provides `DynLinkedFileSource` (`FileRepository` implements `LinkedFileSource`). Migrate to `systemprompt_content::ContentFileRepository` or the `DynContentFileLinks` the content member provides."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Added"
+text = "`ContentFileRepository::new(db, files)` owns the `content_files` links and implements `ContentFileLinks`; the member requires `DynLinkedFileSource`, provides the links as `DynContentFileLinks` and declares the `report_markdown_content` view. `ContentError` gains `InvalidFileId`, `FileSource` and `FileNotLinked`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "The member declares `tool_usage_rollup_hourly`, the `tool_call_ledger` view and the `report_mcp_tool_executions` and `report_tool_usage_hourly` views, drains the tool-usage rollup backlog, and requires `DynToolCallIntentClaims`."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "The member declares `agent_task_rollup_hourly`, the `ai_task_agents` triggers on `agent_tasks` and the `report_agent_tasks`, `report_task_messages`, `report_user_contexts` and `report_agent_task_hourly` views, drains the agent-task rollup and `ai_task_agents` backlogs, and requires `DynRequestAttributionLookup` and `DynToolExecutionLookup`."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Changed"
+text = "The member declares `ai_task_agents` and the `report_ai_*` views; the rollups resolve a task's agent from `ai_task_agents`; `ai_request_tool_calls.mcp_execution_id` is a soft link (migration 059 drops its foreign key)."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "The member no longer declares `tool_usage_rollup_hourly`, `agent_task_rollup_hourly` or the report views over `ai`, `agent`, `mcp` and `content` tables, and retires its records of the two rollup tables; its schema installs with the kernel alone."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`content_files::{LinkedFileSource, DynLinkedFileSource, StoredFile}`: the stored files a content link names, read from the member that owns them."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "`mcp-servers` implies `ai` and `agents` implies `ai` and `mcp-servers`; the reference composition places `content` after `files`."

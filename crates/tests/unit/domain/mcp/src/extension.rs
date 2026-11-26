@@ -32,15 +32,16 @@ fn metadata_names_the_mcp_member() {
 }
 
 #[test]
-fn the_mcp_member_declares_its_seven_tables() {
+fn the_mcp_member_declares_its_eight_tables() {
     let sink = contributed();
     let names: Vec<&str> = sink
         .schemas()
         .iter()
         .filter_map(|s| s.table.as_deref())
         .collect();
-    assert_eq!(names.len(), 7, "{names:?}");
+    assert_eq!(names.len(), 8, "{names:?}");
     for table in [
+        "tool_usage_rollup_hourly",
         "mcp_tool_executions",
         "mcp_sessions",
         "mcp_artifacts",
@@ -50,6 +51,31 @@ fn the_mcp_member_declares_its_seven_tables() {
         assert!(names.contains(&table), "{table} in {names:?}");
     }
     assert!(!names.contains(&"mcp_proxy_identities"));
+}
+
+#[test]
+fn the_mcp_member_requires_the_ai_members_intent_claims() {
+    let required: Vec<&str> = contributed()
+        .requires()
+        .iter()
+        .map(|r| r.type_name())
+        .collect();
+    assert!(
+        required
+            .iter()
+            .any(|name| name.contains("ToolCallIntentClaims")),
+        "{required:?}"
+    );
+}
+
+#[test]
+fn the_mcp_member_drains_the_tool_usage_rollup() {
+    let projections: Vec<&str> = contributed()
+        .projections()
+        .iter()
+        .map(|entry| entry.drain().projection)
+        .collect();
+    assert_eq!(projections, ["tool_usage_rollup_hourly"]);
 }
 
 #[test]

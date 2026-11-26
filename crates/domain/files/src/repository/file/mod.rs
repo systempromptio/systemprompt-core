@@ -3,11 +3,13 @@
 //! Defines the repository over the `files` table — insert/upsert, lookup by id
 //! or path, listing, soft handling, metadata updates, and path search — and
 //! re-exports the [`InsertFileRequest`] builder and [`FileStats`] aggregate.
-//! AI-image and content-association queries live in sibling modules.
+//! The AI-image queries live in a sibling module; `linked` serves the stored
+//! files the content member's links name.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod linked;
 mod request;
 mod stats;
 

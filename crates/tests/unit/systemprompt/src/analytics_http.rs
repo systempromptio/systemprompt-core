@@ -149,7 +149,7 @@ fn a_second_analytics_http_set_requesting_the_broadcaster_cannot_resolve_it() {
 }
 
 #[test]
-fn analytics_http_requires_the_content_catalog() {
+fn analytics_http_reads_the_content_catalog_optionally() {
     let admitted = admitted();
     let member = admitted
         .built()
@@ -163,7 +163,7 @@ fn analytics_http_requires_the_content_catalog() {
         .map(|requirement| requirement.type_name())
         .collect();
     assert!(
-        required.contains(&std::any::type_name::<DynContentCatalogStats>()),
+        !required.contains(&std::any::type_name::<DynContentCatalogStats>()),
         "{required:?}"
     );
 }

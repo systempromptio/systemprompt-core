@@ -16,10 +16,9 @@
 //! | disables | analytics | engagement | analytics jobs and recording |
 //! |---|---|---|---|
 //! | `analytics-http` | 404 | 404 | unaffected |
-//! | `content` | boot refused | | |
+//! | `content` (and its dependants) | mounted | mounted | unaffected |
 //! | `analytics` (with or without `analytics-http`) | boot refused (required extension) | | |
 
-use std::any::TypeId;
 use std::net::SocketAddr;
 
 use axum::Router;
@@ -38,7 +37,7 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
     seed_admin_credential, seed_bridge_credential, test_db_pool,
 };
-use systemprompt_traits::{DynContentCatalogStats, DynSessionBehaviourScorer};
+use systemprompt_traits::DynSessionBehaviourScorer;
 use tower::ServiceExt;
 
 const EVENTS: &str = "/api/v1/analytics/events";
@@ -125,7 +124,7 @@ fn anonymous(method: Method, uri: &str) -> Request<Body> {
 }
 
 #[test]
-fn the_routes_extension_carries_the_declared_id_and_requires_the_content_catalog() {
+fn the_routes_extension_carries_the_declared_id_and_requires_nothing() {
     assert_eq!(
         AnalyticsHttpExtension.metadata().id,
         ANALYTICS_HTTP_EXTENSION
@@ -136,8 +135,7 @@ fn the_routes_extension_carries_the_declared_id_and_requires_the_content_catalog
     AnalyticsHttpExtension
         .contribute(&mut contributions)
         .expect("the analytics-http member contributes");
-    let required: Vec<TypeId> = sink.requires().iter().map(|r| r.type_id()).collect();
-    assert_eq!(required, [TypeId::of::<DynContentCatalogStats>()]);
+    assert!(sink.requires().is_empty(), "{:?}", sink.requires());
 }
 
 #[tokio::test]
@@ -364,16 +362,21 @@ fn content_and_its_dependants_except_the_routes() -> Vec<ExtensionId> {
 }
 
 #[tokio::test]
-async fn disabling_content_while_the_routes_stay_enabled_refuses_boot() -> anyhow::Result<()> {
+async fn disabling_content_keeps_the_analytics_routes_mounted() -> anyhow::Result<()> {
     let disabled = content_and_its_dependants_except_the_routes();
-    let refused = full_router(RateLimitsConfig::disabled(), &disabled).await;
-    let error = refused.expect_err("routes depending on content refuse boot");
-    let rendered = format!("{error:#}");
     assert!(
-        rendered.contains(&format!("{ANALYTICS_HTTP_EXTENSION} requires"))
-            && rendered.contains("its provider content is disabled"),
-        "{rendered}"
+        !disabled.contains(&ExtensionId::new(ANALYTICS_HTTP_EXTENSION)),
+        "{disabled:?}"
     );
+    let app = full_router(RateLimitsConfig::disabled(), &disabled).await?;
+    for (method, uri) in GROUPS {
+        let status = app
+            .clone()
+            .oneshot(anonymous(method.clone(), uri))
+            .await?
+            .status();
+        assert!(reached_handler(status), "{method} {uri}: {status}");
+    }
     Ok(())
 }
 

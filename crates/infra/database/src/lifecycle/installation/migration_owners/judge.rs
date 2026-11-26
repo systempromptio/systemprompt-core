@@ -19,6 +19,7 @@ use super::claims::{Claim, Ownership, ownership};
 use super::judge_objects::{foreign_object_creates, judge_named, judge_schema};
 use super::kinds::HiddenSql;
 use super::ledger::ledger_reads;
+use super::member_reads::retired_tables;
 use super::object_claims::Prefer;
 use super::statements::{Effect, effects_of, top_level};
 use super::{
@@ -67,6 +68,7 @@ pub(super) fn findings(
             .into_iter()
             .map(qualify)
             .collect();
+        let retired = retired_tables(member.as_ref());
         for migration in member.migrations().into_iter().filter(|m| !m.tombstone) {
             if !pending(&id, &migration) {
                 continue;
@@ -84,8 +86,8 @@ pub(super) fn findings(
                 },
             };
             findings.extend(ownership.foreign_creates(
-                &id,
-                member.standing(),
+                (&id, member.standing()),
+                &retired,
                 &format!("migration {migration_label}"),
                 migration.sql,
             ));

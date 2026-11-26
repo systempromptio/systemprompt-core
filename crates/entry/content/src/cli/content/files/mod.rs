@@ -2,7 +2,7 @@
 //!
 //! Dispatches the [`ContentFilesCommands`] subcommands (link, unlink, list,
 //! featured) that manage the content-to-file relationships and the featured
-//! image for a content item, over the `DynContentFileLinks` the `files`
+//! image for a content item, over the `DynContentFileLinks` the `content`
 //! member provides.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

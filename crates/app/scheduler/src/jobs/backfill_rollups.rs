@@ -4,13 +4,13 @@
 //! existed. Each rollup's owner binds its drain to the kernel marker
 //! [`BackfillRollups`] with `Contributions::projection::<BackfillRollups>`
 //! (the AI crate's `ai_usage_rollup_hourly` and `ai_context_rollup_hourly`,
-//! the analytics crate's `tool_usage_rollup_hourly` and
-//! `agent_task_rollup_hourly`); the job drains the entries the kernel admitted
-//! for that marker, so a rollup whose owner is not composed or is disabled is
-//! not drained. Each key is one UTC hour, rebuilt whole from the ledger by the
-//! rollup's `refresh_*` function. New rows are rolled up by the statement
-//! triggers, so once the backlog is empty a tick costs one depth read per
-//! rollup.
+//! the MCP crate's `tool_usage_rollup_hourly`, the agent crate's
+//! `agent_task_rollup_hourly` and `ai_task_agents`); the job drains the entries
+//! the kernel admitted for that marker, so a rollup whose owner is not composed
+//! or is disabled is not drained. Each key is one UTC hour, rebuilt whole from
+//! the ledger by the rollup's `refresh_*` function. New rows are rolled up by
+//! the statement triggers, so once the backlog is empty a tick costs one depth
+//! read per rollup.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

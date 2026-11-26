@@ -31,7 +31,7 @@ fn the_agent_member_declares_its_tables() {
         .iter()
         .filter_map(|s| s.table.as_deref())
         .collect();
-    assert_eq!(tables.len(), 9, "{tables:?}");
+    assert_eq!(tables.len(), 10, "{tables:?}");
     for table in [
         "user_contexts",
         "agent_tasks",
@@ -42,6 +42,7 @@ fn the_agent_member_declares_its_tables() {
         "context_agents",
         "context_notifications",
         "task_execution_steps",
+        "agent_task_rollup_hourly",
     ] {
         assert!(tables.contains(&table), "{table} in {tables:?}");
     }
@@ -51,6 +52,28 @@ fn the_agent_member_declares_its_tables() {
 #[test]
 fn the_agent_member_references_ai_requests_and_services() {
     assert_eq!(contributed().cross_tables(), ["ai_requests", "services"]);
+}
+
+#[test]
+fn the_agent_member_requires_the_ai_and_mcp_members() {
+    let sink = contributed();
+    let required: Vec<&str> = sink.requires().iter().map(|r| r.type_name()).collect();
+    for needle in ["RequestAttributionLookup", "ToolExecutionLookup"] {
+        assert!(
+            required.iter().any(|name| name.contains(needle)),
+            "{needle} in {required:?}"
+        );
+    }
+}
+
+#[test]
+fn the_agent_member_drains_its_rollup_and_the_task_agents() {
+    let projections: Vec<&str> = contributed()
+        .projections()
+        .iter()
+        .map(|entry| entry.drain().projection)
+        .collect();
+    assert_eq!(projections, ["agent_task_rollup_hourly", "ai_task_agents"]);
 }
 
 #[test]

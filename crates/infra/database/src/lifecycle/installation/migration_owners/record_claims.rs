@@ -6,15 +6,18 @@
 //! create that keeps it. A member with a tombstoned migration cannot show from
 //! its code that it no longer creates an object (a tombstone carries no SQL),
 //! so its object records stay, except a trigger on a table its retirements
-//! name. Any record, table or object, is stale when it carries install
-//! standing, its owner is an install member judged in this install, and a
-//! core member of the composition creates the same name: the owner's own
-//! code is present, and its create of a core member's name is refused. A
-//! stale record is no claim, and the install deletes it after its DDL
-//! (`Stale`). A record of a held-back member, or of a member outside the
-//! composition, is never stale: it outranks every member's code, a core
-//! member's included, so a core member creating that name is refused; a
-//! table record is released by the rules in `extension::ownership`.
+//! name. A core-standing object record is also stale when its owner's
+//! declarative schema no longer creates the object and another core member's
+//! does (its migrations or a tombstone may still name it): the object passes
+//! to that member, as a fresh install ranks it. Any record, table or object, is
+//! stale when it carries install standing, its owner is an install member
+//! judged in this install, and a core member of the composition creates the
+//! same name: the owner's own code is present, and its create of a core
+//! member's name is refused. A stale record is no claim, and the install
+//! deletes it after its DDL (`Stale`). A record of a held-back member, or of a
+//! member outside the composition, is never stale: it outranks every member's
+//! code, a core member's included, so a core member creating that name is
+//! refused; a table record is released by the rules in `extension::ownership`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,16 +49,25 @@ pub(super) struct MemberRead {
     pub(super) tombstoned: bool,
     pub(super) retired: BTreeSet<String>,
     pub(super) created: Created,
+    pub(super) declared: Created,
+}
+
+fn names(created: &Created, kind: Option<ObjectKind>, name: &str) -> bool {
+    match kind {
+        None => created.tables.contains(name),
+        Some(ObjectKind::Object) => created.objects.contains(name),
+        Some(ObjectKind::Index) => created.indexes.contains(name),
+        Some(ObjectKind::Trigger) => created.triggers.contains(name),
+    }
 }
 
 impl MemberRead {
     fn creates(&self, kind: Option<ObjectKind>, name: &str) -> bool {
-        match kind {
-            None => self.created.tables.contains(name),
-            Some(ObjectKind::Object) => self.created.objects.contains(name),
-            Some(ObjectKind::Index) => self.created.indexes.contains(name),
-            Some(ObjectKind::Trigger) => self.created.triggers.contains(name),
-        }
+        names(&self.created, kind, name)
+    }
+
+    fn declares(&self, kind: Option<ObjectKind>, name: &str) -> bool {
+        names(&self.declared, kind, name)
     }
 
     fn retired_trigger(&self, kind: Option<ObjectKind>, name: &str) -> bool {
@@ -82,13 +94,18 @@ fn stale(
         && reads
             .iter()
             .any(|read| read.standing == StandingTag::Core && read.creates(kind, name));
+    let core_peer_declares = standing == StandingTag::Core
+        && reads.iter().any(|read| {
+            read.id != *owner && read.standing == StandingTag::Core && read.declares(kind, name)
+        });
     let owner_dropped = kind.is_some()
         && reads.iter().any(|read| {
             read.judged
                 && read.id == *owner
                 && !(read.standing == StandingTag::Install && standing == StandingTag::Core)
-                && !read.creates(kind, name)
-                && (!read.tombstoned || read.retired_trigger(kind, name))
+                && ((!read.creates(kind, name)
+                    && (!read.tombstoned || read.retired_trigger(kind, name)))
+                    || (core_peer_declares && !read.declares(kind, name)))
         });
     core_creates || owner_dropped
 }

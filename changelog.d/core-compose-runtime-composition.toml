@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Facade"
+text = "A composition needs the facade's `runtime` feature, not `reference`: `Composition`, `reference()` and the `systemprompt` binary are gated on `runtime`, which is the kernel (`api`, `cli`, `logging`, `security`, `events`, `config`). `reference()` holds every core member the build links, so a binary built with `runtime` and a subset of the capability features composes exactly that subset; `reference` implies `runtime`. The `users`, `oauth`, `scheduler`, `documents` and `files` modules are gated on `api`, `agent` on `agents`, `ai` on `ai`, `marketplace` on `marketplace`, `generator` on `content` and `issues` on `issues`; `systemprompt::mcp` carries `host` with `api` and the `systemprompt-mcp` re-export with `mcp-servers`. Migrate a binary that named `reference` only to reach `Composition` by enabling `runtime` and the capability features it keeps."
+
+[[crate]]
+name = "systemprompt-analytics-entry"
+section = "Breaking"
+text = "`analytics-http` reads the content catalog optionally: without the `content` member it boots and records events with no content id. `ContentResolver::new` takes `Option<DynContentCatalogStats>`."

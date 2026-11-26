@@ -1,13 +1,19 @@
 # Analytics ownership and reporting
 
-Analytics reports read `report_*` views that analytics declares in
-`crates/domain/analytics/schema/report_views.sql`, one per source table its
-owners write: `ai_requests`, `agent_tasks`, `task_messages`, `user_contexts`,
-`mcp_tool_executions`, `markdown_content`, `analytics_events`, `users` and
-`user_sessions` (plus `v_clean_traffic`, `v_engaged_traffic` and
-`v_bot_sessions`). Analytics therefore queries only relations it declares,
-while nothing is copied: no capture trigger, no outbox consumer, no worker and
-no baseline to rebuild, so every report is current as of its query.
+Analytics reports read `report_*` views, one per source table its owners
+write. Analytics declares the views over tables every composition links, in
+`crates/domain/analytics/schema/report_views.sql`: `analytics_events`,
+`users`, `user_sessions` (plus `v_clean_traffic`, `v_engaged_traffic` and
+`v_bot_sessions`), `governance_decisions` and the link-click rollup. A view
+over an optional member's table is declared by that member in its own
+`schema/report_views.sql`: `ai` (`ai_requests`, its attributions, tool calls
+and hourly rollups), `agent` (`agent_tasks`, `task_messages`,
+`user_contexts` and the agent-task rollup), `mcp` (`mcp_tool_executions` and
+the tool-usage rollup) and `content` (`markdown_content`). A composition
+without one of those members has neither its tables nor their views, and its
+schema installs without them. Analytics therefore queries only report
+relations, while nothing is copied: no capture trigger, no outbox consumer, no
+worker and no baseline to rebuild, so every report is current as of its query.
 
 ## Ownership and interfaces
 

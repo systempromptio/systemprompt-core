@@ -1,4 +1,5 @@
--- Agent tasks rolled up per hour at write time (store, don't compute). The
+-- Agent tasks rolled up per hour at write time (store, don't compute), owned
+-- by the agent member because its triggers sit on `agent_tasks`. The
 -- analytics reports read it through `report_agent_task_hourly` instead of
 -- re-aggregating the ledger on every load. Averages are `*_sum / *_n`.
 --
@@ -12,8 +13,8 @@
 --
 -- Statement triggers on agent_tasks keep it current the same way as
 -- `tool_usage_rollup_hourly`; `refresh_agent_task_rollup_hourly(keys)`
--- rebuilds whole hours from the ledger, queued by migration 018 and drained
--- by the `backfill_rollups` job.
+-- rebuilds whole hours from the ledger, queued by the analytics member's
+-- migration 018 and drained by the `backfill_rollups` job.
 
 CREATE TABLE IF NOT EXISTS agent_task_rollup_hourly (
     bucket TIMESTAMPTZ NOT NULL,

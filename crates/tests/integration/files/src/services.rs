@@ -4,7 +4,7 @@
 //! Set DATABASE_URL environment variable to run these tests.
 
 use systemprompt_files::{FileRepository, InsertFileRequest};
-use systemprompt_identifiers::{ContentId, FileId, UserId};
+use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn create_test_file_request(suffix: &str) -> InsertFileRequest {
@@ -185,22 +185,4 @@ async fn test_repository_count_ai_images_by_user() {
     for id in file_ids {
         let _ = repo.delete(&id).await;
     }
-}
-
-#[tokio::test]
-async fn test_repository_list_files_by_content() {
-    let db = test_db_pool().await;
-
-    let repo = FileRepository::new(&db);
-
-    let content_id = ContentId::new(format!("list_test_{}", uuid::Uuid::new_v4()));
-
-    let files = repo
-        .list_files_by_content(&content_id)
-        .await
-        .expect("List should succeed");
-    assert!(
-        files.is_empty(),
-        "Should return empty list for non-existent content"
-    );
 }

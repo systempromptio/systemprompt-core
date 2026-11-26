@@ -64,7 +64,7 @@ fn test_schemas_include_core_tables() {
         .iter()
         .filter_map(|s| s.table.as_deref())
         .collect();
-    assert_eq!(names.len(), 6, "{names:?}");
+    assert_eq!(names.len(), 7, "{names:?}");
     for expected in [
         "markdown_categories",
         "markdown_content",
@@ -72,6 +72,7 @@ fn test_schemas_include_core_tables() {
         "content_performance_metrics",
         "campaign_links",
         "link_clicks",
+        "content_files",
     ] {
         assert!(
             names.contains(&expected),
@@ -94,6 +95,7 @@ fn the_content_member_provides_the_catalog_and_the_repositories() {
         [
             TypeId::of::<DynContentCatalogStats>(),
             TypeId::of::<Arc<ContentRepositories>>(),
+            TypeId::of::<systemprompt_extension::content_files::DynContentFileLinks>(),
         ]
     );
 }

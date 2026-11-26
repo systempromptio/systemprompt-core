@@ -20,7 +20,6 @@ mod link_facts_rollup;
 mod malicious_ip_blacklist;
 mod no_js_cleanup;
 mod retention;
-pub(crate) mod rollups;
 
 pub use backfill_session_geo::BackfillSessionGeoJob;
 pub use behavioral_analysis::BehavioralAnalysisJob;

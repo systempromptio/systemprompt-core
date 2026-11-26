@@ -3,15 +3,17 @@
 //! also met by the value an enabled member's slot builds, and refused when
 //! the only member opening that slot is disabled. A requirement whose only
 //! provider is withheld with its disabled dependency names that provider.
+//! The generator's content hooks are the core requirement exercised: only
+//! the core `content` member provides them.
 
 use std::sync::Arc;
 
+use systemprompt::content::ContentHooks;
 use systemprompt::{CompositionError, reference};
 use systemprompt_extension::{
     ContributionError, Contributions, Extension, ExtensionMetadata, ProvideError, Resolved, Slot,
     SlotEntry, SlotError, SlotOrder,
 };
-use systemprompt_traits::content::DynContentCatalogStats;
 
 use crate::probe::{Probe, profile};
 
@@ -64,9 +66,9 @@ fn a_requirement_met_only_by_a_disabled_members_slot_is_refused() {
     ));
 }
 
-const CONTENT_AND_ITS_EARLIER_DEPENDENTS: [&str; 3] = ["content", "generator", "content-http"];
+const CONTENT: [&str; 1] = ["content"];
 
-fn refuse_provider() -> Result<DynContentCatalogStats, ProvideError> {
+fn refuse_provider() -> Result<Arc<ContentHooks>, ProvideError> {
     Err(ProvideError::Failed(Box::new(std::fmt::Error)))
 }
 
@@ -74,15 +76,15 @@ fn refuse_provider() -> Result<DynContentCatalogStats, ProvideError> {
 fn install_cannot_substitute_for_a_disabled_core_provider() {
     let error = reference()
         .with(Probe::new("probe-stats", |c| {
-            c.provide::<DynContentCatalogStats, _>(|_: &Resolved<'_>| refuse_provider());
+            c.provide::<Arc<ContentHooks>, _>(|_: &Resolved<'_>| refuse_provider());
         }))
-        .build(&profile(&CONTENT_AND_ITS_EARLIER_DEPENDENTS))
-        .expect_err("analytics-http's catalog stats come from core content only");
+        .build(&profile(&CONTENT))
+        .expect_err("the generator's content hooks come from core content only");
     assert!(
         matches!(
             &error,
             CompositionError::InstallSubstitution { owner, provider, .. }
-                if owner.as_str() == "analytics-http" && provider.as_str() == "probe-stats"
+                if owner.as_str() == "generator" && provider.as_str() == "probe-stats"
         ),
         "{error:?}"
     );
@@ -91,13 +93,13 @@ fn install_cannot_substitute_for_a_disabled_core_provider() {
 #[test]
 fn disabled_core_provider_is_named() {
     let error = reference()
-        .build(&profile(&CONTENT_AND_ITS_EARLIER_DEPENDENTS))
-        .expect_err("analytics-http requires the catalog stats content provides");
+        .build(&profile(&CONTENT))
+        .expect_err("the generator requires the content hooks content provides");
     assert!(
         matches!(
             &error,
             CompositionError::DisabledDependency { owner, provider, .. }
-                if owner.as_str() == "analytics-http" && provider.as_str() == "content"
+                if owner.as_str() == "generator" && provider.as_str() == "content"
         ),
         "{error:?}"
     );

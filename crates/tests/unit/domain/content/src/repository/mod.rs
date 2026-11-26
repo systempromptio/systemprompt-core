@@ -1,5 +1,6 @@
-//! Tests for content repository mutations.
+//! Tests for content repository mutations and the content-file links.
 
+mod content_files;
 mod mutations;
 
 #[tokio::test]

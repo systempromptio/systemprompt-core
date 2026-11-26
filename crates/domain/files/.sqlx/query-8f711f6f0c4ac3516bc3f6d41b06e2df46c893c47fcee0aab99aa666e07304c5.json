@@ -1,70 +1,81 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, content_id as \"content_id: ContentId\", file_id, role as \"role: FileRole\", display_order, created_at\n            FROM content_files\n            WHERE file_id = $1\n            ORDER BY created_at ASC\n            ",
+  "query": "\n            SELECT id, path, public_url, mime_type, size_bytes, ai_content, created_at\n            FROM files\n            WHERE id = ANY($1) AND deleted_at IS NULL\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "content_files",
+            "table": "files",
             "name": "id"
           }
         }
       },
       {
         "ordinal": 1,
-        "name": "content_id: ContentId",
+        "name": "path",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "content_files",
-            "name": "content_id"
+            "table": "files",
+            "name": "path"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "file_id",
-        "type_info": "Uuid",
+        "name": "public_url",
+        "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "content_files",
-            "name": "file_id"
+            "table": "files",
+            "name": "public_url"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "role: FileRole",
+        "name": "mime_type",
         "type_info": "Varchar",
         "origin": {
           "Table": {
-            "table": "content_files",
-            "name": "role"
+            "table": "files",
+            "name": "mime_type"
           }
         }
       },
       {
         "ordinal": 4,
-        "name": "display_order",
-        "type_info": "Int4",
+        "name": "size_bytes",
+        "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "content_files",
-            "name": "display_order"
+            "table": "files",
+            "name": "size_bytes"
           }
         }
       },
       {
         "ordinal": 5,
+        "name": "ai_content",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "ai_content"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "content_files",
+            "table": "files",
             "name": "created_at"
           }
         }
@@ -72,7 +83,7 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "UuidArray"
       ]
     },
     "nullable": [
@@ -80,9 +91,10 @@
       false,
       false,
       false,
+      true,
       false,
       false
     ]
   },
-  "hash": "29f8d860540e47d4c014fd5d0845c862a6839f66d93ec2a62ee85bc1cd13bf08"
+  "hash": "8f711f6f0c4ac3516bc3f6d41b06e2df46c893c47fcee0aab99aa666e07304c5"
 }

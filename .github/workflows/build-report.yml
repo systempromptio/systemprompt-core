@@ -1,10 +1,13 @@
 name: Build report
 
-# Informational: crate-closure counts and stripped release binary size per
-# reference composition (scripts/build-compositions.txt), plus
-# `cargo bloat --crates` and `cargo build --timings` for the largest. A
-# workflow of its own and never a required check, so a slow or failed report
-# never changes the conclusion of a gate run that release-proof.py reads.
+# Informational: crate-closure counts, stripped release binary size and the
+# developer loop (`cargo check` / `cargo clippy`, clean and after touching one
+# leaf file) per supported composition (scripts/build-compositions.txt), plus
+# `cargo bloat --crates` and `cargo build --timings` for the largest; and, in
+# the test-loop job, the test-archive build and nextest run seconds per unit of
+# scripts/units.txt. A workflow of its own and never a required check, so a
+# slow or failed report never changes the conclusion of a gate run that
+# release-proof.py reads.
 #
 # One job builds the compositions in sequence rather than a matrix: they share
 # most of the dependency graph, so sequential builds reuse one sccache and one
@@ -29,6 +32,7 @@ on:
     paths:
       - scripts/build-report.sh
       - scripts/build-compositions.txt
+      - scripts/units.txt
       - .github/workflows/build-report.yml
 
 concurrency:
@@ -54,7 +58,7 @@ jobs:
   build-report:
     name: Build report
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 360
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
@@ -73,7 +77,7 @@ jobs:
           tool: cargo-bloat
       - name: Build report
         run: |
-          mode=()
+          mode=(--dev-loop)
           [ "${{ inputs.closure_only }}" = true ] && mode=(--closure-only)
           bash scripts/build-report.sh "${mode[@]}" target/build-report/report.md
       - if: always()
@@ -87,4 +91,61 @@ jobs:
             target/build-report/report.json
             target/build-report/cargo-timing.html
             target/build-report/bloat.json
+          if-no-files-found: warn
+
+  test-loop:
+    name: Test loop report
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    if: ${{ !inputs.closure_only }}
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      DATABASE_URL: postgres://test:test@localhost:5432/test
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - run: rustup show
+      - name: Install system dependencies
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
+      - uses: ./.github/actions/sccache
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-nextest@0.9.146
+      - name: Migrate the test database
+        run: |
+          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
+          tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+          "$tests_target/debug/systemprompt-test-migrate"
+      - name: Build the systemprompt binary the subprocess tests spawn
+        run: |
+          cargo build -p systemprompt --bin systemprompt --features reference --locked
+          echo "SYSTEMPROMPT_BIN=$(cargo metadata --no-deps --format-version 1 | jq -r .target_directory)/debug/systemprompt" >> "$GITHUB_ENV"
+      - name: Test loop report
+        env:
+          NEXTEST_PROFILE: ci
+        run: bash scripts/build-report.sh --units target/build-report/units.md
+      - if: always()
+        run: cat target/build-report/units.md >> "$GITHUB_STEP_SUMMARY" || true
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-report-units
+          path: |
+            target/build-report/units.md
+            target/build-report/units.json
           if-no-files-found: warn

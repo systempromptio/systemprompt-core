@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT file_id, display_order\n            FROM content_files\n            WHERE content_id = $1 AND role = $2\n            ORDER BY display_order ASC, created_at ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "file_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "file_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "display_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "display_order"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0f1ebde7ec3c775b920397bc0ea41b49d1ce2e123fe1be40adf6a0858d660ae5"
+}
