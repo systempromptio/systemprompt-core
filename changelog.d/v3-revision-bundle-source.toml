@@ -1,4 +1,4 @@
 [root]
 section = "Breaking"
 area = "Agent runs"
-text = "The agent-run harness loads its revision closure through `systemprompt_extension::revision_bundles::DynRevisionBundleSource`, which the `managed_resources` member provides; `execute::harness::HarnessSource` is removed, `A2aRunHandler::with_harness_source` takes a `DynRevisionBundleSource`, `A2aRunnerService::new` takes the optional source, `AgentRunRepositories` has no `managed` field, and `systemprompt-agent-runs` no longer depends on `systemprompt-marketplace`."
+text = "The agent-run harness loads revisions through `systemprompt_extension::revision_bundles::DynRevisionBundleSource`: `execute::harness::HarnessSource` is removed, `A2aRunHandler::with_harness_source` takes a `DynRevisionBundleSource`, `A2aRunnerService::new` takes `Option<DynRevisionBundleSource>`, `HarnessError::Load` carries a `RevisionBundleLoadError`, and `AgentRunRepositories` has no `managed` field. Migrate a custom harness source by implementing `RevisionBundleSource`."

@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "CLI and cloud"
+text = "`require_cloud_email`, `resolve_credentialed_user_email`, `resolve_admin_with_fallback` and `fetch_admin_user` take a `CloudScope { cloud, profile }` (`systemprompt_cli::cloud_access`): a profile that disables the `cloud` member is refused with `CloudAccessError::Disabled` before the cloud account is read. Migrate a caller by passing its cloud access and profile in a `CloudScope`."

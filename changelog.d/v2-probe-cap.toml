@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Overload"
-text = "Health, readiness and metrics routes share their own in-flight ceiling, `server.max_probe_in_flight` (default 64), refused with the same `503` shape and counted in `http_probe_shed_total`; a saturated main ceiling never refuses them."
+text = "Health, readiness and metrics routes keep bypassing `server.max_in_flight` and now share their own ceiling, `server.max_probe_in_flight` (default 64), refused with the same `503` shape and counted in `http_probe_shed_total`. `load_shed::outermost` takes `InFlightLimits`. `ServerConfig` and `Config` gain `max_probe_in_flight` and `max_route_body_bytes`; migrate a struct literal by naming them (`DEFAULT_MAX_PROBE_IN_FLIGHT`, `DEFAULT_MAX_ROUTE_BODY_BYTES`). Size `server.max_in_flight` per replica as the streams it must hold open at once plus the short-request concurrency (rate × latency) and headroom, kept in proportion to the replica's database connection budget, since every open stream holds a permit until it closes; the configuration reference has the full guidance."
 
 [[crate]]
 name = "systemprompt-api"

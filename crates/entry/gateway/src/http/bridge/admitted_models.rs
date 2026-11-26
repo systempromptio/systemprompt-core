@@ -62,7 +62,8 @@ impl AdmittedModelsIssuer {
             return Err(ProvideError::Withheld);
         }
         let settings = r
-            .get::<Option<Arc<GatewaySettingsView>>>()?
+            .optional::<Option<Arc<GatewaySettingsView>>>()
+            .flatten()
             .ok_or(ProvideError::Withheld)?;
         Ok(Arc::new(Self {
             authenticator: r

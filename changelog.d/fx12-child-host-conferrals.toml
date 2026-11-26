@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Install views and conferred capabilities"
-text = "A child host (`admin mcp serve`, `admin agent-host run`) confers nothing: it seeds no conferral issuer, even when the encryption master key was granted, and seeds `ConferralsWithheld` sealed. `Resolved::{member_cipher, share_tokens, git_source_sync, token_minter}` return `ConferralError` (`Missing` for an undeclared row, `Withheld` for a declared one on a child); `?` in a provide fn withholds the value, so a member that declares a conferral no longer stops the child from booting. Migrate exhaustive handling of the read's error to `ConferralError`."
+text = "A child host (the process `admin mcp serve --server <id>` and `admin agent-host run` boot) confers nothing: it seeds no conferral issuer and never holds `encryption_master_key` (the grant is refused), and seeds `ConferralsWithheld` sealed. `Resolved::member_cipher`, `share_tokens`, `git_source_sync` and `token_minter` return `ConferralError`: `Missing` when the member did not declare the row (on every host), `Withheld` when it did and the host is a child. `?` in a provide fn turns `Withheld` into `ProvideError::Withheld`, so the value is withheld on the child and the child boots; in a factory it fails the slot build. Migrate a provide fn that wraps a conferral into a value its MCP toolset reads by matching `ConferralError::Withheld` and building the value without the handle, or leave the `?` when the child never reads the value."
 
 [[crate]]
 name = "systemprompt-extension"

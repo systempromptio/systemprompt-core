@@ -1,4 +1,4 @@
 [root]
 section = "Breaking"
 area = "MCP"
-text = "The artifact ingest contract is `systemprompt_extension::mcp::artifacts`: `ArtifactScanner`, `ArtifactFinding`, `PHASE_TOOL_RESULT`, `IngestRequest`, `IngestOutcome`, `IngestMark`, `IngestMarkKey` and the `ToolResultIngest` trait, which the `mcp` member provides as `DynToolResultIngest`. `systemprompt-mcp` no longer exports those items or `from_canonical_tool_result`, and `systemprompt-gateway` no longer depends on `systemprompt-mcp`."
+text = "The artifact ingest contract is `systemprompt_extension::mcp::artifacts` (`mcp` feature): `ArtifactScanner`, `ArtifactFinding`, `PHASE_TOOL_RESULT`, `IngestRequest`, `IngestOutcome`, `IngestMark`, `IngestMarkKey` and the `ToolResultIngest` trait the `mcp` member provides as `DynToolResultIngest`. `systemprompt_mcp` no longer exports them or `from_canonical_tool_result`. Migrate by importing them from `systemprompt_extension::mcp::artifacts`; register a scanner on `DynToolResultIngest` rather than on `Arc<ArtifactIngest>`."

@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Extension"
+text = "`SealedFilesReport` gains `kept_unopened`: the records inside a re-sealed file that no key opens, kept verbatim. Migrate struct literals."

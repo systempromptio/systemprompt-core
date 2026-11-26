@@ -1,4 +1,4 @@
 [root]
 section = "Breaking"
 area = "Content"
-text = "The `core content files` commands read the `systemprompt_extension::content_files::DynContentFileLinks` the `files` member provides; their `execute_with_pool` functions are `execute_with_links`, taking a `&dyn ContentFileLinks`, and `link::FileRoleArg` is `ContentFileRole`. `systemprompt-content-entry` no longer depends on `systemprompt-files`."
+text = "The `core content files` commands read `systemprompt_extension::content_files::DynContentFileLinks` from the `content` member: each `execute_with_pool` is `execute_with_links` taking `&dyn ContentFileLinks`, and `link::FileRoleArg` is `ContentFileRole`. The command line is unchanged."
