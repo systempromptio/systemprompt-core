@@ -112,12 +112,16 @@ fn the_analytics_member_declares_its_schemas() {
         .iter()
         .filter_map(|schema| schema.table.as_deref())
         .collect();
-    for table in [
-        "engagement_events",
-        "fingerprint_reputation",
-        "tool_usage_rollup_hourly",
-        "agent_task_rollup_hourly",
-    ] {
+    for table in ["engagement_events", "fingerprint_reputation"] {
         assert!(tables.contains(&table), "{table} in {tables:?}");
+    }
+    for moved in ["tool_usage_rollup_hourly", "agent_task_rollup_hourly"] {
+        assert!(!tables.contains(&moved), "{moved} in {tables:?}");
+        assert!(
+            sink.retirements().iter().any(|retired| retired
+                .sql
+                .contains(&format!("DROP TABLE IF EXISTS {moved};"))),
+            "{moved} is retired"
+        );
     }
 }

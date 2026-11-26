@@ -81,7 +81,10 @@ pub fn content_kernel(
 }
 
 fn content_file_links(pool: &DbPool) -> systemprompt_extension::content_files::DynContentFileLinks {
-    Arc::new(systemprompt_files::FileRepository::new(pool))
+    Arc::new(systemprompt_content::ContentFileRepository::new(
+        pool,
+        Arc::new(systemprompt_files::FileRepository::new(pool)),
+    ))
 }
 
 pub fn mount(

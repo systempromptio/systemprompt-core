@@ -5,10 +5,9 @@
 //!
 //! - **Configuration** — profile-driven [`FilesConfig`] resolving storage roots
 //!   and per-MIME upload policies via YAML overrides.
-//! - **Models** — typed [`File`], [`FileMetadata`], [`ContentFile`] and
-//!   [`FileRole`] structures backed by Postgres.
-//! - **Repositories** — `sqlx`-backed persistence for file rows and
-//!   content↔file associations.
+//! - **Models** — typed [`File`] and [`FileMetadata`] structures backed by
+//!   Postgres.
+//! - **Repositories** — `sqlx`-backed persistence for file rows.
 //! - **Services** — upload validation, content services, AI-persistence glue.
 //! - **Uploads** — resumable, content-checked uploads that end in a
 //!   content-addressed document blob ([`uploads`]).
@@ -59,8 +58,8 @@ pub use config::{
 };
 pub use jobs::FileIngestionJob;
 pub use models::{
-    AudioMetadata, ContentFile, DocumentMetadata, File, FileChecksums, FileMetadata, FileRole,
-    ImageGenerationInfo, ImageMetadata, TypeSpecificMetadata, VideoMetadata,
+    AudioMetadata, DocumentMetadata, File, FileChecksums, FileMetadata, ImageGenerationInfo,
+    ImageMetadata, TypeSpecificMetadata, VideoMetadata,
 };
 pub use repository::{FileRepository, FileStats, InsertFileRequest};
 pub use services::{

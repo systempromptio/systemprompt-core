@@ -21,6 +21,15 @@
 //! [`AccessRecorderSlot`], so both built values are present whenever this
 //! member is admitted.
 //!
+//! It owns the schema objects that cannot exist without its tables: the
+//! `tool_usage_rollup_hourly` rollup (its triggers sit on
+//! `mcp_tool_executions`), the `tool_call_ledger` view and the analytics
+//! report views over its tables. The ledger joins the ai member's tool-call
+//! intents and the rollup reads the agent of a task from the ai member's
+//! `ai_task_agents`, so the member requires the ai member's tool-call intent
+//! claims (`DynToolCallIntentClaims`), and a composition without `ai` refuses
+//! it by name.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -141,13 +150,27 @@ impl Extension for McpExtension {
                     .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect()),
             );
         }
-        c.schema(SchemaDefinition::sql_only(include_str!(
+        c.schema(
+            SchemaDefinition::new(
+                "tool_usage_rollup_hourly",
+                include_str!("../schema/tool_usage_rollup_hourly.sql"),
+            )
+            .with_required_columns(vec!["bucket".into(), "execution_count".into()]),
+        )
+        .schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/tool_call_ledger.sql"
+        )))
+        .schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/report_views.sql"
+        )))
+        .schema(SchemaDefinition::sql_only(include_str!(
             "../schema/tool_row_facts.sql"
         )))
         .schema(SchemaDefinition::sql_only(include_str!(
             "../schema/trace_facts_mcp.sql"
         )))
         .migrations(extension_migrations!())
+        .requires::<DynToolCallIntentClaims>()
         .provide(
             |r: &Resolved<'_>| -> Result<DynToolExecutionLookup, ProvideError> {
                 let db = r.get::<DbPool>()?;
@@ -205,19 +228,13 @@ fn contribute_tool_executions(c: &mut Contributions<'_>) {
     c.provide_after_governance(
         |r: &Resolved<'_>| -> Result<DynToolExecutions, ProvideError> {
             let db = r.get::<DbPool>()?;
-            let intents = r.optional::<DynToolCallIntentClaims>();
-            if intents.is_none() {
-                tracing::info!(
-                    "no tool-call intent claims are provided (the ai member is not admitted); \
-                     tool executions record no intent attribution"
-                );
-            }
+            let intents = r.get::<DynToolCallIntentClaims>()?;
             Ok(Arc::new(McpToolExecutions::new(
                 Arc::new(
                     ToolUsageRepository::new(&db)
                         .with_audit_spans(r.optional::<DynAuditSpanSink>()),
                 ),
-                intents,
+                Some(intents),
                 r.get::<Arc<ArtifactIngest>>()?,
                 r.get::<Arc<UiRendererRegistry>>()?,
             )))

@@ -1,5 +1,7 @@
 -- The tool-call ledger: one row per tool call from any client, joining the
--- three entities that each mean one thing.
+-- three entities that each mean one thing. The mcp member owns it: it cannot
+-- exist without the executions, and the member requires the ai member whose
+-- intents it joins.
 --
 --   intent     ai_request_tool_calls   the model emitted a tool_use (gateway, all clients)
 --   execution  mcp_tool_executions     the call ran (in-process, proxy, or client hook)

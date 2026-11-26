@@ -7,6 +7,15 @@
 //! (the public URL and skills directory, narrowed from the configuration). It
 //! contributes its supervised process set to the sealed `ServiceProcessSlot`.
 //!
+//! It owns the schema objects that cannot exist without its tables: the
+//! `agent_task_rollup_hourly` rollup, the triggers on `agent_tasks` that keep
+//! the ai member's `ai_task_agents` current, and the analytics report views
+//! over its tables. Its schema names the ai member's tables and the mcp
+//! member's executions, so the member requires the ai member's request
+//! attribution lookup (`DynRequestAttributionLookup`) and the mcp member's
+//! tool-execution lookup (`DynToolExecutionLookup`); a composition without
+//! either refuses it by name.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,9 +27,10 @@ use systemprompt_extension::service_process::ServiceProcessSlot;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::attribution::DynRequestAttributionLookup;
 use systemprompt_traits::{
     AgentRegistryProvider, DynContextDirectory, DynContextMaterializer, DynServiceProcessSet,
-    DynSessionContextIssuer,
+    DynSessionContextIssuer, DynToolExecutionLookup,
 };
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
@@ -59,11 +69,27 @@ impl Extension for AgentExtension {
         .schema(SchemaDefinition::sql_only(include_str!(
             "../schema/trace_facts_agent.sql"
         )))
+        .schema(
+            SchemaDefinition::new(
+                "agent_task_rollup_hourly",
+                include_str!("../schema/agent_task_rollup_hourly.sql"),
+            )
+            .with_required_columns(vec!["bucket".into(), "task_count".into()]),
+        )
+        .schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/ai_task_agents_sync.sql"
+        )))
+        .schema(SchemaDefinition::sql_only(include_str!(
+            "../schema/report_views.sql"
+        )))
         .migrations(extension_migrations!())
+        .requires::<DynRequestAttributionLookup>()
+        .requires::<DynToolExecutionLookup>()
         .cross_table("ai_requests")
         .cross_table("services")
         .job(CleanupEmptyContextsJob)
         .job(UserContextCountersRollupJob);
+        crate::jobs::rollups::contribute(c);
         provide_seams(c);
         c.user_purge(UserPurgeTable {
             table: "agent_tasks",

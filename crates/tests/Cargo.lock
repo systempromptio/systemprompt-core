@@ -10292,6 +10292,7 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",

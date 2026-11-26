@@ -1,18 +1,19 @@
 //! DB-backed tests for the pool-seamed `core content files` command tree
-//! (list/link/unlink/featured), driving `execute_with_links` over the files
-//! repository against a fixture pool with real content and file rows.
+//! (list/link/unlink/featured), driving `execute_with_links` over the content
+//! file links repository against a fixture pool with real content and file
+//! rows.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde_json::Value;
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
+use systemprompt_content::{ContentFileRepository, ContentRepository};
 use systemprompt_content_entry::cli::content::files::{featured, link, list, unlink};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
 use systemprompt_extension::content_files::ContentFileRole;
-use systemprompt_files::{FileRepository, FileRole};
+use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
@@ -71,14 +72,32 @@ fn link_args(file: &str, content: &ContentId, role: ContentFileRole) -> link::Li
     }
 }
 
-async fn linked_roles(pool: &DbPool, file: &str) -> Vec<FileRole> {
-    let repo = FileRepository::new(pool);
-    repo.list_content_by_file(&FileId::new(file.to_owned()))
+async fn linked_roles(pool: &DbPool, file: &str) -> Vec<&'static str> {
+    let repo = links(pool);
+    repo.contents_of(&FileId::new(file.to_owned()))
         .await
         .unwrap()
         .into_iter()
-        .map(|cf| cf.role)
+        .map(|link| role_name(&link.role))
         .collect()
+}
+
+fn links(pool: &DbPool) -> ContentFileRepository {
+    ContentFileRepository::new(pool, std::sync::Arc::new(FileRepository::new(pool)))
+}
+
+fn role_name(role: &str) -> &'static str {
+    [
+        ContentFileRole::Featured,
+        ContentFileRole::Attachment,
+        ContentFileRole::Inline,
+        ContentFileRole::OgImage,
+        ContentFileRole::Thumbnail,
+    ]
+    .into_iter()
+    .map(ContentFileRole::as_str)
+    .find(|name| *name == role)
+    .unwrap_or_else(|| panic!("unknown content file role {role}"))
 }
 
 #[tokio::test]
@@ -89,14 +108,17 @@ async fn link_attaches_file_to_content() {
 
     let out = link::execute_with_links(
         link_args(&file, &content, ContentFileRole::Attachment),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
     assert!(contains(&out, &file));
-    assert_eq!(linked_roles(&pool, &file).await, vec![FileRole::Attachment]);
+    assert_eq!(
+        linked_roles(&pool, &file).await,
+        vec![ContentFileRole::Attachment.as_str()]
+    );
 }
 
 #[tokio::test]
@@ -106,7 +128,7 @@ async fn list_by_content_and_by_file_reflect_link() {
     let file = seed_file(&pool).await;
     link::execute_with_links(
         link_args(&file, &content, ContentFileRole::Inline),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -117,7 +139,7 @@ async fn list_by_content_and_by_file_reflect_link() {
             content: Some(content.as_str().to_owned()),
             file: None,
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -129,7 +151,7 @@ async fn list_by_content_and_by_file_reflect_link() {
             content: None,
             file: Some(file.clone()),
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -146,7 +168,7 @@ async fn list_requires_exactly_one_filter() {
             content: None,
             file: None,
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -158,7 +180,7 @@ async fn list_requires_exactly_one_filter() {
             content: Some("c".to_owned()),
             file: Some("f".to_owned()),
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -174,7 +196,7 @@ async fn list_by_file_rejects_bad_uuid() {
             content: None,
             file: Some("nope".to_owned()),
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -198,7 +220,7 @@ async fn unlink_with_yes_removes_link() {
     let file = seed_file(&pool).await;
     link::execute_with_links(
         link_args(&file, &content, ContentFileRole::Attachment),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -207,7 +229,7 @@ async fn unlink_with_yes_removes_link() {
     unlink::execute_with_links(
         unlink_args(&file, &content, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -223,7 +245,7 @@ async fn unlink_dry_run_preserves_link() {
     let file = seed_file(&pool).await;
     link::execute_with_links(
         link_args(&file, &content, ContentFileRole::Attachment),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -232,13 +254,16 @@ async fn unlink_dry_run_preserves_link() {
     unlink::execute_with_links(
         unlink_args(&file, &content, true, true),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    assert_eq!(linked_roles(&pool, &file).await, vec![FileRole::Attachment]);
+    assert_eq!(
+        linked_roles(&pool, &file).await,
+        vec![ContentFileRole::Attachment.as_str()]
+    );
 }
 
 #[tokio::test]
@@ -248,7 +273,7 @@ async fn unlink_non_interactive_without_yes_errors() {
     let file = seed_file(&pool).await;
     link::execute_with_links(
         link_args(&file, &content, ContentFileRole::Attachment),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -257,14 +282,17 @@ async fn unlink_non_interactive_without_yes_errors() {
     let err = unlink::execute_with_links(
         unlink_args(&file, &content, false, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
     .unwrap_err();
 
     assert!(err.to_string().contains("--yes is required"));
-    assert_eq!(linked_roles(&pool, &file).await, vec![FileRole::Attachment]);
+    assert_eq!(
+        linked_roles(&pool, &file).await,
+        vec![ContentFileRole::Attachment.as_str()]
+    );
 }
 
 #[tokio::test]
@@ -274,7 +302,7 @@ async fn unlink_interactive_confirm_no_preserves_link() {
     let file = seed_file(&pool).await;
     link::execute_with_links(
         link_args(&file, &content, ContentFileRole::Attachment),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -283,7 +311,7 @@ async fn unlink_interactive_confirm_no_preserves_link() {
     let err = unlink::execute_with_links(
         unlink_args(&file, &content, false, false),
         &ScriptedPrompter::new(vec!["n"]),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &CliConfig::new()
             .with_interactive(true)
             .with_assume_terminal(true),
@@ -292,7 +320,10 @@ async fn unlink_interactive_confirm_no_preserves_link() {
     .unwrap_err();
 
     assert!(err.to_string().contains("cancelled"));
-    assert_eq!(linked_roles(&pool, &file).await, vec![FileRole::Attachment]);
+    assert_eq!(
+        linked_roles(&pool, &file).await,
+        vec![ContentFileRole::Attachment.as_str()]
+    );
 }
 
 #[tokio::test]
@@ -302,7 +333,7 @@ async fn featured_set_then_get_returns_image() {
     let file = seed_file(&pool).await;
     link::execute_with_links(
         link_args(&file, &content, ContentFileRole::Attachment),
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -313,20 +344,23 @@ async fn featured_set_then_get_returns_image() {
             content: content.as_str().to_owned(),
             set: Some(file.clone()),
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
     .unwrap();
 
-    assert_eq!(linked_roles(&pool, &file).await, vec![FileRole::Featured]);
+    assert_eq!(
+        linked_roles(&pool, &file).await,
+        vec![ContentFileRole::Featured.as_str()]
+    );
 
     let out = featured::execute_with_links(
         featured::FeaturedArgs {
             content: content.as_str().to_owned(),
             set: None,
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -344,7 +378,7 @@ async fn featured_get_none_reports_absence() {
             content: content.as_str().to_owned(),
             set: None,
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -364,7 +398,7 @@ async fn featured_set_unlinked_file_errors() {
             content: content.as_str().to_owned(),
             set: Some(file),
         },
-        &FileRepository::new(&pool),
+        &links(&pool),
         &cfg(),
     )
     .await
@@ -386,7 +420,6 @@ mod dispatch {
     };
     use systemprompt_extension::cli::OutputFormat;
     use systemprompt_extension::content_files::ContentFileRole;
-    use systemprompt_files::FileRole;
     use systemprompt_test_fixtures::{test_app_context, test_database_url};
 
     async fn ctx() -> CommandContext {
@@ -419,7 +452,7 @@ mod dispatch {
 
         assert_eq!(
             linked_roles(&pool, &file).await,
-            vec![FileRole::Attachment],
+            vec![ContentFileRole::Attachment.as_str()],
             "the Link variant must reach link, not merely return Ok"
         );
     }
@@ -483,7 +516,7 @@ mod dispatch {
 
         assert_eq!(
             linked_roles(&pool, &file).await,
-            vec![FileRole::Inline],
+            vec![ContentFileRole::Inline.as_str()],
             "a previewed unlink must not have unlinked anything"
         );
     }
@@ -528,7 +561,7 @@ mod dispatch {
 
         assert_eq!(
             linked_roles(&pool, &file).await,
-            vec![FileRole::Featured],
+            vec![ContentFileRole::Featured.as_str()],
             "the Featured variant must reach featured and promote the existing link"
         );
     }
@@ -579,12 +612,12 @@ mod dispatch {
 
         assert_eq!(
             linked_roles(&pool, &second).await,
-            vec![FileRole::Featured],
+            vec![ContentFileRole::Featured.as_str()],
             "the most recently featured file holds the role"
         );
         assert_eq!(
             linked_roles(&pool, &first).await,
-            vec![FileRole::Attachment],
+            vec![ContentFileRole::Attachment.as_str()],
             "the previous featured image must be demoted, not left as a second one"
         );
     }

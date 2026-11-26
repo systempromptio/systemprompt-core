@@ -1,215 +1,241 @@
-//! [`FileRepository`] queries for file/content associations.
+//! [`ContentFileRepository`]: the links between content items and files
+//! (`content_files`), which the content member owns because a link cannot
+//! exist without the content item it names.
 //!
-//! Linking and unlinking files to content, listing the files for a piece of
-//! content (and vice versa), and managing the single featured-image role.
+//! It links and unlinks a file, lists the files of a content item and the
+//! content items of a file, and keeps the single featured-image role. The
+//! stored files a link names are the `files` member's: it reads them through
+//! the shared [`DynLinkedFileSource`], keeping the links in their order and
+//! leaving out a file that is gone or deleted. It is provided as the shared
+//! [`DynContentFileLinks`] the `content files` commands read.
+//!
+//! [`DynLinkedFileSource`]: systemprompt_extension::content_files::DynLinkedFileSource
+//!
+//! [`DynContentFileLinks`]: systemprompt_extension::content_files::DynContentFileLinks
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod links;
 
-use chrono::Utc;
-use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use super::file::FileRepository;
-use crate::error::{FilesError, FilesResult, parse_file_uuid};
-use crate::models::{ContentFile, ContentFileRow, File, FileMetadata, FileRole, FileRow};
+use sqlx::PgPool;
+use sqlx::types::Uuid;
+use systemprompt_database::DbPool;
+use systemprompt_extension::content_files::{
+    ContentFileRole, DynLinkedFileSource, FileContentLink, LinkedFile, StoredFile,
+};
+use systemprompt_identifiers::{ContentId, FileId};
 
-impl FileRepository {
-    pub async fn link_to_content(
-        &self,
-        content_id: &ContentId,
-        file_id: &FileId,
-        role: FileRole,
-        display_order: i32,
-    ) -> FilesResult<ContentFile> {
-        let file_id_uuid = parse_file_uuid(file_id)?;
-        let now = Utc::now();
+use crate::error::{ContentError, ContentResult};
 
-        let result = sqlx::query_as!(
-            ContentFileRow,
-            r#"
-            INSERT INTO content_files (content_id, file_id, role, display_order, created_at)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (content_id, file_id, role) DO UPDATE
-            SET display_order = $4
-            RETURNING id, content_id as "content_id: ContentId", file_id, role as "role: FileRole", display_order, created_at
-            "#,
-            content_id as _,
-            file_id_uuid,
-            role.as_str(),
-            display_order,
-            now
-        )
-        .fetch_one(self.pool.as_ref())
-        .await?;
+#[derive(Clone)]
+pub struct ContentFileRepository {
+    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
+    files: DynLinkedFileSource,
+}
 
-        Ok(ContentFile::from(result))
+impl std::fmt::Debug for ContentFileRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ContentFileRepository")
+            .finish_non_exhaustive()
+    }
+}
+
+struct Link {
+    file: FileId,
+    role: String,
+    display_order: i32,
+}
+
+fn file_uuid(id: &FileId) -> ContentResult<Uuid> {
+    Uuid::parse_str(id.as_str()).map_err(|source| ContentError::InvalidFileId {
+        id: id.clone(),
+        source,
+    })
+}
+
+impl ContentFileRepository {
+    pub fn new(db: &DbPool, files: DynLinkedFileSource) -> Self {
+        Self {
+            pool: db.pool(),
+            write_pool: db.write_pool(),
+            files,
+        }
     }
 
-    pub async fn unlink_from_content(
+    pub async fn link(
         &self,
         content_id: &ContentId,
         file_id: &FileId,
-    ) -> FilesResult<()> {
-        let file_id_uuid = parse_file_uuid(file_id)?;
-
+        role: ContentFileRole,
+        display_order: i32,
+    ) -> ContentResult<()> {
+        let file = file_uuid(file_id)?;
         sqlx::query!(
             r#"
-            DELETE FROM content_files
-            WHERE content_id = $1 AND file_id = $2
+            INSERT INTO content_files (content_id, file_id, role, display_order, created_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT (content_id, file_id, role) DO UPDATE
+            SET display_order = $4
             "#,
-            content_id as _,
-            file_id_uuid
+            content_id.as_str(),
+            file,
+            role.as_str(),
+            display_order,
         )
-        .execute(self.pool.as_ref())
+        .execute(self.write_pool.as_ref())
         .await?;
-
         Ok(())
     }
 
-    pub async fn list_files_by_content(
-        &self,
-        content_id: &ContentId,
-    ) -> FilesResult<Vec<(File, ContentFile)>> {
-        let rows = sqlx::query!(
+    pub async fn unlink(&self, content_id: &ContentId, file_id: &FileId) -> ContentResult<()> {
+        let file = file_uuid(file_id)?;
+        sqlx::query!(
+            "DELETE FROM content_files WHERE content_id = $1 AND file_id = $2",
+            content_id.as_str(),
+            file,
+        )
+        .execute(self.write_pool.as_ref())
+        .await?;
+        Ok(())
+    }
+
+    pub async fn files_of(&self, content_id: &ContentId) -> ContentResult<Vec<LinkedFile>> {
+        let links = sqlx::query!(
             r#"
-            SELECT
-                f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
-                f.metadata as "metadata: sqlx::types::Json<FileMetadata>", f.user_id, f.session_id, f.trace_id, f.context_id, f.created_at, f.updated_at, f.deleted_at,
-                cf.id as cf_id, cf.content_id, cf.file_id as cf_file_id, cf.role as "role: FileRole", cf.display_order, cf.created_at as cf_created_at
-            FROM files f
-            INNER JOIN content_files cf ON cf.file_id = f.id
-            WHERE cf.content_id = $1 AND f.deleted_at IS NULL
-            ORDER BY cf.display_order ASC, cf.created_at ASC
+            SELECT file_id, role, display_order
+            FROM content_files
+            WHERE content_id = $1
+            ORDER BY display_order ASC, created_at ASC
             "#,
-            content_id as _
+            content_id.as_str(),
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-
-        Ok(rows
+        let links: Vec<Link> = links
             .into_iter()
-            .map(|row| {
-                let file = File {
-                    id: FileId::from_uuid(row.id),
-                    path: row.path,
-                    public_url: row.public_url,
-                    mime_type: row.mime_type,
-                    size_bytes: row.size_bytes,
-                    ai_content: row.ai_content,
-                    metadata: row.metadata,
-                    user_id: row.user_id.map(UserId::new),
-                    session_id: row.session_id.map(SessionId::new),
-                    trace_id: row.trace_id.map(TraceId::new),
-                    context_id: row.context_id.and_then(|c| match ContextId::try_new(c) {
-                        Ok(id) => Some(id),
-                        Err(e) => {
-                            tracing::warn!(error = %e, "stored context_id is malformed; dropping");
-                            None
-                        },
-                    }),
-                    created_at: row.created_at,
-                    updated_at: row.updated_at,
-                    deleted_at: row.deleted_at,
-                };
+            .map(|row| Link {
+                file: FileId::from_uuid(row.file_id),
+                role: row.role,
+                display_order: row.display_order,
+            })
+            .collect();
+        self.with_files(links).await
+    }
 
-                let content_file = ContentFile {
-                    id: row.cf_id,
-                    content_id: ContentId::new(row.content_id),
-                    file_id: FileId::from_uuid(row.cf_file_id),
-                    role: row.role,
-                    display_order: row.display_order,
-                    created_at: row.cf_created_at,
-                };
+    pub async fn featured(&self, content_id: &ContentId) -> ContentResult<Option<LinkedFile>> {
+        let links = sqlx::query!(
+            r#"
+            SELECT file_id, display_order
+            FROM content_files
+            WHERE content_id = $1 AND role = $2
+            ORDER BY display_order ASC, created_at ASC
+            "#,
+            content_id.as_str(),
+            ContentFileRole::Featured.as_str(),
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        let links = links
+            .into_iter()
+            .map(|row| Link {
+                file: FileId::from_uuid(row.file_id),
+                role: ContentFileRole::Featured.as_str().to_owned(),
+                display_order: row.display_order,
+            })
+            .collect();
+        Ok(self.with_files(links).await?.into_iter().next())
+    }
 
-                (file, content_file)
+    async fn with_files(&self, links: Vec<Link>) -> ContentResult<Vec<LinkedFile>> {
+        if links.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids: Vec<FileId> = links.iter().map(|link| link.file.clone()).collect();
+        let stored: HashMap<FileId, StoredFile> = self
+            .files
+            .live_files(&ids)
+            .await
+            .map_err(ContentError::FileSource)?
+            .into_iter()
+            .map(|file| (file.file_id.clone(), file))
+            .collect();
+        Ok(links
+            .into_iter()
+            .filter_map(|link| {
+                stored.get(&link.file).map(|file| LinkedFile {
+                    file_id: file.file_id.clone(),
+                    path: file.path.clone(),
+                    public_url: file.public_url.clone(),
+                    mime_type: file.mime_type.clone(),
+                    size_bytes: file.size_bytes,
+                    ai_content: file.ai_content,
+                    created_at: file.created_at,
+                    role: link.role,
+                    display_order: link.display_order,
+                })
             })
             .collect())
     }
 
-    pub async fn find_featured_image(&self, content_id: &ContentId) -> FilesResult<Option<File>> {
-        let featured_role = FileRole::Featured.as_str();
-        let result = sqlx::query_as!(
-            FileRow,
-            r#"
-            SELECT f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
-                   f.metadata as "metadata: sqlx::types::Json<FileMetadata>", f.user_id as "user_id: UserId", f.session_id as "session_id: SessionId", f.trace_id as "trace_id: TraceId", f.context_id as "context_id: ContextId", f.created_at, f.updated_at, f.deleted_at
-            FROM files f
-            INNER JOIN content_files cf ON cf.file_id = f.id
-            WHERE cf.content_id = $1
-              AND cf.role = $2
-              AND f.deleted_at IS NULL
-            LIMIT 1
-            "#,
-            content_id as _,
-            featured_role
-        )
-        .fetch_optional(self.pool.as_ref())
-        .await?;
-
-        Ok(result.map(File::from))
-    }
-
-    pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> FilesResult<()> {
-        let file_id_uuid = parse_file_uuid(file_id)?;
-        let featured_role = FileRole::Featured.as_str();
-        let attachment_role = FileRole::Attachment.as_str();
-
-        let mut tx = self.pool.begin().await?;
-
+    pub async fn set_featured(
+        &self,
+        content_id: &ContentId,
+        file_id: &FileId,
+    ) -> ContentResult<()> {
+        let file = file_uuid(file_id)?;
+        let mut tx = self.write_pool.begin().await?;
         sqlx::query!(
-            r#"
-            UPDATE content_files
-            SET role = $1
-            WHERE content_id = $2 AND role = $3
-            "#,
-            attachment_role,
-            content_id as _,
-            featured_role
+            "UPDATE content_files SET role = $1 WHERE content_id = $2 AND role = $3",
+            ContentFileRole::Attachment.as_str(),
+            content_id.as_str(),
+            ContentFileRole::Featured.as_str(),
         )
         .execute(&mut *tx)
         .await?;
-
-        let result = sqlx::query!(
-            r#"
-            UPDATE content_files
-            SET role = $1
-            WHERE file_id = $2 AND content_id = $3
-            "#,
-            featured_role,
-            file_id_uuid,
-            content_id as _
+        let updated = sqlx::query!(
+            "UPDATE content_files SET role = $1 WHERE file_id = $2 AND content_id = $3",
+            ContentFileRole::Featured.as_str(),
+            file,
+            content_id.as_str(),
         )
         .execute(&mut *tx)
         .await?;
-
-        if result.rows_affected() == 0 {
-            return Err(FilesError::NotFound(format!(
-                "File {file_id} is not linked to content {content_id}"
-            )));
+        if updated.rows_affected() == 0 {
+            return Err(ContentError::FileNotLinked {
+                file: file_id.clone(),
+                content: content_id.clone(),
+            });
         }
-
         tx.commit().await?;
         Ok(())
     }
 
-    pub async fn list_content_by_file(&self, file_id: &FileId) -> FilesResult<Vec<ContentFile>> {
-        let file_id_uuid = parse_file_uuid(file_id)?;
-
-        let result = sqlx::query_as!(
-            ContentFileRow,
+    pub async fn contents_of(&self, file_id: &FileId) -> ContentResult<Vec<FileContentLink>> {
+        let file = file_uuid(file_id)?;
+        let rows = sqlx::query!(
             r#"
-            SELECT id, content_id as "content_id: ContentId", file_id, role as "role: FileRole", display_order, created_at
+            SELECT content_id, role, display_order, created_at
             FROM content_files
             WHERE file_id = $1
             ORDER BY created_at ASC
             "#,
-            file_id_uuid
+            file,
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-
-        Ok(result.into_iter().map(ContentFile::from).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| FileContentLink {
+                content_id: ContentId::new(row.content_id),
+                role: row.role,
+                display_order: row.display_order,
+                created_at: row.created_at,
+            })
+            .collect())
     }
 }

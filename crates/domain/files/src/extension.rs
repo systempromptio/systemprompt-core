@@ -1,12 +1,15 @@
 //! [`FilesExtension`]: contributes the files capability and the document
 //! store and issue reports it hosts.
 //!
-//! The files contributions (`contribute_files`) are the `files` and
-//! `content_files` schemas, the `files` user-purge row, the
-//! `file_ingestion` job, the provided `Arc<FileRepository>`, which the
-//! `files-http` member's commands resolve, and the same repository as the
-//! shared `DynContentFileLinks` the `content files` commands read (open, as
-//! the repository is). The document and issue
+//! The files contributions (`contribute_files`) are the `files` schema, the
+//! `files` user-purge row, the `file_ingestion` job, the provided
+//! `Arc<FileRepository>`, which the `files-http` member's commands resolve,
+//! and the same repository as the shared `DynLinkedFileSource` the content
+//! member's links read their stored files through (open, as the repository
+//! is).
+//! The `content_files` links are the `content` member's; this member retires
+//! its claim on that table, so an established database hands the table to
+//! `content`. The document and issue
 //! contributions (`contribute_documents_and_issues`) are the document store
 //! schemas, the `report_document_revisions` and `report_document_sharing`
 //! views, the document and issue jobs, the document-actor job run scope and
@@ -38,7 +41,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::brain::{SourceAccess, SourceContent};
-use systemprompt_extension::content_files::DynContentFileLinks;
+use systemprompt_extension::content_files::DynLinkedFileSource;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::{NotificationAudienceResolver, ResourceVisibility};
 use systemprompt_provider_contracts::documents::{DocumentCodec, DocumentTemplateProvider};
@@ -150,10 +153,12 @@ fn contribute_files(c: &mut Contributions<'_>) {
             ],
         ),
     )
-    .schema(
-        SchemaDefinition::new("content_files", include_str!("../schema/content_files.sql"))
-            .with_required_columns(vec!["id".into(), "content_id".into(), "file_id".into()]),
-    )
+    .retire(SchemaDefinition {
+        table: None,
+        sql: include_str!("../schema/retirements/retired_tables.sql").to_owned(),
+        required_columns: Vec::new(),
+        schema: None,
+    })
     .user_purge(UserPurgeTable {
         table: "files",
         column: "user_id",
@@ -166,9 +171,9 @@ fn contribute_files(c: &mut Contributions<'_>) {
         },
     )
     .provide(
-        |r: &Resolved<'_>| -> Result<DynContentFileLinks, ProvideError> {
-            let links: DynContentFileLinks = r.get::<Arc<FileRepository>>()?;
-            Ok(links)
+        |r: &Resolved<'_>| -> Result<DynLinkedFileSource, ProvideError> {
+            let files: DynLinkedFileSource = r.get::<Arc<FileRepository>>()?;
+            Ok(files)
         },
     );
 }

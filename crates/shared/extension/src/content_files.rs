@@ -1,12 +1,13 @@
 //! The content–file link contract: which files a content item carries, and in
 //! which role.
 //!
-//! The `files` member owns the links (`content_files`) and provides them as
-//! [`DynContentFileLinks`], open as its file repository is: a link names a
+//! The `content` member owns the links (`content_files`) and provides them
+//! as [`DynContentFileLinks`], open as its repository is: a link names a
 //! content item and a file by id and carries no caller authority. The
-//! `content files` commands read it; a composition without the `files`
+//! `content files` commands read it; a composition without the `content`
 //! member provides none, and those commands then refuse with the missing
-//! dependency named.
+//! dependency named. The stored files a link names are the `files` member's,
+//! read through the [`DynLinkedFileSource`] it provides.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -54,6 +55,18 @@ pub struct LinkedFile {
     pub created_at: DateTime<Utc>,
     pub role: String,
     pub display_order: i32,
+}
+
+/// A stored file as a content link shows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredFile {
+    pub file_id: FileId,
+    pub path: String,
+    pub public_url: String,
+    pub mime_type: String,
+    pub size_bytes: Option<i64>,
+    pub ai_content: bool,
+    pub created_at: DateTime<Utc>,
 }
 
 /// A content item a file is linked to.
@@ -107,3 +120,15 @@ pub trait ContentFileLinks: Send + Sync {
 }
 
 pub type DynContentFileLinks = Arc<dyn ContentFileLinks>;
+
+/// The stored files the content links name, read from the member that owns
+/// them: the files among the given ids that exist and are not deleted.
+///
+/// `#[async_trait]` because the source is held as `Arc<dyn
+/// LinkedFileSource>`.
+#[async_trait]
+pub trait LinkedFileSource: Send + Sync {
+    async fn live_files(&self, ids: &[FileId]) -> Result<Vec<StoredFile>, ContentFileLinksError>;
+}
+
+pub type DynLinkedFileSource = Arc<dyn LinkedFileSource>;

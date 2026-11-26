@@ -1,6 +1,6 @@
 //! Private `query_as!` decode rows for the files tables.
 //!
-//! `files.id` and `content_files.file_id` are UUID columns, so they decode as
+//! `files.id` is a UUID column, so it decodes as
 //! [`uuid::Uuid`] and become a [`FileId`] through `FileId::from_uuid` when the
 //! row converts into its public model.
 //!
@@ -9,9 +9,8 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::types::Json;
-use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
-use super::content_file::{ContentFile, FileRole};
 use super::file::File;
 use super::metadata::FileMetadata;
 
@@ -50,29 +49,6 @@ impl From<FileRow> for File {
             created_at: row.created_at,
             updated_at: row.updated_at,
             deleted_at: row.deleted_at,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct ContentFileRow {
-    pub id: i32,
-    pub content_id: ContentId,
-    pub file_id: uuid::Uuid,
-    pub role: FileRole,
-    pub display_order: i32,
-    pub created_at: DateTime<Utc>,
-}
-
-impl From<ContentFileRow> for ContentFile {
-    fn from(row: ContentFileRow) -> Self {
-        Self {
-            id: row.id,
-            content_id: row.content_id,
-            file_id: FileId::from_uuid(row.file_id),
-            role: row.role,
-            display_order: row.display_order,
-            created_at: row.created_at,
         }
     }
 }

@@ -3,8 +3,16 @@
 //! providers and the list-items component renderer) in [`ContentSlot`], and
 //! the provided state: the content catalog
 //! (`DynContentCatalogStats`), which static-content serving and analytics
-//! read, and the content repositories (`Arc<ContentRepositories>`), which the
-//! `content-http` routes read.
+//! read, the content repositories (`Arc<ContentRepositories>`), which the
+//! `content-http` routes read, and the content–file links
+//! (`DynContentFileLinks`, open as the repository is), which the
+//! `content files` commands read. The links read their stored files through
+//! the `DynLinkedFileSource` the kernel's `files` member provides, which
+//! this member requires.
+//!
+//! It owns the objects that cannot exist without its tables: the
+//! `content_files` links (keyed to a `files` row, which the kernel always
+//! links) and the `report_markdown_content` view the analytics reports read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +20,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_extension::content_files::{DynContentFileLinks, DynLinkedFileSource};
 use systemprompt_extension::prelude::*;
 use systemprompt_traits::DynContentCatalogStats;
 
@@ -20,7 +29,7 @@ use crate::contract::ContentSlot;
 use crate::homepage_prerenderer::default_homepage_prerenderer;
 use crate::list_branding_provider::default_list_branding_provider;
 use crate::list_items_renderer::default_list_items_renderer;
-use crate::repository::{ContentRepositories, ContentRepository};
+use crate::repository::{ContentFileRepository, ContentRepositories, ContentRepository};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentExtension;
@@ -47,6 +56,14 @@ impl Extension for ContentExtension {
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
                 Ok(Arc::new(ContentRepositories::new(&db)))
+            })
+            .requires::<DynLinkedFileSource>()
+            .provide(|r: &Resolved<'_>| {
+                let links: DynContentFileLinks = Arc::new(ContentFileRepository::new(
+                    &r.get::<DbPool>()?,
+                    r.get::<DynLinkedFileSource>()?,
+                ));
+                Ok(links)
             });
         c.slot::<ContentSlot>()
             .page_prerenderer(|_: &Resolved<'_>| Ok(default_homepage_prerenderer()))
@@ -87,5 +104,8 @@ fn schemas() -> Vec<SchemaDefinition> {
         .with_required_columns(vec!["id".into(), "short_code".into(), "target_url".into()]),
         SchemaDefinition::new("link_clicks", include_str!("../schema/link_clicks.sql"))
             .with_required_columns(vec!["id".into(), "link_id".into(), "clicked_at".into()]),
+        SchemaDefinition::new("content_files", include_str!("../schema/content_files.sql"))
+            .with_required_columns(vec!["id".into(), "content_id".into(), "file_id".into()]),
+        SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
     ]
 }

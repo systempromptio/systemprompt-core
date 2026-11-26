@@ -13,7 +13,7 @@
 --
 -- Dimensions are NOT NULL so they can form the primary key: a request with no
 -- provider, model or agent is stored under ''. `agent_name` is the agent of
--- the request's task, resolved when the row is written.
+-- the request's task (`ai_task_agents`), resolved when the row is written.
 --
 -- The writer is a set of statement triggers on `ai_requests`: an insert adds
 -- its rows, a delete subtracts them, and an update subtracts the old version
@@ -84,7 +84,7 @@ SELECT format('
            COALESCE(SUM(s.sign * COALESCE(s.cost_microdollars, 0))
                FILTER (WHERE s.billing_source = ''user_subscription''), 0)
     FROM (%s) s
-    LEFT JOIN agent_tasks t ON t.task_id = s.task_id
+    LEFT JOIN ai_task_agents t ON t.task_id = s.task_id
     GROUP BY 1, 2, 3, 4, 5, 6
     ORDER BY 1, 2, 3, 4, 5, 6
     ON CONFLICT (bucket, user_id, provider, model, agent_name, traffic) DO UPDATE SET

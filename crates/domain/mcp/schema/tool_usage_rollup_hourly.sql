@@ -1,11 +1,13 @@
 -- Tool executions rolled up per hour at write time (store, don't compute),
--- beside core ai's `ai_usage_rollup_hourly` and `agent_task_rollup_hourly`.
+-- beside the ai member's `ai_usage_rollup_hourly` and the agent member's
+-- `agent_task_rollup_hourly`. The mcp member owns it because its triggers sit
+-- on `mcp_tool_executions`.
 -- The analytics reports read it through `report_tool_usage_hourly` instead
 -- of re-aggregating the ledger on every load. Averages are `*_sum / *_n`;
 -- percentiles and top-N error strings keep reading the ledger for their window.
 --
 --   tool_usage_rollup_hourly  (UTC hour of created_at, user, tool, server,
---                              agent of the task, status)
+--                              agent of the task from `ai_task_agents`, status)
 --
 -- Dimensions are NOT NULL so they can form the primary key; an absent user or
 -- agent is ''. `last_at` is the latest timestamp added to the row: a
@@ -16,8 +18,9 @@
 -- subtracts them, an update subtracts the old version and adds the new one
 -- for rows whose rolled-up columns changed; a row that falls to zero is
 -- removed. `refresh_tool_usage_rollup_hourly(keys)` rebuilds whole hours
--- (keys are `YYYY-MM-DDTHH:00:00Z`) from the ledger; migration 018 queues
--- every hour that predates the table and the `backfill_rollups` job drains them.
+-- (keys are `YYYY-MM-DDTHH:00:00Z`) from the ledger; the analytics member's
+-- migration 018 queued every hour that predated the table, and the
+-- `backfill_rollups` job drains them.
 
 CREATE TABLE IF NOT EXISTS tool_usage_rollup_hourly (
     bucket TIMESTAMPTZ NOT NULL,
@@ -45,7 +48,7 @@ SELECT format('
            COALESCE(SUM(s.sign) FILTER (WHERE s.execution_time_ms IS NOT NULL), 0),
            MAX(s.created_at) FILTER (WHERE s.sign > 0)
     FROM (%s) s
-    LEFT JOIN agent_tasks t ON t.task_id = s.task_id
+    LEFT JOIN ai_task_agents t ON t.task_id = s.task_id
     GROUP BY 1, 2, 3, 4, 5, 6
     ORDER BY 1, 2, 3, 4, 5, 6
     ON CONFLICT (bucket, user_id, tool_name, server_name, agent_name, status) DO UPDATE SET

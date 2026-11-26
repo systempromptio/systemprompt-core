@@ -117,12 +117,17 @@ marketplace = ["dep:systemprompt-marketplace", "dep:systemprompt-marketplace-ent
 files = ["dep:systemprompt-files", "dep:systemprompt-files-entry", "dep:systemprompt-documents"]
 
 # The hosted MCP capability: the domain crate with its routes and commands
-# from `systemprompt-mcp-entry`. `reference` implies it.
-mcp-servers = ["dep:systemprompt-mcp", "dep:systemprompt-mcp-entry"]
+# from `systemprompt-mcp-entry`. It implies `ai`: the MCP member's tool-call
+# ledger and tool-usage rollup read the AI member's intents and task agents,
+# so the member requires it. `reference` implies it.
+mcp-servers = ["ai", "dep:systemprompt-mcp", "dep:systemprompt-mcp-entry"]
 
 # The agent capability: the domain crate with its A2A routes and commands
-# from `systemprompt-agent-entry`. `reference` implies it.
-agents = ["dep:systemprompt-agent", "dep:systemprompt-agent-entry"]
+# from `systemprompt-agent-entry`. It implies `ai` and `mcp-servers`: the
+# agent member's schema names the AI member's requests and task agents and
+# the MCP member's executions, so the member requires both. `reference`
+# implies it.
+agents = ["ai", "mcp-servers", "dep:systemprompt-agent", "dep:systemprompt-agent-entry"]
 
 # Slack integration: the domain crate and the `/api/v1/slack` inbound routes
 # (Events API, slash commands, interactivity). Opt-in: excluded from `default`

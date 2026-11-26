@@ -6,9 +6,10 @@
 //! the core members in reference order, are installed through the one install
 //! path on an empty database, where the declarative schemas materialise the
 //! state and each migration is stamped: a schema statement that names a table
-//! owned by a member the composition leaves out fails the install.
+//! owned by a member the composition leaves out fails the install. A second
+//! install of the same members changes nothing in the catalog.
 
-use systemprompt_database::Database;
+use systemprompt_database::{Database, schema_catalog_digest};
 use systemprompt_test_fixtures::{DisposableDb, core_members, repo_path};
 
 use crate::composition::install;
@@ -58,22 +59,47 @@ fn the_reference_composition_links_every_schema_bearing_core_member() {
 async fn every_booted_composition_installs_its_schema_on_a_fresh_database() {
     let mut refused = Vec::new();
     for (name, ids) in compositions() {
-        let members: Vec<_> = core_members()
-            .into_iter()
-            .filter(|ext| ids.iter().any(|id| id == ext.metadata().id))
-            .collect();
         let database =
             DisposableDb::empty(&format!("composition_{}", name.replace('-', "_"))).await;
         let db = Database::new_postgres(database.url())
             .await
             .unwrap_or_else(|e| panic!("{name}: connect: {e}"));
-        let installed = install(members, &db).await;
+        let outcome = install_twice(&name, &ids, &db).await;
         db.pool().as_ref().clone().close().await;
         drop(db);
         database.drop_now().await;
-        if let Err(error) = installed {
-            refused.push(format!("{name}: {error:?}"));
+        if let Err(error) = outcome {
+            refused.push(format!("{name}: {error}"));
         }
     }
     assert!(refused.is_empty(), "{refused:#?}");
+}
+
+fn members_of(ids: &[String]) -> Vec<Box<dyn systemprompt_extension::Extension>> {
+    core_members()
+        .into_iter()
+        .filter(|ext| ids.iter().any(|id| id == ext.metadata().id))
+        .collect()
+}
+
+async fn install_twice(name: &str, ids: &[String], db: &Database) -> Result<(), String> {
+    install(members_of(ids), db)
+        .await
+        .map_err(|error| format!("fresh install: {error:?}"))?;
+    let first = schema_catalog_digest(db)
+        .await
+        .map_err(|error| format!("digest: {error:?}"))?;
+    let report = install(members_of(ids), db)
+        .await
+        .map_err(|error| format!("second install: {error:?}"))?;
+    let second = schema_catalog_digest(db)
+        .await
+        .map_err(|error| format!("digest: {error:?}"))?;
+    if first != second {
+        return Err(format!("{name}: the second install changed the catalog"));
+    }
+    if !report.foreign_key_drift.is_empty() || !report.held_back.is_empty() {
+        return Err(format!("{name}: the second install reported {report:?}"));
+    }
+    Ok(())
 }

@@ -9,7 +9,7 @@
 --
 -- Dimensions are NOT NULL so they can form the primary key: a request with no
 -- model or agent is stored under ''. `agent_name` is the agent of the
--- request's task, resolved when the row is written.
+-- request's task (`ai_task_agents`), resolved when the row is written.
 --
 -- The writer is a set of statement triggers on `ai_requests`: an insert adds
 -- its rows, a delete subtracts them, and an update subtracts the old version
@@ -52,7 +52,7 @@ SELECT format('
            SUM(s.sign * s.cost_microdollars),
            MAX(s.created_at) FILTER (WHERE s.sign > 0)
     FROM (%s) s
-    LEFT JOIN agent_tasks t ON t.task_id = s.task_id
+    LEFT JOIN ai_task_agents t ON t.task_id = s.task_id
     GROUP BY 1, 2, 3, 4, 5, 6, 7
     ORDER BY 1, 2, 3, 4, 5, 6, 7
     ON CONFLICT (bucket, user_id, context_id, model, agent_name, traffic, status) DO UPDATE SET
@@ -108,7 +108,7 @@ BEGIN
     SET last_activity = (
         SELECT MAX(a.created_at)
         FROM ai_requests a
-        LEFT JOIN agent_tasks t ON t.task_id = a.task_id
+        LEFT JOIN ai_task_agents t ON t.task_id = a.task_id
         WHERE a.context_id = r.context_id
           AND a.created_at >= r.bucket AND a.created_at < r.bucket + interval ''1 hour''
           AND a.user_id = r.user_id AND COALESCE(a.model, '''') = r.model
