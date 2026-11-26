@@ -14,6 +14,7 @@ impl ProxyError {
         match error {
             ProxyBackendError::AuthenticationRequired => Self::AuthenticationRequired { service },
             ProxyBackendError::ProviderNotConnected => Self::ProviderNotConnected { service },
+            ProxyBackendError::ProviderReauthRequired => Self::ProviderReauthRequired { service },
             ProxyBackendError::Unavailable { status } => {
                 Self::ServiceNotRunning { service, status }
             },

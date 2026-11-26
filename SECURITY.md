@@ -32,9 +32,12 @@ We will keep you informed throughout triage. If a fix requires more time than th
 
 | Version | Security fixes |
 |---------|----------------|
-| Latest `0.x` minor (currently 0.76.x) | Yes |
-| Previous minor (currently 0.75.x) | Critical and High only |
+| Latest `0.x` minor (currently 0.87.x) | Yes |
+| The minor before it | Critical and High only |
 | Older | No |
+
+The [compatibility matrix](documentation/reference/compatibility.md#historical) lists the
+status of every release line.
 
 While the project is pre-1.0, security fixes land on the current minor release. The
 previous minor receives Critical and High fixes until the minor after it ships, at

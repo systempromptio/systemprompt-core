@@ -89,6 +89,12 @@ Install Rust through rustup and [just](https://just.systems/). The repository pi
 
 The runtime can operate inside a private network or air gap when models, tools and dependencies are available there. Requests routed to cloud providers leave that perimeter. Tool servers may introduce their own runtime dependencies.
 
+## Releases and support
+
+Releases are tagged `vX.Y.Z` on `main` and published to crates.io. `next` is the integration branch: every push to it runs the full test, lint and supply-chain gates, and a commit reaches `main` only through a release pull request that passes them again. Pin a published version or a tag for anything you operate; a branch head other than `main` is work in progress.
+
+Core is pre-1.0. The [stability contract](documentation/security/stability-contract.md) names the surfaces held stable across `0.x` releases, every breaking change in the [changelog](CHANGELOG.md) carries its migration, and the [compatibility matrix](documentation/reference/compatibility.md) lists the supported release lines, provider APIs and protocol revisions. The security fix policy for those lines is in [SECURITY.md](SECURITY.md#supported-versions).
+
 ## Evaluate the boundary
 
 Tool credentials can be supplied to child-process environments without placing them in model context. Credential-pattern scanning provides an additional check on governed arguments; the tool process and its outputs remain trusted parts of the deployment.

@@ -482,6 +482,9 @@ mod routes_admin_keys_seeded;
 mod routes_mcp_discovery_populated;
 
 #[cfg(test)]
+mod routes_content_link_analytics_admin;
+
+#[cfg(test)]
 mod routes_oauth_webauthn_link;
 
 #[cfg(test)]

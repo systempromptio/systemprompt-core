@@ -39,6 +39,8 @@ pub enum ProxyBackendError {
     AuthenticationRequired,
     #[error("the caller has not connected an account for this server")]
     ProviderNotConnected,
+    #[error("the caller's account authorisation for this server has expired or been revoked")]
+    ProviderReauthRequired,
     #[error("the backend is unavailable: {status}")]
     Unavailable { status: String },
     #[error("the external server could not be resolved")]
