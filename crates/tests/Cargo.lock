@@ -8910,7 +8910,6 @@ dependencies = [
  "metrics",
  "metrics-util",
  "reqwest",
- "rmcp",
  "serde_json",
  "sha2 0.11.1",
  "sqlx",
