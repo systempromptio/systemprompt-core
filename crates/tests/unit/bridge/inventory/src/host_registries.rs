@@ -42,6 +42,7 @@ fn known_hosts_cover_every_local_and_sync_only_agent() {
     let mut known: Vec<HostKind> = HostKind::ALL
         .into_iter()
         .filter(|kind| desktop_offered() || *kind != HostKind::ClaudeDesktop)
+        .filter(|kind| !systemprompt_bridge::integration::sync_only::is_unmanaged(*kind))
         .collect();
     known.sort_unstable();
     assert_eq!(
@@ -61,7 +62,10 @@ fn host_apps_are_sorted_by_id() {
 #[test]
 fn host_sync_registry_contains_builtins() {
     let ids: Vec<HostKind> = host_sync::registry().iter().map(|s| s.host_id()).collect();
-    for expected in HostKind::ALL {
+    for expected in HostKind::ALL
+        .into_iter()
+        .filter(|kind| !systemprompt_bridge::integration::sync_only::is_unmanaged(*kind))
+    {
         assert!(
             host_sync::registry()
                 .iter()
@@ -195,7 +199,7 @@ fn no_known_host_resolves_as_unknown() {
         assert!(
             matches!(
                 resolve_host(id),
-                ResolvedHost::Local(_) | ResolvedHost::SyncOnly(_)
+                ResolvedHost::Local(_) | ResolvedHost::SyncOnly(_) | ResolvedHost::Unmanaged(_)
             ),
             "{id} resolves as Unknown — a per-host command for it would answer \
              \"unknown host: {id}\""
@@ -213,6 +217,24 @@ fn sync_only_agent_resolves_without_a_host_app() {
         panic!("claude-code must resolve as a sync-only agent, not an unknown id");
     };
     assert_eq!(agent.display_name, "Claude Code");
+}
+
+#[test]
+fn harness_is_known_but_unmanaged() {
+    assert!(find_host_by_id(HostKind::Harness).is_none());
+    assert!(
+        matches!(
+            resolve_host(HostKind::Harness),
+            ResolvedHost::Unmanaged(HostKind::Harness)
+        ),
+        "harness reads the manifest itself; the bridge configures nothing for it"
+    );
+    assert!(
+        host_apps()
+            .iter()
+            .all(|host| host.id() != HostKind::Harness),
+        "harness is never listed as a host app"
+    );
 }
 
 #[test]

@@ -15,7 +15,7 @@
 //! can be launched.
 //!
 //! `OpenCode` lists the models the catalog advertises to `openai` clients
-//! (`model_view::host_client`). It speaks the OpenAI-compatible wire, and the
+//! (`model_view::host_clients`). It speaks the OpenAI-compatible wire, and the
 //! gateway transcodes that wire to any provider's, so a Claude or Gemini model
 //! reaches `OpenCode` whenever its catalog entry lists `openai` among its
 //! `clients`; the catalog, not the provider's native wire, is the rule.

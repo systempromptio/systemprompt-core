@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "Hosts"
+text = "`HostKind` gains `Harness` (`harness`), a desktop app (`HostProduct::Harness`) that speaks both the Anthropic Messages and the OpenAI Chat Completions wire; `HostKind::ALL` has eight ids. `ClientKind` gains `Harness`, so `x-systemprompt-client: harness` and the User-Agent product `harness` attribute a request to it, and `EvaluatorClient` gains `Harness`, so a consumer device may fetch installation plans and bind sessions for `host=harness`. An instance enables `harness` like every other host unless `external_agents.harness.enabled` is `false`, and a bridge built against 0.87 cannot parse a manifest that names it: upgrade bridges with the gateway or disable the host. Migrate an exhaustive `match` over `HostKind`, `HostProduct`, `ClientKind` or `EvaluatorClient` by adding the arm."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`bridge::host::HostKind` and `HostProduct` gain `Harness` (`harness`, a desktop app), `origin::ClientKind` gains `Harness` (declarable, User-Agent product `harness`) and `feedback::EvaluatorClient` gains `Harness`. Migrate an exhaustive `match` by adding the arm."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Changed"
+text = "`host_for(HostKind::Harness)` is `Execution::Unsupported`: the harness desktop app has no headless packaging."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Changed"
+text = "A consumer installation plan for `harness` renders `SKILL.md` as the Claude Code plan does: the kebab-case skill key as `name` and the authored frontmatter passed through."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Changed"
+text = "`ai_requests.client_kind` and `ai_request_client_evidence.attested_host` admit `harness` (migration `059_ai_requests_client_kind_harness`)."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Changed"
+text = "`bridge_user_host_prefs` and `bridge_user_host_model_prefs` admit the host id `harness` (migration `030_bridge_host_prefs_harness`)."

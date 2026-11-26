@@ -34,6 +34,7 @@ pub enum HostKind {
     #[serde(rename = "opencode-cli")]
     OpenCodeCli,
     Hermes,
+    Harness,
 }
 
 /// How a host is packaged: a desktop application with a bundle or installer
@@ -53,10 +54,11 @@ pub enum HostProduct {
     Codex,
     OpenCode,
     Hermes,
+    Harness,
 }
 
 impl HostKind {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::ClaudeCode,
         Self::ClaudeDesktop,
         Self::Codex,
@@ -64,6 +66,7 @@ impl HostKind {
         Self::OpenCode,
         Self::OpenCodeCli,
         Self::Hermes,
+        Self::Harness,
     ];
 
     #[must_use]
@@ -76,13 +79,16 @@ impl HostKind {
             Self::OpenCode => "opencode",
             Self::OpenCodeCli => "opencode-cli",
             Self::Hermes => "hermes",
+            Self::Harness => "harness",
         }
     }
 
     #[must_use]
     pub const fn kind(self) -> HostAppKind {
         match self {
-            Self::ClaudeDesktop | Self::Codex | Self::OpenCode => HostAppKind::DesktopApp,
+            Self::ClaudeDesktop | Self::Codex | Self::OpenCode | Self::Harness => {
+                HostAppKind::DesktopApp
+            },
             Self::ClaudeCode | Self::CodexCli | Self::OpenCodeCli | Self::Hermes => {
                 HostAppKind::CliTool
             },
@@ -96,6 +102,7 @@ impl HostKind {
             Self::Codex | Self::CodexCli => HostProduct::Codex,
             Self::OpenCode | Self::OpenCodeCli => HostProduct::OpenCode,
             Self::Hermes => HostProduct::Hermes,
+            Self::Harness => HostProduct::Harness,
         }
     }
 
@@ -109,7 +116,7 @@ impl HostKind {
             Self::CodexCli => Some(Self::Codex),
             Self::OpenCode => Some(Self::OpenCodeCli),
             Self::OpenCodeCli => Some(Self::OpenCode),
-            Self::ClaudeCode | Self::ClaudeDesktop | Self::Hermes => None,
+            Self::ClaudeCode | Self::ClaudeDesktop | Self::Hermes | Self::Harness => None,
         }
     }
 

@@ -266,8 +266,8 @@ fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
         CODEX_CLI_HOST.description()
     );
     assert_eq!(
-        systemprompt_bridge::gateway::model_view::host_client(CODEX_CLI_HOST.id()),
-        systemprompt_models::providers::ClientFamily::OpenAi,
+        systemprompt_bridge::gateway::model_view::host_clients(CODEX_CLI_HOST.id()),
+        [systemprompt_models::providers::ClientFamily::OpenAi],
         "Codex lists the models the catalog advertises to openai clients"
     );
     assert!(

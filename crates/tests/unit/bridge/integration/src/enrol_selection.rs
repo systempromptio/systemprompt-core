@@ -50,6 +50,20 @@ fn an_unknown_id_fails_the_whole_request() {
 }
 
 #[test]
+fn naming_harness_is_refused_as_unmanaged_not_unknown() {
+    let err = named(&["harness"]).expect_err("the bridge has nothing to enrol for harness");
+    assert!(
+        matches!(&err, SelectionError::Unmanaged { id } if id.as_str() == "harness"),
+        "{err:?}"
+    );
+    assert!(
+        err.to_string()
+            .contains("reads the instance manifest itself"),
+        "{err}"
+    );
+}
+
+#[test]
 fn the_retired_opencode_alias_is_an_unknown_id() {
     let err = named(&["open-code"]).expect_err("only opencode and opencode-cli name OpenCode");
     assert!(

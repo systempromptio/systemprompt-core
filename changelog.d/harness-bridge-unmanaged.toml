@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Bridge"
+text = "The bridge configures, syncs and lists nothing for `harness`, which reads and verifies the signed manifest itself: `install --host harness` exits with `SelectionError::Unmanaged`, and a GUI host action on it answers `reason: \"unmanaged\"` without changing anything. `model_view::host_client` is `host_clients`, returning every client family a host lists models for (`claude` and `openai` for `harness`), and `ResolvedHost` and `SelectionError` gain `Unmanaged`. Migrate a white-label crate by calling `host_clients` and adding the arms."

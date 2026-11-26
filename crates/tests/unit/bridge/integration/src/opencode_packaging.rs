@@ -3,7 +3,7 @@
 //! `opencode.json` without either overwriting the other.
 
 use std::path::Path;
-use systemprompt_bridge::gateway::model_view::host_client;
+use systemprompt_bridge::gateway::model_view::host_clients;
 use systemprompt_models::providers::ClientFamily;
 
 use systemprompt_bridge::integration::enrol::retained_for_sibling;
@@ -70,8 +70,8 @@ fn the_two_hosts_are_one_product_in_two_packagings() {
         OPENCODE_CLI_HOST.install_action_label()
     );
     assert!(!OPENCODE_CLI_HOST.can_open());
-    assert_eq!(host_client(OPENCODE_APP_HOST.id()), ClientFamily::OpenAi);
-    assert_eq!(host_client(OPENCODE_CLI_HOST.id()), ClientFamily::OpenAi);
+    assert_eq!(host_clients(OPENCODE_APP_HOST.id()), [ClientFamily::OpenAi]);
+    assert_eq!(host_clients(OPENCODE_CLI_HOST.id()), [ClientFamily::OpenAi]);
 }
 
 #[test]

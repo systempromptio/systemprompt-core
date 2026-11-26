@@ -17,14 +17,15 @@ use systemprompt_models::providers::{ClientFamily, LONG_CONTEXT_WINDOW, with_con
 use crate::gateway::types::ProviderHealth;
 
 #[must_use]
-pub const fn host_client(host: HostKind) -> ClientFamily {
+pub const fn host_clients(host: HostKind) -> &'static [ClientFamily] {
     match host {
-        HostKind::ClaudeCode | HostKind::ClaudeDesktop => ClientFamily::Claude,
+        HostKind::ClaudeCode | HostKind::ClaudeDesktop => &[ClientFamily::Claude],
         HostKind::Codex
         | HostKind::CodexCli
         | HostKind::OpenCode
         | HostKind::OpenCodeCli
-        | HostKind::Hermes => ClientFamily::OpenAi,
+        | HostKind::Hermes => &[ClientFamily::OpenAi],
+        HostKind::Harness => &[ClientFamily::Claude, ClientFamily::OpenAi],
     }
 }
 
@@ -41,7 +42,7 @@ impl HostClients {
     pub fn for_host(host: HostKind, server_filters: &BTreeMap<HostKind, Vec<String>>) -> Self {
         server_filters.get(&host).map_or_else(
             || Self {
-                families: vec![host_client(host)],
+                families: host_clients(host).to_vec(),
                 filtered: false,
             },
             |tags| Self {
