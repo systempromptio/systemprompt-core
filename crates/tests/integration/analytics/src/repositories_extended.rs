@@ -359,8 +359,8 @@ async fn tool_repository_smoke() -> Result<()> {
     assert!(
         by_agent
             .iter()
-            .any(|r| r.caller == ToolCaller::DirectCall && r.usage_count >= 2),
-        "executions outside any task are direct calls: {by_agent:?}"
+            .any(|r| r.caller == ToolCaller::Unattributed && r.usage_count >= 2),
+        "executions outside any task are unattributed: {by_agent:?}"
     );
     let _trend = repo
         .executions_for_trends(fx.window_start, fx.window_end, None)

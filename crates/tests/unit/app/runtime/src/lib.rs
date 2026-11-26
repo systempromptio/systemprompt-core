@@ -115,6 +115,8 @@ mod wave_h_seams;
 #[cfg(test)]
 mod admitted_models;
 #[cfg(test)]
+mod admitted_models_install;
+#[cfg(test)]
 mod brain_live;
 #[cfg(test)]
 mod broker_calls;

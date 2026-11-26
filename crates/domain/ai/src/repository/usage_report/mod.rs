@@ -1,8 +1,8 @@
 //! [`AiUsageReportRepository`]: the AI usage and cost reports over the
 //! `ai` member's report views, the implementation of [`AiUsageReport`].
 //!
-//! [`costs`] holds the platform-wide and per-user spend, [`conversations`]
-//! the distinct conversation counts, [`requests`] the request stats, list,
+//! `costs` holds the platform-wide and per-user spend, `conversations`
+//! the distinct conversation counts, `requests` the request stats, list,
 //! trends, overview figures and gateway sessions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

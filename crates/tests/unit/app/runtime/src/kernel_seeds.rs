@@ -190,6 +190,7 @@ const API_ONLY_SEEDS: &[&str] = &[
     "systemprompt_extension::contribute::conferred::ConferralsWithheld",
     "alloc::sync::Arc<dyn systemprompt_traits::conferred::ConferralIssuer<dyn systemprompt_traits::conferred::MemberCipher>>",
     "alloc::sync::Arc<dyn systemprompt_traits::conferred::ConferralIssuer<dyn systemprompt_traits::conferred::ShareTokenSigner>>",
+    "alloc::sync::Arc<dyn systemprompt_traits::conferred::ConferralIssuer<dyn systemprompt_traits::conferred::BrokerCallVerifier>>",
 ];
 
 fn host_seed_names(state: &Dependencies) -> (BTreeSet<&'static str>, BTreeSet<&'static str>) {

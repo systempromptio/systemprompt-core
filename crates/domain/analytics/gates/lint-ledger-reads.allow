@@ -28,7 +28,3 @@ src/repository/content_audience.rs#a14cd71553
 src/repository/overview.rs#61693a9011
 # owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
 src/repository/overview.rs#e65f333cfe
-# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
-src/repository/content_audience.rs#18cc967b21
-# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
-src/repository/content_audience.rs#a4f4451b90

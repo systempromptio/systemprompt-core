@@ -12,7 +12,7 @@
 
 use assert_cmd::Command;
 use serde_json::Value;
-use systemprompt_cli_integration_tests::full_bootstrap::systemprompt_bin;
+use systemprompt_cli_integration_tests::full_bootstrap::{cli_command, systemprompt_bin};
 
 fn golden_json(args: &[&str]) -> Value {
     let url = systemprompt_test_fixtures::test_database_url();
@@ -20,6 +20,16 @@ fn golden_json(args: &[&str]) -> Value {
     cmd.env("SYSTEMPROMPT_PROFILE", "__nonexistent__");
     cmd.env_remove("RUST_LOG");
     cmd.arg("--json").arg("--database-url").arg(url).args(args);
+    parse_artifact(cmd)
+}
+
+fn golden_json_composed(args: &[&str]) -> Value {
+    let mut cmd = cli_command();
+    cmd.arg("--json").args(args);
+    parse_artifact(cmd)
+}
+
+fn parse_artifact(mut cmd: Command) -> Value {
     let assert = cmd.assert().success();
     let stdout =
         String::from_utf8(assert.get_output().stdout.clone()).expect("stdout must be valid UTF-8");
@@ -63,7 +73,7 @@ fn admin_users_list_emits_table() {
 
 #[test]
 fn analytics_overview_emits_presentation_card() {
-    let v = golden_json(&["analytics", "overview"]);
+    let v = golden_json_composed(&["analytics", "overview"]);
     assert_artifact_type(&v, "presentation_card");
     assert_eq!(
         v.get("title").and_then(Value::as_str),

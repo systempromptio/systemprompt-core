@@ -271,56 +271,27 @@ fn db_execute() {
     run_db(&["--json", "infra", "db", "execute", "SELECT 1", "--yes"]);
 }
 
+// Why: a report a member answers needs the composition that admits that
+// member, which `--database-url` never builds; the report bodies run under the
+// full profile in `subprocess_full.rs`.
 #[test]
-fn analytics_overview() {
-    db_stderr_fmt(&["analytics", "overview"], "Analytics Overview");
-    run_db_with_format(&["analytics", "overview", "--since", "1h"]);
-    run_db_with_format(&["analytics", "overview", "--since", "24h"]);
-    run_db_with_format(&["analytics", "overview", "--since", "7d"]);
-    run_db(&["analytics", "overview", "--since", "garbage"]);
-}
-
-#[test]
-fn analytics_conversation_stats_and_trends() {
-    db_stderr_fmt(
+fn analytics_member_reports_need_the_composition() {
+    for args in [
+        &["analytics", "overview"][..],
         &["analytics", "conversations", "stats"],
-        "Conversation Statistics",
-    );
-    run_db_with_format(&["analytics", "conversations", "stats", "--since", "7d"]);
-    run_db_with_format(&["analytics", "conversations", "trends"]);
-    run_db_with_format(&["analytics", "conversations", "trends", "--since", "24h"]);
-}
-
-#[test]
-fn analytics_conversation_list() {
-    seed_reporting_evidence();
-    db_stderr_fmt(&["analytics", "conversations", "list"], "Conversations");
-    run_db_with_format(&["analytics", "conversations", "list", "--limit", "5"]);
-}
-
-#[test]
-fn analytics_agents() {
-    db_stderr_fmt(&["analytics", "agents", "stats"], "Agent Statistics");
-    run_db_with_format(&["analytics", "agents", "trends"]);
-    run_db_with_format(&["analytics", "agents", "list"]);
-    run_db(&["analytics", "agents", "show", "nonexistent-agent"]);
-}
-
-#[test]
-fn analytics_tools() {
-    db_stderr_fmt(&["analytics", "tools", "stats"], "Tool Statistics");
-    run_db_with_format(&["analytics", "tools", "trends"]);
-    run_db_with_format(&["analytics", "tools", "list"]);
-    run_db(&["analytics", "tools", "show", "nonexistent-tool"]);
-}
-
-#[test]
-fn analytics_requests() {
-    db_stderr_fmt(&["analytics", "requests", "stats"], "AI Request Statistics");
-    run_db_with_format(&["analytics", "requests", "trends"]);
-    run_db_with_format(&["analytics", "requests", "list"]);
-    run_db_with_format(&["analytics", "requests", "list", "--limit", "5"]);
-    run_db_with_format(&["analytics", "requests", "models"]);
+        &["analytics", "conversations", "list"],
+        &["analytics", "agents", "stats"],
+        &["analytics", "tools", "stats"],
+        &["analytics", "requests", "stats"],
+        &["analytics", "costs", "summary"],
+    ] {
+        announce(args);
+        let mut cmd = sp_db();
+        cmd.args(args);
+        cmd.assert()
+            .failure()
+            .stderr(contains("requires full profile initialization"));
+    }
 }
 
 #[test]
@@ -345,13 +316,6 @@ fn analytics_traffic() {
     db_stderr_fmt(&["analytics", "traffic", "geo"], "Geographic Distribution");
     db_stderr_fmt(&["analytics", "traffic", "devices"], "Device Breakdown");
     db_stderr_fmt(&["analytics", "traffic", "bots"], "Bot Traffic Analysis");
-}
-
-#[test]
-fn analytics_costs() {
-    db_stderr_fmt(&["analytics", "costs", "summary"], "Cost Summary");
-    run_db_with_format(&["analytics", "costs", "trends"]);
-    run_db_with_format(&["analytics", "costs", "breakdown"]);
 }
 
 #[test]

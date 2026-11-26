@@ -116,12 +116,12 @@ impl Extension for AiExtension {
             .provide_sealed_after_governance(crate::provides::inference);
         contribute_usage_reports(c);
         crate::jobs::contribute(c);
-        contribute_ownership(c);
+        contribute_user_lifecycle(c);
         Ok(())
     }
 }
 
-fn contribute_ownership(c: &mut Contributions<'_>) {
+fn contribute_user_lifecycle(c: &mut Contributions<'_>) {
     c.user_purge(UserPurgeTable {
         table: "ai_requests",
         column: "user_id",
@@ -276,6 +276,11 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/ai_context_rollup_hourly.sql"),
         )
         .with_required_columns(columns(&["bucket", "context_id", "request_count"])),
+        SchemaDefinition::new(
+            "ai_gateway_session_rollup_hourly",
+            include_str!("../schema/ai_gateway_session_rollup_hourly.sql"),
+        )
+        .with_required_columns(columns(&["bucket", "session_id", "request_count"])),
         SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
         SchemaDefinition::new(
             "user_provider_credentials",

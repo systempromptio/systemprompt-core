@@ -1,0 +1,24 @@
+[root]
+section = "Changed"
+area = "Analytics"
+text = "The content audience, gateway session, tool-caller and conversation reports read stored facts instead of grouping the request, event and engagement ledgers on every load: new hourly rollups `ai_gateway_session_rollup_hourly`, `content_engagement_rollup_hourly` and `analytics_page_view_rollup_hourly` (kept by statement triggers, backfilled by the `backfill_rollups` job), the hourly tool rollup and the context counters. A window's start is widened to its whole UTC hour."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`ToolCaller` is `Agent` or `Unattributed`: `DirectCall` and `UnlinkedTask` are removed with their labels, as the hourly tool rollup records no agent for either."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Changed"
+text = "`report_user_contexts` carries `task_count` and `message_count`; `report_agent_tool_usage_hourly` replaces `report_agent_tool_executions` (dropped by migration 019)."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Added"
+text = "`ai_gateway_session_rollup_hourly` and its report view `report_ai_gateway_session_hourly` (migration 060)."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Added"
+text = "`content_engagement_rollup_hourly`, `analytics_page_view_rollup_hourly` and their report views `report_content_engagement_hourly`, `report_page_view_hourly` (migration 019)."

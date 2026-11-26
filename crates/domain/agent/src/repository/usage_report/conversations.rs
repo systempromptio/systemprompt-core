@@ -31,10 +31,8 @@ impl AgentActivityReportRepository {
                 uc.context_id as "context_id!: ContextId",
                 uc.user_id as "user_id!: UserId",
                 uc.name as "name?",
-                (SELECT COUNT(*) FROM report_agent_tasks at WHERE at.context_id = uc.context_id)::bigint as "task_count!",
-                (SELECT COUNT(*) FROM report_task_messages tm
-                 JOIN report_agent_tasks at ON at.task_id = tm.task_id
-                 WHERE at.context_id = uc.context_id)::bigint as "message_count!",
+                COALESCE(uc.task_count, 0)::bigint as "task_count!",
+                COALESCE(uc.message_count, 0)::bigint as "message_count!",
                 uc.created_at as "created_at!",
                 uc.updated_at as "updated_at!"
             FROM report_user_contexts uc

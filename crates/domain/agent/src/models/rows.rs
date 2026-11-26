@@ -30,16 +30,16 @@ impl From<TaskSampleDbRow> for AgentTaskSample {
 }
 
 pub(crate) struct ToolCallerDbRow {
-    pub(crate) agent_name: Option<String>,
+    pub(crate) agent_name: String,
     pub(crate) usage_count: i64,
 }
 
 impl From<ToolCallerDbRow> for ToolAgentUsageRow {
     fn from(row: ToolCallerDbRow) -> Self {
-        let caller = match row.agent_name.as_deref() {
-            None | Some(ToolCaller::DIRECT_CALL_LABEL) => ToolCaller::DirectCall,
-            Some(ToolCaller::UNLINKED_TASK_LABEL) => ToolCaller::UnlinkedTask,
-            Some(name) => ToolCaller::Agent(AgentName::new(name)),
+        let caller = if row.agent_name.is_empty() {
+            ToolCaller::Unattributed
+        } else {
+            ToolCaller::Agent(AgentName::new(row.agent_name))
         };
         Self {
             caller,
