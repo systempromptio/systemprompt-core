@@ -3,13 +3,26 @@
 //! site auth, layered whole, and answering `404` for any path that falls
 //! under a reserved entry.
 //!
+//! Static content answers first ([`RootFallback::behind`]): a `GET` or
+//! `HEAD` the static router serves is its answer, and only a response marked
+//! [`StaticMiss`] is handed to the site fallback with the original request.
+//! Every other method goes to the site fallback directly, since static content
+//! is read-only.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::convert::Infallible;
+
 use axum::Router;
+use axum::body::Body;
+use axum::extract::Request;
+use axum::http::Method;
+use axum::response::Response;
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, ProtectionLayer, RateBudget, RateLimit, RouteGroup, RouteProtection,
 };
+use tower::ServiceExt;
 
 use super::{MountError, MountLayers, RootFallback, protect_root_fallback, reserved_guard};
 use crate::services::middleware::rate_limit::LayerReach;
@@ -28,13 +41,44 @@ pub fn protect_site_fallback(
     })
 }
 
+/// The marker a static response carries when static content holds nothing
+/// for the path; the site fallback answers such a request instead.
+#[derive(Debug, Clone, Copy)]
+pub struct StaticMiss;
+
 impl RootFallback {
     #[must_use]
-    pub fn beside(self, routes: Router) -> Self {
+    pub fn behind(self, statics: Self) -> Self {
+        let site = self.router;
+        let statics = statics.router;
+        let router = Router::new().fallback_service(tower::service_fn(move |request: Request| {
+            let site = site.clone();
+            let statics = statics.clone();
+            async move { Ok::<_, Infallible>(static_first(statics, site, request).await) }
+        }));
         Self {
-            router: routes.merge(self.router),
+            router,
             group: self.group,
         }
+    }
+}
+
+async fn static_first(statics: Router, site: Router, request: Request) -> Response {
+    if !matches!(*request.method(), Method::GET | Method::HEAD) {
+        return answer(site, request).await;
+    }
+    let (parts, body) = request.into_parts();
+    let response = answer(statics, Request::from_parts(parts.clone(), Body::empty())).await;
+    if response.extensions().get::<StaticMiss>().is_none() {
+        return response;
+    }
+    answer(site, Request::from_parts(parts, body)).await
+}
+
+async fn answer(router: Router, request: Request) -> Response {
+    match router.oneshot(request).await {
+        Ok(response) => response,
+        Err(never) => match never {},
     }
 }
 

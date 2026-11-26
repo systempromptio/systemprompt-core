@@ -7,6 +7,13 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 
 use super::cache::{CACHE_HTML, compute_etag, etag_matches, not_modified_response};
+use crate::services::middleware::StaticMiss;
+
+pub(crate) fn missed(response: impl IntoResponse) -> axum::response::Response {
+    let mut response = response.into_response();
+    response.extensions_mut().insert(StaticMiss);
+    response
+}
 
 pub(super) fn not_prerendered_response(path: &str, slug: &str) -> axum::response::Response {
     (
@@ -37,9 +44,9 @@ pub(super) async fn not_found_response(
     {
         let etag = compute_etag(&content);
         if etag_matches(headers, &etag) {
-            return not_modified_response(&etag, CACHE_HTML);
+            return missed(not_modified_response(&etag, CACHE_HTML));
         }
-        return (
+        return missed((
             StatusCode::NOT_FOUND,
             [
                 (header::CONTENT_TYPE, "text/html; charset=utf-8".to_owned()),
@@ -47,11 +54,10 @@ pub(super) async fn not_found_response(
                 (header::ETAG, etag),
             ],
             content,
-        )
-            .into_response();
+        ));
     }
 
-    (
+    missed((
         StatusCode::NOT_FOUND,
         axum::response::Html(concat!(
             "<!DOCTYPE html><html><head><title>404 Not Found</title>",
@@ -61,6 +67,5 @@ pub(super) async fn not_found_response(
             "<p>The page you're looking for doesn't exist.</p>",
             "<p><a href=\"/\">Back to home</a></p></body></html>",
         )),
-    )
-        .into_response()
+    ))
 }

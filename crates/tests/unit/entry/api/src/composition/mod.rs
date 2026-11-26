@@ -12,3 +12,4 @@ mod forged_services;
 mod full_path;
 mod reserved_literal;
 mod root_fallback;
+mod static_first;
