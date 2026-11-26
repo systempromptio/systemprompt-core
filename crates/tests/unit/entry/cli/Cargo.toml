@@ -16,6 +16,7 @@ systemprompt-agent-runs = { workspace = true }
 systemprompt-cli = { workspace = true }
 systemprompt-identity-entry = { workspace = true, features = ["cli"] }
 systemprompt-cloud = { workspace = true }
+systemprompt-cloud-entry = { workspace = true, features = ["cli"] }
 systemprompt-extension = { workspace = true, features = ["cli"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-logging = { workspace = true }

@@ -37,10 +37,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 
-use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_extension::cli::{AdmittedViews, CliConfig, CommandError, CommandHost, Prompter};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::workspace::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{ManagedProfile, SecretsSource};

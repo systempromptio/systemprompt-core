@@ -11,9 +11,9 @@
 
 use anyhow::{Context, Result, bail};
 use std::path::Path;
-use systemprompt_cloud::ProjectContext;
 use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::Email;
+use systemprompt_loader::workspace::ProjectContext;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_manifest::services::SystemAdminConfig;
@@ -24,7 +24,7 @@ use systemprompt_manifest::{
 use systemprompt_models::CliPaths;
 
 use super::profile_sections as sections;
-use systemprompt_cloud::profile_authoring::generate_display_name;
+use systemprompt_loader::workspace::profile::generate_display_name;
 
 fn determine_environment(env_name: &str) -> Environment {
     match env_name.to_lowercase().as_str() {
@@ -122,7 +122,11 @@ pub(super) fn save(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    systemprompt_cloud::profile::save_profile_yaml(profile, profile_path, Some(&header))?;
+    systemprompt_loader::workspace::profile::save_profile_yaml(
+        profile,
+        profile_path,
+        Some(&header),
+    )?;
 
     CliService::success(&format!("Saved profile to {}", profile_path.display()));
 

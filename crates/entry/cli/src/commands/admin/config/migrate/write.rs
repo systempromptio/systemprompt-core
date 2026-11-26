@@ -25,7 +25,7 @@ use super::legacy_map::LEGACY_MAP_FILE;
 use super::plan::MigrationPlan;
 use super::swap::{FileSwap, StdFileSwap};
 use crate::runner::interrupt::InterruptShield;
-use systemprompt_cloud::provider_catalog::write_gateway;
+use systemprompt_loader::workspace::provider_catalog::write_gateway;
 
 const SYNTHETIC_ROOT: &str = "includes:\n  - ../ai/config.yaml\n";
 const SYNTHETIC_ROOT_NO_AI: &str = "{}\n";

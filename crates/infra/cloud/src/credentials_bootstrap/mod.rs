@@ -50,8 +50,9 @@ impl CredentialsBootstrap {
             return Ok(creds);
         }
 
-        let cloud_paths = crate::paths::get_cloud_paths();
-        let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
+        let cloud_paths = systemprompt_loader::workspace::paths::get_cloud_paths();
+        let credentials_path =
+            cloud_paths.resolve(systemprompt_loader::workspace::paths::CloudPath::Credentials);
 
         let mut creds = Self::load_credentials_from_path(&credentials_path)?;
         if Self::validation_is_fresh(&creds) {
@@ -123,8 +124,9 @@ impl CredentialsBootstrap {
         if Self::is_deployment_host() {
             return Ok(Self::load_from_env());
         }
-        let cloud_paths = crate::paths::get_cloud_paths();
-        let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
+        let cloud_paths = systemprompt_loader::workspace::paths::get_cloud_paths();
+        let credentials_path =
+            cloud_paths.resolve(systemprompt_loader::workspace::paths::CloudPath::Credentials);
         Self::load_credentials_from_path(&credentials_path).map(Some)
     }
 
@@ -135,8 +137,9 @@ impl CredentialsBootstrap {
     }
 
     pub async fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {
-        let cloud_paths = crate::paths::get_cloud_paths();
-        let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
+        let cloud_paths = systemprompt_loader::workspace::paths::get_cloud_paths();
+        let credentials_path =
+            cloud_paths.resolve(systemprompt_loader::workspace::paths::CloudPath::Credentials);
 
         let creds = Self::load_credentials_from_path(&credentials_path).map_err(|e| {
             CredentialsBootstrapError::InvalidCredentials {

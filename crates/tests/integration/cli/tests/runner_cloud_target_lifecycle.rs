@@ -5,13 +5,15 @@ use std::fs;
 use chrono::Duration;
 use systemprompt_cli::runner::routing::{ExecutionTarget, determine_execution_target};
 use systemprompt_cli_integration_tests::full_bootstrap::isolated_fixture;
-use systemprompt_cloud::{
-    CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore, StoredTenant,
-    TenantStore,
-};
+use systemprompt_cloud::{StoredTenant, TenantStore};
+use systemprompt_cloud_entry::cli::access::CloudCliAccess;
 use systemprompt_config::LoadedProfile;
+use systemprompt_extension::cli::DynCloudAccess;
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+};
+use systemprompt_loader::workspace::{
+    CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{CloudConfig, CloudValidationMode, ProfileType};
@@ -121,8 +123,10 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
 
     let _cwd = WorkingDirectory::enter(&system_root);
     let profile = LoadedProfile::from_path(&fixture.profile_path).expect("load cloud profile");
+    let cloud: DynCloudAccess = std::sync::Arc::new(CloudCliAccess);
 
-    let initial = determine_execution_target(&profile).expect("valid cloud state routes remotely");
+    let initial = determine_execution_target(&profile, Some(&cloud))
+        .expect("valid cloud state routes remotely");
     match initial {
         ExecutionTarget::Remote {
             hostname,
@@ -141,7 +145,7 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     TenantStore::new(vec![other.clone()])
         .save_to_path(&tenants_path)
         .expect("remove the selected tenant from the cache");
-    let missing = determine_execution_target(&profile)
+    let missing = determine_execution_target(&profile, Some(&cloud))
         .expect_err("an unrelated cached account cannot replace the profile tenant");
     let missing_message = format!("{missing:#}");
     assert!(missing_message.contains(routed_tenant.as_str()));
@@ -162,7 +166,7 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     sessions
         .save(&sessions_dir)
         .expect("replace selected session with stale issuer");
-    let stale = determine_execution_target(&profile)
+    let stale = determine_execution_target(&profile, Some(&cloud))
         .expect_err("an issuer-mismatched session must fail closed");
     assert!(format!("{stale:#}").contains("admin session login"));
 
@@ -179,8 +183,8 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     sessions
         .save(&sessions_dir)
         .expect("repair selected session");
-    let repaired =
-        determine_execution_target(&profile).expect("routing recovers from repaired durable state");
+    let repaired = determine_execution_target(&profile, Some(&cloud))
+        .expect("routing recovers from repaired durable state");
     match repaired {
         ExecutionTarget::Remote {
             hostname,

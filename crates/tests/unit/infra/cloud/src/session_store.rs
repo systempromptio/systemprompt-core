@@ -1,10 +1,10 @@
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
-use systemprompt_cloud::cli_session::{
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
+use systemprompt_loader::workspace::SessionBinding;
+use systemprompt_loader::workspace::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore,
 };
-use systemprompt_cloud::{CloudError, SessionBinding};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::unique_user_id;
 use tempfile::TempDir;
@@ -656,7 +656,7 @@ fn load_errors_on_corrupt_store() {
     let err = SessionStore::load(&dir).unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_cloud::CloudError::SessionStoreCorrupted { .. }
+        systemprompt_loader::workspace::WorkspaceError::SessionStoreCorrupted { .. }
     ));
     assert!(err.to_string().contains("admin session switch"));
 
@@ -672,7 +672,10 @@ fn a_corrupt_store_is_surfaced_not_silently_replaced() {
 
     let err = SessionStore::load_or_create(&dir).expect_err("corrupt index is an error");
     assert!(
-        matches!(err, CloudError::SessionStoreCorrupted { .. }),
+        matches!(
+            err,
+            systemprompt_loader::workspace::WorkspaceError::SessionStoreCorrupted { .. }
+        ),
         "{err}"
     );
     assert_eq!(
@@ -733,7 +736,7 @@ fn load_rejects_future_store_version() {
     let err = SessionStore::load(&dir).unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_cloud::CloudError::SessionVersionMismatch { actual: 99, .. }
+        systemprompt_loader::workspace::WorkspaceError::SessionVersionMismatch { actual: 99, .. }
     ));
 }
 
@@ -846,7 +849,7 @@ fn concurrent_saves_into_one_sessions_dir_all_land() {
                 for _ in 0..200 {
                     store.save(&sessions_dir)?;
                 }
-                Ok::<(), systemprompt_cloud::CloudError>(())
+                Ok::<(), systemprompt_loader::workspace::WorkspaceError>(())
             })
         })
         .collect();

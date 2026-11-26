@@ -5,9 +5,8 @@
 
 use anyhow::Result;
 use chrono::Duration;
-use systemprompt_cloud::{
-    CloudApiClient, CloudCredentials, CloudPath, ProfilePath, ProjectContext, get_cloud_paths,
-};
+use systemprompt_cloud::{CloudApiClient, CloudCredentials};
+use systemprompt_loader::workspace::{CloudPath, ProfilePath, ProjectContext, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use crate::cli::types::WhoamiOutput;

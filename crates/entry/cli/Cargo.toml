@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories = ["command-line-utilities", "api-bindings", "authentication"]
-description = "Library behind the unified CLI for systemprompt.io AI governance: agent orchestration, MCP governance, analytics, profiles, cloud deploy, and self-hosted operations."
+description = "Library behind the unified CLI for systemprompt.io AI governance: agent orchestration, MCP governance, analytics, profiles, and self-hosted operations."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
@@ -48,7 +48,6 @@ systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["cli"] }
-systemprompt-cloud = { workspace = true }
 systemprompt-client = { workspace = true }
 
 # Additional dependencies used by CLI modules

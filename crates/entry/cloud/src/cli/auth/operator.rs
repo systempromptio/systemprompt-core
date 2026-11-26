@@ -10,9 +10,10 @@
 
 use anyhow::{Result, anyhow, bail};
 use serde::Serialize;
+use systemprompt_cloud::OAuthTemplates;
 use systemprompt_cloud::operator::{OperatorLoginRequest, run_operator_login};
-use systemprompt_cloud::{CloudPath, OAuthTemplates, get_cloud_paths};
 use systemprompt_identifiers::ClientId;
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::{OperatorAuthConfig, Profile, default_operator_scopes};
 

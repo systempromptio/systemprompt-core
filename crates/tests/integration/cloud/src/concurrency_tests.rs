@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_cloud::cli_session::SessionStore;
+use systemprompt_loader::workspace::cli_session::SessionStore;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 

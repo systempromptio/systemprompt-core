@@ -7,12 +7,12 @@
 use clap::Parser;
 use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
-use systemprompt_cloud::profile::ProfileSource;
 use systemprompt_extension::cli::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_identifiers::TenantId;
 use systemprompt_identity_entry::cli::users::federated_rekey::{
     RekeyChoice, id_jag_candidates, resolve_choice, run,
 };
+use systemprompt_loader::workspace::profile::ProfileSource;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{CloudConfig, ProfileType, TrustedIssuer};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};

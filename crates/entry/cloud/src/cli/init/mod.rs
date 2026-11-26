@@ -9,8 +9,8 @@
 
 use anyhow::{Context, Result};
 use std::path::Path;
-use systemprompt_cloud::ProjectContext;
 use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_loader::workspace::ProjectContext;
 use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 

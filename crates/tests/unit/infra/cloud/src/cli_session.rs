@@ -2,12 +2,12 @@
 
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
-use systemprompt_cloud::SessionBinding;
-use systemprompt_cloud::cli_session::{
-    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey,
-};
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+};
+use systemprompt_loader::workspace::SessionBinding;
+use systemprompt_loader::workspace::cli_session::{
+    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey,
 };
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::unique_user_id;

@@ -7,24 +7,27 @@ use std::fs;
 use std::path::Path;
 
 use super::session::{CURRENT_VERSION, CliSession, MIN_SUPPORTED_VERSION};
-use crate::error::{CloudError, CloudResult};
-use crate::private_dir::write_private_json;
+use crate::workspace::error::{WorkspaceError, WorkspaceResult};
+use crate::workspace::private_dir::write_private_json;
 
 impl CliSession {
-    pub fn load_from_path(path: &Path) -> CloudResult<Self> {
+    pub fn load_from_path(path: &Path) -> WorkspaceResult<Self> {
         if !path.exists() {
-            return Err(CloudError::NotAuthenticated);
+            return Err(WorkspaceError::SessionNotFound {
+                path: path.display().to_string(),
+            });
         }
 
         let content = fs::read_to_string(path)?;
 
         let mut session: Self =
-            serde_json::from_str(&content).map_err(|e| CloudError::CredentialsCorrupted {
-                source: Box::new(e),
+            serde_json::from_str(&content).map_err(|e| WorkspaceError::SessionFileCorrupted {
+                path: path.display().to_string(),
+                source: e,
             })?;
 
         if session.version < MIN_SUPPORTED_VERSION || session.version > CURRENT_VERSION {
-            return Err(CloudError::SessionVersionMismatch {
+            return Err(WorkspaceError::SessionVersionMismatch {
                 min: MIN_SUPPORTED_VERSION,
                 max: CURRENT_VERSION,
                 actual: session.version,
@@ -36,11 +39,11 @@ impl CliSession {
         Ok(session)
     }
 
-    pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
+    pub fn save_to_path(&self, path: &Path) -> WorkspaceResult<()> {
         write_private_json(path, self)
     }
 
-    pub fn delete_from_path(path: &Path) -> CloudResult<()> {
+    pub fn delete_from_path(path: &Path) -> WorkspaceResult<()> {
         if path.exists() {
             fs::remove_file(path)?;
         }

@@ -9,9 +9,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
+use systemprompt_cloud::{DockerCli, StoredTenant};
 use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::ProjectContext;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 

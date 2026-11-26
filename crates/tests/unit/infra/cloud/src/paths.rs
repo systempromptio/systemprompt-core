@@ -1,7 +1,7 @@
 //! Unit tests for CloudPath and CloudPaths
 
 use std::path::Path;
-use systemprompt_cloud::paths::{CloudPath, CloudPaths, expand_home, resolve_path};
+use systemprompt_loader::workspace::paths::{CloudPath, CloudPaths, expand_home, resolve_path};
 use tempfile::TempDir;
 
 #[test]

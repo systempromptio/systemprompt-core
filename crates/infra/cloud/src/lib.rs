@@ -11,14 +11,15 @@
 //! - [`CloudCredentials`] / [`CredentialsBootstrap`] — on-disk cloud
 //!   credentials and the bootstrap that loads and validates them.
 //! - [`StoredTenant`] / [`TenantStore`] — persistent tenants index.
-//! - [`CliSession`] / [`SessionStore`] — multi-tenant CLI sessions.
 //! - [`run_oauth_flow`] — browser-driven OAuth login flow.
 //! - [`operator`] — OIDC operator sign-in for self-managed tenants and the RFC
 //!   8693 exchange that turns it into a tenant session.
 //! - [`clear_cloud_state`] — logout cleanup of credentials, tenants, and
 //!   tenant-scoped sessions.
-//! - [`CloudPaths`] — XDG-aware discovery of credentials, sessions, tenants,
-//!   and project files.
+//!
+//! The workspace paths (credentials, tenants and session file locations), the
+//! CLI session store and profile resolution are kernel state and live in
+//! `systemprompt_loader::workspace`.
 //! - [`profile_authoring`] — pure [`Profile`](systemprompt_manifest::Profile)
 //!   construction for local and cloud deployment targets.
 //! - [`deploy`] — Dockerfile rendering ([`DockerfileBuilder`]) and validation
@@ -49,23 +50,16 @@
 pub mod api_client;
 pub mod auth;
 mod callback_listener;
-pub mod cli_session;
 pub mod constants;
 pub mod credentials;
 pub mod credentials_bootstrap;
 pub mod deploy;
 pub mod docker;
-pub mod docker_compose;
 pub mod error;
-pub mod identity;
 pub mod logout;
 pub mod oauth;
 pub mod operator;
-pub mod paths;
-mod private_dir;
-pub mod profile;
 pub mod profile_authoring;
-pub mod provider_catalog;
 pub mod routing;
 pub mod secrets_env;
 pub mod tenants;
@@ -76,9 +70,6 @@ pub use api_client::{
     CloudTenantStatusResponse, CloudUserInfo, DeployResponse, RegistryToken, SubscriptionStatus,
     UserMeResponse,
 };
-pub use cli_session::{
-    CliSession, LOCAL_SESSION_KEY, SessionBinding, SessionIdentity, SessionKey, SessionStore,
-};
 pub use constants::api::{PRODUCTION_URL, SANDBOX_URL};
 pub use credentials::CloudCredentials;
 pub use credentials_bootstrap::{CredentialsBootstrap, CredentialsBootstrapError};
@@ -87,10 +78,6 @@ pub use docker::{CommandRunner, CommandSpec, DockerCli, SystemCommandRunner};
 pub use error::{CloudError, CloudResult, CloudStoreValidationError, DeploySource};
 pub use logout::{ClearedCloudState, clear_cloud_state};
 pub use oauth::{OAuthTemplates, run_oauth_flow};
-pub use paths::{
-    CloudPath, CloudPaths, DiscoveredProject, ProfilePath, ProjectContext, ProjectPath,
-    UnifiedContext, expand_home, get_cloud_paths, resolve_path,
-};
 pub use tenants::{NewSelfManagedTenantParams, StoredTenant, TenantStore};
 
 use clap::ValueEnum;

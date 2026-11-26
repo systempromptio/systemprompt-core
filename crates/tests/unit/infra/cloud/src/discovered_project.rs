@@ -1,7 +1,7 @@
 //! Tests for `DiscoveredProject`: walk-up project discovery + path helpers.
 
 use std::fs;
-use systemprompt_cloud::DiscoveredProject;
+use systemprompt_loader::workspace::DiscoveredProject;
 use tempfile::TempDir;
 
 fn make_project_root(tmp: &TempDir) -> std::path::PathBuf {

@@ -11,7 +11,7 @@
 use std::path::{Path, PathBuf};
 
 use super::{CloudPath, CloudPaths, DiscoveredProject};
-use crate::constants::{dir_names, file_names};
+use crate::workspace::constants::{dir_names, file_names};
 
 #[derive(Debug, Clone)]
 pub struct UnifiedContext {

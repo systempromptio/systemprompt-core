@@ -11,8 +11,8 @@ use std::time::Instant;
 use systemprompt_logging::CliService;
 
 use super::types::CoreBuildOutput;
-use systemprompt_cloud::paths::ProjectRoot;
 use systemprompt_extension::cli::{ChildSupervisor, CliConfig, CommandOutput};
+use systemprompt_loader::workspace::paths::ProjectRoot;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CoreArgs {

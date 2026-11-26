@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_logging::CliService;
 
-use systemprompt_cloud::identity::generate_identity;
+use systemprompt_loader::workspace::identity::generate_identity;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct GenerateArgs {

@@ -7,7 +7,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_cloud::{CloudPath, clear_cloud_state, get_cloud_paths};
+use systemprompt_cloud::clear_cloud_state;
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::LogoutArgs;

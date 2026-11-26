@@ -13,10 +13,11 @@ use anyhow::{Context, Result, anyhow, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use systemprompt_cloud::{DockerCli, ProjectContext};
+use systemprompt_cloud::DockerCli;
 use systemprompt_config::write_private_atomic;
+use systemprompt_loader::workspace::ProjectContext;
 
-use systemprompt_cloud::docker_compose::{
+use systemprompt_loader::workspace::docker_compose::{
     ComposeCredentials, PostgresCompose, PostgresCredentials, postgres_compose,
 };
 

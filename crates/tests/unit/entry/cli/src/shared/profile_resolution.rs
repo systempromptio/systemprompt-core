@@ -3,7 +3,9 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cloud::profile::{is_path_input, resolve_profile_from_path, resolve_profile_path};
+use systemprompt_loader::workspace::profile::{
+    is_path_input, resolve_profile_from_path, resolve_profile_path,
+};
 use tempfile::TempDir;
 
 #[test]

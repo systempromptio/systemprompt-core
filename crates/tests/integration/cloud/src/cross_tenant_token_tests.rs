@@ -1,7 +1,7 @@
 //! A session minted for tenant A must never satisfy a request for tenant B.
 
-use systemprompt_cloud::cli_session::{SessionKey, SessionStore};
 use systemprompt_identifiers::TenantId;
+use systemprompt_loader::workspace::cli_session::{SessionKey, SessionStore};
 
 use crate::support::{
     TenantFixture, build_session_a, build_session_b, build_session_for, seeded_session_store,

@@ -9,8 +9,8 @@
 use clap::Parser;
 use systemprompt_cli::admin::config::{ConfigCommands, execute};
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_cloud::profile::{ProfileResolutionError, resolve_profile_from_path};
 use systemprompt_extension::cli::CliConfig;
+use systemprompt_loader::workspace::profile::{ProfileResolutionError, resolve_profile_from_path};
 
 #[derive(Debug, Parser)]
 struct Harness {

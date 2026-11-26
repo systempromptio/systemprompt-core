@@ -21,7 +21,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::services::catalog::CATALOG_FILES;
 
 use super::secrets::SecretsData;
-use systemprompt_cloud::provider_catalog::{self as catalog, SeedRequest};
+use systemprompt_loader::workspace::provider_catalog::{self as catalog, SeedRequest};
 
 pub(super) fn seed(
     services_dir: &Path,

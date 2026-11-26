@@ -12,12 +12,12 @@ use chrono::Duration as ChronoDuration;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
-use systemprompt_cloud::SessionKey;
-use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_database::Database;
 use systemprompt_extension::cli::CommandOutput;
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_loader::BootContext;
+use systemprompt_loader::workspace::SessionKey;
+use systemprompt_loader::workspace::paths::ResolvedPaths;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
@@ -129,6 +129,7 @@ pub(crate) async fn login_for_profile(
         admin_name,
         profile.target.is_cloud(),
         args.email.as_deref(),
+        host.cloud_access(),
     )
     .await?;
     ensure_interactive_admin(&admin_user)?;

@@ -9,11 +9,13 @@ use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent_entry::cli::contexts;
 use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::kernel::MemberHost;
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::{Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
+use systemprompt_loader::workspace::paths::ResolvedPaths;
+use systemprompt_loader::workspace::{
+    CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore,
+};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, seed_user_session,

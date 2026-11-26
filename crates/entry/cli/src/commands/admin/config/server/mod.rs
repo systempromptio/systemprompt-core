@@ -114,7 +114,7 @@ pub(super) fn execute_set(args: &SetArgs, host: &dyn KernelHost) -> Result<Comma
     let output = changes_output("Server Updated", &changes);
     let output = if args.external_url.is_some() {
         crate::session::clear_session(
-            &systemprompt_cloud::paths::ResolvedPaths::discover(),
+            &systemprompt_loader::workspace::paths::ResolvedPaths::discover(),
             host.profile()?,
         )?;
         output.with_note(NoticeLine::new(

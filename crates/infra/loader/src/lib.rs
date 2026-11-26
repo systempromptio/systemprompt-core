@@ -25,6 +25,9 @@
 //!   to every consumer.
 //! - [`fingerprint`] — a size/mtime fingerprint of a services tree, so the
 //!   services watch notices an on-disk change.
+//! - [`workspace`] — the on-disk workspace a local CLI reads before boot:
+//!   project and `.systemprompt` paths, the CLI session store, and profile
+//!   resolution with its [`ProfileSource`](workspace::profile::ProfileSource).
 //! - [`error`] — public error types ([`ConfigLoadError`], [`ConfigWriteError`],
 //!   [`ExtensionLoadError`]).
 //!
@@ -44,6 +47,7 @@ pub mod profile_loader;
 pub mod services_state;
 pub mod subprocess;
 pub mod vertex_discovery;
+pub mod workspace;
 
 pub use boot::BootContext;
 pub use bundle::{BundleError, BundleResult, ServicesSourceBootstrap};

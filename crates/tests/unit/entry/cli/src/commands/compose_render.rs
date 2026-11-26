@@ -2,7 +2,7 @@
 //! a tenant container: the host port is the only knob, and the container
 //! port is always the default PostgreSQL port.
 
-use systemprompt_cloud::docker_compose::{
+use systemprompt_loader::workspace::docker_compose::{
     ComposeCredentials, PostgresCompose, PostgresCredentials, postgres_compose,
 };
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;

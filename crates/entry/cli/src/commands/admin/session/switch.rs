@@ -4,13 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{ProfilePath, SessionKey};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::{ProfilePath, SessionKey};
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::SwitchOutput;
-use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_extension::cli::CommandOutput;
+use systemprompt_loader::workspace::paths::ResolvedPaths;
 
 pub(super) fn execute(profile_name: &ProfileName) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();

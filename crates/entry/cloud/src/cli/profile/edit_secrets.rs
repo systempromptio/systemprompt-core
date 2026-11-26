@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result};
 use std::path::Path;
-use systemprompt_cloud::ProfilePath;
 use systemprompt_config::write_private_atomic;
+use systemprompt_loader::workspace::ProfilePath;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 

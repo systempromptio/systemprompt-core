@@ -8,7 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_cloud::{CloudApiClient, CloudPath, StoredTenant, TenantStore, get_cloud_paths};
+use systemprompt_cloud::{CloudApiClient, StoredTenant, TenantStore};
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::select::get_credentials;

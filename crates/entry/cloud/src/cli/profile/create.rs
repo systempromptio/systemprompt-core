@@ -10,10 +10,9 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::{
-    CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, get_cloud_paths,
-};
+use systemprompt_cloud::{StoredTenant, TenantStore};
 use systemprompt_extension::cli::ChildSupervisor;
+use systemprompt_loader::workspace::{CloudPath, ProfilePath, ProjectContext, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 

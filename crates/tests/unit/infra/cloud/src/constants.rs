@@ -1,8 +1,7 @@
 //! Unit tests for constants module
 
-use systemprompt_cloud::constants::{
-    api, cli_session, credentials, docker, env_vars, oauth, paths, profile, tenants,
-};
+use systemprompt_cloud::constants::{api, env_vars, oauth, profile};
+use systemprompt_loader::workspace::constants::{cli_session, credentials, docker, paths, tenants};
 
 #[test]
 fn test_api_production_url() {

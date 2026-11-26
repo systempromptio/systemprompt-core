@@ -122,10 +122,11 @@ pub async fn use_session_context(
     {
         return Err(SessionContextError::NotOwned(context));
     }
-    let sessions_dir = systemprompt_cloud::paths::ResolvedPaths::discover().sessions_dir();
-    let mut store = systemprompt_cloud::SessionStore::load_or_create(&sessions_dir)
+    let sessions_dir =
+        systemprompt_loader::workspace::paths::ResolvedPaths::discover().sessions_dir();
+    let mut store = systemprompt_loader::workspace::SessionStore::load_or_create(&sessions_dir)
         .map_err(|e| SessionContextError::Store(e.into()))?;
-    let session_key = systemprompt_cloud::SessionKey::from_tenant_id(
+    let session_key = systemprompt_loader::workspace::SessionKey::from_tenant_id(
         session_ctx
             .profile
             .cloud

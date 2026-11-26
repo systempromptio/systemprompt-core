@@ -49,7 +49,7 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
         profile.display_name
     );
 
-    Ok(systemprompt_cloud::profile::save_profile_yaml(
+    Ok(systemprompt_loader::workspace::profile::save_profile_yaml(
         profile,
         profile_path,
         Some(&header),
@@ -174,7 +174,7 @@ pub fn save_secrets(
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
-    let identity = systemprompt_cloud::identity::generate_identity()?;
+    let identity = systemprompt_loader::workspace::identity::generate_identity()?;
     let mut secrets = json!({
         "oauth_at_rest_pepper": identity.oauth_at_rest_pepper,
         "encryption_master_key": identity.encryption_master_key,

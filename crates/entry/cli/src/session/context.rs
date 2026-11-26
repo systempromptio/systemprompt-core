@@ -3,9 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_cloud::CliSession;
 use systemprompt_extension::cli::CallerSession;
 use systemprompt_identifiers::{ContextId, SessionToken};
+use systemprompt_loader::workspace::CliSession;
 use systemprompt_manifest::Profile;
 
 #[derive(Debug)]

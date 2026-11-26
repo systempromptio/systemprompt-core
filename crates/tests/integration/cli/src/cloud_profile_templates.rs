@@ -1,9 +1,9 @@
 use std::path::PathBuf;
-use systemprompt_cloud::identity::generate_oauth_at_rest_pepper;
 use systemprompt_cloud_entry::cli::profile::ai_catalog::update_ai_config_default_provider;
 use systemprompt_cloud_entry::cli::profile::templates::{
     get_services_path, save_dockerignore, save_entrypoint, validate_connection,
 };
+use systemprompt_loader::workspace::identity::generate_oauth_at_rest_pepper;
 use tempfile::tempdir;
 
 use crate::env_lock;

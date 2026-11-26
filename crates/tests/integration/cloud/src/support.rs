@@ -3,13 +3,14 @@
 use base64::prelude::*;
 use chrono::Utc;
 use std::path::PathBuf;
-use systemprompt_cloud::cli_session::{
-    CliSession, CliSessionBuilder, SessionIdentity, SessionKey, SessionStore,
-};
+use systemprompt_cloud::CloudCredentials;
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
-use systemprompt_cloud::{CloudCredentials, SessionBinding};
 use systemprompt_identifiers::{
     CloudAppId, CloudAuthToken, ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
+};
+use systemprompt_loader::workspace::SessionBinding;
+use systemprompt_loader::workspace::cli_session::{
+    CliSession, CliSessionBuilder, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::unique_user_id;

@@ -95,8 +95,8 @@ ai: {}
 }
 
 pub fn catalog_files(default_provider: &str) -> anyhow::Result<Vec<(&'static str, String)>> {
-    let document = systemprompt_cloud::provider_catalog::seed_document(
-        systemprompt_cloud::provider_catalog::SeedRequest {
+    let document = systemprompt_loader::workspace::provider_catalog::seed_document(
+        systemprompt_loader::workspace::provider_catalog::SeedRequest {
             present: &["anthropic", "openai", "gemini"],
             primary: Some(default_provider),
             gateway_enabled: false,

@@ -336,8 +336,8 @@ async fn doctor_refuses_a_profile_that_states_the_derived_hook_url() {
 
 #[tokio::test]
 async fn deploy_target_requires_a_synced_tenant_cache_then_resolves_the_owned_tenant() {
-    use systemprompt_cloud::{CloudPath, get_cloud_paths};
     use systemprompt_cloud_entry::cli::deploy::resolve_deploy_target;
+    use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 
     let env = enter().await;
     let profile_dir = write_cloud_profile(&env, "target-cache-recovery");

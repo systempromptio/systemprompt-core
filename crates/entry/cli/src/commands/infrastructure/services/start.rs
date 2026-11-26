@@ -8,7 +8,6 @@ use crate::presentation::StartupRenderer;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
@@ -116,7 +115,10 @@ async fn run_startup(
 
     events.phase_started(Phase::PreFlight);
 
-    if matches!(CredentialsBootstrap::read_unvalidated(), Ok(Some(_))) {
+    if host
+        .cloud_access()
+        .is_some_and(|cloud| cloud.credentials_present())
+    {
         events.info("Cloud credentials available");
     } else {
         events.info("Running in local-only mode (no cloud sync)");

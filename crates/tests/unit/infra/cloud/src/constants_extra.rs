@@ -2,7 +2,8 @@
 //! container paths, `api` DB hosts, `paths` entrypoint/dockerignore/compose,
 //! `credentials::VALIDATION_TTL_SECS`, and `profile` token expiry values.
 
-use systemprompt_cloud::constants::{container, credentials, paths, profile};
+use systemprompt_cloud::constants::{container, credentials, profile};
+use systemprompt_loader::workspace::constants::paths;
 
 #[test]
 fn container_app_root_non_empty() {

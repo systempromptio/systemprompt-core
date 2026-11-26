@@ -22,8 +22,8 @@ use crate::kernel::KernelHost;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::{SessionKey, SessionStore};
 use systemprompt_loader::{BootContext, ProfileLoader};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
@@ -36,10 +36,10 @@ use context_resolver::{
     ContextCheck, create_new_session, resolve_profile_path_from_session,
     resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_cloud::profile::ProfileSource;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{OutputFormat, VerbosityLevel};
+use systemprompt_loader::workspace::paths::ResolvedPaths;
+use systemprompt_loader::workspace::profile::ProfileSource;
 
 #[derive(Debug)]
 pub(crate) struct ProfileContext<'a> {
@@ -70,7 +70,7 @@ async fn get_session_for_profile(
     ctx: &SessionHost<'_>,
 ) -> Result<CliSessionContext> {
     let (profile_path, profile) =
-        systemprompt_cloud::profile::resolve_profile_with_data(profile_input)
+        systemprompt_loader::workspace::profile::resolve_profile_with_data(profile_input)
             .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let boot = boot_for_profile(&profile_path, ctx)
@@ -149,6 +149,7 @@ async fn get_session_for_loaded_profile(
             boot,
             contexts: &contexts,
             admitted: ctx.host.admitted()?,
+            cloud: ctx.host.cloud_access(),
         },
     )
     .await?;
@@ -169,7 +170,7 @@ async fn get_session_for_loaded_profile(
 pub fn record_new_session(
     store: &mut SessionStore,
     session_key: &SessionKey,
-    session: &systemprompt_cloud::CliSession,
+    session: &systemprompt_loader::workspace::CliSession,
     profile_name: &ProfileName,
     source: ProfileSource,
 ) {

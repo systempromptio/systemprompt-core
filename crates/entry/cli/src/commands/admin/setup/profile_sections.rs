@@ -11,8 +11,8 @@
 
 use std::path::Path;
 
-use systemprompt_cloud::ProjectContext;
 use systemprompt_loader::ExtensionLoader;
+use systemprompt_loader::workspace::ProjectContext;
 use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     default_resource_audiences,

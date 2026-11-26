@@ -18,7 +18,7 @@ use systemprompt_manifest::{
 
 use super::{generate_display_name, local_runtime_config, security_config, webhook_governance};
 use crate::constants::profile as consts;
-use crate::paths::ProjectContext;
+use systemprompt_loader::workspace::paths::ProjectContext;
 
 #[derive(Debug)]
 pub struct LocalProfileBuilder {

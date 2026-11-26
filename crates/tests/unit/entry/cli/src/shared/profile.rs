@@ -8,7 +8,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cloud::profile::ProfileResolutionError;
+use systemprompt_loader::workspace::profile::ProfileResolutionError;
 
 #[test]
 fn test_profile_resolution_error_no_profiles_found_display() {

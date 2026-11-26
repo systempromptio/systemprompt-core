@@ -1,9 +1,9 @@
 //! Compile-time constants for the cloud layer: container paths, callback ports
-//! and timeouts, API endpoints, deploy regions, and on-disk file/profile names.
+//! and timeouts, API endpoints, profile defaults and trusted-proxy ranges.
 //!
-//! Grouped into submodules by concern (`oauth`, `credentials`, `docker`,
-//! `api`, `paths`, `profile`, `env_vars`); path-name and storage constants
-//! are re-exported from `systemprompt_models`.
+//! Grouped into submodules by concern (`oauth`, `credentials`, `api`,
+//! `profile`, `proxies`, `env_vars`); the on-disk file names are
+//! `systemprompt_loader::workspace::constants`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,66 +36,12 @@ pub mod oauth {
 }
 
 pub mod credentials {
-    use super::{dir_names, file_names};
-
-    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
-    pub const DEFAULT_FILE_NAME: &str = file_names::CREDENTIALS;
-
     pub const VALIDATION_TTL_SECS: i64 = 900;
-}
-
-pub mod tenants {
-    use super::{dir_names, file_names};
-
-    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
-    pub const DEFAULT_FILE_NAME: &str = file_names::TENANTS;
-}
-
-pub mod operator {
-    use super::dir_names;
-
-    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
-    pub const DEFAULT_FILE_NAME: &str = "operator_credentials.json";
-}
-
-pub mod cli_session {
-    use super::{dir_names, file_names};
-
-    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
-    pub const DEFAULT_FILE_NAME: &str = file_names::SESSION;
-}
-
-pub mod docker {
-    pub const CONTAINER_NAME_PREFIX: &str = "systemprompt-postgres";
-    pub const COMPOSE_PATH: &str = "infrastructure/docker";
-
-    pub fn container_name(env_name: &str) -> String {
-        format!("{}-{}", CONTAINER_NAME_PREFIX, env_name)
-    }
 }
 
 pub mod api {
     pub const PRODUCTION_URL: &str = "https://api.systemprompt.io";
     pub const SANDBOX_URL: &str = "https://api-sandbox.systemprompt.io";
-}
-
-pub mod paths {
-    use super::{dir_names, file_names};
-
-    pub const ROOT_DIR: &str = dir_names::SYSTEMPROMPT;
-    pub const PROFILES_DIR: &str = dir_names::PROFILES;
-    pub const DOCKER_DIR: &str = dir_names::DOCKER;
-    pub const STORAGE_DIR: &str = dir_names::STORAGE;
-    pub const DOCKERFILE: &str = file_names::DOCKERFILE;
-    pub const PROFILE_CONFIG: &str = file_names::PROFILE_CONFIG;
-    pub const PROFILE_SECRETS: &str = file_names::PROFILE_SECRETS;
-    pub const CREDENTIALS_FILE: &str = file_names::CREDENTIALS;
-    pub const TENANTS_FILE: &str = file_names::TENANTS;
-    pub const SESSION_FILE: &str = file_names::SESSION;
-    pub const PROFILE_DOCKER_DIR: &str = dir_names::DOCKER;
-    pub const ENTRYPOINT: &str = file_names::ENTRYPOINT;
-    pub const DOCKERIGNORE: &str = file_names::DOCKERIGNORE;
-    pub const COMPOSE_FILE: &str = file_names::COMPOSE;
 }
 
 pub mod profile {

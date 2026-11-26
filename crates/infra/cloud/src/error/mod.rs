@@ -99,26 +99,8 @@ pub enum CloudError {
     #[error("Cloud credentials file not found: {path}")]
     CredentialsFileNotFound { path: String },
 
-    #[error(
-        "Session file version mismatch: expected {min}-{max}, got {actual}. Delete {path} and \
-         retry."
-    )]
-    SessionVersionMismatch {
-        min: u32,
-        max: u32,
-        actual: u32,
-        path: String,
-    },
-
-    #[error(
-        "Session store at {path} is stale or corrupt and cannot be parsed.\n\nRun: systemprompt \
-         admin session switch <profile> to reset it"
-    )]
-    SessionStoreCorrupted {
-        path: String,
-        #[source]
-        source: serde_json::Error,
-    },
+    #[error(transparent)]
+    Workspace(#[from] systemprompt_loader::workspace::WorkspaceError),
 
     #[error("OAuth flow failed: {message}")]
     OAuthFlow { message: String },

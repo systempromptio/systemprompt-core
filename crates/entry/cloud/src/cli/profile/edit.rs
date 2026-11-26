@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result};
 use std::path::Path;
-use systemprompt_cloud::ProfilePath;
 use systemprompt_config::write_private_atomic;
+use systemprompt_loader::workspace::ProfilePath;
 use systemprompt_logging::CliService;
 
 use super::EditArgs;
@@ -15,8 +15,8 @@ use serde_yaml::Value;
 use super::edit_document::ProfileEdit;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
-use systemprompt_cloud::profile::resolve_profile_path;
 use systemprompt_extension::cli::CommandHost;
+use systemprompt_loader::workspace::profile::resolve_profile_path;
 
 pub(super) fn execute(args: &EditArgs, host: &dyn CommandHost) -> Result<()> {
     let profile_path = resolve_profile_path(args.name.as_deref(), host.env_profile(), None)?.path;

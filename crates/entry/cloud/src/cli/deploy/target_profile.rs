@@ -15,8 +15,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
-use systemprompt_cloud::ProfilePath;
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::ProfilePath;
 use systemprompt_manifest::ProfileType;
 use systemprompt_manifest::profile::{
     CloudConfig, HostingProvider, LicenceConfig, ManagedProfile, SecretsConfig,

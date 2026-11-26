@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::ProfileListOutput;
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_cloud::profile::ProfileInfo;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_loader::workspace::paths::ResolvedPaths;
+use systemprompt_loader::workspace::profile::ProfileInfo;
 
 pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
     let project_ctx = ProjectContext::discover();
