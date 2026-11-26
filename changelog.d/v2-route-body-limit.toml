@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Route admission"
-text = "`BodyLimit::Bytes(usize)` declares a route's own request-body limit, bounded by the new `server.max_route_body_bytes` profile ceiling (default 16 MiB) and enforced on streamed bodies; a limit of zero or above the ceiling refuses the boot naming the route."
+text = "`BodyLimit` gains `Bytes(usize)`: a route's own request-body limit, smaller or larger than the 2 MiB default, enforced on the declared `Content-Length` and on a streamed body. A limit of `0` or above the new profile ceiling `server.max_route_body_bytes` (default 16 MiB) refuses the boot naming the route. Migrate an exhaustive `match` on `BodyLimit` by adding the `Bytes` arm."
 
 [[crate]]
 name = "systemprompt-extension"

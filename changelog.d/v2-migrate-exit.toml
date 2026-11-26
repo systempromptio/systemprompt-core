@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Database"
-text = "`infra db migrate` exits non-zero only for a held-back member or a migration marked `@compat: breaking`; an unmarked ahead migration and a database a newer release installed exit 0 with a warning naming them."
+text = "`infra db migrate` exits non-zero only when a member is held back (the database records a migration this binary does not know while one of this binary's own migrations for that member is pending) or when a migration a newer release wrote is marked `@compat: breaking`. A migration a newer release wrote without that mark, and a database a newer release installed, now exit `0` with a warning naming them. `SchemaInstallReport::held_back` is a field (`held_back()` returns a slice) and `SchemaInstallReport::refusal` returns the verdict as `InstallRefusal`. Migrate a pipeline that relied on the non-zero exit for an ahead database by reading the warning. An older binary now trusts the mark: a release must mark every migration that is not additive (a drop, rename, type change or new constraint an older release would violate) `@compat: breaking`, or an older binary reports success against a schema it cannot serve."
 
 [[crate]]
 name = "systemprompt-database"

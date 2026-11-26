@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Composition"
-text = "A composition without the `oauth` member that admits any bearer-authenticated route is refused at admission with `CompositionError::BearerRoutesWithoutOauth`, naming the members that declare such routes."
+text = "A composition without the `oauth` member (disabled in the profile, removed, or not linked) that admits any bearer-authenticated route is refused at admission with `CompositionError::BearerRoutesWithoutOauth`, naming the members that declare such routes. A CLI-only or worker composition with no bearer-authenticated route still admits without `oauth`. Migrate by keeping `oauth` enabled on every node that serves authenticated routes, or by disabling the named members with it."
 
 [[crate]]
 name = "systemprompt"

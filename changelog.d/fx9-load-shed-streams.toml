@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "API"
-text = "A request now holds its `server.max_in_flight` permit until its response body has been read to the end or dropped, not only until the response headers are sent. An open SSE, A2A or gateway stream, or a slow download, counts against the ceiling until it closes, and `/readyz` reports `saturated` while every permit is held. A replica that serves long streams may reach the ceiling sooner, so size `max_in_flight` for open streams as well as for requests."
+text = "Admission control is on by default and decided outside every other layer: `server.max_in_flight` defaults to 4096 in-flight requests per replica, each counted until its response body is read to the end or dropped (an explicit `null` is no ceiling), and the shed layer is the outermost layer of the API router, so a saturated replica answers `503` with `Retry-After: 1` before CORS, sessions, authentication, rate limits or body parsing. Migrate by setting `server.max_in_flight` to the replica's measured capacity, or `null` to keep queueing."
 
 [[crate]]
 name = "systemprompt-api"

@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Route admission"
-text = "A composition may claim one site fallback (`Contributions::site_fallback`, `router::SiteFallback`), mounted as the web root fallback under the public policy only and never answering a reserved path; a second claimant is refused with `CompositionError::SecondSiteFallback`."
+text = "A composition may claim one site fallback with `Contributions::site_fallback(SiteFallback::service(..))`. It answers the paths no route matches, under the public policy and the public context only, after every reserved path and route set, and never a reserved path; it takes the web root's fallback in place of the static content fallback. A second claimant refuses admission with `CompositionError::SecondSiteFallback` naming both. `AdmittedParts` gains `site_fallback`; migrate a struct literal by adding `site_fallback: None`."
 
 [[crate]]
 name = "systemprompt-extension"

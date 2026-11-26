@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Install views"
-text = "An install member reads four host-sealed seeds: `SystemAdmin`, `Arc<ConfigView>` (the runtime configuration without the database URLs and the signing key path), `Arc<ProfileView>` (profile name, target, environment, judge mode, cloud tenant id, OTLP target without credentials, `paths.bin`) and `InstallServicesView` (active services root, services config and catalog, credential-free source list). `InstallSeed::Config` is removed; `ServicesView`'s config watch is private (`ServicesView::over`, `ServicesView::config`)."
+text = "`reserved::INSTALL_SEEDS` lists exactly `SystemAdmin`, `Arc<ConfigView>`, `Arc<ProfileView>` and `InstallServicesView`; `InstallSeed::Config` is removed and an install member's `r.get::<Arc<Config>>()` fails boot with `KernelError::Provide`. `ConfigView` is the runtime configuration without `database_url`, `database_write_url`, `database_session_url` and `signing_key_path`; `ProfileView` carries the profile name, target, runtime environment, `judge_automatic`, cloud tenant id, the OTLP target (endpoint without user info, query or fragment; no headers) and `paths.bin`; `InstallServicesView` carries the active services root, the services config and catalog, and the bundle sources as name, transport and credential-free location. Migrate an install by reading `Arc<ConfigView>` where it read `Arc<Config>`, and `ProfileView`/`InstallServicesView` where it read the profile or the services root."
 
 [[crate]]
 name = "systemprompt-extension"

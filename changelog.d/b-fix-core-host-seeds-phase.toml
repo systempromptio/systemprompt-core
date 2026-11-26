@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Extension"
+text = "`GatewaySurfaceError::HostUnseeded` is removed; the gateway host handles are provided in the new `ProvidePhase::AfterHostSeeds` (`Contributions::provide_sealed_after_host_seeds`), which runs once the API context has sealed its host seeds. Migrate exhaustive matches on `GatewaySurfaceError` and `ProvidePhase`."

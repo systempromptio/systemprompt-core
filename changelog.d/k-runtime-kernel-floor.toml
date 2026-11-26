@@ -1,7 +1,7 @@
 [root]
 section = "Breaking"
 area = "Facade"
-text = "The runtime and the MCP host no longer link agent runs, issue reports or the document store. The `issues` and `documents` MCP toolsets are contributed by the `issues` and `documents` members, so a composition without them lists neither and refuses at boot an enabled hosted server that names one. The facade's `issues` feature is removed: `files` carries `systemprompt-documents` and `systemprompt-issues` and their members, and `api` no longer carries `systemprompt-documents`. Migrate by enabling `files` where `issues` was enabled or the document store was reached through `api`."
+text = "The facade's `issues` feature is removed: `files` carries the document store and issue reports and their members, and `api` no longer carries `systemprompt-documents`. The `issues` and `documents` MCP toolsets are contributed by those members, so a composition without `files` lists neither and refuses at boot an enabled hosted server that names one. `AdmittedRunOrigins` is `systemprompt_extension::AdmittedRunOrigins` (was `systemprompt_agent_runs::origin`); `systemprompt_mcp_host::toolsets::{ISSUES_TOOLSET, DOCUMENTS_TOOLSET, issues_tools, documents_tools}` and `HostContext::link_issuer` are removed in favour of `systemprompt_issues::mcp::{TOOLSET_ID, issues_tools}`, `systemprompt_documents::mcp::{TOOLSET_ID, documents_tools}` and `systemprompt_documents::links::hosted_link_issuer`. Migrate by enabling `files` where `issues` was enabled."
 
 [[crate]]
 name = "systemprompt-extension"
