@@ -7,7 +7,10 @@
 //! exactly the principal the edge binds the MCP session to, so the server's
 //! session restore matches the binding. A follow-up request also carries the
 //! MCP session id the edge confirmed is bound to that principal, so the
-//! server refuses a token presented with any other session.
+//! server refuses a token presented with any other session. The token also
+//! carries the execution the edge attributed the request to, so the server
+//! records it under that conversation context, trace, task and tool call and
+//! under nothing a header or the toolset supplies.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +19,7 @@ use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{
-    AuthenticatedUser, McpHopIdentity, TokenAuthority, TokenInteraction,
+    AuthenticatedUser, McpHopExecution, McpHopIdentity, TokenAuthority, TokenInteraction,
 };
 use systemprompt_models::execution::context::UserInteractionMode;
 
@@ -52,6 +55,7 @@ pub fn hop_identity(grant: &HopGrant<'_>) -> McpHopIdentity {
                 UserInteractionMode::NonInteractive => TokenInteraction::NonInteractive,
             }),
         mcp_session: session_id_header(grant.request_headers).map(|id| id.as_str().to_owned()),
+        execution: Some(McpHopExecution::of(context)),
     }
 }
 

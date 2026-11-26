@@ -71,9 +71,10 @@ pub use app_context::{
     fixture_fingerprint_repository, fixture_job_context_over, fixture_kernel, fixture_kernel_seed,
     fixture_secret_store, fixture_services_state, fixture_services_view, fixture_session_store,
     fixture_session_usage, fixture_subject_providers, fixture_upstream_issuer, host_admitted,
-    oauth_repositories, offline_kernel, offline_rate_windows, seed_fixture_system_admin_at,
-    test_app_context, test_app_context_on, test_app_context_on_with, test_config, test_config_with,
-    user_repository, FixtureSeedParts, FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
+    install_services_view_at, oauth_repositories, offline_kernel, offline_rate_windows,
+    seed_fixture_system_admin_at, test_app_context, test_app_context_on, test_app_context_on_with,
+    test_config, test_config_with, user_repository, FixtureSeedParts, FIXTURE_JWT_ISSUER,
+    FIXTURE_UPSTREAM_ISSUER,
 };
 pub use bootstrap::{
     enabled_documents, ensure_messaging_bootstrap, ensure_test_bootstrap, init_documents_bootstrap,
@@ -112,9 +113,10 @@ pub use governance::{apply_governance, apply_governance_plane, record_plane_appl
 pub use host::{host_child_env, services_hosting};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{
-    browser_session_cookie, fixture_health_probe, fixture_mcp_spawn, fixture_request_authenticator,
-    fixture_verification_keys, mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, session_cookie_with,
-    test_oauth_signing, test_signing_keys, test_token_authority,
+    browser_session_cookie, fixture_caller_verification, fixture_health_probe,
+    fixture_hop_identity, fixture_mcp_spawn, fixture_request_authenticator,
+    fixture_verification_keys, fixture_verified_caller, mint_admin_jwt, mint_bridge_jwt,
+    mint_mcp_hop, session_cookie_with, test_oauth_signing, test_signing_keys, test_token_authority,
 };
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use keystore::install_headless_keystore;
@@ -131,7 +133,10 @@ pub use pdf::{parse_pdf, ParsedPdf};
 pub use poll::{await_window_headroom, block_on, eventually, settle_background};
 pub use report_ports::report_ports_kernel;
 pub use scratch_schema::ScratchSchema;
-pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};
+pub use secrets::{
+    ensure_test_secrets_bootstrap, fixture_at_rest_cipher, fixture_master_key,
+    install_named_secret, master_key_of,
+};
 pub use service_row::seed_running_service;
 pub use subprocess::{
     announce_helper_ready, bounded_output, helper, spawn_marked_agent, spawn_marked_child,

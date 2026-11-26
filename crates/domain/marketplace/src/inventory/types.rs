@@ -11,7 +11,7 @@ use systemprompt_identifiers::{
     ResourceRevisionId, UserId,
 };
 use systemprompt_loader::bundle::BundleSources;
-use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::InstallServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
 
@@ -58,19 +58,42 @@ pub(super) fn managed_identity(resource: &ManagedResourceId) -> InventoryEntryId
     InventoryEntryId::new(format!("managed-{resource}"))
 }
 
-#[derive(Debug, Clone, Copy)]
+/// What an inventory pass reads about the services tree's sources: the
+/// bundle sources and the active root, both from the read-only
+/// [`InstallServicesView`] an install member also reads.
+#[derive(Debug, Clone)]
 pub struct SourcesContext<'a> {
-    pub bundles: &'a BundleSources,
-    pub active_root: Option<&'a ActiveServicesRoot>,
+    pub bundles: BundleSources,
+    pub active_root: &'a ActiveServicesRoot,
+}
+
+impl<'a> SourcesContext<'a> {
+    #[must_use]
+    pub fn of(view: &'a InstallServicesView) -> Self {
+        Self {
+            bundles: BundleSources::of(view),
+            active_root: view.active_root(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct BaselineScope<'a> {
     pub owner: &'a UserId,
     pub actor: &'a UserId,
-    pub root: &'a Path,
-    pub services: &'a ServicesConfig,
-    pub sources: SourcesContext<'a>,
+    pub view: &'a InstallServicesView,
+}
+
+impl<'a> BaselineScope<'a> {
+    #[must_use]
+    pub fn root(&self) -> &'a Path {
+        self.view.root()
+    }
+
+    #[must_use]
+    pub fn sources(&self) -> SourcesContext<'a> {
+        SourcesContext::of(self.view)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]

@@ -1,8 +1,11 @@
 //! Encrypted terminal receipts retained until database settlement succeeds.
 //!
 //! [`GatewayJournal`] is built once at the gateway composition root from the
-//! storage data directory and the decoded `encryption_master_key`, and injected
-//! into every audit. It lives under `paths.storage`, never beside the profile:
+//! storage data directory and the deployment's `MasterKey`, and injected into
+//! every audit. Opening derives the `gateway` member's journal key and refuses
+//! ([`GatewayAuditError::PreUpgradeJournal`]) while any segment still holds
+//! frames sealed before 0.88, so no path opens a journal whose recovery could
+//! discard them. It lives under `paths.storage`, never beside the profile:
 //! the profile is configuration and is mounted read-only in the self-host
 //! bundle, and receipts belong to the node that admitted them, so the data
 //! directory must be a per-node writable volume.
@@ -36,13 +39,18 @@
 mod index;
 mod log;
 mod ops;
+mod pass;
 mod recovery;
+mod reseal;
 mod segment;
 mod settle;
 mod types;
 
 pub use log::{Fsync, JOURNAL_FSYNCS_TOTAL, JOURNAL_RECORDS_TOTAL, JournalSync};
 pub(crate) use ops::JournalLease;
+pub use pass::{flush_on_shutdown, recover, spawn_recovery};
+pub use reseal::JournalReseal;
+pub(crate) use reseal::reseal as reseal_segments;
 pub(super) use types::{CapturedToolCall, Completion, PartialUsage, Receipt};
 
 use std::num::NonZeroU32;
@@ -54,7 +62,8 @@ use crate::error::{GatewayAuditError, GatewayAuditResult as Result};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::aead::KeyInit;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_traits::BackgroundTasks;
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_security::at_rest::MasterKey;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
 pub const JOURNAL_RECEIPTS: &str = "gateway_journal_receipts";
@@ -63,6 +72,17 @@ pub const JOURNAL_RECOVERY_FAILURES_TOTAL: &str = "gateway_journal_recovery_fail
 pub const JOURNAL_TORN_FRAMES_TOTAL: &str = "gateway_journal_torn_frames_total";
 pub const JOURNAL_ADMISSIONS_SHED_TOTAL: &str = "gateway_journal_admissions_shed_total";
 pub use systemprompt_ai::repository::ai_requests::ORPHAN_AGE;
+
+const JOURNAL_LABEL: &[u8] = b"systemprompt.gateway-journal.v1";
+const GATEWAY_MEMBER: &str = "gateway";
+pub(crate) const JOURNAL_DIR: &str = "gateway-journal";
+
+pub(crate) fn journal_cipher(master: &MasterKey) -> Result<ChaCha20Poly1305> {
+    let key = master
+        .derive(JOURNAL_LABEL, &ExtensionId::new(GATEWAY_MEMBER))
+        .map_err(GatewayAuditError::JournalKey)?;
+    Ok(ChaCha20Poly1305::new(&key.into()))
+}
 
 #[derive(Clone)]
 pub struct GatewayJournal {
@@ -79,18 +99,28 @@ impl std::fmt::Debug for GatewayJournal {
 }
 
 impl GatewayJournal {
-    pub fn open(state_dir: &Path, key: [u8; 32]) -> Result<Self> {
-        Self::open_with(state_dir, key, Arc::new(Fsync))
+    pub fn open(state_dir: &Path, master: &MasterKey) -> Result<Self> {
+        Self::open_with(state_dir, master, Arc::new(Fsync))
     }
 
-    pub fn open_with(state_dir: &Path, key: [u8; 32], sync: Arc<dyn JournalSync>) -> Result<Self> {
-        let cipher = ChaCha20Poly1305::new(&key.into());
-        let root: PathBuf = state_dir.join("gateway-journal");
+    pub fn open_with(
+        state_dir: &Path,
+        master: &MasterKey,
+        sync: Arc<dyn JournalSync>,
+    ) -> Result<Self> {
+        let cipher = journal_cipher(master)?;
+        let root: PathBuf = state_dir.join(JOURNAL_DIR);
         systemprompt_config::create_state_dir(&root).map_err(GatewayAuditError::JournalDir)?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700))?;
+        }
+        let pending = reseal::reseal(&root, &cipher, master, false)?;
+        if pending.pre_088 > 0 {
+            return Err(GatewayAuditError::PreUpgradeJournal {
+                segments: pending.pre_088,
+            });
         }
         let legacy = recovery::legacy_receipts(&root)?;
         if legacy > 0 {
@@ -184,101 +214,7 @@ pub fn pending(journal: &GatewayJournal) -> Result<usize> {
     ops::count(&journal.log)
 }
 
-pub async fn recover(settlement: &Settlement) -> Result<usize> {
-    let _pass = settlement.journal.recovering.lock().await;
-    let outcome = settle_listed(settlement).await;
-    match pending(&settlement.journal) {
-        #[expect(
-            clippy::cast_precision_loss,
-            reason = "bounded by the journal's 4096-entry capacity"
-        )]
-        Ok(remaining) => metrics::gauge!(JOURNAL_RECEIPTS).set(remaining as f64),
-        Err(error) => tracing::warn!(%error, "Gateway journal receipts could not be counted"),
-    }
-    if outcome.is_err() {
-        metrics::counter!(JOURNAL_RECOVERY_FAILURES_TOTAL).increment(1);
-    }
-    outcome
-}
-
-async fn settle_listed(settlement: &Settlement) -> Result<usize> {
-    let (adoption, listed) = blocking(&settlement.journal, |log| {
-        let adoption = recovery::adopt(log)?;
-        Ok((adoption, recovery::settleable(log)?))
-    })
-    .await?;
-    if adoption.torn > 0 {
-        metrics::counter!(JOURNAL_TORN_FRAMES_TOTAL).increment(adoption.torn);
-    }
-    if adoption.adopted > 0 {
-        tracing::info!(
-            adopted = adoption.adopted,
-            "Gateway journal adopted receipts of an exited process"
-        );
-    }
-    let mut settled = 0;
-    for receipt in listed {
-        let id = receipt.storage_id();
-        if let Err(error) = settle::settle(settlement, &receipt).await {
-            metrics::counter!(JOURNAL_SETTLE_FAILURES_TOTAL).increment(1);
-            tracing::warn!(ai_request_id = %id, %error, "Gateway accounting recovery pending; receipt retained");
-            continue;
-        }
-        blocking(&settlement.journal, move |log| ops::remove(log, &id)).await?;
-        settled += 1;
-    }
-    blocking(&settlement.journal, |log| recovery::compact(log)).await?;
-    for orphan in settlement
-        .requests
-        .fail_orphaned_pending(ORPHAN_AGE)
-        .await?
-    {
-        tracing::warn!(
-            ai_request_id = %orphan.id,
-            user_id = %orphan.owner,
-            "Gateway request outlived every receipt; failed with unknown usage"
-        );
-    }
-    Ok(settled)
-}
-
 #[must_use]
 pub fn recovery_admitted(built: &systemprompt_extension::BuiltState) -> bool {
-    built.contains(&systemprompt_identifiers::ExtensionId::new("ai"))
-}
-
-pub fn spawn_recovery(settlement: Settlement, tasks: &BackgroundTasks) {
-    tasks.spawn_cancellable("gateway_accounting_recovery", |cancel| async move {
-        let mut tick = tokio::time::interval(RECOVERY_INTERVAL);
-        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-        loop {
-            tokio::select! {
-                () = cancel.cancelled() => break,
-                _ = tick.tick() => {},
-            }
-            match recover(&settlement).await {
-                Ok(0) => {},
-                Ok(settled) => tracing::info!(settled, "Gateway accounting receipts recovered"),
-                Err(error) => tracing::error!(%error, "Gateway accounting recovery failed"),
-            }
-        }
-        flush_on_shutdown(&settlement).await;
-    });
-}
-
-pub async fn flush_on_shutdown(settlement: &Settlement) {
-    match recover(settlement).await {
-        Ok(settled) => match pending(&settlement.journal) {
-            Ok(0) => tracing::info!(settled, "Gateway journal flushed on shutdown"),
-            Ok(remaining) => tracing::warn!(
-                settled,
-                remaining,
-                "Gateway journal receipts remain after the shutdown flush"
-            ),
-            Err(error) => {
-                tracing::warn!(settled, %error, "Gateway journal could not be counted after the shutdown flush");
-            },
-        },
-        Err(error) => tracing::error!(%error, "Gateway journal shutdown flush failed"),
-    }
+    built.contains(&ExtensionId::new("ai"))
 }

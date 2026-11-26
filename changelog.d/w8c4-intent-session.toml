@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "MCP"
+text = "An exact tool-call intent claim stamps only an intent asked for in the claimant's session, so an execution cannot claim another session's tool call."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`ToolCallIntentClaims::claim` takes the claimant's `SessionId`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`IntentClaimService::claim_exact` takes the claimant's `SessionId`."

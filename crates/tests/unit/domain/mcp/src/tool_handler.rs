@@ -12,7 +12,7 @@ use rmcp::model::CallToolRequestParams;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_extension::mcp::{McpToolHandler, VerifiedCaller, execute};
+use systemprompt_extension::mcp::{McpToolHandler, execute};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor};
@@ -152,7 +152,10 @@ async fn execute_success_records_and_returns_result() {
         Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
-        McpServerId::new("srv-echo"),
+        systemprompt_mcp::ServerCallers {
+            server: McpServerId::new("srv-echo"),
+            verification: systemprompt_test_fixtures::fixture_caller_verification(),
+        },
     );
 
     let ctx = test_ctx();
@@ -161,7 +164,7 @@ async fn execute_success_records_and_returns_result() {
         &exec,
         &EchoHandler,
         &request,
-        &VerifiedCaller::__from_hop(ctx.clone()),
+        &systemprompt_test_fixtures::fixture_verified_caller(exec.server_name(), &ctx),
         &ClientProfile::unknown(),
     )
     .await;
@@ -185,7 +188,10 @@ async fn execute_handler_error_propagates() {
         Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
-        McpServerId::new("srv-fail"),
+        systemprompt_mcp::ServerCallers {
+            server: McpServerId::new("srv-fail"),
+            verification: systemprompt_test_fixtures::fixture_caller_verification(),
+        },
     );
 
     let ctx = test_ctx();
@@ -200,7 +206,7 @@ async fn execute_handler_error_propagates() {
         &exec,
         &FailingHandler,
         &request,
-        &VerifiedCaller::__from_hop(ctx.clone()),
+        &systemprompt_test_fixtures::fixture_verified_caller(exec.server_name(), &ctx),
         &ClientProfile::unknown(),
     )
     .await;
@@ -221,7 +227,10 @@ async fn execute_input_parse_error_returns_invalid_params() {
         Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
-        McpServerId::new("srv-bad"),
+        systemprompt_mcp::ServerCallers {
+            server: McpServerId::new("srv-bad"),
+            verification: systemprompt_test_fixtures::fixture_caller_verification(),
+        },
     );
 
     let ctx = test_ctx();
@@ -231,7 +240,7 @@ async fn execute_input_parse_error_returns_invalid_params() {
         &exec,
         &EchoHandler,
         &request,
-        &VerifiedCaller::__from_hop(ctx.clone()),
+        &systemprompt_test_fixtures::fixture_verified_caller(exec.server_name(), &ctx),
         &ClientProfile::unknown(),
     )
     .await;

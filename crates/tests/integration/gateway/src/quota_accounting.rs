@@ -39,9 +39,7 @@ fn gateway_journal(
 ) -> systemprompt_gateway::audit::journal::GatewayJournal {
     systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir,
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
-            .encryption_master_key()
-            .expect("encryption master key"),
+        &systemprompt_test_fixtures::fixture_master_key(),
     )
     .expect("gateway journal opens")
 }
@@ -68,10 +66,7 @@ pub(crate) fn gateway_repos_in(
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
-            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
-                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
-            )
-            .expect("at-rest cipher from the fixture secrets"),
+            at_rest: systemprompt_test_fixtures::fixture_at_rest_cipher(),
             unapplied_plane: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
         },
     )

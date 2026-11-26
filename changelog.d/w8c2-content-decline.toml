@@ -1,0 +1,14 @@
+[root]
+section = "Changed"
+area = "Content"
+text = "A `ContentSlot` factory may answer `Ok(None)`: the member contributes nothing for that hook, the composition boots and the hook is absent from `ContentHooks`."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Breaking"
+text = "Every `ContentSlotBuilder` factory returns `Result<Option<Arc<dyn T>>, FactoryError>`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`build_present_factories`."

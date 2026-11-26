@@ -42,7 +42,11 @@ pub(super) fn reap_if_child(pid: u32) -> bool {
 }
 
 pub(super) fn has_exited(pid: u32) -> bool {
-    reap_if_child(pid) || !exists(pid) || super::is_zombie(pid)
+    reap_if_child(pid) || has_ended(pid)
+}
+
+pub(super) fn has_ended(pid: u32) -> bool {
+    !exists(pid) || super::is_zombie(pid)
 }
 
 pub(super) fn is_group_leader(pid: u32) -> bool {

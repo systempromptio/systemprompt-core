@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Routes"
+text = "`RouteSetBuilder::service_with` and `SiteFallback::with_state` build a service from the member's own route state when the API mounts it, so a plane provided after governance, or an install's main web app as the site fallback, mounts without a late cell; the state resolves only what the member's route state may read."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`SiteFallback::into_router` is replaced by `materialize`; `AdmittedSiteFallback` gains `standing`; a route set's state type is `Send + Sync + 'static`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`protect_site_fallback` takes the materialised `Router`."

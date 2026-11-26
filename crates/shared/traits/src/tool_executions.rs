@@ -46,7 +46,8 @@ pub type DynToolExecutionLookup = Arc<dyn ToolExecutionLookup>;
 /// Held as `Arc<dyn ToolCallIntentClaims>` so the mcp domain can be handed
 /// whichever intent store the composition root wires in, hence
 /// `#[async_trait]` for `dyn` dispatch. An intent is claimed at most once: a
-/// claim only stamps an intent no execution holds yet, and a lost race is
+/// claim only stamps an intent no execution holds yet and that was asked for
+/// in the claimant's session, and a lost race or another session's intent is
 /// `None`/`false`, never an overwrite. The execution row must exist before a
 /// claim names it.
 #[async_trait]
@@ -62,6 +63,7 @@ pub trait ToolCallIntentClaims: Send + Sync {
     async fn claim(
         &self,
         call: &AiToolCallId,
+        session_id: &SessionId,
         execution: &McpExecutionId,
     ) -> Result<bool, RepositoryError>;
 

@@ -31,8 +31,8 @@ pub use enums::{
     AccountKind, JwtAudience, RateLimitTier, TokenType, UserRole, UserStatus, UserType,
 };
 pub use mcp_hop::{
-    MCP_HOP_MAX_LIFETIME, MCP_HOP_TOKEN_TYPE, MCP_HOP_TTL, McpHopClaims, McpHopIdentity,
-    mcp_hop_audience,
+    MCP_HOP_MAX_LIFETIME, MCP_HOP_TOKEN_TYPE, MCP_HOP_TTL, McpHopClaims, McpHopExecution,
+    McpHopIdentity, mcp_hop_audience,
 };
 pub use permission::{
     Permission, parse_permissions, parse_roles, permissions_to_string, roles_to_string,

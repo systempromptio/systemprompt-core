@@ -54,6 +54,7 @@ pub struct KernelSeed<'a> {
     pub event_router: &'a EventRouter,
     pub catalog_roles: CatalogRoleNames,
     pub escalation: EscalationDelivery,
+    pub role: systemprompt_extension::artifact_ui::HostRole,
     pub audit_spans: systemprompt_models::audit_spans::DynAuditSpanSink,
 }
 

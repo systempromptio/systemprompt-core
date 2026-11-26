@@ -42,6 +42,8 @@ systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 proptest = { workspace = true }
+chacha20poly1305 = { workspace = true }
+rand = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }

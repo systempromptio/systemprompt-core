@@ -1,21 +1,27 @@
 //! A spawned MCP server boots its `HostContext` from the child environment
 //! alone: it never reads the profile's secrets source, holds no secret it was
 //! not granted, refuses to start without the verification keys, and serves a
-//! hop-authenticated tool call on what it was given. It runs extension seam
+//! hop-authenticated tool call on what it was given, presented with the hop and
+//! headers the API proxy mints for the request. It runs extension seam
 //! discovery as the API does, over a context whose token authority verifies
 //! and never signs.
 
 use std::sync::{Arc, OnceLock};
 
 use serde_json::{Value, json};
-use systemprompt_identifiers::{McpServerId, headers};
+use systemprompt_api::services::proxy::service::hop::{HopGrant, hop_identity};
+use systemprompt_api::services::proxy::service::outbound::managed_mcp_headers;
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpServerId, ServiceName, SessionId, TraceId,
+};
 use systemprompt_mcp_host::toolsets::serve_on;
 use systemprompt_mcp_host::{HostBootError, HostContext};
-use systemprompt_models::auth::TokenAuthority as _;
+use systemprompt_models::RequestContext;
+use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority as _};
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_test_fixtures::{
     TestBootstrap, host_child_env, init_services_bootstrap, mint_mcp_hop,
-    seed_fixture_system_admin, test_db_pool,
+    seed_fixture_system_admin, test_db_pool, test_token_authority,
 };
 
 use crate::documents_mcp_support::registered;
@@ -58,6 +64,7 @@ async fn boot_with(
         .await
         .expect("seed the system admin");
     HostContext::boot(
+        systemprompt_extension::artifact_ui::HostRole::McpServer,
         move |name| env.get(name).cloned(),
         crate::boot::host_admit(),
     )
@@ -133,7 +140,41 @@ async fn a_granted_custom_secret_is_the_only_secret_the_host_holds() {
     assert!(host.secrets().secret("oauth_at_rest_pepper").is_none());
 }
 
-fn mcp_request(body: &Value, hop: Option<&str>, session: Option<&str>) -> reqwest::RequestBuilder {
+fn edge_headers(
+    server: &McpServerId,
+    user: &AuthenticatedUser,
+    mcp_session: Option<&str>,
+    issuer: &str,
+) -> http::HeaderMap {
+    let context = RequestContext::new(
+        SessionId::new("s-host"),
+        TraceId::new("t-host"),
+        ContextId::generate(),
+        AgentName::new("agent-host"),
+        Actor::user(user.id.clone()),
+    )
+    .with_user(user.clone());
+    let mut incoming = http::HeaderMap::new();
+    if let Some(session) = mcp_session {
+        incoming.insert("mcp-session-id", session.parse().expect("session header"));
+    }
+    let identity = hop_identity(&HopGrant {
+        service_name: &ServiceName::new(server.as_str()),
+        context: &context,
+        user: Some(user),
+        request_headers: &incoming,
+    });
+    let hop = test_token_authority(issuer)
+        .mint_mcp_hop(server, &identity)
+        .expect("mint the hop the proxy mints");
+    managed_mcp_headers(
+        &incoming,
+        &context,
+        &http::HeaderValue::from_str(&hop).expect("hop header"),
+    )
+}
+
+fn mcp_request(body: &Value, edge: Option<http::HeaderMap>) -> reqwest::RequestBuilder {
     let client = reqwest::Client::new();
     let mut builder = client
         .post(format!("http://{}/mcp", ADDR.get().expect("addr")))
@@ -143,11 +184,8 @@ fn mcp_request(body: &Value, hop: Option<&str>, session: Option<&str>) -> reqwes
         .header("x-trace-id", "t-host")
         .header("x-agent-name", "agent-host")
         .body(body.to_string());
-    if let Some(hop) = hop {
-        builder = builder.header(headers::MCP_HOP, hop);
-    }
-    if let Some(session) = session {
-        builder = builder.header("mcp-session-id", session);
+    if let Some(edge) = edge {
+        builder = builder.headers(edge);
     }
     builder
 }
@@ -172,7 +210,6 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
             "protocolVersion": "2025-06-18", "capabilities": {},
             "clientInfo": {"name": "host-test", "version": "0"}}}),
         None,
-        None,
     )
     .send()
     .await
@@ -183,8 +220,7 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
         &json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
             "protocolVersion": "2025-06-18", "capabilities": {},
             "clientInfo": {"name": "host-test", "version": "0"}}}),
-        Some(&mint_mcp_hop(&server, user.clone(), None, &issuer)),
-        None,
+        Some(edge_headers(&server, &user, None, &issuer)),
     )
     .send()
     .await
@@ -196,12 +232,10 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
         .and_then(|value| value.to_str().ok())
         .expect("session id")
         .to_owned();
-    let hop = mint_mcp_hop(&server, user.clone(), Some(&session), &issuer);
 
     let initialized = mcp_request(
         &json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
-        Some(&hop),
-        Some(&session),
+        Some(edge_headers(&server, &user, Some(&session), &issuer)),
     )
     .send()
     .await
@@ -215,8 +249,7 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
     let call = mcp_request(
         &json!({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
                 "params": {"name": "documents_list", "arguments": {}}}),
-        Some(&hop),
-        Some(&session),
+        Some(edge_headers(&server, &user, Some(&session), &issuer)),
     )
     .send()
     .await
@@ -226,17 +259,16 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
     assert!(body.contains("\"result\""), "{body}");
     assert!(!body.contains("\"isError\":true"), "{body}");
 
-    let foreign = mint_mcp_hop(
+    let foreign = edge_headers(
         &McpServerId::new("another-server"),
-        user,
+        &user,
         Some(&session),
         &issuer,
     );
     let refused = mcp_request(
         &json!({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                 "params": {"name": "documents_list", "arguments": {}}}),
-        Some(&foreign),
-        Some(&session),
+        Some(foreign),
     )
     .send()
     .await
@@ -263,6 +295,7 @@ async fn the_token_authority_the_host_holds_verifies_and_never_signs() {
         purpose: None,
         interaction: None,
         mcp_session: None,
+        execution: None,
     };
     let refused = tokens
         .mint_mcp_hop(&server, &identity)

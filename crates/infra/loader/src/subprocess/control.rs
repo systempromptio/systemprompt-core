@@ -8,7 +8,10 @@
 //! A child this process spawned and that has since exited stays a zombie until
 //! it is reaped, and `kill(pid, 0)` reports a zombie as alive. Liveness here
 //! therefore reaps an exited child of ours first and then treats a zombie as
-//! exited, so a stop never waits out its grace period on a corpse.
+//! exited, so a stop never waits out its grace period on a corpse. A child
+//! that still has an owner holding its `Child` (a CLI foreground child) is
+//! stopped with [`stop_owned_unreaped`]: its zombie reads as exited but is
+//! left for that owner to reap, so every child has exactly one reaper.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,16 +49,37 @@ pub enum StopOutcome {
     Stopped(Termination),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Reaper {
+    Probe,
+    Owner,
+}
+
+fn has_exited(pid: u32, reaper: Reaper) -> bool {
+    match reaper {
+        Reaper::Probe => platform::has_exited(pid),
+        Reaper::Owner => platform::has_ended(pid),
+    }
+}
+
 pub async fn is_running(pid: u32) -> bool {
-    blocking_on_windows(move || !platform::has_exited(pid))
+    running(pid, Reaper::Probe).await
+}
+
+async fn running(pid: u32, reaper: Reaper) -> bool {
+    blocking_on_windows(move || !has_exited(pid, reaper))
         .await
         .unwrap_or(false)
 }
 
 pub async fn owns(pid: u32, claim: &ChildClaim) -> bool {
+    owned(pid, claim, Reaper::Probe).await
+}
+
+async fn owned(pid: u32, claim: &ChildClaim, reaper: Reaper) -> bool {
     let claim = claim.clone();
     let verdict = tokio::task::spawn_blocking(move || {
-        !platform::has_exited(pid) && super::live_pid_is_subprocess(pid, &claim)
+        !has_exited(pid, reaper) && super::live_pid_is_subprocess(pid, &claim)
     })
     .await;
     match verdict {
@@ -125,10 +149,27 @@ pub async fn stop_owned(
     claim: &ChildClaim,
     grace: Duration,
 ) -> Result<StopOutcome, SupervisionError> {
-    if !is_running(pid).await {
+    stop(pid, claim, grace, Reaper::Probe).await
+}
+
+pub(super) async fn stop_owned_unreaped(
+    pid: u32,
+    claim: &ChildClaim,
+    grace: Duration,
+) -> Result<StopOutcome, SupervisionError> {
+    stop(pid, claim, grace, Reaper::Owner).await
+}
+
+async fn stop(
+    pid: u32,
+    claim: &ChildClaim,
+    grace: Duration,
+    reaper: Reaper,
+) -> Result<StopOutcome, SupervisionError> {
+    if !running(pid, reaper).await {
         return Ok(StopOutcome::NotRunning);
     }
-    if !owns(pid, claim).await {
+    if !owned(pid, claim, reaper).await {
         tracing::warn!(
             pid,
             service = %claim.service(),
@@ -137,7 +178,7 @@ pub async fn stop_owned(
         return Ok(StopOutcome::NotOurs);
     }
     let leader = blocking_on_windows(move || platform::is_group_leader(pid)).await?;
-    match terminate_verified(pid, grace, leader, Some(claim)).await? {
+    match terminate_verified(pid, grace, leader, Some(claim), reaper).await? {
         Verified::Ended(termination) => Ok(StopOutcome::Stopped(termination)),
         Verified::Disowned => {
             tracing::warn!(
@@ -160,7 +201,7 @@ async fn terminate(
     grace: Duration,
     group: bool,
 ) -> Result<Termination, SupervisionError> {
-    match terminate_verified(pid, grace, group, None).await? {
+    match terminate_verified(pid, grace, group, None, Reaper::Probe).await? {
         Verified::Ended(termination) => Ok(termination),
         Verified::Disowned => Err(SupervisionError::Survived { pid }),
     }
@@ -171,12 +212,13 @@ async fn terminate_verified(
     grace: Duration,
     group: bool,
     claim: Option<&ChildClaim>,
+    reaper: Reaper,
 ) -> Result<Verified, SupervisionError> {
-    if !is_running(pid).await {
+    if !running(pid, reaper).await {
         return Ok(Verified::Ended(Termination::AlreadyExited));
     }
     let delivery = blocking_on_windows(move || platform::send(pid, false, group)).await??;
-    if delivery == platform::Delivery::NoSuchProcess || wait_for_exit(pid, grace).await {
+    if delivery == platform::Delivery::NoSuchProcess || wait_for_exit(pid, grace, reaper).await {
         return Ok(Verified::Ended(Termination::Exited));
     }
     // Why: a signalled process loses its readable environment while it exits
@@ -184,25 +226,27 @@ async fn terminate_verified(
     // failed identity check right after the signal is first given the exit
     // window before the pid is judged disowned.
     if let Some(claim) = claim
-        && !owns(pid, claim).await
+        && !owned(pid, claim, reaper).await
     {
-        return Ok(if wait_for_exit(pid, DISOWN_SETTLE).await {
+        return Ok(if wait_for_exit(pid, DISOWN_SETTLE, reaper).await {
             Verified::Ended(Termination::Exited)
         } else {
             Verified::Disowned
         });
     }
     let delivery = blocking_on_windows(move || platform::send(pid, true, group)).await??;
-    if delivery == platform::Delivery::NoSuchProcess || wait_for_exit(pid, KILL_SETTLE).await {
+    if delivery == platform::Delivery::NoSuchProcess
+        || wait_for_exit(pid, KILL_SETTLE, reaper).await
+    {
         return Ok(Verified::Ended(Termination::Killed));
     }
     Err(SupervisionError::Survived { pid })
 }
 
-async fn wait_for_exit(pid: u32, within: Duration) -> bool {
+async fn wait_for_exit(pid: u32, within: Duration, reaper: Reaper) -> bool {
     let deadline = tokio::time::Instant::now() + within;
     loop {
-        if !is_running(pid).await {
+        if !running(pid, reaper).await {
             return true;
         }
         if tokio::time::Instant::now() >= deadline {

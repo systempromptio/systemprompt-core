@@ -86,9 +86,13 @@ async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
     )
     .await
     .expect("seed the system admin");
-    let disabled = HostContext::boot(|name| env.get(name).cloned(), crate::boot::core_admit())
-        .await
-        .expect("host context");
+    let disabled = HostContext::boot(
+        systemprompt_extension::artifact_ui::HostRole::McpServer,
+        |name| env.get(name).cloned(),
+        crate::boot::core_admit(),
+    )
+    .await
+    .expect("host context");
     let err = documents_tools(&disabled, McpServerId::new(SERVER))
         .expect_err("a disabled store builds no tools");
     assert!(matches!(err, DocumentsMcpError::Disabled { .. }), "{err:?}");
@@ -99,9 +103,13 @@ async fn documents_tools_refuse_a_disabled_store_and_name_the_switch() {
         "files:\n  documents:\n    enabled: true\n",
     )
     .expect("write files.yaml");
-    let enabled = HostContext::boot(|name| env.get(name).cloned(), crate::boot::core_admit())
-        .await
-        .expect("host context");
+    let enabled = HostContext::boot(
+        systemprompt_extension::artifact_ui::HostRole::McpServer,
+        |name| env.get(name).cloned(),
+        crate::boot::core_admit(),
+    )
+    .await
+    .expect("host context");
     let tools = documents_tools(&enabled, McpServerId::new(SERVER))
         .expect("an enabled store builds the tools");
     assert_eq!(tools.server_name().as_str(), SERVER);

@@ -1,34 +1,53 @@
 //! The caller a tool execution is recorded for.
 //!
 //! A [`VerifiedCaller`] is the request context the toolset host restored from
-//! a verified platform hop token: the kernel's proxy signed the caller's
-//! identity into the hop, and the host's admission (`admit_request` in
-//! `systemprompt-mcp-host`) checked it before inserting the caller into the
-//! request. [`super::execute`] and [`super::ToolExecution::begin`] take one,
-//! so an execution is recorded only for the identity a hop vouched for and
-//! never for a context a toolset or member command built itself. Nothing
-//! outside the host's admission builds one (`lint-hidden-constructors`).
+//! a platform hop token, together with that token. It is evidence, not an
+//! assertion: anyone can build one with [`VerifiedCaller::presented`], and no
+//! core sink takes its context on trust. The MCP member's tool execution
+//! ([`super::ToolExecution::begin`]) verifies the hop token again against the
+//! deployment's verification keys, this deployment's issuer and the one
+//! server's audience, and refuses the execution unless the token's identity
+//! vouches for every field of the context a sink records: actor, the whole
+//! user record, session, client, user type, act chain, and the execution the
+//! edge attributed the request to (conversation context, trace, task, tool
+//! call, agent and call source). A caller built from a forged, expired or
+//! other-server token, or a context edited after admission, records nothing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::JwtToken;
 use systemprompt_models::RequestContext;
 
-/// The hop-verified caller of one MCP request.
-#[derive(Debug, Clone)]
+/// The caller of one MCP request: the context the host built and the hop
+/// token it was built from.
+#[derive(Clone)]
 pub struct VerifiedCaller {
+    hop: JwtToken,
     context: RequestContext,
 }
 
 impl VerifiedCaller {
     #[must_use]
+    pub const fn presented(hop: JwtToken, context: RequestContext) -> Self {
+        Self { hop, context }
+    }
+
+    #[must_use]
     pub const fn context(&self) -> &RequestContext {
         &self.context
     }
 
-    #[doc(hidden)]
     #[must_use]
-    pub const fn __from_hop(context: RequestContext) -> Self {
-        Self { context }
+    pub const fn hop_token(&self) -> &JwtToken {
+        &self.hop
+    }
+}
+
+impl std::fmt::Debug for VerifiedCaller {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("VerifiedCaller")
+            .field("context", &self.context)
+            .finish_non_exhaustive()
     }
 }

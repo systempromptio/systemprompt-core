@@ -1,0 +1,34 @@
+[root]
+section = "Added"
+area = "Install ciphertext"
+text = "`systemprompt admin secrets reseal --member <id>` re-seals the raw-master-key ciphertext a member declared with `Contributions::reseal_column` under that member's cipher. It reports per column without `--apply`, writes one `governance_decisions` row before it writes, rewrites in bounded batches with compare-and-swap, skips values already in the `spmc1.` envelope, and leaves a value that opens under neither scheme untouched, exiting non-zero. Admission refuses a declared table the member does not own alone."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`ResealColumn`, `AdmittedReseals`, `ResealAdmissionError`, `ResealClaim`, `Contributions::reseal_column` and `ContributionSink::reseal_columns`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`MemberCipher::seal` takes `&[u8]` and `open` returns `Vec<u8>`; a sealed value carries the `MEMBER_CIPHER_ENVELOPE` prefix."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Added"
+text = "`AtRestCipher::{seal_bytes, open_bytes, open_detached}`."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`admin::{ResealStore, ResealTable, SealedRow, Replacement}`: keyed paging and compare-and-swap writes over one declared column."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelError::Reseal`; the kernel seeds `AdmittedReseals` sealed."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`admin secrets reseal`."

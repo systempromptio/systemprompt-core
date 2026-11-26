@@ -2,12 +2,13 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use rmcp::model::{
-    CallToolResult, ListResourcesResult, ReadResourceRequestParams, ReadResourceResult, Resource,
-    ResourceContents, Tool,
+    CallToolResult, ListResourcesResult, ReadResourceResult, Resource, ResourceContents, Tool,
 };
 use rmcp::{ErrorData as McpError, ServerHandler};
 use systemprompt_extension::StandingTag;
-use systemprompt_extension::mcp::{McpAccessEvent, McpAccessRecorder, McpToolset, ToolsetCall};
+use systemprompt_extension::mcp::{
+    McpAccessEvent, McpAccessRecorder, McpToolset, ResourceList, ResourceRead, ToolsetCall,
+};
 use systemprompt_governance::authz::{
     AllowAllHook, DenyAllHook, SharedAuthzHook, SubjectAttributeError, SubjectAttributeProvider,
     SubjectDimension, SubjectProviderEntry, SubjectProviderSet,
@@ -78,18 +79,30 @@ impl McpToolset for FakeToolset {
         self.resources
     }
 
-    fn list_resources(&self) -> ListResourcesResult {
-        ListResourcesResult::with_all_items(vec![Resource::new("issues://open", "open")])
+    async fn list_resources(&self, list: ResourceList<'_>) -> ListResourcesResult {
+        let lister = list
+            .caller
+            .context()
+            .user
+            .as_ref()
+            .map_or_else(|| "-".to_owned(), |user| user.email.clone());
+        ListResourcesResult::with_all_items(vec![Resource::new("issues://open", lister)])
     }
 
-    fn read_resource(
+    async fn read_resource(
         &self,
-        request: &ReadResourceRequestParams,
+        read: ResourceRead<'_>,
     ) -> Option<Result<ReadResourceResult, McpError>> {
-        (request.uri == "issues://open").then(|| {
+        let reader = read
+            .caller
+            .context()
+            .user
+            .as_ref()
+            .map_or_else(|| "-".to_owned(), |user| user.email.clone());
+        (read.request.uri == "issues://open").then(|| {
             Ok(ReadResourceResult::new(vec![ResourceContents::text(
-                "none open",
-                request.uri.clone(),
+                format!("none open:{reader}"),
+                read.request.uri.clone(),
             )]))
         })
     }
@@ -175,7 +188,10 @@ async fn parts(
             systemprompt_governance::policy::secrets::SecretScannerCell::default(),
         )),
         Arc::new(UiRendererRegistry::with_builtins()),
-        server_id.clone(),
+        systemprompt_mcp::ServerCallers {
+            server: server_id.clone(),
+            verification: systemprompt_test_fixtures::fixture_caller_verification(),
+        },
     );
     let subjects = groups.map_or_else(SubjectProviderSet::default, |values| {
         SubjectProviderSet::new(vec![SubjectProviderEntry {

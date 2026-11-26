@@ -4,10 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use async_trait::async_trait;
-use chrono::Utc;
+use chrono::{DateTime, Duration, Utc};
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult};
 use systemprompt_extension::mcp::{
@@ -15,10 +16,11 @@ use systemprompt_extension::mcp::{
     VerifiedCaller,
 };
 use systemprompt_identifiers::{McpExecutionId, McpServerId, McpToolName};
+use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 use systemprompt_traits::DynToolCallIntentClaims;
 
-use super::McpToolExecutor;
+use super::{CallerVerification, McpToolExecutor, ServerCallers};
 use crate::models::ToolExecutionRequest;
 use crate::repository::ToolUsageRepository;
 use crate::response::{McpResponseBuilder, ResponseServices, ToolIdentity};
@@ -33,6 +35,13 @@ impl ToolExecution for McpToolExecutor {
         request: &CallToolRequestParams,
         caller: &VerifiedCaller,
     ) -> Result<ToolRun, McpError> {
+        if let Err(error) = self.callers.verify(&self.server_name, caller) {
+            tracing::warn!(tool = %tool_name, server = %self.server_name, %error, "Refused a tool execution whose caller did not verify");
+            return Err(McpError::invalid_request(
+                "This server records tool executions only for a caller a platform hop token vouches for.",
+                None,
+            ));
+        }
         let context = caller.context();
         let started_at = Utc::now();
         let input_value = serde_json::to_value(&request.arguments).map_err(|e| {
@@ -61,6 +70,8 @@ impl ToolExecution for McpToolExecutor {
         let context = self
             .with_claimed_intent(&tool_name, context, &exec_id)
             .await;
+        self.in_flight
+            .bind(&exec_id, &tool_name, &context, started_at);
         tracing::info!(tool = %tool_name, %exec_id, "MCP execution started");
         Ok(ToolRun {
             exec_id,
@@ -76,12 +87,19 @@ impl ToolExecution for McpToolExecutor {
         outcome: Result<ToolOutput, McpError>,
         client: &ClientProfile,
     ) -> Result<CallToolResult, McpError> {
-        let ToolRun {
-            exec_id,
+        let Some(BoundRun {
             tool_name,
             context,
             started_at,
-        } = run;
+        }) = self.in_flight.take(&run.exec_id, &run.tool_name)
+        else {
+            tracing::warn!(tool = %run.tool_name, exec_id = %run.exec_id, server = %self.server_name, "Refused to finish a tool execution this executor did not begin");
+            return Err(McpError::invalid_request(
+                "This server finishes only a tool execution it began.",
+                None,
+            ));
+        };
+        let exec_id = run.exec_id;
         let (response, output_value) = match outcome {
             Ok(output) => {
                 let output_value = Some(output.value.clone());
@@ -114,6 +132,52 @@ impl ToolExecution for McpToolExecutor {
         self.record_completion(&tool_name, &exec_id, &context, &execution_result)
             .await;
         response
+    }
+}
+
+const STALE_RUN: Duration = Duration::hours(24);
+
+struct BoundRun {
+    tool_name: McpToolName,
+    context: RequestContext,
+    started_at: DateTime<Utc>,
+}
+
+#[derive(Default)]
+pub(super) struct InFlightRuns(Mutex<HashMap<McpExecutionId, BoundRun>>);
+
+impl std::fmt::Debug for InFlightRuns {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InFlightRuns").finish_non_exhaustive()
+    }
+}
+
+impl InFlightRuns {
+    fn bind(
+        &self,
+        exec_id: &McpExecutionId,
+        tool_name: &McpToolName,
+        context: &RequestContext,
+        started_at: DateTime<Utc>,
+    ) {
+        let mut runs = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        runs.retain(|_, run| started_at - run.started_at < STALE_RUN);
+        runs.insert(
+            exec_id.clone(),
+            BoundRun {
+                tool_name: tool_name.clone(),
+                context: context.clone(),
+                started_at,
+            },
+        );
+    }
+
+    fn take(&self, exec_id: &McpExecutionId, tool_name: &McpToolName) -> Option<BoundRun> {
+        let mut runs = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        if runs.get(exec_id)?.tool_name != *tool_name {
+            return None;
+        }
+        runs.remove(exec_id)
     }
 }
 
@@ -162,6 +226,7 @@ pub struct McpToolExecutions {
     intents: Option<DynToolCallIntentClaims>,
     ingest: Arc<ArtifactIngest>,
     renderers: Arc<UiRendererRegistry>,
+    callers: CallerVerification,
 }
 
 impl McpToolExecutions {
@@ -170,12 +235,14 @@ impl McpToolExecutions {
         intents: Option<DynToolCallIntentClaims>,
         ingest: Arc<ArtifactIngest>,
         renderers: Arc<UiRendererRegistry>,
+        callers: CallerVerification,
     ) -> Self {
         Self {
             tool_usage_repo,
             intents,
             ingest,
             renderers,
+            callers,
         }
     }
 }
@@ -193,7 +260,10 @@ impl ToolExecutions for McpToolExecutions {
             self.intents.clone(),
             Arc::clone(&self.ingest),
             Arc::clone(&self.renderers),
-            server,
+            ServerCallers {
+                server,
+                verification: self.callers.clone(),
+            },
         ))
     }
 }

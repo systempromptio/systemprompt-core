@@ -24,6 +24,7 @@ use std::sync::Arc;
 
 use systemprompt_extension::{
     Factory, MemberResolved, Resolved, Slot, SlotEntry, SlotError, SlotOrder, build_factories,
+    build_present_factories,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::sso::{AuthEventSink, SsoProvider};
@@ -139,13 +140,9 @@ impl Slot for SsoSlot {
             let scope = entry.scope();
             let owner = entry.owner;
             let scoped = MemberResolved::within(r, &scope);
-            for factory in entry.builder.providers {
-                let Some(provider) = factory
-                    .build(&scoped)
-                    .map_err(|e| e.into_slot_error(SSO_PROVIDER_SLOT, &owner))?
-                else {
-                    continue;
-                };
+            for provider in
+                build_present_factories(SSO_PROVIDER_SLOT, &scope, &entry.builder.providers, r)?
+            {
                 if built.providers.iter().any(|p| p.id() == provider.id()) {
                     return Err(SlotError::DuplicateId {
                         slot: SSO_PROVIDER_SLOT,

@@ -30,7 +30,10 @@ async fn tool_executor_construction_and_clone() {
         Some(intents(&db)),
         art_repo,
         Arc::new(UiRendererRegistry::with_builtins()),
-        McpServerId::new("srv-x"),
+        systemprompt_mcp::ServerCallers {
+            server: McpServerId::new("srv-x"),
+            verification: systemprompt_test_fixtures::fixture_caller_verification(),
+        },
     );
     let _ = exec.clone();
     let _ = format!("{exec:?}");

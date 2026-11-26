@@ -634,6 +634,7 @@ pub fn fixture_kernel_seed(
             ),
             event_router: &parts.event_router,
             catalog_roles: systemprompt_models::authz::CatalogRoleNames::default(),
+            role: systemprompt_extension::artifact_ui::HostRole::Api,
             escalation: systemprompt_traits::EscalationDelivery::InProcess,
             audit_spans: Arc::new(systemprompt_logging::LogSink::default()),
         });
@@ -649,6 +650,32 @@ pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {
 
 pub fn fixture_services_view() -> systemprompt_manifest::services::ServicesView {
     fixture_services_state().view()
+}
+
+// The read-only install view over an empty services config rooted at
+// `root` (a bundled root, the test profile's bundle sources and cache).
+pub fn install_services_view_at(
+    root: &std::path::Path,
+) -> systemprompt_manifest::services::InstallServicesView {
+    use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
+    let profile = ensure_test_bootstrap().boot.profile();
+    let services = systemprompt_manifest::services::ServicesView::over(
+        systemprompt_traits::ConfigWatch::new(
+            systemprompt_manifest::services::ServicesConfig::default(),
+        ),
+        Arc::clone(&fixture_services_view().catalog),
+    );
+    let active = ActiveServicesRoot {
+        path: root.to_path_buf(),
+        base: root.to_path_buf(),
+        provenance: ServicesProvenance::Bundled,
+    };
+    systemprompt_manifest::services::InstallServicesView::of(
+        services,
+        &active,
+        profile,
+        systemprompt_loader::bundle::cache_root(profile),
+    )
 }
 
 // The services config the test bootstrap serves, or an empty one when the

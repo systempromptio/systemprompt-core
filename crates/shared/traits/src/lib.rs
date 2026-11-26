@@ -265,6 +265,6 @@ pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};
 pub mod conferred;
 pub use conferred::{
     ConferralIssuer, DynConferralIssuer, GitSourceSync, GitSourceSyncError, GitSourceSyncRequest,
-    GitSourceSynced, MemberCipher, MemberCipherError, MemberGrant, SHARE_TOKEN_MAX_TTL,
-    ShareTokenError, ShareTokenSigner, TokenAudienceGrant,
+    GitSourceSynced, MEMBER_CIPHER_ENVELOPE, MemberCipher, MemberCipherError, MemberGrant,
+    SHARE_TOKEN_MAX_TTL, ShareTokenError, ShareTokenSigner, TokenAudienceGrant,
 };

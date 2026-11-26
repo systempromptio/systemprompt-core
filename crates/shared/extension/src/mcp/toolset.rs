@@ -27,6 +27,22 @@ use systemprompt_models::mcp::ClientProfile;
 use super::caller::VerifiedCaller;
 use super::execution::ToolExecution;
 
+/// One resource read, already authenticated by the host, with the caller the
+/// platform proxy verified: the same caller a [`ToolsetCall`] carries.
+#[derive(Debug, Clone, Copy)]
+pub struct ResourceRead<'a> {
+    pub request: &'a ReadResourceRequestParams,
+    pub caller: &'a VerifiedCaller,
+}
+
+/// One resource listing, already authenticated by the host, with the caller
+/// the platform proxy verified, so a toolset lists only what it would read
+/// for that caller.
+#[derive(Debug, Clone, Copy)]
+pub struct ResourceList<'a> {
+    pub caller: &'a VerifiedCaller,
+}
+
 /// One tool call, already authenticated and authorised by the host.
 #[derive(Debug, Clone, Copy)]
 pub struct ToolsetCall<'a> {
@@ -42,7 +58,10 @@ pub struct ToolsetCall<'a> {
 /// `instructions` is joined into the server's instructions (empty adds none).
 /// A toolset that serves resources answers `true` from `serves_resources`, so
 /// the host advertises the capability; its `read_resource` answers `None` for
-/// a URI it does not own, so the host asks the next toolset.
+/// a URI it does not own, so the host asks the next toolset. The host reads a
+/// resource, and lists resources, only for a caller the platform proxy
+/// verified, and hands that caller to `list_resources` and `read_resource`, so
+/// a toolset scopes what it lists and serves to it.
 ///
 /// `#[async_trait]` because the host holds toolsets as `Box<dyn McpToolset>`,
 /// which native `async fn` in traits cannot be.
@@ -62,13 +81,13 @@ pub trait McpToolset: Send + Sync + Debug {
         false
     }
 
-    fn list_resources(&self) -> ListResourcesResult {
+    async fn list_resources(&self, _list: ResourceList<'_>) -> ListResourcesResult {
         ListResourcesResult::default()
     }
 
-    fn read_resource(
+    async fn read_resource(
         &self,
-        _request: &ReadResourceRequestParams,
+        _read: ResourceRead<'_>,
     ) -> Option<Result<ReadResourceResult, McpError>> {
         None
     }

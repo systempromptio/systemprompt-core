@@ -24,10 +24,9 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use http::{HeaderMap, StatusCode};
 use systemprompt_extension::mcp::VerifiedCaller;
-use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId, headers};
+use systemprompt_identifiers::{JwtToken, McpServerId, UserId, headers};
 use systemprompt_models::RequestContext as SysRequestContext;
-use systemprompt_models::auth::{McpHopClaims, TokenError, TokenInteraction};
-use systemprompt_models::execution::context::UserInteractionMode;
+use systemprompt_models::auth::{McpHopClaims, TokenError};
 use systemprompt_security::jwt::decode_mcp_hop;
 use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{ContextPropagation, ContextPropagationError};
@@ -140,31 +139,10 @@ impl VerifiedHop {
         &self,
         headers: &HeaderMap,
     ) -> Result<SysRequestContext, ContextPropagationError> {
-        let identity = &self.claims.identity;
-        let mut context = SysRequestContext::from_headers(headers)?;
-        context.request.session_id = identity.session_id.clone();
-        context.request.client_id.clone_from(&identity.client_id);
-        let actor = identity.user.as_ref().map_or_else(
-            || Actor::anonymous(identity.user_id.clone()),
-            |user| Actor::user(user.id.clone()),
-        );
-        let mut context = context
-            .with_actor(actor)
-            .with_user_type(identity.user_type)
-            .with_act_chain(identity.act_chain.clone());
-        if let Some(user) = identity.user.clone() {
-            context = context.with_user(user);
-        }
-        if let Some(purpose) = identity.purpose.clone() {
-            context = context.with_caller_purpose(purpose);
-        }
-        if let Some(interaction) = identity.interaction {
-            context = context.with_interaction_mode(match interaction {
-                TokenInteraction::Interactive => UserInteractionMode::Interactive,
-                TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
-            });
-        }
-        Ok(context)
+        Ok(self
+            .claims
+            .identity
+            .bind(SysRequestContext::from_headers(headers)?))
     }
 }
 
@@ -192,7 +170,10 @@ pub fn admit_request(
     let context = hop
         .request_context(headers)
         .map_err(HopAdmissionError::Context)?;
-    extensions.insert(VerifiedCaller::__from_hop(context.clone()));
+    extensions.insert(VerifiedCaller::presented(
+        hop.token().clone(),
+        context.clone(),
+    ));
     extensions.insert(context);
     extensions.insert(hop);
     Ok(principal)

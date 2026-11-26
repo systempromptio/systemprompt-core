@@ -166,19 +166,66 @@ async fn resources_are_listed_and_read_from_the_serving_toolset() {
     let listed = client.list_resources(None).await.expect("list");
     assert_eq!(listed.resources.len(), 1);
     assert_eq!(listed.resources[0].uri, "issues://open");
+    assert_ne!(
+        listed.resources[0].name, "-",
+        "the toolset lists resources for the verified caller"
+    );
     let read = client
         .read_resource(ReadResourceRequestParams::new("issues://open"))
         .await
         .expect("read");
-    assert!(matches!(
-        &read.contents[0],
-        ResourceContents::TextResourceContents { text, .. } if text == "none open"
-    ));
+    assert!(
+        matches!(
+            &read.contents[0],
+            ResourceContents::TextResourceContents { text, .. }
+                if text.starts_with("none open:") && text != "none open:-"
+        ),
+        "the toolset reads the resource for the verified caller: {:?}",
+        read.contents
+    );
     let err = client
         .read_resource(ReadResourceRequestParams::new("issues://closed"))
         .await
         .expect_err("unknown resource");
     assert!(err.to_string().contains("Unknown resource"), "{err}");
+}
+
+#[tokio::test]
+async fn a_resource_read_without_a_hop_verified_caller_is_refused() {
+    let fx = fixture(allow(), None, true).await;
+    let bearer = admin_caller()
+        .into_iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+        .map(|(_, value)| value)
+        .expect("the admin caller carries a bearer");
+    let client = connect(&fx.server, forged_identity_headers(bearer)).await;
+    let err = client
+        .read_resource(ReadResourceRequestParams::new("issues://open"))
+        .await
+        .expect_err("no hop-verified caller");
+    assert!(
+        !err.to_string().contains("none open"),
+        "the toolset is never asked without a verified caller: {err}"
+    );
+}
+
+#[tokio::test]
+async fn a_resource_listing_without_a_hop_verified_caller_is_refused() {
+    let fx = fixture(allow(), None, true).await;
+    let bearer = admin_caller()
+        .into_iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+        .map(|(_, value)| value)
+        .expect("the admin caller carries a bearer");
+    let client = connect(&fx.server, forged_identity_headers(bearer)).await;
+    let err = client
+        .list_resources(None)
+        .await
+        .expect_err("no hop-verified caller");
+    assert!(
+        !err.to_string().contains("issues://open"),
+        "the toolset is never asked to list without a verified caller: {err}"
+    );
 }
 
 #[tokio::test]

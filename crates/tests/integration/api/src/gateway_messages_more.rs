@@ -61,9 +61,7 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
-            .encryption_master_key()
-            .expect("encryption master key"),
+        &systemprompt_test_fixtures::fixture_master_key(),
     )
     .expect("gateway journal opens")
 }
@@ -85,10 +83,7 @@ pub(super) fn gw_repos(
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
             subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
-            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
-                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
-            )
-            .expect("at-rest cipher"),
+            at_rest: systemprompt_test_fixtures::fixture_at_rest_cipher(),
             unapplied_plane: Default::default(),
         },
     )

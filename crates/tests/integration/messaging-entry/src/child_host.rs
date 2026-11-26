@@ -27,6 +27,7 @@ async fn a_child_host_admitting_slack_and_teams_boots_without_their_dispatch_han
         .expect("seed the system admin");
     let env = host_child_env(b);
     let parts = HostKernel::boot(
+        systemprompt_extension::artifact_ui::HostRole::McpServer,
         move |name| env.get(name).cloned(),
         reference_with_messaging(),
     )

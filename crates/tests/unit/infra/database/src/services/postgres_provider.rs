@@ -28,7 +28,6 @@ async fn create_table(provider: &PostgresProvider, table: &str) {
     provider.execute_raw(&ddl).await.expect("create table");
 }
 
-
 #[tokio::test]
 async fn execute_binds_params_and_reports_rows_affected() {
     let (scratch, provider) = scratch_provider().await;

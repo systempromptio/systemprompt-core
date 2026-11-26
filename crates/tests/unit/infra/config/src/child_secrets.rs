@@ -93,21 +93,22 @@ async fn a_host_child_env_carries_no_api_held_secret_and_no_ungranted_master_key
 }
 
 #[tokio::test]
-async fn the_master_key_reaches_a_host_child_only_when_granted() {
+async fn a_host_child_never_holds_the_master_key() {
     let (_fx, service) = service("").await;
-    let granted = env(&service, &[SecretGrant::EncryptionMasterKey]);
-    assert_eq!(
-        granted.get("ENCRYPTION_MASTER_KEY").map(String::as_str),
-        Some(fixture::MASTER_KEY)
-    );
-    for name in API_HELD_ENV
-        .iter()
-        .filter(|name| **name != "ENCRYPTION_MASTER_KEY")
-    {
-        assert!(!granted.contains_key(*name), "{name} reached a host child");
+    let granted = env(&service, &[]);
+    for name in API_HELD_ENV {
+        assert!(!granted.contains_key(name), "{name} reached a host child");
     }
-    let store = GrantedSecrets::from_lookup(|name| granted.get(name).cloned()).expect("granted");
-    assert!(store.encryption_master_key().is_ok());
+    let mut planted = granted.clone();
+    planted.insert(
+        "ENCRYPTION_MASTER_KEY".to_owned(),
+        fixture::MASTER_KEY.to_owned(),
+    );
+    let store = GrantedSecrets::from_lookup(|name| planted.get(name).cloned()).expect("granted");
+    assert!(
+        store.encryption_master_key().is_err(),
+        "a child's store never answers the master key, even from a planted variable"
+    );
 }
 
 #[tokio::test]

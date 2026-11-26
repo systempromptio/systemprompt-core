@@ -32,4 +32,6 @@ mod purge_label;
 #[cfg(test)]
 mod reassignment_admission;
 #[cfg(test)]
+mod reseal_admission;
+#[cfg(test)]
 mod reserved_nesting;

@@ -72,9 +72,80 @@ pub fn ensure_test_secrets_bootstrap() -> Arc<SecretsService> {
     Arc::clone(crate::bootstrap::ensure_test_bootstrap().boot.secrets())
 }
 
+// The `ai` member's at-rest cipher (the owner of `user_provider_credentials`)
+// under the bootstrap secrets' master key.
 pub fn fixture_at_rest_cipher() -> systemprompt_security::at_rest::AtRestCipher {
-    systemprompt_security::at_rest::AtRestCipher::from_secrets(
-        &ensure_test_secrets_bootstrap().get(),
+    systemprompt_security::at_rest::AtRestCipher::for_member(
+        &fixture_master_key(),
+        &systemprompt_identifiers::ExtensionId::new("ai"),
     )
-    .expect("the bootstrap secrets carry an encryption master key")
+    .expect("the bootstrap master key keys an HMAC")
+}
+
+pub fn fixture_master_key() -> systemprompt_security::at_rest::MasterKey {
+    systemprompt_security::at_rest::MasterKey::from_store(&*ensure_test_secrets_bootstrap())
+        .expect("the bootstrap secrets carry a 32-byte encryption master key")
+}
+
+#[derive(Debug)]
+struct MasterOnly([u8; 32]);
+
+#[async_trait::async_trait]
+impl systemprompt_traits::SecretStore for MasterOnly {
+    fn secret(&self, _name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
+        None
+    }
+
+    fn secret_exact(&self, _name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
+        None
+    }
+
+    fn key_names(&self) -> Result<Vec<String>, systemprompt_traits::SecretStoreError> {
+        Ok(Vec::new())
+    }
+
+    fn manifest_signing_secret_seed(
+        &self,
+    ) -> Result<[u8; systemprompt_traits::SECRET_SEED_BYTES], systemprompt_traits::SecretStoreError>
+    {
+        Err(systemprompt_traits::SecretStoreError::new(
+            "reading the manifest signing seed",
+            std::io::Error::other("not held"),
+        ))
+    }
+
+    fn encryption_master_key(
+        &self,
+    ) -> Result<[u8; systemprompt_traits::SECRET_SEED_BYTES], systemprompt_traits::SecretStoreError>
+    {
+        Ok(self.0)
+    }
+
+    fn status(&self) -> systemprompt_traits::SecretsStatus {
+        systemprompt_traits::SecretsStatus {
+            source: "fixture".to_owned(),
+            generation: 0,
+            initialised_at: chrono::Utc::now(),
+            last_reload_at: None,
+            last_error: None,
+        }
+    }
+
+    fn refresh_interval(&self) -> Option<std::time::Duration> {
+        None
+    }
+
+    async fn reload(
+        &self,
+    ) -> Result<systemprompt_traits::ReloadOutcome, systemprompt_traits::SecretStoreError> {
+        Err(systemprompt_traits::SecretStoreError::new(
+            "reloading",
+            std::io::Error::other("fixture store"),
+        ))
+    }
+}
+
+pub fn master_key_of(bytes: [u8; 32]) -> systemprompt_security::at_rest::MasterKey {
+    systemprompt_security::at_rest::MasterKey::from_store(&MasterOnly(bytes))
+        .expect("a fixture store answers its master key")
 }

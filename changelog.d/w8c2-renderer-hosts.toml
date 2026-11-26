@@ -1,0 +1,24 @@
+[root]
+section = "Changed"
+area = "MCP"
+text = "A contributed UI renderer names the processes it renders on (`RenderOn`); each kernel is seeded with its `HostRole`, and a renderer factory runs only on the roles it covers, so an agent child builds none."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`artifact_ui::{HostRole, RenderOn}`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`UiSlotBuilder::renderer` takes a `RenderOn`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`KernelSeed` gains `role`; `HostKernel::{boot, from_process_env}` take a `HostRole`."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "`HostContext::{boot, from_process_env}` take a `HostRole`."

@@ -13,14 +13,15 @@
 //! reads (open, as the ingest is), the built UI renderers as the shared
 //! `DynArtifactUiRenderer` the agent artifact routes read (open, after
 //! governance), and, once governance has loaded, the per-server tool executions
-//! (`DynToolExecutions`, open: an execution records usage as the request
-//! context the host hands it and reads no secret) and the tool provider the ai
-//! member's inference path reads (`Arc<dyn ToolProvider>`, **sealed**: it calls
-//! servers with the connector-token cache and the secret lookup; provided
-//! before governance so the ai member's after-governance inference provide sees
-//! it whatever the composition order). It opens the [`UiSlot`] and the
-//! extension contract's [`AccessRecorderSlot`], so both built values are
-//! present whenever this member is admitted.
+//! (`DynToolExecutions`, open: an execution re-verifies the caller's hop token
+//! and records usage only for the context that token vouches for, and reads no
+//! secret) and the tool provider the ai member's inference path reads
+//! (`Arc<dyn ToolProvider>`, **sealed**: it calls servers with the
+//! connector-token cache and the secret lookup; provided before governance so
+//! the ai member's after-governance inference provide sees it whatever the
+//! composition order). It opens the [`UiSlot`] and the extension contract's
+//! [`AccessRecorderSlot`], so both built values are present whenever this
+//! member is admitted.
 //!
 //! It owns the schema objects that cannot exist without its tables: the
 //! `tool_usage_rollup_hourly` rollup (its triggers sit on
@@ -49,6 +50,7 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::usage_reports::mcp::DynToolUsageReport;
+use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
     SecretLookup, ToolProvider,
@@ -62,7 +64,7 @@ use crate::services::process_set::McpProcessSet;
 use crate::services::registry::RegistryService;
 use crate::services::tool_provider::McpToolProvider;
 use crate::services::ui_renderer::UiRendererRegistry;
-use crate::tool::McpToolExecutions;
+use crate::tool::{CallerVerification, McpToolExecutions};
 use systemprompt_models::audit_spans::DynAuditSpanSink;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -155,6 +157,10 @@ fn contribute_tool_executions(c: &mut Contributions<'_>) {
                 Some(intents),
                 r.get::<Arc<ArtifactIngest>>()?,
                 r.get::<Arc<UiRendererRegistry>>()?,
+                CallerVerification::new(
+                    r.get::<VerificationKeyring>()?,
+                    &r.get::<Arc<Config>>()?.jwt_issuer,
+                ),
             )))
         },
     );

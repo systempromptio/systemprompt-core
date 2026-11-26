@@ -171,10 +171,50 @@ pub fn mint_mcp_hop(
         purpose: None,
         interaction: None,
         mcp_session: mcp_session.map(str::to_owned),
+        execution: None,
     };
     test_token_authority(issuer)
         .mint_mcp_hop(server, &identity)
         .expect("mint mcp hop token")
+}
+
+pub fn fixture_caller_verification() -> systemprompt_mcp::CallerVerification {
+    systemprompt_mcp::CallerVerification::new(
+        systemprompt_security::keys::VerificationKeyring::new(fixture_verification_keys())
+            .expect("fixture verification keyring"),
+        crate::bootstrap::FIXTURE_EXTERNAL_URL,
+    )
+}
+
+pub fn fixture_hop_identity(
+    ctx: &systemprompt_models::RequestContext,
+) -> systemprompt_models::auth::McpHopIdentity {
+    systemprompt_models::auth::McpHopIdentity {
+        user_id: ctx.user_id().clone(),
+        user: ctx.user.clone(),
+        session_id: ctx.session_id().clone(),
+        user_type: ctx.auth.user_type,
+        client_id: ctx.client_id().cloned(),
+        act_chain: ctx.act_chain().to_vec(),
+        purpose: ctx.caller_purpose().map(str::to_owned),
+        interaction: None,
+        mcp_session: None,
+        execution: Some(systemprompt_models::auth::McpHopExecution::of(ctx)),
+    }
+}
+
+pub fn fixture_verified_caller(
+    server: &systemprompt_identifiers::McpServerId,
+    ctx: &systemprompt_models::RequestContext,
+) -> systemprompt_extension::mcp::VerifiedCaller {
+    let identity = fixture_hop_identity(ctx);
+    let token = test_token_authority(crate::bootstrap::FIXTURE_EXTERNAL_URL)
+        .mint_mcp_hop(server, &identity)
+        .expect("mint mcp hop token");
+    systemprompt_extension::mcp::VerifiedCaller::presented(
+        JwtToken::new(token),
+        identity.bind(ctx.clone()),
+    )
 }
 
 pub fn fixture_verification_keys() -> systemprompt_security::keys::TokenVerificationKeys {

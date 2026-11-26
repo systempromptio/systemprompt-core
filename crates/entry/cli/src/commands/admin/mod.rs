@@ -17,6 +17,7 @@ pub mod config;
 pub mod identity;
 pub mod licence;
 pub mod mcp;
+pub mod secrets;
 pub mod session;
 pub mod setup;
 mod state;
@@ -64,6 +65,9 @@ pub enum AdminCommands {
     #[command(subcommand, about = "Report-only licence check-in status")]
     Licence(licence::LicenceCommands),
 
+    #[command(subcommand, about = "Core-held operations over member ciphertext")]
+    Secrets(secrets::SecretsCommands),
+
     #[command(subcommand, about = "Host MCP servers in this binary")]
     Mcp(mcp::McpHostCommands),
 
@@ -95,6 +99,7 @@ pub async fn execute(cmd: AdminCommands, host: &dyn KernelHost) -> Result<Comman
         AdminCommands::Identity(cmd) => identity::execute(cmd, host),
         AdminCommands::Licence(cmd) => licence::execute(cmd, host).await,
         AdminCommands::Mcp(cmd) => mcp::execute(cmd, host).await,
+        AdminCommands::Secrets(cmd) => secrets::execute(cmd, host).await,
     }
 }
 
@@ -116,6 +121,7 @@ impl AdminCommands {
         match self {
             Self::Setup(args) if args.reset_role_password => DataImpact::Irreversible,
             Self::Bootstrap(_)
+            | Self::Secrets(_)
             | Self::Config(config::ConfigCommands::Secret(
                 config::secret::SecretCommands::MigrateGitCredentials(_),
             )) => DataImpact::Destructive,

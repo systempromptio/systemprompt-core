@@ -162,6 +162,7 @@ impl AppContextBuilder {
                 event_router: &router,
                 catalog_roles: composition::catalog_roles(&self.admitted),
                 escalation: systemprompt_traits::EscalationDelivery::InProcess,
+                role: systemprompt_extension::artifact_ui::HostRole::Api,
                 audit_spans: Arc::new(log_sink.clone()),
             },
             signing_keys: &signing_keys,

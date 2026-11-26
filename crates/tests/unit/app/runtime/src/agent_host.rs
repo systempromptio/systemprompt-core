@@ -92,9 +92,13 @@ async fn compose(env: BTreeMap<String, String>) -> HostContext {
     seed_fixture_system_admin(&test_db_pool().await)
         .await
         .expect("seed the system admin");
-    HostContext::boot(move |name| env.get(name).cloned(), agent_admit())
-        .await
-        .expect("host boots")
+    HostContext::boot(
+        systemprompt_extension::artifact_ui::HostRole::Agent,
+        move |name| env.get(name).cloned(),
+        agent_admit(),
+    )
+    .await
+    .expect("host boots")
 }
 
 #[tokio::test]

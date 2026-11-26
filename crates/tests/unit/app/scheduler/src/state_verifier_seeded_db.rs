@@ -791,7 +791,6 @@ mod state_verifier_live {
             .expect("spawn sleep child")
     }
 
-
     #[tokio::test]
     async fn running_row_with_live_pid_and_responsive_port_is_running() {
         let test_instance = unique_instance();

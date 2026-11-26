@@ -58,11 +58,17 @@ pub enum MemberCipherError {
     NotAuthentic,
 }
 
-/// Authenticated encryption under a key derived for one member.
-pub trait MemberCipher: Send + Sync + std::fmt::Debug {
-    fn seal(&self, plaintext: &str) -> Result<String, MemberCipherError>;
+pub const MEMBER_CIPHER_ENVELOPE: &str = "spmc1.";
 
-    fn open(&self, sealed: &str) -> Result<String, MemberCipherError>;
+/// Authenticated encryption under a key derived for one member.
+///
+/// A sealed value is the envelope [`MEMBER_CIPHER_ENVELOPE`] followed by the
+/// hex nonce and ciphertext, so a reader tells it apart from ciphertext sealed
+/// any other way without trying a key.
+pub trait MemberCipher: Send + Sync + std::fmt::Debug {
+    fn seal(&self, plaintext: &[u8]) -> Result<String, MemberCipherError>;
+
+    fn open(&self, sealed: &str) -> Result<Vec<u8>, MemberCipherError>;
 }
 
 pub const SHARE_TOKEN_MAX_TTL: Duration = Duration::from_hours(365 * 24);

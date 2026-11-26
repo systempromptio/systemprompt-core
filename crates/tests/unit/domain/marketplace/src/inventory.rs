@@ -1,26 +1,21 @@
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
-use systemprompt_loader::bundle::BundleSources;
-use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::{InstallServicesView, ServicesConfig};
 use systemprompt_marketplace::inventory::{
     BaselineScope, InventoryService, LatestPublication, LatestPublicationStatus, PublishGuard,
-    SourcesContext, configured_identity, scan_configured_inventory,
+    configured_identity, scan_configured_inventory,
 };
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, install_services_view_at, seed_user_row, test_db_pool,
+};
 
-static BUNDLES: std::sync::LazyLock<BundleSources> =
-    std::sync::LazyLock::new(|| BundleSources::of(ensure_test_bootstrap().boot.profile()));
-
-fn sources() -> SourcesContext<'static> {
-    SourcesContext {
-        bundles: &BUNDLES,
-        active_root: None,
-    }
+fn view(root: impl AsRef<std::path::Path>) -> InstallServicesView {
+    install_services_view_at(root.as_ref())
 }
 
 struct Fixture {
@@ -56,12 +51,7 @@ impl Fixture {
     }
     async fn refresh(&self) {
         InventoryService::new(self.repository.clone())
-            .refresh(
-                &self.owner,
-                self.root.path(),
-                &ServicesConfig::default(),
-                sources(),
-            )
+            .refresh(&self.owner, &view(self.root.path()))
             .await
             .expect("refresh");
     }
@@ -137,9 +127,7 @@ impl Fixture {
                 &BaselineScope {
                     owner: &self.owner,
                     actor: &self.owner,
-                    root: self.root.path(),
-                    services: &ServicesConfig::default(),
-                    sources: sources(),
+                    view: &view(self.root.path()),
                 },
                 &mut PublishGuard::default(),
             )

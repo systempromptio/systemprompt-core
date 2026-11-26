@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Gateway"
+text = "The gateway journal probes every frame of a segment when it looks for pre-0.88 frames, so a damaged first frame no longer lets recovery delete the intact frames after it; `GatewayJournal::open` itself refuses while one remains, and a staged `.reseal` file left by a re-seal that died is replaced on the next run instead of failing it."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayJournal::open` and `open_with` take `&MasterKey` and refuse with `GatewayAuditError::PreUpgradeJournal`; `GatewayAtRestError::PreUpgradeJournal` is removed."

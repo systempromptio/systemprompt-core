@@ -55,9 +55,12 @@ pub async fn execute(cmd: McpHostCommands, host: &dyn KernelHost) -> Result<Comm
 }
 
 async fn execute_serve(args: ServeArgs, kernel: &dyn KernelHost) -> Result<()> {
-    let host = HostContext::from_process_env(kernel.take_admit()?)
-        .await
-        .context("Failed to boot the MCP host context")?;
+    let host = HostContext::from_process_env(
+        systemprompt_extension::artifact_ui::HostRole::McpServer,
+        kernel.take_admit()?,
+    )
+    .await
+    .context("Failed to boot the MCP host context")?;
     Box::pin(serve(Arc::new(host), args.server.clone()))
         .await
         .with_context(|| format!("MCP server '{}' stopped", args.server))

@@ -137,6 +137,10 @@ impl Kernel {
         self.state.insert(AdmittedProjections::of(admitted.built()));
         self.state.insert(AdmittedRunOrigins::of(admitted.built()));
         self.state.insert(AdmittedPurge::of(admitted.built())?);
+        self.state
+            .insert_sealed(systemprompt_extension::AdmittedReseals::of(
+                admitted.built(),
+            )?);
         self.state.insert(AdmittedSchedule::of(admitted.built())?);
         self.state.insert(AdmittedMigrations::of(admitted.built()));
         self.state.insert(AdmittedConfigs::of(admitted.built()));

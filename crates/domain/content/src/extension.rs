@@ -90,10 +90,10 @@ impl Extension for ContentExtension {
                 Ok(popularity)
             });
         c.slot::<ContentSlot>()
-            .page_prerenderer(|_: &Resolved<'_>| Ok(default_homepage_prerenderer()))
-            .page_data_provider(|_: &Resolved<'_>| Ok(default_branding_provider()))
-            .page_data_provider(|_: &Resolved<'_>| Ok(default_list_branding_provider()))
-            .component_renderer(|_: &Resolved<'_>| Ok(default_list_items_renderer()));
+            .page_prerenderer(|_: &Resolved<'_>| Ok(Some(default_homepage_prerenderer())))
+            .page_data_provider(|_: &Resolved<'_>| Ok(Some(default_branding_provider())))
+            .page_data_provider(|_: &Resolved<'_>| Ok(Some(default_list_branding_provider())))
+            .component_renderer(|_: &Resolved<'_>| Ok(Some(default_list_items_renderer())));
         c.owner_reassignment(OwnerReassignment {
             table: "link_clicks",
             column: "user_id",

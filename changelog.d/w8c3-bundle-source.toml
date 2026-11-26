@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Loader"
+text = "A services source that sets both `https` and `oci` stays in provenance reporting, under its OCI reference."

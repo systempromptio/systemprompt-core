@@ -19,6 +19,7 @@ systemprompt-files-entry = { workspace = true, features = ["http"] }
 systemprompt-identity-entry = { workspace = true, features = ["http"] }
 systemprompt-analytics = { workspace = true, features = ["geolocation"] }
 systemprompt-runtime = { workspace = true }
+systemprompt-api = { workspace = true }
 systemprompt-mcp-host = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -52,6 +53,7 @@ systemprompt-events = { workspace = true }
 systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
+axum = { workspace = true }
 rmcp = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }

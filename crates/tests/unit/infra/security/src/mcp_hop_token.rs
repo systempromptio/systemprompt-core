@@ -7,7 +7,7 @@ use systemprompt_models::auth::{
     AuthenticatedUser, McpHopIdentity, Permission, TokenAuthority, TokenError, UserType,
 };
 use systemprompt_security::jwt::{
-    encode_mcp_hop, mcp_hop_claims, mint_owner_hop, verify_owner_hop,
+    decode_scoped_token, encode_mcp_hop, mcp_hop_claims, mint_owner_hop, verify_owner_hop,
 };
 use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
 use systemprompt_security::{AuthError, DeploymentTokenAuthority};
@@ -36,6 +36,7 @@ fn identity() -> McpHopIdentity {
         purpose: None,
         interaction: None,
         mcp_session: Some("mcp-sess-1".to_owned()),
+        execution: None,
     }
 }
 
@@ -218,4 +219,19 @@ fn a_hop_token_signed_by_the_staged_key_verifies() {
     DeploymentTokenAuthority::new(verifier, ISSUER)
         .verify_mcp_hop(&token, &server())
         .expect("a staged key verifies before it is promoted");
+}
+
+#[test]
+fn a_typed_hop_token_never_decodes_as_a_scoped_token() {
+    let keys = test_signing_keys();
+    let service = ServiceName::new("documents");
+    let marker = mint_owner_hop(&keys, ISSUER, &service).expect("mint");
+    assert!(
+        decode_scoped_token(keys.keyring(), ISSUER, "owner-hop:documents", &marker).is_err(),
+        "an owner-hop marker is refused by its typ"
+    );
+    let hop = authority()
+        .mint_mcp_hop(&server(), &identity())
+        .expect("mint");
+    assert!(decode_scoped_token(keys.keyring(), ISSUER, "mcp:documents", &hop).is_err());
 }

@@ -104,6 +104,7 @@ pub mod projection;
 pub mod protection;
 pub mod purge;
 pub mod reassignment;
+pub mod reseal;
 pub mod reserved;
 pub mod retention;
 pub mod revision_bundles;
@@ -147,7 +148,7 @@ pub use contribute::{
     FromState, Handed, HandleId, KernelHandle, LateCell, MemberConferrals, MemberResolved,
     MemberScope, MemberSecrets, ProvideError, ProvideFn, ProvidePhase, Resolved,
     SecretDeclarations, Slot, SlotEntry, SlotError, SlotOrder, StandingTag, build_factories,
-    handles,
+    build_present_factories, handles,
 };
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{
@@ -181,6 +182,10 @@ pub use protection::{
 };
 pub use purge::{OrphanSweep, PurgeDeclaration, PurgeFilter, PurgePredicate, UserPurgeTable};
 pub use reassignment::{OwnerReassignment, ReassignAction};
+pub use reseal::{
+    AdmittedReseals, DynSealedFiles, OwnedReseal, ResealAdmissionError, ResealClaim, ResealColumn,
+    SealedFiles, SealedFilesError, SealedFilesReport, SealedLayout,
+};
 pub use retention::{
     EffectiveCutoff, RetentionDecl, RetentionHold, RetentionHoldError, RetentionHolds,
     RetentionTarget,

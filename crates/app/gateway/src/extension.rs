@@ -50,16 +50,18 @@ use systemprompt_extension::prelude::*;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{BrainProfile, UnappliedPlaneMode};
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_security::at_rest::MasterKey;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{CacheEpochView, SecretLookup, SecretStore};
 
 use crate::artifact_scanner::GatewayArtifactScanner;
-use crate::at_rest::GatewayAtRest;
+use crate::at_rest::{GatewayAtRest, JournalFiles};
 use crate::surface::views::{
     BridgeEventStream, BridgeReleaseSource, GatewayManifestSigner, GatewaySettingsSource,
     GatewaySettingsView,
 };
+use systemprompt_extension::DynSealedFiles;
 
 use crate::contract::{OutboundSlot, OverrideSlot, RouteSelectorSlot, SafetyScannerSlot};
 use crate::policies::GatewayPoliciesPlane;
@@ -88,6 +90,9 @@ impl Extension for GatewayExtension {
             ConferralRow::GatewayAtRest,
             |r: &Resolved<'_>| -> Result<Arc<GatewayAtRest>, ProvideError> { Ok(at_rest(r)) },
         );
+        c.provide_sealed(|r: &Resolved<'_>| -> Result<DynSealedFiles, ProvideError> {
+            Ok(Arc::new(JournalFiles(r.get::<Arc<GatewayAtRest>>()?)))
+        });
         c.provide_conferred(
             ConferralRow::GatewayManifestSigner,
             |r: &Resolved<'_>| -> Result<Option<Arc<GatewayManifestSigner>>, ProvideError> {
@@ -174,7 +179,7 @@ fn at_rest(r: &Resolved<'_>) -> Arc<GatewayAtRest> {
     let key = match r
         .optional::<Arc<dyn SecretStore>>()
         .ok_or(None)
-        .and_then(|store| store.encryption_master_key().map_err(Some))
+        .and_then(|store| MasterKey::from_store(&*store).map_err(Some))
     {
         Ok(key) => Some(key),
         Err(error) => {

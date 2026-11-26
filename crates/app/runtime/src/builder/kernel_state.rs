@@ -28,21 +28,20 @@
 //! provider credentials.
 //!
 //! The runtime `Config`, the secret store, the system admin, the active
-//! services root, the profile's services bundle sources (`BundleSources`: the
-//! pinned sources, bundle cache and base tree, never another profile value),
-//! the profile's referenced secret names (`ProfileSecretReferences`, which the
-//! kernel's install-secret refusal reads) and the event router are sealed, and
-//! so are the JWT signing keys the API seeds: kernel code and a core member's
-//! provide fns, factories and slot builds read them; an install member's
-//! provide fns, factories and slot builds read only the rows of
-//! `systemprompt_extension::reserved::INSTALL_SEEDS`; no route set's state
-//! reads one; and every context handed to member runtime code (a job, a runner
-//! service, a config plane, a member command) is built without them. `Config`,
-//! the secret store and the signing keys carry credentials; the system admin,
-//! the services root and the bundle sources are boot-only identity and layout;
-//! the event router publishes to and subscribes on every user's stream. Every
-//! other seed is open. A member whose runtime code needs a capability derived
-//! from a sealed seed builds a narrow handle in its provide fn or factory.
+//! services root, the profile's referenced secret names
+//! (`ProfileSecretReferences`, which the kernel's install-secret refusal reads)
+//! and the event router are sealed, and so are the JWT signing keys the API
+//! seeds: kernel code and a core member's provide fns, factories and slot
+//! builds read them; an install member's provide fns, factories and slot builds
+//! read only the rows of `systemprompt_extension::reserved::INSTALL_SEEDS`; no
+//! route set's state reads one; and every context handed to member runtime code
+//! (a job, a runner service, a config plane, a member command) is built without
+//! them. `Config`, the secret store and the signing keys carry credentials; the
+//! system admin, the services root and the bundle sources are boot-only
+//! identity and layout; the event router publishes to and subscribes on every
+//! user's stream. Every other seed is open. A member whose runtime code needs a
+//! capability derived from a sealed seed builds a narrow handle in its provide
+//! fn or factory.
 //!
 //! Every host also seeds the three install views, sealed, each copied here
 //! from the profile, the runtime `Config` and the services view: the
@@ -115,7 +114,6 @@ use std::sync::Arc;
 
 use systemprompt_governance::authz::AuthzDecisionHook;
 use systemprompt_governance::policy::secrets::SecretScanner;
-use systemprompt_loader::bundle::BundleSources;
 use systemprompt_manifest::profile::ProfileSecretReferences;
 use systemprompt_models::a2a::dispatch::AgentDispatch;
 use systemprompt_models::{ContentConfigRaw, late_pair};
@@ -137,8 +135,12 @@ pub use super::kernel_seed::{ApiKernelSeed, KernelCoordination, KernelSeed};
 
 pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) {
     let (scanner, secret_scanner) = late_pair::<SecretScanner>();
-    let install_services =
-        InstallServicesView::of(seed.services.clone(), &seed.services_root, seed.profile);
+    let install_services = InstallServicesView::of(
+        seed.services.clone(),
+        &seed.services_root,
+        seed.profile,
+        systemprompt_loader::bundle::cache_root(seed.profile),
+    );
     let (authz_cell, authz_hook) = late_pair::<dyn AuthzDecisionHook>();
     let state = Dependencies::new()
         .with(scanner)
@@ -163,7 +165,6 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with(seed.services)
         .with_sealed(seed.services_root)
         .with_sealed(seed.profile_path)
-        .with_sealed(BundleSources::of(seed.profile))
         .with_sealed(ProfileSecretReferences::of(seed.profile))
         .with_sealed(seed.secrets)
         .with_sealed(seed.secret_lookup)
@@ -173,6 +174,7 @@ pub fn base_kernel_state(seed: KernelSeed<'_>) -> (Dependencies, KernelBinders) 
         .with_sealed(authz_cell)
         .with(Arc::new(seed.catalog_roles))
         .with(seed.escalation)
+        .with(seed.role)
         .with_sealed(seed.audit_spans);
     (
         state,

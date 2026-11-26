@@ -97,6 +97,7 @@ async fn ctx() -> Arc<HostContext> {
     .expect("seed the system admin");
     Arc::new(
         HostContext::boot(
+            systemprompt_extension::artifact_ui::HostRole::McpServer,
             move |name| env.get(name).cloned(),
             crate::boot::host_admit(),
         )

@@ -49,9 +49,7 @@ async fn concurrent_admissions_settle_and_leave_the_journal_empty() {
     let syncs = Arc::new(CountingSync::default());
     let journal = GatewayJournal::open_with(
         &state,
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
-            .encryption_master_key()
-            .expect("encryption master key"),
+        &systemprompt_test_fixtures::fixture_master_key(),
         syncs.clone(),
     )
     .expect("gateway journal opens");

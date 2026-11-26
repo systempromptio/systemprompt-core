@@ -85,6 +85,7 @@ pub(crate) fn hop_for(user: &AuthenticatedUser, ctx: &RequestContext, server: &s
         purpose: None,
         interaction: None,
         mcp_session: None,
+        execution: None,
     };
     JwtToken::new(
         link_authority()

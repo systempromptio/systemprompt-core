@@ -21,9 +21,7 @@ impl Fixture {
                 &BaselineScope {
                     owner: &self.owner,
                     actor: &self.owner,
-                    root: self.root.path(),
-                    services: &ServicesConfig::default(),
-                    sources: sources(),
+                    view: &view(self.root.path()),
                 },
                 guard,
             )

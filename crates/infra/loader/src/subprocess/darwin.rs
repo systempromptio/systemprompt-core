@@ -23,7 +23,6 @@
 
 use std::io;
 
-
 #[derive(Debug, thiserror::Error)]
 #[error("KERN_ARGMAX is unusable")]
 struct UnusableArgMax(#[source] std::num::TryFromIntError);

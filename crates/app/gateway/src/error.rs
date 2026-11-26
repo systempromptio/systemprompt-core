@@ -61,6 +61,16 @@ pub enum GatewayAuditError {
 
     #[error("Gateway journal task failed")]
     Join(#[from] tokio::task::JoinError),
+
+    #[error("the gateway journal key cannot be derived from the master key")]
+    JournalKey(#[source] systemprompt_security::at_rest::AtRestHashError),
+
+    #[error(
+        "the gateway journal holds {segments} segment(s) sealed before 0.88 with receipts not yet \
+         settled; run `systemprompt admin secrets reseal --member gateway --apply` before \
+         starting the gateway"
+    )]
+    PreUpgradeJournal { segments: u64 },
 }
 
 pub(crate) const fn ensure(condition: bool, message: &'static str) -> GatewayAuditResult<()> {

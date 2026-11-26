@@ -51,12 +51,13 @@ mod intent_claim_db;
 mod jobs_cleanup;
 
 #[cfg(test)]
+mod forged_caller;
+#[cfg(test)]
 mod lib_smoke;
 #[cfg(test)]
 mod middleware;
 #[cfg(test)]
 mod models;
-#[cfg(test)]
 #[cfg(test)]
 mod repository;
 #[cfg(test)]
