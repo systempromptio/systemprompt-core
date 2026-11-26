@@ -17,6 +17,7 @@ axum = { version = "0.8", features = ["multipart"] }
 base64 = { version = "0.22" }
 bitflags = { version = "2", default-features = false, features = ["std"] }
 bstr = { version = "1" }
+bytecount = { version = "0.6", default-features = false, features = ["runtime-dispatch-simd"] }
 bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics", "must_cast"] }
 byteorder = { version = "1" }
 bytes = { version = "1" }
@@ -111,7 +112,6 @@ systemprompt-files = { path = "../../../domain/files", default-features = false,
 systemprompt-files-entry = { path = "../../../entry/files", features = ["cli", "collab"] }
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
 systemprompt-identity-entry = { path = "../../../entry/identity", features = ["cli", "http"] }
-systemprompt-issues = { path = "../../../app/issues", features = ["cli"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli", "otel"] }
 systemprompt-marketplace-entry = { path = "../../../entry/marketplace", features = ["cli", "http"] }
 systemprompt-mcp-entry = { path = "../../../entry/mcp", features = ["cli", "http"] }
