@@ -3,18 +3,20 @@ selector and the build report.
 
 `cargo metadata --no-deps` is the input of the repository graph. Production
 edges are normal and build dependencies; dev-dependencies may point at test
-helpers anywhere and are not part of the shipped graph. `resolved_closure`
-reads a full `cargo metadata` resolve instead (the build report's crate
-closure):
+helpers anywhere and are not part of the shipped graph. The build report's
+crate closure is read from `cargo tree -e normal,build --prefix none`
+(`tree_closure`), which is feature-resolved per dependency kind and target as
+a build is; a `cargo metadata` resolve is not:
 
-    cargo_graph.py closure < metadata.json   prints `<packages> <path packages>`
-    cargo_graph.py capabilities UNITS < metadata.json
+    cargo_graph.py tree-closure < tree.txt   prints `<packages> <path packages>`
+    cargo_graph.py tree-capabilities UNITS < tree.txt
                                              prints the capability-unit path
                                              packages of the closure, one per line
 """
 from collections import defaultdict
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -103,58 +105,40 @@ def repo_graph(root, offline=True):
     return graph
 
 
-def resolved_closure(metadata):
-    """Package ids the root package reaches over normal and build edges of the
-    resolve, excluding the root itself.
-
-    Run `cargo metadata --filter-platform <host>` to get the host-target closure
-    `cargo tree -e normal,build` prints; without it the resolve spans every
-    target. Every count comes from this one resolve, so a run with and without
-    `--offline` over the same lock agrees.
-    """
-    resolve = metadata.get("resolve") or {}
-    root = resolve.get("root")
-    if root is None:
-        raise ValueError("cargo metadata has no resolve root; run it inside a package")
-    nodes = {node["id"]: node for node in resolve["nodes"]}
-    seen, stack = set(), [root]
-    while stack:
-        for dep in nodes[stack.pop()].get("deps", []):
-            kinds = {k["kind"] for k in dep.get("dep_kinds", [])}
-            if kinds & set(PRODUCTION_KINDS) and dep["pkg"] not in seen:
-                seen.add(dep["pkg"])
-                stack.append(dep["pkg"])
-    seen.discard(root)
-    return seen
+def tree_closure(text):
+    """`{(name, version): path-or-None}` for every package `cargo tree --prefix
+    none` prints, excluding the root (its first line)."""
+    found = {}
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in lines[1:]:
+        words = line.split()
+        if len(words) < 2 or not words[1].startswith("v"):
+            continue
+        groups = re.findall(r"\(([^)]*)\)", line)
+        path = next((g for g in groups if g.startswith("/")), None)
+        found[(words[0], words[1][1:])] = path
+    return found
 
 
-def path_packages(metadata, ids):
-    """The ids among `ids` that are path packages (no registry or git source)."""
-    source = {p["id"]: p.get("source") for p in metadata["packages"]}
-    return {i for i in ids if source.get(i) is None}
-
-
-def capability_packages(metadata, ids, units):
-    """Sorted names of the path packages among `ids` whose unit is `capability:*`."""
-    name = {p["id"]: p["name"] for p in metadata["packages"]}
-    return sorted(
-        name[i] for i in path_packages(metadata, ids)
-        if units.get(name.get(i, ""), "").startswith("capability:")
-    )
+def tree_capabilities(closure, units):
+    """Sorted names of the path packages of a `tree_closure` whose unit is
+    `capability:*`."""
+    return sorted({
+        name for (name, _), path in closure.items()
+        if path is not None and units.get(name, "").startswith("capability:")
+    })
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if args == ["closure"]:
-        loaded = json.load(sys.stdin)
-        closure = resolved_closure(loaded)
-        print(len(closure), len(path_packages(loaded, closure)))
-    elif len(args) == 2 and args[0] == "capabilities":
+    if args == ["tree-closure"]:
+        closure = tree_closure(sys.stdin.read())
+        print(len(closure), sum(1 for path in closure.values() if path is not None))
+    elif len(args) == 2 and args[0] == "tree-capabilities":
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from units import load_units
-        loaded = json.load(sys.stdin)
-        for package in capability_packages(loaded, resolved_closure(loaded), load_units(args[1])):
+        for package in tree_capabilities(tree_closure(sys.stdin.read()), load_units(args[1])):
             print(package)
     else:
-        print("usage: cargo_graph.py closure | capabilities UNITS < metadata.json", file=sys.stderr)
+        print("usage: cargo_graph.py tree-closure | tree-capabilities UNITS < tree.txt", file=sys.stderr)
         sys.exit(2)

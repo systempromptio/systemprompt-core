@@ -35,10 +35,11 @@
 #   OUTPUT.md defaults to target/build-report/report.md; the JSON sidecar is
 #   written next to it as <OUTPUT>.json, the timings HTML as
 #   target/build-report/cargo-timing.html.
-# Closure-only mode runs only `cargo metadata` and compiles nothing; --offline
-# passes through to every cargo call. Both closure counts come from one
-# host-filtered resolve (scripts/lib/cargo_graph.py closure), so an --offline
-# and an online run over the same lock report the same closure.
+# Closure-only mode runs only `cargo metadata` and `cargo tree` and compiles
+# nothing; --offline passes through to every cargo call. Both closure counts
+# come from one feature-resolved `cargo tree -e normal,build` for the host
+# target (scripts/lib/cargo_graph.py tree-closure), so an --offline and an
+# online run over the same lock report the same closure.
 # SQLX_OFFLINE defaults to true (per-crate .sqlx caches).
 # Each composition's target dir is removed once measured, so a runner's disk
 # holds one composition at a time; BUILD_REPORT_KEEP_TARGET=1 keeps them.
@@ -228,10 +229,12 @@ for row in "${rows[@]}"; do
     meta="$(cd "$dir" && cargo metadata "${offline[@]}" --format-version 1)"
     check_lock "$dir" "$pkg"
     all_platforms="$(jq '[.resolve.nodes[]] | length - 1' <<<"$meta")"
-    host_meta="$(cd "$dir" && cargo metadata "${offline[@]}" --format-version 1 --filter-platform "$host")"
+    tree="$(cd "$dir" && cargo tree "${offline[@]}" -e normal,build --prefix none --target "$host")"
     check_lock "$dir" "$pkg"
-    read -r packages members < <(python3 -B "$root/scripts/lib/cargo_graph.py" closure <<<"$host_meta")
-    capabilities="$(python3 -B "$root/scripts/lib/cargo_graph.py" capabilities "$root/scripts/units.txt" <<<"$host_meta" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+    closure="$(python3 -B "$root/scripts/lib/cargo_graph.py" tree-closure <<<"$tree")"
+    read -r packages members <<<"$closure"
+    capability_list="$(python3 -B "$root/scripts/lib/cargo_graph.py" tree-capabilities "$root/scripts/units.txt" <<<"$tree")"
+    capabilities="$(jq -Rsc 'split("\n") | map(select(length > 0))' <<<"$capability_list")"
 
     size=null
     if ! $closure_only; then

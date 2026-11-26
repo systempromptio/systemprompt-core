@@ -52,15 +52,17 @@ for row in "${rows[@]}"; do
     facade=(-p systemprompt --no-default-features --features "$features" "${offline[@]}" --locked)
     case ",${flags:-}," in
         *,boot,*)
-            cargo build "${facade[@]}" --bin systemprompt
-            cargo run -q "${facade[@]}" --bin systemprompt -- --help >/dev/null
+            cargo build "${facade[@]}" --bin systemprompt || { failed+=("$name: build"); continue; }
+            cargo run -q "${facade[@]}" --bin systemprompt -- --help >/dev/null \
+                || { failed+=("$name: boot"); continue; }
             expected=$(awk -v name="$name" '$1 == name { print $2 }' "$members")
             if [ -z "$expected" ]; then
                 echo "$members lists no members for $name" >&2
                 failed+=("$name: no member row")
                 continue
             fi
-            actual=$(cargo run -q "${facade[@]}" --example members | paste -sd, -)
+            actual=$(cargo run -q "${facade[@]}" --example members | paste -sd, -) \
+                || { failed+=("$name: members example"); continue; }
             if [ "$actual" != "$expected" ]; then
                 echo "$name declares members other than $members lists" >&2
                 diff <(tr , '\n' <<<"$expected") <(tr , '\n' <<<"$actual") >&2 || true
@@ -68,7 +70,7 @@ for row in "${rows[@]}"; do
             fi
             ;;
         *)
-            cargo build "${facade[@]}" --lib
+            cargo build "${facade[@]}" --lib || failed+=("$name: build")
             ;;
     esac
 done
@@ -77,11 +79,13 @@ report=(--closure-only "${offline[@]}")
 [ -n "$only" ] && report+=(--only "$only")
 bash scripts/build-report.sh "${report[@]}" "$out" >/dev/null
 json="${out%.md}.json"
+floor_links="$(jq -r '.compositions[] | select(.flags | index("floor")) | select((.capability_packages | length) > 0)
+    | "\(.name) \(.capability_packages | join(","))"' "$json")"
 while read -r name linked; do
+    [ -n "$name" ] || continue
     echo "$name is the floor composition and links capability packages: $linked" >&2
     failed+=("$name: floor")
-done < <(jq -r '.compositions[] | select(.flags | index("floor")) | select((.capability_packages | length) > 0)
-    | "\(.name) \(.capability_packages | join(","))"' "$json")
+done <<<"$floor_links"
 
 if $schema; then
     [ -n "${DATABASE_URL:-}" ] || { echo '--schema needs DATABASE_URL' >&2; exit 2; }

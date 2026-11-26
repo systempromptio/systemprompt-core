@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""The build report's crate closure comes from one cargo metadata resolve.
+"""The build report's crate closure is the feature-resolved `cargo tree`.
 
 `scripts/build-report.sh` counts a composition's closure with
-`scripts/lib/cargo_graph.py closure` over a host-filtered `cargo metadata`;
-these tests pin the walk: normal and build edges count, dev edges do not, the
-root is excluded, path packages are counted separately, and the count depends
-on nothing but the resolve.
+`scripts/lib/cargo_graph.py tree-closure` over `cargo tree -e normal,build
+--prefix none --target <host>`; these tests pin the parse: the root line is
+excluded, duplicates (`(*)`) count once, path packages are counted apart from
+registry ones, and only capability-unit path packages are reported.
 """
-import json
 from pathlib import Path
 import subprocess
 import sys
@@ -18,73 +17,48 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 import cargo_graph  # noqa: E402
 
-
-def dep(pkg, *kinds):
-    return {"pkg": pkg, "dep_kinds": [{"kind": k, "target": None} for k in kinds]}
-
-
-METADATA = {
-    "packages": [
-        {"id": "root", "source": None},
-        {"id": "facade", "source": None},
-        {"id": "serde", "source": "registry+https://github.com/rust-lang/crates.io-index"},
-        {"id": "cc", "source": "registry+https://github.com/rust-lang/crates.io-index"},
-        {"id": "proptest", "source": "registry+https://github.com/rust-lang/crates.io-index"},
-        {"id": "shared", "source": "registry+https://github.com/rust-lang/crates.io-index"},
-    ],
-    "resolve": {
-        "root": "root",
-        "nodes": [
-            {"id": "root", "deps": [dep("facade", None)]},
-            {"id": "facade", "deps": [dep("serde", None), dep("cc", "build"), dep("proptest", "dev")]},
-            {"id": "serde", "deps": [dep("shared", None)]},
-            {"id": "cc", "deps": [dep("shared", None)]},
-            {"id": "proptest", "deps": []},
-            {"id": "shared", "deps": []},
-        ],
-    },
-}
+TREE = """build-report-runtime v0.0.0 (/w/target/build-report/runtime)
+systemprompt v0.87.0 (/w/systemprompt)
+systemprompt-runtime v0.87.0 (/w/crates/app/runtime)
+serde v1.0.228
+serde_derive v1.0.228 (proc-macro)
+systemprompt-runtime v0.87.0 (/w/crates/app/runtime) (*)
+systemprompt-macros v0.87.0 (proc-macro) (/w/crates/shared/macros)
+cc v1.2.0
+"""
 
 
-class Closure(unittest.TestCase):
-    def test_normal_and_build_edges_without_dev_or_root(self):
-        self.assertEqual(cargo_graph.resolved_closure(METADATA), {"facade", "serde", "cc", "shared"})
+class TreeClosure(unittest.TestCase):
+    def test_root_excluded_and_duplicates_once(self):
+        closure = cargo_graph.tree_closure(TREE)
+        self.assertEqual(len(closure), 6)
+        self.assertNotIn(("build-report-runtime", "0.0.0"), closure)
 
-    def test_path_packages(self):
-        closure = cargo_graph.resolved_closure(METADATA)
-        self.assertEqual(cargo_graph.path_packages(METADATA, closure), {"facade"})
+    def test_path_packages_are_the_ones_with_a_path(self):
+        closure = cargo_graph.tree_closure(TREE)
+        paths = sorted(name for (name, _), path in closure.items() if path is not None)
+        self.assertEqual(paths, ["systemprompt", "systemprompt-macros", "systemprompt-runtime"])
 
-    def test_edge_listed_with_dev_and_normal_counts(self):
-        metadata = json.loads(json.dumps(METADATA))
-        metadata["resolve"]["nodes"][1]["deps"][2] = dep("proptest", "dev", None)
-        self.assertIn("proptest", cargo_graph.resolved_closure(metadata))
+    def test_capabilities_are_capability_path_packages(self):
+        units = {"systemprompt-runtime": "kernel", "systemprompt-macros": "capability:x", "serde": "capability:y"}
+        self.assertEqual(cargo_graph.tree_capabilities(cargo_graph.tree_closure(TREE), units),
+                         ["systemprompt-macros"])
 
-    def test_no_resolve_root_is_an_error(self):
-        with self.assertRaises(ValueError):
-            cargo_graph.resolved_closure({"packages": [], "resolve": None})
+    def test_a_facade_feature_that_is_off_is_not_in_the_closure(self):
+        units = {"systemprompt-gateway": "capability:gateway"}
+        self.assertEqual(cargo_graph.tree_capabilities(cargo_graph.tree_closure(TREE), units), [])
 
     def test_command_prints_packages_and_path_packages(self):
-        result = subprocess.run([sys.executable, "-B", str(ROOT / "scripts" / "lib" / "cargo_graph.py"), "closure"],
-                                input=json.dumps(METADATA), capture_output=True, text=True, check=True)
-        self.assertEqual(result.stdout.split(), ["4", "1"])
+        result = subprocess.run([sys.executable, "-B", str(ROOT / "scripts" / "lib" / "cargo_graph.py"), "tree-closure"],
+                                input=TREE, capture_output=True, text=True, check=True)
+        self.assertEqual(result.stdout.split(), ["6", "3"])
 
-    def test_capability_packages_are_the_capability_path_packages(self):
-        metadata = json.loads(json.dumps(METADATA))
-        metadata["packages"] = [dict(p, name=p["id"]) for p in metadata["packages"]]
-        closure = cargo_graph.resolved_closure(metadata)
-        units = {"facade": "capability:files", "serde": "capability:gateway"}
-        self.assertEqual(cargo_graph.capability_packages(metadata, closure, units), ["facade"])
-
-    def test_report_records_capability_packages(self):
+    def test_report_reads_the_closure_from_cargo_tree(self):
         text = (ROOT / "scripts" / "build-report.sh").read_text()
-        self.assertIn("cargo_graph.py\" capabilities", text)
+        self.assertIn("cargo_graph.py\" tree-closure", text)
+        self.assertIn("cargo_graph.py\" tree-capabilities", text)
+        self.assertIn("-e normal,build --prefix none --target", text)
         self.assertIn("capability_packages", text)
-
-    def test_report_reads_the_closure_from_the_resolve(self):
-        text = (ROOT / "scripts" / "build-report.sh").read_text()
-        self.assertIn("cargo_graph.py\" closure", text)
-        self.assertIn("--filter-platform", text)
-        self.assertNotIn("cargo tree", text)
 
 
 if __name__ == "__main__":
