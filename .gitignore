@@ -218,6 +218,7 @@ scripts/*
 !scripts/test-build-report.py
 !scripts/build-compositions.txt
 !scripts/composition-members.txt
+!scripts/compositions.sh
 # ...and the flow, affected-scope and gate scripts of the new-architecture tooling.
 !scripts/flow-report.py
 !scripts/test-flow-report.py
