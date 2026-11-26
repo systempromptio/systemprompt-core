@@ -8,6 +8,9 @@ reads a full `cargo metadata` resolve instead (the build report's crate
 closure):
 
     cargo_graph.py closure < metadata.json   prints `<packages> <path packages>`
+    cargo_graph.py capabilities UNITS < metadata.json
+                                             prints the capability-unit path
+                                             packages of the closure, one per line
 """
 from collections import defaultdict
 import json
@@ -131,10 +134,27 @@ def path_packages(metadata, ids):
     return {i for i in ids if source.get(i) is None}
 
 
+def capability_packages(metadata, ids, units):
+    """Sorted names of the path packages among `ids` whose unit is `capability:*`."""
+    name = {p["id"]: p["name"] for p in metadata["packages"]}
+    return sorted(
+        name[i] for i in path_packages(metadata, ids)
+        if units.get(name.get(i, ""), "").startswith("capability:")
+    )
+
+
 if __name__ == "__main__":
-    if sys.argv[1:] != ["closure"]:
-        print("usage: cargo_graph.py closure < metadata.json", file=sys.stderr)
+    args = sys.argv[1:]
+    if args == ["closure"]:
+        loaded = json.load(sys.stdin)
+        closure = resolved_closure(loaded)
+        print(len(closure), len(path_packages(loaded, closure)))
+    elif len(args) == 2 and args[0] == "capabilities":
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from units import load_units
+        loaded = json.load(sys.stdin)
+        for package in capability_packages(loaded, resolved_closure(loaded), load_units(args[1])):
+            print(package)
+    else:
+        print("usage: cargo_graph.py closure | capabilities UNITS < metadata.json", file=sys.stderr)
         sys.exit(2)
-    loaded = json.load(sys.stdin)
-    closure = resolved_closure(loaded)
-    print(len(closure), len(path_packages(loaded, closure)))

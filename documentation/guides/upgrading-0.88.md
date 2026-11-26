@@ -25,7 +25,7 @@ How to move a deployment and the code built on the `systemprompt` crates from 0.
 
 ## Every breaking change
 
-Each entry below is one breaking change of this release, with its migration where code must change. They are grouped by area; the same text, per crate, is under `### Breaking` in `CHANGELOG.md` and each crate's changelog. This list has 246 entries.
+Each entry below is one breaking change of this release, with its migration where code must change. They are grouped by area; the same text, per crate, is under `### Breaking` in `CHANGELOG.md` and each crate's changelog. This list has 247 entries.
 
 ## API
 
@@ -245,6 +245,10 @@ Each entry below is one breaking change of this release, with its migration wher
 ## Job contract
 
 - `Job` gains `requires()` (types the job cannot run without; an unmet one refuses the scheduler start with `SchedulerError::UnmetRequirement`) and `missed_runs()` returning `MissedRunPolicy` (`Skip` by default, `RunOnce`, `CatchUp { max }`). `RunnerService` gains `requires()`. `StateRequirement` moves to `systemprompt-provider-contracts` (still exported by `systemprompt-extension`). A job context keeps the sealed values its own member provided (`JobContext::for_member`) and withholds every other sealed value.
+
+## Kernel floor
+
+No kernel crate (`systemprompt-runtime`, `-api`, `-cli`, `-scheduler`, `-mcp-host`, `-users`, `-oauth`, `-oauth-issuance`, the shared and infra foundations, and the facade with `core,runtime`) links a capability crate at any depth. A piece that a kernel crate depended on is a member contributed behind its own facade feature; without that feature the kernel refuses the operation with a typed error naming the missing member. Each entry names the moved piece, its new home, the facade feature that links it and the refusal a build without it returns.
 
 ## Lease fencing
 

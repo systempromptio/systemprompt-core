@@ -2,8 +2,11 @@
 # `kernel`, `capability:<name>` or `tooling`; test-workspace crates belong to no
 # unit. Format: <package> <unit>
 #
-# Kernel: shared, the infra foundations, users and oauth, the issuance and
-# runtime apps, the entry crates and the facade.
+# Kernel: shared, the infra foundations, users and oauth, the issuance,
+# runtime, scheduler and MCP-host apps, the api and cli entry crates and the
+# facade. scripts/lint-kernel-deps.py holds the floor: the transitive closure
+# of every kernel package (the facade with the features of the `floor` line
+# of scripts/build-compositions.txt) holds no capability package.
 systemprompt-identifiers           kernel
 systemprompt-provider-contracts    kernel
 systemprompt-traits                kernel
@@ -24,13 +27,14 @@ systemprompt-loader                kernel
 systemprompt-users                 kernel
 systemprompt-oauth                 kernel
 systemprompt-oauth-issuance        kernel
-systemprompt-identity-entry        kernel
+systemprompt-scheduler             kernel
 systemprompt-runtime               kernel
 systemprompt-mcp-host              kernel
 systemprompt-api                   kernel
 systemprompt-cli                   kernel
 systemprompt                       kernel
 # Capabilities
+systemprompt-identity-entry        capability:identity
 systemprompt-cloud                 capability:cloud
 systemprompt-cloud-entry           capability:cloud
 systemprompt-files                 capability:files
@@ -60,7 +64,6 @@ systemprompt-brain                 capability:brain
 systemprompt-brain-entry           capability:brain
 systemprompt-documents             capability:files
 systemprompt-issues                capability:files
-systemprompt-scheduler              kernel
 systemprompt-agent-runs            capability:agents
 systemprompt-agent-runs-entry      capability:agents
 systemprompt-bridge                capability:bridge
