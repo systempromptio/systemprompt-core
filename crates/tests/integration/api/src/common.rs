@@ -270,7 +270,7 @@ pub fn documents_state(
     let owner = systemprompt_identifiers::ExtensionId::new(
         systemprompt_extension::reserved::CoreId::FilesHttp.id(),
     );
-    let state = systemprompt_documents::http::surface::FilesRouteState {
+    let state = systemprompt_extension::router::FilesRouteState {
         resolved: ctx
             .kernel()
             .route_scoped(&owner, systemprompt_extension::StandingTag::Core, &[]),
@@ -287,7 +287,7 @@ pub fn issues_state(
     let owner = systemprompt_identifiers::ExtensionId::new(
         systemprompt_extension::reserved::CoreId::FilesHttp.id(),
     );
-    let state = systemprompt_documents::http::surface::FilesRouteState {
+    let state = systemprompt_extension::router::FilesRouteState {
         resolved: ctx
             .kernel()
             .route_scoped(&owner, systemprompt_extension::StandingTag::Core, &[]),

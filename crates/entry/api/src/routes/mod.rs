@@ -12,7 +12,6 @@
 pub mod admin;
 pub mod documents;
 pub mod gateway;
-pub mod internal;
 pub mod proxy;
 pub mod wellknown;
 

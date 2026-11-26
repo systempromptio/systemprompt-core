@@ -20,7 +20,9 @@ use systemprompt_extension::prelude::Resolved;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_traits::{CacheEpochView, DynContextMaterializer, DynSessionUsageCounters};
 
-use super::{GatewayHostHandles, GatewaySurfaceError};
+use systemprompt_extension::router::GatewaySurfaceError;
+
+use super::GatewayHostHandles;
 use crate::audit::session::SessionCapture;
 use crate::{GatewayAtRest, GatewayHandles, GatewayRepositories};
 
@@ -34,7 +36,9 @@ pub fn gateway_repositories(
     let subject_providers = r.get::<Arc<SubjectProviderSet>>()?;
     let repos = GatewayRepositories::new(
         db,
-        at_rest.journal().map_err(GatewaySurfaceError::Journal)?,
+        at_rest
+            .journal()
+            .map_err(|source| GatewaySurfaceError::Journal(Box::new(source)))?,
         contexts,
         GatewayHandles {
             background: r.tasks().clone(),

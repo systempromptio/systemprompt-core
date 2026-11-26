@@ -1,8 +1,11 @@
 //! [`GatewayHttpExtension`] (`gateway-http`): the gateway's handler surface.
 //!
 //! With the `http` feature the member provides its
-//! [`GatewaySurface`](systemprompt_gateway::GatewaySurface) (open: a builder
-//! that holds nothing) and, sealed, the
+//! [`GatewaySurface`](systemprompt_extension::router::GatewaySurface) (open: a
+//! builder that holds nothing) and, sealed, the
+//! [`GatewayHostHandles`](systemprompt_gateway::GatewayHostHandles) it builds
+//! from the host seeds (absent on a host that does not seed them, and the
+//! surface then refuses to build) and the
 //! [`GatewayHttpRepositories`](crate::http::state::GatewayHttpRepositories) it
 //! builds here — the API-key check over the user repository, with the key
 //! lifetime the runtime config sets, and the context materializer over the
@@ -57,7 +60,8 @@ mod surface {
     use systemprompt_database::DbPool;
     use systemprompt_extension::prelude::*;
     use systemprompt_extension::profile_usage::DynProfileUsageSource;
-    use systemprompt_gateway::DynGatewaySurface;
+    use systemprompt_extension::router::DynGatewaySurface;
+    use systemprompt_gateway::GatewayHostHandles;
     use systemprompt_manifest::Config;
     use systemprompt_users::{ApiKeyLifetime, ApiKeyService, UserRepository};
 
@@ -72,7 +76,21 @@ mod surface {
                 Ok(Arc::new(GatewayHttpSurface))
             },
         )
-        .provide_sealed_after_governance(repositories);
+        .provide_sealed_after_governance(repositories)
+        .provide_sealed_after_governance(host_handles);
+    }
+
+    fn host_handles(r: &Resolved<'_>) -> Result<Option<Arc<GatewayHostHandles>>, ProvideError> {
+        match GatewayHostHandles::resolve(r) {
+            Ok(host) => Ok(Some(Arc::new(host))),
+            Err(missing) => {
+                tracing::info!(
+                    missing = %missing,
+                    "this host does not seed the gateway host handles; the gateway surface is not built"
+                );
+                Ok(None)
+            },
+        }
     }
 
     fn repositories(r: &Resolved<'_>) -> Result<Arc<GatewayHttpRepositories>, ProvideError> {

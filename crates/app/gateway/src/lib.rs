@@ -17,10 +17,12 @@
 //! Core services call models through the in-process [`client`], which enters
 //! the same pipeline as a service principal.
 //!
-//! The crate owns no handlers: the [`surface`] contract is what the
-//! `gateway-http` member implements and the API mounts, and the handlers call
-//! into [`GatewayService`] with the repositories bundled in
-//! [`GatewayRepositories`].
+//! The crate owns no handlers: the `gateway-http` member implements the
+//! surface contract `systemprompt-extension` defines and the API mounts, and
+//! its handlers call into [`GatewayService`] with the repositories bundled in
+//! [`GatewayRepositories`]. The [`operations`] are the gateway member's
+//! kernel-facing work (the access log, accounting recovery and the brain's
+//! model client) the API reaches through the same crate's contract.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,6 +36,7 @@ pub mod contract;
 pub mod error;
 pub mod extension;
 pub mod image_fetch;
+pub mod operations;
 pub mod parse;
 pub mod policies;
 pub mod pricing;
@@ -58,6 +61,7 @@ pub use audit::phases::{
 pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::CapturedToolUse;
 pub use error::{GatewayAuditError, GatewayAuditResult};
+pub use operations::GatewayKernelOperations;
 pub use policies::{
     CATEGORY_SCANNER_FAILURE, CalendarPeriod, Finding, FindingSpan, GATEWAY_POLICIES_FILE,
     GatewayPoliciesPlane, GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyError,
@@ -78,7 +82,4 @@ pub use registry::{
 pub use repository::{GatewayHandles, GatewayRepositories};
 pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};
-pub use surface::{
-    DynGatewaySurface, GatewayHostHandles, GatewayLogIdentity, GatewayRouteState, GatewaySurface,
-    GatewaySurfaceError, GatewaySurfaceRoutes,
-};
+pub use surface::{GatewayHostHandles, GatewayLogIdentity};

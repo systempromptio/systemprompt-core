@@ -167,8 +167,8 @@ pub mod api {
 /// The AI gateway: protocol translation, gateway policies and the
 /// safety-scanner, route-selector and system-prompt-override extension
 /// contracts.
-#[cfg(feature = "api")]
-#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+#[cfg(feature = "ai")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ai")))]
 pub mod gateway {
     pub use systemprompt_gateway::*;
 }
@@ -180,8 +180,8 @@ pub mod cli {
     pub use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 }
 
-#[cfg(feature = "api")]
-#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+#[cfg(feature = "files")]
+#[cfg_attr(docsrs, doc(cfg(feature = "files")))]
 pub mod documents {
     pub use systemprompt_documents::*;
 }
@@ -264,10 +264,10 @@ pub mod oauth_issuance {
     pub use systemprompt_oauth_issuance::*;
 }
 
-#[cfg(any(feature = "api", feature = "files-office", feature = "files-pdf"))]
+#[cfg(any(feature = "files", feature = "files-office", feature = "files-pdf"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(any(feature = "api", feature = "files-office", feature = "files-pdf")))
+    doc(cfg(any(feature = "files", feature = "files-office", feature = "files-pdf")))
 )]
 pub mod files {
     pub use systemprompt_files::*;

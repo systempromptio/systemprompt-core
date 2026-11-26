@@ -25,6 +25,12 @@ fn entry_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../entry")
 }
 
+const APP_ROUTE_CRATES: [&str; 1] = ["documents"];
+
+fn app_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../app")
+}
+
 pub(super) type Source = (String, String);
 
 pub(super) fn sources() -> Vec<Source> {
@@ -44,6 +50,12 @@ pub(super) fn sources() -> Vec<Source> {
         let mut files = Vec::new();
         collect_rs(&src, &mut files);
         read_tree(&src, &format!("{capability}/"), &files, &mut sources);
+    }
+    for app in APP_ROUTE_CRATES {
+        let src = app_root().join(app).join("src/http");
+        let mut files = Vec::new();
+        collect_rs(&src, &mut files);
+        read_tree(&src, &format!("{app}/http/"), &files, &mut sources);
     }
     sources
 }

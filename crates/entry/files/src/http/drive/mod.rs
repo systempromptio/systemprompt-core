@@ -43,8 +43,8 @@ use systemprompt_models::documents::{
 
 use systemprompt_documents::http::error::DocumentsResult;
 use systemprompt_documents::http::headers::{hash_etag, none_match, range};
-use systemprompt_documents::http::surface::{DriveSurface, FilesSurfaceError};
 use systemprompt_extension::prelude::Resolved;
+use systemprompt_extension::router::{DriveSurface, FilesSurfaceError};
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_traits::{DriveTokens, DynDriveTokens};
 

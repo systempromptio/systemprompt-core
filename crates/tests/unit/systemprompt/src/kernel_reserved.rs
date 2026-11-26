@@ -90,6 +90,72 @@ fn an_install_cannot_provide_the_token_revocation_store_when_oauth_is_absent() {
     );
 }
 
+fn foreign_gateway_operations(
+    _: &Resolved<'_>,
+) -> Result<systemprompt_extension::router::DynGatewayOperations, ProvideError> {
+    Err(ProvideError::Missing(MissingDependency::of::<FreshValue>()))
+}
+
+fn foreign_documents_kernel(
+    _: &Resolved<'_>,
+) -> Result<systemprompt_extension::router::DynDocumentsKernel, ProvideError> {
+    Err(ProvideError::Missing(MissingDependency::of::<FreshValue>()))
+}
+
+#[test]
+fn an_install_cannot_replace_the_gateway_operations() {
+    let error = build_with(Probe::new("probe-gateway-operations", |c| {
+        c.provide_sealed(foreign_gateway_operations);
+    }))
+    .expect_err("the gateway member already provides its operations");
+    assert!(
+        matches!(
+            &error,
+            CompositionError::DuplicateProvider { first, second, .. }
+                if first.as_str() == "gateway" && second.as_str() == "probe-gateway-operations"
+        ),
+        "unexpected error: {error:?}"
+    );
+}
+
+#[test]
+fn an_install_cannot_provide_the_gateway_operations_when_the_gateway_is_absent() {
+    let admitted = reference()
+        .without::<systemprompt::gateway::extension::GatewayExtension>()
+        .with(Probe::new("probe-gateway-operations-sealed", |c| {
+            c.provide_sealed(foreign_gateway_operations);
+        }))
+        .build(&profile(&["gateway-http"]))
+        .expect("with no gateway member the sealed provide is not a duplicate");
+    let error = kernel()
+        .resolve(&admitted)
+        .expect_err("only the gateway member provides its operations, admitted or not");
+    assert!(
+        matches!(
+            &error,
+            KernelError::CoreOnlyProvide { owner, provider, .. }
+                if owner.as_str() == "probe-gateway-operations-sealed" && *provider == "gateway"
+        ),
+        "unexpected error: {error:?}"
+    );
+}
+
+#[test]
+fn an_install_cannot_replace_the_documents_kernel() {
+    let error = build_with(Probe::new("probe-documents-kernel", |c| {
+        c.provide_sealed(foreign_documents_kernel);
+    }))
+    .expect_err("the documents member already provides its kernel work");
+    assert!(
+        matches!(
+            &error,
+            CompositionError::DuplicateProvider { first, second, .. }
+                if first.as_str() == "documents" && second.as_str() == "probe-documents-kernel"
+        ),
+        "unexpected error: {error:?}"
+    );
+}
+
 #[test]
 fn an_install_providing_its_own_type_is_not_refused_as_reserved() {
     let admitted = build_with(Probe::new("probe-fresh-value", |c| {

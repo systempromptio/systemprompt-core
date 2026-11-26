@@ -44,16 +44,12 @@ api = [
     "core",
     "database",
     "dep:systemprompt-api",
-    "dep:systemprompt-gateway",
     "dep:systemprompt-runtime",
     "dep:systemprompt-mcp-host",
     "dep:systemprompt-oauth-issuance",
-    "dep:systemprompt-gateway-entry",
     "dep:systemprompt-users",
     "dep:systemprompt-oauth",
     "dep:systemprompt-scheduler",
-    "dep:systemprompt-documents",
-    "dep:systemprompt-files",
     "dep:axum",
     "systemprompt-extension?/router",
     "systemprompt-slack-entry?/http",
@@ -68,7 +64,8 @@ api = [
     "systemprompt-cloud-entry?/http",
     "systemprompt-agent-entry?/http",
     "systemprompt-brain-entry?/http",
-    "systemprompt-gateway-entry/http",
+    "systemprompt-gateway-entry?/http",
+    "systemprompt-documents?/http",
     "systemprompt-identity-entry?/http",
 ]
 
@@ -177,9 +174,16 @@ brain = ["dep:systemprompt-brain", "dep:systemprompt-brain-entry", "notification
 # Issue reports: intake, triage and their jobs. `reference` implies it.
 issues = ["dep:systemprompt-issues"]
 
-# The AI capability: provider dispatch, model routing and tool execution.
-# `reference` implies it.
-ai = ["dep:systemprompt-ai", "systemprompt-models?/mcp"]
+# The AI capability: provider dispatch, model routing and tool execution, and
+# the AI gateway (the `gateway` and `gateway-http` members: the inference
+# proxy, the bridge routes, the access log and accounting recovery).
+# Without it the server mounts no gateway route. `reference` implies it.
+ai = [
+    "dep:systemprompt-ai",
+    "dep:systemprompt-gateway",
+    "dep:systemprompt-gateway-entry",
+    "systemprompt-models?/mcp",
+]
 
 # The reference composition: the kernel (`runtime`) and every core capability.
 # The only supported compositions are those listed in

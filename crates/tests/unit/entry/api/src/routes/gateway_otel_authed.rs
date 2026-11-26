@@ -55,7 +55,8 @@ fn gateway_http_state(
         repos: std::sync::Arc::new(
             systemprompt_gateway::surface::repositories::gateway_repositories(
                 &ctx.kernel().resolved(),
-                &systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
+                &systemprompt_gateway::GatewayHostHandles::resolve(&ctx.kernel().resolved())
+                    .expect("host handles"),
                 Some(
                     ctx.kernel()
                         .resolved()
@@ -66,9 +67,14 @@ fn gateway_http_state(
             )
             .expect("gateway repositories"),
         ),
-        engines: systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
+        engines: ctx
+            .kernel()
+            .state()
+            .find::<std::sync::Arc<systemprompt_gateway::GatewayEngines>>()
+            .cloned()
             .expect("gateway engines"),
-        host: systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
+        host: systemprompt_gateway::GatewayHostHandles::resolve(&ctx.kernel().resolved())
+            .expect("host handles"),
         db: std::sync::Arc::clone(ctx.db_pool()),
     }
 }

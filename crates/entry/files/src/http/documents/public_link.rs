@@ -24,7 +24,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Form, Router};
 use serde::Deserialize;
-use systemprompt_documents::http::surface::ClientIpResolver;
+use systemprompt_extension::router::ClientIpResolver;
 use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::service::{PublicLinkOpen, PublicLinkRefusal};
 use systemprompt_models::documents::DocumentFormat;

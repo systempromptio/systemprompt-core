@@ -1,20 +1,19 @@
 //! Full API router construction and the global middleware stack.
 //!
-//! [`setup_api_server`] composes the route tree over the one gateway engines
-//! set the `gateway` member provides (sealed; `admitted_gateway_engines`
-//! reads it from the kernel state), and applies the global layers
+//! [`setup_api_server`] composes the route tree over the gateway operations
+//! the `gateway` member provides (sealed; `admitted_gateway_operations`
+//! reads them from the kernel state, and their absence means the node builds
+//! no gateway route), and applies the global layers
 //! (panic fence, body limit, analytics, context, session, CORS, trailing-slash,
 //! trace and served-by headers, content negotiation, security headers) in the
 //! order they must run. Before any extension factory runs (the gateway guard
 //! factories build with the engines, the routers after them), it refuses an
 //! extension that takes a core row it does not own; that is the one owner
 //! check on the boot path, and every router and gateway engine below it is
-//! built downstream of it. The server run loop reads the engines set once and
-//! hands the same set to the router (`assemble_api_server`) and to the
-//! brain consumer's model client. When the `mcp` member's artifact ingest
-//! exists, the gateway's policy scanner is registered on it, built from the
-//! gateway policy table over the database pool alone, so no other member's
-//! admission can switch the scan off. Binding and serving live in
+//! built downstream of it. The server run loop reads the gateway operations
+//! once and hands them to the router (`assemble_api_server`), to the
+//! accounting recovery boot step and to the brain consumer's model client.
+//! Binding and serving live in
 //! [`super::startup`], which binds the listener before this router exists and
 //! swaps it in once bootstrap completes.
 //!
@@ -27,7 +26,7 @@ use anyhow::Result;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_gateway::GatewayEngines;
+use systemprompt_extension::router::DynGatewayOperations;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
 use systemprompt_runtime::AppContext;
@@ -53,21 +52,21 @@ pub fn setup_api_server(
     events: Option<&StartupEventSender>,
     readiness: &Arc<ReadinessState>,
 ) -> Result<Router> {
-    let engines = admitted_gateway_engines(&composed);
-    assemble_api_server(ctx, composed, events, readiness, engines.as_ref())
+    let gateway = admitted_gateway_operations(&composed);
+    assemble_api_server(ctx, composed, events, readiness, gateway.as_ref())
 }
 
-pub(crate) fn admitted_gateway_engines(
+pub(crate) fn admitted_gateway_operations(
     composed: &super::routes::Composed<'_>,
-) -> Option<Arc<GatewayEngines>> {
-    let Some(engines) = crate::routes::gateway::gateway_engines(composed.kernel) else {
+) -> Option<DynGatewayOperations> {
+    let Some(gateway) = crate::routes::gateway::gateway_operations(composed.kernel) else {
         tracing::info!(
             reason = "gateway_member_not_admitted",
-            "Gateway engines and routes not built"
+            "Gateway routes not built"
         );
         return None;
     };
-    Some(engines)
+    Some(gateway)
 }
 
 pub(crate) fn assemble_api_server(
@@ -75,7 +74,7 @@ pub(crate) fn assemble_api_server(
     composed: super::routes::Composed<'_>,
     events: Option<&StartupEventSender>,
     readiness: &Arc<ReadinessState>,
-    engines: Option<&Arc<GatewayEngines>>,
+    gateway: Option<&DynGatewayOperations>,
 ) -> Result<Router> {
     let state = ctx.kernel().state();
     let config = state.get::<Arc<Config>>()?;
@@ -104,7 +103,7 @@ pub(crate) fn assemble_api_server(
         );
     }
 
-    let router = configure_routes(ctx, composed, events, engines)?
+    let router = configure_routes(ctx, composed, events, gateway)?
         .layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)
 }

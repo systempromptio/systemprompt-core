@@ -12,7 +12,7 @@ use axum::http::{StatusCode, header};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_extension::reserved::CoreId;
-use systemprompt_gateway::{GatewayRouteState, GatewaySurface};
+use systemprompt_extension::router::{GatewayRouteState, GatewaySurface};
 use systemprompt_gateway_entry::http::GatewayHttpSurface;
 use systemprompt_identifiers::{ExtensionId, UserId};
 use systemprompt_models::auth::API_KEY_PREFIX;
@@ -57,7 +57,6 @@ async fn create_session(
     let routes = GatewayHttpSurface
         .build(GatewayRouteState {
             resolved: ctx.kernel().route_scoped(&owner, standing, &[]),
-            host: systemprompt_api::routes::gateway::host_handles(&ctx).expect("host handles"),
         })
         .expect("the gateway surface builds");
     let response = routes

@@ -2,43 +2,34 @@
 //!
 //! Extraction calls models through the in-process gateway client, so a
 //! brain model call is metered, guarded, audited and failed over like any
-//! other gateway request. The client is built here, at the API composition
-//! root, over the one gateway engines set the server run loop built (shared
-//! with the gateway routes: one set of breakers, load gauges and upstream
-//! client), the gateway configuration, catalog, repositories and the current
-//! governance engine, acting as the `brain` service account (ensured on
-//! first start, created by the system admin). The brain handle is the one the
-//! `brain` member's slot build returned, started through the sealed
-//! `DynBrainConsumerStart` the member provides. An enabled brain on a profile
-//! without a gateway (its config disabled, or the `gateway` member not
-//! admitted) fails the start rather than leaving the consumer unable to
-//! extract.
+//! other gateway request. The `gateway` member builds that client through
+//! its sealed `GatewayOperations` (over the one gateway engines set the
+//! process runs, shared with the gateway routes), called here with the
+//! kernel's own resolution. The brain handle is the one the `brain` member's
+//! slot build returned, started through the sealed `DynBrainConsumerStart`
+//! the member provides. An enabled brain on a node without the `gateway`
+//! member, or whose gateway configuration is disabled, fails the start rather
+//! than leaving the consumer unable to extract.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
-use systemprompt_database::DbPool;
-use systemprompt_extension::brain::{BrainModelClient, DynBrainConsumerStart};
-use systemprompt_gateway::GatewayEngines;
-use systemprompt_gateway::client::principal::{ServiceIdentity, ServicePrincipal};
-use systemprompt_gateway::client::{GatewayClient, GatewayClientParts};
-use systemprompt_governance::policy::GovernanceEngine;
-use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::{BootContext, ServicesState};
-use systemprompt_manifest::services::SystemAdmin;
-use systemprompt_models::brain::BRAIN_ACTOR;
+use systemprompt_extension::brain::DynBrainConsumerStart;
+use systemprompt_extension::router::DynGatewayOperations;
+use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as _, ConfigWatch, RunnerService};
+use systemprompt_traits::RunnerService;
 
-const BRAIN_SERVICE_EMAIL: &str = "brain@service.invalid";
+#[derive(Debug, thiserror::Error)]
+#[error("brain extraction requires the gateway member, which this node does not compose")]
+struct GatewayNotComposed;
 
 pub(super) async fn brain_consumer(
     ctx: &AppContext,
-    engines: Option<&Arc<GatewayEngines>>,
+    gateway: Option<&DynGatewayOperations>,
 ) -> Result<Option<Arc<dyn RunnerService>>> {
     let Some(start) = ctx
         .kernel()
@@ -58,56 +49,10 @@ pub(super) async fn brain_consumer(
     {
         return Ok(None);
     }
-    let model = brain_model_client(ctx, engines).await?;
+    let gateway = gateway.ok_or(GatewayNotComposed)?;
+    let model = gateway
+        .brain_model_client(&ctx.kernel().resolved())
+        .await
+        .context("brain extraction model client")?;
     Ok(start.start(model)?)
-}
-
-async fn brain_model_client(
-    ctx: &AppContext,
-    engines: Option<&Arc<GatewayEngines>>,
-) -> Result<Arc<dyn BrainModelClient>> {
-    let state = ctx.kernel().state();
-    let services = state.get::<ServicesState>()?;
-    let gateway = services
-        .config()
-        .gateway_config()
-        .filter(|gateway| gateway.enabled)
-        .cloned();
-    let (Some(gateway), Some(engines)) = (gateway, engines) else {
-        anyhow::bail!("brain extraction requires the gateway to be enabled");
-    };
-    let sessions = ctx
-        .session_provider()
-        .context("brain extraction requires a session provider")?;
-    let accounts = ctx
-        .kernel()
-        .state()
-        .get::<systemprompt_traits::DynServiceAccounts>()
-        .context("brain extraction requires the users member's service accounts")?;
-    let principal = ServicePrincipal::resolve(
-        accounts.as_ref(),
-        sessions,
-        ServiceIdentity {
-            name: ServiceName::try_new(BRAIN_ACTOR)?,
-            email: BRAIN_SERVICE_EMAIL.to_owned(),
-            created_by: state.get::<SystemAdmin>()?.id().clone(),
-        },
-    )
-    .await
-    .context("brain service principal")?;
-    let extraction = &state.get::<BootContext>()?.profile().brain.extraction;
-    let parts = GatewayClientParts {
-        config: Arc::new(gateway),
-        catalog: Arc::clone(services.catalog()),
-        db: Arc::clone(state.get::<DbPool>()?),
-        repos: Arc::new(crate::routes::gateway::gateway_repositories(ctx)?),
-        engines: Arc::clone(engines),
-        governance: state.get::<ConfigWatch<GovernanceEngine>>()?.get(),
-    };
-    let mut client = GatewayClient::builder(parts, principal)
-        .timeout(Duration::from_millis(extraction.timeout_ms));
-    if let Some(model) = &extraction.model {
-        client = client.default_model(model.clone());
-    }
-    Ok(Arc::new(client.build()))
 }

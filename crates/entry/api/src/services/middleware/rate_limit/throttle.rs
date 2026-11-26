@@ -78,6 +78,12 @@ impl SubjectThrottle {
 #[derive(Debug, Clone, Copy)]
 pub struct Throttled(Duration);
 
+impl systemprompt_extension::router::SubjectCharge for SubjectThrottle {
+    fn charge(&self, key: &str) -> Result<(), Response> {
+        Self::charge(self, key).map_err(IntoResponse::into_response)
+    }
+}
+
 impl IntoResponse for Throttled {
     fn into_response(self) -> Response {
         too_many_requests(self.0)

@@ -18,7 +18,7 @@ use crate::error::ApiHttpError;
 use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
 use systemprompt_models::BuildIdentity;
-use systemprompt_models::api::SingleResponse;
+use systemprompt_models::api::{ApiError, SingleResponse};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
@@ -26,7 +26,6 @@ use super::extension_readiness::readiness_layer;
 use super::health::handle_health;
 use super::health_detail::{diagnostics_layer, handle_health_detail};
 use super::probes::{handle_livez, handle_readyz, seed_error};
-use systemprompt_documents::discovery::DocumentsDiscovery;
 use systemprompt_manifest::profile::UiSessionDiscovery;
 
 // JSON: an outgoing probe/discovery body is an open JSON document.
@@ -39,7 +38,14 @@ pub async fn handle_root_discovery(
         .get::<Arc<Config>>()
         .map_err(seed_error)?;
     let base = &config.api_external_url;
-    let documents = DocumentsDiscovery::of_state(ctx.kernel().state(), base);
+    let documents = match super::boot_steps::documents_kernel(&ctx) {
+        Some(documents) => documents
+            .discovery(&ctx.kernel().resolved(), base)
+            .map_err(|source| {
+                ApiHttpError::from(ApiError::internal("documents discovery", source))
+            })?,
+        None => json!({ "enabled": false }),
+    };
     let data = json!({
         "name": format!("{} API", config.sitename),
         "version": env!("CARGO_PKG_VERSION"),

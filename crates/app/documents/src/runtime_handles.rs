@@ -1,11 +1,13 @@
 //! The handles a [`DocumentsRuntime`] is bound into its cell as, and
-//! [`bound_handles`], the one read of that cell from the kernel state.
+//! [`bound_handles`], the one read of that cell from the kernel state
+//! ([`resolved_handles`] reads it through a resolution).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use systemprompt_extension::prelude::Resolved;
 use systemprompt_files::documents::{
     DocumentsHandles, DocumentsHandlesSlot, DocumentsUnbound, bound,
 };
@@ -34,4 +36,11 @@ pub fn bound_handles(state: &Dependencies) -> Result<Arc<DocumentsHandles>, Docu
         .find::<DocumentsHandlesSlot>()
         .ok_or(DocumentsUnbound)?;
     bound(slot).cloned()
+}
+
+pub fn resolved_handles(r: &Resolved<'_>) -> Result<Arc<DocumentsHandles>, DocumentsUnbound> {
+    let slot = r
+        .optional::<DocumentsHandlesSlot>()
+        .ok_or(DocumentsUnbound)?;
+    bound(&slot).cloned()
 }

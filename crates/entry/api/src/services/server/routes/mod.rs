@@ -11,7 +11,8 @@
 //!
 //! `configure_routes` is the boot path's assembly and runs downstream of the
 //! core owner check `setup_api_server` makes before the gateway engines are
-//! built; the public `configure_routes_for_role` makes that check itself.
+//! built; the public `configure_routes_for_role` makes that check itself and
+//! reads the gateway operations from the kernel state.
 //!
 //! The static router is merged after the IP-ban layer is applied, so public
 //! pages and assets are served without a ban-list lookup; only the API routes
@@ -34,7 +35,7 @@ mod feature_mount {
     pub(super) fn mount_feature_routes(
         router: axum::Router,
         _mount: &super::protocol::MountCtx<'_>,
-        _managed_consumer: Option<systemprompt_gateway::surface::ManagedConsumer>,
+        _consumer_catalog: Option<systemprompt_extension::router::DynConsumerCatalog>,
     ) -> Result<axum::Router, super::RouteMountError> {
         Ok(router)
     }
@@ -57,7 +58,7 @@ pub(super) use error::RouteMountError;
 pub(crate) use oauth_mount::identity_bridge_auth;
 use protocol::MountCtx;
 pub use protocol::{Composed, WEBHOOK_RATE};
-use systemprompt_gateway::GatewayEngines;
+use systemprompt_extension::router::DynGatewayOperations;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{DynIpBanStore, StartupEventSender};
 
@@ -74,14 +75,14 @@ pub(super) fn configure_routes(
     ctx: &AppContext,
     composed: Composed<'_>,
     events: Option<&StartupEventSender>,
-    engines: Option<&Arc<GatewayEngines>>,
+    gateway: Option<&DynGatewayOperations>,
 ) -> Result<Router, RouteMountError> {
     let role = ctx
         .kernel()
         .state()
         .get::<Arc<systemprompt_manifest::Config>>()?
         .role;
-    build_routes(ctx, composed, role, events, engines)
+    build_routes(ctx, composed, role, events, gateway)
 }
 
 pub fn configure_routes_for_role(
@@ -89,9 +90,9 @@ pub fn configure_routes_for_role(
     composed: Composed<'_>,
     role: NodeRole,
     events: Option<&StartupEventSender>,
-    engines: &Arc<GatewayEngines>,
 ) -> anyhow::Result<Router> {
-    Ok(build_routes(ctx, composed, role, events, Some(engines))?)
+    let gateway = crate::routes::gateway::gateway_operations(composed.kernel);
+    Ok(build_routes(ctx, composed, role, events, gateway.as_ref())?)
 }
 
 fn install_metrics(ctx: &AppContext, composed: &Composed<'_>) -> Result<(), RouteMountError> {
@@ -115,7 +116,7 @@ fn build_routes(
     composed: Composed<'_>,
     role: NodeRole,
     events: Option<&StartupEventSender>,
-    engines: Option<&Arc<GatewayEngines>>,
+    gateway: Option<&DynGatewayOperations>,
 ) -> Result<Router, RouteMountError> {
     let groups = role::route_groups(role);
     let serves = |group: RouteGroup| groups.contains(&group);
@@ -175,8 +176,8 @@ fn build_routes(
     if serves(RouteGroup::InternalLinks) {
         router = documents::mount_internal_links(router, &mount)?;
     }
-    let gateway_on = serves(RouteGroup::Gateway) && engines.is_some();
-    router = gateway::mount_with_features(router, &mount, gateway_on, identity_bridge_auth)?;
+    let gateway = gateway.filter(|_| serves(RouteGroup::Gateway));
+    router = gateway::mount_with_features(router, &mount, gateway, identity_bridge_auth)?;
     crate::services::agent_dispatch::bind_dispatchers(ctx)
         .map_err(|source| RouteMountError::initialization("messaging_dispatcher", source))?;
     router = extension_mount::mount_extension_routes(router, &mount, &refresh_lock, events)?;

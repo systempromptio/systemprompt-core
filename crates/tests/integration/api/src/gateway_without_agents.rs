@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::http::{Method, Request, header};
 use systemprompt::{CompositionError, reference};
-use systemprompt_api::routes::gateway::{gateway_router, host_handles};
+use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_admitted, fixture_app_context_with_extensions, fixture_config,
@@ -50,7 +50,7 @@ fn repositories(
     Ok(
         systemprompt_gateway::surface::repositories::gateway_repositories(
             &ctx.kernel().resolved(),
-            &host_handles(ctx)?,
+            &systemprompt_gateway::GatewayHostHandles::resolve(&ctx.kernel().resolved())?,
             ctx.kernel().resolved().optional::<DynContextMaterializer>(),
             ctx.kernel()
                 .state()

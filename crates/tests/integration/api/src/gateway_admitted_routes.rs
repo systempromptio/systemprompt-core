@@ -236,7 +236,11 @@ async fn the_engines_run_the_admitted_guard_probe() -> anyhow::Result<()> {
     let _ctx = context().await?;
     let composed = composition(false, vec![guard_probe()]);
 
-    let engines = systemprompt_api::routes::gateway::gateway_engines(&composed.kernel)
+    let engines = composed
+        .kernel
+        .state()
+        .find::<std::sync::Arc<systemprompt_gateway::GatewayEngines>>()
+        .cloned()
         .expect("the gateway member provides its engines");
 
     let owners: Vec<&str> = engines
@@ -254,7 +258,11 @@ async fn with_no_guard_probe_the_engines_run_no_guard() -> anyhow::Result<()> {
     let _ctx = context().await?;
     let composed = composition(false, Vec::new());
 
-    let engines = systemprompt_api::routes::gateway::gateway_engines(&composed.kernel)
+    let engines = composed
+        .kernel
+        .state()
+        .find::<std::sync::Arc<systemprompt_gateway::GatewayEngines>>()
+        .cloned()
         .expect("the gateway member provides its engines");
 
     assert!(engines.guards.is_empty());

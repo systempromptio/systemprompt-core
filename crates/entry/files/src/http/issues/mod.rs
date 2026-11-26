@@ -29,7 +29,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 
 use crate::http::error::ApiHttpError;
-use systemprompt_documents::http::surface::{FilesRouteState, FilesSurfaceError};
+use systemprompt_extension::router::{FilesRouteState, FilesSurfaceError};
 
 use crate::http::{FilesHttpSettings, files_handles};
 

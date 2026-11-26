@@ -1,7 +1,9 @@
 //! The kernel's own resolution steps over the admitted members: the
 //! reservation of the types only the kernel inserts, the refusal of a
 //! core-only type (the token revocation store, `oauth` alone; the Git source
-//! sync issuer, `managed_resources` alone) provided by any other member, the
+//! sync issuer, `managed_resources` alone; the gateway operations, `gateway`
+//! alone; the documents kernel work, `documents` alone: the API calls both
+//! with the kernel's own resolution) provided by any other member, the
 //! refusal of a provided conferral issuer the kernel seeds, the refusal of a
 //! conferred provide its reserved row does not name, and the gateway guard
 //! set it builds.
@@ -21,6 +23,7 @@ use systemprompt_extension::{
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::PolicyCatalog;
 
+use systemprompt_extension::router::{DynDocumentsKernel, DynGatewayOperations};
 use systemprompt_models::auth::DynTokenRevocations;
 
 use super::KernelError;
@@ -66,9 +69,11 @@ pub(super) fn refuse_kernel_types(built: &BuiltState) -> Result<(), KernelError>
     Ok(())
 }
 
-const fn core_only_provides() -> [(TypeId, &'static str); 2] {
+const fn core_only_provides() -> [(TypeId, &'static str); 4] {
     [
         (TypeId::of::<DynTokenRevocations>(), "oauth"),
+        (TypeId::of::<DynGatewayOperations>(), "gateway"),
+        (TypeId::of::<DynDocumentsKernel>(), "documents"),
         (
             InstallConferral::GitSourceSync.issuer_type_id(),
             InstallConferral::GitSourceSync.provider(),

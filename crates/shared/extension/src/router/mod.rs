@@ -26,7 +26,11 @@ mod body;
 mod capability;
 #[cfg(feature = "router")]
 mod fallback;
+#[cfg(feature = "router")]
+mod files_surface;
 mod gateway_def;
+#[cfg(feature = "router")]
+mod gateway_surface;
 #[cfg(feature = "router")]
 mod http_error;
 #[cfg(feature = "router")]
@@ -56,7 +60,18 @@ pub use body::{BodyReadError, read_body_bounded, read_request_bounded};
 pub use capability::{IntoApiError, capability_response};
 #[cfg(feature = "router")]
 pub use fallback::SiteFallback;
+#[cfg(feature = "router")]
+pub use files_surface::{
+    ClientIpResolver, DocumentRoutes, DocumentsKernel, DriveSurface, DynDocumentsKernel,
+    DynDriveSurface, DynFilesSurface, DynSubjectCharge, FilesHostHandles, FilesRouteState,
+    FilesRoutes, FilesSurface, FilesSurfaceError, SubjectCharge, TokenGate, TokenGatedRoutes,
+};
 pub use gateway_def::{GatewayDefRefusal, refused_gateway_def};
+#[cfg(feature = "router")]
+pub use gateway_surface::{
+    DynGatewayOperations, DynGatewaySurface, GatewayOperations, GatewayOperationsError,
+    GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
+};
 #[cfg(feature = "router")]
 pub use http_error::{ApiHttpError, unreadable_body};
 #[cfg(feature = "router")]

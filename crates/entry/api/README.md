@@ -48,7 +48,7 @@ src/
 | `agent` | A2A protocol — artifacts, contexts, tasks, registry, webhook broadcasts, notifications. |
 | `analytics` | Event ingestion, batch processing, and SSE streaming. |
 | `engagement` | Engagement metrics fan-out from analytics events. |
-| `gateway` | HTTP surface of the AI gateway: bridge auth/data/heartbeat/manifest/profile-usage/whoami, message dispatch into `systemprompt-gateway`, OTLP ingest. |
+| `gateway` | Layering around the `gateway-http` surface (built-in prefix confinement, rate scopes, the gateway credential verifier); the handlers, the access log and the gateway boot work belong to the gateway members, reached through `systemprompt_extension::router`. |
 | `marketplace` | Marketplace catalog and asset endpoints. |
 | `mcp` | MCP server registry. |
 | `messaging` | Platform-agnostic inbound dispatch shared by chat platforms: identity, per-user A2A token minting, blocking `message/send` through the proxy, reply extraction. |
@@ -111,13 +111,10 @@ The API server is configured through `systemprompt-runtime::Config` and the acti
 - `systemprompt-analytics` — the bot-pattern match the request-analytics middleware uses
 - `systemprompt-scheduler` — background job execution
 - `systemprompt-marketplace` — marketplace catalog
-- `systemprompt-gateway` — AI gateway services: protocol translation, policies, quotas, safety, audit
-- `systemprompt-ai` — AI request repositories and providers
 - `systemprompt-database` — connection pooling
 - `systemprompt-security` — token extraction and validation
 - `systemprompt-users` — user services and IP banning
 - `systemprompt-events` — event broadcasting
-- `systemprompt-files` — file system configuration
 - `systemprompt-extension` — extension loading and routing
 - `systemprompt-config`, `systemprompt-loader`, `systemprompt-logging`, `systemprompt-models`, `systemprompt-identifiers`, `systemprompt-traits`
 

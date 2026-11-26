@@ -4,7 +4,7 @@
 //! `/api/v1/documents`,
 //! `/api/v1/document-folders`, `/api/v1/uploads`, the anonymous public-link
 //! open `/s/{token}` and `/api/v1/issues`; and as the
-//! [`DriveSurface`](systemprompt_documents::http::surface::DriveSurface)
+//! [`DriveSurface`](systemprompt_extension::router::DriveSurface)
 //! ([`drive::FilesDriveSurface`]) the bridge Drive feed the API mounts under
 //! the gateway.
 //!
@@ -27,7 +27,7 @@ mod user_content;
 
 use std::sync::Arc;
 
-use systemprompt_documents::http::surface::{
+use systemprompt_extension::router::{
     DocumentRoutes, FilesRouteState, FilesRoutes, FilesSurface, FilesSurfaceError, TokenGatedRoutes,
 };
 use systemprompt_files::documents::{DocumentsHandles, DocumentsHandlesSlot, bound};
@@ -101,5 +101,7 @@ pub(crate) fn files_handles(
     state: &FilesRouteState<'_>,
 ) -> Result<Arc<DocumentsHandles>, FilesSurfaceError> {
     let slot = state.resolved.get::<DocumentsHandlesSlot>()?;
-    Ok(Arc::clone(bound(&slot)?))
+    Ok(Arc::clone(
+        bound(&slot).map_err(|_unbound| FilesSurfaceError::Unbound)?,
+    ))
 }
