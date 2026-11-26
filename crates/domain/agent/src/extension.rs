@@ -103,12 +103,12 @@ impl Extension for AgentExtension {
                 )))
             },
         );
-        contribute_ownership(c);
+        contribute_user_lifecycle(c);
         Ok(())
     }
 }
 
-fn contribute_ownership(c: &mut Contributions<'_>) {
+fn contribute_user_lifecycle(c: &mut Contributions<'_>) {
     c.user_purge(UserPurgeTable {
         table: "agent_tasks",
         column: "user_id",

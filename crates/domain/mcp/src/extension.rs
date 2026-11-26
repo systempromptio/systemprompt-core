@@ -15,13 +15,13 @@
 //! governance), and, once governance has loaded, the per-server tool executions
 //! (`DynToolExecutions`, open: an execution re-verifies the caller's hop token
 //! and records usage only for the context that token vouches for, and reads no
-//! secret) and the tool provider the ai
-//! member's inference path reads (`Arc<dyn ToolProvider>`, **sealed**: it calls
-//! servers with the connector-token cache and the secret lookup; provided
-//! before governance so the ai member's after-governance inference provide sees
-//! it whatever the composition order). It opens the [`UiSlot`] and the
-//! extension contract's [`AccessRecorderSlot`], so both built values are
-//! present whenever this member is admitted.
+//! secret) and the tool provider the ai member's inference path reads
+//! (`Arc<dyn ToolProvider>`, **sealed**: it calls servers with the
+//! connector-token cache and the secret lookup; provided before governance so
+//! the ai member's after-governance inference provide sees it whatever the
+//! composition order). It opens the [`UiSlot`] and the extension contract's
+//! [`AccessRecorderSlot`], so both built values are present whenever this
+//! member is admitted.
 //!
 //! It owns the schema objects that cannot exist without its tables: the
 //! `tool_usage_rollup_hourly` rollup (its triggers sit on

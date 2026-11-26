@@ -33,7 +33,7 @@ WHERE NOT EXISTS (
 CREATE OR REPLACE VIEW report_user_contexts AS
 SELECT
     src.context_id, src.user_id, src.session_id, src.name, src.kind,
-    src.created_at, src.updated_at
+    src.created_at, src.updated_at, src.task_count, src.message_count
 FROM user_contexts src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
@@ -64,7 +64,7 @@ SELECT
     src.traffic, src.request_count, src.last_activity
 FROM report_ai_context_hourly src;
 
-CREATE OR REPLACE VIEW report_agent_tool_executions AS
+CREATE OR REPLACE VIEW report_agent_tool_usage_hourly AS
 SELECT
-    src.mcp_execution_id, src.tool_name, src.task_id, src.created_at
-FROM report_mcp_tool_executions src;
+    src.bucket, src.tool_name, src.agent_name, src.execution_count
+FROM report_tool_usage_hourly src;

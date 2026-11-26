@@ -55,6 +55,7 @@ fn the_ai_member_declares_its_tables_in_order() {
             "ai_task_agents",
             "ai_usage_rollup_hourly",
             "ai_context_rollup_hourly",
+            "ai_gateway_session_rollup_hourly",
             "user_provider_credentials",
             "ai_catalog_legacy_map",
         ]
@@ -96,9 +97,13 @@ fn the_ai_rollups_are_bound_to_the_kernel_backfill_drainer() {
         .collect();
     assert_eq!(
         projections,
-        ["ai_usage_rollup_hourly", "ai_context_rollup_hourly"]
+        [
+            "ai_usage_rollup_hourly",
+            "ai_context_rollup_hourly",
+            "ai_gateway_session_rollup_hourly"
+        ]
     );
-    assert_eq!(sink.projections().len(), 2);
+    assert_eq!(sink.projections().len(), 3);
 }
 
 #[test]

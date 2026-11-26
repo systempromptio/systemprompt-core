@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                pv.endpoint as \"endpoint!\",\n                COUNT(DISTINCT CASE WHEN pv.person THEN pv.user_id END)::bigint as \"viewers!\"\n            FROM report_page_view_hourly pv\n            WHERE pv.event_category = 'content'\n                AND left(pv.endpoint, length($1)) = $1\n                AND pv.bucket >= date_trunc(\n                    'hour', CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL, 'UTC')\n            GROUP BY pv.endpoint\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "endpoint!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_page_view_hourly",
+            "name": "endpoint"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "viewers!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "40ab86598f03e71b61e3cf04f0aec7332e7409473d7e609201f395cffde18d99"
+}

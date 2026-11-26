@@ -4,5 +4,3 @@ src/repository/ai_requests/queries.rs#5af296e7d6
 src/repository/ai_requests/queries.rs#e0b1df6373
 # owner: domain/ai; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/ai_requests/trace.rs#ecf42d4434
-# owner: domain/ai; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
-src/repository/usage_report/requests.rs#6cd44d8319

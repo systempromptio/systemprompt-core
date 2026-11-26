@@ -1,6 +1,7 @@
 //! Content audience aggregates over the analytics-owned engagement and event
-//! views: per-content view totals, window statistics, the daily series and
-//! the distinct human viewers per content endpoint. Content metadata is the
+//! views: per-content view totals and the distinct human viewers per content
+//! endpoint (both from the hourly content audience rollups), window
+//! statistics and the daily series. Content metadata is the
 //! content member's and is joined by the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -51,16 +52,15 @@ impl ContentAudienceRepository {
         let rows = sqlx::query!(
             r#"
             SELECT
-                ee.content_id as "content_id!: ContentId",
-                COUNT(*)::bigint as "total_views!",
-                COUNT(DISTINCT ee.session_id)::bigint as "unique_visitors!",
-                (AVG(LEAST(ee.time_on_page_ms, 1800000)) / 1000.0)::float8 as "avg_time_on_page_seconds"
-            FROM engagement_events ee
-            INNER JOIN report_clean_traffic us ON ee.session_id = us.session_id
-            WHERE ee.created_at >= $1 AND ee.created_at < $2
-                AND ee.content_id IS NOT NULL
-            GROUP BY ee.content_id
-            ORDER BY COUNT(*) DESC
+                ce.content_id as "content_id!: ContentId",
+                SUM(ce.views)::bigint as "total_views!",
+                COUNT(DISTINCT ce.session_id)::bigint as "unique_visitors!",
+                (SUM(ce.time_on_page_sum_ms)::float8 / NULLIF(SUM(ce.views), 0) / 1000.0)::float8
+                    as "avg_time_on_page_seconds"
+            FROM report_content_engagement_hourly ce
+            WHERE ce.bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND ce.bucket < $2
+            GROUP BY ce.content_id
+            ORDER BY SUM(ce.views) DESC
             LIMIT $3
             "#,
             start,
@@ -157,24 +157,17 @@ impl ContentAudienceCounts for ContentAudienceRepository {
         endpoint_prefix: &str,
         days: i32,
     ) -> std::result::Result<Vec<EndpointViewers>, RepositoryError> {
-        // Why: `users` carries only `is_bot` and `is_scanner`; this is a
-        // user-level filter, not the session predicate `is_human_traffic`
-        // states over the crawler and behavioural flags.
         let rows = sqlx::query!(
             r#"
             SELECT
-                ae.endpoint as "endpoint!",
-                COUNT(DISTINCT CASE
-                    WHEN u.id IS NOT NULL AND u.is_bot = FALSE AND u.is_scanner = FALSE
-                    THEN ae.user_id
-                END)::bigint as "viewers!"
-            FROM report_analytics_events ae
-            LEFT JOIN report_users u ON ae.user_id = u.id
-            WHERE ae.event_type = 'page_view'
-                AND ae.event_category = 'content'
-                AND left(ae.endpoint, length($1)) = $1
-                AND ae.timestamp >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL
-            GROUP BY ae.endpoint
+                pv.endpoint as "endpoint!",
+                COUNT(DISTINCT CASE WHEN pv.person THEN pv.user_id END)::bigint as "viewers!"
+            FROM report_page_view_hourly pv
+            WHERE pv.event_category = 'content'
+                AND left(pv.endpoint, length($1)) = $1
+                AND pv.bucket >= date_trunc(
+                    'hour', CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL, 'UTC')
+            GROUP BY pv.endpoint
             "#,
             endpoint_prefix,
             days.to_string()

@@ -92,11 +92,12 @@ fn content_validator_no_dependencies() {
 }
 
 #[test]
-fn content_validator_validate_succeeds_when_not_loaded_with_no_content() {
+fn content_validator_reports_a_missing_config_as_an_error() {
     let validator = ContentConfigValidator::new();
-    let result = validator.validate();
-    let report = result.expect("validate ok with no content");
-    assert!(!report.has_errors());
+    let report = validator
+        .validate()
+        .expect("a missing config is reported, not raised");
+    assert!(report.has_errors(), "{report:?}");
 }
 
 #[test]

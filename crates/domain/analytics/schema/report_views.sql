@@ -130,6 +130,24 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
+CREATE OR REPLACE VIEW report_content_engagement_hourly AS
+SELECT src.bucket, src.content_id, src.session_id, src.views, src.time_on_page_sum_ms
+FROM content_engagement_rollup_hourly src
+JOIN report_clean_traffic c ON c.session_id = src.session_id;
+
+-- `person` is a user-level filter: `users` carries only `is_bot` and
+-- `is_scanner`, not the session predicate `is_human_traffic` states over the
+-- crawler and behavioural flags.
+CREATE OR REPLACE VIEW report_page_view_hourly AS
+SELECT
+    src.bucket, src.user_id, src.endpoint, src.event_category, src.views,
+    COALESCE(u.is_bot = FALSE AND u.is_scanner = FALSE, FALSE) AS person
+FROM analytics_page_view_rollup_hourly src
+LEFT JOIN users u ON u.id = src.user_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
+);
+
 CREATE OR REPLACE VIEW report_governance_decisions AS
 SELECT
     src.id, src.user_id, src.session_id, src.tool_name, src.agent_id,

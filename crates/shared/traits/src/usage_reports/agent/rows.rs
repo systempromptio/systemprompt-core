@@ -109,25 +109,22 @@ pub struct RecentContextRow {
     pub context_name: Option<String>,
 }
 
-/// Who made a tool call: an agent's task, a task no agent is recorded for,
-/// or a call outside any task.
+/// Who made a tool call: an agent's task, or a call no agent is recorded
+/// for (outside any task, or in a task whose agent is not recorded).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(into = "String")]
 pub enum ToolCaller {
     Agent(AgentName),
-    DirectCall,
-    UnlinkedTask,
+    Unattributed,
 }
 
 impl ToolCaller {
-    pub const DIRECT_CALL_LABEL: &'static str = "Direct Call";
-    pub const UNLINKED_TASK_LABEL: &'static str = "Unlinked Task";
+    pub const UNATTRIBUTED_LABEL: &'static str = "Unattributed";
 
     pub fn as_str(&self) -> &str {
         match self {
             Self::Agent(name) => name.as_str(),
-            Self::DirectCall => Self::DIRECT_CALL_LABEL,
-            Self::UnlinkedTask => Self::UNLINKED_TASK_LABEL,
+            Self::Unattributed => Self::UNATTRIBUTED_LABEL,
         }
     }
 }

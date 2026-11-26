@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                ar.session_id as \"session_id!: SessionId\",\n                MIN(ar.user_id) as \"user_id!: UserId\",\n                COALESCE(SUM(ar.message_count), 0)::bigint as \"message_count!\",\n                MIN(ar.created_at) as \"created_at!\",\n                MAX(ar.created_at) as \"updated_at!\"\n            FROM report_ai_requests ar\n            WHERE ar.task_id IS NULL\n              AND ar.session_id IS NOT NULL\n              AND ar.created_at >= $1 AND ar.created_at < $2\n              AND ($4::text IS NULL OR ar.user_id = $4)\n            GROUP BY ar.session_id\n            ORDER BY MAX(ar.created_at) DESC\n            LIMIT $3\n            ",
+  "query": "\n            SELECT\n                gs.session_id as \"session_id!: SessionId\",\n                MIN(gs.user_id) as \"user_id!: UserId\",\n                COALESCE(SUM(gs.message_count), 0)::bigint as \"message_count!\",\n                MIN(gs.first_at) as \"created_at!\",\n                MAX(gs.last_at) as \"updated_at!\"\n            FROM report_ai_gateway_session_hourly gs\n            WHERE gs.bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND gs.bucket < $2\n              AND ($4::text IS NULL OR gs.user_id = $4)\n            GROUP BY gs.session_id\n            ORDER BY MAX(gs.last_at) DESC\n            LIMIT $3\n            ",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Varchar",
         "origin": {
           "Table": {
-            "table": "report_ai_requests",
+            "table": "report_ai_gateway_session_hourly",
             "name": "session_id"
           }
         }
@@ -55,5 +55,5 @@
       null
     ]
   },
-  "hash": "f5f404864e1b995a5aaffcd70497fb738a29cdfa4010b60456917246818293a0"
+  "hash": "59091bbad382fb8397927c745898834472558c0605fbf4c91d3398e2353c535d"
 }

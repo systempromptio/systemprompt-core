@@ -23,11 +23,7 @@
 //! it returns, so a node that terminates in order leaves its journal empty;
 //! the drain's background grace bounds that pass. Settlement and the orphan
 //! sweep write `ai_requests`, which the `ai` member owns, so recovery runs
-//! only when [`recovery_admitted`] finds that member admitted. Settlement and
-//! the orphan sweep write `ai_requests`, which the `ai` member owns, so the
-//! host runs recovery only when [`recovery_admitted`] finds that member
-//! admitted.
-//!
+//! only when [`recovery_admitted`] finds that member admitted.//!
 //! Every pass publishes `gateway_journal_receipts` (receipts still held) and
 //! counts `gateway_journal_settle_failures_total` (receipts retained because
 //! settlement failed), `gateway_journal_recovery_failures_total` (passes that

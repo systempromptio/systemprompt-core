@@ -96,6 +96,8 @@ fn the_content_member_provides_the_catalog_and_the_repositories() {
             TypeId::of::<DynContentCatalogStats>(),
             TypeId::of::<Arc<ContentRepositories>>(),
             TypeId::of::<systemprompt_extension::content_files::DynContentFileLinks>(),
+            TypeId::of::<systemprompt_traits::usage_reports::content::DynContentAudienceReport>(),
+            TypeId::of::<systemprompt_traits::DynContentPopularity>(),
         ]
     );
 }
