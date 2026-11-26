@@ -10,6 +10,9 @@
 mod composition;
 
 #[cfg(test)]
+mod composition_schemas;
+
+#[cfg(test)]
 mod schema_migration_order;
 
 #[cfg(test)]
