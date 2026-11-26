@@ -9,10 +9,11 @@ name: Build report
 # slow or failed report never changes the conclusion of a gate run that
 # release-proof.py reads.
 #
-# One job builds the compositions in sequence rather than a matrix: they share
-# most of the dependency graph, so sequential builds reuse one sccache and one
-# registry download, and the script removes each composition's target dir once
-# measured, so the runner's disk holds one release build at a time.
+# Each composition and each unit is measured by a job of its own (a matrix
+# from `build-report.sh --list`), so no job runs for more than one line's
+# build; the jobs share one sccache, and a summary job renders the report from
+# their JSON sidecars with `--merge`. The test loop builds the migrate tool and
+# the subprocess binary once and hands them to every unit job as an artifact.
 
 on:
   workflow_dispatch:
@@ -55,10 +56,31 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
-  build-report:
-    name: Build report
+  plan:
+    name: Build report plan
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 10
+    outputs:
+      compositions: ${{ steps.list.outputs.compositions }}
+      units: ${{ steps.list.outputs.units }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: list
+        run: |
+          echo "compositions=$(bash scripts/build-report.sh --list)" >> "$GITHUB_OUTPUT"
+          echo "units=$(bash scripts/build-report.sh --units --list)" >> "$GITHUB_OUTPUT"
+
+  build-report:
+    name: Build report (${{ matrix.composition }})
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        composition: ${{ fromJSON(needs.plan.outputs.compositions) }}
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
@@ -68,7 +90,6 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - run: rustup show
       - name: Install system dependencies
-        if: ${{ !inputs.closure_only }}
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - uses: ./.github/actions/sccache
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
@@ -79,7 +100,37 @@ jobs:
         run: |
           mode=(--dev-loop)
           [ "${{ inputs.closure_only }}" = true ] && mode=(--closure-only)
-          bash scripts/build-report.sh "${mode[@]}" target/build-report/report.md
+          bash scripts/build-report.sh "${mode[@]}" --only "${{ matrix.composition }}" "target/build-report/part/${{ matrix.composition }}.md"
+          [ -f target/build-report/bloat.json ] && cp target/build-report/bloat.json target/build-report/part/ || true
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-report-part-${{ matrix.composition }}
+          path: |
+            target/build-report/part/*.json
+            target/build-report/cargo-timing.html
+          if-no-files-found: warn
+
+  build-report-summary:
+    name: Build report
+    needs: build-report
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: build-report-part-*
+          path: target/build-report/parts
+          merge-multiple: true
+      - name: Merge the report
+        run: |
+          mode=(--dev-loop)
+          [ "${{ inputs.closure_only }}" = true ] && mode=(--closure-only)
+          bash scripts/build-report.sh "${mode[@]}" --merge target/build-report/parts target/build-report/report.md
       - if: always()
         run: cat target/build-report/report.md >> "$GITHUB_STEP_SUMMARY" || true
       - if: always()
@@ -89,15 +140,49 @@ jobs:
           path: |
             target/build-report/report.md
             target/build-report/report.json
-            target/build-report/cargo-timing.html
-            target/build-report/bloat.json
+            target/build-report/parts/cargo-timing.html
+            target/build-report/parts/bloat.json
           if-no-files-found: warn
 
-  test-loop:
-    name: Test loop report
+  test-loop-tools:
+    name: Test loop tools
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 60
     if: ${{ !inputs.closure_only }}
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - run: rustup show
+      - name: Install system dependencies
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
+      - uses: ./.github/actions/sccache
+      - name: Build the migrate tool and the systemprompt binary the subprocess tests spawn
+        run: |
+          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
+          cargo build -p systemprompt --bin systemprompt --features reference --locked
+          mkdir -p target/test-loop-tools
+          cp "$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)/debug/systemprompt-test-migrate" target/test-loop-tools/
+          cp "$(cargo metadata --no-deps --format-version 1 | jq -r .target_directory)/debug/systemprompt" target/test-loop-tools/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-loop-tools
+          path: target/test-loop-tools/
+          retention-days: 1
+
+  test-loop:
+    name: Test loop report (${{ matrix.unit }})
+    needs: [plan, test-loop-tools]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: ${{ !inputs.closure_only }}
+    strategy:
+      fail-fast: false
+      matrix:
+        unit: ${{ fromJSON(needs.plan.outputs.units) }}
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
@@ -126,19 +211,44 @@ jobs:
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: cargo-nextest@0.9.146
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: test-loop-tools
+          path: target/test-loop-tools
       - name: Migrate the test database
         run: |
-          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
-          tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
-          "$tests_target/debug/systemprompt-test-migrate"
-      - name: Build the systemprompt binary the subprocess tests spawn
-        run: |
-          cargo build -p systemprompt --bin systemprompt --features reference --locked
-          echo "SYSTEMPROMPT_BIN=$(cargo metadata --no-deps --format-version 1 | jq -r .target_directory)/debug/systemprompt" >> "$GITHUB_ENV"
+          chmod +x target/test-loop-tools/*
+          target/test-loop-tools/systemprompt-test-migrate
+          echo "SYSTEMPROMPT_BIN=$PWD/target/test-loop-tools/systemprompt" >> "$GITHUB_ENV"
       - name: Test loop report
         env:
           NEXTEST_PROFILE: ci
-        run: bash scripts/build-report.sh --units target/build-report/units.md
+          UNIT: ${{ matrix.unit }}
+        run: bash scripts/build-report.sh --units --only "$UNIT" "target/build-report/part/${UNIT//:/-}.md"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-report-units-part-${{ strategy.job-index }}
+          path: target/build-report/part/*.json
+          if-no-files-found: warn
+
+  test-loop-summary:
+    name: Test loop report
+    needs: test-loop
+    if: ${{ always() && !inputs.closure_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: build-report-units-part-*
+          path: target/build-report/units-parts
+          merge-multiple: true
+      - name: Merge the report
+        run: bash scripts/build-report.sh --units --merge target/build-report/units-parts target/build-report/units.md
       - if: always()
         run: cat target/build-report/units.md >> "$GITHUB_STEP_SUMMARY" || true
       - if: always()
